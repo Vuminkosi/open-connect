@@ -1,0 +1,34 @@
+---
+title: First Application
+description: Minimal working host that registers OpenConnect.
+---
+
+import ConfigExample from '../../../components/ConfigExample.astro';
+
+Register OpenConnect in your host with one call. Privacy firewall is enabled by default.
+
+```csharp
+using OpenConnect.Core;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenConnect(options =>
+{
+    options.Privacy.Enabled = true; // default-on
+});
+
+var app = builder.Build();
+app.Run();
+```
+
+<ConfigExample
+  title="What this gives you"
+  language="csharp"
+  code={`// Verified at SITE-001 baseline (src/OpenConnect.Core):
+// - OpenConnectOptions with Agents registry options
+// - IValidateOptions<OpenConnectOptions> validated on start
+// - PrivacyWarningConfiguration post-configuration`}
+  caption="Grounded in src/OpenConnect.Core/ServiceCollectionExtensions.cs and Options.cs."
+/>
+
+Next: [Configuration Basics](/docs/getting-started/configuration-basics/).

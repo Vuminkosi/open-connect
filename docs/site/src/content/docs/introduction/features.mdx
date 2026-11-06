@@ -1,0 +1,22 @@
+---
+title: Features
+description: Verified framework capabilities and their availability status.
+---
+
+import StatusPill from '../../../components/StatusPill.astro';
+
+Documented here only: behavior verified in this repository at the SITE-001 baseline. Anything else is marked planned.
+
+| Capability | Status | Location |
+| --- | --- | --- |
+| DI registration (`AddOpenConnect`) with startup validation | <StatusPill status="available" /> | `src/OpenConnect.Core` |
+| Strongly typed options (`OpenConnectOptions`, `AgentRegistryOptions`) | <StatusPill status="available" /> | `src/OpenConnect.Core/Options.cs` |
+| Privacy firewall (`IPrivacyFirewall`, `PrivacyFirewall`) | <StatusPill status="available" /> | `src/OpenConnect.Privacy` |
+| Egress gate (`IEgressGate`, `EgressGate`) | <StatusPill status="available" /> | `src/OpenConnect.Privacy/Gates` |
+| Agents package (MAF adapters, lifecycle) | <StatusPill status="available" /> | `src/OpenConnect.Agents` |
+| .NET client (`AddOpenConnectClient`) | <StatusPill status="available" /> | `src/OpenConnect.Client` |
+| Blazor components | <StatusPill status="available" /> | `src/OpenConnect.Components.Blazor` |
+| Transport (NATS JetStream) | <StatusPill status="available" /> | `src/OpenConnect.Transport.Nats` |
+| Persistence (PostgreSQL, EF Core) | <StatusPill status="available" /> | `src/OpenConnect.Persistence.Postgres` |
+| Docs assistant / retrieval grounding | <StatusPill status="planned" /> | Phase 4 |
+| Generated DocFX / OpenAPI reference pages | <StatusPill status="planned" /> | Phase 3 |

@@ -1,0 +1,17 @@
+---
+title: Configuration Basics
+description: Strongly typed options, environment handling, and startup validation.
+---
+
+All configurable backend behavior uses strongly typed .NET options. Prefer enums for closed configuration domains; validate on startup.
+
+```csharp
+services.AddOptions<OpenConnectOptions>()
+    .ValidateOnStart();
+```
+
+Rules:
+
+- Privacy mode defaults to strict-local; failures deny egress (fail closed).
+- Frontend configuration must never contain credentials.
+- Each detector (`Rules`, `GlinerPii`, `DebertaInjection`, `Qwen3Guard`, `PaddleOcr`, `YuNet`) is independently configurable; disabled means no model load, no download, no capability advertisement.

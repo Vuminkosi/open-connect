@@ -1,0 +1,9 @@
+---
+title: Interactive Agents
+description: Session model for user-initiated agent conversations.
+---
+
+- One session per user; conversation identifiers tracked server-side.
+- Context limits, expiration policies, and request cancellation honored.
+- Streaming only where the gateway supports it; stateless fallback when persistence is disabled.
+- All model access passes through firewall + egress gate + routing policies (budgets, timeouts, fallback).

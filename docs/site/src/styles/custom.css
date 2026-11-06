@@ -1,0 +1,60 @@
+/* OpenConnect docs theme tokens (SITE-001).
+   Starlight base + ATLAS semantic tokens. Light + dark via Starlight's
+   [data-theme] attribute. No decorative gradients. */
+:root {
+	--oc-brand: #4f46e5;
+	--oc-brand-hover: #4338ca;
+	--oc-success: #168568;
+	--oc-warning: #d97706;
+	--oc-danger: #dc3545;
+	--oc-info: #0284c7;
+
+	/* Starlight accent overrides (light). */
+	--sl-color-accent-low: #eef0fe;
+	--sl-color-accent: var(--oc-brand);
+	--sl-color-accent-high: var(--oc-brand-hover);
+	--sl-color-white: #fff;
+	--sl-color-text-accent: var(--oc-brand-hover);
+}
+
+:root[data-theme='dark'] {
+	--oc-brand: #6366f1;
+	--oc-brand-hover: #818cf8;
+	--oc-success: #42d6a4;
+	--oc-danger: #fb7185;
+	--sl-color-accent-low: #232946;
+	--sl-color-accent: var(--oc-brand);
+	--sl-color-accent-high: var(--oc-brand-hover);
+	--sl-color-text-accent: #a5b4fc;
+}
+
+/* Compact-first content density; keep Starlight structure intact. */
+.sl-markdown-content .oc-lead {
+	font-size: 1.0625rem;
+	line-height: 1.6;
+}
+
+/* Mermaid progressive enhancement: readable source fallback by default. */
+.oc-mermaid pre[data-mermaid-source] {
+	white-space: pre-wrap;
+}
+
+/* Status pill for planned vs available capabilities. */
+.oc-status {
+	display: inline-block;
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.4;
+	padding: 0.125rem 0.5rem;
+	border-radius: 999px;
+	border: 1px solid var(--sl-color-gray-5, #cbd5e1);
+	vertical-align: middle;
+}
+.oc-status--available {
+	color: var(--oc-success);
+	border-color: var(--oc-success);
+}
+.oc-status--planned {
+	color: var(--oc-warning);
+	border-color: var(--oc-warning);
+}

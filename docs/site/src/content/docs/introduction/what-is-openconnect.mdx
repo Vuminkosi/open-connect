@@ -1,0 +1,29 @@
+---
+title: What is OpenConnect?
+description: OpenConnect in one page — what it is, what it is not, and who it serves.
+---
+
+import StatusPill from '../../../components/StatusPill.astro';
+
+OpenConnect is an open-source, **.NET-first, privacy-first, model-agnostic** AI application framework. It provides reusable libraries, secure defaults, and modular components for building AI-powered applications.
+
+**Build AI applications. Not infrastructure.**
+
+## What it provides
+
+- **Gateway layer** — ASP.NET Core HTTP/WebSocket endpoints for model and agent access. <StatusPill status="planned" />
+- **Privacy layer** — firewall (`IPrivacyFirewall`), policy engine, tokenization, egress gates. <StatusPill status="available" />
+- **Agent layer** — MAF adapters and agent lifecycle via `OpenConnect.Agents`. <StatusPill status="available" />
+- **Client layer** — Blazor components, TypeScript SDK, .NET client (`AddOpenConnectClient`). <StatusPill status="available" />
+- **Runtime & transport** — agent registry, tool broker, NATS JetStream transport. <StatusPill status="available" />
+- **Persistence** — PostgreSQL via EF Core. <StatusPill status="available" />
+
+## What it is not
+
+- Not an agent orchestration platform: it layers on Microsoft Agent Framework rather than replacing it.
+- Not a model provider: it routes to configured providers and never calls one from browser JavaScript with an API key.
+- Not a black box: configuration is strongly typed (`OpenConnectOptions`) and validated on startup.
+
+## Who it serves
+
+.NET teams shipping AI features who need tenant isolation, auditability, and secure defaults without building gateway, firewall, and conversation infrastructure from scratch.

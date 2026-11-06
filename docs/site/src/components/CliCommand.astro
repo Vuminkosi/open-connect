@@ -1,0 +1,9 @@
+---
+/* CliCommand.astro — stub for copyable CLI commands (Phase 2). Static only. */
+import { Code } from '@astrojs/starlight/components';
+interface Props {
+  command: string;
+}
+const { command } = Astro.props;
+---
+<Code code={`$ ${command}`} lang="bash" title="Terminal" />

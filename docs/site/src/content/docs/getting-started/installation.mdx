@@ -1,0 +1,17 @@
+---
+title: Installation
+description: Add OpenConnect packages and restore with locked dependencies.
+---
+
+import CliCommand from '../../../components/CliCommand.astro';
+
+OpenConnect uses central package management (`Directory.Packages.props`) with committed lockfiles.
+
+<CliCommand command="dotnet restore OpenConnect.slnx --locked-mode" />
+
+For this docs site (Node 24):
+
+<CliCommand command="cd docs/site && npm install" />
+<CliCommand command="npm run build" />
+
+The static site build must succeed with **no provider credentials** configured.
