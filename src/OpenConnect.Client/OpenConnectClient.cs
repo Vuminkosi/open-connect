@@ -15,7 +15,7 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
         if (string.IsNullOrWhiteSpace(request.ClientTaskId) || request.ClientTaskId.Length > 128) throw new ArgumentException("A client task ID of 1 to 128 characters is required.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || request.IdempotencyKey.Length > 256) throw new ArgumentException("An idempotency key of 1 to 256 characters is required.", nameof(request));
         using var activity = ActivitySource.StartActivity("openconnect.task.create", ActivityKind.Client);
-        using var message = new HttpRequestMessage(HttpMethod.Post, "tasks") { Content = JsonContent.Create(new { clientTaskId = request.ClientTaskId }, options: JsonOptions) };
+        using var message = new HttpRequestMessage(HttpMethod.Post, "tasks") { Content = JsonContent.Create(new { clientTaskId = request.ClientTaskId, message = request.Message, sessionId = request.SessionId }, options: JsonOptions) };
         message.Headers.TryAddWithoutValidation("Idempotency-Key", request.IdempotencyKey);
         using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);

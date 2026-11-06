@@ -18,5 +18,5 @@ public interface IOpenConnectClient
     /// <returns>The events available after the cursor at the time of the request.</returns>
     IAsyncEnumerable<EventRecord> SubscribeEventsAsync(SessionId sessionId, long afterSequence = 0, CancellationToken cancellationToken = default);
 }
-public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey);
+public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);

@@ -49,8 +49,13 @@ public static class EndpointRouteBuilderExtensions
         if (!UlidTryParse(tenantClaim, out var tenant) || !UlidTryParse(principalClaim, out var principal))
             return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The authenticated identity is missing required tenant or subject claims.");
 
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.ClientTaskId)));
-        var result = await store.AcceptAsync(request.ClientTaskId, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
+        if (request.Message?.Length > 32_000)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["message"] = ["A message of at most 32000 characters is allowed."] });
+        if (request.SessionId is not null && !UlidTryParse(request.SessionId, out _))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["sessionId"] = ["A valid session ID is required."] });
+
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
+        var result = await store.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
         return result.Conflict
             ? Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict")
             : Results.Accepted($"/openconnect/v1/tasks/{result.Task!.Id.Value}", result.Task);
@@ -127,7 +132,7 @@ public static class EndpointRouteBuilderExtensions
 }
 
 /// <summary>Task submission body. Tenant and principal are always taken from authenticated claims.</summary>
-public sealed record TaskRequest(string ClientTaskId);
+public sealed record TaskRequest(string ClientTaskId, string? Message = null, string? SessionId = null);
 public sealed record SessionRequest(string? Name = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);
 
@@ -137,7 +142,7 @@ public sealed class InMemoryTaskStore
     private readonly ConcurrentDictionary<string, StoredTask> _byKey = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Ulid, TaskRecord> _byId = new();
 
-    internal Task<(TaskRecord? Task, bool Conflict)> AcceptAsync(string clientId, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
+    internal Task<(TaskRecord? Task, bool Conflict)> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var storeKey = $"{tenant.Value}:{principal.Value}:{key}";

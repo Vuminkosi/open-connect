@@ -1,0 +1,106 @@
+@using OpenConnect.Components.Contracts
+@*
+  MiniComposer: MudBlazor floating-action-button composer.
+  Host requirements (NOT provided here — no duplicate providers):
+  MudThemeProvider, MudPopoverProvider, MudDialogProvider, MudSnackbarProvider.
+*@
+<div class="oc-composer-host">
+    <MudFab StartIcon="@Icons.Material.Filled.Chat"
+            Color="Color.Primary"
+            Size="Size.Large"
+            aria-label="@(_open ? "Close assistant" : "Open assistant")"
+            OnClick="Toggle"
+            Class="oc-composer-fab" />
+    <MudPopover Open="@_open"
+                AnchorOrigin="Origin.TopRight"
+                TransformOrigin="Origin.BottomRight"
+                Class="oc-composer-popover">
+        <section class="oc-composer-panel" role="dialog" aria-label="Assistant composer" aria-modal="false">
+            <header class="oc-composer-header">
+                <div>
+                    <h2 class="oc-composer-title">Assistant</h2>
+                    <p class="oc-composer-subtitle">@StatusText</p>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               aria-label="Close assistant"
+                               Size="Size.Small"
+                               OnClick="Close" />
+            </header>
+
+            @if (IsLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="oc-composer-progress" aria-label="Waiting for reply" />
+            }
+
+            <div class="oc-composer-messages" role="log" aria-live="polite" aria-label="Conversation">
+                @if (VisibleMessages.Count == 0 && string.IsNullOrEmpty(Session.StreamingText))
+                {
+                    <p class="oc-composer-empty">Ask a question to start. Replies stream here.</p>
+                }
+                @foreach (var message in VisibleMessages)
+                {
+                    <div class="oc-message @(message.Role == "user" ? "oc-message-user" : "oc-message-assistant")">
+                        <span class="oc-message-role">@(message.Role == "user" ? "You" : "Assistant")</span>
+                        <p class="oc-message-text">@message.Text</p>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Session.StreamingText))
+                {
+                    <div class="oc-message oc-message-assistant oc-message-streaming">
+                        <span class="oc-message-role">Assistant</span>
+                        <p class="oc-message-text">@Session.StreamingText</p>
+                    </div>
+                }
+                @foreach (var proposal in Session.Proposals)
+                {
+                    <SafeComponentRenderer Proposal="proposal" />
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Session.LastError))
+            {
+                <div class="oc-composer-error" role="alert">
+                    <span>@Session.LastError</span>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="Retry">Retry</MudButton>
+                </div>
+            }
+
+            @if (Suggestions?.Count > 0)
+            {
+                <div class="oc-composer-chips" aria-label="Suggestions">
+                    @foreach (var suggestion in Suggestions)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => UseSuggestion(suggestion))">@suggestion</MudChip>
+                    }
+                </div>
+            }
+
+            <div class="oc-composer-inputrow">
+                <MudTextField T="string"
+                             @ref="_inputRef"
+                             @bind-Value="_draft"
+                             Label="Message"
+                             Placeholder="@Placeholder"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             Lines="2"
+                             MaxLength="2000"
+                             Immediate="true"
+                             Disabled="@IsLoading"
+                             aria-label="Message to assistant"
+                             OnKeyDown="HandleKeyDown" />
+                <div class="oc-composer-actions">
+                    @if (IsLoading)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="CancelSend">Cancel</MudButton>
+                    }
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               Disabled="@(!CanSend)"
+                               OnClick="SendAsync">Send</MudButton>
+                </div>
+            </div>
+        </section>
+    </MudPopover>
+</div>
