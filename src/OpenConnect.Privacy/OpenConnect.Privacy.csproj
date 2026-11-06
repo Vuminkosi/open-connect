@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>OpenConnect.Privacy</AssemblyName>
+    <RootNamespace>OpenConnect.Privacy</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+</Project>
