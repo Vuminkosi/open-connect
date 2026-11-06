@@ -72,8 +72,7 @@ public sealed class TaskIdempotencyTests
         ], "test"));
         var responseBody = new MemoryStream();
         context.Response.Body = responseBody;
-        var handler = typeof(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions).GetMethod("CreateTaskAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var result = await (Task<IResult>)handler.Invoke(null, [context, new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted])!;
+        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted);
         await result.ExecuteAsync(context);
         return new Response(context.Response.StatusCode, context.Response.Headers.Location.ToString(), context.Response.ContentType, responseBody.ToArray());
     }
