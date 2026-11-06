@@ -291,6 +291,12 @@ docs/openconect.md
 *.userosscache
 *.sln.docstates
 
+# Local environment files
+.env
+*.env.local
+infra/.env
+!infra/.env.example
+
 # Python
 __pycache__/
 *.py[cod]
