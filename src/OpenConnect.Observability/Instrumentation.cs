@@ -7,29 +7,49 @@ namespace OpenConnect.Observability;
 public static class Instrumentation
 {
     public const string MetadataOnly = "MetadataOnly";
-    public static readonly ActivitySource Gateway = new("OpenConnect.Gateway");
-    public static readonly ActivitySource Firewall = new("OpenConnect.Firewall");
-    public static readonly ActivitySource GenAI = new("OpenConnect.GenAI");
-    public static readonly ActivitySource Agents = new("OpenConnect.Agents");
-    public static readonly ActivitySource Workers = new("OpenConnect.Workers");
-    public static readonly ActivitySource Vault = new("OpenConnect.Vault");
-    public static readonly ActivitySource Metering = new("OpenConnect.Metering");
-    public static readonly Meter Metrics = new("OpenConnect");
-    private static readonly HashSet<string> AllowedDimensions = new(StringComparer.Ordinal)
-    { "operation", "provider", "model_family", "outcome", "mode", "component" };
+    // Keep the mutable diagnostics primitives private: callers must cross the sanitizer boundary.
+    private static readonly IReadOnlyDictionary<string, ActivitySource> Sources =
+        new Dictionary<string, ActivitySource>(StringComparer.Ordinal)
+        {
+            ["gateway"] = new("OpenConnect.Gateway"), ["firewall"] = new("OpenConnect.Firewall"),
+            ["genai"] = new("OpenConnect.GenAI"), ["agents"] = new("OpenConnect.Agents"),
+            ["workers"] = new("OpenConnect.Workers"), ["vault"] = new("OpenConnect.Vault"),
+            ["metering"] = new("OpenConnect.Metering")
+        };
+    private static readonly Meter Metrics = new("OpenConnect");
+    private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> AllowedDimensions =
+        new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
+        {
+            ["operation"] = new HashSet<string>(new[] { "chat", "completion", "embedding", "tool", "health", "request" }, StringComparer.Ordinal),
+            ["provider"] = new HashSet<string>(new[] { "openai", "azure_openai", "anthropic", "google", "local", "unknown" }, StringComparer.Ordinal),
+            ["model_family"] = new HashSet<string>(new[] { "gpt", "claude", "gemini", "llama", "other" }, StringComparer.Ordinal),
+            ["outcome"] = new HashSet<string>(new[] { "success", "failure", "blocked", "cancelled" }, StringComparer.Ordinal),
+            ["mode"] = new HashSet<string>(new[] { "strict-local", "local-only", "policy-controlled", "disabled" }, StringComparer.Ordinal),
+            ["component"] = new HashSet<string>(new[] { "gateway", "firewall", "agent", "worker", "vault", "metering" }, StringComparer.Ordinal)
+        };
 
     /// <summary>Filters keys against the bounded dimension allowlist; arbitrary values are not accepted as dimensions.</summary>
     public static KeyValuePair<string, object?>[] AllowlistedTags(IEnumerable<KeyValuePair<string, object?>> dimensions)
     {
         ArgumentNullException.ThrowIfNull(dimensions);
-        return dimensions.Where(pair => AllowedDimensions.Contains(pair.Key) &&
-            pair.Value is string value && value.Length <= 64 && !LooksSensitive(value))
-            .ToArray();
+        return TelemetryPrivacy.CreateDefault().Filter.Filter(dimensions);
     }
 
-    private static bool LooksSensitive(string value) => value.Contains('@') ||
-        value.Contains("bearer ", StringComparison.OrdinalIgnoreCase) ||
-        value.Contains("sk-", StringComparison.OrdinalIgnoreCase) ||
-        value.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-        value.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Starts an activity with tags filtered and checked by the default export policy.</summary>
+    public static Activity? SafeStartActivity(string source, string operation,
+        IEnumerable<KeyValuePair<string, object?>>? tags = null, ActivityKind kind = ActivityKind.Internal)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+        if (!Sources.TryGetValue(source, out var activitySource))
+            throw new ArgumentOutOfRangeException(nameof(source));
+        var safeTags = AllowlistedTags(tags ?? []);
+        var activity = activitySource.StartActivity(operation, kind);
+        if (activity is null) return null;
+        foreach (var tag in safeTags) activity.SetTag(tag.Key, tag.Value);
+        return activity;
+    }
+
+    internal static bool IsApprovedDimension(string key, string value) =>
+        AllowedDimensions.TryGetValue(key, out var allowed) && allowed.Contains(value);
 }
