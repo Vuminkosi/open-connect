@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/agent-definition.json",
+  "title": "OpenConnect agent definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "version", "executionMode", "instructionsPath", "capabilities", "tools", "maxDelegationDepth", "budget", "timeoutSeconds"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$"},
+    "version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "executionMode": {"$ref": "#/$defs/executionMode"},
+    "instructionsPath": {"type": "string", "minLength": 1, "maxLength": 512},
+    "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "tools": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "maxDelegationDepth": {"type": "integer", "minimum": 0, "maximum": 32},
+    "budget": {"type": "object", "additionalProperties": false, "required": ["maxTokens"], "properties": {"maxTokens": {"type": "integer", "minimum": 1}, "maxCost": {"type": "number", "minimum": 0}}},
+    "timeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 86400}
+  },
+  "$defs": {"executionMode": {"type": "string", "enum": ["interactive", "operational"]}}
+}

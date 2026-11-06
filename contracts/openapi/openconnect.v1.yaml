@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: OpenConnect API
+  version: 1.0.0
+  description: Versioned OpenConnect HTTP contract. All payloads use schemaVersion openconnect.v1.
+servers:
+  - url: /openconnect/v1
+paths:
+  /tasks:
+    post:
+      operationId: acceptTask
+      summary: Accept a task
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [schemaVersion, clientTaskId, sessionId, agentId, input]
+              properties:
+                schemaVersion: { const: openconnect.v1 }
+                clientTaskId: { type: string, minLength: 1, maxLength: 128 }
+                sessionId: { type: string, format: uuid }
+                agentId: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+                input: { type: string, maxLength: 1000000 }
+      responses:
+        '202':
+          description: Task accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [schemaVersion, taskId, state]
+                properties:
+                  schemaVersion: { const: openconnect.v1 }
+                  taskId: { type: string, format: uuid }
+                  state: { type: string, enum: [queued, running, completed, failed, cancelled] }
+        '400': { description: Invalid request }
+        '401': { description: Authentication required }
+        '409': { description: Idempotency conflict }
+  /sessions/{sessionId}/events:
+    get:
+      operationId: replayEvents
+      summary: Replay session events after a cursor
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: afterSequence
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Events after the supplied sequence
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '../jsonschema/event.json' }
+        '401': { description: Authentication required }
+        '404': { description: Session not found }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","messageId":"not-a-uuid","taskId":"task-1","kind":"classification","issuedAt":"yesterday","expiresAt":"tomorrow","lease":{"leaseId":"bad","fencingToken":0},"payloadRef":"opaque://x","payload":"raw sensitive data"}
