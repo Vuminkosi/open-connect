@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Routing;
 using OpenConnect.Abstractions;
 using OpenConnect.Core.Capabilities;
+using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
 using Xunit;
 
@@ -39,6 +40,47 @@ public sealed class GatewayRouteTests
         AssertNo501(result);
         Assert.Equal(200, result.StatusCode);
         Assert.Contains("[]", Encoding.UTF8.GetString(result.Body));
+    }
+
+    [Fact]
+    public async Task Session_events_replay_in_sequence_after_requested_position()
+    {
+        var journal = new InMemoryEventJournal();
+        await using var app = CreateApp(services => services.AddSingleton(journal));
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        await store.AppendEventAsync(session.Id.Value, "started", "one");
+        await store.AppendEventAsync(session.Id.Value, "updated", "two");
+
+        var result = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleGetSessionEvents(session.Id.Value.ToString(), 1, Context(app), store), app.Services);
+        Assert.Equal(200, result.StatusCode);
+        var json = System.Text.Json.JsonDocument.Parse(result.Body);
+        Assert.Equal(1, json.RootElement.GetArrayLength());
+        Assert.Equal(2, json.RootElement[0].GetProperty("sequence").GetInt64());
+        Assert.Equal("updated", json.RootElement[0].GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task Components_returns_registered_agent_descriptors()
+    {
+        var registry = new AgentDefinitionRegistry();
+        registry.Register(new AgentDefinition(new AgentId("lead"), "Lead"));
+        await using var app = CreateApp(services => services.AddSingleton<IAgentDefinitionRegistry>(registry));
+        var result = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleComponents(app.Services), app.Services);
+        Assert.Equal(200, result.StatusCode);
+        Assert.Contains("Lead", Encoding.UTF8.GetString(result.Body));
+    }
+
+    [Fact]
+    public async Task Journal_replay_returns_events_after_sequence_in_order()
+    {
+        var journal = new InMemoryEventJournal();
+        var sessionId = new SessionId(Ulid.NewUlid());
+        Assert.Equal(1, await journal.AppendAsync(new EventRecord(sessionId, 0, "first", "1")));
+        Assert.Equal(2, await journal.AppendAsync(new EventRecord(sessionId, 0, "second", "2")));
+        var replayed = new List<EventRecord>();
+        await foreach (var item in journal.ReplayAsync(sessionId, 0)) replayed.Add(item);
+        Assert.Equal(new long[] { 1, 2 }, replayed.Select(item => item.Sequence));
     }
 
     [Fact]

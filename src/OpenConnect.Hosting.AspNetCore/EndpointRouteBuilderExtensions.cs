@@ -29,7 +29,7 @@ public static class EndpointRouteBuilderExtensions
         group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
         group.MapGet("/sessions/{id}/events", HandleGetSessionEvents).RequireAuthorization();
         group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
-        group.MapGet("/components", () => Results.Ok(Array.Empty<AgentDefinition>()));
+        group.MapGet("/components", HandleComponents).RequireAuthorization();
         group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
         group.MapGet("/health/ready", HandleReady).RequireAuthorization();
         return endpoints;
@@ -114,6 +114,8 @@ public static class EndpointRouteBuilderExtensions
 
     internal static IResult HandleCapabilities(IServiceProvider services) => Results.Ok(services.GetService<ICapabilityRegistry>()?.GetReady(CapabilityKind.Model) ?? Array.Empty<CapabilityDescriptor>());
 
+    internal static IResult HandleComponents(IServiceProvider services) => Results.Ok(services.GetService<IAgentDefinitionRegistry>()?.GetAll() ?? Array.Empty<AgentDefinition>());
+
     internal static IResult HandleReady(IServiceProvider services) => services.GetService<InMemoryTaskStore>() is not null && services.GetService<InMemorySessionStore>() is not null
         ? Results.Ok(new { status = "ready" }) : Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Service is not ready.");
 
@@ -179,6 +181,11 @@ public sealed class InMemorySessionStore
 {
     private const int EventLimit = 1000;
     private readonly ConcurrentDictionary<Ulid, SessionRecord> _sessions = new();
+    private readonly InMemoryEventJournal _journal;
+
+    public InMemorySessionStore() : this(new InMemoryEventJournal()) { }
+
+    public InMemorySessionStore(InMemoryEventJournal journal) => _journal = journal ?? throw new ArgumentNullException(nameof(journal));
     public SessionRecord Create(TenantId tenant, PrincipalId principal)
     {
         var session = new SessionRecord(new SessionId(Ulid.NewUlid()), tenant, principal, DateTimeOffset.UtcNow);
@@ -186,5 +193,11 @@ public sealed class InMemorySessionStore
         return session;
     }
     public SessionRecord? Get(Ulid id) => _sessions.GetValueOrDefault(id);
-    public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => Array.Empty<EventRecord>();
+    public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
+
+    public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)
+    {
+        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data), cancellationToken);
+    }
 }
