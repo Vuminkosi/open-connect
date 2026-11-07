@@ -26,5 +26,7 @@ public interface IDurableNavigatorStore
     ValueTask<NavigatorReceiptRecord?> GetReceiptAsync(string tenant, string principal, string idempotencyKey, DateTimeOffset now, CancellationToken cancellationToken = default);
     ValueTask<NavigatorStoreOutcome> AppendEventAsync(string id, string tenant, string principal, long expectedSequence, NavigatorEvent value, CancellationToken cancellationToken = default);
     ValueTask<IReadOnlyList<NavigatorEvent>> GetEventsAsync(string id, string tenant, string principal, long afterSequence, CancellationToken cancellationToken = default);
-    ValueTask<bool> IsFenceCurrentAsync(string executionId, long fencingToken, DateTimeOffset now, CancellationToken cancellationToken = default);
+    /// <summary>Checks a fencing token within the supplied tenant and execution scope.</summary>
+    /// <remarks>This signature is intentionally tenant-scoped; this new, uncommitted API has no committed callers to preserve.</remarks>
+    ValueTask<bool> IsFenceCurrentAsync(string tenant, string executionId, long fencingToken, DateTimeOffset now, CancellationToken cancellationToken = default);
 }

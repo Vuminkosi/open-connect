@@ -3,16 +3,13 @@ using System.Text.RegularExpressions;
 
 namespace OpenConnect.Navigator.Events;
 
-/// <summary>Projects committed events to safe consumers once per event ID within this process.</summary>
+/// <summary>Validates and safely copies committed events; delivery layers own deduplication.</summary>
 public sealed class CommittedEventProjector(IQdrantProjectionSubscriber? subscriber = null)
 {
     private static readonly Regex SecretValuePattern = new(
         @"(?:password|secret|token|api[_-]?key|bearer|private|credential)|(?:[A-Za-z0-9_-]{40,})",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-    private readonly HashSet<string> _deliveredEventIds = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
-
-    /// <summary>Validates and projects a committed event. Duplicate event IDs are ignored.</summary>
+    /// <summary>Validates and projects a committed event without delivery-scoped deduplication.</summary>
     public async Task<CommittedNavigatorEvent?> ProjectAsync(
         NavigatorEvent value,
         CancellationToken cancellationToken = default)
@@ -20,12 +17,6 @@ public sealed class CommittedEventProjector(IQdrantProjectionSubscriber? subscri
         ArgumentNullException.ThrowIfNull(value);
         if (!NavigatorEventTypes.IsSafe(value) || !HasSafeMetadataValues(value.Metadata))
             throw new ArgumentException("Navigator event contains unsafe or invalid data.", nameof(value));
-
-        lock (_gate)
-        {
-            if (!_deliveredEventIds.Add(value.EventId))
-                return null;
-        }
 
         var projected = new CommittedNavigatorEvent(
             value.EventId,

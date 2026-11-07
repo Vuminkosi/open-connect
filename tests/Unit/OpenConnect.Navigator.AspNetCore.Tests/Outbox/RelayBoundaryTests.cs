@@ -22,6 +22,7 @@ public sealed class RelayBoundaryTests
         var envelope = WorkerEnvelope.Parse(System.Text.Encoding.UTF8.GetBytes(sink.Payload!));
 
         Assert.Equal("openconnect.v1", envelope.SchemaVersion);
+        Assert.Equal(entryId, sink.MessageId);
         Assert.Equal(Guid.Parse(sink.MessageId!), envelope.MessageId);
         Assert.Equal(Guid.Parse(entryId), envelope.MessageId);
         Assert.Equal("session-1", envelope.TaskId);
@@ -52,6 +53,8 @@ public sealed class RelayBoundaryTests
         Assert.True(Guid.TryParse(sink.MessageId, out var messageId));
         var envelope = WorkerEnvelope.Parse(System.Text.Encoding.UTF8.GetBytes(sink.Payload!));
         Assert.Equal(messageId, envelope.MessageId);
+        Assert.Equal(sink.MessageId, envelope.MessageId.ToString("D"));
+        Assert.Equal(Guid.Parse(sink.MessageId!), envelope.MessageId);
     }
 
     private sealed class CapturingOutboxWriter : INavigatorOutboxWriter

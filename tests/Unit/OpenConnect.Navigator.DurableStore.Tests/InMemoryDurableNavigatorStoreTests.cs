@@ -97,9 +97,21 @@ public sealed class InMemoryDurableNavigatorStoreTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.CreateSessionAsync("t", "p", "c", "r", cancellation.Token).AsTask());
-        Assert.True(await store.IsFenceCurrentAsync("execution", 8, Now));
-        Assert.False(await store.IsFenceCurrentAsync("execution", 7, Now));
-        Assert.True(await store.IsFenceCurrentAsync("another", 1, Now));
+        Assert.True(await store.IsFenceCurrentAsync("tenant-a", "execution", 8, Now));
+        Assert.False(await store.IsFenceCurrentAsync("tenant-a", "execution", 7, Now));
+        Assert.True(await store.IsFenceCurrentAsync("tenant-a", "another", 1, Now));
+    }
+
+    [Fact]
+    public async Task FenceTokensAreIsolatedByTenantForSameExecution()
+    {
+        var store = CreateStore();
+
+        Assert.True(await store.IsFenceCurrentAsync("tenant-a", "execution", 8, Now));
+        Assert.True(await store.IsFenceCurrentAsync("tenant-b", "execution", 2, Now));
+        Assert.False(await store.IsFenceCurrentAsync("tenant-a", "execution", 7, Now));
+        Assert.False(await store.IsFenceCurrentAsync("tenant-b", "execution", 1, Now));
+        Assert.False(await store.IsFenceCurrentAsync("", "execution", 1, Now));
     }
 
     private static InMemoryDurableNavigatorStore CreateStore() => new(new InMemoryDurableOperationalStore());

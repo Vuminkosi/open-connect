@@ -19,7 +19,7 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     private readonly HashSet<(string Session, string Command)> _consumed = [];
     private readonly Dictionary<(string Tenant, string Principal, string Key), NavigatorReceiptRecord> _receipts = new();
     private readonly Dictionary<string, List<NavigatorEvent>> _events = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, long> _observedFences = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Tenant, string ExecutionId), long> _observedFences = new();
 
     public ValueTask<NavigatorSession?> GetSessionAsync(string id, string tenant, string principal, CancellationToken cancellationToken = default)
     {
@@ -112,17 +112,19 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     }
 
     /// <summary>
-    /// Applies a process-local monotonic fence check. This adapter cannot validate lease identity
-    /// or expiry; production lease validation must be wired to the durable operational store.
+    /// Applies a process-local, tenant-scoped monotonic fence check. This adapter cannot validate
+    /// lease identity or expiry; production lease validation must be wired to the durable operational store.
     /// </summary>
-    public ValueTask<bool> IsFenceCurrentAsync(string executionId, long fencingToken, DateTimeOffset now, CancellationToken cancellationToken = default)
+    public ValueTask<bool> IsFenceCurrentAsync(string tenant, string executionId, long fencingToken, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(executionId)) return ValueTask.FromResult(false);
         lock (_gate)
         {
-            if (_observedFences.TryGetValue(executionId, out var current) && fencingToken < current)
+            var key = (tenant, executionId);
+            if (_observedFences.TryGetValue(key, out var current) && fencingToken < current)
                 return ValueTask.FromResult(false);
-            _observedFences[executionId] = fencingToken;
+            _observedFences[key] = fencingToken;
             return ValueTask.FromResult(true);
         }
     }

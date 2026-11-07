@@ -6,7 +6,7 @@ namespace OpenConnect.Navigator.Tests.Events;
 public sealed class CommittedEventProjectorTests
 {
     [Fact]
-    public async Task Projects_event_once_and_suppresses_duplicate()
+    public async Task Validates_and_projects_repeated_events_with_independent_safe_copies()
     {
         var projector = new CommittedEventProjector();
         var input = SafeEvent();
@@ -16,7 +16,9 @@ public sealed class CommittedEventProjectorTests
 
         Assert.NotNull(projected);
         Assert.Equal(input.EventId, projected.EventId);
-        Assert.Null(duplicate);
+        Assert.NotNull(duplicate);
+        Assert.NotSame(projected.Metadata, duplicate.Metadata);
+        Assert.NotSame(input.Metadata, projected.Metadata);
     }
 
     [Fact]

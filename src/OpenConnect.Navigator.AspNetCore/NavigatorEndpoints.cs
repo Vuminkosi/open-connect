@@ -140,11 +140,24 @@ public static class NavigatorEndpoints
     }
 
     /// <summary>Reads the session event stream; this endpoint never appends or mutates events.</summary>
-    private static IResult Events(string id, long? after, HttpContext context, INavigatorSessionStore store)
+    private static async Task<IResult> Events(string id, long? after, HttpContext context, INavigatorSessionStore store,
+        Outbox.NavigatorWsProjector projector, string? consumerId = null)
     {
         if (after < 0) return Results.BadRequest();
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
-        return store.Get(id, tenant, principal) is null ? Results.NotFound() : Results.Ok(store.Events(id, after ?? 0));
+        if (string.IsNullOrWhiteSpace(consumerId)) consumerId = principal;
+        if (consumerId.Length > 128 || consumerId.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ':' and not '_' and not '-'))
+            return Results.BadRequest();
+        var serverAuthContext = Outbox.NavigatorServerAuthContext.FromServerPrincipal(context.User, id);
+        if (store.Get(serverAuthContext.SessionId, serverAuthContext.TenantId, serverAuthContext.PrincipalId) is null)
+            return Results.NotFound();
+        var projected = new List<OpenConnect.Navigator.Events.CommittedNavigatorEvent>();
+        foreach (var value in store.Events(id, after ?? 0))
+        {
+            var safe = await projector.ProjectAsync(value, serverAuthContext, context.RequestAborted, consumerId).ConfigureAwait(false);
+            if (safe is not null) projected.Add(safe);
+        }
+        return Results.Ok(projected);
     }
 
     private static bool Identity(HttpContext context, out string tenant, out string principal)

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using OpenConnect.Navigator.Events;
 
 namespace OpenConnect.Navigator.AspNetCore.Outbox;
@@ -20,9 +22,10 @@ public sealed class NavigatorOutboxWriter(INavigatorOutboxWriter writer)
         if (string.IsNullOrWhiteSpace(value.EventId) || string.IsNullOrWhiteSpace(value.Type))
             throw new ArgumentException("A committed Navigator event requires an id and type.", nameof(value));
 
+        // A deterministic ID makes a retry of the same event idempotent at the outbox boundary.
         var messageId = Guid.TryParse(value.EventId, out var eventGuid) && eventGuid != Guid.Empty
             ? eventGuid
-            : Guid.NewGuid();
+            : new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(value.EventId)).AsSpan(0, 16));
         var issuedAt = DateTimeOffset.UtcNow;
         var envelope = new
         {
