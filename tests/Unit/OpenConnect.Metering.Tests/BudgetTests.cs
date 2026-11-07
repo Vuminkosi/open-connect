@@ -41,6 +41,16 @@ public sealed class BudgetTests
     }
 
     [Fact]
+    public void DenyPolicyBlocksScopeAfterUnknownCost()
+    {
+        var guard = Guard(MissingCostPolicy.Deny);
+        guard.Settle(guard.TryReserve("t1", 1m)!, null);
+
+        Assert.Equal(1m, guard.Spent("t1"));
+        Assert.Null(guard.TryReserve("t1", 1m));
+    }
+
+    [Fact]
     public void ReleaseReturnsCapacityWithoutSpend()
     {
         var guard = Guard();
@@ -60,3 +70,4 @@ public sealed class BudgetTests
         Assert.Equal(10, results.Count(r => r is not null));
     }
 }
+

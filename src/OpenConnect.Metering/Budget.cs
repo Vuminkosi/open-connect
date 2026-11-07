@@ -1,5 +1,6 @@
 namespace OpenConnect.Metering;
 
+/// <summary>TreatAsReserved charges the reserved estimate; Deny charges the estimate and blocks the scope from further reservations until cost accounting is reconciled.</summary>
 public enum MissingCostPolicy { Deny, TreatAsReserved }
 
 /// <summary>Outcome of a budget reservation attempt.</summary>
@@ -25,6 +26,7 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
     private readonly Dictionary<string, decimal> _spent = new();
     private readonly Dictionary<string, decimal> _reserved = new();
     private readonly Dictionary<Guid, BudgetReservation> _open = new();
+    private readonly HashSet<string> _blocked = new(StringComparer.Ordinal);
     private readonly MissingCostPolicy _missingCostPolicy;
 
     public InMemoryBudgetGuard(IReadOnlyDictionary<string, decimal> limits, MissingCostPolicy missingCostPolicy = MissingCostPolicy.TreatAsReserved)
@@ -44,7 +46,7 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
         lock (_gate)
         {
             // Unknown scope has no limit configured: deny rather than allow unmetered spend.
-            if (!_limits.TryGetValue(scopeKey, out var limit)) return null;
+            if (!_limits.TryGetValue(scopeKey, out var limit) || _blocked.Contains(scopeKey)) return null;
             var committed = _spent.GetValueOrDefault(scopeKey) + _reserved.GetValueOrDefault(scopeKey);
             if (committed + estimatedAmount > limit) return null;
             var reservation = new BudgetReservation(Guid.NewGuid(), scopeKey, estimatedAmount);
@@ -62,7 +64,8 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
         {
             if (!_open.Remove(reservation.Id)) return;
             _reserved[reservation.ScopeKey] -= reservation.Amount;
-            var charge = actualCost ?? (_missingCostPolicy == MissingCostPolicy.TreatAsReserved ? reservation.Amount : 0m);
+            if (actualCost is null && _missingCostPolicy == MissingCostPolicy.Deny) _blocked.Add(reservation.ScopeKey);
+            var charge = actualCost ?? reservation.Amount;
             _spent[reservation.ScopeKey] = _spent.GetValueOrDefault(reservation.ScopeKey) + charge;
         }
     }
