@@ -18,6 +18,7 @@ public static class NavigatorServiceCollectionExtensions
         services.TryAddSingleton<NavigatorTargetRegistry>();
         services.TryAddSingleton<NavigatorTourValidator>();
         services.TryAddSingleton<NavigatorMemoryStore>();
+        services.TryAddSingleton<INavigatorSessionStore>(provider => provider.GetRequiredService<NavigatorMemoryStore>());
         return services;
     }
 }

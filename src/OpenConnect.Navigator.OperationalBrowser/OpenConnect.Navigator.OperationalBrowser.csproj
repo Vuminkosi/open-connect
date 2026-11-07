@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><AssemblyName>OpenConnect.Navigator.OperationalBrowser</AssemblyName><RootNamespace>OpenConnect.Navigator.OperationalBrowser</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../OpenConnect.Navigator.Playwright/OpenConnect.Navigator.Playwright.csproj" /></ItemGroup>
+</Project>

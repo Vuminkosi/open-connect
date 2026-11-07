@@ -34,7 +34,7 @@ public static class NavigatorEndpoints
         return Results.Ok(registry.ListByRoute(routeId, scope));
     }
 
-    private static IResult Create(CreateSessionRequest? request, HttpContext context, NavigatorMemoryStore store)
+    private static IResult Create(CreateSessionRequest? request, HttpContext context, INavigatorSessionStore store)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         if (request is null || string.IsNullOrWhiteSpace(request.ClientInstance) || request.ClientInstance.Length > 128 ||
@@ -47,7 +47,7 @@ public static class NavigatorEndpoints
         });
     }
 
-    private static IResult Get(string id, HttpContext context, NavigatorMemoryStore store)
+    private static IResult Get(string id, HttpContext context, INavigatorSessionStore store)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         var session = store.Get(id, tenant, principal);
@@ -58,7 +58,7 @@ public static class NavigatorEndpoints
         });
     }
 
-    private static IResult Tour(string id, NavigatorTourPlan? plan, HttpContext context, NavigatorMemoryStore store, IOptions<NavigatorOptions> options)
+    private static IResult Tour(string id, NavigatorTourPlan? plan, HttpContext context, INavigatorSessionStore store, IOptions<NavigatorOptions> options)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         if (store.Get(id, tenant, principal) is null) return Results.NotFound();
@@ -68,7 +68,7 @@ public static class NavigatorEndpoints
         return Results.Accepted(value: plan);
     }
 
-    private static IResult Command(string id, CommandRequest? request, HttpContext context, NavigatorMemoryStore store, NavigatorTargetRegistry registry)
+    private static IResult Command(string id, CommandRequest? request, HttpContext context, INavigatorSessionStore store, NavigatorTargetRegistry registry)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         if (store.Get(id, tenant, principal) is null) return Results.NotFound();
@@ -89,7 +89,7 @@ public static class NavigatorEndpoints
         return ExecuteCommand(id, request.Command, tenant, principal, store, registry);
     }
 
-    private static IResult ExecuteApproved(string id, string commandId, HttpContext context, NavigatorMemoryStore store, NavigatorTargetRegistry registry)
+    private static IResult ExecuteApproved(string id, string commandId, HttpContext context, INavigatorSessionStore store, NavigatorTargetRegistry registry)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         if (store.Get(id, tenant, principal) is null) return Results.NotFound();
@@ -98,7 +98,7 @@ public static class NavigatorEndpoints
         return ExecuteCommand(id, command, tenant, principal, store, registry);
     }
 
-    private static IResult ExecuteCommand(string id, NavigatorCommand command, string tenant, string principal, NavigatorMemoryStore store, NavigatorTargetRegistry registry)
+    private static IResult ExecuteCommand(string id, NavigatorCommand command, string tenant, string principal, INavigatorSessionStore store, NavigatorTargetRegistry registry)
     {
         var session = store.Get(id, tenant, principal)!;
         var scope = new NavigatorTargetScope(tenant, principal, session.RouteId, new HashSet<string>());
@@ -129,7 +129,7 @@ public static class NavigatorEndpoints
         });
     }
 
-    private static IResult Approval(string id, ApprovalRequest? request, HttpContext context, NavigatorMemoryStore store)
+    private static IResult Approval(string id, ApprovalRequest? request, HttpContext context, INavigatorSessionStore store)
     {
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
         if (store.Get(id, tenant, principal) is null) return Results.NotFound();
@@ -140,7 +140,7 @@ public static class NavigatorEndpoints
     }
 
     /// <summary>Reads the session event stream; this endpoint never appends or mutates events.</summary>
-    private static IResult Events(string id, long? after, HttpContext context, NavigatorMemoryStore store)
+    private static IResult Events(string id, long? after, HttpContext context, INavigatorSessionStore store)
     {
         if (after < 0) return Results.BadRequest();
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();

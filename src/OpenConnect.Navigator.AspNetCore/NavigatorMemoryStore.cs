@@ -4,9 +4,30 @@ using OpenConnect.Abstractions;
 
 namespace OpenConnect.Navigator.AspNetCore;
 
-/// <summary>Process-local tenant/principal scoped Navigator state.</summary>
-public sealed class NavigatorMemoryStore
+/// <summary>
+/// Process-local tenant/principal scoped Navigator state. This store is for development and tests only;
+/// all state is lost when the process exits or a new store instance is created. Production hosts must
+/// register a durable operational persistence adapter instead.
+/// </summary>
+public sealed class NavigatorMemoryStore : INavigatorSessionStore
 {
+    /// <inheritdoc />
+    public bool IsDurable => false;
+
+    NavigatorSession? INavigatorSessionStore.Get(string id, string tenant, string principal) =>
+        Get(id, tenant, principal) is { } session ? ToPublicSession(session) : null;
+    NavigatorSession INavigatorSessionStore.Create(string tenant, string principal, string clientInstance, string routeId) =>
+        ToPublicSession(Create(tenant, principal, clientInstance, routeId));
+    bool INavigatorSessionStore.AddPending(string id, NavigatorCommand command, string tenant, string principal, DateTimeOffset expiresAt) => AddPending(id, command, tenant, principal, expiresAt);
+    bool INavigatorSessionStore.ApprovePending(string id, string commandId, string digest, string tenant, string principal, DateTimeOffset now) => ApprovePending(id, commandId, digest, tenant, principal, now);
+    NavigatorCommand? INavigatorSessionStore.ConsumeApproved(string id, string commandId, string tenant, string principal, DateTimeOffset now) => ConsumeApproved(id, commandId, tenant, principal, now);
+    CommandGrant? INavigatorSessionStore.IssueGrant(string id, NavigatorCommand command, string tenant, string principal, NavigatorRegisteredTarget target, DateTimeOffset now) => IssueGrant(id, command, tenant, principal, target, now);
+    bool INavigatorSessionStore.Execute(string id, NavigatorCommand command, CommandGrant grant, DateTimeOffset now) => Execute(id, command, grant, now);
+    IReadOnlyList<NavigatorEvent> INavigatorSessionStore.Events(string id, long after) => Events(id, after);
+
+    private static NavigatorSession ToPublicSession(SessionEntry session) =>
+        new(session.Id, session.Tenant, session.Principal, session.ClientInstance, session.RouteId);
+
     private readonly ConcurrentDictionary<string, SessionEntry> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, NavigatorApproval> _approvals = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, NavigatorCommandOutcome> _commands = new(StringComparer.Ordinal);
