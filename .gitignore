@@ -131,6 +131,8 @@ PublishScripts/
 !**/[Pp]ackages/build/
 !packages/client-ts/
 !packages/composer/
+!packages/navigator/
+!packages/navigator-react/
 
 # Windows Azure Build Output
 csx/

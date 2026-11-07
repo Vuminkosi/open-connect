@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>OpenConnect.Navigator.AspNetCore</AssemblyName>
+    <RootNamespace>OpenConnect.Navigator.AspNetCore</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
+    <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

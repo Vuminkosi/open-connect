@@ -1,0 +1,59 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/receipt.json",
+    "title":  "Navigator command receipt",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "receiptId",
+                     "commandId",
+                     "sessionId",
+                     "principalId",
+                     "tenantId",
+                     "argumentsHash",
+                     "outcome",
+                     "issuedAt"
+                 ],
+    "properties":  {
+                       "receiptId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "commandId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "sessionId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "principalId":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "tenantId":  {
+                                        "minLength":  1,
+                                        "type":  "string"
+                                    },
+                       "argumentsHash":  {
+                                             "type":  "string",
+                                             "pattern":  "^[A-Fa-f0-9]{64}$"
+                                         },
+                       "outcome":  {
+                                       "type":  "string",
+                                       "enum":  [
+                                                    "succeeded",
+                                                    "denied",
+                                                    "failed",
+                                                    "expired"
+                                                ]
+                                   },
+                       "issuedAt":  {
+                                        "type":  "string",
+                                        "format":  "date-time"
+                                    },
+                       "detail":  {
+                                      "type":  "string"
+                                  }
+                   }
+}
