@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Navigator.Operational;
 using OpenConnect.Navigator.Operational.Durable;
+using OpenConnect.Transport.Nats;
 
 namespace OpenConnect.Navigator.Persistence.Postgres;
 
@@ -12,6 +13,7 @@ public static class NavigatorPostgresServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddScoped<IDurableNavigatorStore, PostgresDurableNavigatorStore>();
+        services.AddScoped<IOutboxRelaySource, NavigatorPostgresOutboxRelaySource>();
         services.AddScoped<IDurableOperationalStore>(provider => provider.GetRequiredService<PostgresDurableNavigatorStore>());
         // Single-host default; multi-host deployments require distinct owners as a separately approved follow-up.
         services.AddScoped<IOperationalLeaseStore>(provider => new DurableOperationalLeaseStore(provider.GetRequiredService<IDurableOperationalStore>(), "navigator-operational"));

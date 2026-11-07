@@ -229,14 +229,11 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                 name: "FK_oc_events_oc_sessions_tenant_id_principal_id_session_id",
                 table: "oc_events");
 
-            // Quarantine events are retained through rollback, so the sentinel normally
-            // remains referenced and is preserved. Legacy ownership backfills and event
-            // quarantine metadata cannot be losslessly reversed after application writes.
-            migrationBuilder.Sql("""
-                DELETE FROM oc_sessions AS s
-                WHERE s.id = '00000000-0000-0000-0000-000000000001'::uuid
-                  AND NOT EXISTS (SELECT 1 FROM oc_events AS e WHERE e.session_id = s.id);
-                """);
+            // Down intentionally never deletes the sentinel row: migration-created and
+            // pre-existing sentinels are indistinguishable. Up is idempotent via
+            // ON CONFLICT DO NOTHING; orphan-event cleanup, if ever needed, is an explicit
+            // operator action. Legacy ownership backfills and event quarantine metadata
+            // cannot be losslessly reversed after application writes.
 
             migrationBuilder.DropPrimaryKey(
                 name: "PK_oc_leases",

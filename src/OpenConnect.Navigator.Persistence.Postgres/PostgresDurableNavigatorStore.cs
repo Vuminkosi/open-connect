@@ -120,7 +120,19 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
         var persistedReceipt = receipt with { ExpiresAt = TruncateToMicroseconds(receipt.ExpiresAt) };
         db.Tasks.Add(new TaskEntity { Id=taskId, TenantId=t, PrincipalId=p, SessionId=sid, ClientTaskId=NavigatorPersistenceMapping.ReceiptClientTaskId(receipt.IdempotencyKey), AgentId="navigator", State="completed", Version=1, CanonicalHash=digest, CreatedAt=persistedNow, CompletedAt=persistedNow, ReceiptStatus="Succeeded", ReceiptPayload=JsonSerializer.Serialize(persistedReceipt) });
         try { await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); return new(NavigatorStoreOutcome.Succeeded); }
-        catch (DbUpdateException) { await tx.RollbackAsync(cancellationToken); db.ChangeTracker.Clear(); return new(NavigatorStoreOutcome.Conflict); }
+        catch (DbUpdateException)
+        {
+            await tx.RollbackAsync(cancellationToken);
+            db.ChangeTracker.Clear();
+            // A concurrent consumer may commit the unique receipt after our initial read.
+            // Resolve that race by reading the committed receipt and returning replay only
+            // when its identity and digest match this request.
+            var committed = await GetReceiptAsync(tenant, principal, receipt.IdempotencyKey, now, cancellationToken);
+            if (committed is not null && committed.CommandId == commandId && committed.Digest == digest
+                && committed.IdempotencyKey == receipt.IdempotencyKey)
+                return new(NavigatorStoreOutcome.Succeeded, true);
+            return new(NavigatorStoreOutcome.Conflict);
+        }
     }
 
     public async ValueTask<NavigatorReceiptRecord?> GetReceiptAsync(string tenant, string principal, string idempotencyKey, DateTimeOffset now, CancellationToken cancellationToken = default)
