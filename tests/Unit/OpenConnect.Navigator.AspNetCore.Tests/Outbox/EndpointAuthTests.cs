@@ -78,7 +78,7 @@ public sealed class EndpointAuthTests
     private static async Task<(int StatusCode, JsonDocument Json)> Run(string id, NavigatorMemoryStore store, DefaultHttpContext context, string? consumerId = null)
     {
         var method = typeof(NavigatorEndpoints).GetMethod("Events", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var pending = (Task<IResult>)method.Invoke(null, [id, (long?)null, context, (INavigatorSessionStore)store, new NavigatorWsProjector(), consumerId])!;
+        var pending = (Task<IResult>)method.Invoke(null, [id, (long?)null, context, (INavigatorSessionStore)store, new NavigatorWsDeliveryAdapter(new NavigatorWsProjector()), consumerId])!;
         var result = await pending;
         await result.ExecuteAsync(context);
         context.Response.Body.Position = 0;

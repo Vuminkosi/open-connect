@@ -141,7 +141,7 @@ public static class NavigatorEndpoints
 
     /// <summary>Reads the session event stream; this endpoint never appends or mutates events.</summary>
     private static async Task<IResult> Events(string id, long? after, HttpContext context, INavigatorSessionStore store,
-        Outbox.NavigatorWsProjector projector, string? consumerId = null)
+        Outbox.NavigatorWsDeliveryAdapter delivery, string? consumerId = null)
     {
         if (after < 0) return Results.BadRequest();
         if (!Identity(context, out var tenant, out var principal)) return Forbidden();
@@ -154,7 +154,7 @@ public static class NavigatorEndpoints
         var projected = new List<OpenConnect.Navigator.Events.CommittedNavigatorEvent>();
         foreach (var value in store.Events(id, after ?? 0))
         {
-            var safe = await projector.ProjectAsync(value, serverAuthContext, context.RequestAborted, consumerId).ConfigureAwait(false);
+            var safe = await delivery.ProjectAsync(value, serverAuthContext, consumerId, context.RequestAborted).ConfigureAwait(false);
             if (safe is not null) projected.Add(safe);
         }
         return Results.Ok(projected);
