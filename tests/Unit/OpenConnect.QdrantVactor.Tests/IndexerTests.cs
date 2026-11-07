@@ -72,6 +72,22 @@ public sealed class IndexerTests
     }
 
     [Fact]
+    public async Task IndexedPointCarriesCommittedEventMetadata()
+    {
+        var committedAt = new DateTimeOffset(2025, 4, 3, 2, 1, 0, TimeSpan.Zero);
+        var item = Event("task.completed", 7) with { CommittedAt = committedAt };
+        var store = new FakeStore();
+
+        await Create(new FakeSubscription([Delivery(item)]), new FakeReader("sanitized content"), store, enabled: true).RunAsync();
+
+        var point = Assert.Single(store.Points);
+        Assert.Equal(item.EventId.ToString(), point.EventId);
+        Assert.Equal(item.SessionId, point.SessionId);
+        Assert.Equal(item.CommittedAt, point.CreatedAt);
+        Assert.Equal("Sanitized", point.PrivacyClass);
+    }
+
+    [Fact]
     public async Task DuplicateDeliveryProducesDeterministicSinglePoint()
     {
         var item = Event("agent.memory.candidate", 4);

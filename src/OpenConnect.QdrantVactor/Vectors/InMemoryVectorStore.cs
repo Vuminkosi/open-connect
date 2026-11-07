@@ -24,7 +24,7 @@ public sealed class InMemoryVectorStore : IVectorStore
             .Where(point => point.TenantId == tenantId && point.AgentId == agentId)
             .Select(point => (Point: point, Score: Similarity(vector.Span, point.Vector.Span)))
             .OrderByDescending(item => item.Score).ThenBy(item => item.Point.Id, StringComparer.Ordinal)
-            .Take(limit).Select(item => item.Point).ToArray();
+            .Take(limit).Select(item => item.Point with { Score = item.Score }).ToArray();
         return Task.FromResult(result);
     }
 

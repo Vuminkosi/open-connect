@@ -45,6 +45,7 @@ public sealed class QdrantVactorIndexer(
             using var activity = Instrumentation.SafeStartActivity("vectors", "index", [new("operation", "index"), new("component", "qdrantvactor")]);
             try
             {
+                // Only the sanitized projection reader may supply content to the embedder.
                 var content = await projections.ReadSanitizedAsync(committedEvent.ProjectionReference, committedEvent.TenantId, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(content))
                 {
@@ -54,7 +55,17 @@ public sealed class QdrantVactorIndexer(
                 var vector = await embeddings.GenerateAsync(content, cancellationToken).ConfigureAwait(false);
                 var idSource = $"{committedEvent.EventId:N}:{committedEvent.Sequence}:deterministic-stub-v1";
                 var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(idSource))).ToLowerInvariant();
-                await store.UpsertAsync(new VectorPoint(id, committedEvent.TenantId, committedEvent.AgentId, content, vector, committedEvent.Sequence), cancellationToken).ConfigureAwait(false);
+                await store.UpsertAsync(new VectorPoint(
+                    id,
+                    committedEvent.TenantId,
+                    committedEvent.AgentId,
+                    content,
+                    vector,
+                    committedEvent.Sequence,
+                    EventId: committedEvent.EventId.ToString(),
+                    SessionId: committedEvent.SessionId,
+                    PrivacyClass: "Sanitized",
+                    CreatedAt: committedEvent.CommittedAt), cancellationToken).ConfigureAwait(false);
                 await delivery.AckAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
