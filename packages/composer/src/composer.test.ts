@@ -241,6 +241,114 @@ describe("createMiniComposer mount/dispose", () => {
   });
 });
 
+describe("explicit theme control (spec §3.2)", () => {
+  function hostOf(body: FakeElement): FakeElement {
+    return body.children[0] as FakeElement;
+  }
+
+  function docBody(): FakeElement & { body: FakeElement } {
+    return (globalThis as Record<string, unknown>)["document"] as FakeElement & {
+      body: FakeElement;
+    };
+  }
+
+  it("defaults to data-theme=system", () => {
+    installFakeDom();
+    const composer = createMiniComposer({ sessionId: "s-1" });
+    const doc = docBody();
+    composer.mount(doc.body as unknown as HTMLElement);
+    expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe("system");
+    composer.dispose();
+  });
+
+  it("pins light and dark themes via the mount option", () => {
+    for (const theme of ["light", "dark"] as const) {
+      installFakeDom();
+      const composer = createMiniComposer({ sessionId: "s-1", theme });
+      const doc = docBody();
+      composer.mount(doc.body as unknown as HTMLElement);
+      expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe(theme);
+      composer.dispose();
+      removeFakeDom();
+    }
+  });
+
+  it("setTheme updates the host attribute at runtime", () => {
+    installFakeDom();
+    const composer = createMiniComposer({ sessionId: "s-1" });
+    const doc = docBody();
+    composer.mount(doc.body as unknown as HTMLElement);
+    composer.setTheme("dark");
+    expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe("dark");
+    composer.setTheme("light");
+    expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe("light");
+    composer.setTheme("system");
+    expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe("system");
+    composer.dispose();
+  });
+
+  it("setTheme before mount applies on mount", () => {
+    installFakeDom();
+    const composer = createMiniComposer({ sessionId: "s-1" });
+    composer.setTheme("dark");
+    const doc = docBody();
+    composer.mount(doc.body as unknown as HTMLElement);
+    expect(hostOf(doc.body)?.getAttribute("data-theme")).toBe("dark");
+    composer.dispose();
+  });
+
+  it("mirrors the explicit theme onto the bubble so it wins over the OS media query", () => {
+    // Regression: theme:'light' rendered dark because data-theme lived only
+    // on the host while the bubble declares its own token block.
+    for (const theme of ["light", "dark", "system"] as const) {
+      installFakeDom();
+      const composer = createMiniComposer({ sessionId: "s-1", theme });
+      const doc = docBody();
+      composer.mount(doc.body as unknown as HTMLElement);
+      const host = hostOf(doc.body);
+      const bubble = host.findByClass("oc-composer-bubble");
+      expect(host?.getAttribute("data-theme")).toBe(theme);
+      expect(bubble?.getAttribute("data-theme")).toBe(theme);
+      composer.dispose();
+      removeFakeDom();
+    }
+  });
+
+  it("setTheme mirrors runtime changes onto the bubble", () => {
+    installFakeDom();
+    const composer = createMiniComposer({ sessionId: "s-1" });
+    const doc = docBody();
+    composer.mount(doc.body as unknown as HTMLElement);
+    const bubbleOf = (): FakeElement | null =>
+      hostOf(doc.body)?.findByClass("oc-composer-bubble") ?? null;
+    composer.setTheme("light");
+    expect(bubbleOf()?.getAttribute("data-theme")).toBe("light");
+    composer.setTheme("dark");
+    expect(bubbleOf()?.getAttribute("data-theme")).toBe("dark");
+    composer.setTheme("system");
+    expect(bubbleOf()?.getAttribute("data-theme")).toBe("system");
+    composer.dispose();
+  });
+
+  it("stylesheet pins bubble tokens per explicit theme after the media query", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const here = dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(join(here, "styles.css"), "utf8");
+    // Bubble attribute selectors must exist (mirrored by applyTheme/mount)…
+    expect(css).toContain('.oc-composer-bubble[data-theme="light"]');
+    expect(css).toContain('.oc-composer-bubble[data-theme="dark"]');
+    // …and sit after the media query so the explicit choice beats the OS.
+    const mediaAt = css.indexOf("@media (prefers-color-scheme: dark)");
+    const lightAt = css.indexOf('.oc-composer-bubble[data-theme="light"]');
+    const darkAt = css.indexOf('.oc-composer-bubble[data-theme="dark"]');
+    expect(mediaAt).toBeGreaterThanOrEqual(0);
+    expect(lightAt).toBeGreaterThan(mediaAt);
+    expect(darkAt).toBeGreaterThan(mediaAt);
+  });
+});
+
 describe("bubble sizing (composer-spec §3: viewport − 2rem)", () => {
   it("clamps lower/upper bounds and NaN/inverted ranges", () => {
     expect(clamp(5, 0, 10)).toBe(5);

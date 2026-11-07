@@ -42,6 +42,46 @@
   }
 }
 
+/*
+ * Explicit theme control (spec §3.2 / ATLAS §12). `data-theme` lives on
+ * `.oc-composer-host` AND is mirrored onto `.oc-composer-bubble` by
+ * `applyTheme()`/mount (fix CMP-FIX-THEME-002, approach (b)): the bubble
+ * declares its own token block plus media-query overrides, so host
+ * inheritance alone cannot pin it when the explicit choice differs from the
+ * OS preference. `light` / `dark` pin the matching tokens regardless of the
+ * media query (both mismatch combos resolve to the explicit choice);
+ * `system`/absent keeps media-query behavior. Rules sit after the media
+ * query and carry attribute specificity so the explicit choice always wins.
+ * Never styles host-page body/html.
+ */
+.oc-composer-host[data-theme="light"],
+.oc-composer-bubble[data-theme="light"] {
+  --oc-surface: #ffffff;
+  --oc-surface-subtle: #f1f5f9;
+  --oc-text: #111827;
+  --oc-text-secondary: #475569;
+  --oc-text-muted: #64748b;
+  --oc-border: #dce2ea;
+  --oc-brand: #4f46e5;
+  --oc-brand-hover: #4338ca;
+  --oc-focus-ring: #6366f1;
+  --oc-danger: #dc3545;
+}
+
+.oc-composer-host[data-theme="dark"],
+.oc-composer-bubble[data-theme="dark"] {
+  --oc-surface: #171f2b;
+  --oc-surface-subtle: #253244;
+  --oc-text: #f8fafc;
+  --oc-text-secondary: #cbd5e1;
+  --oc-text-muted: #94a3b8;
+  --oc-border: #334155;
+  --oc-brand: #6366f1;
+  --oc-brand-hover: #818cf8;
+  --oc-focus-ring: #a5b4fc;
+  --oc-danger: #fb7185;
+}
+
 /* Host anchors the FAB; the bubble is a fixed overlay, never host reflow. */
 .oc-composer-host {
   position: relative;

@@ -61,7 +61,12 @@ adapter. The adapter creates no duplicate core client — it reuses the
 ## API
 
 - `createMiniComposer(options)` → `{ mount, dispose, send, open, close,
-  toggle, attachSession, subscribe, getState }`
+  toggle, attachSession, setTheme, subscribe, getState }`
+  - `options.theme?: "light" | "dark" | "system"` (default `"system"`).
+    Applied as the host `data-theme` attribute at `mount()`; `system`
+    follows the OS via `prefers-color-scheme`, while `light`/`dark` pin
+    the matching tokens regardless of the media query. `setTheme(theme)`
+    updates the attribute at runtime (attribute-only; no reducer change).
 - `composerReducer` / `initialComposerState` — pure state machine
   (`displayState`, `taskPhase`, `micState`, `speechState` axes).
 - `shouldSubmitKey`, `createIdempotencyKey`, `eventTypeToPhase`,
@@ -76,3 +81,11 @@ npm run build       # tsc -p tsconfig.build.json
 npm test            # vitest run
 node -e "import('./dist/index.js').then(m => console.log(Object.keys(m)))"
 ```
+
+## Theme screenshots
+
+Baseline screenshots must pin an explicit theme: `data-theme="light"` for
+light captures, `data-theme="dark"` for dark captures with a matching
+fixture page background (never a dark bubble on a white page). Relying on
+the viewer's `prefers-color-scheme` (`system`) is not reproducible across
+machines.

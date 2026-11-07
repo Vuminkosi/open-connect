@@ -68,12 +68,17 @@ export interface ComposerClient {
 
 export type ComposerPlacement = "bottom-right" | "bottom-left";
 
+/** Explicit theme control (spec §3.2 / ATLAS §12). `system` follows the OS. */
+export type ComposerTheme = "light" | "dark" | "system";
+
 export interface MiniComposerOptions {
   client?: ComposerClient;
   sessionId?: string;
   agentId?: string;
   assistantName?: string;
   placement?: ComposerPlacement;
+  /** Visual theme pinned on the host + bubble `data-theme` attributes. Default `"system"`. */
+  theme?: ComposerTheme;
   suggestions?: readonly string[];
   placeholder?: string;
 }
@@ -99,6 +104,11 @@ export interface MiniComposerHandle {
   open(): void;
   close(): void;
   toggle(): void;
+  /**
+   * Switches the explicit theme at runtime by updating the host and bubble
+   * `data-theme` attributes. Attribute-only: no reducer/state change.
+   */
+  setTheme(theme: ComposerTheme): void;
 }
 
 const FAB_SIZE_PX = 44; // 2.75rem visual spec §3
@@ -130,6 +140,11 @@ function friendlyError(error: unknown): string {
 export function createMiniComposer(options: MiniComposerOptions = {}): MiniComposerHandle {
   const assistantName = options.assistantName ?? "Assistant";
   const placement: ComposerPlacement = options.placement ?? "bottom-right";
+  const validThemes: readonly ComposerTheme[] = ["light", "dark", "system"];
+  let theme: ComposerTheme =
+    options.theme !== undefined && (validThemes as readonly string[]).includes(options.theme)
+      ? options.theme
+      : "system";
   const suggestions = [...(options.suggestions ?? [])];
   const placeholder = options.placeholder ?? "Ask the assistant…";
   const client = options.client;
@@ -168,6 +183,16 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
   let mounted = false;
   /** Last submit text retained so a failed send can be retried verbatim. */
   let lastFailedInput: string | undefined = undefined;
+
+  function applyTheme(): void {
+    if (host === null) return;
+    host.setAttribute("data-theme", theme);
+    // The bubble declares its own token block (incl. media-query overrides),
+    // so host inheritance alone cannot pin it: mirror the explicit choice
+    // onto the bubble so `.oc-composer-bubble[data-theme=...]` wins over the
+    // media query regardless of OS preference (light-vs-dark and vice versa).
+    bubble?.setAttribute("data-theme", theme);
+  }
 
   function viewportSize(): { width: number; height: number } {
     if (typeof window !== "undefined") {
@@ -343,6 +368,13 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
       } else fab?.focus();
     },
 
+    setTheme: (next: ComposerTheme): void => {
+      theme = (["light", "dark", "system"] as readonly string[]).includes(next)
+        ? next
+        : "system";
+      applyTheme();
+    },
+
     send: async (text?: string): Promise<void> => {
       const value = (text ?? editor?.value ?? state.draft).trim();
       if (value.length === 0) return;
@@ -384,6 +416,7 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
 
       host = el("div", "oc-composer-host");
       host.dataset["placement"] = placement;
+      host.setAttribute("data-theme", theme);
 
       fab = document.createElement("button");
       fab.type = "button";
@@ -399,6 +432,9 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
       bubble.setAttribute("role", "dialog");
       bubble.setAttribute("aria-label", `${assistantName} composer`);
       bubble.setAttribute("aria-modal", "false");
+      // Mirror the explicit theme (approach (b)): host attribute alone cannot
+      // control the bubble because it declares its own token block.
+      bubble.setAttribute("data-theme", theme);
       bubble.hidden = true;
 
       const header = el("header", "oc-composer-header");
