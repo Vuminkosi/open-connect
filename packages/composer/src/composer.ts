@@ -169,10 +169,31 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
   /** Last submit text retained so a failed send can be retried verbatim. */
   let lastFailedInput: string | undefined = undefined;
 
+  function viewportSize(): { width: number; height: number } {
+    if (typeof window !== "undefined") {
+      const visual = (window as Window & { visualViewport?: VisualViewport | null })
+        .visualViewport;
+      if (visual !== undefined && visual !== null) {
+        const width = Number(visual.width);
+        const height = Number(visual.height);
+        if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+          return { width, height };
+        }
+      }
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { width: 0, height: 0 };
+  }
+
   function applyBubbleBounds(): void {
     if (bubble === null || typeof window === "undefined") return;
-    const metrics = bubbleMetrics(window.innerWidth, window.innerHeight);
+    const viewport = viewportSize();
+    const metrics = bubbleMetrics(viewport.width, viewport.height);
+    // Inline px width drives the open size; inline max-width (same bound)
+    // keeps the bubble inside viewport − 2rem even when CSS vw units and
+    // the px snapshot disagree (font scaling, pinch-zoom, dynamic chrome).
     bubble.style.width = `${String(metrics.widthPx)}px`;
+    bubble.style.maxWidth = `${String(metrics.widthPx)}px`;
     bubble.style.maxHeight = `${String(metrics.maxHeightPx)}px`;
   }
 
@@ -304,6 +325,8 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
 
     open: (): void => {
       dispatch({ type: "open" });
+      // Re-measure after unhiding: fonts/viewport may have changed while closed.
+      applyBubbleBounds();
       editor?.focus();
     },
 
@@ -314,8 +337,10 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
     toggle: (): void => {
       const willOpen = state.displayState !== "open";
       dispatch({ type: "toggle" });
-      if (willOpen) editor?.focus();
-      else fab?.focus();
+      if (willOpen) {
+        applyBubbleBounds();
+        editor?.focus();
+      } else fab?.focus();
     },
 
     send: async (text?: string): Promise<void> => {

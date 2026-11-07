@@ -96,10 +96,15 @@
 /* Bubble: min(23.5rem, viewport − 2rem); tail anchors it to the FAB. */
 .oc-composer-bubble {
   position: fixed;
+  right: 16px; /* fallback when max()/env() is unsupported */
   right: max(16px, env(safe-area-inset-right));
+  left: auto;
   bottom: calc(max(16px, env(safe-area-inset-bottom)) + 3.25rem);
   z-index: 1200;
+  box-sizing: border-box;
   width: min(23.5rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
   max-height: min(560px, calc(100vh - 120px));
   max-height: min(560px, calc(100dvh - 120px));
   display: flex;
@@ -114,6 +119,7 @@
 
 .oc-composer-host[data-placement="bottom-left"] .oc-composer-bubble {
   right: auto;
+  left: 16px; /* fallback when max()/env() is unsupported */
   left: max(16px, env(safe-area-inset-left));
 }
 
@@ -387,7 +393,11 @@
 
 @media (max-width: 599px) {
   .oc-composer-bubble {
+    right: 1rem;
+    left: auto;
     width: calc(100vw - 2rem);
+    max-width: calc(100vw - 2rem);
+    max-width: calc(100dvw - 2rem);
     max-height: calc(100vh - 140px);
     max-height: calc(100dvh - 140px);
   }

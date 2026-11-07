@@ -5,7 +5,7 @@
  * removal so disposal is verifiable.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMiniComposer, type ComposerClient } from "./composer.js";
+import { createMiniComposer, bubbleMetrics, clamp, type ComposerClient } from "./composer.js";
 import type { ComposerSessionEvent } from "./state.js";
 
 type Listener = (event: Record<string, unknown>) => void;
@@ -237,6 +237,44 @@ describe("createMiniComposer mount/dispose", () => {
     expect(composer.getState().displayState).toBe("open");
     (doc as unknown as FakeElement).fire("keydown", keyEvent("Escape"));
     expect(composer.getState().displayState).toBe("closed");
+    composer.dispose();
+  });
+});
+
+describe("bubble sizing (composer-spec §3: viewport − 2rem)", () => {
+  it("clamps lower/upper bounds and NaN/inverted ranges", () => {
+    expect(clamp(5, 0, 10)).toBe(5);
+    expect(clamp(-1, 0, 10)).toBe(0);
+    expect(clamp(99, 0, 10)).toBe(10);
+    expect(clamp(Number.NaN, 2, 10)).toBe(2);
+    expect(clamp(5, 10, 0)).toBe(10);
+  });
+
+  it("bubbleMetrics reserves 16px margins on both axes", () => {
+    expect(bubbleMetrics(390, 844)).toEqual({ widthPx: 358, maxHeightPx: 560 });
+    expect(bubbleMetrics(320, 600)).toEqual({ widthPx: 288, maxHeightPx: 480 });
+    expect(bubbleMetrics(1440, 900)).toEqual({ widthPx: 376, maxHeightPx: 560 });
+    // Degenerate viewport never goes negative.
+    expect(bubbleMetrics(20, 20)).toEqual({ widthPx: 0, maxHeightPx: 0 });
+  });
+
+  it("mount at 390px pins inline width/maxWidth inside viewport − 2rem", () => {
+    const fake = installFakeDom();
+    fake.window.innerWidth = 390;
+    fake.window.innerHeight = 844;
+    const composer = createMiniComposer({ sessionId: "s-1" });
+    const doc = (globalThis as Record<string, unknown>)["document"] as FakeElement & {
+      body: FakeElement;
+    };
+    composer.mount(doc.body as unknown as HTMLElement);
+    const host = doc.body.children[0] as FakeElement;
+    const bubble = host.findByClass("oc-composer-bubble") as FakeElement;
+    expect(bubble?.style["width"]).toBe("358px");
+    expect(bubble?.style["maxWidth"]).toBe("358px");
+    // Re-open re-applies bounds (fonts/viewport may shift while closed).
+    composer.open();
+    expect(bubble?.style["width"]).toBe("358px");
+    expect(bubble?.style["maxWidth"]).toBe("358px");
     composer.dispose();
   });
 });
