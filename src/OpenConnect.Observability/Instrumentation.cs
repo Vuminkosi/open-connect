@@ -14,18 +14,21 @@ public static class Instrumentation
             ["gateway"] = new("OpenConnect.Gateway"), ["firewall"] = new("OpenConnect.Firewall"),
             ["genai"] = new("OpenConnect.GenAI"), ["agents"] = new("OpenConnect.Agents"),
             ["workers"] = new("OpenConnect.Workers"), ["vault"] = new("OpenConnect.Vault"),
-            ["metering"] = new("OpenConnect.Metering")
+            ["metering"] = new("OpenConnect.Metering"), ["vectors"] = new("OpenConnect.Vectors")
         };
     private static readonly Meter Metrics = new("OpenConnect");
+    private static readonly Meter VectorMetrics = new("OpenConnect.Vectors");
+    private static readonly Histogram<double> VectorOperationDuration =
+        VectorMetrics.CreateHistogram<double>("openconnect.vector.operation.duration", "ms");
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> AllowedDimensions =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
-            ["operation"] = new HashSet<string>(new[] { "chat", "completion", "embedding", "tool", "health", "request" }, StringComparer.Ordinal),
+            ["operation"] = new HashSet<string>(new[] { "chat", "completion", "embedding", "tool", "health", "request", "index", "search", "delete" }, StringComparer.Ordinal),
             ["provider"] = new HashSet<string>(new[] { "openai", "azure_openai", "anthropic", "google", "local", "unknown" }, StringComparer.Ordinal),
             ["model_family"] = new HashSet<string>(new[] { "gpt", "claude", "gemini", "llama", "other" }, StringComparer.Ordinal),
             ["outcome"] = new HashSet<string>(new[] { "success", "failure", "blocked", "cancelled" }, StringComparer.Ordinal),
             ["mode"] = new HashSet<string>(new[] { "strict-local", "local-only", "policy-controlled", "disabled" }, StringComparer.Ordinal),
-            ["component"] = new HashSet<string>(new[] { "gateway", "firewall", "agent", "worker", "vault", "metering" }, StringComparer.Ordinal)
+            ["component"] = new HashSet<string>(new[] { "gateway", "firewall", "agent", "worker", "vault", "metering", "qdrantvactor" }, StringComparer.Ordinal)
         };
 
     /// <summary>Filters keys against the bounded dimension allowlist; arbitrary values are not accepted as dimensions.</summary>
@@ -48,6 +51,25 @@ public static class Instrumentation
         if (activity is null) return null;
         foreach (var tag in safeTags) activity.SetTag(tag.Key, tag.Value);
         return activity;
+    }
+
+    /// <summary>Records a vector operation duration with bounded, privacy-filtered dimensions only.</summary>
+    public static void SafeRecordVector(double durationMilliseconds, string operation, string outcome)
+    {
+        if (!double.IsFinite(durationMilliseconds) || durationMilliseconds < 0)
+            throw new ArgumentOutOfRangeException(nameof(durationMilliseconds));
+        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outcome);
+
+        var tags = AllowlistedTags([
+            new("operation", operation),
+            new("component", "qdrantvactor"),
+            new("outcome", outcome)
+        ]);
+        if (tags.Length != 3 || !TelemetryPrivacy.CreateDefault().Validator.IsSafe(tags))
+            throw new ArgumentOutOfRangeException(nameof(operation), "Vector telemetry dimensions must be allowlisted values.");
+
+        VectorOperationDuration.Record(durationMilliseconds, tags);
     }
 
     internal static bool IsApprovedDimension(string key, string value) =>

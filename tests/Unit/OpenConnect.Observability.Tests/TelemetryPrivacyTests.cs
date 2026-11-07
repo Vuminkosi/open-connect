@@ -125,6 +125,36 @@ public sealed class TelemetryPrivacyTests
         Assert.Equal("chat", activity.GetTagItem("operation"));
     }
 
+    [Fact]
+    public void Vector_activity_source_accepts_only_vector_dimensions()
+    {
+        using var listener = new System.Diagnostics.ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "OpenConnect.Vectors",
+            Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
+                System.Diagnostics.ActivitySamplingResult.AllData
+        };
+        System.Diagnostics.ActivitySource.AddActivityListener(listener);
+
+        using var activity = Instrumentation.SafeStartActivity("vectors", "search", [
+            new("operation", "search"), new("component", "qdrantvactor"), new("outcome", "success"),
+            new("collection", "private-customer-index")]);
+
+        Assert.NotNull(activity);
+        Assert.Equal("OpenConnect.Vectors", activity.Source.Name);
+        Assert.Equal(3, activity.TagObjects.Count());
+        Assert.Null(activity.GetTagItem("collection"));
+    }
+
+    [Fact]
+    public void Vector_metric_rejects_unapproved_dimension_values()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Instrumentation.SafeRecordVector(12.5, "private-index-name", "success"));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Instrumentation.SafeRecordVector(-1, "search", "success"));
+    }
+
     [Theory]
     [InlineData(TelemetryPrivacyMode.Strict)]
     [InlineData(TelemetryPrivacyMode.Balanced)]
