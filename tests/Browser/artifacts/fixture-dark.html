@@ -1,0 +1,15 @@
+﻿<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Composer visual fixture</title>
+<link rel="stylesheet" href="file:///C:/DevOps/open-connect/worktrees/composer/packages/composer/src/styles.css">
+<style id="fixture-style"> .oc-composer-host,.oc-composer-bubble{--oc-surface:#171f2b!important;--oc-surface-subtle:#253244!important;--oc-text:#f8fafc!important;--oc-text-secondary:#cbd5e1!important;--oc-text-muted:#94a3b8!important;--oc-border:#334155!important;} </style></head><body><main id="root"></main><script type="module">
+import { createMiniComposer } from 'file:///C:/DevOps/open-connect/worktrees/composer/packages/composer/dist/index.js';
+const client = { createTask: async () => ({ accepted: true }) };
+const handle = createMiniComposer({ client, sessionId: 'visual-fixture-session', agentId: 'fixture-agent', assistantName: 'Test assistant' });
+handle.mount(document.querySelector('#root'));
+if (new URLSearchParams(location.search).has('open')) handle.open();
+document.documentElement.dataset.scrollWidth = String(document.documentElement.scrollWidth);
+document.documentElement.dataset.clientWidth = String(document.documentElement.clientWidth);
+document.documentElement.dataset.scrollHeight = String(document.documentElement.scrollHeight);
+document.documentElement.dataset.clientHeight = String(document.documentElement.clientHeight);
+</script></body></html>
+
