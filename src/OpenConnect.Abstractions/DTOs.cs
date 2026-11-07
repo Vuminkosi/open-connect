@@ -17,7 +17,28 @@ public sealed record AgentDefinition(AgentId Id, string Name)
     public AgentMemoryPolicy MemoryPolicy { get; init; } = new();
     public AgentBudget Budget { get; init; } = new();
     public string PolicyRevision { get; init; } = "1";
+    /// <summary>Activation and workload identity policy for operational agents; null for interactive definitions.</summary>
+    public OperationalPolicy? Operational { get; init; }
 }
+
+/// <summary>Server-controlled activation and execution limits for an operational agent.</summary>
+/// <param name="Activation">The event or schedule that may start the agent.</param>
+/// <param name="WorkloadIdentityRef">Reference to a preconfigured workload identity.</param>
+/// <param name="Cron">Cron schedule, required for scheduled activation.</param>
+/// <param name="TimeZoneId">Time zone identifier for the schedule, required for scheduled activation.</param>
+/// <param name="Misfire">Behavior when a scheduled occurrence is missed.</param>
+/// <param name="Concurrency">Behavior when an activation overlaps an existing run.</param>
+/// <param name="MaxParallelRuns">Maximum number of concurrent runs.</param>
+/// <param name="MaxRunDuration">Optional maximum duration of one run.</param>
+public sealed record OperationalPolicy(
+    AgentActivationMode Activation = AgentActivationMode.OnDemand,
+    string? WorkloadIdentityRef = null,
+    string? Cron = null,
+    string? TimeZoneId = null,
+    SchedulingMisfirePolicy Misfire = SchedulingMisfirePolicy.Skip,
+    OperationalConcurrencyPolicy Concurrency = OperationalConcurrencyPolicy.Forbid,
+    int MaxParallelRuns = 1,
+    TimeSpan? MaxRunDuration = null);
 
 /// <summary>Requirements imposed on the model selected for an agent.</summary>
 public sealed record ModelRequirement(string? ModelId = null, ModelExecutionLocation? Location = null);

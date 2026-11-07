@@ -60,6 +60,7 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
             throw new AgentCatalogException("Agent id and name are required.");
         if (string.IsNullOrWhiteSpace(definition.Version) || string.IsNullOrWhiteSpace(definition.PolicyRevision))
             throw new AgentCatalogException("Agent and policy revisions are required.");
+        ValidateOperationalPolicy(definition);
         var policy = definition.Orchestration ?? throw new AgentCatalogException("Orchestration policy is required.");
         if (!Enum.IsDefined(policy.Mode) || !Enum.IsDefined(policy.ResultMergeMode))
             throw new AgentCatalogException("Agent orchestration policy contains an unsupported mode.");
@@ -75,6 +76,75 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
             throw new AgentCatalogException("Context token limits cannot be negative.");
         if (definition.Orchestration.AllowedChildAgents?.Contains(definition.Id) == true)
             throw new AgentCatalogException("An agent cannot delegate to itself.");
+    }
+
+    private static void ValidateOperationalPolicy(AgentDefinition definition)
+    {
+        if (!Enum.IsDefined(definition.ExecutionMode) || !Enum.IsDefined(definition.IdentityMode))
+            throw new AgentCatalogException("Agent execution and identity modes must be supported.");
+
+        if (definition.ExecutionMode == AgentExecutionMode.Operational)
+        {
+            var operational = definition.Operational ?? throw new AgentCatalogException("Operational agents require an operational policy.");
+            if (definition.IdentityMode != AgentIdentityMode.WorkloadIdentity || string.IsNullOrWhiteSpace(operational.WorkloadIdentityRef))
+                throw new AgentCatalogException("Operational agents require a configured workload identity and cannot use active-user identity.");
+            if (!Enum.IsDefined(operational.Activation) || !Enum.IsDefined(operational.Misfire) || !Enum.IsDefined(operational.Concurrency))
+                throw new AgentCatalogException("Operational policy contains an unsupported activation, misfire, or concurrency mode.");
+            if (operational.MaxParallelRuns < 1 || operational.MaxRunDuration <= TimeSpan.Zero)
+                throw new AgentCatalogException("Operational run limits must allow at least one parallel run and a positive duration.");
+            if (operational.Activation == AgentActivationMode.Scheduled)
+            {
+                if (string.IsNullOrWhiteSpace(operational.Cron))
+                    throw new AgentCatalogException("Scheduled operational agents require a cron schedule.");
+                if (!IsCronShapeValid(operational.Cron))
+                    throw new AgentCatalogException("Scheduled operational agents require a valid five- or six-field cron schedule.");
+                if (string.IsNullOrWhiteSpace(operational.TimeZoneId))
+                    throw new AgentCatalogException("Scheduled operational agents require a time zone.");
+                try { _ = TimeZoneInfo.FindSystemTimeZoneById(operational.TimeZoneId); }
+                catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException or ArgumentException)
+                {
+                    throw new AgentCatalogException($"Scheduled operational agent time zone '{operational.TimeZoneId}' is not recognized or is invalid.", ex);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(operational.Cron))
+                throw new AgentCatalogException("Cron schedules are valid only for scheduled activation.");
+        }
+        else
+        {
+            if (definition.IdentityMode != AgentIdentityMode.ActiveUser)
+                throw new AgentCatalogException("Interactive agents must use active-user identity.");
+            if (definition.Operational is { Activation: not AgentActivationMode.OnDemand })
+                throw new AgentCatalogException("Interactive agents support on-demand activation only.");
+            if (definition.Operational is { Cron: not null })
+                throw new AgentCatalogException("Cron schedules are valid only for scheduled operational agents.");
+        }
+    }
+
+    private static bool IsCronShapeValid(string cron)
+    {
+        var fields = cron.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (fields.Length is not (5 or 6)) return false;
+        var bounds = fields.Length == 5
+            ? new[] { (0, 59), (0, 23), (1, 31), (1, 12), (0, 7) }
+            : new[] { (0, 59), (0, 59), (0, 23), (1, 31), (1, 12), (0, 7) };
+        for (var i = 0; i < fields.Length; i++)
+            if (!IsCronFieldValid(fields[i], bounds[i].Item1, bounds[i].Item2)) return false;
+        return true;
+    }
+
+    private static bool IsCronFieldValid(string field, int minimum, int maximum)
+    {
+        foreach (var item in field.Split(','))
+        {
+            var parts = item.Split('/');
+            if (parts.Length > 2 || (parts.Length == 2 && (!int.TryParse(parts[1], out var step) || step < 1))) return false;
+            var range = parts[0];
+            if (range == "*") continue;
+            var endpoints = range.Split('-');
+            if (endpoints.Length is < 1 or > 2 || !int.TryParse(endpoints[0], out var start) || start < minimum || start > maximum) return false;
+            if (endpoints.Length == 2 && (!int.TryParse(endpoints[1], out var end) || end < start || end > maximum)) return false;
+        }
+        return true;
     }
 
     private static void ValidateGraph(IReadOnlyDictionary<AgentId, AgentDefinition> definitions)

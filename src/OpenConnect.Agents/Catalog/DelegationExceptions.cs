@@ -6,6 +6,11 @@ public class AgentCatalogException : InvalidOperationException
     /// <summary>Initializes an exception describing a rejected catalog or delegation operation.</summary>
     /// <param name="message">A description of the rejection.</param>
     public AgentCatalogException(string message) : base(message) { }
+
+    /// <summary>Initializes an exception describing a rejected catalog or delegation operation with its cause.</summary>
+    /// <param name="message">A description of the rejection.</param>
+    /// <param name="innerException">The exception that caused the rejection.</param>
+    public AgentCatalogException(string message, Exception innerException) : base(message, innerException) { }
 }
 
 /// <summary>Raised when the requested delegation exceeds the permitted graph depth.</summary>
