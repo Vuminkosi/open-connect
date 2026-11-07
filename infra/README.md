@@ -10,11 +10,18 @@ docker compose -f infra/compose.yml up -d
 docker compose -f infra/compose.yml down
 ```
 
-PostgreSQL is available on host port `5864` by default (container port `5432`);
-NATS client connections use host port `4322` (container port `4222`) and its
-monitoring endpoint uses port `8222`. Override the mapped database port with
-`POSTGRES_PORT` and the mapped NATS client port with `NATS_PORT` in
-`infra/.env`. PostgreSQL data persists in the named `pgdata` volume after
-`down`; `down -v` removes it and should be used only when intentionally deleting
-local database data. NATS JetStream is enabled; stream and subject provisioning
-for `oc.v1.*` remains an out-of-band follow-up.
+PostgreSQL (PostGIS 17) is available on host port `5874` by default; NATS
+clients use host port `4332` (container port `4222`) and monitoring is bound
+to loopback at host port `8322` (container port `8222`). These defaults avoid
+host ports currently used by other local containers. Override them with
+`POSTGRES_PORT`, `NATS_CLIENT_PORT`, and `NATS_MONITOR_PORT` in `infra/.env`.
+Qdrant has no host port and is intended for access from the Compose network.
+Set a unique local password for PostgreSQL, Qdrant, and both NATS users in
+`infra/.env`; use `QDRANT_IMAGE` with the verified v1.19.0 image digest. The
+bootstrap jobs create `OC_NOTIFICATIONS` / `oc.v1.notifications.inapp` and
+`OC_INGESTION` / `oc.v1.ingestion.>` streams. Override their names/subjects
+with the documented `NATS_*` variables. `OPENCONNECT_NATS_OPTIONS_FILE` is an
+optional path available inside the bootstrap container; if it is unset or the
+file is absent, the job uses environment configuration only. PostgreSQL,
+Qdrant, and NATS data persist in named volumes; `down -v` deletes that local
+data and should be used only intentionally.
