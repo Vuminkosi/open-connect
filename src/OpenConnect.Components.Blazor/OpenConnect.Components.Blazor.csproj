@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>OpenConnect.Components.Blazor</AssemblyName>
+    <RootNamespace>OpenConnect.Components.Blazor</RootNamespace>
+    <RazorLangVersion>8.0</RazorLangVersion>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
+    <ProjectReference Include="../OpenConnect.Client/OpenConnect.Client.csproj" />
+    <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

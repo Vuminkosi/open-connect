@@ -1,0 +1,43 @@
+---
+/* Mermaid.astro — static-safe architecture diagrams (SITE-001 stub).
+   Renders the diagram source as readable <pre> by default (works with JS
+   disabled / offline). Progressively enhances to SVG client-side using the
+   locally bundled mermaid package — no CDN, no backend, no secrets. */
+interface Props {
+  title: string;
+  chart: string;
+}
+const { title, chart } = Astro.props;
+const source = chart.trim();
+---
+<figure class="oc-mermaid" data-mermaid-figure>
+  <figcaption class="sr-only">{title}</figcaption>
+  <pre data-mermaid-source tabindex="0"><code>{source}</code></pre>
+  <div data-mermaid-target hidden></div>
+  <script define:vars={{ source }}>
+    (async () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const host = document.currentScript?.parentElement;
+      if (!host) return;
+      try {
+        const { default: mermaid } = await import('mermaid');
+        mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'neutral' });
+        const target = host.querySelector('[data-mermaid-target]');
+        const { svg } = await mermaid.render(`oc-m-${Math.random().toString(36).slice(2)}`, source);
+        if (target) {
+          target.innerHTML = svg;
+          target.hidden = false;
+          host.querySelector('[data-mermaid-source]')?.setAttribute('hidden', '');
+        }
+      } catch {
+        /* Source fallback stays visible — static usability preserved. */
+      }
+    })();
+  </script>
+</figure>
+<style>
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+  }
+</style>

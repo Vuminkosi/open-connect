@@ -1,0 +1,14 @@
+file_path,source_sha,observed_behavior,license_status,destination,decision,notes
+src/SwiftAid.Application/Ellai/EllaiSessionService.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Session versioning fencing idempotency,MIT (project),OpenConnect.Sessions,Adapt,Abstract principal/tenant remove case-specific modes
+src/SwiftAid.Infrastructure/Persistence/Ellai/PostgresEllaiSessionStore.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,PostgreSQL durable state,MIT (project),OpenConnect.Persistence.Postgres,Rewrite,New generic schema/migrations not copy SwiftAid DB
+src/SwiftAid.Application/Ellai/Specialists/EllaiSpecialistRegistry.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Named specialists tool allowlists,MIT (project),OpenConnect.Agents,Adapt,Replace hardcoded domain catalog with registration + policy
+src/SwiftAid.Application/Ellai/Tools/EllaiToolBroker.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Tool boundary dispatch,MIT (project),OpenConnect.Tools,Adapt,Extract schema-bound enforcement remove case authorizations
+src/SwiftAid.Application/Ellai/UiIntelligence/EllaiUiRegistry.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Bounded permission-filtered UI registry,MIT (project),OpenConnect.Components.Contracts,Adapt,Rework feature IDs to generic component/capability IDs
+src/SwiftAid.Infrastructure/Messaging/JetStreamPublisher.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,JetStream publish receipt/dedup,MIT (project),OpenConnect.Transport.Nats,Adapt,Change subjects/contracts preserve ACK checks
+src/SwiftAid.Application/Ellai/Voice/EllaiVoiceTurnCoordinator.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Voice turn interruption fences,MIT (project),OpenConnect.Voice,Adapt,Adapt from domain session to generic voice session
+src/SwiftAid.Gateway/Ellai/EllaiVoiceWebSocketEndpoint.cs,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Authenticated voice WS endpoint,MIT (project),OpenConnect.Hosting.AspNetCore,Adapt,Version protocol remove application-specific identity
+workers/src/swiftaid_workers/classification/,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Python classification worker,MIT (project),workers/classification,Adapt,Extract with generic task envelope/claim/commit retain model provenance
+infra/ellai-tts/,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Python MMS-TTS HTTP service,MIT (project),workers/mms-tts,Adapt,Consolidate into Python worker layout preserve model checks
+infra/nats.conf,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Broker ACL/config,MIT (project),infra/nats,Adapt,New isolated subjects credentials and streams
+infra/compose.yml,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,Deployment patterns,MIT (project),infra/compose,Adapt,New profiles and service definitions
+.github/workflows/verify.yml,5a6bad62f87d9e9dfabbc2d0fa1a0b491f0bada7,CI conventions,MIT (project),.github/workflows/ci.yml,Adapt,Port pattern not domain-specific targets

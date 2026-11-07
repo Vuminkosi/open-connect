@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","requestId":"00000000-0000-0000-0000-000000000001","detectorId":"rules","detectorVersion":"1","spans":[{"entityType":"EMAIL","start":8,"end":2,"confidence":0.5,"decision":"mask"}]}

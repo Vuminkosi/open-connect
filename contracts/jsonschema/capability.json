@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/capability.json",
+  "title": "Capability descriptor", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "kind", "state", "version"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["chat", "embedding", "image", "audio", "classification", "security-scan", "tool"]},
+    "state": {"type": "string", "enum": ["disabled", "loading", "ready", "degraded", "failed"]},
+    "version": {"type": "string", "minLength": 1}, "localOnly": {"type": "boolean"}
+  }
+}

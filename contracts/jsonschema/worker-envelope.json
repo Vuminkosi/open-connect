@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/worker-envelope.json",
+  "title": "Worker request envelope", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "messageId", "taskId", "kind", "issuedAt", "expiresAt", "lease", "payloadRef"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "messageId": {"type": "string", "format": "uuid"},
+    "taskId": {"type": "string", "minLength": 1}, "kind": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$"},
+    "issuedAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"},
+    "lease": {"type": "object", "additionalProperties": false, "required": ["leaseId", "fencingToken"], "properties": {"leaseId": {"type": "string", "format": "uuid"}, "fencingToken": {"type": "integer", "minimum": 1}}},
+    "payloadRef": {"type": "string", "minLength": 1, "maxLength": 2048}, "correlationId": {"type": "string", "maxLength": 128}
+  }
+}

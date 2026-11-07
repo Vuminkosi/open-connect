@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/security-scan.json",
+  "title": "Security scan request", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "text", "detectors"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "requestId": {"type": "string", "format": "uuid"},
+    "text": {"type": "string", "maxLength": 1000000}, "detectors": {"type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"type": "string", "enum": ["rules", "gliner-pii", "deberta-injection", "qwen3guard", "paddle-ocr", "yunet"]}},
+    "policyRevision": {"type": "string", "maxLength": 128}
+  }
+}

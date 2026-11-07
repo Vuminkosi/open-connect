@@ -1,0 +1,26 @@
+{
+  "name": "@openconnect/docs-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenConnect static documentation site (Astro Starlight). Static only; usable without a backend.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check-links": "node ./scripts/check-links.mjs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.29.3",
+    "astro": "4.16.18",
+    "mermaid": "11.4.1",
+    "sharp": "0.34.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "overrides": {
+    "@astrojs/sitemap": "2.0.2",
+    "sitemap": "7.1.1"
+  }
+}

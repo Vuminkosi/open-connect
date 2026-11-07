@@ -1,0 +1,11 @@
+---
+title: Agents Overview
+description: Interactive and operational agents on Microsoft Agent Framework.
+---
+
+OpenConnect's agent layer (`src/OpenConnect.Agents`) provides MAF adapters and lifecycle management. Two roles:
+
+- **Interactive agents** — user-initiated sessions (including the future docs assistant).
+- **Operational agents** — background indexing/maintenance only, governed by worker lifecycle and configuration.
+
+Never assign anonymous documentation users administrative privileges; anonymous sessions use an explicit restricted context and are isolated per session.

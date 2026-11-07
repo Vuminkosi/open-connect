@@ -1,0 +1,6 @@
+# Repository-wide review ownership; replace with the team's GitHub handle before enabling enforcement.
+* @openconnect/maintainers
+
+# CI and repository security configuration requires maintainer review.
+/.github/ @openconnect/maintainers
+/scripts/ @openconnect/maintainers

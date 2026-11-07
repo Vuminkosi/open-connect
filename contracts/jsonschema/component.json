@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/component.json",
+  "title": "Component proposal", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "componentId", "componentType", "props"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "componentId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$"},
+    "componentType": {"type": "string", "enum": ["mini-composer", "message-list", "status-card"]}, "props": {"type": "object"}
+  }
+}

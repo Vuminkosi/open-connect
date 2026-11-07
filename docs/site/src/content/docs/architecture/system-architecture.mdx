@@ -1,0 +1,23 @@
+---
+title: System Architecture
+description: Package boundaries and dependency direction.
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+
+Package boundaries are strict: `OpenConnect.Abstractions` carries core interfaces and DTOs with no external dependencies; every other package depends inward.
+
+<Mermaid
+  title="Request path through gateway, firewall, agents, and persistence"
+  chart={`
+flowchart LR
+  Browser --> Site[docs/site static]
+  Site -.->|optional Phase 4| Api[Docs API<br/>ASP.NET Core + OpenConnect]
+  Api --> Gateway[OpenConnect gateway]
+  Gateway --> Firewall[AI Firewall<br/>PII / secrets / injection]
+  Firewall --> Agents[Agents<br/>MAF]
+  Agents --> Conv[Conversations]
+  Conv --> Providers[Configured model providers]
+`} />
+
+Dependency rule: abstractions never reference implementations; implementations register via `TryAddSingleton` patterns behind `AddOpenConnect`.

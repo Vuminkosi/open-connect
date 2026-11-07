@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","id":"lead","version":"1.0.0","executionMode":"interactive","instructionsPath":"agent-runtime.md","capabilities":["chat"],"tools":[],"maxDelegationDepth":3,"budget":{"maxTokens":10000,"maxCost":1.25},"timeoutSeconds":120}

@@ -1,0 +1,12 @@
+---
+title: Firewall Policies
+description: Policy enforcement, audit events, and fail-closed semantics.
+---
+
+- **Enforcement points:** request pipeline, egress gate, and agent tool authorization.
+- **Decisions:** allow, redact-and-continue (tokenization/vault mapping server-side only), deny.
+- **Fail-closed triggers:** missing detector, authorization failure, schema validation failure, expired authorization.
+- **Audit:** every decision emits an audit event without sensitive payload data.
+- **Public sessions:** never expose vault restoration or administrative agent controls.
+
+Stable error codes surfaced to clients: `privacy_blocked`, `unauthorized`, `tool_not_allowed`, `approval_required`, `rate_limited`.

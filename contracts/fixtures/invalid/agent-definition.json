@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","id":"Lead Agent","version":"1.0.0","executionMode":0,"instructionsPath":"../secret.md","capabilities":[],"tools":[],"maxDelegationDepth":-1,"budget":{"maxTokens":0},"timeoutSeconds":0}

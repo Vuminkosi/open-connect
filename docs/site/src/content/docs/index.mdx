@@ -1,0 +1,42 @@
+---
+title: Build AI applications. Not infrastructure.
+description: An open-source, .NET-first multimodal AI application stack built on Microsoft Agent Framework, with secure model access, durable conversations, observable agents, and reusable gateway infrastructure.
+template: splash
+hero:
+  tagline: An open-source, .NET-first multimodal AI application stack built on Microsoft Agent Framework, with secure model access, durable conversations, observable agents, and reusable gateway infrastructure.
+  actions:
+    - text: Get started
+      link: /docs/getting-started/prerequisites/
+      icon: right-arrow
+    - text: Architecture overview
+      link: /docs/introduction/architecture-overview/
+      icon: open-book
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<div class="oc-lead">OpenConnect provides reusable libraries, secure defaults, and modular components for building AI-powered applications on .NET 8. Privacy firewall on by default; fail-closed behavior throughout.</div>
+
+<CardGrid>
+  <Card title="Secure by default" icon="shield">
+    Privacy firewall, policy engine, tokenization, and egress gates. Strict-local detection with deny-on-failure.
+  </Card>
+  <Card title=".NET-first DI" icon="puzzle">
+    One-line registration with `services.AddOpenConnect()`, strongly typed `OpenConnectOptions`, startup validation.
+  </Card>
+  <Card title="Agents + conversations" icon="chat">
+    Agent registry and lifecycle on Microsoft Agent Framework; durable, tenant-isolated conversation state.
+  </Card>
+  <Card title="Observable operations" icon="chart">
+    OpenTelemetry tracing, metrics, and model cost metering with .NET Aspire support for local development.
+  </Card>
+</CardGrid>
+
+## Start here
+
+1. Check the [prerequisites](/docs/getting-started/prerequisites/).
+2. [Install the packages](/docs/getting-started/installation/) and register OpenConnect.
+3. Build your [first application](/docs/getting-started/first-application/).
+
+Static documentation works fully offline after build. Interactive assistant and live playgrounds are planned later phases and are disabled unless explicitly configured.

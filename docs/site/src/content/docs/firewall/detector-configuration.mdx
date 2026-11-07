@@ -1,0 +1,28 @@
+---
+title: Detector Configuration
+description: Enabling detectors independently without forcing full pipelines on small installations.
+---
+
+Configure detectors through typed `PrivacyOptions`. Do not force all detectors on small installations.
+
+| Detector | Default | Cost |
+| --- | --- | --- |
+| `Rules` | Enabled | CPU only |
+| `GlinerPii` | Disabled | Model load |
+| `DebertaInjection` | Disabled | Model load |
+| `Qwen3Guard` | Disabled | Model load |
+| `PaddleOcr` | Disabled | Model load |
+| `YuNet` | Disabled | Model load |
+
+```json
+{
+  "privacy": {
+    "enabled": true,
+    "mode": "strict-local",
+    "onFailure": "deny",
+    "detectors": { "rules": true, "glinerPii": false }
+  }
+}
+```
+
+Frontend configuration must not contain credentials; detector model selection stays server-side.

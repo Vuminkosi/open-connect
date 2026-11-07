@@ -1,0 +1,12 @@
+---
+title: Request Lifecycle
+description: Ordering of gateway, firewall, agent, and observability stages.
+---
+
+1. **Ingress** — ASP.NET Core endpoint validates input, enforces size limits, rate limits, and CORS.
+2. **Firewall** — `IPrivacyFirewall` runs PII/secret/injection detectors; policy engine decides allow, redact-and-continue, or deny.
+3. **Egress gate** — `IEgressGate` re-checks sanitized payloads before any external provider call.
+4. **Agent execution** — MAF agent runs with an explicit restricted security context; anonymous sessions are isolated.
+5. **Observability** — OpenTelemetry spans/metrics record latency, token usage, cost estimates, and detection outcomes without sensitive payloads.
+
+Fail-closed at every stage: missing detectors, expired authorization, and schema failures deny rather than degrade silently.

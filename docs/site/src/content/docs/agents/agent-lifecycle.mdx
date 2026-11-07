@@ -1,0 +1,11 @@
+---
+title: Agent Lifecycle
+description: Registration, resolution, execution, and disposal of agents.
+---
+
+`AgentRegistryOptions.RegisterLeadAgent` controls lead-agent registration at startup (see `src/OpenConnect.Core/ServiceCollectionExtensions.cs`). Lifecycle stages:
+
+1. **Register** — agents declared via DI; options validated on start.
+2. **Resolve** — registry resolves by capability, honoring routing policy and provider availability.
+3. **Execute** — runs under the caller's security context with firewall enforcement.
+4. **Dispose / expire** — sessions expire per policy; no cross-user conversation leakage.

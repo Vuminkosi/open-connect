@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/security-scan-response.json",
+  "title": "Security scan response", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "detectorId", "detectorVersion", "spans"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "requestId": {"type": "string", "format": "uuid"},
+    "detectorId": {"type": "string", "minLength": 1}, "detectorVersion": {"type": "string", "minLength": 1},
+    "spans": {"description": "Offsets are half-open and must satisfy start < end.", "type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["entityType", "start", "end", "confidence", "decision"],
+      "properties": {"entityType": {"type": "string", "enum": ["PERSON", "EMAIL", "PHONE", "ADDRESS", "DATE_OF_BIRTH", "GOVERNMENT_ID", "ACCOUNT_NUMBER", "PAYMENT_CARD", "IP_ADDRESS", "SECRET", "ORG_SENSITIVE", "CUSTOM"]},
+        "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1}, "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "decision": {"type": "string", "enum": ["allow", "mask", "redact", "block", "review"]}}}}
+  }
+}

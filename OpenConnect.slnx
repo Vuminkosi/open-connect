@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="src" />
+  <Folder Name="packages" />
+  <Folder Name="workers" />
+  <Folder Name="contracts" />
+  <Folder Name="tests" />
+  <Folder Name="examples" />
+  <Folder Name="infra" />
+</Solution>

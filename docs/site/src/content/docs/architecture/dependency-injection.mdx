@@ -1,0 +1,27 @@
+---
+title: Dependency Injection
+description: Registration conventions for hosts and libraries.
+---
+
+```csharp
+public static class OpenConnectServiceCollectionExtensions
+{
+    public static IServiceCollection AddOpenConnect(
+        this IServiceCollection services,
+        Action<OpenConnectOptions>? configure = null)
+    {
+        services.Configure<OpenConnectOptions>(options =>
+        {
+            options.Privacy.Enabled = true; // default-on
+            configure?.Invoke(options);
+        });
+
+        services.AddOptions<OpenConnectOptions>().ValidateOnStart();
+        services.TryAddSingleton<IAgentRegistry, AgentRegistry>();
+
+        return services;
+    }
+}
+```
+
+Conventions: `TryAdd*` registrations, options validated on start, privacy enabled unless explicitly reconfigured through typed options — never through untyped strings.

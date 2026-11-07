@@ -1,0 +1,12 @@
+@using System.Text.Json
+@using OpenConnect.Components.Contracts
+@if (!string.IsNullOrEmpty(_error))
+{
+    <p class="oc-proposal-unavailable" role="note">@_error</p>
+}
+else if (_componentType is not null)
+{
+    <div class="oc-proposal">
+        <DynamicComponent Type="_componentType" Parameters="_parameters" />
+    </div>
+}

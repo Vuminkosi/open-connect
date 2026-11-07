@@ -1,0 +1,8 @@
+---
+interface Props {
+  status: 'available' | 'planned';
+}
+const { status } = Astro.props;
+const label = status === 'available' ? 'Available' : 'Planned';
+---
+<span class={`oc-status oc-status--${status}`} title={status === 'available' ? 'Verified in the repository at the SITE-001 baseline' : 'Planned for a later phase; not yet implemented'}>{label}</span>

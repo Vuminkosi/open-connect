@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>OpenConnect.Transport.Nats</AssemblyName>
+    <RootNamespace>OpenConnect.Transport.Nats</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NATS.Net" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

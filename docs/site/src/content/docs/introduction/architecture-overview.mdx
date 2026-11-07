@@ -1,0 +1,25 @@
+---
+title: Architecture Overview
+description: Layered OpenConnect architecture and how the docs site fits in.
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+
+OpenConnect is layered so the documentation site reuses framework infrastructure instead of duplicating it. The docs frontend itself is **static only**; any future interactive backend goes through the OpenConnect gateway, never around it.
+
+<Mermaid
+  title="OpenConnect layer diagram"
+  chart={`
+flowchart TB
+  Client[Client layer<br/>Blazor / TS SDK / .NET client]
+  Gateway[Gateway layer<br/>ASP.NET Core endpoints]
+  Agents[Agent layer<br/>MAF integration]
+  Privacy[Privacy layer<br/>Firewall / policy / vault / gates]
+  Runtime[Runtime layer<br/>Registry / tools / router]
+  Transport[Transport<br/>NATS JetStream]
+  Persist[(Persistence<br/>PostgreSQL)]
+  Client --> Gateway --> Agents --> Privacy --> Runtime --> Transport --> Persist
+  Docs[docs/site<br/>static Starlight frontend] -.->|Phase 4, optional| Gateway
+`} />
+
+See [System Architecture](/docs/architecture/system-architecture/) for the full request path and [Request Lifecycle](/docs/architecture/request-lifecycle/) for ordering guarantees.

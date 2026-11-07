@@ -1,0 +1,14 @@
+---
+title: AI Firewall Overview
+description: Default-on privacy enforcement for every external AI request.
+---
+
+The privacy firewall (`IPrivacyFirewall` / `PrivacyFirewall`) sits between agent execution and any external egress. Default mode is **strict-local**: local detection only, sanitized external egress, deny on failure.
+
+Verified components at baseline:
+
+- `PrivacyFirewall` + `PolicyEngine` in `src/OpenConnect.Privacy`
+- `EgressGate` (`IEgressGate`) enforcing firewall checks before provider calls
+- `PrivacyWarningConfiguration` post-configuration hook in Core
+
+Detectors are independent: `Rules` on by default (CPU, minimal overhead); `GlinerPii`, `DebertaInjection`, `Qwen3Guard`, `PaddleOcr`, `YuNet` off unless configured. Disabled means no model load and no capability advertisement.

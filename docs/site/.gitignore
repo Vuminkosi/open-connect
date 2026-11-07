@@ -1,0 +1,4 @@
+# Astro build cache ( untracked local output )
+.astro/
+dist/
+node_modules/

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/event.json",
+  "title": "OpenConnect event", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "eventType", "sessionId", "sequence", "occurredAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "eventId": {"type": "string", "format": "uuid"},
+    "eventType": {"type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"},
+    "sessionId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1},
+    "occurredAt": {"type": "string", "format": "date-time"}, "correlationId": {"type": ["string", "null"]},
+    "payload": {"type": "object"}
+  }
+}

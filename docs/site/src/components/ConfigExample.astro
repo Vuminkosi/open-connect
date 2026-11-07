@@ -1,0 +1,18 @@
+---
+/* ConfigExample.astro — stub for configuration examples (Phase 2).
+   Static, copyable code display. Safe backend-mediated execution (if ever)
+   lands in Phase 4; this component never executes user code. */
+import { Code } from '@astrojs/starlight/components';
+interface Props {
+  title: string;
+  language?: string;
+  code: string;
+  caption?: string;
+}
+const { title, language = 'csharp', code, caption } = Astro.props;
+---
+<section class="oc-config-example" aria-label={title}>
+  <p><strong>{title}</strong></p>
+  <Code code={code} lang={language} title={title} />
+  {caption && <p><small>{caption}</small></p>}
+</section>

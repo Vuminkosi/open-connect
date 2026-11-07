@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.6-alpine
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-openconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}
+    ports:
+      - "${POSTGRES_PORT:-5874}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: ${QDRANT_IMAGE:?Set QDRANT_IMAGE to qdrant/qdrant:v1.19.0@sha256:<verified-digest> in infra/.env}
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in infra/.env}
+    volumes:
+      - qdrantdata:/qdrant/storage
+
+  nats:
+    image: nats:2.15.1-alpine3.22
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/nats/nats-entrypoint.sh"]
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    env_file: [.env]
+    ports:
+      - "${NATS_CLIENT_PORT:-4332}:4222"
+      - "127.0.0.1:${NATS_MONITOR_PORT:-8322}:8222"
+    volumes:
+      - ./nats.template.conf:/etc/nats/nats.template.conf:ro
+      - ./scripts/nats-entrypoint.sh:/etc/nats/nats-entrypoint.sh:ro
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  bootstrap-notification-stream:
+    image: natsio/nats-box:0.19.7
+    depends_on:
+      nats: { condition: service_healthy }
+    env_file: [.env]
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_NOTIFICATION_STREAM: ${NATS_NOTIFICATION_STREAM:-OC_NOTIFICATIONS}
+      NATS_NOTIFICATION_SUBJECT: ${NATS_NOTIFICATION_SUBJECT:-oc.v1.notifications.inapp}
+      OPENCONNECT_NATS_OPTIONS_FILE: ${OPENCONNECT_NATS_OPTIONS_FILE:-}
+    volumes:
+      - ./scripts/bootstrap-notification-stream.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+    restart: "no"
+
+  bootstrap-ingestion-stream:
+    image: natsio/nats-box:0.19.7
+    depends_on:
+      nats: { condition: service_healthy }
+    env_file: [.env]
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_INGESTION_STREAM: ${NATS_INGESTION_STREAM:-OC_INGESTION}
+      NATS_INGESTION_SUBJECT: ${NATS_INGESTION_SUBJECT:-oc.v1.ingestion.>}
+      OPENCONNECT_NATS_OPTIONS_FILE: ${OPENCONNECT_NATS_OPTIONS_FILE:-}
+    volumes:
+      - ./scripts/bootstrap-ingestion-stream.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+    restart: "no"
+
+volumes:
+  pgdata:
+  qdrantdata:
+  natsdata:
