@@ -60,6 +60,33 @@ public sealed class MafApprovalSmokeTests
         Assert.Contains("function output", resumed.Text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Declined_approval_skips_tool_execution_without_error()
+    {
+        var client = new ApprovalResumeClient();
+        var factory = new MafRealAgentFactory(
+            new TestRegistry(new AgentDefinition(new AgentId("approval"), "Approval")), client);
+        var executions = 0;
+        var function = AIFunctionFactory.Create(() =>
+        {
+            executions++;
+            return "function output";
+        }, "sensitive_action");
+        var agent = factory.CreateAgent(new AgentId("approval"), [new ApprovalRequiredAIFunction(function)]);
+        var session = await agent.CreateSessionAsync();
+        var paused = await agent.RunAsync("run action", session).WaitAsync(TimeSpan.FromSeconds(5));
+        var request = Assert.IsType<ToolApprovalRequestContent>(
+            Assert.Single(paused.Messages.SelectMany(message => message.Contents)));
+        var declined = await agent.RunAsync(
+            new ChatMessage(ChatRole.User, [request.CreateResponse(approved: false)]), session)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(0, executions);
+        Assert.NotNull(declined);
+        // A declined tool's output must neither execute nor appear in the answer.
+        Assert.DoesNotContain("Finished: function output", declined.Text, StringComparison.Ordinal);
+    }
+
     private sealed class ApprovalResumeClient : IChatClient
     {
         private int _calls;
