@@ -24,6 +24,7 @@ public static class AgentRegistrationExtensions
     }
 
     /// <summary>Registers the single lead agent using the supplied configuration callback.</summary>
+    /// <remarks>Registration prevents duplicate lead declarations. Resolve the lead with <see cref="LeadResolver"/> for every request to bind it to the current catalog revision.</remarks>
     /// <param name="services">Service collection to configure.</param>
     /// <param name="id">Lead agent identifier.</param>
     /// <param name="configure">Optional definition configuration.</param>
@@ -161,5 +162,6 @@ public static class AgentRegistrationExtensions
 
     /// <summary>Identifies the application lead agent.</summary>
     /// <param name="AgentId">Registered lead agent identifier.</param>
-    public sealed record LeadAgentRegistration(AgentId AgentId);
+    /// <param name="CatalogRevision">Optional catalog revision captured at registration; null binds resolution to the current request snapshot.</param>
+    public sealed record LeadAgentRegistration(AgentId AgentId, string? CatalogRevision = null);
 }
