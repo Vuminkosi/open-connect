@@ -32,4 +32,22 @@ public sealed class ProviderAdapterTests
         Assert.Equal("hello", (await adapter.SendAsync("streaming-test", new ProviderRequest("hello", UseStreaming: true))).Content);
         await Assert.ThrowsAsync<NotSupportedException>(() => adapter.SendAsync("echo", new ProviderRequest("hello", UseStreaming: true)).AsTask());
     }
+
+    [Fact]
+    public async Task StructuredOutput_request_to_provider_without_support_fails_without_fallback()
+    {
+        var adapter = new ProviderAdapter([new EchoProvider(), new StreamingTestProvider()]);
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => adapter.SendAsync(
+            "echo", new ProviderRequest("hello", UseStructuredOutput: true)).AsTask());
+    }
+
+    [Fact]
+    public async Task Unknown_provider_id_fails_closed()
+    {
+        var adapter = new ProviderAdapter([new EchoProvider(), new StreamingTestProvider()]);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => adapter.SendAsync(
+            "no-such-provider", new ProviderRequest("hello")).AsTask());
+    }
 }
