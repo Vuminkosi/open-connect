@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
@@ -23,7 +25,15 @@ public sealed class PostgresSmokeTests
         await using var db = CreateContext();
         var script = db.Database.GenerateCreateScript();
         var lines = script.Split('\n');
-        await File.WriteAllLinesAsync(Path.Combine(Path.GetTempPath(), "efv10-createscript.txt"), lines.Take(60));
+        var scriptPath = Path.Combine(Path.GetTempPath(), $"efsmoke-{Guid.NewGuid():N}.sql");
+        try
+        {
+            await File.WriteAllLinesAsync(scriptPath, lines.Take(60));
+        }
+        finally
+        {
+            if (File.Exists(scriptPath)) File.Delete(scriptPath);
+        }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
         Assert.Equal(9, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
         // PgContext defines no business entities; 9 = all OpenConnect tables, zero coupling
@@ -31,6 +41,17 @@ public sealed class PostgresSmokeTests
         Assert.Equal(9, db.Model.GetEntityTypes().Count());
     }
 
+    [Fact]
+    public void PostgresSmoke_IdempotentScriptHasOnlyOpenConnectTables()
+    {
+        using var pgContext = CreateContext();
+        var sql = pgContext.Database.GenerateCreateScript();
+        var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns" };
+        Assert.All(expectedTables, table => Assert.Contains($"openconnect.\"{table}\"", sql));
+        Assert.Equal(9, System.Text.RegularExpressions.Regex.Matches(sql, "CREATE TABLE").Count);
+        Assert.DoesNotContain("Customers", sql);
+        Assert.DoesNotContain("Orders", sql);
+    }
     [Fact]
     public async Task PostgresSmoke_RoundTrip_persists_openconnect_workflows()
     {
