@@ -1,13 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using OpenConnect.Persistence.EFCore.Context;
-
 namespace OpenConnect.Persistence.EFCore.Tests;
 
-public sealed class DesignTimeContextFactory : IDesignTimeDbContextFactory<OpenConnectDbContext>
+public sealed class HostPgContextFactory : IDesignTimeDbContextFactory<HostPgContext>
 {
-    public OpenConnectDbContext CreateDbContext(string[] args) =>
-        new(new DbContextOptionsBuilder<OpenConnectDbContext>()
-            .UseNpgsql("Host=localhost;Database=designtime")
-            .Options);
+    public HostPgContext CreateDbContext(string[] args) => new(new DbContextOptionsBuilder<HostPgContext>().UseNpgsql("Host=localhost;Database=designtime").Options);
+}
+public sealed class HostMsContextFactory : IDesignTimeDbContextFactory<HostMsContext>
+{
+    public HostMsContext CreateDbContext(string[] args) => new(new DbContextOptionsBuilder<HostMsContext>().UseSqlServer("Server=localhost;Database=designtime;TrustServerCertificate=True").Options);
 }
