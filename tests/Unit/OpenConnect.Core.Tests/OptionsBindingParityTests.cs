@@ -102,6 +102,82 @@ public sealed class OptionsBindingParityTests
         Assert.True(new OpenConnectOptionsValidator().Validate(Options.DefaultName, options).Succeeded);
     }
 
+    [Fact]
+    public void Bound_invalid_depth_fails_validation_actionably()
+    {
+        var bound = OpenConnectConfigurationBinder.Bind(Kv(
+            ("OpenConnect:Agents:MaxDelegationDepth", "99")));
+
+        var result = new OpenConnectOptionsValidator().Validate(Options.DefaultName, bound);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Failures!, failure =>
+            failure.Contains("MaxDelegationDepth", StringComparison.Ordinal) &&
+            failure.Contains("0 and 2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Bound_negative_budget_fails_validation_with_field_name()
+    {
+        var bound = OpenConnectConfigurationBinder.Bind(Kv(
+            ("OpenConnect:Agents:MaxTotalToolCalls", "-1")));
+
+        var result = new OpenConnectOptionsValidator().Validate(Options.DefaultName, bound);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Failures!, failure =>
+            failure.Contains("MaxTotalToolCalls", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Bound_valid_config_matches_fluent_options_and_validates()
+    {
+        var bound = OpenConnectConfigurationBinder.Bind(Kv(
+            ("OpenConnect:Agents:DefaultExecutionMode", "interactive"),
+            ("OpenConnect:Agents:MaxDelegationDepth", "2"),
+            ("OpenConnect:Agents:MaxTotalToolCalls", "20"),
+            ("OpenConnect:Agents:MaxModelCalls", "12"),
+            ("OpenConnect:Agents:MaxTurnDuration", "00:02:00"),
+            ("OpenConnect:Agents:MaxToolDuration", "00:00:30"),
+            ("OpenConnect:Privacy:Mode", "strict-local"),
+            ("OpenConnect:Privacy:Rules:Enabled", "true")));
+        var fluent = new OpenConnectOptions();
+        fluent.Agents.DefaultExecutionMode = AgentExecutionMode.Interactive;
+        fluent.Agents.MaxDelegationDepth = 2;
+        fluent.Agents.MaxTotalToolCalls = 20;
+        fluent.Agents.MaxModelCalls = 12;
+        fluent.Agents.MaxTurnDuration = TimeSpan.FromMinutes(2);
+        fluent.Agents.MaxToolDuration = TimeSpan.FromSeconds(30);
+        fluent.Privacy.Mode = FirewallMode.StrictLocal;
+        fluent.Privacy.Rules.Enabled = true;
+
+        Assert.True(new OpenConnectOptionsValidator().Validate(Options.DefaultName, bound).Succeeded);
+        Assert.Equal(fluent.Agents.DefaultExecutionMode, bound.Agents.DefaultExecutionMode);
+        Assert.Equal(fluent.Agents.MaxDelegationDepth, bound.Agents.MaxDelegationDepth);
+        Assert.Equal(fluent.Agents.MaxTotalToolCalls, bound.Agents.MaxTotalToolCalls);
+        Assert.Equal(fluent.Agents.MaxModelCalls, bound.Agents.MaxModelCalls);
+        Assert.Equal(fluent.Agents.MaxTurnDuration, bound.Agents.MaxTurnDuration);
+        Assert.Equal(fluent.Agents.MaxToolDuration, bound.Agents.MaxToolDuration);
+        Assert.Equal(fluent.Privacy.Mode, bound.Privacy.Mode);
+        Assert.Equal(fluent.Privacy.Rules.Enabled, bound.Privacy.Rules.Enabled);
+    }
+
+    [Fact]
+    public void Bound_operational_mode_with_active_user_identity_fails_validation()
+    {
+        // Core owns this invariant; workload-identity/catalog checks belong to Agents and are out of scope.
+        var bound = OpenConnectConfigurationBinder.Bind(Kv(
+            ("OpenConnect:Agents:DefaultExecutionMode", "operational"),
+            ("OpenConnect:Agents:IdentityMode", "active-user")));
+
+        var result = new OpenConnectOptionsValidator().Validate(Options.DefaultName, bound);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Failures!, failure =>
+            failure.Contains("Operational agents", StringComparison.Ordinal) &&
+            failure.Contains("ActiveUser", StringComparison.Ordinal));
+    }
+
     private static IEnumerable<KeyValuePair<string, string?>> Kv(params (string Key, string? Value)[] entries) =>
         entries.Select(entry => new KeyValuePair<string, string?>(entry.Key, entry.Value));
 }
