@@ -79,6 +79,11 @@ public sealed class ComposerSession
     /// <summary>
     /// Applies one gateway event. Returns true when the UI should re-render.
     /// Unknown event types are ignored (never rendered as markup).
+    /// Reconnect replay is idempotent: a record with an explicit sequence
+    /// (Sequence != 0) at or below <see cref="LastSequence"/> is stale and is
+    /// ignored without mutating messages, streaming text, errors, or the
+    /// cursor. Sequence 0 means "no cursor assigned" (live/unsequenced event)
+    /// and is always processed without moving the cursor.
     /// </summary>
     public bool ApplyEvent(EventRecord record)
     {
@@ -86,6 +91,11 @@ public sealed class ComposerSession
         var notify = true;
         lock (_gate)
         {
+            if (record.Sequence != 0 && record.Sequence <= LastSequence)
+            {
+                return false;
+            }
+
             if (record.Sequence > LastSequence)
             {
                 LastSequence = record.Sequence;
@@ -197,6 +207,24 @@ public sealed class ComposerSession
             _streamingText = string.Empty;
             _streamingRole = null;
             if (Connection == ComposerConnectionState.Streaming)
+            {
+                Connection = ComposerConnectionState.Idle;
+            }
+        }
+
+        Notify();
+    }
+
+    /// <summary>
+    /// Clears the currently surfaced error without touching messages or
+    /// connection state. Used by the composer's dismiss/retry affordances.
+    /// </summary>
+    public void DismissError()
+    {
+        lock (_gate)
+        {
+            _errors.Clear();
+            if (Connection == ComposerConnectionState.Error)
             {
                 Connection = ComposerConnectionState.Idle;
             }

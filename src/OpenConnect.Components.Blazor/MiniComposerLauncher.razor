@@ -1,0 +1,39 @@
+@using OpenConnect.Components.Contracts
+@*
+  MiniComposerLauncher: convenience host that wires OpenConnectProvider
+  (real gateway event stream) to MiniComposer with one SessionId.
+  Renders nothing of its own; no extra providers or styling opinions.
+*@
+<OpenConnectProvider SessionId="@SessionId"
+                     AutoSubscribe="@AutoSubscribe"
+                     PollInterval="@PollInterval">
+    <MiniComposer Placement="@Placement"
+                  CloseBehavior="@CloseBehavior"
+                  AssistantName="@AssistantName"
+                  Placeholder="@Placeholder"
+                  Suggestions="@Suggestions"
+                  MaxInputLength="@MaxInputLength"
+                  StartOpen="@StartOpen" />
+</OpenConnectProvider>
+
+@code {
+    [Parameter, EditorRequired] public string SessionId { get; set; } = default!;
+
+    [Parameter] public bool AutoSubscribe { get; set; } = true;
+
+    [Parameter] public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+    [Parameter] public ComposerPlacement Placement { get; set; } = ComposerPlacement.BottomRight;
+
+    [Parameter] public ComposerCloseBehavior CloseBehavior { get; set; } = ComposerCloseBehavior.MinimizeOnly;
+
+    [Parameter] public string AssistantName { get; set; } = "Assistant";
+
+    [Parameter] public string Placeholder { get; set; } = "Ask…";
+
+    [Parameter] public IReadOnlyList<string>? Suggestions { get; set; }
+
+    [Parameter] public int MaxInputLength { get; set; } = 8000;
+
+    [Parameter] public bool StartOpen { get; set; }
+}

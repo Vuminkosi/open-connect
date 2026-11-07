@@ -1,0 +1,16 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-scroll-width="500" data-client-width="500" data-scroll-height="749" data-client-height="749"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Composer visual fixture</title>
+<link rel="stylesheet" href="file:///C:/DevOps/open-connect/worktrees/composer/packages/composer/src/styles.css">
+<style id="fixture-style"></style></head><body><main id="root"><div class="oc-composer-host" data-placement="bottom-right"><button type="button" class="oc-composer-fab" aria-label="Close Test assistant" aria-expanded="true" style="width: 44px; height: 44px;">Γ£ª</button><section class="oc-composer-bubble" role="dialog" aria-label="Test assistant composer" aria-modal="false" style="width: 376px; max-width: 376px; max-height: 560px;"><header class="oc-composer-header"><div class="oc-composer-titles"><h2 class="oc-composer-title">Test assistant</h2><p class="oc-composer-subtitle">Ready</p></div><button type="button" class="oc-composer-close" aria-label="Close Test assistant">Γ£ò</button></header><div class="oc-composer-progress" role="status" aria-label="Waiting for reply" hidden=""></div><div class="oc-composer-messages" role="log" aria-live="polite" aria-label="Conversation"><p class="oc-composer-empty">Ask a question to start. Replies stream here.</p></div><div class="oc-composer-error" role="alert" hidden=""><span class="oc-composer-error-text"></span><button type="button" class="oc-composer-retry">Retry</button></div><div class="oc-composer-inputrow"><label class="oc-composer-label" for="oc-composer-editor-1da1b7ff">Message</label><textarea class="oc-composer-editor" rows="2" maxlength="2000" placeholder="Ask the assistantΓÇª" aria-label="Message to Test assistant" id="oc-composer-editor-1da1b7ff"></textarea><div class="oc-composer-actions"><button type="button" class="oc-composer-cancel" hidden="">Cancel</button><button type="button" class="oc-composer-send" disabled="">Send</button></div></div><footer class="oc-composer-footer">Enter to send ┬╖ Shift+Enter for a new line</footer><span class="oc-composer-tail" aria-hidden="true"></span></section></div></main><script type="module">
+import { createMiniComposer } from 'file:///C:/DevOps/open-connect/worktrees/composer/packages/composer/dist/index.js';
+const client = { createTask: async () => ({ accepted: true }) };
+const handle = createMiniComposer({ client, sessionId: 'visual-fixture-session', agentId: 'fixture-agent', assistantName: 'Test assistant' });
+handle.mount(document.querySelector('#root'));
+if (new URLSearchParams(location.search).has('open')) handle.open();
+document.documentElement.dataset.scrollWidth = String(document.documentElement.scrollWidth);
+document.documentElement.dataset.clientWidth = String(document.documentElement.clientWidth);
+document.documentElement.dataset.scrollHeight = String(document.documentElement.scrollHeight);
+document.documentElement.dataset.clientHeight = String(document.documentElement.clientHeight);
+</script>
+
+</body></html>
