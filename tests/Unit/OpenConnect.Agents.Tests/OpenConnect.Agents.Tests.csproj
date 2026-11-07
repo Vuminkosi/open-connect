@@ -6,10 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Agents/OpenConnect.Agents.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
   </ItemGroup>
 </Project>
