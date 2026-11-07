@@ -151,7 +151,7 @@ public sealed class InMemoryTaskStore
             if (_byKey.TryGetValue(storeKey, out var existing))
                 return Task.FromResult((existing.Fingerprint == fingerprint ? existing.Record : null, existing.Fingerprint != fingerprint));
 
-            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, RunState.Queued);
+            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Queued);
             var stored = new StoredTask(fingerprint, record);
             if (!_byKey.TryAdd(storeKey, stored)) continue;
             _byId[record.Id.Value] = record;
@@ -171,8 +171,8 @@ public sealed class InMemoryTaskStore
         cancellationToken.ThrowIfCancellationRequested();
         while (_byId.TryGetValue(id, out var current))
         {
-            if (current.State is RunState.Completed or RunState.Failed or RunState.Cancelled) return Task.FromResult<TaskRecord?>(current);
-            var updated = current with { State = RunState.Cancelled };
+            if (current.State is AgentRunState.Completed or AgentRunState.Failed or AgentRunState.Cancelled) return Task.FromResult<TaskRecord?>(current);
+            var updated = current with { State = AgentRunState.Cancelled };
             if (_byId.TryUpdate(id, updated, current)) return Task.FromResult<TaskRecord?>(updated);
         }
         return Task.FromResult<TaskRecord?>(null);

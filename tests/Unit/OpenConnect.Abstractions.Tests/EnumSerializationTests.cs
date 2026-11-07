@@ -8,11 +8,11 @@ public sealed class EnumSerializationTests
 {
     [Fact]
     public void Enums_use_kebab_case() {
-        Assert.Equal("\"in-memory-development\"", JsonSerializer.Serialize(TransportMode.InMemoryDevelopment));
+        Assert.Equal("\"in-memory-development\"", JsonSerializer.Serialize(OpenConnectTransportMode.InMemoryDevelopment));
         Assert.Equal("\"interactive\"", JsonSerializer.Serialize(AgentExecutionMode.Interactive));
         Assert.Equal("\"gliner-pii\"", JsonSerializer.Serialize(SecurityDetectorKind.GlinerPii));
         Assert.Equal("\"strict-local\"", JsonSerializer.Serialize(FirewallMode.StrictLocal));
-        Assert.Equal("\"event-triggered\"", JsonSerializer.Serialize(ActivationMode.EventTriggered));
+        Assert.Equal("\"event-triggered\"", JsonSerializer.Serialize(AgentActivationMode.EventTriggered));
     }
 
     [Fact]
