@@ -26,19 +26,19 @@ internal sealed class KebabCaseNamingPolicy : JsonNamingPolicy
 }
 
 [JsonConverter(typeof(KebabCaseStringEnumConverter<TransportMode>))]
-public enum TransportMode { JetStream, InMemoryDevelopment }
+public enum OpenConnectTransportMode { JetStream, InMemoryDevelopment }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentExecutionMode>))]
 public enum AgentExecutionMode { Interactive, Operational }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<ActivationMode>))]
-public enum ActivationMode { OnDemand, Scheduled, Continuous, EventTriggered }
+public enum AgentActivationMode { OnDemand, Scheduled, Continuous, EventTriggered }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<RunState>))]
-public enum RunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<IdentityMode>))]
-public enum IdentityMode { ActiveUser, WorkloadIdentity }
+public enum AgentRunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentIdentityMode>))]
+public enum AgentIdentityMode { ActiveUser, WorkloadIdentity }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<ToolImpact>))]
 public enum ToolImpact { ReadOnly, Write, ExternalSideEffect }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<ModelExecutionLocation>))]
-public enum ModelExecutionLocation { Local, Remote }
+public enum ModelExecutionLocation { LocalOnly, SelfHosted, RemoteAllowed }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<FirewallMode>))]
 public enum FirewallMode { StrictLocal, LocalOnly, PolicyControlled, Disabled }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<FirewallFailureAction>))]
@@ -52,14 +52,14 @@ public enum DetectorDevice { Auto, Cpu, Cuda }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<DetectorState>))]
 public enum DetectorState { Disabled, Loading, Ready, Degraded, Failed }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityCoverage>))]
-public enum SecurityCoverage { Complete, Partial, Unavailable }
+public enum SecurityCoverage { StructuredPii, SemanticPii, PromptInjection, ContentSafety, ImageText, FaceDetection }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityPolicyAction>))]
 public enum SecurityPolicyAction { Allow, Mask, Redact, Block, Review }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<CoverageUnavailableAction>))]
-public enum CoverageUnavailableAction { Deny, AllowLocalOnly }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<SchedulingMisfire>))]
-public enum SchedulingMisfire { Skip, RunOnce, CatchUp }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<OperationalConcurrency>))]
-public enum OperationalConcurrency { Allow, Deny }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<OperationalRecovery>))]
-public enum OperationalRecovery { Retry, Resume, Restart, Fail }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityCoverageUnavailableAction>))]
+public enum SecurityCoverageUnavailableAction { Block, Review, LocalOnlyIfVerified }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<SchedulingMisfirePolicy>))]
+public enum SchedulingMisfirePolicy { Skip, RunOnce }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<OperationalConcurrencyPolicy>))]
+public enum OperationalConcurrencyPolicy { Forbid, Queue, ReplaceAfterFence }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<OperationalRecoveryPolicy>))]
+public enum OperationalRecoveryPolicy { RetryWithBackoff, PauseForReview, Disable }

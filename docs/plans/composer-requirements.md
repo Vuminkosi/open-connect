@@ -1,5 +1,6 @@
 # OpenConnect Anchor Composer — Product & Acceptance Requirements
 
+
 **Document:** `composer-requirements.md`  
 **Version:** 1.0-draft · **Date:** 2026-11-07  
 **Status:** Normative implementation specification; no feature assumed implemented  
