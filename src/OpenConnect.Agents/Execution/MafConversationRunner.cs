@@ -9,16 +9,23 @@ public sealed class MafConversationRunner
 {
     private readonly MafRealAgentFactory _factory;
     private readonly AgentId _leadAgentId;
+    private readonly SessionTurnConcurrency _concurrency;
     private readonly List<ChatMessage> _history = [];
     private readonly List<ExecutionTraceRecord> _trace = [];
     private readonly object _sync = new();
     private readonly SemaphoreSlim _turnGate = new(1, 1);
 
     /// <summary>Creates a conversation runner for the specified lead agent.</summary>
-    public MafConversationRunner(MafRealAgentFactory factory, AgentId leadAgentId)
+    /// <param name="factory">Factory used to create the lead agent.</param>
+    /// <param name="leadAgentId">Identifier of the lead agent.</param>
+    /// <param name="concurrency">Policy for overlapping turns. Queue currently has the same FIFO gate-wait behavior as Serialize; bounded-queue semantics are not specified.</param>
+    public MafConversationRunner(MafRealAgentFactory factory, AgentId leadAgentId,
+        SessionTurnConcurrency concurrency = SessionTurnConcurrency.Serialize)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _leadAgentId = leadAgentId;
+        if (!Enum.IsDefined(concurrency)) throw new ArgumentOutOfRangeException(nameof(concurrency));
+        _concurrency = concurrency;
     }
 
     /// <summary>Returns a snapshot of the conversation's user and assistant messages.</summary>
@@ -38,7 +45,14 @@ public sealed class MafConversationRunner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         cancellationToken.ThrowIfCancellationRequested();
-        await _turnGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (_concurrency == SessionTurnConcurrency.RejectConflict)
+        {
+            if (!_turnGate.Wait(0)) throw new InvalidOperationException("A conversation turn is already active; concurrent turns are not allowed.");
+        }
+        else
+        {
+            await _turnGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
         var promptIndex = -1;
         Guid executionId = Guid.Empty;
         try
