@@ -28,13 +28,15 @@ services:
   nats:
     image: nats:2.15.1-alpine3.22
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/nats/nats-entrypoint.sh"]
     command: ["-c", "/etc/nats/nats.conf", "-js"]
     env_file: [.env]
     ports:
       - "${NATS_CLIENT_PORT:-4332}:4222"
       - "127.0.0.1:${NATS_MONITOR_PORT:-8322}:8222"
     volumes:
-      - ./nats.conf:/etc/nats/nats.conf:ro
+      - ./nats.template.conf:/etc/nats/nats.template.conf:ro
+      - ./scripts/nats-entrypoint.sh:/etc/nats/nats-entrypoint.sh:ro
       - natsdata:/data
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
