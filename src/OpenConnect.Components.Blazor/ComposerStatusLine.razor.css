@@ -1,0 +1,54 @@
+/* ComposerStatusLine — three-segment footer status. Compact-first, semantic tokens only. */
+.oc-statusline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-block-size: 28px;
+    padding-block: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--mud-palette-text-secondary, #475569);
+    overflow: hidden;
+}
+
+.oc-status-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-inline-size: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oc-status-sep {
+    inline-size: 1px;
+    block-size: 12px;
+    background: var(--mud-palette-lines-default, #dce2ea);
+    flex: none;
+}
+
+.oc-status-dot {
+    inline-size: 8px;
+    block-size: 8px;
+    border-radius: 50%;
+    background: var(--mud-palette-text-disabled, #94a3b8);
+    flex: none;
+}
+
+.oc-status-conn[data-state="streaming"] .oc-status-dot {
+    background: var(--mud-palette-success, #168568);
+}
+
+.oc-status-conn[data-state="connecting"] .oc-status-dot,
+.oc-status-conn[data-state="reconnecting"] .oc-status-dot {
+    background: var(--mud-palette-warning, #d97706);
+}
+
+.oc-status-conn[data-state="error"] .oc-status-dot {
+    background: var(--mud-palette-error, #dc3545);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oc-statusline { transition: none; }
+}

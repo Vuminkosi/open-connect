@@ -108,6 +108,43 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Replay_of_seen_sequences_is_idempotent()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        session.BeginSend("question");
+        Assert.True(session.ApplyEvent(Event(1, "message.delta", "Hel")));
+        Assert.True(session.ApplyEvent(Event(2, "message.delta", "lo")));
+        Assert.Equal("Hello", session.StreamingText);
+
+        // Reconnect replay of already-seen sequences must not duplicate text.
+        Assert.False(session.ApplyEvent(Event(2, "message.delta", "lo")));
+        Assert.False(session.ApplyEvent(Event(1, "message.delta", "Hel")));
+        Assert.Equal("Hello", session.StreamingText);
+        Assert.Equal(2, session.LastSequence);
+        Assert.Single(session.Messages); // only the optimistic user message
+
+        // A stale completion must not materialize a duplicate assistant message.
+        Assert.True(session.ApplyEvent(Event(3, "message.completed", string.Empty)));
+        Assert.Equal(2, session.Messages.Count);
+        Assert.False(session.ApplyEvent(Event(3, "message.completed", string.Empty)));
+        Assert.Equal(2, session.Messages.Count);
+        Assert.Equal(3, session.LastSequence);
+    }
+
+    [Fact]
+    public void Sequence_zero_is_processed_as_live_event_without_moving_cursor()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        session.BeginSend("question");
+
+        Assert.True(session.ApplyEvent(Event(0, "message.delta", "Hi")));
+        Assert.Equal("Hi", session.StreamingText);
+        Assert.Equal(0, session.LastSequence);
+    }
+
+    [Fact]
     public void MarkReconnecting_and_MarkError_track_connection()
     {
         var session = new ComposerSession();

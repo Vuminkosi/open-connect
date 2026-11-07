@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.composer/v1",
+  "title": "OpenConnect composer presentation state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "placement", "displayState", "taskPhase", "microphoneState", "speechState", "historyPresentation", "uiIntegration"],
+  "$defs": {
+    "closeBehavior": { "enum": ["minimize-only", "cancel-active-task", "end-session"] },
+    "inputAction": { "enum": ["live-voice-or-send", "send-only", "recorded-voice-or-send"] }
+  },
+  "properties": {
+    "schema": { "const": "openconnect.composer/v1" },
+    "placement": { "enum": ["bottom-right", "bottom-left", "top-right", "top-left", "custom", "legacy-viewport20-vh", "attached"] },
+    "displayState": { "enum": ["hidden", "closed", "opening", "open", "dragging", "closing"] },
+    "taskPhase": { "enum": ["ready", "connecting", "sending", "thinking", "tool-executing", "awaiting-approval", "streaming", "reconnecting", "completed", "cancelling", "cancelled", "failed"] },
+    "microphoneState": { "enum": ["unavailable", "off", "permission-requested", "recording", "listening-live", "transcribing", "stopping", "failed"] },
+    "speechState": { "enum": ["unavailable", "off", "on", "buffering", "playing", "paused", "failed"] },
+    "historyPresentation": { "enum": ["latest-only", "on-demand-history"] },
+    "uiIntegration": { "enum": ["floating", "attached"] }
+  }
+}

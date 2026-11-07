@@ -20,6 +20,16 @@ public static class OpenConnectBlazorServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Registers the anchored composer (FAB + bubble) session and registry.
+    /// Text-only against the real gateway; no workers required.
+    /// </summary>
+    public static IServiceCollection AddOpenConnectComposer(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        return services.AddOpenConnectComponents();
+    }
+
+    /// <summary>
     /// Registers a Blazor component type under the given descriptor name so the
     /// assistant may propose it and <see cref="SafeComponentRenderer"/> may render it.
     /// </summary>

@@ -130,6 +130,7 @@ PublishScripts/
 **/[Pp]ackages/*
 !**/[Pp]ackages/build/
 !packages/client-ts/
+!packages/composer/
 
 # Windows Azure Build Output
 csx/
