@@ -1,3 +1,232 @@
+# OpenConnect — Unified Implementation and Release Checklist
+
+**Document:** `checklist.md` · **Baseline:** 2026-11-07 · **Status:** ALL requirements and acceptance tests begin `NOT RUN` / unchecked unless separately evidenced in the actual repository/CI.  
+**Companions:** [`requirements.md`](./requirements.md), [`spec.md`](./spec.md).
+
+## 0. Instructions to Codex / Muse / DeepSeek / maintainers
+
+1. Read `requirements.md` canonical section and conflict table, `spec.md` canonical architecture, **then this checklist**. Consult the preserved specialist annex corresponding to the task; never implement conflicting obsolete examples verbatim.
+2. Inspect actual code and pin source revisions before changing packages. Maintain scope: do not drop a subsystem because it has no immediately available infrastructure, GPU, auth provider or release credential. Instead implement truthful optional registration and mark real-model/release test `BLOCKED` until evidence exists.
+3. Execute one small `IMP-*`, `EF-IMP-*`, `NAV-IMP-*`, `CMP-IMP-*`, `OBS-IMP-*`, `SITE-IMP-*`, `VEC-IMP-*` or `KMS-IMP-*` unit per PR (or a dependency-aligned small set). Include negative security tests and docs.
+4. Change `[ ]` to `[x]` **only** with a linked passing real test run, source commit and review. A design or CI script with no green execution is `NOT RUN`, not `PASS`. Never mark an acceptance test complete because it is described in source annexes.
+5. For source reference integration, record code path, actual SHA, license, model checkpoint, package versions, changes and test mapping. Do not copy proprietary/sensitive business data or erase legally required attribution.
+6. Rules for stable claims: no permission escalation, tenant data leak, unauthorized restoration, silent privacy downgrade, invented agent events, lost accepted task/outbox commit or package-source mismatch. Anything failing this gate is explicitly experimental/unavailable, not silently removed from roadmap.
+7. Every completed PR: update this checklist status, add an evidence-log entry, include command line and environment, mention compatibility/migration impact and the next dependency-unblocked task.
+
+## 1. Canonical stage and dependency gates
+
+| Gate | Required work | Exit requirement |
+|---|---|---|
+| G0 baseline | Licenses, source pin, MAF compile smoke, contracts, strongly typed options | Clean checkout builds/contracts pass, no secrets, basic threat model |
+| G1 core auth/agents | Default lead, interactive context, operational identity, tool/MCP authorization and capability map | Scope/approval negative tests pass |
+| G2 durable API | EF four-provider adapter, transactions/outbox/leases, NATS, HTTP/WS replay | Real SQL Server+Postgres+SQLite durability tests and InMemory dev constraints |
+| G3 privacy | Default host firewall, Python security worker, opt-in detector lifecycle, vault, restore, output gating | Zero deliberate canary leaks across tested boundaries; required coverage blocks if missing |
+| G4 client/UX | Blazor+TS clients, compact MiniComposer, component metadata/renderer | Pinned screenshot regression, a11y, reconnect, cleanup and text-only E2E |
+| G5 extensions | Navigator, Playwright, Qdrant, Infisical, Python workers | Independent capability-specific tests; missing modules don't break core |
+| G6 observability | OTel, metering ledger, budgets, optional admin/Aspire | No double count/PII export, user/workload RBAC and accounting correctness |
+| G7 docs | Astro Starlight static site, API docs, optional docs assistant | Static build succeeds offline; docs assistant uses framework with safe citations |
+| G8 distribution | CI required checks, NuGet/npm/GHCR, signatures/SBOM/docs | Clean consumers install from registries; full release manifest |
+
+## 2. Cross-cutting core and configuration work
+
+- [ ] **CORE-C-001 [SEC]** Existing source inventory, MAF compatibility, pinned dependency versions, third-party licensing and no accidental domain copy.
+- [ ] **CORE-C-002** Canonical OpenAPI/JSON Schema/C#/TS/Pydantic wire DTOs and migration/compatibility rules (IDs, events, errors, capability descriptors).
+- [ ] **CORE-C-003** `AddOpenConnect()` idempotently registers default lead, default-on .NET firewall and typed options without model downloads, Docker or schema mutation.
+- [ ] **CORE-C-004 [SEC]** `agent-runtime.md` and declarative agent config parse/validate; Markdown cannot grant tools, change tenant or disable policy.
+- [ ] **CORE-C-005 [SEC]** Interactive `AgentExecutionContext` derived from actual authenticated user; delegation narrows grants, tool execution reauthorizes, revoke/reconnect cannot revive rights.
+- [ ] **CORE-C-006 [SEC]** Operational agent supervisor uses separate workload identity, scheduled/event activation, misfire, lease/fence, retries, review/RBAC and idempotent durable run ledger.
+- [ ] **CORE-C-007 [SEC]** Tool/MCP registration with typed side effects, scopes, bounded discovery, exact-argument approvals and no arbitrary tool privileges.
+- [ ] **CORE-C-008** MAF lead/subagent actual execution traces; lifecycle events represent real agents/tools, not model-imagined results.
+- [ ] **CORE-C-009** UI component capability maps, descriptions, suggestions, schema-based local rendering and authorization; no model arbitrary script/UI authority.
+- [ ] **CORE-C-010** Provider/model capabilities, fallback, trust zone and worker discovery truthful; missing optional capability unavailable without affecting others.
+- [ ] **CORE-C-011** Independently configurable strongly typed enum/options and wire names across all modules with strict startup validation and no numeric/unknown enums.
+- [ ] **CORE-C-012** Core works in configured text-only environment with every optional module omitted.
+
+## 3. Provider-neutral persistence and event delivery
+
+- [ ] **DATA-C-001** `OpenConnect.Persistence.EFCore` has no transitive SQL Server, SQLite, PostgreSQL or InMemory provider package refs.
+- [ ] **DATA-C-002** `.AddOpenConnectEntityFramework<ApplicationDbContext>(...)` uses developer-registered DbContext and explicit `ApplyOpenConnectModel()` without requiring `DbSet<T>` properties.
+- [ ] **DATA-C-003** Dedicated OpenConnectDbContext supported independently; no inferred connection string or automatically shared transactions.
+- [ ] **DATA-C-004 [SEC]** SQL Server/PostgreSQL schemas, SQLite prefix, per-entity tenant/workload indexes, model mapping version and EF model-cache key verified.
+- [ ] **DATA-C-005 [SEC]** Manual migrations default, no DDL on package/DI registration, shared context never auto-migrated, reviewed migration upgrades leave app business tables and rows untouched.
+- [ ] **DATA-C-006** InMemory explicitly dev-only and rejects durable production/operational lease contracts.
+- [ ] **DATA-C-007** Session/task/turn/agent event/outbox/lease/approval/privacy token store contract tests under 3 real relational providers.
+- [ ] **DATA-C-008 [SEC]** Accepted task+event+outbox atomic transaction and scoped user/workload authorization; external business transaction coordination defined.
+- [ ] **DATA-C-009** Dispatcher fenced claim, broker ACK, idempotent consumer, publish-failure retry, TTL/backoff/quarantine, crash/replay/clock-skew verified per provider.
+- [ ] **DATA-C-010** Separate IAgentEventSubscription receives committed notices; IEventJournal retains known-SessionId replay scope.
+- [ ] **DATA-C-011** Public HTTP task/session/WS protocol, resume cursor and dedup; JWT/cookie origin and scope tests.
+- [ ] **DATA-C-012** DB provider-specific capacity and distributed suitability (SQLite single writer, SQL Server/Postgres scaled) documented and tested.
+
+## 4. Firewall, privacy and optional security detector suite
+
+- [ ] **FW-C-001 [SEC]** Default-on host egress interlock with typed allow/mask/redact/block/review policy; privacy off explicit trust-config only and auth never off.
+- [ ] **FW-C-002 [SEC]** Local Python security worker authenticated, isolated and resource bounded, no vault key/database grant; disconnected required coverage blocks before external egress.
+- [ ] **FW-C-003** Baseline rules/checksums/secrets/known values only; GLiNER, DeBERTa, Qwen3Guard, PaddleOCR, YuNet independently enable/disable/load with manifest and readiness.
+- [ ] **FW-C-004 [SEC]** Missing detector only blocks requests that policy requires; no silent rules-only fallback when semantic PII needed or image/audio unprotected.
+- [ ] **FW-C-005 [SEC]** MIME/text/image/PDF/face/EXIF/audio controls, strict-local original-content checks and unsupported-modality denial.
+- [ ] **FW-C-006 [SEC]** Cryptographic opaque tokens, envelope AES-256-GCM encrypted per-scope mappings, TTL/key rotation, authorized restoration and streaming split-token property tests.
+- [ ] **FW-C-007 [SEC]** Output/tool/retrieval/worker/telemetry/NATS gates and cross-tenant/operational versus interactive isolation with canary tests.
+- [ ] **FW-C-008** Optional persistent protected local KEK plus optional Infisical KMS key wrapping/rotation, no required Infisical service.
+- [ ] **FW-C-009** Detector accuracy/latency/overmask measured on reproducible synthetic and language/domain evaluation datasets; no unsupported quality claim.
+- [ ] **FW-C-010** Optional security worker Docker CPU/GPU profiles, licensed pinned models, no request-time download, readiness/kill/backpressure and signed image publication tests.
+
+## 5. MiniComposer, client SDK and Navigator
+
+- [ ] **UI-C-001** `AddOpenConnectClient()` .NET and `@openconnect/client` TypeScript/Node support same authenticated task HTTP and event WS contracts with no DOM dependency in Node.
+- [ ] **UI-C-002** Blazor `OpenConnectProvider` and `MiniComposer` integrate without duplicate MudBlazor providers or duplicated sessions.
+- [ ] **UI-C-003** Browser `@openconnect/composer` and optional React renderer match Blazor composer; SSR-safe, scoped CSS and no host reflow.
+- [ ] **UI-C-004** Reference faithful: 44–56px FAB bottom-right, compact floating bubble/tail, header handle/settings/stop/close, editor, status, voice/mic footer.
+- [ ] **UI-C-005** Drag keyboard/pointer/touch with clamping, 24px arrows, Home reset, safe areas, mobile visual viewport, zoom, RTL, attached Navigator flow.
+- [ ] **UI-C-006** Enter/Shift+Enter/IME/duplicate prevention, 8000-char input, text streaming/latest bounded response, explicit Stop versus Close, WS replay status.
+- [ ] **UI-C-007** A11y and visual golden screenshots match reference anatomy in light/dark, mobile/desktop, no voice/voice on, error/approval and reduced motion.
+- [ ] **UI-C-008** Real mic and speech states independent; optional TTS/STT absent means normal text/UI/MCP; stale audio fenced.
+- [ ] **UI-C-009** Authorized component renderer, capabilities and suggestions; Navigator does not replace Composer or invent a new event bus.
+- [ ] **NAV-C-001 [SEC]** Optional Navigator semantic UI targets/tours/highlighter, scope-filtered observation, browser bridge, consent, safe actions and bounded plans.
+- [ ] **NAV-C-002 [SEC]** Optional Playwright MCP uses isolated workload/browser, narrow allowlisted safe commands, consent and network/SSRF defenses; unavailable Playwright does not block live text tours.
+- [ ] **NAV-C-003** Operational Navigator uses existing operational supervisor, not another scheduler. No interactive identity impersonation.
+
+## 6. Optional Python speech/model workers and vector/KMS extensions
+
+- [ ] **WRK-C-001** Common Python worker kit: uv locked, Pydantic versioned schemas, auth, health/ready, bounded retries, cancellation, resource metrics and no DB secrets.
+- [ ] **WRK-C-002** Classification, NLLB, inference, transcription, real-time-dialog independently deployable, tested and truthful per model capability/language.
+- [ ] **WRK-C-003** Kokoro independent Python image and named cache, English `af_heart` only if verified, first-start approved pinned download and offline restart.
+- [ ] **WRK-C-004** MMS-TTS independent Python image and named cache, opted-in language/voice manifests, checkpoint-specific license verification and offline restart.
+- [ ] **WRK-C-005** Partial downloads/checksum mismatch/volume loss/duplicate provisioners handled atomically, model weights not baked into release by default.
+- [ ] **WRK-C-006** Live voice distinction: acoustic segment, final STT, accepted turn, model response, synthesized/delivered audio, barge-in/cancellation epoch.
+- [ ] **VEC-C-001** `.AddQdrantVactor()` truly optional; subscribed to committed safe events, authorized projection, approved embedding, idempotent upsert, filtered search, retention/deletion; no EventRecord vector property.
+- [ ] **KMS-C-001** `IKeyEncryptionProvider` default local protected and optional Infisical adapter; no direct arbitrary token-restoration endpoint or required enterprise vault.
+
+## 7. Observability, metering, admin and website
+
+- [ ] **OBS-C-001** OTel ActivitySource/Meter/logging with versioned GenAI semantic convention profile and no duplicate Aspire instrumentation.
+- [ ] **OBS-C-002 [SEC]** Metadata-only default with no prompt, PII, vault mapping, raw audio, secrets or request IDs as metrics labels.
+- [ ] **OBS-C-003** Durable unique attempt ledger with reported/estimated/unknown token and modality units; retries and late usage reconcile without double counting.
+- [ ] **OBS-C-004** Decimal cost, price version/currency, cache/reasoning token math, local compute estimates labeled distinct from external charges.
+- [ ] **OBS-C-005** Hard budget reservation/settlement, alerts and policy for missing/estimated cost; ledger independent of OTLP/tracing sampling.
+- [ ] **OBS-C-006** Tenant-scoped operator Admin API and optional embeddable UI with billing/security/health/agent dashboards and safe exports/RBAC.
+- [ ] **OBS-C-007** Optional standalone Aspire/AppHost/OTLP exporter, collector down fault tolerance and no mandatory external observability account.
+- [ ] **SITE-C-001** Astro Starlight static website with docs navigation/search, versioned MDX and responsive branded accessible UI.
+- [ ] **SITE-C-002** DocFX public .NET API reference and OpenAPI reference generated from verified source, code examples tested.
+- [ ] **SITE-C-003** Optional OpenConnect-powered read-only docs assistant with source citations, version-scoped retrieval, rate limits and no private repo access.
+- [ ] **SITE-C-004** Static docs remain fully usable when docs API, model provider or assistants are offline; no browser API keys.
+
+## 8. CI, NuGet/npm, GHCR and documentation release
+
+- [ ] **REL-C-001** CI protected branch jobs for .NET, TypeScript, Python, EF provider compatibility, NATS/outbox, privacy, client UI, docs/DocFX and security scans.
+- [ ] **REL-C-002** Reproducible dependency locks, source links/XML docs, npm typings/ESM exports, Python locks and model licenses; source provenance ledgers.
+- [ ] **REL-C-003** Tag preflight, maintainer approval, exact Git SHA, immutable pack artifacts, SBOM/checksum manifest and OIDC registry publishing.
+- [ ] **REL-C-004** Clean consumer installs from NuGet, npm and GHCR by version/digest; API/component/worker smoke including optional-absent mode.
+- [ ] **REL-C-005** Worker images non-root, slim, model manifests/license notices, scan+attest and independent lifecycle tests.
+- [ ] **REL-C-006** Publish versioned docs only after tested source API generation; partial registry failures recorded/recovered honestly.
+
+## 9. Evidence registry and exact test ownership
+
+The following work packages and acceptance IDs are inherited from the uploaded specialist documents, **not replaced** by the canonical tasks above. A canonical `*-C-*` item is a cross-cutting gate; the corresponding `IMP-*`/`EF-IMP-*`/`NAV-IMP-*`/`CMP-IMP-*`/`OBS-IMP-*`/`SITE-IMP-*` covers the detailed implementation. A partial or experimental release may defer a module's stable acceptance suite but MUST mark that module unavailable/experimental and preserve all unchecked items in the roadmap.
+
+### 9.1 Specialist implementation identifiers
+
+| Area | Required implementation IDs | Test IDs |
+|---|---|---|
+| Base framework | `IMP-001–099` where assigned in source | `AT-001–042` |
+| EF Core | `EF-IMP-001–016` | `EF-AT-001–030` |
+| Navigator | `NAV-IMP-001–020` | `NAV-AT-001–024` |
+| Composer | `CMP-IMP-001–014` | `CMP-AT-001–024` |
+| Observability | `OBS-IMP-001–012` (canonical below; map to every OBS/REQ source requirement) | `OBS-AT-001–025` (canonical below) |
+| Documentation site | `SITE-IMP-001–010` | `SITE-AT-001–015` |
+| Optional semantic memory | `VEC-IMP-001–005` | `VEC-AT-001–006` |
+| Optional Infisical | `KMS-IMP-001–004` | `KMS-AT-001–005` |
+
+### 9.2 Observability tasks and acceptance gates
+
+- [ ] **OBS-IMP-001 / OBS-AT-001** Native .NET instrumentation, versioned GenAI attrs, zero duplicate instrumentation with optional Aspire.
+- [ ] **OBS-IMP-002 / OBS-AT-002** Privacy-safe metadata-only defaults, tenant audit and canary scan across logs/traces/metrics/exports.
+- [ ] **OBS-IMP-003 / OBS-AT-003** Per-attempt durable ledger write independent of sampled traces and exporter uptime.
+- [ ] **OBS-IMP-004 / OBS-AT-004** Pricing catalog/currency/decimal math, cached/reasoning overlap rules and immutable adjustments.
+- [ ] **OBS-IMP-005 / OBS-AT-005** Streaming/abort/late usage, retries, finalization and reconciliation without duplicate charges.
+- [ ] **OBS-IMP-006 / OBS-AT-006** Cost aggregate/report APIs, provenance completeness and authorized tenant drill-down.
+- [ ] **OBS-IMP-007 / OBS-AT-007** Hard/soft budgets, atomic reservation, limits and alerts.
+- [ ] **OBS-IMP-008 / OBS-AT-008** Firewall per-detector latency/decision/coverage metrics; no raw entity values or false quality claims.
+- [ ] **OBS-IMP-009 / OBS-AT-009** Agent/operational lifecycle traces, workload/user identity distinction and worker telemetry.
+- [ ] **OBS-IMP-010 / OBS-AT-010** Optional OTLP exporters/collector/Aspire standalone or AppHost; outage without firewall/task regression.
+- [ ] **OBS-IMP-011 / OBS-AT-011** Embeddable Admin API/UI, secure security/model budget/audit dashboards and paging/export.
+- [ ] **OBS-IMP-012 / OBS-AT-012** SLO, load/fault/cardinality test matrix, resource-cost estimation and deployment runbooks.
+
+**Further OBS-AT-013–025 (separate tests, all NOT RUN):**
+- [ ] **OBS-AT-013** Provider usage `Unknown` not equated to zero.
+- [ ] **OBS-AT-014** Price-effective interval and multi-currency conversion provenance.
+- [ ] **OBS-AT-015** High-concurrency hard-budget reservation rejects overspend.
+- [ ] **OBS-AT-016** Models with image/audio/video units accounted without inventing values.
+- [ ] **OBS-AT-017** Detector NotInstalled/SkippedByPolicy/TimedOut not conflated with Disabled.
+- [ ] **OBS-AT-018** Shadow detector does not alter live verdict without policy.
+- [ ] **OBS-AT-019** Tested model quality reports require reviewed labeled dataset.
+- [ ] **OBS-AT-020** User and workload audit attribution never discloses bearer tokens.
+- [ ] **OBS-AT-021** Admin RBAC and tenant export isolation deny cross-tenant reads.
+- [ ] **OBS-AT-022** OTLP unavailable for tested duration, ledger/firewall remain safe.
+- [ ] **OBS-AT-023** GenAI semantic convention versions pinned; double emission prevented.
+- [ ] **OBS-AT-024** Retention by ledger/traces/logs/audit independent and secure delete.
+- [ ] **OBS-AT-025** Clean package consumer no mandatory Aspire or OTLP exporter.
+
+### 9.3 Documentation site tasks
+
+- [ ] **SITE-IMP-001 / SITE-AT-001** Inspect actual OpenConnect API/projects and publish implemented/planned feature matrix.
+- [ ] **SITE-IMP-002 / SITE-AT-002** Astro Starlight static build, custom accessible dark/light navigation/search.
+- [ ] **SITE-IMP-003 / SITE-AT-003** Versioned MDX/docs taxonomy, architecture Mermaid and copyable C# examples.
+- [ ] **SITE-IMP-004 / SITE-AT-004** DocFX API metadata generated from actual public assemblies, links to tutorials.
+- [ ] **SITE-IMP-005 / SITE-AT-005** OpenAPI endpoints reference generated, schema compatibility checks.
+- [ ] **SITE-IMP-006 / SITE-AT-006** Optional docs agent uses real OpenConnect public client/host, read-only/versioned docs retrieval and citations.
+- [ ] **SITE-IMP-007 / SITE-AT-007** Restricted anonymous/user sessions, rate limiting/CORS/privacy/security.
+- [ ] **SITE-IMP-008 / SITE-AT-008** OpenConnect MiniComposer dogfood, no separate chat engine or CSS takeover.
+- [ ] **SITE-IMP-009 / SITE-AT-009** Static build and Pagefind search usable if docs API down.
+- [ ] **SITE-IMP-010 / SITE-AT-010** GitHub Actions preview, docs linking/test examples, protected deployment.
+- [ ] **SITE-AT-011** Docs assistant cannot access private repo/operational control/unsafe tools.
+- [ ] **SITE-AT-012** Docs version isolation in retrieval and answers.
+- [ ] **SITE-AT-013** Backend down no broken public static UI.
+- [ ] **SITE-AT-014** No public provider keys or secret canaries in site assets.
+- [ ] **SITE-AT-015** External user can follow verified installation guide with released packages.
+
+### 9.4 Optional vector and Infisical adapters
+
+- [ ] **VEC-IMP-001 / VEC-AT-001** Define scoped committed event subscription separate from `IEventJournal`, with explicit ACK handling.
+- [ ] **VEC-IMP-002 / VEC-AT-002** `.AddQdrantVactor()` opt-in; absent registration makes no Qdrant client/consumer/agent dependency.
+- [ ] **VEC-IMP-003 / VEC-AT-003** Approved `task.completed`/memory candidate summaries projected, sanitized and embedded; no raw prompt/PII/vector in journal.
+- [ ] **VEC-IMP-004 / VEC-AT-004** Deterministic vector IDs, semantic model revision, tenant-filtered retrieval and deleted/revoked point protection.
+- [ ] **VEC-IMP-005 / VEC-AT-005** Qdrant outage/replay/indexing failure independent of agent execution.
+- [ ] **VEC-AT-006** Clean package consumer no Qdrant assembly when disabled.
+- [ ] **KMS-IMP-001 / KMS-AT-001** `IKeyEncryptionProvider` registration, local protected persistent KEK and KMS-neutral vault envelope.
+- [ ] **KMS-IMP-002 / KMS-AT-002** Optional Infisical machine identity+KMS wrapping only DEK, original PII not sent to Infisical.
+- [ ] **KMS-IMP-003 / KMS-AT-003** KEK rotation/unwrap audit, KMS outage fail closed and cache policy.
+- [ ] **KMS-IMP-004 / KMS-AT-004** No required Infisical in clean core/EF package graph; explicit use only.
+- [ ] **KMS-AT-005** Restoration scope/tenant/principal/workload denial remains host-owned regardless KMS choice.
+
+## 10. Release status and evidence ledger
+
+**Status conventions:** `NOT RUN`, `BLOCKED`, `FAIL`, `PASS`—only `PASS` with evidence permits ticking. Supported core implementation can be `Experimental` where acceptance criteria remain unmet, but never silently drop specialist obligations.
+
+| UTC date | Task ID / acceptance ID | Commit/PR | Environment/provider/model | Exact command | Result | Artifact/log/review link |
+|---|---|---|---|---|---|---|
+| — | — | — | — | — | NOT RUN | — |
+
+**Release sign-off:**
+- [ ] No known cross-tenant PII restoration, user/workload context mix-up, unintended model egress or denied tool execution in tested capabilities.
+- [ ] Every advertised stable package or worker has passing tests, validated model licensing, externally verified clean consumer install and versioned docs.
+- [ ] Conditional optional modules do not block core `AddOpenConnect`, basic interactive/MCP or text composer when omitted.
+- [ ] EF provider claims match real provider concurrency tests; EF InMemory dev mode explicitly non-durable.
+- [ ] CI required checks protect release branch/tag; NuGet/npm/GHCR attestations and checksums verified.
+- [ ] Outstanding modules remain visible in unchecked master checklist, release notes and roadmap, not deleted or downgraded silently.
+
+---
+
+# Part II — Preserved original engineering checklist and generated acceptance inventories
+
+The uploaded existing `checklist(2).md` is retained below without dropping work. Some old checklist clauses mention PostgreSQL-only as default, which are **superseded** by `requirements.md` §4; update their implementation/test provider matrix to SQL Server/PostgreSQL/SQLite plus InMemory test mode, without skipping crash or idempotency tests.
+
+
+---
+
+## Annex 1: Original consolidated project checklist
+
+**Preserved source:** `checklist(2).md` · **SHA-256:** `5640b4551cdf0032d8cc0acfbfbe67e5c756b57947076a22906c794334e8b259` · **Content retained verbatim below.**
+
 # OpenConnect — Engineering Delivery and Release Checklist
 
 **Version:** 1.1-draft | **Date:** 2026-11-06  
@@ -384,3 +613,670 @@ For each blocker log `{ID, owner, observed problem, prerequisite, effect on stab
 - https://learn.microsoft.com/en-us/agent-framework/overview/
 - https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing
 - https://docs.npmjs.com/trusted-publishers/
+
+
+
+
+---
+
+# Part III — Automatically enumerated source requirement and acceptance coverage ledger
+
+Each identifier here was found in an uploaded document and is retained by verbatim source annex. The checkbox is a **verification checkpoint**, not evidence that a requirement has been implemented. Some source documents use identifiers for ranges, not explicit per-number definitions; a range is preserved as a range and must be decomposed by the implementing agent where applicable. Canonical conflict precedence applies.
+
+
+## Source requirement index: Foundation framework (`spec(2).md`, 68 explicit identifiers)
+
+- [ ] **OC-AGT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-API-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-API-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-ARC-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CAP-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CLI-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-DOC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-DOC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EVT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-OBS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-OBS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-PRV-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-REL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-REL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-REL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-REL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-REL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: EF Core (`entityframework-requirements(1).md`, 96 explicit identifiers)
+
+- [ ] **OC-EF-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-026** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-027** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-029** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-030** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-031** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-032** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-033** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-034** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-035** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-036** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-037** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-038** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-039** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-040** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-041** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-042** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-043** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-044** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-045** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-046** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-047** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-048** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-050** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-051** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-052** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-053** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-054** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-055** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-056** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-057** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-058** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-059** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-060** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-061** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-062** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-063** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-064** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-065** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-066** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-067** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-068** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-069** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-070** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-071** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-072** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-073** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-074** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-075** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-076** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-077** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-078** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-079** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-080** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-081** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-082** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-083** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-084** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-085** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-086** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-087** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-088** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-089** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-090** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-091** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-092** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-093** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-094** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-095** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-EF-096** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: Firewall (`firewall(1).md`, 56 explicit identifiers)
+
+- [ ] **OC-FW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-026** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-027** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-029** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-030** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-031** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-032** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-033** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-034** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-035** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-036** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-037** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-038** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-039** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-040** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-041** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-042** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-043** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-044** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-045** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-046** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-047** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-048** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-050** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-051** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-052** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-053** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-054** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-055** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-064** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: Composer (`composer-requirements(1).md`, 61 explicit identifiers)
+
+- [ ] **ACR-AUD-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-AUD-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-LIFE-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-LIFE-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-LIFE-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-LIFE-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-LIFE-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-OPS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-SDK-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-TXT-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-UX-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **ACR-VIS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: Navigator (`navigator-requirements(3).md`, 84 explicit identifiers)
+
+- [ ] **R-API-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-API-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-DEP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-DEP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-DEP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-DEP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-DEP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-GOAL-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-ID-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-INT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-MCP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-MCP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-MCP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-MCP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-MCP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-OPS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-REL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-TTS-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **R-UI-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: Observability (`observability-requirements(1).md`, 128 explicit identifiers)
+
+- [ ] **NFR-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **NFR-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OBS-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ADM-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-AG-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-ASP-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-CFG-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-FW-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-GW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MET-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MM-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MM-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MM-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MM-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-MM-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-SEC-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **REQ-TEL-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+## Source requirement index: Configuration (`configuration.md`, 4 explicit identifiers)
+
+- [ ] **OC-AGT-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-AGT-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-CFG-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+- [ ] **OC-FW-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
+
+**Generated explicit requirement checkpoints:** 497 (may include references to identifiers defined in another document).
+
+## Complete specialized acceptance status register
+
+
+### Core framework — 42 tests, all NOT RUN until evidenced
+
+- [ ] **AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-025** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-026** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-027** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-028** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-031** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-032** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-033** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-034** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-035** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-036** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-037** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-038** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-039** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-040** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-041** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **AT-042** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+
+### EF Core — 30 tests, all NOT RUN until evidenced
+
+- [ ] **EF-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-025** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-026** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-027** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-028** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **EF-AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+
+### Navigator — 24 tests, all NOT RUN until evidenced
+
+- [ ] **NAV-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **NAV-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+
+### Composer — 24 tests, all NOT RUN until evidenced
+
+- [ ] **CMP-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [ ] **CMP-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+
+**Additional extension gates:** OBS-AT-001–025, SITE-AT-001–015, VEC-AT-001–006 and KMS-AT-001–005 are already specified in the canonical checklist above and remain NOT RUN.
