@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenConnect.Navigator.AspNetCore.Outbox;
 
@@ -11,7 +12,7 @@ public interface INavigatorOutboxRelay
 
 /// <summary>Bounded periodic relay; transient failures delay the next pass and do not stop the host.</summary>
 public sealed class NavigatorOutboxRelayWorker(
-    INavigatorOutboxRelay relay,
+    IServiceScopeFactory scopeFactory,
     ILogger<NavigatorOutboxRelayWorker> logger) : BackgroundService
 {
     private const int BatchLimit = 100;
@@ -25,8 +26,18 @@ public sealed class NavigatorOutboxRelayWorker(
             TimeSpan delay;
             try
             {
-                var count = await relay.RelayOnceAsync(BatchLimit, Guid.NewGuid(), stoppingToken).ConfigureAwait(false);
-                delay = count == BatchLimit ? TimeSpan.Zero : IdleDelay;
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var relay = scope.ServiceProvider.GetService<INavigatorOutboxRelay>();
+                if (relay is null)
+                {
+                    logger.LogDebug("Navigator outbox relay is not configured; skipping relay pass.");
+                    delay = IdleDelay;
+                }
+                else
+                {
+                    var count = await relay.RelayOnceAsync(BatchLimit, Guid.NewGuid(), stoppingToken).ConfigureAwait(false);
+                    delay = count == BatchLimit ? TimeSpan.Zero : IdleDelay;
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

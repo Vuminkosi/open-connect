@@ -13,9 +13,8 @@ public static class NavigatorOutboxServiceCollectionExtensions
         services.TryAddSingleton<NavigatorWsDeliveryAdapter>();
         services.TryAddSingleton<NavigatorOutboxWriter>();
         services.TryAddSingleton<INavigatorCommitHook, NavigatorCommitHook>();
-        // The host supplies INavigatorOutboxWriter and INavigatorOutboxRelay. Registering a hosted
-        // worker without that relay would make an optional feature prevent application startup.
-        // Production hosts should bind these to the durable shared outbox store/relay in Postgres.
+        // The worker resolves this optional host-owned dependency for each pass, so registration
+        // order does not determine whether the relay is active.
         services.AddHostedService<NavigatorOutboxRelayWorker>();
         return services;
     }
