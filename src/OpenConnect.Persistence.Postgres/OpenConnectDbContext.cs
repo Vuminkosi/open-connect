@@ -52,6 +52,8 @@ public sealed class OpenConnectDbContext(DbContextOptions<OpenConnectDbContext> 
         tasks.Property(x => x.InputRef).HasColumnName("input_ref"); tasks.Property(x => x.ResultRef).HasColumnName("result_ref");
         tasks.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
         tasks.Property(x => x.CompletedAt).HasColumnName("completed_at").HasColumnType("timestamp with time zone");
+        tasks.Property(x => x.ReceiptPayload).HasColumnName("receipt_payload").HasColumnType("jsonb");
+        tasks.Property(x => x.ReceiptStatus).HasColumnName("receipt_status");
         tasks.HasAlternateKey(x => new { x.TenantId, x.PrincipalId, x.Id }).HasName("uq_task_tenant_principal_id");
         tasks.HasIndex(x => new { x.TenantId, x.PrincipalId, x.ClientTaskId }).IsUnique().HasDatabaseName("uq_task_idempotency");
         tasks.HasIndex(x => x.SessionId).HasDatabaseName("idx_tasks_session"); tasks.HasIndex(x => x.State).HasDatabaseName("idx_tasks_state");
@@ -66,10 +68,11 @@ public sealed class OpenConnectDbContext(DbContextOptions<OpenConnectDbContext> 
         turns.HasOne<SessionEntity>().WithMany().HasForeignKey(x => new { x.TenantId, x.PrincipalId, x.SessionId }).HasPrincipalKey(x => new { x.TenantId, x.OwnerId, x.Id }).OnDelete(DeleteBehavior.Restrict);
 
         var events = modelBuilder.Entity<EventEntity>(); events.ToTable("oc_events"); events.HasKey(x => x.Id);
-        events.Property(x => x.Id).HasColumnName("id"); events.Property(x => x.SessionId).HasColumnName("session_id"); events.Property(x => x.Sequence).HasColumnName("sequence");
+        events.Property(x => x.Id).HasColumnName("id"); events.Property(x => x.TenantId).HasColumnName("tenant_id"); events.Property(x => x.PrincipalId).HasColumnName("principal_id"); events.Property(x => x.SessionId).HasColumnName("session_id"); events.Property(x => x.Sequence).HasColumnName("sequence");
         events.Property(x => x.EventType).HasColumnName("event_type"); events.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb");
         events.Property(x => x.OccurredAt).HasColumnName("occurred_at").HasColumnType("timestamp with time zone"); events.Property(x => x.CorrelationId).HasColumnName("correlation_id");
-        events.HasIndex(x => new { x.SessionId, x.Sequence }).IsUnique().HasDatabaseName("uq_event_sequence");
+        events.HasIndex(x => new { x.TenantId, x.PrincipalId, x.SessionId, x.Sequence }).IsUnique().HasDatabaseName("uq_event_sequence");
+        events.HasOne<SessionEntity>().WithMany().HasForeignKey(x => new { x.TenantId, x.PrincipalId, x.SessionId }).HasPrincipalKey(x => new { x.TenantId, x.OwnerId, x.Id }).OnDelete(DeleteBehavior.Restrict);
 
         var outbox = modelBuilder.Entity<OutboxEntity>(); outbox.ToTable("oc_outbox"); outbox.HasKey(x => x.Id);
         outbox.Property(x => x.Id).HasColumnName("id"); outbox.Property(x => x.Topic).HasColumnName("topic"); outbox.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb");
@@ -78,15 +81,19 @@ public sealed class OpenConnectDbContext(DbContextOptions<OpenConnectDbContext> 
         outbox.Property(x => x.DeliveredAt).HasColumnName("delivered_at").HasColumnType("timestamp with time zone");
         outbox.HasIndex(x => new { x.State, x.NextAttemptAt }).HasDatabaseName("idx_outbox_pending").HasFilter("state = 'pending'");
 
-        var leases = modelBuilder.Entity<LeaseEntity>(); leases.ToTable("oc_leases"); leases.HasKey(x => x.Name);
-        leases.Property(x => x.Name).HasColumnName("name"); leases.Property(x => x.Owner).HasColumnName("owner"); leases.Property(x => x.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp with time zone");
+        var leases = modelBuilder.Entity<LeaseEntity>(); leases.ToTable("oc_leases"); leases.HasKey(x => new { x.TenantId, x.Name });
+        leases.Property(x => x.TenantId).HasColumnName("tenant_id"); leases.Property(x => x.Name).HasColumnName("name"); leases.Property(x => x.Owner).HasColumnName("owner"); leases.Property(x => x.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp with time zone");
         leases.Property(x => x.Version).HasColumnName("version").IsConcurrencyToken();
 
         var approvals = modelBuilder.Entity<ApprovalEntity>(); approvals.ToTable("oc_approvals"); approvals.HasKey(x => x.Id);
         approvals.Property(x => x.Id).HasColumnName("id"); approvals.Property(x => x.TenantId).HasColumnName("tenant_id"); approvals.Property(x => x.PrincipalId).HasColumnName("principal_id");
         approvals.Property(x => x.TaskId).HasColumnName("task_id"); approvals.Property(x => x.State).HasColumnName("state"); approvals.Property(x => x.Decision).HasColumnName("decision");
+        approvals.Property(x => x.CommandId).HasColumnName("command_id"); approvals.Property(x => x.CommandDigest).HasColumnName("command_digest");
+        approvals.Property(x => x.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp with time zone"); approvals.Property(x => x.ConsumedAt).HasColumnName("consumed_at").HasColumnType("timestamp with time zone");
         approvals.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone"); approvals.Property(x => x.DecidedAt).HasColumnName("decided_at").HasColumnType("timestamp with time zone");
         approvals.HasOne<TaskEntity>().WithMany().HasForeignKey(x => new { x.TenantId, x.PrincipalId, x.TaskId }).HasPrincipalKey(x => new { x.TenantId, x.PrincipalId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        approvals.HasIndex(x => new { x.TenantId, x.PrincipalId, x.TaskId, x.CommandId }).IsUnique().HasDatabaseName("uq_approval_command");
+        approvals.HasIndex(x => new { x.TenantId, x.PrincipalId, x.State, x.ExpiresAt }).HasDatabaseName("idx_approvals_pending").HasFilter("state = 'pending'");
 
         var tokens = modelBuilder.Entity<PrivacyTokenEntity>(); tokens.ToTable("oc_privacy_tokens"); tokens.HasKey(x => x.Token);
         tokens.Property(x => x.Token).HasColumnName("token"); tokens.Property(x => x.EncryptedValue).HasColumnName("encrypted_value").IsRequired();

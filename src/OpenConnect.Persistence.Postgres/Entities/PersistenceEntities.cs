@@ -50,6 +50,10 @@ public sealed class TaskEntity
     public DateTimeOffset CreatedAt { get; set; }
     /// <summary>Gets or sets the completion time, when applicable.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
+    /// <summary>Gets or sets the durable completion receipt as JSON.</summary>
+    public string? ReceiptPayload { get; set; }
+    /// <summary>Gets or sets the durable receipt status.</summary>
+    public string? ReceiptStatus { get; set; }
 }
 
 /// <summary>Represents one turn within a session.</summary>
@@ -82,6 +86,10 @@ public sealed class EventEntity
     public Guid Id { get; set; }
     /// <summary>Gets or sets the associated session identifier.</summary>
     public Guid SessionId { get; set; }
+    /// <summary>Gets or sets the tenant identifier.</summary>
+    public Guid TenantId { get; set; }
+    /// <summary>Gets or sets the session principal identifier.</summary>
+    public Guid PrincipalId { get; set; }
     /// <summary>Gets or sets the sequence number within the session.</summary>
     public long Sequence { get; set; }
     /// <summary>Gets or sets the event type.</summary>
@@ -118,6 +126,8 @@ public sealed class OutboxEntity
 /// <summary>Represents a time-limited distributed lease.</summary>
 public sealed class LeaseEntity
 {
+    /// <summary>Gets or sets the tenant identifier.</summary>
+    public Guid TenantId { get; set; }
     /// <summary>Gets or sets the lease name.</summary>
     public string Name { get; set; } = "";
     /// <summary>Gets or sets the lease owner.</summary>
@@ -139,6 +149,14 @@ public sealed class ApprovalEntity
     public Guid PrincipalId { get; set; }
     /// <summary>Gets or sets the associated task identifier.</summary>
     public Guid TaskId { get; set; }
+    /// <summary>Gets or sets the command identifier protected by this approval.</summary>
+    public string? CommandId { get; set; }
+    /// <summary>Gets or sets the canonical command digest.</summary>
+    public string? CommandDigest { get; set; }
+    /// <summary>Gets or sets the approval expiration time.</summary>
+    public DateTimeOffset? ExpiresAt { get; set; }
+    /// <summary>Gets or sets when the approval was consumed.</summary>
+    public DateTimeOffset? ConsumedAt { get; set; }
     /// <summary>Gets or sets the approval state.</summary>
     public string State { get; set; } = "pending";
     /// <summary>Gets or sets the approval decision, when present.</summary>
