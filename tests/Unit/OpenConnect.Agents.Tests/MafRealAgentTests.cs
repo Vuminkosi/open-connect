@@ -30,6 +30,54 @@ public sealed class MafRealAgentTests
     }
 
     [Fact]
+    public async Task Operational_definition_executes_through_same_maf_adapter_with_distinct_principal()
+    {
+        var client = new TestChatClient();
+        var interactiveId = new AgentId("interactive-echo");
+        var operationalId = new AgentId("operational-echo");
+        const string prompt = "hello across modes";
+        var interactiveDefinition = new AgentDefinition(interactiveId, "Echo");
+        var operationalDefinition = new AgentDefinition(operationalId, "Echo")
+        {
+            ExecutionMode = AgentExecutionMode.Operational,
+            IdentityMode = AgentIdentityMode.WorkloadIdentity,
+            Operational = new OperationalPolicy(
+                AgentActivationMode.OnDemand,
+                WorkloadIdentityRef: "test/workload")
+        };
+        var factory = new MafRealAgentFactory(new TestRegistry(interactiveDefinition, operationalDefinition), client);
+
+        var interactiveResponse = await factory.RunAsync(interactiveId, prompt);
+        var operationalResponse = await factory.RunAsync(operationalId, prompt);
+        var trace = factory.GetTrace();
+
+        Assert.Equal(prompt, interactiveResponse.Text);
+        Assert.Equal(prompt, operationalResponse.Text);
+        Assert.Equal(2, client.Calls);
+        Assert.Equal(2, client.CapturedCalls.Count);
+
+        var interactiveCall = client.CapturedCalls[0];
+        var operationalCall = client.CapturedCalls[1];
+        Assert.Equal(interactiveCall.Messages.Select(message => (message.Role, message.Text)),
+            operationalCall.Messages.Select(message => (message.Role, message.Text)));
+        Assert.Collection(interactiveCall.Messages,
+            message =>
+            {
+                Assert.Equal(ChatRole.User, message.Role);
+                Assert.Equal(prompt, message.Text);
+            });
+        Assert.Collection(operationalCall.Messages,
+            message =>
+            {
+                Assert.Equal(ChatRole.User, message.Role);
+                Assert.Equal(prompt, message.Text);
+            });
+        Assert.Equal(interactiveCall.Options?.Instructions, operationalCall.Options?.Instructions);
+        Assert.Equal("Echo", interactiveCall.Options?.Instructions);
+        Assert.Contains(trace, record => record.AgentId == operationalId.Value);
+    }
+
+    [Fact]
     public async Task Instructions_reach_maf_agent_as_system_guidance()
     {
         var client = new TestChatClient();
@@ -67,7 +115,7 @@ public sealed class MafRealAgentTests
     private sealed class TestChatClient : IChatClient
     {
         public int Calls { get; private set; }
-        public List<ChatMessage> CapturedMessages { get; } = [];
+        public List<(IReadOnlyList<ChatMessage> Messages, ChatOptions? Options)> CapturedCalls { get; } = [];
         public ChatOptions? CapturedOptions { get; private set; }
 
         public ChatClientMetadata Metadata { get; } = new("test");
@@ -76,9 +124,10 @@ public sealed class MafRealAgentTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;
-            CapturedMessages.AddRange(messages);
+            var capturedMessages = messages.ToArray();
+            CapturedCalls.Add((capturedMessages, options));
             CapturedOptions = options;
-            var text = messages.Last(message => message.Role == ChatRole.User).Text;
+            var text = capturedMessages.Last(message => message.Role == ChatRole.User).Text;
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text)));
         }
 
@@ -92,10 +141,10 @@ public sealed class MafRealAgentTests
         public void Dispose() { }
     }
 
-    private sealed class TestRegistry(AgentDefinition definition) : IAgentDefinitionRegistry
+    private sealed class TestRegistry(params AgentDefinition[] definitions) : IAgentDefinitionRegistry
     {
-        public AgentDefinition? Get(AgentId id) => id == definition.Id ? definition : null;
-        public IReadOnlyList<AgentDefinition> GetAll() => [definition];
+        public AgentDefinition? Get(AgentId id) => definitions.FirstOrDefault(definition => id == definition.Id);
+        public IReadOnlyList<AgentDefinition> GetAll() => definitions;
         public void Register(AgentDefinition value) => throw new NotSupportedException();
     }
 }
