@@ -64,7 +64,7 @@ public sealed class IndexerTests
     public async Task ApprovedEventUpsertsBeforeSubscriptionAdvancesAndUnapprovedIsIgnored()
     {
         var store = new FakeStore();
-        var events = new[] { Event("task.completed", 1), Event("task.started", 2) };
+        var events = new[] { Delivery(Event("task.completed", 1)), Delivery(Event("task.started", 2)) };
         var subscription = new FakeSubscription(events, () => Assert.Single(store.Points));
         await Create(subscription, new FakeReader("safe output"), store, enabled: true).RunAsync();
         Assert.Single(store.Points);
@@ -76,7 +76,7 @@ public sealed class IndexerTests
     {
         var item = Event("agent.memory.candidate", 4);
         var store = new FakeStore();
-        await Create(new FakeSubscription([item, item]), new FakeReader("safe"), store, enabled: true).RunAsync();
+        await Create(new FakeSubscription([Delivery(item), Delivery(item)]), new FakeReader("safe"), store, enabled: true).RunAsync();
         Assert.Single(store.Points);
     }
 
@@ -123,7 +123,7 @@ public sealed class IndexerTests
     {
         var store = new FakeStore();
         var tampered = Event("task.completed", 1) with { TenantId = " " };
-        await Create(new FakeSubscription([tampered]), new FakeReader("must not be indexed"), store, enabled: true).RunAsync();
+        await Create(new FakeSubscription([Delivery(tampered)]), new FakeReader("must not be indexed"), store, enabled: true).RunAsync();
         Assert.Empty(store.Points);
     }
 
@@ -150,28 +150,77 @@ public sealed class IndexerTests
         Assert.Single(await store.SearchAsync("tenant-b", "agent-a", new float[] { 1 }, 10, default));
     }
 
-    private static QdrantVactorIndexer Create(FakeSubscription subscription, IProjectionReader reader, FakeStore store, bool enabled = false) =>
+    [Fact]
+    public async Task UnapprovedEventIsAcknowledgedWithoutIndexing()
+    {
+        var delivery = Delivery(Event("task.started", 2));
+        var store = new FakeStore();
+        await Create(new FakeSubscription([delivery]), new FakeReader("safe"), store, enabled: true).RunAsync();
+        Assert.Equal(1, delivery.AckCount);
+        Assert.Equal(0, delivery.NakCount);
+        Assert.Empty(store.Points);
+    }
+
+    [Fact]
+    public async Task StoreFailureNaksDeliveryForRedelivery()
+    {
+        var delivery = Delivery(Event("task.completed", 1));
+        var store = new ThrowingStore();
+        await Create(new FakeSubscription([delivery]), new FakeReader("safe"), store, enabled: true).RunAsync();
+        Assert.Equal(0, delivery.AckCount);
+        Assert.Equal(1, delivery.NakCount);
+        Assert.Equal("indexing_failed", delivery.NakReason);
+        Assert.True(delivery.Redeliver().Redelivered);
+    }
+
+    private static QdrantVactorIndexer Create(FakeSubscription subscription, IProjectionReader reader, IVectorStore store, bool enabled = false) =>
         new(reader, new DeterministicEmbeddingStub(), store,
             Options.Create(new QdrantVactorOptions { Enabled = enabled, Endpoint = enabled ? new Uri("http://localhost:6333") : null }), subscription);
 
     private static CommittedAgentEvent Event(string type, long sequence) =>
         new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "tenant", "session", "execution", "agent", AgentExecutionMode.Interactive, type, sequence, "opaque-ref", DateTimeOffset.UtcNow);
 
-    private sealed class FakeSubscription(IReadOnlyList<CommittedAgentEvent> events, Action? beforeNext = null) : IAgentEventSubscription
+    private sealed class FakeSubscription(IReadOnlyList<TrackedDelivery> events, Action? beforeNext = null) : IAgentEventSubscriptionV2
     {
         public int Calls { get; private set; }
-        public async IAsyncEnumerable<CommittedAgentEvent> SubscribeAsync(AgentEventSubscriptionOptions options, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<CommittedEventDelivery> SubscribeAsync(AgentEventSubscriptionOptions options, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             Calls++;
             for (var i = 0; i < events.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                yield return events[i];
+                yield return events[i].Delivery;
                 beforeNext?.Invoke();
                 await Task.Yield();
             }
         }
     }
+
+    private sealed class FakeDeliveryState(CommittedAgentEvent item)
+    {
+        public int AckCount { get; private set; }
+        public int NakCount { get; private set; }
+        public string? NakReason { get; private set; }
+        private bool _redelivered;
+        public CommittedEventDelivery Delivery() => new(item,
+            _ => { AckCount++; return ValueTask.CompletedTask; },
+            (reason, _) => { NakCount++; NakReason = reason; return ValueTask.CompletedTask; },
+            _redelivered);
+        public CommittedEventDelivery Redeliver() { _redelivered = true; return Delivery(); }
+    }
+
+    private sealed class TrackedDelivery
+    {
+        private readonly FakeDeliveryState _state;
+        public TrackedDelivery(FakeDeliveryState state) => _state = state;
+        public int AckCount => _state.AckCount;
+        public int NakCount => _state.NakCount;
+        public string? NakReason => _state.NakReason;
+        public CommittedEventDelivery Delivery => _state.Delivery();
+        public CommittedEventDelivery Redeliver() => _state.Redeliver();
+    }
+
+    private static TrackedDelivery Delivery(CommittedAgentEvent item) => new(new FakeDeliveryState(item));
 
     private sealed class FakeReader(string? value) : IProjectionReader
     {
@@ -204,5 +253,12 @@ public sealed class IndexerTests
         public Task UpsertAsync(VectorPoint point, CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _points[point.Id] = point; return Task.CompletedTask; }
         public Task<IReadOnlyList<VectorPoint>> SearchAsync(string tenantId, string agentId, ReadOnlyMemory<float> vector, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<VectorPoint>>(_points.Values.Where(point => point.TenantId == tenantId && point.AgentId == agentId).Take(limit).ToArray());
         public Task DeleteAsync(string tenantId, string agentId, string documentId, CancellationToken cancellationToken) { _points.Remove(documentId); return Task.CompletedTask; }
+    }
+
+    private sealed class ThrowingStore : IVectorStore
+    {
+        public Task UpsertAsync(VectorPoint point, CancellationToken cancellationToken) => throw new InvalidOperationException("store failure");
+        public Task<IReadOnlyList<VectorPoint>> SearchAsync(string tenantId, string agentId, ReadOnlyMemory<float> vector, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<VectorPoint>>([]);
+        public Task DeleteAsync(string tenantId, string agentId, string documentId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
