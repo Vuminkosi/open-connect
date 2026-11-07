@@ -47,6 +47,28 @@ public sealed class OptionsBindingParityTests
         Assert.Equal(4, bound.Agents.MaxDelegationDepth);
     }
 
+    [Fact]
+    public void Duration_values_bind_to_fluent_equivalent_and_validate()
+    {
+        // System.Text.Json has no built-in TimeSpan converter for JSON strings.
+        var bound = OpenConnectConfigurationBinder.Bind(Kv(
+            ("OpenConnect:Agents:MaxTurnDuration", "00:02:00")));
+        var fluent = new OpenConnectOptions();
+        fluent.Agents.MaxTurnDuration = TimeSpan.FromMinutes(2);
+
+        Assert.Equal(fluent.Agents.MaxTurnDuration, bound.Agents.MaxTurnDuration);
+        Assert.True(new OpenConnectOptionsValidator().Validate(Options.DefaultName, bound).Succeeded);
+    }
+
+    [Fact]
+    public void Invalid_duration_is_rejected()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => OpenConnectConfigurationBinder.Bind(
+            Kv(("OpenConnect:Agents:MaxTurnDuration", "not-a-duration"))));
+
+        Assert.IsType<System.Text.Json.JsonException>(exception.InnerException);
+    }
+
     [Theory]
     [InlineData("frobnicator")]
     [InlineData("0")]

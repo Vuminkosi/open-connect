@@ -10,6 +10,7 @@ namespace OpenConnect.Core.Configuration;
 /// A host can pass its configuration without adding a configuration-package dependency to Core:
 /// <c>OpenConnectConfigurationBinder.Bind(config.AsEnumerable())</c>.
 /// Boolean-looking values are emitted as JSON booleans after trimming (case-insensitive).
+/// Duration values use the invariant constant TimeSpan format (<c>hh:mm:ss</c> or <c>d.hh:mm:ss</c>).
 /// Consequently, a string option whose entire value is exactly "true" or "false" is
 /// interpreted as a boolean; OpenConnectOptions has no such string-valued setting by default.
 /// </remarks>
@@ -60,11 +61,13 @@ public static class OpenConnectConfigurationBinder
             }
 
             var json = ToJsonNode(root).ToJsonString();
-            return JsonSerializer.Deserialize<OpenConnectOptions>(json, new JsonSerializerOptions
+            var serializerOptions = new JsonSerializerOptions
             {
                 PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate,
                 UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
-            })
+            };
+            serializerOptions.Converters.Add(new TimeSpanJsonConverter());
+            return JsonSerializer.Deserialize<OpenConnectOptions>(json, serializerOptions)
                 ?? throw new JsonException("Configuration produced a null options value.");
         }
         catch (JsonException exception)
