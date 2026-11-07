@@ -28,8 +28,8 @@
                                      },
                        "steps":  {
                                      "minItems":  1,
-                                     "items":  {
-                                                   "additionalProperties":  false,
+                                      "items":  {
+                                                    "additionalProperties":  false,
                                                    "properties":  {
                                                                       "action":  {
                                                                                      "type":  "string",
@@ -79,9 +79,17 @@
                                                                                }
                                                                   },
                                                    "type":  "object",
-                                                   "required":  [
-                                                                    "type"
-                                                                ]
+                                                    "required":  ["type"],
+                                                    "allOf": [
+                                                        {
+                                                            "if": {"properties": {"type": {"enum": ["highlight", "focus", "locate", "execute"]}}, "required": ["type"]},
+                                                            "then": {"required": ["targetId"]}
+                                                        },
+                                                        {
+                                                            "if": {"properties": {"type": {"const": "execute"}}, "required": ["type"]},
+                                                            "then": {"required": ["action"], "properties": {"action": {"enum": ["navigate", "observe", "highlight", "focus"]}}}
+                                                        }
+                                                    ]
                                                },
                                      "type":  "array",
                                      "maxItems":  25
