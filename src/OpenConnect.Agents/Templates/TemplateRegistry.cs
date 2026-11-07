@@ -24,6 +24,8 @@ public sealed class TemplateRegistry
 
     private readonly object _sync = new();
     private Dictionary<string, AgentTemplate> _templates = new(StringComparer.Ordinal);
+    private Dictionary<string, string> _aliases = new(StringComparer.Ordinal);
+    private Dictionary<string, string> _migrations = new(StringComparer.Ordinal);
 
     /// <summary>Registers a template after validating its complete inheritance chain.</summary>
     /// <param name="template">The template to register.</param>
@@ -34,6 +36,8 @@ public sealed class TemplateRegistry
         ValidateTemplate(template);
         lock (_sync)
         {
+            if (_aliases.ContainsKey(template.Id))
+                throw new InvalidOperationException($"Template id '{template.Id}' is already registered as an alias.");
             if (_templates.ContainsKey(template.Id))
                 throw new InvalidOperationException($"Template '{template.Id}' is already registered.");
 
@@ -41,6 +45,70 @@ public sealed class TemplateRegistry
             ValidateChain(template, candidate, allowWidening);
             _templates = candidate;
         }
+    }
+
+    /// <summary>Registers an alias that resolves to an existing canonical template.</summary>
+    /// <param name="alias">A distinct name for the canonical template.</param>
+    /// <param name="templateId">The registered canonical template identifier.</param>
+    /// <exception cref="ArgumentException">An identifier is null, empty, or whitespace.</exception>
+    /// <exception cref="InvalidOperationException">The alias collides with a template or alias, or the target does not exist.</exception>
+    public void RegisterAlias(string alias, string templateId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(alias);
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
+        lock (_sync)
+        {
+            if (_templates.ContainsKey(alias) || _aliases.ContainsKey(alias))
+                throw new InvalidOperationException($"Alias '{alias}' is already in use.");
+            if (!_templates.ContainsKey(templateId))
+                throw new InvalidOperationException($"Alias target template '{templateId}' is not registered.");
+
+            var candidate = new Dictionary<string, string>(_aliases, StringComparer.Ordinal) { [alias] = templateId };
+            _aliases = candidate;
+        }
+    }
+
+    /// <summary>
+    /// Records an advisory migration from a registered template or alias to a registered template.
+    /// Migrations never redirect <see cref="Resolve(string)"/>; persisted identities continue to resolve as recorded.
+    /// Hosts may use <see cref="TryGetMigration(string, out string?)"/> to suggest upgrades for new registrations.
+    /// </summary>
+    /// <param name="oldTemplateId">A registered template identifier or alias to retain as the source identity.</param>
+    /// <param name="newTemplateId">The registered suggested replacement template.</param>
+    /// <exception cref="ArgumentException">An identifier is null, empty, whitespace, or both identifiers are equal.</exception>
+    /// <exception cref="InvalidOperationException">The source or target is invalid, the source already has a migration, or the migration creates a cycle.</exception>
+    public void RegisterMigration(string oldTemplateId, string newTemplateId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldTemplateId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newTemplateId);
+        if (StringComparer.Ordinal.Equals(oldTemplateId, newTemplateId))
+            throw new ArgumentException("Migration source and target must be distinct.", nameof(newTemplateId));
+
+        lock (_sync)
+        {
+            if (!_templates.ContainsKey(oldTemplateId) && !_aliases.ContainsKey(oldTemplateId))
+                throw new InvalidOperationException($"Migration source '{oldTemplateId}' is not registered.");
+            if (!_templates.ContainsKey(newTemplateId))
+                throw new InvalidOperationException($"Migration target '{newTemplateId}' is not registered.");
+            if (_migrations.ContainsKey(oldTemplateId))
+                throw new InvalidOperationException($"Migration source '{oldTemplateId}' already has a migration.");
+
+            var candidate = new Dictionary<string, string>(_migrations, StringComparer.Ordinal) { [oldTemplateId] = newTemplateId };
+            if (HasMigrationCycle(candidate))
+                throw new InvalidOperationException("Template migrations cannot contain cycles.");
+            _migrations = candidate;
+        }
+    }
+
+    /// <summary>Gets the advisory migration target for a registered template or alias.</summary>
+    /// <param name="oldTemplateId">The source template identifier or alias.</param>
+    /// <param name="newTemplateId">The suggested registered replacement, or null when no migration exists.</param>
+    /// <returns>true when an advisory migration is recorded; otherwise false.</returns>
+    public bool TryGetMigration(string oldTemplateId, out string? newTemplateId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldTemplateId);
+        lock (_sync)
+            return _migrations.TryGetValue(oldTemplateId, out newTemplateId);
     }
 
     /// <summary>Gets the resolved template, with derived values applied after its base values.</summary>
@@ -51,10 +119,27 @@ public sealed class TemplateRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         lock (_sync)
         {
-            if (!_templates.TryGetValue(id, out var template))
+            var canonicalId = _aliases.TryGetValue(id, out var aliasTarget) ? aliasTarget : id;
+            if (!_templates.TryGetValue(canonicalId, out var template))
                 throw new KeyNotFoundException($"Template '{id}' was not found.");
             return template.BaseTemplateId is null ? template : Merge(ResolveBase(template, _templates), template);
         }
+    }
+
+    private static bool HasMigrationCycle(IReadOnlyDictionary<string, string> migrations)
+    {
+        foreach (var source in migrations.Keys)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var current = source;
+            while (migrations.TryGetValue(current, out var next))
+            {
+                current = next;
+                if (!visited.Add(current) || StringComparer.Ordinal.Equals(current, source))
+                    return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
