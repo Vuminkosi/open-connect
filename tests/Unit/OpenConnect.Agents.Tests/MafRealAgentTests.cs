@@ -29,9 +29,46 @@ public sealed class MafRealAgentTests
         Assert.NotNull(trace[1].CompletedAt);
     }
 
+    [Fact]
+    public async Task Instructions_reach_maf_agent_as_system_guidance()
+    {
+        var client = new TestChatClient();
+        var id = new AgentId("echo");
+        var factory = new MafRealAgentFactory(new TestRegistry(new AgentDefinition(id, "Echo")), client);
+
+        await factory.RunAsync(id, "hello", tools: null, instructions: "You are a test pirate");
+
+        Assert.Equal("You are a test pirate", client.CapturedOptions?.Instructions);
+    }
+
+    [Fact]
+    public async Task Default_instructions_remain_definition_name()
+    {
+        var client = new TestChatClient();
+        var id = new AgentId("echo");
+        var factory = new MafRealAgentFactory(new TestRegistry(new AgentDefinition(id, "Echo")), client);
+
+        await factory.RunAsync(id, "hello");
+
+        Assert.Equal("Echo", client.CapturedOptions?.Instructions);
+    }
+
+    [Fact]
+    public void UnknownAgent_with_instructions_still_throws_before_maf_call()
+    {
+        var client = new TestChatClient();
+        var id = new AgentId("echo");
+        var factory = new MafRealAgentFactory(new TestRegistry(new AgentDefinition(id, "Echo")), client);
+
+        Assert.Throws<InvalidOperationException>(() => factory.CreateAgent(new AgentId("missing"), instructions: "You are a test pirate"));
+        Assert.Equal(0, client.Calls);
+    }
+
     private sealed class TestChatClient : IChatClient
     {
         public int Calls { get; private set; }
+        public List<ChatMessage> CapturedMessages { get; } = [];
+        public ChatOptions? CapturedOptions { get; private set; }
 
         public ChatClientMetadata Metadata { get; } = new("test");
 
@@ -39,6 +76,8 @@ public sealed class MafRealAgentTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;
+            CapturedMessages.AddRange(messages);
+            CapturedOptions = options;
             var text = messages.Last(message => message.Role == ChatRole.User).Text;
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text)));
         }

@@ -19,23 +19,21 @@ public sealed class MafRealAgentFactory
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
     }
 
-    /// <summary>Creates an MAF agent for the registered definition.</summary>
-    public AIAgent CreateAgent(AgentId agentId)
-        => CreateAgent(agentId, tools: null);
-
-    /// <summary>Creates an MAF agent with host-authorized tools. Tool discovery and approval belong to OpenConnect.Tools; this factory performs no authorization.</summary>
-    public AIAgent CreateAgent(AgentId agentId, IEnumerable<AITool>? tools)
+    /// <summary>Creates an MAF agent with host-authorized tools and resolved instructions.</summary>
+    /// <remarks>When instructions are not supplied, the agent name remains the legacy instruction default. Tool authorization and instruction loading belong to the host.</remarks>
+    public AIAgent CreateAgent(AgentId agentId, IEnumerable<AITool>? tools = null, string? instructions = null)
     {
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
-        return _chatClient.AsAIAgent(name: definition.Name, instructions: definition.Name, tools: tools?.ToList());
+        var resolvedInstructions = string.IsNullOrWhiteSpace(instructions) ? definition.Name : instructions;
+        return _chatClient.AsAIAgent(name: definition.Name, instructions: resolvedInstructions, tools: tools?.ToList());
     }
 
     /// <summary>Runs one turn on a real MAF agent and records its root/agent trace.</summary>
     public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, CancellationToken cancellationToken = default)
-        => await RunAsync(agentId, prompt, tools: null, cancellationToken).ConfigureAwait(false);
+        => await RunAsync(agentId, prompt, tools: null, cancellationToken, instructions: null).ConfigureAwait(false);
 
     /// <summary>Runs one turn using host-authorized tools. Tool discovery and approval belong to OpenConnect.Tools; this factory performs no authorization.</summary>
-    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools, CancellationToken cancellationToken = default)
+    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools, CancellationToken cancellationToken = default, string? instructions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
@@ -46,7 +44,7 @@ public sealed class MafRealAgentFactory
 
         try
         {
-            return await CreateAgent(agentId, tools).RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await CreateAgent(agentId, tools, instructions).RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         finally
         {
