@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using MudBlazor;
 using OpenConnect.Client;
 using OpenConnect.Components.Contracts;
@@ -7,37 +8,86 @@ using OpenConnect.Components.Contracts;
 namespace OpenConnect.Components.Blazor;
 
 /// <summary>
-/// Floating assistant composer. Renders a MudBlazor FAB fixed bottom-right and a
-/// popover with input, submit, streaming deltas, loading/error/cancel states,
-/// suggestion chips, and safe component proposals. Requires the host to provide
-/// MudBlazor providers; this component never registers them.
+/// Anchored floating-assistant composer (text-only, real gateway).
+/// Closed renders the FAB only; open renders a fixed bubble anchored above the
+/// FAB with a tail so host layout never reflows. <see cref="ComposerPlacement.Attached"/>
+/// is the attached mode: inline bubble with no FAB, tail, or drag handle.
 /// </summary>
-public partial class MiniComposer : ComponentBase, IDisposable
+public partial class MiniComposer : ComponentBase, IAsyncDisposable
 {
+    private const int MaxRenderedMessages = 30;
+    private const int MaxInputLengthHardCap = 8000;
+
     private bool _open;
     private bool _openedOnce;
+    private bool _showSettings;
+    private bool _micOn;
+    private bool _speechOn;
+    private bool _sending;
+    private bool _disposed;
+    private bool _dragAttached;
+    private bool _enterAttached;
     private string _draft = string.Empty;
+    private string _editorId = $"oc-editor-{Guid.NewGuid():N}";
+    private string? _pendingIdempotencyKey;
     private CancellationTokenSource? _sendCts;
-    private MudTextField<string>? _inputRef;
+    private ElementReference _panelRef;
+    private ElementReference _handleRef;
+    private ElementReference _inputRef;
+    private DotNetObjectReference<MiniComposer>? _dotNetRef;
 
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     [CascadingParameter] private ComposerSession Session { get; set; } = default!;
 
     [CascadingParameter(Name = "OpenConnectProvider")] private OpenConnectProvider? Provider { get; set; }
 
+    /// <summary>
+    /// BottomRight (default) renders the anchored FAB + bubble. Attached renders
+    /// the bubble in place with no FAB, tail, or drag handle. Other placements
+    /// behave as floating. Local mapping: contract value Attached = attached mode.
+    /// </summary>
+    [Parameter] public ComposerPlacement Placement { get; set; } = ComposerPlacement.BottomRight;
+
+    [Parameter] public ComposerCloseBehavior CloseBehavior { get; set; } = ComposerCloseBehavior.MinimizeOnly;
+
+    [Parameter] public string AssistantName { get; set; } = "Assistant";
+
+    [Parameter] public string Placeholder { get; set; } = "Ask…";
+
     /// <summary>Optional suggestion chips shown above the input.</summary>
     [Parameter] public IReadOnlyList<string>? Suggestions { get; set; }
 
-    [Parameter] public string Placeholder { get; set; } = "Ask the assistant…";
+    /// <summary>Maximum input characters; clamped to the 8000 contract cap.</summary>
+    [Parameter] public int MaxInputLength { get; set; } = 8000;
+
+    /// <summary>Whether the bubble starts open. Closed (FAB only) is the default.</summary>
+    [Parameter] public bool StartOpen { get; set; }
+
+    private bool IsAttached => Placement == ComposerPlacement.Attached;
+
+    private bool ShowFab => !IsAttached;
+
+    private int EffectiveMaxLength => Math.Min(Math.Max(MaxInputLength, 1), MaxInputLengthHardCap);
 
     private bool IsLoading => Session is not null
         && (Session.Connection == ComposerConnectionState.Streaming
             || Session.Connection == ComposerConnectionState.Connecting);
 
-    private bool CanSend => !IsLoading && !string.IsNullOrWhiteSpace(_draft) && Session?.SessionId is not null;
+    private bool CanType => Session?.SessionId is not null;
 
-    private IReadOnlyList<ComposerMessage> VisibleMessages => Session?.Messages ?? Array.Empty<ComposerMessage>();
+    private bool CanSend => !IsLoading && !_sending && !string.IsNullOrWhiteSpace(_draft) && Session?.SessionId is not null;
+
+    private IReadOnlyList<ComposerMessage> VisibleMessages
+    {
+        get
+        {
+            var all = Session?.Messages ?? Array.Empty<ComposerMessage>();
+            return all.Count <= MaxRenderedMessages ? all : all.Skip(all.Count - MaxRenderedMessages).ToList();
+        }
+    }
 
     private string StatusText => Session switch
     {
@@ -49,9 +99,22 @@ public partial class MiniComposer : ComponentBase, IDisposable
         _ => Session.SessionId is null ? "No session" : "Ready",
     };
 
+    private string CloseLabel => CloseBehavior switch
+    {
+        ComposerCloseBehavior.MinimizeOnly => "Minimize assistant",
+        ComposerCloseBehavior.CancelActiveTask => "Stop reply and close",
+        ComposerCloseBehavior.EndSession => "End session and close",
+        _ => $"Close {AssistantName}",
+    };
+
     protected override void OnInitialized()
     {
         Session!.Changed += OnSessionChanged;
+        if (StartOpen)
+        {
+            _open = true;
+            _openedOnce = true;
+        }
     }
 
     private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
@@ -62,7 +125,16 @@ public partial class MiniComposer : ComponentBase, IDisposable
         _openedOnce = _openedOnce || _open;
     }
 
-    private void Close() => _open = false;
+    private void Close()
+    {
+        if (CloseBehavior is ComposerCloseBehavior.CancelActiveTask or ComposerCloseBehavior.EndSession)
+        {
+            StopSending();
+        }
+
+        _open = false;
+        _showSettings = false;
+    }
 
     private Task UseSuggestion(string suggestion)
     {
@@ -70,21 +142,68 @@ public partial class MiniComposer : ComponentBase, IDisposable
         return SendAsync();
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs args)
+    private Task HandleInput(ChangeEventArgs args)
     {
-        if (args.Key == "Enter" && (args.CtrlKey || args.MetaKey))
-        {
-            await SendAsync().ConfigureAwait(false);
-        }
+        _ = args;
+        return AutosizeAsync();
     }
 
-    private async Task SendAsync()
+    /// <summary>
+    /// Managed fallback for Enter-to-send when the JS bridge is unavailable.
+    /// Contract: the JS bridge (<c>composer-input.js</c>) owns plain-Enter. It
+    /// ignores IME composition (isComposing / keyCode 229), held-key repeats,
+    /// and modified keys. Blazor's <see cref="KeyboardEventArgs"/> exposes no
+    /// composition state in .NET 8, so this fallback must never submit on
+    /// plain Enter (it cannot tell IME confirm-Enter apart from send-Enter).
+    /// It submits only on the explicit Ctrl+Enter / Meta+Enter shortcut
+    /// without Shift/Alt and without repeat; everything else is left to the
+    /// JS bridge (or to <see cref="SubmitFromJs"/>).
+    /// </summary>
+    private async Task HandleKeyDown(KeyboardEventArgs args)
     {
-        var text = _draft.Trim();
-        if (string.IsNullOrWhiteSpace(text) || Session?.SessionId is null || IsLoading)
+        if (args.Key is not ("Enter" or "NumpadEnter"))
         {
             return;
         }
+
+        if (args.Repeat || args.ShiftKey || args.AltKey)
+        {
+            return;
+        }
+
+        if (!(args.CtrlKey || args.MetaKey))
+        {
+            return;
+        }
+
+        await SendAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Invoked by the JS Enter bridge; carries the same idempotency guard.</summary>
+    [JSInvokable]
+    public Task SubmitFromJs() => SendAsync();
+
+    private async Task SendAsync()
+    {
+        // Idempotency: collapse double-submits, held Enter, and overlapping sends.
+        if (_sending || IsLoading)
+        {
+            return;
+        }
+
+        var text = _draft.Trim();
+        if (string.IsNullOrWhiteSpace(text) || Session?.SessionId is null)
+        {
+            return;
+        }
+
+        if (text.Length > EffectiveMaxLength)
+        {
+            text = text[..EffectiveMaxLength];
+        }
+
+        _sending = true;
+        _pendingIdempotencyKey = Guid.NewGuid().ToString("N");
 
         _sendCts?.Cancel();
         _sendCts?.Dispose();
@@ -93,11 +212,12 @@ public partial class MiniComposer : ComponentBase, IDisposable
 
         Session.BeginSend(text);
         _draft = string.Empty;
+        await AutosizeAsync().ConfigureAwait(false);
 
         try
         {
             await Client.CreateTaskAsync(
-                new CreateTaskRequest(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), text, Session.SessionId),
+                new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, Session.SessionId),
                 token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -108,9 +228,15 @@ public partial class MiniComposer : ComponentBase, IDisposable
         {
             await InvokeAsync(() => Session.MarkError(FriendlyError(ex))).ConfigureAwait(true);
         }
+        finally
+        {
+            _sending = false;
+            _pendingIdempotencyKey = null;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
     }
 
-    private void CancelSend()
+    private void StopSending()
     {
         try
         {
@@ -121,22 +247,105 @@ public partial class MiniComposer : ComponentBase, IDisposable
         Session?.CancelStreaming();
     }
 
-    private void Retry() => Provider?.Reconnect();
+    private void Retry()
+    {
+        Session?.DismissError();
+        Provider?.Reconnect();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_open && _openedOnce && _inputRef is not null)
+        // Server prerendering has no JS interop: only attach once interactive.
+        if ((_open || IsAttached) && !_disposed)
         {
-            try
+            await AttachJsAsync().ConfigureAwait(false);
+            await AutosizeAsync().ConfigureAwait(false);
+
+            if (_open && _openedOnce)
             {
-                await _inputRef.FocusAsync().ConfigureAwait(false);
+                try
+                {
+                    await _inputRef.FocusAsync().ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (JSDisconnectedException)
+                {
+                }
             }
-            catch (InvalidOperationException)
-            {
-            }
+        }
+        else if (!_open && !IsAttached)
+        {
+            await DetachJsAsync(dragOnly: true).ConfigureAwait(false);
         }
 
         await base.OnAfterRenderAsync(firstRender).ConfigureAwait(false);
+    }
+
+    private async Task AttachJsAsync()
+    {
+        try
+        {
+            if (!_dragAttached && !IsAttached)
+            {
+                _dotNetRef ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("ocComposerDrag.attach", _handleRef, _panelRef).ConfigureAwait(false);
+                _dragAttached = true;
+            }
+
+            if (!_enterAttached)
+            {
+                _dotNetRef ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("ocComposerInput.attachEnter", _inputRef, _dotNetRef).ConfigureAwait(false);
+                _enterAttached = true;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerendering or missing JS: managed fallback keeps text working.
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private async Task AutosizeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerInput.autosize", _inputRef).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private async Task DetachJsAsync(bool dragOnly)
+    {
+        try
+        {
+            if (_dragAttached)
+            {
+                await JS.InvokeVoidAsync("ocComposerDrag.detach", _handleRef).ConfigureAwait(false);
+                _dragAttached = false;
+            }
+
+            if (!dragOnly && _enterAttached)
+            {
+                await JS.InvokeVoidAsync("ocComposerInput.detach", _inputRef).ConfigureAwait(false);
+                _enterAttached = false;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     private static string FriendlyError(Exception ex) => ex switch
@@ -148,8 +357,14 @@ public partial class MiniComposer : ComponentBase, IDisposable
         _ => "Something went wrong sending your message. Try again.",
     };
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         Session!.Changed -= OnSessionChanged;
         try
         {
@@ -158,6 +373,8 @@ public partial class MiniComposer : ComponentBase, IDisposable
         catch (ObjectDisposedException) { }
 
         _sendCts?.Dispose();
+        await DetachJsAsync(dragOnly: false).ConfigureAwait(false);
+        _dotNetRef?.Dispose();
         GC.SuppressFinalize(this);
     }
 }

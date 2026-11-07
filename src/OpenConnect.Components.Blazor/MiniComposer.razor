@@ -1,53 +1,93 @@
 @using OpenConnect.Components.Contracts
 @*
-  MiniComposer: MudBlazor floating-action-button composer.
+  MiniComposer: anchored floating-assistant composer (text-only, real gateway).
+
+  Closed  = FAB only (2.75rem / 44px, fixed bottom inline-end, safe-area aware).
+  Open    = popover bubble min(23.5rem, 100vw-2rem) anchored above the FAB with
+            a tail; fixed positioning so opening never reflows host content.
+  Attached (Placement == Attached) = inline bubble only: no FAB, no tail, no drag.
+
   Host requirements (NOT provided here — no duplicate providers):
   MudThemeProvider, MudPopoverProvider, MudDialogProvider, MudSnackbarProvider.
 *@
-<div class="oc-composer-host">
-    <MudFab StartIcon="@Icons.Material.Filled.Chat"
-            Color="Color.Primary"
-            Size="Size.Large"
-            aria-label="@(_open ? "Close assistant" : "Open assistant")"
-            OnClick="Toggle"
-            Class="oc-composer-fab" />
-    <MudPopover Open="@_open"
-                AnchorOrigin="Origin.TopRight"
-                TransformOrigin="Origin.BottomRight"
-                Class="oc-composer-popover">
-        <section class="oc-composer-panel" role="dialog" aria-label="Assistant composer" aria-modal="false">
-            <header class="oc-composer-header">
-                <div>
-                    <h2 class="oc-composer-title">Assistant</h2>
-                    <p class="oc-composer-subtitle">@StatusText</p>
+<div class="oc-anchored-host @(IsAttached ? "oc-attached" : "")">
+    @if (ShowFab)
+    {
+        <MudFab StartIcon="@Icons.Material.Filled.Chat"
+                Color="Color.Primary"
+                Size="Size.Medium"
+                aria-label="@(_open ? $"Close {AssistantName}" : $"Open {AssistantName}")"
+                aria-expanded="@_open"
+                OnClick="@Toggle"
+                Class="oc-anchored-fab" />
+    }
+
+    @if (_open || IsAttached)
+    {
+        <section @ref="_panelRef"
+                 class="oc-bubble"
+                 role="dialog"
+                 aria-modal="false"
+                 aria-label="@($"{AssistantName} composer")">
+            <header class="oc-bubble-header">
+                @if (!IsAttached)
+                {
+                    <button @ref="_handleRef"
+                            type="button"
+                            class="oc-drag-handle"
+                            aria-label="Move assistant panel. Arrow keys nudge, Home resets position."
+                            title="Drag to move (arrow keys nudge, Home resets)">
+                        <span aria-hidden="true"><MudIcon Icon="@Icons.Material.Filled.DragIndicator" Size="Size.Small" /></span>
+                    </button>
+                }
+                <div class="oc-bubble-heading">
+                    <h2 class="oc-bubble-title">@AssistantName</h2>
+                    <p class="oc-bubble-subtitle">@StatusText</p>
                 </div>
-                <MudIconButton Icon="@Icons.Material.Filled.Close"
-                               aria-label="Close assistant"
-                               Size="Size.Small"
-                               OnClick="Close" />
+                <div class="oc-bubble-header-actions">
+                    <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                                   aria-label="Composer settings"
+                                   aria-pressed="@_showSettings"
+                                   Size="Size.Medium"
+                                   Class="oc-icon-btn"
+                                   OnClick="@(() => _showSettings = !_showSettings)" />
+                    @if (IsLoading)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Stop"
+                                       aria-label="Stop reply"
+                                       Size="Size.Medium"
+                                       Class="oc-icon-btn"
+                                       OnClick="@StopSending" />
+                    }
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   aria-label="@CloseLabel"
+                                   Size="Size.Medium"
+                                   Class="oc-icon-btn"
+                                   OnClick="@Close" />
+                </div>
             </header>
 
             @if (IsLoading)
             {
-                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="oc-composer-progress" aria-label="Waiting for reply" />
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="oc-bubble-progress" aria-label="Waiting for reply" />
             }
 
-            <div class="oc-composer-messages" role="log" aria-live="polite" aria-label="Conversation">
+            <div class="oc-bubble-messages" role="log" aria-live="polite" aria-label="Conversation">
                 @if (VisibleMessages.Count == 0 && string.IsNullOrEmpty(Session.StreamingText))
                 {
-                    <p class="oc-composer-empty">Ask a question to start. Replies stream here.</p>
+                    <p class="oc-bubble-empty">Ask a question to start. Replies stream here.</p>
                 }
                 @foreach (var message in VisibleMessages)
                 {
                     <div class="oc-message @(message.Role == "user" ? "oc-message-user" : "oc-message-assistant")">
-                        <span class="oc-message-role">@(message.Role == "user" ? "You" : "Assistant")</span>
+                        <span class="oc-message-role">@(message.Role == "user" ? "You" : AssistantName)</span>
                         <p class="oc-message-text">@message.Text</p>
                     </div>
                 }
                 @if (!string.IsNullOrEmpty(Session.StreamingText))
                 {
                     <div class="oc-message oc-message-assistant oc-message-streaming">
-                        <span class="oc-message-role">Assistant</span>
+                        <span class="oc-message-role">@AssistantName</span>
                         <p class="oc-message-text">@Session.StreamingText</p>
                     </div>
                 }
@@ -59,15 +99,15 @@
 
             @if (!string.IsNullOrEmpty(Session.LastError))
             {
-                <div class="oc-composer-error" role="alert">
+                <div class="oc-bubble-error" role="alert">
                     <span>@Session.LastError</span>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="Retry">Retry</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" OnClick="@Retry">Retry</MudButton>
                 </div>
             }
 
-            @if (Suggestions?.Count > 0)
+            @if (Suggestions?.Count > 0 && !IsLoading)
             {
-                <div class="oc-composer-chips" aria-label="Suggestions">
+                <div class="oc-bubble-chips" aria-label="Suggestions">
                     @foreach (var suggestion in Suggestions)
                     {
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => UseSuggestion(suggestion))">@suggestion</MudChip>
@@ -75,32 +115,73 @@
                 </div>
             }
 
-            <div class="oc-composer-inputrow">
-                <MudTextField T="string"
-                             @ref="_inputRef"
-                             @bind-Value="_draft"
-                             Label="Message"
-                             Placeholder="@Placeholder"
-                             Variant="Variant.Outlined"
-                             Margin="Margin.Dense"
-                             Lines="2"
-                             MaxLength="2000"
-                             Immediate="true"
-                             Disabled="@IsLoading"
-                             aria-label="Message to assistant"
-                             OnKeyDown="HandleKeyDown" />
-                <div class="oc-composer-actions">
-                    @if (IsLoading)
-                    {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="CancelSend">Cancel</MudButton>
-                    }
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Small"
-                               Disabled="@(!CanSend)"
-                               OnClick="SendAsync">Send</MudButton>
+            <div class="oc-bubble-editor">
+                <label class="oc-editor-label" for="@_editorId">Message @AssistantName</label>
+                <div class="oc-editor-row">
+                    <textarea @ref="_inputRef"
+                              id="@_editorId"
+                              class="oc-editor-input"
+                              rows="1"
+                              maxlength="@MaxInputLength"
+                              placeholder="@Placeholder"
+                              aria-label="Message to assistant"
+                              disabled="@(!CanType)"
+                              @bind="_draft"
+                              @bind:event="oninput"
+                              @oninput="HandleInput"
+                              @onkeydown="HandleKeyDown"></textarea>
+                    <div class="oc-editor-end" aria-label="Send controls">
+                        @if (IsLoading)
+                        {
+                            <span class="oc-live-badge" aria-label="Live reply in progress">Live</span>
+                            <MudIconButton Icon="@Icons.Material.Filled.Stop"
+                                           aria-label="Stop reply"
+                                           Size="Size.Medium"
+                                           Class="oc-icon-btn oc-stop-btn"
+                                           OnClick="@StopSending" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                           aria-label="Send message. Enter sends, Shift plus Enter adds a new line."
+                                           Size="Size.Medium"
+                                           Class="oc-icon-btn oc-send-btn"
+                                           Disabled="@(!CanSend)"
+                                           OnClick="@SendAsync" />
+                        }
+                    </div>
                 </div>
             </div>
+
+            <footer class="oc-bubble-footer">
+                <ComposerStatusLine Connection="@Session.Connection"
+                                    SessionId="@Session.SessionId"
+                                    LastSequence="@Session.LastSequence"
+                                    IsStreaming="@IsLoading" />
+                <div class="oc-voice-toggles" role="group" aria-label="Voice controls">
+                    <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
+                                   aria-label="Microphone"
+                                   aria-pressed="@_micOn"
+                                   Size="Size.Medium"
+                                   Class="oc-icon-btn"
+                                   OnClick="@(() => _micOn = !_micOn)" />
+                    <MudIconButton Icon="@(_speechOn ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)"
+                                   aria-label="Voice responses"
+                                   aria-pressed="@_speechOn"
+                                   Size="Size.Medium"
+                                   Class="oc-icon-btn"
+                                   OnClick="@(() => _speechOn = !_speechOn)" />
+                </div>
+            </footer>
+
+            @if (_showSettings)
+            {
+                <div class="oc-bubble-settings">
+                    <p class="oc-settings-row"><span>Placement</span><span>@Placement</span></p>
+                    <p class="oc-settings-row"><span>On close</span><span>@CloseBehavior</span></p>
+                    <p class="oc-settings-row"><span>Input limit</span><span>@MaxInputLength characters</span></p>
+                </div>
+            }
         </section>
-    </MudPopover>
+    }
 </div>

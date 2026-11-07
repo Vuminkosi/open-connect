@@ -1,0 +1,42 @@
+@using OpenConnect.Components.Contracts
+@*
+  ComposerStatusLine: three-bar footer status driven only by real session state.
+  Segments: connection | session | activity. No fabricated metrics.
+*@
+<div class="oc-statusline" role="status" aria-live="polite" aria-label="Assistant status">
+    <span class="oc-status-seg oc-status-conn" data-state="@Connection.ToString().ToLowerInvariant()">
+        <span class="oc-status-dot" aria-hidden="true"></span>
+        <span>@ConnectionLabel</span>
+    </span>
+    <span class="oc-status-sep" aria-hidden="true"></span>
+    <span class="oc-status-seg oc-status-session">@SessionLabel</span>
+    <span class="oc-status-sep" aria-hidden="true"></span>
+    <span class="oc-status-seg oc-status-activity">@ActivityLabel</span>
+</div>
+
+@code {
+    [Parameter] public ComposerConnectionState Connection { get; set; } = ComposerConnectionState.Idle;
+
+    [Parameter] public string? SessionId { get; set; }
+
+    [Parameter] public long LastSequence { get; set; }
+
+    [Parameter] public bool IsStreaming { get; set; }
+
+    private string ConnectionLabel => Connection switch
+    {
+        ComposerConnectionState.Streaming => "Live",
+        ComposerConnectionState.Connecting => "Connecting",
+        ComposerConnectionState.Reconnecting => "Reconnecting",
+        ComposerConnectionState.Error => "Connection issue",
+        _ => "Ready",
+    };
+
+    private string SessionLabel => string.IsNullOrWhiteSpace(SessionId)
+        ? "No session"
+        : SessionId.Length <= 8 ? $"Session {SessionId}" : $"Session …{SessionId[^6..]}";
+
+    private string ActivityLabel => IsStreaming
+        ? "Receiving reply"
+        : LastSequence > 0 ? $"Event {LastSequence}" : "Idle";
+}
