@@ -33,6 +33,21 @@ public sealed class AgentRegistryOptions
     public bool RegisterLeadAgent { get; set; } = true;
     /// <summary>Gets or sets the execution identity mode.</summary>
     public AgentIdentityMode IdentityMode { get; set; } = AgentIdentityMode.ActiveUser;
+    public int MaxDelegationDepth { get; set; } = 2;
+    public int MaxConcurrentSubagents { get; set; } = 3;
+    public int MaxTotalSubagentsPerRun { get; set; } = 8;
+    public int MaxTotalToolCalls { get; set; } = 20;
+    public int MaxModelCalls { get; set; } = 12;
+    public TimeSpan MaxTurnDuration { get; set; } = TimeSpan.FromSeconds(120);
+    public TimeSpan MaxToolDuration { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan LongRunningThreshold { get; set; } = TimeSpan.FromSeconds(3);
+    public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(10);
+    public TimeSpan ProgressCoalescingInterval { get; set; } = TimeSpan.FromSeconds(1);
+    public AgentOrchestrationMode OrchestrationMode { get; set; } = AgentOrchestrationMode.Direct;
+    public AgentContextSharingMode ContextSharing { get; set; } = AgentContextSharingMode.TaskSummary;
+    public AgentHistoryPolicy SessionHistory { get; set; } = AgentHistoryPolicy.RecentTurns;
+    public AgentMemoryMode MemoryMode { get; set; } = AgentMemoryMode.SessionOnly;
+    public SessionTurnConcurrency Concurrency { get; set; } = SessionTurnConcurrency.Serialize;
 }
 
 public sealed class PrivacyOptions
