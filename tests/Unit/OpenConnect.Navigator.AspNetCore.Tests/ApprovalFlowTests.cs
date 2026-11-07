@@ -13,6 +13,7 @@ public sealed class ApprovalFlowTests
     private const string Principal = "principal-a";
 
     [Fact]
+    // NAV-AT-005: pending commands are registered against a revision before approval/execution.
     public void MutationWithoutApprovalReturns428AndRemainsPending()
     {
         var (store, id, command) = Setup();
@@ -41,6 +42,7 @@ public sealed class ApprovalFlowTests
     }
 
     [Fact]
+    // NAV-AT-006: an approval binds to the exact command argument digest.
     public void ApprovalForAnotherCommandOrWrongHashIsDenied()
     {
         var (store, id, command) = Setup();
@@ -48,6 +50,32 @@ public sealed class ApprovalFlowTests
         Assert.False(Approve(store, id, "different-command", CommandGrant.ComputeArgsHash(command.Args), Tenant, Principal, Now));
         Assert.False(Approve(store, id, command.CommandId, "00", Tenant, Principal, Now));
         Assert.Null(Consume(store, id, command.CommandId));
+    }
+
+    [Fact]
+    public void ExpiredPendingCommandCannotBeApprovedOrExecuted()
+    {
+        var (store, id, command) = Setup();
+        Assert.True((bool)Invoke(store, "AddPending", id, command, Tenant, Principal, Now.AddSeconds(-1))!);
+        var hash = CommandGrant.ComputeArgsHash(command.Args);
+
+        Assert.False(Approve(store, id, command.CommandId, hash, Tenant, Principal, Now));
+        Assert.Null(Consume(store, id, command.CommandId));
+    }
+
+    [Theory]
+    [InlineData("tenant-b", "principal-a")]
+    [InlineData("tenant-a", "principal-b")]
+    public void ApprovalAndExecutionAreBoundToTenantAndPrincipal(string tenant, string principal)
+    {
+        var (store, id, command) = Setup();
+        Assert.True(AddPending(store, id, command));
+        var hash = CommandGrant.ComputeArgsHash(command.Args);
+
+        Assert.False(Approve(store, id, command.CommandId, hash, tenant, principal, Now));
+        Assert.True(Approve(store, id, command.CommandId, hash, Tenant, Principal, Now));
+        Assert.Null((NavigatorCommand?)Invoke(store, "ConsumeApproved", id, command.CommandId, tenant, principal, Now));
+        Assert.Equal(command, Consume(store, id, command.CommandId));
     }
 
     private static (NavigatorMemoryStore Store, string SessionId, NavigatorCommand Command) Setup()
