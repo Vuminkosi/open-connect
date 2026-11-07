@@ -1,0 +1,10 @@
+{
+  "schema": "openconnect.composer/v1",
+  "placement": 0,
+  "displayState": "open",
+  "taskPhase": "ready",
+  "microphoneState": "unavailable",
+  "speechState": "off",
+  "historyPresentation": "latest-only",
+  "uiIntegration": "floating"
+}
