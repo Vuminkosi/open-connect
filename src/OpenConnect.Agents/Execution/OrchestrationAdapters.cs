@@ -18,6 +18,7 @@ public sealed class OrchestrationAdapters
     private readonly Func<AgentExecutionContext, string, CancellationToken, ValueTask<OpenConnect.Abstractions.DelegationGrant?>> _gate;
     private readonly IsExecutionRevoked _isRevoked;
     private readonly int _maxConcurrentSubagents;
+    private readonly RunBudgetLedger? _budgetLedger;
 
     /// <summary>Creates adapters that execute agents and enforce host authorization.</summary>
     /// <param name="factory">Factory for creating agent instances.</param>
@@ -25,9 +26,10 @@ public sealed class OrchestrationAdapters
     /// <param name="gate">Gate used to authorize delegated capabilities.</param>
     /// <param name="isRevoked">Callback that checks current authorization state.</param>
     /// <param name="maxConcurrentSubagents">Maximum simultaneous child executions.</param>
+    /// <param name="budgetLedger">Optional run-wide ledger shared by all orchestration adapters in this run.</param>
     public OrchestrationAdapters(MafRealAgentFactory factory, MafConversationRunner conversation,
         Func<AgentExecutionContext, string, CancellationToken, ValueTask<OpenConnect.Abstractions.DelegationGrant?>> gate,
-        IsExecutionRevoked isRevoked, int maxConcurrentSubagents)
+        IsExecutionRevoked isRevoked, int maxConcurrentSubagents, RunBudgetLedger? budgetLedger = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _conversation = conversation ?? throw new ArgumentNullException(nameof(conversation));
@@ -35,6 +37,7 @@ public sealed class OrchestrationAdapters
         _isRevoked = isRevoked ?? throw new ArgumentNullException(nameof(isRevoked));
         if (maxConcurrentSubagents < 1) throw new ArgumentOutOfRangeException(nameof(maxConcurrentSubagents));
         _maxConcurrentSubagents = maxConcurrentSubagents;
+        _budgetLedger = budgetLedger;
     }
 
     /// <summary>Runs an agent directly.</summary>
@@ -59,9 +62,14 @@ public sealed class OrchestrationAdapters
         for (var i = 0; i < grants.Count; i++)
         {
             var grant = grants[i];
-            using var child = CreateChild(context, grant);
-            var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-            results.Add(ToChildResult(grant, child, response, i));
+            AcquireSubagentBudget();
+            try
+            {
+                using var child = CreateChild(context, grant);
+                var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+                results.Add(ToChildResult(grant, child, response, i));
+            }
+            finally { _budgetLedger?.ReleaseActiveChild(); }
         }
         return ResultMerger.Merge(results, ToTraceId(parent), context.TenantScope, AgentResultMergeMode.OrderedTypedResults);
     }
@@ -87,10 +95,15 @@ public sealed class OrchestrationAdapters
             {
                 try
                 {
-                    using var child = CreateChild(context, grant, scopeCancellation.Token);
-                    // Every child gets its own AIAgent instance; no mutable conversation history is shared.
-                    var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-                    return ToChildResult(grant, child, response, index);
+                    AcquireSubagentBudget();
+                    try
+                    {
+                        using var child = CreateChild(context, grant, scopeCancellation.Token);
+                        // Every child gets its own AIAgent instance; no mutable conversation history is shared.
+                        var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+                        return ToChildResult(grant, child, response, index);
+                    }
+                    finally { _budgetLedger?.ReleaseActiveChild(); }
                 }
                 catch
                 {
@@ -125,8 +138,13 @@ public sealed class OrchestrationAdapters
     {
         ArgumentNullException.ThrowIfNull(grant);
         ArgumentNullException.ThrowIfNull(explicitProjection);
-        using var child = CreateChild(context, grant);
-        return await RunChildAsync(parent, grant.ChildAgentId, explicitProjection, child).ConfigureAwait(false);
+        AcquireSubagentBudget();
+        try
+        {
+            using var child = CreateChild(context, grant);
+            return await RunChildAsync(parent, grant.ChildAgentId, explicitProjection, child).ConfigureAwait(false);
+        }
+        finally { _budgetLedger?.ReleaseActiveChild(); }
     }
 
     /// <summary>Authorizes and runs one child selected for a capability.</summary>
@@ -142,9 +160,14 @@ public sealed class OrchestrationAdapters
         ArgumentException.ThrowIfNullOrWhiteSpace(capability);
         var grant = await _gate(context, capability, context.CancellationToken).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException("No authorized child agent is available for this capability.");
-        using var child = CreateChild(context, grant);
-        var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-        return ToChildResult(grant, child, response, order);
+        AcquireSubagentBudget();
+        try
+        {
+            using var child = CreateChild(context, grant);
+            var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+            return ToChildResult(grant, child, response, order);
+        }
+        finally { _budgetLedger?.ReleaseActiveChild(); }
     }
 
     /// <summary>Rejects profiles that require an orchestration primitive this host adapter does not implement.</summary>
@@ -173,6 +196,20 @@ public sealed class OrchestrationAdapters
         context.CancellationToken.ThrowIfCancellationRequested();
         if (DateTimeOffset.UtcNow >= context.Deadline || await _isRevoked(context, context.CancellationToken).ConfigureAwait(false))
             throw new UnauthorizedAccessException("The execution is expired or authorization has been revoked.");
+    }
+
+    /// <summary>Reserves one run-wide child allowance when a ledger was configured.</summary>
+    /// <exception cref="InvalidOperationException">The run-wide child budget is exhausted.</exception>
+    private void AcquireSubagentBudget()
+    {
+        if (_budgetLedger is null) return;
+        if (!_budgetLedger.TryAcquireActiveChild())
+            throw new InvalidOperationException("The run-wide concurrent subagent limit is exhausted.");
+        if (!_budgetLedger.TryReserveSubagent(1, 0))
+        {
+            _budgetLedger.ReleaseActiveChild();
+            throw new InvalidOperationException("The run-wide subagent budget is exhausted.");
+        }
     }
 
     private static AgentExecutionContext CreateChild(AgentExecutionContext parent, OpenConnect.Abstractions.DelegationGrant grant,
