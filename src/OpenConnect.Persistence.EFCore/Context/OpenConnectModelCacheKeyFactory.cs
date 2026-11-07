@@ -6,7 +6,7 @@ namespace OpenConnect.Persistence.EFCore.Context;
 public sealed class OpenConnectModelCacheKeyFactory : IModelCacheKeyFactory
 {
     public object Create(DbContext context, bool designTime) =>
-        (context.GetType(), ProviderFamily(context), designTime);
+        (context.GetType(), ProviderFamily(context), (context as Model.IOpenConnectModelOptionsProvider)?.ModelOptions ?? Model.OpenConnectModelOptions.Default, designTime);
 
     private static string ProviderFamily(DbContext context)
     {

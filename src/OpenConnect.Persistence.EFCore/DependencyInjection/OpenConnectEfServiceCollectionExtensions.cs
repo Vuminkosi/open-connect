@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
@@ -19,13 +20,15 @@ public static class OpenConnectEfServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         lock (RegistrationLock)
         {
-            if (RegisteredContexts.Contains(typeof(TContext))) return services;
-            if (RegisteredContexts.Count > 0) throw new InvalidOperationException("ef_ambiguous_registration: only one OpenConnect EF context may be registered.");
+            if (!RegisteredContexts.Contains(typeof(TContext)) && RegisteredContexts.Count > 0)
+                throw new InvalidOperationException("ef_ambiguous_registration: only one OpenConnect EF context may be registered.");
             if (!services.Any(d => d.ServiceType == typeof(TContext)))
                 throw new InvalidOperationException($"{OpenConnect.Abstractions.ErrorCodes.EfContextMissing}: Register ApplicationDbContext before AddOpenConnectEntityFramework.");
             RegisteredContexts.Add(typeof(TContext));
         }
 
+        // TryAdd* keeps repeats on the same collection safe. This static set only rejects a
+        // second, different context because named stores are not supported.
         services.AddSingleton<IValidateOptions<OpenConnectEfOptions>, OpenConnectEfOptionsValidator>();
         services.AddOptions<OpenConnectEfOptions>().Configure(configure ?? (_ => { })).ValidateOnStart();
         services.TryAddScoped<OpenConnect.Abstractions.ITaskStore, EfTaskStore<TContext>>();
@@ -36,6 +39,7 @@ public static class OpenConnectEfServiceCollectionExtensions
         services.TryAddScoped<IApprovalStore, EfApprovalStore<TContext>>();
         services.TryAddScoped<IPrivacyTokenVault, EfPrivacyTokenVault<TContext>>();
         services.TryAddScoped<IOpenConnectPersistenceUnitOfWork, EfUnitOfWork<TContext>>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, Health.EfStartupValidator<TContext>>());
         return services;
     }
 }
