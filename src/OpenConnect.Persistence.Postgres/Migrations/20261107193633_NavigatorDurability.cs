@@ -12,7 +12,7 @@ namespace OpenConnect.Persistence.Postgres.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropPrimaryKey(
-                name: "PK_oc_leases",
+                name: "pk_oc_leases",
                 table: "oc_leases");
 
             migrationBuilder.DropIndex(
@@ -125,24 +125,69 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                 UPDATE oc_events AS e
                 SET tenant_id = s.tenant_id, principal_id = s.owner_id
                 FROM oc_sessions AS s
-                WHERE s.id = e.session_id;
+                WHERE s.id = e.session_id
+                  AND e.session_id <> '00000000-0000-0000-0000-000000000001'::uuid;
                 """);
 
-            // If a legacy payload already has this metadata key, preserve its value. The
-            // prior value cannot safely be replaced; the event is still quarantined, but
-            // its original session ID is not recorded by this migration in that case.
+            // Keep the original identifiers while moving orphan events above any existing
+            // event already in the sentinel namespace. The in-migration base is deterministic
+            // for this database state and avoids collisions with pre-existing reserved-range rows.
             migrationBuilder.Sql("""
+                WITH reserved_range AS (
+                    SELECT GREATEST(
+                               2000000000::bigint,
+                               COALESCE(MAX(sequence) + 1, 2000000000::bigint)) AS sequence_base
+                    FROM oc_events
+                    WHERE session_id = '00000000-0000-0000-0000-000000000001'::uuid
+                ), numbered AS (
+                    SELECT e.id,
+                           e.session_id AS orig_session,
+                           e.sequence AS orig_seq,
+                           ROW_NUMBER() OVER (ORDER BY e.session_id, e.sequence, e.id) AS rn,
+                           reserved_range.sequence_base
+                    FROM oc_events AS e
+                    CROSS JOIN reserved_range
+                    WHERE e.tenant_id = '00000000-0000-0000-0000-000000000000'::uuid
+                      AND e.principal_id = '00000000-0000-0000-0000-000000000000'::uuid
+                      AND ((e.tenant_id = '00000000-0000-0000-0000-000000000000'::uuid
+                            AND e.principal_id = '00000000-0000-0000-0000-000000000000'::uuid
+                            AND NOT EXISTS (SELECT 1 FROM oc_sessions AS s WHERE s.id = e.session_id))
+                           OR e.session_id = '00000000-0000-0000-0000-000000000001'::uuid)
+                )
                 UPDATE oc_events AS e
-                SET payload = CASE
-                        WHEN e.payload ? '_navigator_quarantine_original_session_id' THEN e.payload
-                        ELSE jsonb_set(e.payload, '{_navigator_quarantine_original_session_id}', to_jsonb(e.session_id::text), true)
-                    END,
+                SET payload = jsonb_set(
+                    jsonb_set(
+                        jsonb_set(
+                            jsonb_set(
+                                jsonb_set(
+                                    CASE WHEN jsonb_typeof(e.payload) = 'object' THEN e.payload
+                                         ELSE jsonb_build_object('_navigator_quarantine_original_payload', e.payload) END,
+                                    '{_navigator_quarantine_original_session_id}',
+                                    CASE WHEN e.payload ? '_navigator_quarantine_original_session_id' THEN e.payload -> '_navigator_quarantine_original_session_id'
+                                         ELSE to_jsonb(numbered.orig_session::text) END, true),
+                                '{_navigator_quarantine_original_tenant}',
+                                CASE WHEN e.payload ? '_navigator_quarantine_original_tenant' THEN e.payload -> '_navigator_quarantine_original_tenant'
+                                     ELSE to_jsonb(e.tenant_id::text) END, true),
+                            '{_navigator_quarantine_original_principal}',
+                            CASE WHEN e.payload ? '_navigator_quarantine_original_principal' THEN e.payload -> '_navigator_quarantine_original_principal'
+                                 ELSE to_jsonb(e.principal_id::text) END, true),
+                        '{_navigator_quarantine_original_sequence}',
+                        CASE WHEN e.payload ? '_navigator_quarantine_original_sequence' THEN e.payload -> '_navigator_quarantine_original_sequence'
+                             ELSE to_jsonb(numbered.orig_seq) END, true),
+                    '{_navigator_quarantine_original_payload}',
+                    CASE WHEN jsonb_typeof(e.payload) = 'object' THEN COALESCE(e.payload -> '_navigator_quarantine_original_payload', 'null'::jsonb)
+                         ELSE e.payload END,
+                    jsonb_typeof(e.payload) <> 'object' OR e.payload ? '_navigator_quarantine_original_payload'),
                     session_id = '00000000-0000-0000-0000-000000000001'::uuid,
                     tenant_id = '00000000-0000-0000-0000-000000000000'::uuid,
-                    principal_id = '00000000-0000-0000-0000-000000000000'::uuid
-                WHERE e.tenant_id = '00000000-0000-0000-0000-000000000000'::uuid
-                  AND e.principal_id = '00000000-0000-0000-0000-000000000000'::uuid
-                  AND NOT EXISTS (SELECT 1 FROM oc_sessions AS s WHERE s.id = e.session_id);
+                    principal_id = '00000000-0000-0000-0000-000000000000'::uuid,
+                    sequence = numbered.sequence_base + numbered.rn
+                FROM numbered
+                WHERE numbered.id = e.id
+                  AND ((e.tenant_id = '00000000-0000-0000-0000-000000000000'::uuid
+                        AND e.principal_id = '00000000-0000-0000-0000-000000000000'::uuid
+                        AND NOT EXISTS (SELECT 1 FROM oc_sessions AS s WHERE s.id = e.session_id))
+                       OR e.session_id = '00000000-0000-0000-0000-000000000001'::uuid);
                 """);
 
             migrationBuilder.AddPrimaryKey(
@@ -246,7 +291,7 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                 table: "oc_approvals");
 
             migrationBuilder.AddPrimaryKey(
-                name: "PK_oc_leases",
+                name: "pk_oc_leases",
                 table: "oc_leases",
                 column: "name");
 

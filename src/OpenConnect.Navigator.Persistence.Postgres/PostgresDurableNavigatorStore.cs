@@ -107,7 +107,7 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
         if (approval is null) return new(NavigatorStoreOutcome.NotFound);
         if (approval.ExpiresAt <= now) return new(NavigatorStoreOutcome.Expired);
         if (approval.CommandDigest != digest || approval.State != "pending" || approval.ConsumedAt is not null) return new(NavigatorStoreOutcome.AlreadyConsumed);
-        approval.ConsumedAt = now; approval.State = "consumed";
+        approval.ConsumedAt = TruncateToMicroseconds(now); approval.State = "consumed";
         // Receipt TaskEntity references its session task through the composite task/session
         // relationship. Ensure the parent exists in this transaction before inserting it.
         var sessionTask = await db.Tasks.SingleOrDefaultAsync(x => x.Id == sid && x.TenantId == t && x.PrincipalId == p, cancellationToken);
@@ -116,7 +116,9 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
             db.Tasks.Add(SessionTask(sid, t, p, now));
         }
         var taskId = NavigatorPersistenceMapping.ReceiptTaskId(t,p,receipt.IdempotencyKey);
-        db.Tasks.Add(new TaskEntity { Id=taskId, TenantId=t, PrincipalId=p, SessionId=sid, ClientTaskId=NavigatorPersistenceMapping.ReceiptClientTaskId(receipt.IdempotencyKey), AgentId="navigator", State="completed", Version=1, CanonicalHash=digest, CreatedAt=now, CompletedAt=now, ReceiptStatus="Succeeded", ReceiptPayload=JsonSerializer.Serialize(receipt) });
+        var persistedNow = TruncateToMicroseconds(now);
+        var persistedReceipt = receipt with { ExpiresAt = TruncateToMicroseconds(receipt.ExpiresAt) };
+        db.Tasks.Add(new TaskEntity { Id=taskId, TenantId=t, PrincipalId=p, SessionId=sid, ClientTaskId=NavigatorPersistenceMapping.ReceiptClientTaskId(receipt.IdempotencyKey), AgentId="navigator", State="completed", Version=1, CanonicalHash=digest, CreatedAt=persistedNow, CompletedAt=persistedNow, ReceiptStatus="Succeeded", ReceiptPayload=JsonSerializer.Serialize(persistedReceipt) });
         try { await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); return new(NavigatorStoreOutcome.Succeeded); }
         catch (DbUpdateException) { await tx.RollbackAsync(cancellationToken); db.ChangeTracker.Clear(); return new(NavigatorStoreOutcome.Conflict); }
     }
@@ -200,7 +202,11 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
         if (!TryLeaseTenant(lease, out var tenant)) return;
         var row = await db.Leases.SingleOrDefaultAsync(x => x.TenantId == tenant && x.Name == lease.ExecutionId && x.Version == lease.FencingToken, cancellationToken);
         if (row is null) return;
-        db.Leases.Remove(row);
+        // Retain expired lease rows so reacquisition advances the version and fencing token.
+        // Cleanup of long-expired rows is a separate, explicit follow-up.
+        // Use the minimum representable instant because this API has no clock parameter;
+        // this also expires the row for callers using a captured/injected clock value.
+        row.ExpiresAt = DateTimeOffset.MinValue;
         try { await db.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { db.Entry(row).State = EntityState.Detached; }
     }
@@ -246,5 +252,7 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
         var a=NavigatorPersistenceMapping.TryUuid(id,out sid); var b=NavigatorPersistenceMapping.TryUuid(tenant,out tid); var c=NavigatorPersistenceMapping.TryUuid(principal,out pid); return a&&b&&c;
     }
     private static TaskEntity SessionTask(Guid id,Guid tenant,Guid principal,DateTimeOffset now) => new() { Id=id,TenantId=tenant,PrincipalId=principal,SessionId=id,ClientTaskId=NavigatorPersistenceMapping.SessionClientTaskId(id),AgentId="navigator",State="active",Version=1,CanonicalHash="",CreatedAt=now };
+    // PostgreSQL timestamptz stores microseconds; rounding down avoids extending expiry.
+    private static DateTimeOffset TruncateToMicroseconds(DateTimeOffset value) => new(value.Ticks - value.Ticks % 10, value.Offset);
     private static NavigatorReceiptRecord? ReadReceipt(string payload) { try { return JsonSerializer.Deserialize<NavigatorReceiptRecord>(payload); } catch(JsonException) { return null; } }
 }
