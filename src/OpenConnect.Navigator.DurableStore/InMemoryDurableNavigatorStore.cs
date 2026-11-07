@@ -5,7 +5,7 @@ using OpenConnect.Navigator.Operational;
 
 namespace OpenConnect.Navigator.DurableStore;
 
-/// <summary>Process-local adapter for tests and development; production durability requires the forthcoming persistence adapter.</summary>
+/// <summary>Process-local adapter for tests and development; operational leases are process-local and non-namespaced, so use only as a development adapter.</summary>
 public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
 {
     public InMemoryDurableNavigatorStore(IDurableOperationalStore operationalStore)
@@ -25,6 +25,25 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate) return ValueTask.FromResult(_sessions.TryGetValue(id, out var session) && IsOwned(session.Session, tenant, principal) ? session.Session : null);
+    }
+
+    public ValueTask<NavigatorStoreOutcome> UpdateSessionSnapshotAsync(string id, string tenant, string principal, NavigatorSessionSnapshot snapshot, long expectedRevision, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (snapshot is null) return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
+        try { snapshot.Validate(); }
+        catch (ArgumentException) { return ValueTask.FromResult(NavigatorStoreOutcome.Conflict); }
+        lock (_gate)
+        {
+            if (!Owned(id, tenant, principal)) return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
+            var current = _sessions[id];
+            if (!StringComparer.Ordinal.Equals(snapshot.SessionId, id) || !StringComparer.Ordinal.Equals(snapshot.TenantId, tenant) || !StringComparer.Ordinal.Equals(snapshot.PrincipalId, principal))
+                return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
+            if (current.Session.Revision != expectedRevision || snapshot.Revision != expectedRevision + 1)
+                return ValueTask.FromResult(NavigatorStoreOutcome.StaleFence);
+            _sessions[id] = (NavigatorSession.Restore(snapshot), snapshot.ClientInstance, snapshot.RouteId);
+            return ValueTask.FromResult(NavigatorStoreOutcome.Succeeded);
+        }
     }
 
     public ValueTask<string> CreateSessionAsync(string tenant, string principal, string clientInstance, string routeId, CancellationToken cancellationToken = default)

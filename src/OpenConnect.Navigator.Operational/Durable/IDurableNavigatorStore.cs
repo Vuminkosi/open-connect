@@ -12,6 +12,9 @@ public sealed record NavigatorReceiptRecord(string CommandId, string Idempotency
 public interface IDurableNavigatorStore
 {
     ValueTask<NavigatorSession?> GetSessionAsync(string id, string tenant, string principal, CancellationToken cancellationToken = default);
+    /// <summary>Persists a validated session snapshot only when its stored revision matches the caller's expected revision.</summary>
+    /// <remarks>Invalid snapshots return <see cref="NavigatorStoreOutcome.Conflict"/>. Missing legacy Navigator checkpoint data fails closed on reads.</remarks>
+    ValueTask<NavigatorStoreOutcome> UpdateSessionSnapshotAsync(string id, string tenant, string principal, NavigatorSessionSnapshot snapshot, long expectedRevision, CancellationToken cancellationToken = default);
     ValueTask<string> CreateSessionAsync(string tenant, string principal, string clientInstance, string routeId, CancellationToken cancellationToken = default);
     ValueTask<NavigatorStoreOutcome> CreatePendingApprovalAsync(string id, string tenant, string principal, NavigatorApprovalRecord approval, CancellationToken cancellationToken = default);
     ValueTask<NavigatorStoreResult> ConsumeApprovalAndSaveReceiptAsync(string id, string tenant, string principal, string commandId, string digest, DateTimeOffset now, NavigatorReceiptRecord receipt, CancellationToken cancellationToken = default);

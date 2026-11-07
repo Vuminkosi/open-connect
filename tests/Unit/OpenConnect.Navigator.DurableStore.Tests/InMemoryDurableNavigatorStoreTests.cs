@@ -19,6 +19,32 @@ public sealed class InMemoryDurableNavigatorStoreTests
     }
 
     [Fact]
+    public async Task SnapshotUpdateUsesRevisionCasAndRestoresValues()
+    {
+        var store = CreateStore();
+        var id = await store.CreateSessionAsync("tenant", "principal", "client", "route");
+        var before = await store.GetSessionAsync(id, "tenant", "principal");
+        Assert.NotNull(before);
+        var snapshot = new OpenConnect.Navigator.NavigatorSessionSnapshot(id, "tenant", "principal", OpenConnect.Navigator.NavigatorSessionState.Ready, "client-2", "route-2", 1);
+        Assert.Equal(NavigatorStoreOutcome.Succeeded, await store.UpdateSessionSnapshotAsync(id, "tenant", "principal", snapshot, 0));
+        var restored = await store.GetSessionAsync(id, "tenant", "principal");
+        Assert.Equal("client-2", restored?.ClientInstance);
+        Assert.Equal("route-2", restored?.RouteId);
+        Assert.Equal(1, restored?.Revision);
+        Assert.Equal(NavigatorStoreOutcome.StaleFence, await store.UpdateSessionSnapshotAsync(id, "tenant", "principal", snapshot, 0));
+    }
+
+    [Fact]
+    public async Task InvalidOrMismatchedSnapshotFailsClosed()
+    {
+        var store = CreateStore();
+        var id = await store.CreateSessionAsync("tenant", "principal", "client", "route");
+        var invalid = new OpenConnect.Navigator.NavigatorSessionSnapshot(id, "tenant", "principal", (OpenConnect.Navigator.NavigatorSessionState)999, "client", "route", 1);
+        Assert.Equal(NavigatorStoreOutcome.Conflict, await store.UpdateSessionSnapshotAsync(id, "tenant", "principal", invalid, 0));
+        Assert.Null(await store.GetSessionAsync("missing", "tenant", "principal"));
+    }
+
+    [Fact]
     public async Task ConcurrentConsumeHasSingleWinnerAndIdenticalRetryReplays()
     {
         var store = CreateStore();
