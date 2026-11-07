@@ -1,0 +1,34 @@
+/* Scoped to NavigatorHighlighter (Blazor CSS isolation: no global collisions).
+   The ring is a non-interactive visual anchor; real DOM positioning is a
+   progressive enhancement for host JS via [data-navigator-target]. */
+
+.ocnav-blazor-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+}
+
+.ocnav-blazor-ring {
+    border: 2px solid var(--ocnav-blazor-focus, #6366F1);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.28);
+}
+
+.ocnav-blazor-visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ocnav-blazor-ring {
+        transition: none;
+    }
+}

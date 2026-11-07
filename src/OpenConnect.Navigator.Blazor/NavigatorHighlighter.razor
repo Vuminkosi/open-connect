@@ -1,0 +1,29 @@
+@* Highlight ring for the active tour step. Text-first: the ring is a
+   non-interactive visual anchor plus a screen-reader status line. Real DOM
+   positioning is a progressive enhancement (host JS may anchor on
+   [data-navigator-target] and feed NavigatorTourService.SetTargetRect);
+   without a measurement GetTargetRect returns null and the overlay card
+   carries the content — no fake position is implied. Browser pixel
+   positioning is NOT VERIFIED by unit tests; only the null-safe contract is. *@
+<div class="ocnav-blazor-layer" aria-hidden="true">
+    <div class="ocnav-blazor-ring" data-navigator-target-ring="@TargetId"></div>
+</div>
+@if (!string.IsNullOrEmpty(Label))
+{
+    <span class="ocnav-blazor-visually-hidden" role="status">Showing @Label.</span>
+}
+
+@code {
+    [Inject] private NavigatorTourService Tour { get; set; } = default!;
+
+    /// <summary>Stable target the current step refers to (may be absent).</summary>
+    [Parameter] public string? TargetId { get; set; }
+
+    /// <summary>Active route scope (informational only).</summary>
+    [Parameter] public string? RouteId { get; set; }
+
+    // NAV-REM-BLZ-02: route-scoped label resolution so duplicate bare ids
+    // on other routes never leak into this route's caption. Null-safe by
+    // design: a missing target simply hides the status line.
+    private string? Label => TargetId is null ? null : Tour.Get(TargetId, RouteId)?.Label;
+}
