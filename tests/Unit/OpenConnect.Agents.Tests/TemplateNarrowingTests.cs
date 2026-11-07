@@ -50,6 +50,30 @@ public sealed class TemplateNarrowingTests
             (_, _) => Task.FromResult("{{unknownValue}}")));
     }
 
+    [Fact]
+    public async Task RenderAsync_PropagatesInstructionLoaderFailure()
+    {
+        var registry = new TemplateRegistry();
+        registry.Register(Template("lead", new HashSet<ToolId>()));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => registry.RenderAsync(
+            "lead", new TemplateVariables(), (_, _) => Task.FromException<string>(new InvalidOperationException("boom"))));
+
+        Assert.Equal("boom", exception.Message);
+    }
+
+    [Fact]
+    public async Task RenderAsync_PropagatesLoaderCancellation()
+    {
+        var registry = new TemplateRegistry();
+        registry.Register(Template("lead", new HashSet<ToolId>()));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => registry.RenderAsync(
+            "lead", new TemplateVariables(), (_, token) => Task.FromCanceled<string>(token), cancellation.Token));
+    }
+
     private static AgentTemplate Template(string id, IReadOnlySet<ToolId> tools, string? baseId = null) =>
         new(id, "1", "test", "instructions/lead.md", null, tools, null, new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(1)),
             new AgentMemoryPolicy(), AgentContextSharingMode.TaskSummary, ToolAcknowledgementMode.Automatic, "standard", baseId,

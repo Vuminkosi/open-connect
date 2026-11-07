@@ -147,6 +147,19 @@ public sealed class ContextProjectionTests
         Assert.Equal(now.AddMinutes(5), projection.ExpiresAt);
     }
 
+    [Fact]
+    public void RequestAdditional_DeniesExtensionAtProjectionExpiry()
+    {
+        var created = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
+        var (projection, _) = new ContextProjectionBuilder(new FixedTimeProvider(created)).Build(
+            Parent(), AgentContextSharingMode.TaskSummary, ["internal"], [Item("safe")], Child, [],
+            ["principal"], 100, TimeSpan.FromMinutes(5));
+        var atExpiry = new ContextProjectionBuilder(new FixedTimeProvider(projection.ExpiresAt));
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            atExpiry.RequestAdditional(projection, Child, [Item("extra")]));
+    }
+
     private static ContextProjectionBuilder Builder() => new(new FixedTimeProvider(DateTimeOffset.UtcNow));
     private static ContextItem Item(string id) => new(id, "internal", "safe summary", "source", 1);
     private static AgentExecutionContext Parent() => new()
