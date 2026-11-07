@@ -78,6 +78,17 @@ public sealed record AgentBudget(
     int MaxTotalAgents = 0);
 
 /// <summary>Authority and residual run budget for one parent-to-child delegation.</summary>
+/// <remarks>The child's typed <c>ChildResult</c> is the delegation return contract.</remarks>
+/// <param name="ParentAgentId">The parent agent identity.</param>
+/// <param name="ChildAgentId">The authorized child agent identity.</param>
+/// <param name="ChildDepth">The child's depth in the execution graph.</param>
+/// <param name="EffectiveToolIds">Tools authorized for the child.</param>
+/// <param name="EffectiveScopes">Scopes authorized for the child.</param>
+/// <param name="RemainingBudget">The residual budget granted to the child.</param>
+/// <param name="ParentExecutionId">The parent execution initiating delegation.</param>
+/// <param name="PolicyRevision">The policy revision used for authorization.</param>
+/// <param name="Reason">A sanitized short purpose or category; never a secret or prompt.</param>
+/// <param name="ChildDefinitionRevision">The child agent definition version at authorization time.</param>
 public sealed record DelegationGrant(
     AgentId ParentAgentId,
     AgentId ChildAgentId,
@@ -86,7 +97,9 @@ public sealed record DelegationGrant(
     IReadOnlySet<string> EffectiveScopes,
     AgentBudget RemainingBudget,
     Guid ParentExecutionId,
-    string PolicyRevision);
+    string PolicyRevision,
+    string Reason = "",
+    string ChildDefinitionRevision = "1");
 public sealed record ToolDescriptor(ToolId Id, string Name, AgentId AgentId);
 public sealed record CapabilityDescriptor(CapabilityId Id, CapabilityKind Kind, DetectorState State);
 public sealed record TaskAcceptance(TaskId TaskId, TenantId TenantId, PrincipalId PrincipalId, string IdempotencyKey);

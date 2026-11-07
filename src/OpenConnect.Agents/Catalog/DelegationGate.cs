@@ -31,10 +31,12 @@ public sealed record DelegationParentContext(
 /// <param name="ToolIds">Requested tool identifiers.</param>
 /// <param name="Scopes">Requested authorization scopes.</param>
 /// <param name="EnqueueCrossMode">Whether cross-mode delegation is explicitly enqueued.</param>
+/// <param name="Reason">Optional short purpose or category, not a prompt or secret.</param>
 public sealed record DelegationRequest(
     IReadOnlySet<ToolId> ToolIds,
     IReadOnlySet<string> Scopes,
-    bool EnqueueCrossMode = false);
+    bool EnqueueCrossMode = false,
+    string? Reason = null);
 
 /// <summary>Creates a capability- and budget-restricted grant for an authorized child.</summary>
 public sealed class DelegationGate
@@ -62,6 +64,7 @@ public sealed class DelegationGate
     {
         ArgumentNullException.ThrowIfNull(parentCtx);
         ArgumentNullException.ThrowIfNull(request);
+        var reason = SanitizeReason(request.Reason);
         var parent = _catalog.Get(parentCtx.AgentId)
             ?? throw new AgentCatalogException($"Parent agent '{parentCtx.AgentId}' is not registered.");
         var child = _catalog.Get(childAgentId)
@@ -94,7 +97,15 @@ public sealed class DelegationGate
         var effectiveScopes = new HashSet<string>(request.Scopes, StringComparer.Ordinal);
         var remaining = NarrowBudget(parentCtx.RemainingBudget, child.Budget);
         return new DelegationGrant(parent.Id, child.Id, nextDepth, effectiveTools, effectiveScopes,
-            remaining, parentCtx.ExecutionId, child.PolicyRevision);
+            remaining, parentCtx.ExecutionId, child.PolicyRevision, reason, child.Version);
+    }
+
+    private static string SanitizeReason(string? reason)
+    {
+        var sanitized = reason?.Trim() ?? string.Empty;
+        if (sanitized.Length > 500 || sanitized.Any(char.IsControl))
+            throw new AgentCatalogException("Delegation reason must be at most 500 characters and contain no control characters.");
+        return sanitized;
     }
 
     private static HashSet<T> Intersect<T>(IReadOnlySet<T> current, IReadOnlyList<T>? policy) where T : notnull
