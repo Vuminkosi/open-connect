@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
+using System.Text;
 
 namespace OpenConnect.Agents.Execution;
 
@@ -181,6 +182,8 @@ public sealed class OrchestrationAdapters
     private async Task<AgentResponse> RunAgentAsync(AgentId agentId, string prompt, AgentExecutionContext context)
     {
         await EnsureAuthorizedAsync(context).ConfigureAwait(false);
+        if (_budgetLedger is not null && !_budgetLedger.TryReserveModelCall(Encoding.UTF8.GetByteCount(prompt)))
+            throw new InvalidOperationException("run-wide model budget exhausted");
         return await _factory.CreateAgent(agentId).RunAsync(prompt, cancellationToken: context.CancellationToken).ConfigureAwait(false);
     }
 
@@ -188,6 +191,7 @@ public sealed class OrchestrationAdapters
     {
         await EnsureAuthorizedAsync(child).ConfigureAwait(false);
         // MafConversationRunner records the actual parent/child execution and invokes the MAF AIAgent.
+        // It owns the single model-call reservation; do not reserve here as well.
         return await _conversation.DelegateAsync(ToTraceId(parent), agentId, prompt, child.CancellationToken).ConfigureAwait(false);
     }
 
