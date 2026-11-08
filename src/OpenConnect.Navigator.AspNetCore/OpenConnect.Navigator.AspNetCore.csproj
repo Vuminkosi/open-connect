@@ -9,5 +9,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="../OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
   </ItemGroup>
 </Project>

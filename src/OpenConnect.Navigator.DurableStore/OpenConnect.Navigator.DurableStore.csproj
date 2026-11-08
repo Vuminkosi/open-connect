@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net8.0</TargetFramework><AssemblyName>OpenConnect.Navigator.DurableStore</AssemblyName><RootNamespace>OpenConnect.Navigator.DurableStore</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
-    <ProjectReference Include="../OpenConnect.Navigator.AspNetCore/OpenConnect.Navigator.AspNetCore.csproj" />
-  </ItemGroup>
-</Project>
