@@ -119,6 +119,55 @@ public sealed class NativeWorkflowInteractionTests
         Assert.Null(completed.PendingExternalRequest);
     }
 
+    [Fact]
+    public async Task Cancel_during_slow_authorize_is_preemptive()
+    {
+        var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        async ValueTask<bool> SlowAuthorize(ExternalRequest _, CancellationToken cancellationToken)
+        {
+            entered.TrySetResult(true);
+            await release.Task.WaitAsync(Timeout);
+            return true;
+        }
+
+        var respondTask = interaction.RespondAsync(request, "approved", SlowAuthorize);
+        await entered.Task.WaitAsync(Timeout);
+
+        // Must complete while authorize is still blocked; the old design held the
+        // operation lock across authorize and wedged here until the timeout.
+        await interaction.CancelAsync().WaitAsync(Timeout);
+        Assert.Null(interaction.PendingExternalRequest);
+
+        release.TrySetResult(true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => respondTask.WaitAsync(Timeout));
+        await interaction.DisposeAsync().AsTask().WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task Reentrant_authorize_attempt_fails_fast_without_deadlock()
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        async ValueTask<bool> Authorize(ExternalRequest current, CancellationToken cancellationToken)
+        {
+            // A re-entrant response for the claimed request must fail fast with
+            // InvalidOperationException; holding the lock across authorize would
+            // deadlock here and surface as a TimeoutException instead.
+            await Assert.ThrowsAsync<InvalidOperationException>(() => interaction.RespondAsync(
+                current, "reentrant", (_, _) => ValueTask.FromResult(true), cancellationToken).WaitAsync(Timeout));
+            return true;
+        }
+
+        await interaction.RespondAsync(request, "approved", Authorize).WaitAsync(Timeout);
+        var next = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.NotSame(request, next);
+    }
+
     private static Workflow CreateWorkflow()
     {
         var source = new FunctionExecutor<string, ApprovalRequest>(

@@ -8,11 +8,13 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
 {
     private readonly StreamingRun _run;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
+    private readonly SemaphoreSlim _cancelGate = new(1, 1);
     private readonly HashSet<string> _consumedRequestIds = new(StringComparer.Ordinal);
     private ExternalRequest? _pendingRequest;
     private bool _started;
     private bool _completed;
     private bool _disposed;
+    private bool _responseInFlight;
 
     private NativeWorkflowInteraction(StreamingRun run) => _run = run;
 
@@ -48,7 +50,13 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
     /// <summary>Accepts one response for the exact currently pending native request.</summary>
     /// <param name="request">The request instance returned by the native workflow.</param>
     /// <param name="responseData">Host-provided response payload validated by the request's native port.</param>
-    /// <param name="authorize">Required host callback; it must validate actor, scope, grants, arguments, nonce, expiry, and effect boundaries.</param>
+    /// <param name="authorize">Required host callback; it must validate actor, scope, grants, arguments, nonce, expiry, and effect boundaries.
+    /// Invoked outside the interaction lock and must not call back into this instance.
+    /// A re-entrant <see cref="RespondAsync"/> fails fast with <see cref="InvalidOperationException"/>
+    /// instead of deadlocking; a re-entrant <see cref="CancelAsync"/> or <see cref="DisposeAsync"/>
+    /// remains preemptive and invalidates the in-flight claim, so the outer Respond then fails
+    /// closed on revalidation.
+    /// Only one authorization runs at a time; concurrent responses are rejected before authorize is invoked.</param>
     /// <param name="cancellationToken">Cancellation request for authorization and continuation.</param>
     public async Task RespondAsync(
         ExternalRequest request,
@@ -59,6 +67,14 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(responseData);
         ArgumentNullException.ThrowIfNull(authorize);
+
+        // F2 claim-then-verify: claim the pending slot under the lock, release the
+        // lock while the host authorizer runs, then re-validate under the lock.
+        // State transitions (ReferenceEquals, consumed ids, completed flags) stay
+        // under _operationLock; authorize, SendResponse, and the observe watch run
+        // outside it so a slow or re-entrant authorizer cannot wedge the lock.
+        ExternalRequest claimed;
+        string claimedRequestId;
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -69,78 +85,173 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
                 throw new InvalidOperationException("The request is stale or is not the current pending request.");
             }
 
-            if (!await authorize(request, cancellationToken).ConfigureAwait(false))
+            if (_responseInFlight)
+            {
+                throw new InvalidOperationException("A response for the current pending request is already in progress.");
+            }
+
+            _responseInFlight = true;
+            claimed = request;
+            claimedRequestId = request.RequestId;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+
+        try
+        {
+            // Deny-before-send: authorize runs before any response is created or sent.
+            if (!await authorize(claimed, cancellationToken).ConfigureAwait(false))
             {
                 throw new UnauthorizedAccessException("The host did not authorize this workflow response.");
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (!ReferenceEquals(request, _pendingRequest))
+
+            await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                throw new InvalidOperationException("The request is no longer pending.");
+                ThrowIfUnavailable();
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(claimed, _pendingRequest))
+                {
+                    throw new InvalidOperationException("The request is no longer pending.");
+                }
+
+                if (_consumedRequestIds.Contains(claimedRequestId))
+                {
+                    throw new InvalidOperationException("The request has already been answered.");
+                }
+            }
+            finally
+            {
+                _operationLock.Release();
             }
 
             // Create from the native request, never from caller-supplied request identity.
-            var response = request.CreateResponse(responseData);
-            var consumedRequestId = request.RequestId;
+            var response = claimed.CreateResponse(responseData);
             await _run.SendResponseAsync(response).ConfigureAwait(false);
-            _consumedRequestIds.Add(consumedRequestId);
-            Volatile.Write(ref _pendingRequest, null);
+
+            // Commit the exactly-once consumption without honoring cancellation so a
+            // racing cancel cannot lose replay protection for an already-sent response.
+            await _operationLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                _consumedRequestIds.Add(claimedRequestId);
+                if (ReferenceEquals(claimed, _pendingRequest))
+                {
+                    Volatile.Write(ref _pendingRequest, null);
+                }
+            }
+            finally
+            {
+                _operationLock.Release();
+            }
+
             try
             {
                 await ObserveUntilHaltAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                await _run.CancelRunAsync().ConfigureAwait(false);
-                Volatile.Write(ref _pendingRequest, null);
-                _completed = true;
+                await CancelRunUnderGateAsync().ConfigureAwait(false);
+                await _operationLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    Volatile.Write(ref _pendingRequest, null);
+                    _completed = true;
+                }
+                finally
+                {
+                    _operationLock.Release();
+                }
+
                 throw;
             }
         }
         finally
         {
-            _operationLock.Release();
+            await _operationLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                _responseInFlight = false;
+            }
+            finally
+            {
+                _operationLock.Release();
+            }
         }
     }
 
     /// <summary>Cancels the native run explicitly; cancelling a stream alone does not stop its run.</summary>
+    /// <remarks>Preemptive: only the state transition takes <c>_operationLock</c>;
+    /// the run cancellation runs under a separate cancel gate so it never waits for
+    /// an in-flight <see cref="RespondAsync"/> continuation.</remarks>
     public async Task CancelAsync()
     {
-        await _operationLock.WaitAsync().ConfigureAwait(false);
+        await _cancelGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (_disposed || _completed) return;
-            await _run.CancelRunAsync().ConfigureAwait(false);
-            Volatile.Write(ref _pendingRequest, null);
-            _completed = true;
+            await _operationLock.WaitAsync().ConfigureAwait(false);
+            bool shouldCancel;
+            try
+            {
+                if (_disposed || _completed) return;
+                Volatile.Write(ref _pendingRequest, null);
+                _completed = true;
+                shouldCancel = true;
+            }
+            finally
+            {
+                _operationLock.Release();
+            }
+
+            if (shouldCancel)
+            {
+                await _run.CancelRunAsync().ConfigureAwait(false);
+            }
         }
         finally
         {
-            _operationLock.Release();
+            _cancelGate.Release();
         }
     }
 
     /// <inheritdoc />
+    /// <remarks>Preemptive: state transitions take <c>_operationLock</c> briefly;
+    /// run cancellation and disposal run under a separate cancel gate so disposal
+    /// never waits for an in-flight <see cref="RespondAsync"/> continuation.</remarks>
     public async ValueTask DisposeAsync()
     {
-        await _operationLock.WaitAsync().ConfigureAwait(false);
+        await _cancelGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (_disposed) return;
-            if (!_completed)
+            await _operationLock.WaitAsync().ConfigureAwait(false);
+            bool needCancel;
+            try
+            {
+                if (_disposed) return;
+                needCancel = !_completed;
+                Volatile.Write(ref _pendingRequest, null);
+                _completed = true;
+                _disposed = true;
+            }
+            finally
+            {
+                _operationLock.Release();
+            }
+
+            if (needCancel)
             {
                 await _run.CancelRunAsync().ConfigureAwait(false);
             }
 
-            Volatile.Write(ref _pendingRequest, null);
-            _completed = true;
-            _disposed = true;
             await _run.DisposeAsync().ConfigureAwait(false);
         }
         finally
         {
-            _operationLock.Release();
+            _cancelGate.Release();
         }
     }
 
@@ -149,6 +260,8 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
         // A no-pending run that yields output ends its stream exactly like a
         // pending-request halt does under blockOnPendingRequest: false, so an
         // observed output event distinguishes terminal completion from a stall.
+        // Runs outside _operationLock; every shared-state transition below takes
+        // the lock briefly so Cancel/Dispose stay preemptive.
         var sawOutput = false;
         await foreach (var workflowEvent in _run.WatchStreamAsync(
             blockOnPendingRequest: false, cancellationToken).ConfigureAwait(false))
@@ -171,17 +284,25 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
                 // genuinely new halt carries a different RequestId and is still surfaced.
                 // A stale-only halt on a non-completed run falls through to the
                 // halted-without-pending failure below rather than a silent null.
-                if (_consumedRequestIds.Contains(requestInfo.Request.RequestId))
+                await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
-                    continue;
-                }
+                    if (_consumedRequestIds.Contains(requestInfo.Request.RequestId))
+                    {
+                        continue;
+                    }
 
-                if (_pendingRequest is not null)
+                    if (_pendingRequest is not null)
+                    {
+                        throw new InvalidOperationException("The native workflow reported multiple pending requests.");
+                    }
+
+                    Volatile.Write(ref _pendingRequest, requestInfo.Request);
+                }
+                finally
                 {
-                    throw new InvalidOperationException("The native workflow reported multiple pending requests.");
+                    _operationLock.Release();
                 }
-
-                Volatile.Write(ref _pendingRequest, requestInfo.Request);
             }
         }
 
@@ -192,24 +313,49 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
         // flipped from a transient value at stream end. A PendingRequests status
         // with no observed request stays fail-closed below, as does any other
         // non-terminal status without output (genuinely stalled runs).
-        if (_pendingRequest is null &&
-            (status == RunStatus.Ended || status == RunStatus.Idle ||
-             (sawOutput && status != RunStatus.PendingRequests)))
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            _completed = true;
-        }
+            if (_pendingRequest is null &&
+                (status == RunStatus.Ended || status == RunStatus.Idle ||
+                 (sawOutput && status != RunStatus.PendingRequests)))
+            {
+                _completed = true;
+            }
 
-        if (_pendingRequest is null && !_completed)
+            if (_pendingRequest is null && !_completed)
+            {
+                throw new InvalidOperationException("Native workflow stream halted without a pending request or successful completion.");
+            }
+        }
+        finally
         {
-            throw new InvalidOperationException("Native workflow stream halted without a pending request or successful completion.");
+            _operationLock.Release();
         }
     }
 
     private void ThrowIfUnavailable()
     {
+        // Callers must hold _operationLock; keeps ReferenceEquals, consumed-id,
+        // and completed/disposed transitions atomic and fail-closed.
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_started || _completed) throw new InvalidOperationException("The native workflow is no longer accepting responses.");
         if (_pendingRequest is null) throw new InvalidOperationException("The native workflow has no pending request.");
+    }
+
+    private async Task CancelRunUnderGateAsync()
+    {
+        // Serializes CancelRunAsync callers (explicit cancel, dispose, and the
+        // Respond cancellation path) without holding _operationLock.
+        await _cancelGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await _run.CancelRunAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _cancelGate.Release();
+        }
     }
 
     private async ValueTask CancelAndDisposeRunAsync()
