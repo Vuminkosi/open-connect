@@ -58,7 +58,7 @@ internal sealed class EfPublicSessionMappingStore<TContext>(TContext context) wh
         {
             ulid = Ulid.Parse(row.InternalSessionId);
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or ArgumentNullException)
         {
             return null;
         }
