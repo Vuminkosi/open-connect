@@ -308,3 +308,24 @@ and endurance verification stays NOT VERIFIED.
 - No per-criterion row is marked PASS beyond the per-family transcription above.
 - Truncated IDs (ellipsis forms such as ses_e438..., ses_e43d..., ses_e439...) are transcribed as-supplied and NOT expanded.
 
+---
+
+## Appendix C — Production migration decision (Manual mode)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute, evidence transcribed as supplied)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections above are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed. VERIFIED/COMMITTED/RELEASED labels below are transcribed lane evidence only, not writer-observed.
+
+- (1) `OpenConnectEfOptions.Migrations` default is Manual — refs `OpenConnectEfOptions.cs:4,14` — SUPPLIED-VERIFIED-BY-LANE.
+- (2) Validator forbids ApplyOnStartup with ExistingDbContext → `ef_migration_not_allowed` — refs `OpenConnectEfOptionsValidator.cs:28-30` — SUPPLIED-VERIFIED-BY-LANE.
+- (3) Production Postgres migrations (`InitialCreate`, `PendingModelSync`, `NavigatorDurability`) are legacy-only and contain no `ApprovalNonces`/`PublicSessionMappings` — SUPPLIED-VERIFIED-BY-LANE.
+- (4) Test-harness `MigrationsPg`/`Ms` (12 tables) are DDL proof only, not production DDL — SUPPLIED-VERIFIED-BY-LANE.
+- (5) Decision: hosts apply equivalent DDL via their own pipeline under Manual mode; auto-apply is forbidden; forward-fix is preferred over Down; no auto-migration to add — SUPPLIED-VERIFIED-BY-LANE.
+
+### Explicit scope limits (no inflation)
+
+- No global production-readiness claim is made.
+- No test, build, or migration was re-executed by this writer.
+- No CLI flags, endpoints, release numbers, screenshots, deployment behavior, or support promises are introduced.
+- No prior PASS/NOT VERIFIED labels are altered.
+
