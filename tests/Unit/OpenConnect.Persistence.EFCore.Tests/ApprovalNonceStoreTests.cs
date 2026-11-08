@@ -287,6 +287,241 @@ public sealed class ApprovalNonceStoreTests
         await Assert.ThrowsAsync<ArgumentException>(() => store.GetAsync(tenant, default, "wf04-nonce-race-004"));
     }
 
+    [Fact]
+    public async Task String_binding_round_trips_verbatim()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-001";
+        const string requestId = "REQ-2026-11-08-001";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, requestId));
+
+        var receipt = await store.GetWithRequestIdAsync(tenant, principal, nonce);
+        Assert.NotNull(receipt);
+        Assert.Equal(requestId, receipt.RequestId);
+    }
+
+    [Fact]
+    public async Task String_binding_identical_consume_is_idempotent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-002";
+        const string requestId = "REQ-idempotent-7";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, requestId));
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, requestId));
+
+        Assert.Equal(requestId, (await store.GetWithRequestIdAsync(tenant, principal, nonce))?.RequestId);
+    }
+
+    [Fact]
+    public async Task String_binding_mismatch_conflicts()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-003";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-first"));
+        // Different request id under the same key: replay with a swapped binding.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-second"));
+        // Ordinal comparison: case differs, so it is a different binding.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "req-first"));
+        // Different principal under the same key.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeWithRequestIdAsync(tenant, new PrincipalId(Ulid.NewUlid()), nonce, "REQ-first"));
+    }
+
+    [Fact]
+    public async Task String_binding_is_verbatim_not_guid_coerced()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-004";
+        // A Guid-formatted value must round-trip as the exact string, not a parsed Guid.
+        var guidText = Guid.NewGuid().ToString("D");
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, guidText));
+
+        var receipt = await store.GetWithRequestIdAsync(tenant, principal, nonce);
+        Assert.NotNull(receipt);
+        Assert.Equal(guidText, receipt.RequestId);
+        // Upper-cased (N-format-adjacent) variant is a different verbatim value.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, guidText.ToUpperInvariant()));
+    }
+
+    [Fact]
+    public async Task String_binding_same_nonce_in_different_tenant_is_independent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        const string nonce = "wf04-nonce-req-005";
+        var firstTenant = new TenantId(Ulid.NewUlid());
+        var secondTenant = new TenantId(Ulid.NewUlid());
+        var firstPrincipal = new PrincipalId(Ulid.NewUlid());
+        var secondPrincipal = new PrincipalId(Ulid.NewUlid());
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(firstTenant, firstPrincipal, nonce, "REQ-tenant-a"));
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(secondTenant, secondPrincipal, nonce, "REQ-tenant-b"));
+
+        Assert.Equal("REQ-tenant-a", (await store.GetWithRequestIdAsync(firstTenant, firstPrincipal, nonce))?.RequestId);
+        Assert.Equal("REQ-tenant-b", (await store.GetWithRequestIdAsync(secondTenant, secondPrincipal, nonce))?.RequestId);
+    }
+
+    [Fact]
+    public async Task String_binding_cross_tenant_and_cross_principal_reads_resolve_as_absent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-006";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-guarded"));
+
+        Assert.Null(await store.GetWithRequestIdAsync(new TenantId(Ulid.NewUlid()), principal, nonce));
+        Assert.Null(await store.GetWithRequestIdAsync(tenant, new PrincipalId(Ulid.NewUlid()), nonce));
+        Assert.Null(await store.GetWithRequestIdAsync(tenant, principal, "wf04-unknown-nonce"));
+    }
+
+    [Fact]
+    public async Task String_binding_rejects_invalid_request_ids_before_storage()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-req-007", "   "));
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-req-007", string.Empty));
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-req-007", new string('r', 257)));
+
+        Assert.Null(await store.GetWithRequestIdAsync(tenant, principal, "wf04-nonce-req-007"));
+    }
+
+    [Fact]
+    public async Task String_binding_legacy_guid_row_conflicts_and_reads_as_absent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-008";
+
+        // Pre-string-binding row: Guid-bound, empty RequestId (migration backfill value).
+        db.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+        {
+            TenantId = tenant.Value.ToString(),
+            Nonce = nonce,
+            ApprovalId = Guid.NewGuid(),
+            RequestId = string.Empty,
+            PrincipalId = principal.Value.ToString(),
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        // Fail closed: no string receipt is surfaced for the legacy row.
+        Assert.Null(await store.GetWithRequestIdAsync(tenant, principal, nonce));
+        // And the occupied key cannot be re-bound to a string request id.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-new"));
+    }
+
+    [Fact]
+    public async Task String_binding_second_context_with_identical_binding_resolves_as_already_consumed()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var setup = Context(connection);
+        await setup.Database.EnsureCreatedAsync();
+
+        await using var first = Context(connection);
+        await using var second = Context(connection);
+        var firstStore = new EfApprovalNonceStore<NonceContext>(first);
+        var secondStore = new EfApprovalNonceStore<NonceContext>(second);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-race-001";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await firstStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-race"));
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await secondStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-race"));
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await secondStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-race-other"));
+    }
+
     private static NonceContext Context(SqliteConnection connection) => new(
         new DbContextOptionsBuilder<NonceContext>().UseSqlite(connection).Options);
 

@@ -93,9 +93,17 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsPg
                         .IsUnicode(false)
                         .HasColumnType("character varying(26)");
 
+                    b.Property<string>("RequestId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .IsUnicode(false)
+                        .HasColumnType("character varying(256)");
+
                     b.HasKey("TenantId", "Nonce");
 
                     b.HasIndex("ApprovalId");
+
+                    b.HasIndex("RequestId");
 
                     b.ToTable("ApprovalNonces", "openconnect");
                 });
