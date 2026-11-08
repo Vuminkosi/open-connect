@@ -1,4 +1,5 @@
 using OpenConnect.Navigator;
+using OpenConnect.Navigator.Operational.Durable;
 using System.Collections.Concurrent;
 
 namespace OpenConnect.Navigator.Operational;
@@ -8,9 +9,11 @@ public sealed class OperationalNavigatorHandler(
     IOperationalLeaseStore leases,
     IOperationalWorkloadIdentityProvider identities,
     IOperationalPlanProvider plans,
-    IOperationalStepExecutor executor) : IOperationalHandler
+    IOperationalStepExecutor executor,
+    DurableIdempotencyStore? receipts = null) : IOperationalHandler
 {
-    // Process-local only: callers requiring replay guarantees across restarts must provide durable storage.
+    // The durable completed-receipt lookup is authoritative across processes; this reservation
+    // remains a fast path for concurrent duplicate requests within this process.
     private readonly ConcurrentDictionary<string, Lazy<Task<OperationalReceipt>>> _results = new(StringComparer.Ordinal);
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(30);
     private const int MaxSteps = 25;
@@ -21,8 +24,14 @@ public sealed class OperationalNavigatorHandler(
         if (string.IsNullOrWhiteSpace(job.TenantScope) || string.IsNullOrWhiteSpace(job.ServicePrincipalRef)
             || string.IsNullOrWhiteSpace(job.PlanId) || string.IsNullOrWhiteSpace(job.ExecutionId)
             || string.IsNullOrWhiteSpace(job.IdempotencyKey) || string.IsNullOrWhiteSpace(job.PolicyRevision)
-            || job.ApplicationAllowlist is null || job.ApplicationAllowlist.Count == 0 || job.Deadline <= DateTimeOffset.UtcNow)
+                || job.ApplicationAllowlist is null || job.ApplicationAllowlist.Count == 0 || job.Deadline <= DateTimeOffset.UtcNow)
             return new(job.ExecutionId ?? string.Empty, OperationalRunStatus.Rejected, 0, "Invalid or expired operational job.", 0);
+
+        if (receipts is not null)
+        {
+            var prior = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken).ConfigureAwait(false);
+            if (prior?.Status == OperationalRunStatus.Completed) return prior;
+        }
 
         var idempotencyId = $"{job.TenantScope}\0{job.IdempotencyKey}";
         var reservation = new Lazy<Task<OperationalReceipt>>(
@@ -32,6 +41,16 @@ public sealed class OperationalNavigatorHandler(
         try
         {
             var receipt = await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (receipt.Status == OperationalRunStatus.Completed && receipts is not null)
+            {
+                // Only confirmed completion is safe to replay. Uncertain, failed, cancelled,
+                // rejected, and lease-lost outcomes must never become durable receipts.
+                var saved = await receipts.TryCompleteAsync(job.TenantScope, job.IdempotencyKey,
+                    receipt, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
+                if (!saved)
+                    receipt = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken)
+                        .ConfigureAwait(false) ?? receipt;
+            }
             if (receipt.Status != OperationalRunStatus.Completed)
                 RemoveReservation(idempotencyId, selected);
             return receipt;
