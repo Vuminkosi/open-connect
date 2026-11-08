@@ -27,6 +27,26 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void Build_EmptyAllowlistWithNoItemsProducesEmptyProjection()
+    {
+        // Observed behavior: an empty allowlist is accepted when there are no requested items.
+        var (projection, quarantined) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            [], [], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+
+        Assert.Empty(projection.Items);
+        Assert.Equal(string.Empty, projection.DataClass);
+        Assert.Equal(0, quarantined);
+    }
+
+    [Fact]
+    public void Build_EmptyAllowlistWithAnyClassifiedItemDeniesProjection()
+    {
+        // Observed behavior: the item's classification fails membership authorization.
+        Assert.Throws<UnauthorizedAccessException>(() => Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            [], [Item("classified")], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
     public void Build_CancelledParentThrowsBeforeReturningProjection()
     {
         using var cancellation = new CancellationTokenSource();
