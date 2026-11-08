@@ -1,0 +1,177 @@
+/* @openconnect/navigator overlay theme — style-isolated `ocnav-` prefix.
+   Only CSS variables + ocnav- classes; no global element selectors, so
+   MiniComposer (`oc-`) and host styles are never affected. Follows the
+   ATLAS surface system (light/dark via data-theme + prefers-color-scheme). */
+
+.ocnav-layer {
+  --ocnav-bg: #ffffff;
+  --ocnav-surface-subtle: #f1f5f9;
+  --ocnav-text: #111827;
+  --ocnav-text-muted: #64748b;
+  --ocnav-border: #dce2ea;
+  --ocnav-primary: #4f46e5;
+  --ocnav-primary-hover: #4338ca;
+  --ocnav-focus: #6366f1;
+  --ocnav-ring: rgba(99, 102, 241, 0.55);
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocnav-layer {
+    --ocnav-bg: #171f2b;
+    --ocnav-surface-subtle: #253244;
+    --ocnav-text: #f8fafc;
+    --ocnav-text-muted: #94a3b8;
+    --ocnav-border: #334155;
+    --ocnav-primary: #6366f1;
+    --ocnav-primary-hover: #818cf8;
+    --ocnav-focus: #a5b4fc;
+    --ocnav-ring: rgba(165, 180, 252, 0.5);
+  }
+}
+
+.ocnav-layer[data-theme="light"] {
+  --ocnav-bg: #ffffff;
+  --ocnav-surface-subtle: #f1f5f9;
+  --ocnav-text: #111827;
+  --ocnav-text-muted: #64748b;
+  --ocnav-border: #dce2ea;
+  --ocnav-primary: #4f46e5;
+  --ocnav-primary-hover: #4338ca;
+  --ocnav-focus: #6366f1;
+  --ocnav-ring: rgba(99, 102, 241, 0.55);
+}
+
+.ocnav-layer[data-theme="dark"] {
+  --ocnav-bg: #171f2b;
+  --ocnav-surface-subtle: #253244;
+  --ocnav-text: #f8fafc;
+  --ocnav-text-muted: #94a3b8;
+  --ocnav-border: #334155;
+  --ocnav-primary: #6366f1;
+  --ocnav-primary-hover: #818cf8;
+  --ocnav-focus: #a5b4fc;
+  --ocnav-ring: rgba(165, 180, 252, 0.5);
+}
+
+.ocnav-ring {
+  position: absolute;
+  display: none;
+  border: 2px solid var(--ocnav-primary);
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px var(--ocnav-ring);
+}
+
+.ocnav-card {
+  pointer-events: auto;
+  position: absolute;
+  inset-inline: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width: 24rem;
+  margin-inline: auto;
+  background: var(--ocnav-bg);
+  color: var(--ocnav-text);
+  border: 1px solid var(--ocnav-border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  /* NAV-UX-03: bound the card to the viewport so long bodies scroll
+     internally and Back/Next/Skip stay reachable at 200% zoom. */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+@media (min-width: 600px) {
+  .ocnav-card {
+    inset-inline: auto;
+    inset-inline-end: 24px;
+    bottom: 24px;
+    margin-inline: 0;
+  }
+}
+
+.ocnav-progress {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 550;
+  color: var(--ocnav-text-muted);
+}
+
+.ocnav-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.ocnav-title:focus {
+  outline: none;
+}
+
+.ocnav-body {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ocnav-text);
+  /* Internal scroll region: keeps actions visible when zoomed or long. */
+  overflow-y: auto;
+  min-height: 0;
+  overflow-wrap: break-word;
+}
+
+.ocnav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* Pinned below the scrolling body so actions stay reachable. */
+  flex-shrink: 0;
+}
+
+.ocnav-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--ocnav-border);
+  background: var(--ocnav-bg);
+  color: var(--ocnav-text);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.ocnav-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ocnav-btn-primary {
+  background: var(--ocnav-primary);
+  border-color: var(--ocnav-primary);
+  color: #fff;
+}
+
+.ocnav-btn-primary:hover {
+  background: var(--ocnav-primary-hover);
+}
+
+.ocnav-btn:focus-visible {
+  outline: 2px solid var(--ocnav-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocnav-layer,
+  .ocnav-ring,
+  .ocnav-card {
+    transition: none;
+    animation: none;
+  }
+}

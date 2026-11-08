@@ -1,0 +1,43 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/session.json",
+    "title":  "Navigator session",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "sessionId",
+                     "tenantId",
+                     "principalId",
+                     "state"
+                 ],
+    "properties":  {
+                       "sessionId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "tenantId":  {
+                                        "minLength":  1,
+                                        "type":  "string"
+                                    },
+                       "principalId":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "state":  {
+                                     "type":  "string",
+                                     "enum":  [
+                                                  "created",
+                                                  "pairing",
+                                                  "ready",
+                                                  "running",
+                                                  "awaiting-approval",
+                                                  "paused",
+                                                  "completing",
+                                                  "completed",
+                                                  "failed",
+                                                  "cancelled",
+                                                  "expired"
+                                              ]
+                                 }
+                   }
+}

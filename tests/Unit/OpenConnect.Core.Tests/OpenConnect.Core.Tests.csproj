@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Tools/OpenConnect.Tools.csproj" />
   </ItemGroup>
 </Project>

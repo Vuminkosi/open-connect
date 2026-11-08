@@ -1,1282 +1,921 @@
-# OpenConnect — Unified Implementation and Release Checklist
+# OpenConnect — Exhaustive MAF-First Engineering Checklist
 
-**Document:** `checklist.md` · **Baseline:** 2026-11-07 · **Status:** ALL requirements and acceptance tests begin `NOT RUN` / unchecked unless separately evidenced in the actual repository/CI.  
-**Companions:** [`requirements.md`](./requirements.md), [`spec.md`](./spec.md).
+**Version:** 2.1-draft · **Updated:** 2026-11-08 · **Status:** implementation blueprint; NOT evidence of code completion.  
+**Companion canonical files:** `requirements.md`, `spec.md`, `implementation.md`, `agents-requirements.md`, `agents-spec.md`.  
+**Detail baseline:** original `checklist(4).md` plus MAF-first `openconnect-maf-aligned/checklist.md`, agent-specific, workers/VAD and cross-framework specifications.
 
-## 0. Instructions to Codex / Muse / DeepSeek / maintainers
+## 0. Non-negotiable coding-agent instructions
 
-1. Read `requirements.md` canonical section and conflict table, `spec.md` canonical architecture, **then this checklist**. Consult the preserved specialist annex corresponding to the task; never implement conflicting obsolete examples verbatim.
-2. Inspect actual code and pin source revisions before changing packages. Maintain scope: do not drop a subsystem because it has no immediately available infrastructure, GPU, auth provider or release credential. Instead implement truthful optional registration and mark real-model/release test `BLOCKED` until evidence exists.
-3. Execute one small `IMP-*`, `EF-IMP-*`, `NAV-IMP-*`, `CMP-IMP-*`, `OBS-IMP-*`, `SITE-IMP-*`, `VEC-IMP-*` or `KMS-IMP-*` unit per PR (or a dependency-aligned small set). Include negative security tests and docs.
-4. Change `[ ]` to `[x]` **only** with a linked passing real test run, source commit and review. A design or CI script with no green execution is `NOT RUN`, not `PASS`. Never mark an acceptance test complete because it is described in source annexes.
-5. For source reference integration, record code path, actual SHA, license, model checkpoint, package versions, changes and test mapping. Do not copy proprietary/sensitive business data or erase legally required attribution.
-6. Rules for stable claims: no permission escalation, tenant data leak, unauthorized restoration, silent privacy downgrade, invented agent events, lost accepted task/outbox commit or package-source mismatch. Anything failing this gate is explicitly experimental/unavailable, not silently removed from roadmap.
-7. Every completed PR: update this checklist status, add an evidence-log entry, include command line and environment, mention compatibility/migration impact and the next dependency-unblocked task.
+1. **Read before writing:** six canonical MAF-first files, the detailed requirements/spec for the feature, the corresponding existing source, and the actual pinned MAF provider API. No example method name is considered compiled until proven.
+2. **MAF owns execution:** native `AIAgent`, `HarnessAgent`, `AgentSession`, planning/todos, MAF workflows, middleware, context providers, approval/HITL and selected durable workflow backend. OpenConnect owns governance, authenticated application task boundaries, domain outbox, policy/egress/identity, user-facing status and client contracts. Do not build a second planner, agent loop or workflow replay engine.
+3. **No scope loss:** checklist entries are atomic observable deliverables. A missing provider/model/license is `BLOCKED` or `NOT RUN` for that capability, not justification to delete the task or silently claim fallback.
+4. **Authority:** `requirements.md` states what; `spec.md` states how; `implementation.md` orders steps; this file tracks specific proof. Agent documents specialize MAF integration. Contradictions require an ADR and simultaneous corrections before implementing an incompatible design.
+5. **Status control:** keep `[ ]` until implementation and a passing actual test/CI artifact; `NOT RUN`, `BLOCKED`, `SKIPPED`, `FAIL`, `PARTIAL` are not `PASS`. Existing historical claimed PASS is not automatically v2 PASS.
+6. **Proof per checkbox:** changed source path(s), requirement and acceptance ID(s), exact command, target framework/provider/model, run/PR/commit, reviewer, result and artifact. Never infer from compilation alone that real model, screenshot, long-running recovery or published package works.
+7. **Security:** no model/skill/MCP/browser prompt can grant authority; enforce current-user versus workload identity, egress/firewall, tenant scoping and exact approvals. Preserve licensing and model provenance.
+8. **Implementation sequencing:** prefer one small executable vertical slice and its negative/security tests per PR. Independent workers and providers have independent lifecycle, readiness and release gates.
 
-## 1. Canonical stage and dependency gates
+## 1. Architectural responsibility and profiles
 
-| Gate | Required work | Exit requirement |
-|---|---|---|
-| G0 baseline | Licenses, source pin, MAF compile smoke, contracts, strongly typed options | Clean checkout builds/contracts pass, no secrets, basic threat model |
-| G1 core auth/agents | Default lead, interactive context, operational identity, tool/MCP authorization and capability map | Scope/approval negative tests pass |
-| G2 durable API | EF four-provider adapter, transactions/outbox/leases, NATS, HTTP/WS replay | Real SQL Server+Postgres+SQLite durability tests and InMemory dev constraints |
-| G3 privacy | Default host firewall, Python security worker, opt-in detector lifecycle, vault, restore, output gating | Zero deliberate canary leaks across tested boundaries; required coverage blocks if missing |
-| G4 client/UX | Blazor+TS clients, compact MiniComposer, component metadata/renderer | Pinned screenshot regression, a11y, reconnect, cleanup and text-only E2E |
-| G5 extensions | Navigator, Playwright, Qdrant, Infisical, Python workers | Independent capability-specific tests; missing modules don't break core |
-| G6 observability | OTel, metering ledger, budgets, optional admin/Aspire | No double count/PII export, user/workload RBAC and accounting correctness |
-| G7 docs | Astro Starlight static site, API docs, optional docs assistant | Static build succeeds offline; docs assistant uses framework with safe citations |
-| G8 distribution | CI required checks, NuGet/npm/GHCR, signatures/SBOM/docs | Clean consumers install from registries; full release manifest |
-
-## 2. Cross-cutting core and configuration work
-
-- [ ] **CORE-C-001 [SEC]** Existing source inventory, MAF compatibility, pinned dependency versions, third-party licensing and no accidental domain copy.
-- [ ] **CORE-C-002** Canonical OpenAPI/JSON Schema/C#/TS/Pydantic wire DTOs and migration/compatibility rules (IDs, events, errors, capability descriptors).
-- [ ] **CORE-C-003** `AddOpenConnect()` idempotently registers default lead, default-on .NET firewall and typed options without model downloads, Docker or schema mutation.
-- [ ] **CORE-C-004 [SEC]** `agent-runtime.md` and declarative agent config parse/validate; Markdown cannot grant tools, change tenant or disable policy.
-- [ ] **CORE-C-005 [SEC]** Interactive `AgentExecutionContext` derived from actual authenticated user; delegation narrows grants, tool execution reauthorizes, revoke/reconnect cannot revive rights.
-- [ ] **CORE-C-006 [SEC]** Operational agent supervisor uses separate workload identity, scheduled/event activation, misfire, lease/fence, retries, review/RBAC and idempotent durable run ledger.
-- [ ] **CORE-C-007 [SEC]** Tool/MCP registration with typed side effects, scopes, bounded discovery, exact-argument approvals and no arbitrary tool privileges.
-- [ ] **CORE-C-008** MAF lead/subagent actual execution traces; lifecycle events represent real agents/tools, not model-imagined results.
-- [ ] **CORE-C-009** UI component capability maps, descriptions, suggestions, schema-based local rendering and authorization; no model arbitrary script/UI authority.
-- [ ] **CORE-C-010** Provider/model capabilities, fallback, trust zone and worker discovery truthful; missing optional capability unavailable without affecting others.
-- [ ] **CORE-C-011** Independently configurable strongly typed enum/options and wire names across all modules with strict startup validation and no numeric/unknown enums.
-- [ ] **CORE-C-012** Core works in configured text-only environment with every optional module omitted.
-
-## 3. Provider-neutral persistence and event delivery
-
-- [ ] **DATA-C-001** `OpenConnect.Persistence.EFCore` has no transitive SQL Server, SQLite, PostgreSQL or InMemory provider package refs.
-- [ ] **DATA-C-002** `.AddOpenConnectEntityFramework<ApplicationDbContext>(...)` uses developer-registered DbContext and explicit `ApplyOpenConnectModel()` without requiring `DbSet<T>` properties.
-- [ ] **DATA-C-003** Dedicated OpenConnectDbContext supported independently; no inferred connection string or automatically shared transactions.
-- [ ] **DATA-C-004 [SEC]** SQL Server/PostgreSQL schemas, SQLite prefix, per-entity tenant/workload indexes, model mapping version and EF model-cache key verified.
-- [ ] **DATA-C-005 [SEC]** Manual migrations default, no DDL on package/DI registration, shared context never auto-migrated, reviewed migration upgrades leave app business tables and rows untouched.
-- [ ] **DATA-C-006** InMemory explicitly dev-only and rejects durable production/operational lease contracts.
-- [ ] **DATA-C-007** Session/task/turn/agent event/outbox/lease/approval/privacy token store contract tests under 3 real relational providers.
-- [ ] **DATA-C-008 [SEC]** Accepted task+event+outbox atomic transaction and scoped user/workload authorization; external business transaction coordination defined.
-- [ ] **DATA-C-009** Dispatcher fenced claim, broker ACK, idempotent consumer, publish-failure retry, TTL/backoff/quarantine, crash/replay/clock-skew verified per provider.
-- [ ] **DATA-C-010** Separate IAgentEventSubscription receives committed notices; IEventJournal retains known-SessionId replay scope.
-- [ ] **DATA-C-011** Public HTTP task/session/WS protocol, resume cursor and dedup; JWT/cookie origin and scope tests.
-- [ ] **DATA-C-012** DB provider-specific capacity and distributed suitability (SQLite single writer, SQL Server/Postgres scaled) documented and tested.
-
-## 4. Firewall, privacy and optional security detector suite
-
-- [ ] **FW-C-001 [SEC]** Default-on host egress interlock with typed allow/mask/redact/block/review policy; privacy off explicit trust-config only and auth never off.
-- [ ] **FW-C-002 [SEC]** Local Python security worker authenticated, isolated and resource bounded, no vault key/database grant; disconnected required coverage blocks before external egress.
-- [ ] **FW-C-003** Baseline rules/checksums/secrets/known values only; GLiNER, DeBERTa, Qwen3Guard, PaddleOCR, YuNet independently enable/disable/load with manifest and readiness.
-- [ ] **FW-C-004 [SEC]** Missing detector only blocks requests that policy requires; no silent rules-only fallback when semantic PII needed or image/audio unprotected.
-- [ ] **FW-C-005 [SEC]** MIME/text/image/PDF/face/EXIF/audio controls, strict-local original-content checks and unsupported-modality denial.
-- [ ] **FW-C-006 [SEC]** Cryptographic opaque tokens, envelope AES-256-GCM encrypted per-scope mappings, TTL/key rotation, authorized restoration and streaming split-token property tests.
-- [ ] **FW-C-007 [SEC]** Output/tool/retrieval/worker/telemetry/NATS gates and cross-tenant/operational versus interactive isolation with canary tests.
-- [ ] **FW-C-008** Optional persistent protected local KEK plus optional Infisical KMS key wrapping/rotation, no required Infisical service.
-- [ ] **FW-C-009** Detector accuracy/latency/overmask measured on reproducible synthetic and language/domain evaluation datasets; no unsupported quality claim.
-- [ ] **FW-C-010** Optional security worker Docker CPU/GPU profiles, licensed pinned models, no request-time download, readiness/kill/backpressure and signed image publication tests.
-
-## 5. MiniComposer, client SDK and Navigator
-
-- [ ] **UI-C-001** `AddOpenConnectClient()` .NET and `@openconnect/client` TypeScript/Node support same authenticated task HTTP and event WS contracts with no DOM dependency in Node.
-- [ ] **UI-C-002** Blazor `OpenConnectProvider` and `MiniComposer` integrate without duplicate MudBlazor providers or duplicated sessions.
-- [ ] **UI-C-003** Browser `@openconnect/composer` and optional React renderer match Blazor composer; SSR-safe, scoped CSS and no host reflow.
-- [ ] **UI-C-004** Reference faithful: 44–56px FAB bottom-right, compact floating bubble/tail, header handle/settings/stop/close, editor, status, voice/mic footer.
-- [ ] **UI-C-005** Drag keyboard/pointer/touch with clamping, 24px arrows, Home reset, safe areas, mobile visual viewport, zoom, RTL, attached Navigator flow.
-- [ ] **UI-C-006** Enter/Shift+Enter/IME/duplicate prevention, 8000-char input, text streaming/latest bounded response, explicit Stop versus Close, WS replay status.
-- [ ] **UI-C-007** A11y and visual golden screenshots match reference anatomy in light/dark, mobile/desktop, no voice/voice on, error/approval and reduced motion.
-- [ ] **UI-C-008** Real mic and speech states independent; optional TTS/STT absent means normal text/UI/MCP; stale audio fenced.
-- [ ] **UI-C-009** Authorized component renderer, capabilities and suggestions; Navigator does not replace Composer or invent a new event bus.
-- [ ] **NAV-C-001 [SEC]** Optional Navigator semantic UI targets/tours/highlighter, scope-filtered observation, browser bridge, consent, safe actions and bounded plans.
-- [ ] **NAV-C-002 [SEC]** Optional Playwright MCP uses isolated workload/browser, narrow allowlisted safe commands, consent and network/SSRF defenses; unavailable Playwright does not block live text tours.
-- [ ] **NAV-C-003** Operational Navigator uses existing operational supervisor, not another scheduler. No interactive identity impersonation.
-
-## 6. Optional Python speech/model workers and vector/KMS extensions
-
-- [ ] **WRK-C-001** Common Python worker kit: uv locked, Pydantic versioned schemas, auth, health/ready, bounded retries, cancellation, resource metrics and no DB secrets.
-- [ ] **WRK-C-002** Classification, NLLB, inference, transcription, real-time-dialog independently deployable, tested and truthful per model capability/language.
-- [ ] **WRK-C-003** Kokoro independent Python image and named cache, English `af_heart` only if verified, first-start approved pinned download and offline restart.
-- [ ] **WRK-C-004** MMS-TTS independent Python image and named cache, opted-in language/voice manifests, checkpoint-specific license verification and offline restart.
-- [ ] **WRK-C-005** Partial downloads/checksum mismatch/volume loss/duplicate provisioners handled atomically, model weights not baked into release by default.
-- [ ] **WRK-C-006** Live voice distinction: acoustic segment, final STT, accepted turn, model response, synthesized/delivered audio, barge-in/cancellation epoch.
-- [ ] **VEC-C-001** `.AddQdrantVactor()` truly optional; subscribed to committed safe events, authorized projection, approved embedding, idempotent upsert, filtered search, retention/deletion; no EventRecord vector property.
-- [ ] **KMS-C-001** `IKeyEncryptionProvider` default local protected and optional Infisical adapter; no direct arbitrary token-restoration endpoint or required enterprise vault.
-
-## 7. Observability, metering, admin and website
-
-- [ ] **OBS-C-001** OTel ActivitySource/Meter/logging with versioned GenAI semantic convention profile and no duplicate Aspire instrumentation.
-- [ ] **OBS-C-002 [SEC]** Metadata-only default with no prompt, PII, vault mapping, raw audio, secrets or request IDs as metrics labels.
-- [ ] **OBS-C-003** Durable unique attempt ledger with reported/estimated/unknown token and modality units; retries and late usage reconcile without double counting.
-- [ ] **OBS-C-004** Decimal cost, price version/currency, cache/reasoning token math, local compute estimates labeled distinct from external charges.
-- [ ] **OBS-C-005** Hard budget reservation/settlement, alerts and policy for missing/estimated cost; ledger independent of OTLP/tracing sampling.
-- [ ] **OBS-C-006** Tenant-scoped operator Admin API and optional embeddable UI with billing/security/health/agent dashboards and safe exports/RBAC.
-- [ ] **OBS-C-007** Optional standalone Aspire/AppHost/OTLP exporter, collector down fault tolerance and no mandatory external observability account.
-- [ ] **SITE-C-001** Astro Starlight static website with docs navigation/search, versioned MDX and responsive branded accessible UI.
-- [ ] **SITE-C-002** DocFX public .NET API reference and OpenAPI reference generated from verified source, code examples tested.
-- [ ] **SITE-C-003** Optional OpenConnect-powered read-only docs assistant with source citations, version-scoped retrieval, rate limits and no private repo access.
-- [ ] **SITE-C-004** Static docs remain fully usable when docs API, model provider or assistants are offline; no browser API keys.
-
-## 8. CI, NuGet/npm, GHCR and documentation release
-
-- [ ] **REL-C-001** CI protected branch jobs for .NET, TypeScript, Python, EF provider compatibility, NATS/outbox, privacy, client UI, docs/DocFX and security scans.
-- [ ] **REL-C-002** Reproducible dependency locks, source links/XML docs, npm typings/ESM exports, Python locks and model licenses; source provenance ledgers.
-- [ ] **REL-C-003** Tag preflight, maintainer approval, exact Git SHA, immutable pack artifacts, SBOM/checksum manifest and OIDC registry publishing.
-- [ ] **REL-C-004** Clean consumer installs from NuGet, npm and GHCR by version/digest; API/component/worker smoke including optional-absent mode.
-- [ ] **REL-C-005** Worker images non-root, slim, model manifests/license notices, scan+attest and independent lifecycle tests.
-- [ ] **REL-C-006** Publish versioned docs only after tested source API generation; partial registry failures recorded/recovered honestly.
-
-## 9. Evidence registry and exact test ownership
-
-The following work packages and acceptance IDs are inherited from the uploaded specialist documents, **not replaced** by the canonical tasks above. A canonical `*-C-*` item is a cross-cutting gate; the corresponding `IMP-*`/`EF-IMP-*`/`NAV-IMP-*`/`CMP-IMP-*`/`OBS-IMP-*`/`SITE-IMP-*` covers the detailed implementation. A partial or experimental release may defer a module's stable acceptance suite but MUST mark that module unavailable/experimental and preserve all unchecked items in the roadmap.
-
-### 9.1 Specialist implementation identifiers
-
-| Area | Required implementation IDs | Test IDs |
-|---|---|---|
-| Base framework | `IMP-001–099` where assigned in source | `AT-001–042` |
-| EF Core | `EF-IMP-001–016` | `EF-AT-001–030` |
-| Navigator | `NAV-IMP-001–020` | `NAV-AT-001–024` |
-| Composer | `CMP-IMP-001–014` | `CMP-AT-001–024` |
-| Observability | `OBS-IMP-001–012` (canonical below; map to every OBS/REQ source requirement) | `OBS-AT-001–025` (canonical below) |
-| Documentation site | `SITE-IMP-001–010` | `SITE-AT-001–015` |
-| Optional semantic memory | `VEC-IMP-001–005` | `VEC-AT-001–006` |
-| Optional Infisical | `KMS-IMP-001–004` | `KMS-AT-001–005` |
-
-### 9.2 Observability tasks and acceptance gates
-
-- [ ] **OBS-IMP-001 / OBS-AT-001** Native .NET instrumentation, versioned GenAI attrs, zero duplicate instrumentation with optional Aspire.
-- [ ] **OBS-IMP-002 / OBS-AT-002** Privacy-safe metadata-only defaults, tenant audit and canary scan across logs/traces/metrics/exports.
-- [ ] **OBS-IMP-003 / OBS-AT-003** Per-attempt durable ledger write independent of sampled traces and exporter uptime.
-- [ ] **OBS-IMP-004 / OBS-AT-004** Pricing catalog/currency/decimal math, cached/reasoning overlap rules and immutable adjustments.
-- [ ] **OBS-IMP-005 / OBS-AT-005** Streaming/abort/late usage, retries, finalization and reconciliation without duplicate charges.
-- [ ] **OBS-IMP-006 / OBS-AT-006** Cost aggregate/report APIs, provenance completeness and authorized tenant drill-down.
-- [ ] **OBS-IMP-007 / OBS-AT-007** Hard/soft budgets, atomic reservation, limits and alerts.
-- [ ] **OBS-IMP-008 / OBS-AT-008** Firewall per-detector latency/decision/coverage metrics; no raw entity values or false quality claims.
-- [ ] **OBS-IMP-009 / OBS-AT-009** Agent/operational lifecycle traces, workload/user identity distinction and worker telemetry.
-- [ ] **OBS-IMP-010 / OBS-AT-010** Optional OTLP exporters/collector/Aspire standalone or AppHost; outage without firewall/task regression.
-- [ ] **OBS-IMP-011 / OBS-AT-011** Embeddable Admin API/UI, secure security/model budget/audit dashboards and paging/export.
-- [ ] **OBS-IMP-012 / OBS-AT-012** SLO, load/fault/cardinality test matrix, resource-cost estimation and deployment runbooks.
-
-**Further OBS-AT-013–025 (separate tests, all NOT RUN):**
-- [ ] **OBS-AT-013** Provider usage `Unknown` not equated to zero.
-- [ ] **OBS-AT-014** Price-effective interval and multi-currency conversion provenance.
-- [ ] **OBS-AT-015** High-concurrency hard-budget reservation rejects overspend.
-- [ ] **OBS-AT-016** Models with image/audio/video units accounted without inventing values.
-- [ ] **OBS-AT-017** Detector NotInstalled/SkippedByPolicy/TimedOut not conflated with Disabled.
-- [ ] **OBS-AT-018** Shadow detector does not alter live verdict without policy.
-- [ ] **OBS-AT-019** Tested model quality reports require reviewed labeled dataset.
-- [ ] **OBS-AT-020** User and workload audit attribution never discloses bearer tokens.
-- [ ] **OBS-AT-021** Admin RBAC and tenant export isolation deny cross-tenant reads.
-- [ ] **OBS-AT-022** OTLP unavailable for tested duration, ledger/firewall remain safe.
-- [ ] **OBS-AT-023** GenAI semantic convention versions pinned; double emission prevented.
-- [ ] **OBS-AT-024** Retention by ledger/traces/logs/audit independent and secure delete.
-- [ ] **OBS-AT-025** Clean package consumer no mandatory Aspire or OTLP exporter.
-
-### 9.3 Documentation site tasks
-
-- [ ] **SITE-IMP-001 / SITE-AT-001** Inspect actual OpenConnect API/projects and publish implemented/planned feature matrix.
-- [ ] **SITE-IMP-002 / SITE-AT-002** Astro Starlight static build, custom accessible dark/light navigation/search.
-- [ ] **SITE-IMP-003 / SITE-AT-003** Versioned MDX/docs taxonomy, architecture Mermaid and copyable C# examples.
-- [ ] **SITE-IMP-004 / SITE-AT-004** DocFX API metadata generated from actual public assemblies, links to tutorials.
-- [ ] **SITE-IMP-005 / SITE-AT-005** OpenAPI endpoints reference generated, schema compatibility checks.
-- [ ] **SITE-IMP-006 / SITE-AT-006** Optional docs agent uses real OpenConnect public client/host, read-only/versioned docs retrieval and citations.
-- [ ] **SITE-IMP-007 / SITE-AT-007** Restricted anonymous/user sessions, rate limiting/CORS/privacy/security.
-- [ ] **SITE-IMP-008 / SITE-AT-008** OpenConnect MiniComposer dogfood, no separate chat engine or CSS takeover.
-- [ ] **SITE-IMP-009 / SITE-AT-009** Static build and Pagefind search usable if docs API down.
-- [ ] **SITE-IMP-010 / SITE-AT-010** GitHub Actions preview, docs linking/test examples, protected deployment.
-- [ ] **SITE-AT-011** Docs assistant cannot access private repo/operational control/unsafe tools.
-- [ ] **SITE-AT-012** Docs version isolation in retrieval and answers.
-- [ ] **SITE-AT-013** Backend down no broken public static UI.
-- [ ] **SITE-AT-014** No public provider keys or secret canaries in site assets.
-- [ ] **SITE-AT-015** External user can follow verified installation guide with released packages.
-
-### 9.4 Optional vector and Infisical adapters
-
-- [ ] **VEC-IMP-001 / VEC-AT-001** Define scoped committed event subscription separate from `IEventJournal`, with explicit ACK handling.
-- [ ] **VEC-IMP-002 / VEC-AT-002** `.AddQdrantVactor()` opt-in; absent registration makes no Qdrant client/consumer/agent dependency.
-- [ ] **VEC-IMP-003 / VEC-AT-003** Approved `task.completed`/memory candidate summaries projected, sanitized and embedded; no raw prompt/PII/vector in journal.
-- [ ] **VEC-IMP-004 / VEC-AT-004** Deterministic vector IDs, semantic model revision, tenant-filtered retrieval and deleted/revoked point protection.
-- [ ] **VEC-IMP-005 / VEC-AT-005** Qdrant outage/replay/indexing failure independent of agent execution.
-- [ ] **VEC-AT-006** Clean package consumer no Qdrant assembly when disabled.
-- [ ] **KMS-IMP-001 / KMS-AT-001** `IKeyEncryptionProvider` registration, local protected persistent KEK and KMS-neutral vault envelope.
-- [ ] **KMS-IMP-002 / KMS-AT-002** Optional Infisical machine identity+KMS wrapping only DEK, original PII not sent to Infisical.
-- [ ] **KMS-IMP-003 / KMS-AT-003** KEK rotation/unwrap audit, KMS outage fail closed and cache policy.
-- [ ] **KMS-IMP-004 / KMS-AT-004** No required Infisical in clean core/EF package graph; explicit use only.
-- [ ] **KMS-AT-005** Restoration scope/tenant/principal/workload denial remains host-owned regardless KMS choice.
-
-## 10. Release status and evidence ledger
-
-**Status conventions:** `NOT RUN`, `BLOCKED`, `FAIL`, `PASS`—only `PASS` with evidence permits ticking. Supported core implementation can be `Experimental` where acceptance criteria remain unmet, but never silently drop specialist obligations.
-
-| UTC date | Task ID / acceptance ID | Commit/PR | Environment/provider/model | Exact command | Result | Artifact/log/review link |
-|---|---|---|---|---|---|---|
-| — | — | — | — | — | NOT RUN | — |
-
-**Release sign-off:**
-- [ ] No known cross-tenant PII restoration, user/workload context mix-up, unintended model egress or denied tool execution in tested capabilities.
-- [ ] Every advertised stable package or worker has passing tests, validated model licensing, externally verified clean consumer install and versioned docs.
-- [ ] Conditional optional modules do not block core `AddOpenConnect`, basic interactive/MCP or text composer when omitted.
-- [ ] EF provider claims match real provider concurrency tests; EF InMemory dev mode explicitly non-durable.
-- [ ] CI required checks protect release branch/tag; NuGet/npm/GHCR attestations and checksums verified.
-- [ ] Outstanding modules remain visible in unchecked master checklist, release notes and roadmap, not deleted or downgraded silently.
-
----
-
-# Part II — Preserved original engineering checklist and generated acceptance inventories
-
-The uploaded existing `checklist(2).md` is retained below without dropping work. Some old checklist clauses mention PostgreSQL-only as default, which are **superseded** by `requirements.md` §4; update their implementation/test provider matrix to SQL Server/PostgreSQL/SQLite plus InMemory test mode, without skipping crash or idempotency tests.
-
-
----
-
-## Annex 1: Original consolidated project checklist
-
-**Preserved source:** `checklist(2).md` · **SHA-256:** `5640b4551cdf0032d8cc0acfbfbe67e5c756b57947076a22906c794334e8b259` · **Content retained verbatim below.**
-
-# OpenConnect — Engineering Delivery and Release Checklist
-
-**Version:** 1.1-draft | **Date:** 2026-11-06  
-**Status:** All items initially unchecked. Never mark an item completed until evidence is available.  
-**Source of truth:** `spec.md` and `firewall.md` (requirements), `implementation.md` (work packages).
-
-## 0. Rules for automated coding agents
-
-- Execute tasks in dependency order. Each checkbox corresponds to a deliverable with tests, not a narrative update.
-- Change `[ ]` to `[x]` only after its acceptance evidence exists. Record PR/commit, exact test command, result and date in §15 evidence log; use `BLOCKED` in log rather than ticking a failed task.
-- No model-generated success report substitutes for actual test logs. Do not claim live inference/voice or published package without real endpoints/registry evidence.
-- `spec.md` and `firewall.md` control product behavior. `implementation.md` controls task sequencing. This checklist controls verification. If an inconsistency appears, open an ADR/issue and update all four documents before implementing contradictory interfaces.
-- Critical paths: **license/source lock -> contracts -> core/MAF/privacy -> authorization -> persistence/outbox -> NATS/HTTP/WS -> clients/components -> workers -> docs -> release**.
-- All `[SEC]` tasks are stable-release blocking. Missing model/GPU support may be deferred only when the corresponding capability remains experimental/unavailable in published descriptors.
-- Strictly no maction of references (swift-aid/pii-guard ) on any openconnect docs/source code treat them as references
-
-## 1. Project governance and audit — Stage S0
-
-- [ ] **IMP-001** New `openconnect` repository, LICENSE, README, AGENTS.md, CODEOWNERS and CONTRIBUTING.md established.
-- [ ] **IMP-001** .NET solution, central package versions, lockfile, `global.json`, `.editorconfig`, source-link and build warnings-as-errors configured.
-- [ ] **IMP-001** npm and Python uv lockfiles committed and reproducible on clean checkout.
-- [ ] **IMP-002** Swift-Aid `master` commit SHA pinned in `docs/migration/SOURCE-LOCK.md` (not merely `master` URL).
-- [ ] **IMP-002** Full migration ledger covers `src/.../Ellai`, JetStream messaging, persistence, gateway, `workers/src`, `infra/ellai-tts` and relevant tests.
-- [ ] **IMP-002** Every migrated file has source SHA, license, destination, modification summary, test mapping and decision (adapt/rewrite/reject).
-- [ ] **IMP-003 [SEC]** Swift-Aid source license/copyright obligations reviewed; no unlicensed redistribution.
-- [ ] **IMP-003 [SEC]** Python dependency, model weight, ONNX, voice/checkpoint and data license audits completed; notices included.
-- [ ] **IMP-003 [SEC]** All test/sample data synthetic; no Swift-Aid sensitive records, secrets or case domain assertions copied.
-- [ ] **IMP-004** Canonical OpenAPI v1 and event/worker/component/agent/capability schemas created.
-- [ ] **IMP-004** C#, Pydantic and TS validators reject same invalid fixtures and accept valid ones.
-- [ ] **IMP-005 [SEC]** Threat model documents trust boundaries, attacker actions and mitigations.
-- [ ] **IMP-006** Baseline PR CI required by protected branch; any intentional failing test blocks merge.
-
-**Stage S0 evidence:** source SHA = `TBD`; licensing review PR = `TBD`; CI run = `TBD`.
-
-## 2. Core abstractions and initialization — Stage S1
-
-- [ ] **IMP-010** Stable typed identifiers and DTOs, error codes, cancellation and serialization.
-- [ ] **IMP-010** Interfaces for clock, models, agent registry, tool broker, privacy, sessions, journal, outbox and worker router.
-- [ ] **IMP-010** `OpenConnect.Abstractions` compiles without ASP.NET, Blazor, NATS, EF, PostgreSQL or cloud SDK.
-- [ ] **IMP-011** `.AddOpenConnect()` registers default lead agent, privacy firewall enabled and options validation.
-- [ ] **IMP-011** `.AddOpenConnect()` is idempotent; missing model/transport/persistence configuration reports actionable error.
-- [ ] **IMP-011 [SEC]** Explicit `Privacy.Enabled=false` works, emits policy warning, **does not disable authN/authZ/tool authorization**.
-- [ ] **IMP-012** `agent-runtime.md` safe path and instruction loading, hashing, size validation and config resolution.
-- [ ] **IMP-012 [SEC]** Markdown cannot grant tool rights, change tenant, disable privacy or override host policy.
-- [ ] **IMP-013** `openconnect.yaml` validated: agents, delegates, models, capabilities, budgets, worker profiles and policies.
-- [ ] **IMP-013** Cycles, unknown IDs, duplicate IDs, invalid refs, oversized budgets, path escapes rejected at startup.
-- [ ] **IMP-014** Actual supported Microsoft Agent Framework APIs used; pinned dependency smoke compiles.
-- [ ] **IMP-014** Real lead -> subagent execution trace with parent-child IDs and actual model/tool events.
-- [ ] **IMP-015** Runtime capability registry supports missing/healthy/stale, provider feature matrix and privacy location labels.
-- [ ] **IMP-016 [SEC]** Agent-scoped tool discovery intersects agent allowlists, principal, tenant and contextual grants.
-- [ ] **IMP-016 [SEC]** Tool calls reauthorized and schema-validated at execution time, approvals exact-argument scoped.
-- [ ] **IMP-016 [SEC]** Invalid/expired approval and prompt-injected tool escalation denied before tool runs.
-- [ ] **IMP-017 [SEC]** Privacy defaults on; host-owned enforcement integrates dedicated Python `security` worker and fails closed if it is missing or unready.
-- [ ] **IMP-017 [SEC]** Mask mappings encrypted and scoped to tenant+principal+session+turn with TTL/rotation.
-- [ ] **IMP-017 [SEC]** Tool restoration only for authorized field(s), never elevated tool or ACL privileges.
-- [ ] **IMP-017 [SEC]** NATS/logs/telemetry/worker messages exclude canary sensitive payloads.
-- [ ] **IMP-018** Model/provider adapters declare actual chat, tool, streaming and structured output support.
-- [ ] **IMP-018** Unsupported capabilities fail predictably; no implicit privacy-changing fallback.
-- [ ] **IMP-019** Minimal host executes real permitted task through default lead, MAF and privacy boundary.
-
-**Stage S1 gate:** `AT-001`, `AT-002`, `AT-003`, `AT-004`, `AT-008` passed; code review required.
-
-## 2A. Typed options and interactive/operational execution modes — Stage S1/S2/S4 (v1.1)
-
-- [ ] **IMP-090 [SEC]** All closed choices represented by public, documented C# enums; stable wire names (`strict-local`, `interactive`, etc.) across JSON/YAML/C#/Pydantic/TypeScript; unknown/numeric input rejected. **AT-031**.
-- [ ] **IMP-091 [SEC]** `AddOpenConnect` typed defaults verified: lead interactive, privacy enabled, rules detector enabled, all model-backed detectors disabled; no implicit Docker/model boot. **AT-032**.
-- [ ] **IMP-091 [SEC]** Invalid mode/identity, misfire, time zone, required coverage/disabled detector, missing durable backend, unsafe fail-open configuration rejected during startup. **AT-032**.
-- [ ] **IMP-092 [SEC]** Interactive agent inherits actual active principal's bounded authorization snapshot; no raw tokens transmitted to models/NATS/worker; per-tool reauthorization and revoked session tests pass. **AT-033/034**.
-- [ ] **IMP-092 [SEC]** Subagent delegation cannot enlarge effective tool/tenant grants; WS reconnect cannot restore revoked grants. **AT-034**.
-- [ ] **IMP-093 [SEC]** .NET `BackgroundService` supervises operational agents with constrained workload identity and scoped DI, not the current user's `HttpContext`; no user-cookie inheritance. **AT-035**.
-- [ ] **IMP-093** Scheduled/event/continuous activation, invalid cron/time zone, misfire, overlap, pause/resume, retries and cancellation verified with deterministic clock. **AT-036**.
-- [ ] **IMP-094 [SEC]** Operational runs/leases/fences, idempotency, outbox and JetStream crash recovery protect from duplicate committed state/side effects. **AT-037**.
-- [ ] **IMP-095 [SEC]** Operational controls/operator RBAC, authorizations, exact review receipts and redacted status/metrics; denied cross-tenant action never runs. **AT-038**.
-- [ ] **IMP-096 [SEC]** Independently test Rules/GLiNER/DeBERTa/Qwen3Guard/PaddleOCR/YuNet ON/OFF; disabled models never import-initialize, load, download or advertise capabilities. **AT-039**.
-- [ ] **IMP-097 [SEC]** Coverage-aware policy checks required-vs-ready modalities/detectors; unrelated rules-only workload succeeds but protected external free text/image fails closed when coverage missing. **AT-040**.
-- [ ] **IMP-098** Rules-only low-memory CPU Docker with no model weights, targeted model volumes, resource limits/readiness and shutdown tests. **AT-041**.
-- [ ] **IMP-099 [SEC]** Required CI checks include enum/JSON/TS/Pydantic parity, both execution modes, isolation, detector toggle, low-resource Docker, clean-package consumers and docs. **AT-042**.
-
-**Release policy:** Security gates AT-031–040 and AT-042 required for stable advertised features; AT-041 required for marketing the minimal Docker profile. All tasks remain unchecked until real evidence is logged. AT-022/IMP-082 local NER regression applies to **enabled semantic PII detector builds**; strict-local + rules-only mode may operate only where the operator's declared coverage policy permits it, never marketed as semantic protection.
-
-
-## 3. Persistence, NATS and gateway — Stage S2
-
-- [ ] **IMP-020** PostgreSQL migrations for sessions/tasks/turns/events/outbox/leases/approvals/proposals/token vault implemented.
-- [ ] **IMP-020** Migration application tested on new DB and upgraded disposable fixture; schema indexes and uniqueness validated.
-- [ ] **IMP-020 [SEC]** All ownership lookups enforce tenant/principal; no direct worker DB permission.
-- [ ] **IMP-021** Task acceptance, event and outbox committed atomically; retries with same clientTaskId return same task.
-- [ ] **IMP-021** Same idempotency key with different input responds 409; concurrency tests run.
-- [ ] **IMP-022** JetStream subjects `oc.v1.*`, stream provisioning and explicit ACLs documented.
-- [ ] **IMP-022 [SEC]** Worker accounts cannot provision streams, read other worker subjects or subscribe to all task data.
-- [ ] **IMP-022** Publish ACK, bounded envelope, message dedup and broker unavailable behavior tested.
-- [ ] **IMP-023** Outbox resumes after host restart and broker outage, retries without duplicate committed state.
-- [ ] **IMP-024** Worker lease/claim/complete/fail/renew protocol with committed-before-ACK semantics.
-- [ ] **IMP-024** Lost completion, expired lease, worker kill and malformed/oversized envelope tests pass.
-- [ ] **IMP-025** Per-session monotonic sequence and persisted replay implement cursor expiry/resnapshot.
-- [ ] **IMP-026** HTTP routes implemented per generated OpenAPI, typed errors and proper authentication.
-- [ ] **IMP-026 [SEC]** Client-supplied tenant/owner ignored; IDOR, request size limits, rate limits tested.
-- [ ] **IMP-027** WS authenticated subscription, keepalive, bounded queue, resume cursor and cancellation tested.
-- [ ] **IMP-027 [SEC]** WS origin/ticket/session scopes and auth expiration tested; tokens absent from URL logs.
-- [ ] **IMP-028** OpenTelemetry traces and redacted metrics across HTTP/MAF/NATS/worker.
-- [ ] **IMP-029** Ten consecutive conversation turns survive restart and replay without duplicates.
-- [ ] **IMP-029** NATS outage/resume and dispatcher/worker crash recovery integration completed.
-
-**Stage S2 gate:** `AT-005`, `AT-006`, `AT-007`, `AT-016` passed with actual PostgreSQL + NATS.
-
-## 3A. Privacy firewall and dedicated security-worker workstream — Stage S1/S4 security
-
-**Normative spec:** `firewall.md` OC-FW-001–048. All checked items require reproducible evidence (not a green build only). Text firewall stable gates are mandatory for stable P0; image/audio may remain explicitly unavailable until verified.
-
-- [ ] **IMP-080 [SEC]** Security scan/response versioned JSON schemas, threat model, synthetic golden fixtures and research-license/model-provenance audit approved.
-- [ ] **IMP-081 [SEC]** Separate `workers/security` Python 3.12+ uv project: authenticated private scan API, true liveness/readiness and no vault/host authorization privilege.
-- [ ] **IMP-081 [SEC]** Missing/invalid model and worker timeout block strict-mode model egress (no silent rules-only downgrade unless policy explicitly allows a truthful, limited capability).
-- [ ] **IMP-082 [SEC]** Local rules/checksums/secrets/known values + OPTIONAL pinned licensed local NER (required only when semantic PII coverage is advertised); tested unicode offsets, overlap, multilingual and financial blind fixtures.
-- [ ] **IMP-082 [SEC]** Unsupported languages are marked unavailable or risk-classified; no borrowed benchmark results claimed as OpenConnect performance.
-- [ ] **IMP-083 [SEC]** Host validates worker span output, creates unpredictable placeholders and securely stores AES-GCM equivalent encrypted per-scope token mappings with TTL/key rotation.
-- [ ] **IMP-083 [SEC]** Worker cannot decrypt/restore mappings; cross-tenant/principal/session/turn replay, token forgery and collision tests pass.
-- [ ] **IMP-084 [SEC]** Host egress gates cover MAF model calls, subagents, tool arguments/results, retrieval, workers, WS/client component payloads, NATS/logs and telemetry.
-- [ ] **IMP-084 [SEC]** Restoration allowlisted by destination and schema path; streaming split-token/reconnect tests prevent partial or cross-scope leakage.
-- [ ] **IMP-085 [SEC]** Local image/PDF/OCR/face/signature processing only advertised as protected after actual local model/hidden-layer and metadata tests; otherwise strict-mode egress blocked.
-- [ ] **IMP-086 [SEC]** Audio/STT/realtime strict-local boundaries proven; unsupported remote audio rejected rather than transcript-only masking claim.
-- [ ] **IMP-087 [SEC]** `security` Compose profile, GHCR image, locked Python dependencies, nonroot, read-only pinned model volume, local-only network policy, readiness, no external detector calls.
-- [ ] **IMP-088 [SEC]** CI required jobs: `security-worker-unit`, `security-worker-contracts`, `firewall-integration`, `firewall-adversarial`, `firewall-image`, plus scheduled model-backed validation.
-- [ ] **IMP-088 [SEC]** Deliberate missing worker, malicious span, forged token, cross-tenant value and log-canary tests fail closed and block protected PR.
-- [ ] **IMP-089 [SEC]** Security image signed and scanned with SBOM/provenance; digest deployment and fail-closed outage verified with real host.
-- [ ] **IMP-089 [SEC]** Operator documentation covers detector model acquisition, privacy-off warning, key rotation, failure/incident handling and honest unsupported capabilities.
-
-**Security worker stable gates:** AT-008, AT-021–025, AT-028–030, plus full P0 security gates. AT-026/027 required before image/audio marketed as strict-local privacy preserving. Do not tick until measured proof exists.
-
-## 4. Python worker common platform — Stage S4 foundation
-
-- [ ] **IMP-030** All worker runtimes Python 3.12+ using reproducible `uv.lock`, Pydantic schema parity.
-- [ ] **IMP-030** Shared worker library supports scoped authenticated machine ID, NATS pull/ack, HTTP claim/commit, leases, retries, timeouts, cancellation.
-- [ ] **IMP-030 [SEC]** Raw prompt/PII absent from broker payloads; gateway-authorized reference retrieval only.
-- [ ] **IMP-030** Health = process liveness; readiness = actual model loaded + dependencies OK + consumer bound.
-- [ ] **IMP-030** Worker model manifest includes checkpoint, revision, checksum, license and runtime resources.
-- [ ] **IMP-030** `ruff`, `mypy`, `pytest`, contract parity and fault injection pass without model download.
-- [ ] **IMP-037** Per-worker non-root Docker builds, pinned base digests, locked dependencies, graceful shutdown.
-- [ ] **IMP-037 [SEC]** No private weights/secrets in final layers, image history, container logs or SBOM.
-- [ ] **IMP-038** Registered capabilities reflect actual loaded model, languages and health; stale registrations unavailable.
-- [ ] **IMP-039** Compose starts core without optional worker image/model; independent profiles documented. When strict privacy is enabled, external egress fails closed until the separately deployed security worker becomes ready.
-- [ ] **IMP-039** Persistent NATS/Postgres/model volumes, ACL bootstrap and backup policies documented.
-
-## 5. Python worker capability delivery — Stage S4 capabilities
-
-### Classification
-- [ ] **IMP-031** Reviewed source from `workers/src/swiftaid_workers/classification` migrated or rewritten with attribution.
-- [ ] **IMP-031** Generic classification labels/threshold/abstention/language control; no medical/case assumptions.
-- [ ] **IMP-031** Classification worker produces durable, schema-checked result and ACK after host commit.
-- [ ] **IMP-031** Real pinned classification model smoke against synthetic test fixture (record model/version/hardware).
-
-### MMS-TTS
-- [ ] **IMP-032** Reviewed `infra/ellai-tts` Python source migrated/reworked, preserving licensed model settings and synthetic tests.
-- [ ] **IMP-032** Voice ID/language/checkpoint validation, LRU/cache budget and audio sample-rate metadata pass.
-- [ ] **IMP-032** Real model text-to-audio smoke outputs playable audio with correct metadata.
-- [ ] **IMP-032** Worker interruption/timeout limits and concurrency/backpressure tested.
-
-### NLLB
-- [ ] **IMP-033** Separate Python NLLB worker, pinned checkpoint, approved license and documented supported language-pair list.
-- [ ] **IMP-033** Unavailable language pair fails explicitly without substituting a different language.
-- [ ] **IMP-033** Real model translation quality fixture and long-input handling recorded.
-
-### Self-hosted inference
-- [ ] **IMP-034** Python inference worker matches real model serving engine capabilities (chat, tools, stream, embeddings only where supported).
-- [ ] **IMP-034** Local model isolation, explicit model-id routing and optional GPU resource requirements implemented.
-- [ ] **IMP-034** Real inference + cancellation + unsupported tool-call tests pass.
-
-### Voice transcription
-- [ ] **IMP-035** Python transcription worker for recorded files with explicit codec/rate/size/language.
-- [ ] **IMP-035** Partial/final streaming STT exposed **only if model/provider actually supports it**.
-- [ ] **IMP-035 [SEC]** Strict-local speech privacy and remote-audio processing boundaries documented/tested.
-- [ ] **IMP-035** Real model transcript smoke for supported languages; multilingual exclusions documented.
-
-### Realtime voice dialog
-- [ ] **IMP-036** Python worker state machine with VAD/listening/transcribing/reasoning/speaking/interrupt/cancel.
-- [ ] **IMP-036** Speech epoch prevents late audio chunks after barge-in.
-- [ ] **IMP-036** Five real conversational voice turns + one interruption with captured telemetry.
-- [ ] **IMP-036** Network drop, race and reconnect/cancel tests pass.
-
-### Worker release readiness
-- [ ] All workers independently tagged stable/experimental by actual test evidence; registry reports unavailable for missing models.
-- [ ] CI builds worker images independently and runs health/readiness and worker protocol smoke.
-- [ ] Model licenses, artifacts, checksum validation and startup mount instructions published.
-
-## 6. Blazor client and component UX — Stage S3
-
-- [ ] **IMP-040** .NET task client supports create/get/cancel/session/capabilities/events with `CancellationToken`.
-- [ ] **IMP-041** `.AddOpenConnectClient()` accepts configured HTTP(S) task API and WS(S) addresses.
-- [ ] **IMP-041** Secure URLs/auth handlers validated, including refresh/dispose/reconnect behavior.
-- [ ] **IMP-042** `<OpenConnectProvider />` coordinates session, event stream, UI registry and component activation; working layout examples.
-- [ ] **IMP-042** No duplicate Mud providers; tested with Blazor Server and WASM where officially supported.
-- [ ] **IMP-043** `<MiniComposer />` renders bottom-right MudFAB with safe-area responsive placement.
-- [ ] **IMP-043** Expand/collapse/hide, submit, stream, cancel, error, reconnect and suggestion interactions functional.
-- [ ] **IMP-043** Accessibility: keyboard, focus, ARIA, contrast, high zoom and small viewport tests.
-- [ ] **IMP-044** `IOpenConnectComponent` concept implemented as portable metadata contract plus safe Blazor renderer registration.
-- [ ] **IMP-044** Descriptor includes identity/version, description, UI schemas, capability map, suggestions and required authorization.
-- [ ] **IMP-045 [SEC]** Component discovery and proposals filtered by principal/agent/task and validated before render.
-- [ ] **IMP-045 [SEC]** No arbitrary model-produced Razor/JS/HTML; property schema injection tests pass.
-- [ ] **IMP-045 [SEC]** Privileged UI action requires explicit local user consent and server reauthorization.
-- [ ] **IMP-046** Agent execution tree renders **real runtime events**, not a fabricated plan.
-- [ ] **IMP-049** Playwright and component unit tests cover mobile, WS disconnect, auth expiry and malicious proposals.
-
-**Stage S3 gate:** `AT-014`, `AT-015`, `AT-016` passed; no UI security failures.
-
-## 7. TypeScript/npm SDK — Stage S3 parallel
-
-- [ ] **IMP-047** `@openconnect/client` ESM + types package with correct exports and `sideEffects` metadata.
-- [ ] **IMP-047** Generated API and event schemas synchronized with C# and Python golden fixtures.
-- [ ] **IMP-047** Browser `fetch`/`WebSocket`, Node support, AbortSignal, typed errors and reconnect/resume.
-- [ ] **IMP-047** No React dependency in core TS SDK; React package deferred.
-- [ ] **IMP-047** TS lint, strict typecheck, unit tests, browser tests and package bundle inspection pass.
-- [ ] **IMP-048** New Node sample installs tarball and executes task against live disposable gateway.
-- [ ] **IMP-048** New .NET sample installs generated NuGet `.nupkg` without direct project references.
-
-**Stage gate:** `AT-017` passed.
-
-## 8. Website and assistant — Stage S5
-
-- [ ] **IMP-050** Responsive website ships docs, getting-started, installation, workers, privacy, components and API reference.
-- [ ] **IMP-050** Docs versioned by release; site remains accessible if model/assistant unavailable.
-- [ ] **IMP-051** Documentation AI assistant is implemented with `AddOpenConnect()` lead + read-only docs retrieval agent/tools.
-- [ ] **IMP-051 [SEC]** Assistant cannot access arbitrary private repositories, server files, write tools or hidden production secrets.
-- [ ] **IMP-051** Assistant answers with cited source docs and real trace/stream output; no fake tool results.
-- [ ] **IMP-052** Five-minute .NET host quickstart and Blazor MiniComposer quickstart run from clean checkout.
-- [ ] **IMP-052** Self-hosted Python worker Compose recipes require explicit opt-in and model acceptance.
-- [ ] **IMP-053** OpenAPI/JSON schema reference generated and included in docs build.
-- [ ] **IMP-054** Migration provenance and source notices available on website/repo.
-- [ ] **IMP-055** PR site preview protected; docs build/link checker/browser smoke pass before publish.
-
-**Stage gate:** `AT-018` passed with actual published packages where available.
-
-## 9. CI workflow checklist — Stage S6
-
-- [ ] **IMP-060** `.github/workflows/ci.yml` triggers on PR, push to main and manual dispatch.
-- [ ] **IMP-060** Workflow permissions minimum `contents: read`; avoid release secrets in PR jobs.
-- [ ] **IMP-060** .NET job: locked restore, format verify, Release build, warnings as errors, unit tests + TRX.
-- [ ] **IMP-061** Python per-worker matrix includes `security`: `uv sync --locked`, Ruff, mypy, pytest; no mandatory model downloads.
-- [ ] **IMP-060** npm job: Node 24+, `npm ci`, lint/typecheck/unit/build/pack dry run.
-- [ ] **IMP-062** Contract CI: OpenAPI lint, schema fixtures, C#/TS/Python parity, breaking-diff gate.
-- [ ] **IMP-063** Integration CI uses disposable PostgreSQL + NATS and fake Python worker; no production credentials.
-- [ ] **IMP-063** Crash/replay/ACK, tenant-boundary, event ordering and clean package consumers tested.
-- [ ] **IMP-088 [SEC]** Dedicated security-worker CI integration/adversarial/contract/image jobs required on PR, with actual NATS/model/telemetry canary tests.
-- [ ] **IMP-064 [SEC]** CodeQL, dependency/security and secret scans plus defined failure policy.
-- [ ] **IMP-064 [SEC]** Container scan, SBOM and dependency license report archived.
-- [ ] **IMP-065** Website docs build, snippets, links and basic accessibility validated.
-- [ ] **IMP-066** Nightly/method-triggered real model/gpu tests with explicit SKIP/BLOCK reason when unavailable.
-- [ ] **IMP-060** GitHub branch protection requires jobs and code-owner reviews, no bypass by untrusted actor.
-- [ ] **IMP-060 [SEC]** Release workflows and GitHub actions pinned to reviewed immutable SHAs.
-
-## 10. NuGet release checklist — Stage S6
-
-- [ ] **IMP-070** Protected annotated tag and `release` environment approvals configured.
-- [ ] **IMP-070** Release version matches package metadata, schema and changelog; no existing conflicting package version.
-- [ ] **IMP-071** Restore/test/pack all meaningful NuGet projects in Release mode with deterministic metadata.
-- [ ] **IMP-071** `.nupkg` includes license, README, version, repo URL, source-link, XML docs and approved dependencies.
-- [ ] **IMP-071** `.snupkg` generated where supported and contents inspected.
-- [ ] **IMP-071** SHA256 manifest/SBOM/artifact provenance created from exact tag SHA.
-- [ ] **IMP-072** Nuget.org Trusted Publisher policy configured for repository + exact workflow filename + environment.
-- [ ] **IMP-072 [SEC]** `NuGet/login@v1` OIDC exchange used; no long-lived NuGet API key in workflow.
-- [ ] **IMP-072** Only release publisher job has `id-token: write`; short-lived key acquired immediately before push.
-- [ ] **IMP-072** NuGet push includes `.nupkg` and optional symbols; partial publishing failures detected/recorded.
-- [ ] **IMP-075** Clean external .NET consumer installs published release package(s) and compiles/runs.
-- [ ] **IMP-076** Published package hashes/release manifest linked from GitHub Release.
-
-## 11. npm release checklist — Stage S6
-
-- [ ] **IMP-073** `@openconnect/client` name/scope claim and ownership confirmed on npm registry.
-- [ ] **IMP-073** npm Trusted Publisher mapped to exact GitHub workflow/repository/environment.
-- [ ] **IMP-073 [SEC]** Node 24+, npm >=11.5.1, GitHub-hosted runner, `id-token: write`; no long-lived npm auth token.
-- [ ] **IMP-073 [SEC]** Release job disables untrusted shared package-manager caches.
-- [ ] **IMP-071** `npm pack` artifact verified and package exports/types/README/license inspected.
-- [ ] **IMP-073** First prerelease uses npm `next`; stable release uses `latest`; correct SemVer.
-- [ ] **IMP-073** Npm OIDC provenance/attestation verified on package page where supported.
-- [ ] **IMP-075** Clean Node consumer installs exact registry version and verifies SDK call.
-- [ ] **IMP-076** npm tarball SHA and registry URL included in release manifest.
-
-## 12. Docker/GHCR release checklist — Stage S6
-
-- [ ] **IMP-074** Each worker image, including `openconnect-worker-security`, uses locked deps, reviewed base image digest and non-root user.
-- [ ] **IMP-074** Buildx/metadata actions SHA pinned, GHCR publishing `packages:write` only on release job.
-- [ ] **IMP-074** Per-worker image `vX.Y.Z`, Git SHA and immutable digest stored in manifest.
-- [ ] **IMP-074 [SEC]** Image scan, SBOM and provenance/signature policy passes.
-- [ ] **IMP-074 [SEC]** Model weights, credentials and `.env` files absent from published image layers.
-- [ ] **IMP-075** Clean host pulls image by digest, validates liveness/readiness and executes worker protocol smoke.
-- [ ] **IMP-089 [SEC]** Security worker missing/unready blocks strict-mode external inference; model-verified ready worker allows only sanitized output and correct token restoration.
-- [ ] **IMP-075** GPU images published only where tested hardware/model set passes.
-- [ ] **IMP-077** Previous image digest redeploy documented; NATS stream/database rollback is manual/reviewed.
-
-## 13. Cross-channel release integrity
-
-- [ ] **IMP-070** Release cannot start from PR or unprotected ref; tag commit CI green.
-- [ ] **IMP-071** Exact compiled artifacts promoted to NuGet/npm/GHCR (no separate unnoticed rebuild).
-- [ ] **IMP-075** NuGet/npm installation after registry publication verified; GHCR pull by digest verified.
-- [ ] **IMP-076** GitHub Release posted only after successes, otherwise clearly labeled incomplete.
-- [ ] **IMP-077** Recovery documented for NuGet/npm immutable package versions and partial failures.
-- [ ] **IMP-078** Protected release environment and CODEOWNERS review enforced.
-- [ ] **IMP-079** SHA manifest, SBOM, licenses, source attribution and provenance links attached.
-- [ ] **IMP-079 [SEC]** Release artifacts free of secrets, sensitive test data and unlicensed model content.
-
-## 14. Acceptance test matrix (MUST pass before claiming stable v1)
-
-| ID | Requirement | Evidence to record | Status |
+| Concern | Microsoft Agent Framework owns | OpenConnect owns | Non-negotiable test |
 |---|---|---|---|
-| AT-001 | Default lead + privacy on | DI test + live minimal host | NOT RUN |
-| AT-002 | Firewall off retains security | Negative tool and auth tests + config warning | NOT RUN |
-| AT-003 | agent-runtime/config safe | Schema + path and grant escalation tests | NOT RUN |
-| AT-004 | Agent-scoped tools/subagents | Unauthorized invocation counter remains zero | NOT RUN |
-| AT-005 | Idempotent acceptance | Concurrent duplicate client task test | NOT RUN |
-| AT-006 | Durable session restart | 10-turn Postgres restart/resume trace | NOT RUN |
-| AT-007 | NATS crash ACK semantics | Host+worker crash, redelivery/commit audit | NOT RUN |
-| AT-008 | Tenant/privacy nonleakage | Adversarial test report; zero cross-tenant leaks | NOT RUN |
-| AT-009 | Worker capability truthfulness | Missing/stale model registration probe | NOT RUN |
-| AT-010 | Real classifier | Pinned model and durable claim/commit result | NOT RUN |
-| AT-011 | Real MMS-TTS | Checkpoint hash, correct sample rate and audio output | NOT RUN |
-| AT-012 | Real NLLB/inference/STT | Separate real model smoke per stable-labelled worker | NOT RUN |
-| AT-013 | Voice dialogue interruption | Five real turns; one barge-in, no stale audio | NOT RUN |
-| AT-014 | Blazor integration | Provider + MiniComposer external sample screenshot/test | NOT RUN |
-| AT-015 | UI component admission | Negative schema/permission and positive render tests | NOT RUN |
-| AT-016 | WS resume no duplication | Disconnect/reconnect durable event sequence report | NOT RUN |
-| AT-017 | TS interoperability | External Node/browser consumer with same gateway | NOT RUN |
-| AT-018 | Docs assistant dogfooding | Real docs tool/agent trace and source-backed answer | NOT RUN |
-| AT-019 | CI enforcement | PR with deliberate failure blocked; security checks | NOT RUN |
-| AT-020 | NuGet/npm/GHCR delivery | Registry links, package consumers and image digest smoke | NOT RUN |
-| AT-021 | Security worker identity/readiness/fail-closed | Authenticated API and missing-model/missing-worker probe | NOT RUN |
-| AT-022 | Local rules + opt-in NER | Checksum/secret/NER/Unicode/multilingual evaluation | NOT RUN |
-| AT-023 | Vault and scoped restoration | Encryption/TTL/collision/rotation and zero cross-tenant token replay | NOT RUN |
-| AT-024 | Egress no-leak enforcement | Controlled model/tool/worker/NATS/telemetry canary sink report | NOT RUN |
-| AT-025 | Streaming restoration safety | Every split offset, WS reconnect and authorization proof | NOT RUN |
-| AT-026 | Local image/PDF privacy | OCR/exif/hidden text/face and no remote-original egress smoke | NOT RUN |
-| AT-027 | Audio strict-local privacy | Remote audio denied unless approved local protection verified | NOT RUN |
-| AT-028 | Security-worker container hardening | Nonroot/no model layers/ready/egress restriction smoke | NOT RUN |
-| AT-029 | Firewall CI & measured regression | Fuzz and dataset leakage/overmask/latency evidence, PR negative test | NOT RUN |
-| AT-030 | Security worker published image | GHCR digest, signed provenance/SBOM, fresh-host host+worker test | NOT RUN |
+| Direct agent | `AIAgent`, native tool loop, streaming | registration, actor scope, policy, API | real MAF tool/stream |
+| Harness agent | native plan/todos, modes, skills, compaction, `AgentSession` | typed profile and safe capability mapping, persistence integration | plan/todo session restore |
+| Workflow | native executor/graph/handoff/HITL | typed templates, depth2/quotas, contextual authorization | actual native workflow events |
+| Durable workflow | selected MAF Durable Extension or single qualified backend | task/outbox, effect receipts, identity, user delivery | restart with one execution lease owner |
+| Tools and MCP | MAF tools + official MCP transport | tool admission, risk, schema, scoped discovery, approval policy | denied unregistered tool |
+| Conversation state | native agent/provider history, Harness state | tenant-scoped app task/history/journal/retention | no duplicate history owner |
+| Async progress | genuine tool/runtime state | committed ACK/progress/replay UX | tool accepted before actual start |
+| Persistence | MAF-native checkpoint format | EF adapters, business atomicity, outbox | real relational crash/fence |
+| Multimodal | model execution and supported provider interfaces | speech/VAD/worker routing, privacy and client UI | optional absence + privacy |
 
-| AT-031 | Strongly typed enum + wire schema parity | C#/JSON/YAML/Pydantic/TS fixtures; reject numeric/unknown | NOT RUN |
-| AT-032 | Options defaults/validation | DI config/JSON equivalence; invalid mode and policy matrix | NOT RUN |
-| AT-033 | Interactive identity | Active user scoping/expiry with real auth middleware | NOT RUN |
-| AT-034 | Scoped interactive delegation | Revocation, tool escalation and reconnect negative suite | NOT RUN |
-| AT-035 | Operational workload identity | No HttpContext/user-cookie provenance in execution; tool scopes | NOT RUN |
-| AT-036 | Operational scheduling | Fake clock, restart, pause, misfire, overlap, retry, kill | NOT RUN |
-| AT-037 | Operational durable work | DB lease/fence + NATS replay + side-effect idempotence | NOT RUN |
-| AT-038 | Operational control RBAC | Trigger/pause/review approval and tenant isolation | NOT RUN |
-| AT-039 | Detector independent toggles | No initialization/download/capability when OFF; model ready when ON | NOT RUN |
-| AT-040 | Coverage-based decisions | Required coverage vs available matrix; no silent fallback | NOT RUN |
-| AT-041 | Lean Docker profile | Rules-only CPU footprint, no bundled extra model, readiness | NOT RUN |
-| AT-042 | CI + release consumer integrity | Enum, agent modes and detector gates across NuGet/npm/GHCR | NOT RUN |
+**Execution profile** (`Direct`, `Harness`, `Workflow`, `DurableWorkflow`) and **identity mode** (`Interactive`, `Operational`) are orthogonal. Lead depth 0, child depth 1, grandchild depth 2 maximum. Depth policy is enforced at registration **and** every dynamic child creation. No NATS/EF/Docker/Qdrant/Infisical/Aspire required merely to register a permitted Direct agent; real production durability requires a validated backend.
 
+## 2. Dependency gates / release pathways
 
-### Stable release rule
+| Gate | Dependencies | Exit proof |
+|---|---|---|
+| G0 MAF proof | source/SDK licensing and capability audit | compiled Direct/Harness/Workflow/Skills/HITL/Durable lab |
+| G1 composition | G0 | typed defaults, profile/identity rules, depth2 and safe registration |
+| G2 security/tools | G1 | actor scoping, native tool/approval, MCP + skill negative tests |
+| G3 state/data | G1–G2 | native session/checkpoint restore; EF provider transaction/outbox tests |
+| G4 async | G3 | pre-start ACK, progress, cancellation and native MAF continuation |
+| G5 privacy | G2–G3 | local detector coverage, vault and all-boundary canary proofs |
+| G6 client/voice | G4–G5 where relevant | task API, MiniComposer, VAD, navigation, no-worker text fallback |
+| G7 extensions | G2–G6 | independently validated Qdrant, KMS, workers, admin and Aspire |
+| G8 distribution | matching feature gates | net8/9/10 consumers; Docker Hub version/latest; NuGet/npm/docs |
 
-- [ ] All **P0** gates passed; P1/P2 exclusions explicitly described in release notes.
-- [ ] No known unauthorized tool executions, cross-tenant restoration, raw PII in messaging/logs, or unreviewed model license violations.
-- [ ] No unchecked **[SEC]** item relating to included stable functionality.
-- [ ] Stable text privacy gate AT-021, AT-023–025, AT-028–030 and AT-039–040 passed (AT-022 when NER enabled) with genuine local security worker; AT-026/027 either passed or modality is unavailable, with no strict-local claim.
-- [ ] Maintainer signs off release manifest and documented experimental capabilities.
+## 3. Detailed atomic work packages
 
-## 15. Evidence log (append only; format to follow)
+Every checkbox is a separate deliverable. Format: **`OC2-D-{AREA}-{NNN}`** — implementation action; acceptance evidence in the corresponding named test suite. Section headers name the requirement and acceptance families; old IDs are cross-referenced in §5. A checkbox is **not** permission to change architecture or claim production readiness.
 
-**Do not erase failed test evidence.** Use one row per verification attempt; `SKIPPED` is not `PASS`.
+### 3.1 Source governance, design authority, legal and architectural evidence
 
-| Date (UTC) | Task / AT ID | Commit / PR | Command / environment | Result | Link or artifact |
-|---|---|---|---|---|---|
-| — | — | — | — | NOT RUN | — |
+**Requirement ownership:** `OC-MSTR-001–015; OC2-IMP-001–003; IMP-001–006`. **Primary acceptance:** `OC2-AT-001–017`.
+- [ ] **OC2-D-GOV-001** — Create and verify the six canonical docs (requirements/spec/implementation/checklist/agents-requirements/agents-spec); give each a stable version and matching revision note. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-002** — Define document precedence: requirements behavior; spec interfaces and architecture; implementation ordered work; checklist task and evidence status; agents documents specialize without contradicting the four master files. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-003** — Create a single ADR registry covering MAF ownership, harness profile, durable backend, EF transaction ownership, MCP transport, privacy trust zones, event ownership, client protocol and release registries. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-004** — Record each architecture decision with alternatives, rationale, compatibility impact, approving reviewer and superseded IDs. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-005** — Inventory current repository projects and actual public APIs before adding new assemblies; map each proposed package to existing code or a concrete deliverable. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-006** — Pin the actual Microsoft Agent Framework packages and NuGet dependency graph for net8, net9 and net10; record exact supported features, not just concepts from documentation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-007** — Pin a Swift-Aid reference commit SHA and audit copyright/licensing before adapting code; preserve attribution in legal notices where required. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-008** — Build source-to-destination migration ledger for composer, speech/VAD, gateway, NATS, session persistence and classification worker, with each file's disposition. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-009** — Inventory third-party model weights, ONNX/WASM assets, tokenizer packs, speech voices, code license, commercial-use terms and redistribution restrictions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-010** — Publish a full trust-boundary threat model for browser, gateway, agents, MAF providers, MCP, SQL, NATS, workers, vault, memory, and observability. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-011** — Define what counts as a released capability versus experimental, disabled, degraded, blocked or planned; publish it in capability manifests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-012** — Create reproducible baseline solution/CI with global.json, central package versions, lockfiles, .editorconfig and deterministic restore. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-013** — Set CODEOWNERS and mandatory review for security, workflow graph, public protocol, migrations, release pipeline and external source incorporation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-014** — Prohibit secrets, personal data, hardcoded reference-app branding and unlicensed weights in packages, documentation, fixture recordings and container layers. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-015** — Create an append-only verification ledger containing task ID, requirement IDs, test ID, commit, reviewer, environment, exact command, outcome and artifacts. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-GOV-016** — Audit prior reported PASS evidence against actual repo commit/CI; preserve evidence as historically claimed until verified and never automatically promote it to v2 PASS. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
 
-Example (illustration only, NOT evidence):
+### 3.2 MAF native capability audit and executable integration laboratory
 
-```text
-2026-11-XX | IMP-024 / AT-007 | PR #N / <SHA> |
- docker compose up ...; dotnet test --filter JetStreamCrashRecovery |
- PASS (25 tests) | CI run URL + sanitized logs
+**Requirement ownership:** `OC-MSTR-002; AG-REQ-001–030; OC2-IMP-001–002`. **Primary acceptance:** `OC2-AT-001–015`.
+- [ ] **OC2-D-MAF-001** — Create standalone compile/run sample using a real MAF AIAgent and deterministic IChatClient; capture streaming text and structured updates. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-002** — Verify MAF native function-tool invocation, tool result handling and middleware invocation order against pinned assemblies. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-003** — Create a native HarnessAgent using AsHarnessAgent from a real IChatClient and verify documented configuration hooks. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-004** — Run a native Harness plan/execute sequence and inspect actual plan and todo state events without simulated OpenConnect replacements. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-005** — Verify Harness state survives additional turns in one AgentSession and document ownership of plan/todo/history. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-006** — Verify Harness compaction against a constrained context-window fixture and record source/native state changes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-007** — Verify skill source loading, metadata and progressive disclosure under the chosen native MAF skill API; document unsupported targets. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-008** — Verify Harness file-access capability and its sandbox/allowlist boundaries; deny unsafe host filesystem access by default. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-009** — Verify native Harness tool-approval prompt and dont-ask-again behavior; record where OpenConnect policy must override or narrow approvals. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-010** — Verify native Harness background agent/delegation operation and test constrained child scopes against OpenConnect depth-2 ceiling. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-011** — Build a MAF typed functional workflow using real executor bind and WorkflowBuilder edges. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-012** — Build a native sequential agent workflow and verify actual step ordering, inputs and outputs. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-013** — Build a native concurrent workflow and verify typed merge/fan-in, branch cancellation and no shared unsafe mutable state. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-014** — Build native handoff/interactive multi-turn workflow and identify participant session ownership and request-port semantics. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-015** — Verify native human-in-the-loop checkpoint pause/restore and that pending action is not executed while unapproved. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-016** — Run native workflow checkpoint restart smoke and document checkpoint format/version constraints. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-017** — Evaluate Microsoft Agent Framework Durable Extension on a real configured durable store, or mark backend unsupported with compile/test evidence. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-018** — Verify MAF hosting registration, keyed agent services, workflow-as-agent support and its compatibility with OpenConnect hosting. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-019** — Inspect MAF MCP integration, remote A2A agent adapters and AG-UI protocol adapters; classify reuse, extension and incompatibilities. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-020** — Measure which MAF-native metrics/ActivitySources and evaluation hooks are reusable; prevent duplicate instrumentation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-021** — Produce a MAF capability-adoption matrix with exact assembly/API, available TFM, test case, OpenConnect integration point and feature flag. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-MAF-022** — Fail startup or selected profile explicitly when required native MAF capability is unsupported; no fake Harness/Workflow execution. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.3 Strongly typed DI registration, configuration, templates and compiled profiles
+
+**Requirement ownership:** `OC-MSTR-003–004; OC-CFG-*; AG-REQ-009–018; OC2-IMP-003–006`. **Primary acceptance:** `OC2-AT-016–023`.
+- [ ] **OC2-D-CONFIG-001** — Define a single canonical enum/type assembly for execution profile Direct/Harness/Workflow/DurableWorkflow and identity mode Interactive/Operational. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-002** — Enforce profile and identity as orthogonal options; reject invalid lifecycle + authority combinations before first request. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-003** — Define stable kebab-case wire names and reject unknown or numeric enum values in JSON, YAML, C# fixture imports and TS/Pydantic parity checks. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-004** — Implement AddOpenConnect registration that creates native MAF default interactive lead and host privacy policy with no DB, Docker or model side effects. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-005** — Ensure AddOpenConnect is idempotent and conflict-aware; repeated different policy registrations fail with precise diagnostics. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-006** — Implement validated AddOpenConnectLeadAgent, AddOpenConnectAgent and template APIs that reuse the MAF hosting builder where appropriate. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-007** — Implement typed template definitions with stable ID, revision, instructions, capability requirements, model route, tools, budgets and context sharing. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-008** — Support deterministic single-base template inheritance, including policy narrowing and prevention of privilege expansion by derived definitions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-009** — Implement trusted template variable substitution with typed allowlist, escaping and zero secret interpolation in instructions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-010** — Load agent-runtime.md and per-agent files safely with path containment, UTF8/size limits, immutable SHA revision and atomic reload. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-011** — Validate static delegation DAG with depth0 lead, depth1 child and depth2 grandchild; reject depth3, cycles and self recursion. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-012** — Enforce depth and fan-out limits again at runtime even if native Harness/MAF dynamically proposes new background delegates. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-013** — Enforce independent limits for model calls, tool calls, depth, concurrency, tokens, wall-clock time, queue size and cost. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-014** — Make model capability selection explicit (tools, streaming, structured output, vision, locality and fallback). **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-015** — Validate structured outputs before use, including bounded repair/retry and prohibition on invalid output triggering external effects. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-016** — Freeze catalog revision per run and enforce compatibility on resume; hot reload cannot silently add rights or mutate pending approvals. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-017** — Provide developer quickstart for Direct agent with one tool and no database/broker/optional workers. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-018** — Provide developer quickstart for Harness with native plan/todo and AgentSession across multiple turns. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-019** — Provide developer quickstart for typed Workflow with sequential, parallel and HITL nodes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-020** — Provide developer quickstart for DurableWorkflow with verified backend or explicit unsupported feature diagnostic. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CONFIG-021** — Create schema parity tests across fluent API, JSON/YAML, C#/TS/Python and invalid configuration matrices. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.4 Identity modes, contextual authorization and delegation budgets
+
+**Requirement ownership:** `OC-MSTR-005–006; OC-AGT-*; AG-REQ-020–036; OC2-IMP-007`. **Primary acceptance:** `OC2-AT-019–031`.
+- [ ] **OC2-D-AUTH-001** — Resolve interactive actor from authenticated ASP.NET host and trusted tenant resolver; ignore tenant or role fields supplied by browser/LLM. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-002** — Build immutable per-task authorization/policy snapshot bound to user, tenant, session, task, catalog revision and expiry. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-003** — Reauthorize every consequential tool call against current grants, not just the initial task snapshot or capability discovery. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-004** — Cancel or pause newly privileged work when user is disabled, token expires, grants revoke, tenant changes or session is invalidated. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-005** — Ensure an interactive child inherits the intersection of parent, child registration, tenant and tool policy—not the union. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-006** — Reject depth3 and excessive background/harness delegation before any child model or tool begins. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-007** — Enforce per-subagent budgets as a slice of parent budget and ensure delegated spend cannot be counted twice. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-008** — Create explicit operational workload identity provider that does not rely on HttpContext, cookies or prior interactive tokens. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-009** — Permit scheduled/event-triggered operational activation only after dedicated operator authorization and durable registration. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-010** — Enforce workload scopes and tenant restrictions before each operational read/write and remote MCP call. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-011** — Require explicit authorized durable enqueue for interactive-to-operational transitions; do not treat this as recursive delegation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-012** — Require fresh authenticated review/notification for operational-to-interactive transitions; never activate another user's browser. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-013** — Prevent prompts, skill manifests, MCP descriptions and retrieved content from changing actor identity or grants. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-014** — Keep principal raw credentials out of MAF prompts, NATS metadata, checkpoint diagnostics and worker payloads. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-015** — Provide per-tenant and per-application rate limits, quotas, budgets and signed audit metadata across both modes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-AUTH-016** — Write adversarial tests for cross-tenant session IDs, revoked rights on reconnect, forged approval, compromised worker and malicious child contexts. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.5 Native MAF tools, tool discovery, MCP microservices, remote agents and skills
+
+**Requirement ownership:** `OC-MSTR-006; AG-REQ-037–048; OC2-IMP-008; OC2-AT-024–036`. **Primary acceptance:** `OC2-AT-024–036`.
+- [ ] **OC2-D-TOOLS-001** — Implement canonical OpenConnect tool descriptors (ID/version, schemas, impact, residency, scopes, timeout, cancellation, idempotency, progress capability). **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-002** — Adapt typed DI-registered C# service tools to real MAF AITool/AIFunctionFactory without building a second tool invocation loop. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-003** — Register existing MAF tools as first-class OpenConnect-governed tools, preserving native tool behavior. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-004** — Build bounded tool discovery that intersects agent registration, current actor grants, tenant, task, model ability, policy and live service readiness. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-005** — Return discoverable tool descriptions only after policy filtering and redact untrusted descriptions before model context. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-006** — Validate input arguments with explicit JSON schema and canonicalization before approval or execution. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-007** — Validate tool outputs with schema, size caps, MIME and privacy rules before they are returned to the MAF run. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-008** — Define side-effect taxonomy (read, write, external effect) and approval requirements, with conservative unknown-tool default deny. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-009** — Apply exact-argument-digest/nonce/actor/tenant/session/tool-revision approvals through the pinned native MAF HITL mechanism. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-010** — Prove approved tool execution cannot occur before approval receipt; expired/revoked approvals cannot be replayed after restart. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-011** — Implement policy-controlled tool retry classification; never automatically replay non-idempotent effect with uncertain outcome. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-012** — Provide tool cancellation tokens and measured IProgress equivalent with scoped execution context, without leaking credentials. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-013** — Implement MCP client adapter using official MCP .NET SDK and supported Streamable HTTP remote transport. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-014** — Implement MCP server exposure of explicitly selected microservice tools/resources/prompts through approved hosting routes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-015** — Implement MCP gateway aggregation with normalized namespaced IDs and service/version collision rejection. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-016** — Implement MCP service identity (workload/delegated user), origin allowlists, transport security, DNS/redirect/SSRF defenses and token isolation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-017** — Require explicit user-identity delegation strategy where remote service supports it; never forward unrelated bearer tokens. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-018** — Require tool metadata refresh and schema-diff review before newly discovered MCP capabilities become callable. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-019** — Handle MCP progress notifications only as validated non-authoritative progress; map durable job polling/receipts explicitly. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-020** — Implement remote A2A integration only when registered, with trust/identity boundaries and no implicit transitive tool permissions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-021** — Integrate native MAF skill catalogs and verified progressive loading; avoid OpenConnect's own generic skills engine. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-022** — Enforce skill package provenance, path containment, size quotas, policy metadata and tool grants. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-023** — Sandbox any privileged shell/file/network skill execution separately and default it to disabled. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-024** — Test hostile MCP tool names, misleading capability descriptions, URL rebinds, shadowed tools, script injection and output exfiltration. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TOOLS-025** — Provide one real sample exposing orders/inventory microservices with read-only and approval-gated write tools. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.6 Native MAF session/history, scoped context, compaction and memory
+
+**Requirement ownership:** `OC-MSTR-002/008; AG-REQ-067–082; OC2-IMP-010`. **Primary acceptance:** `OC2-AT-002–012; OC2-AT-037–040`.
+- [ ] **OC2-D-SESSION-001** — Document authoritative owner of model history per provider: native MAF session/local history provider or service-managed history, never both. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-002** — Use native AgentSession serialization and restore where supported, preserving provider-specific compatibility metadata. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-003** — Persist and restore native Harness planning, todo lists, approval and background-child state through native MAF codecs. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-004** — Persist workflow checkpoint references with native graph identity/revision and checkpoint-version compatibility. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-005** — Define OpenConnect app conversation/turn event history separately from raw MAF transcript/state and provenance. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-006** — Ensure ten sequential turns across host restart restore the same authorized native session and produce coherent answers. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-007** — Enforce per-session turn serialization/queue-or-conflict policy with optimistic revision and no silent concurrent history mutation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-008** — Define approved context projection types (task summary, relevant history, approved artifacts, memory) with bounded sizes and TTL. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-009** — Restrict child context by identity, tenant, classification, purpose, data zone, model route and delegated token budget. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-010** — Keep parallel branch scratchpads and provider sessions isolated; merge only validated, versioned child result summaries. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-011** — Integrate MAF AIContextProvider / ChatHistoryProvider rather than creating a competing prompt history injector. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-012** — Use native Harness compaction where supported and preserve sources, user commitments, approvals and privacy boundaries. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-013** — Treat retrieved memory, summaries, tools and prior conversations as untrusted data, not new system authority. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-014** — Implement optional scoped durable memory key/value/summary records with consent, provenance, retention and deletion tombstones. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-015** — Implement optional semantic-memory retrieval adapter with query-time authorization and no core Qdrant dependency. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-016** — Implement memory erase/revoke propagation to derived vector projections and caches, with proof of unauthorized retrieval denial. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-017** — Store large/private attachments as encrypted, tenant-scoped object refs instead of unrestricted prompt/NATS payloads. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-SESSION-018** — Test provider history incompatibility, checkpoint version mismatch, branch merge race, retained secrets and cross-session memory leakage. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.7 EF Core provider neutrality, mappings, migration and transaction boundaries
+
+**Requirement ownership:** `OC-EF-001–096; OC-MSTR-008–009; OC2-IMP-011`. **Primary acceptance:** `OC2-AT-037–043`.
+- [ ] **OC2-D-DATA-001** — Implement OpenConnect.Persistence.EFCore with no concrete SQL Server, SQLite, PostgreSQL or EF InMemory provider package references. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-002** — Implement existing ApplicationDbContext adapter registration using application's registered DbContext and provider configuration. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-003** — Implement ApplyOpenConnectModel() explicit entity mappings with internal entities, no user DbSet properties and no unrelated model scans. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-004** — Provide optional OpenConnectDbContext with explicit provider setup, not inferred from connection string. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-005** — Define schema openconnect for PostgreSQL/SQL Server and portable oc_ table prefix for SQLite without pretending named schema exists. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-006** — Define and verify schema/model cache keys when mapping-shaping settings vary by provider/schema/prefix. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-007** — Keep migrations Manual by default and prohibit migration/EnsureCreated/EnsureDeleted during DI registration. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-008** — Generate reviewed shared-context app-owned migration scripts and confirm business tables/rows remain untouched. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-009** — Provide provider-compatible dedicated-context migration assembly/history and safe manual migration workflow. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-010** — Reject unsafe ApplyOnStartup for shared context; dedicated startup migrations require tested cross-replica coordination. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-011** — Map sessions, tasks, turns, sanitized events, outbox, leases, approvals and encrypted token mappings with scoped indexes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-012** — Map operational schedules/runs/leases and selected optional feature tables only when their modules are installed. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-013** — Define native MAF checkpoint blob/reference store with encryption, compatibility metadata and strict scope. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-014** — Implement IOpenConnectPersistenceUnitOfWork for owned/shared/external transaction modes with explicit commit owner. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-015** — Prove application business changes and OpenConnect outbox are atomic only when they share an actual transaction, not merely a connection string. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-016** — Persist accepted task/session mutation/committed event/outbox in a single relational transaction. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-017** — Allocate monotonic per-session sequence with atomic concurrency control and test simultaneous admitted turns. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-018** — Implement idempotency key + scoped content-hash uniqueness; identical retries return same accepted task, divergent payload conflicts. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-019** — Implement short fenced outbox claim, broker-ACK publish, delivery marking and expiry recovery without DB transaction across network. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-020** — Implement provider-specific validated claim/CAS strategy; prohibit universal use of Postgres-only SKIP LOCKED or SQLServer rowversion assumptions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-021** — Test SQL Server multi-host concurrent claims, split-brain fencing and broker failure with real disposable database. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-022** — Test PostgreSQL multi-host concurrent claims, split-brain fencing and broker failure with real disposable database. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-023** — Test SQLite file-based restart/lock contention and bounded retry policy; document supported small-instance scale. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-024** — Test EF InMemory dev-only capability with explicit rejection of production distributed/outbox durability claims. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-025** — Test rollback, outbox crash-after-publish, duplicate consumer receipt, replay recovery and lease takeover after process kill. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-026** — Test tenant/actor isolation for all session, approval, checkpoint, vault and background run records. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-027** — Validate schema readiness without creating tables, and expose exact actionable diagnostics for missing/mismatched mappings. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DATA-028** — Document backup/restore, forward-compatible migration, destructive retention/purge, legal hold and rolling upgrade restrictions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.8 MAF Durable workflows, operational scheduling and side-effect ownership
+
+**Requirement ownership:** `OC-MSTR-005/008; AG-REQ-083–090; OC2-IMP-012`. **Primary acceptance:** `OC2-AT-013–015; OC2-AT-041–050`.
+- [ ] **OC2-D-DURABLE-001** — Define one selected runtime execution backend per run (native MAF Durable Extension or qualified alternative); do not run competing workflow schedulers. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-002** — Build actual MAF Durable Extension lab with relevant storage/hosting and document supported TFMs and checkpoint behavior. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-003** — Implement explicit backend option validation and fail if requested durable backend is unavailable or incompatible. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-004** — Map OpenConnect TaskId/RunId to native workflow instance and checkpoint identity with stable versioned association. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-005** — Keep OpenConnect domain transaction/outbox separate from native workflow state transaction; document cross-store consistency limits. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-006** — Implement operational workload triggers via bounded scheduler integration without reimplementing native workflow graph traversal. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-007** — Define cron/timezone and misfire validation, overlap policy, concurrency caps, budgets and max runtime for operational activation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-008** — Implement durable run acceptance, lease/fencing and stable schedule-occurrence idempotency when the chosen backend requires it. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-009** — Prevent double lease ownership when MAF durable backend provides distributed leases; only one component owns execution lease. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-010** — Persist exact planned external side-effect intent and result receipt with idempotency/reconciliation in OpenConnect domain store. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-011** — Implement prompt/approval pause using native MAF continuation, not a custom execution loop replaying every step. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-012** — Revalidate principal/workload grants and privacy policy before any resumed external effect. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-013** — Implement cancelled/failed/stale run status mapping from real native runtime and committed OpenConnect events. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-014** — Document unknown external-effect reconciliation after crash and prohibit automatic replay of uncertain writes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-015** — Test host restart between workflow checkpoint and external tool acceptance without duplicate native executor or business effects. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-016** — Test work distributed over two host instances with a real lease backend and deterministic run outcome. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-DURABLE-017** — Test MAF package upgrade/checkpoint incompatible restore fails safe with migration/recovery playbook. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.9 Long-running tool acceptance, truthful progress, cancellation and resume
+
+**Requirement ownership:** `AG-REQ-049–066; OC2-IMP-013`. **Primary acceptance:** `OC2-AT-044–053`.
+- [ ] **OC2-D-ACK-001** — Define ToolExecutionMode Inline versus BackgroundDurable and typed expected-duration policy; require explicit long-running declaration for guaranteed pre-start ACK. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-002** — Create durable invocation row with stable invocation ID, attempt, owner, canonical argument hash, tool revision and auth/policy snapshot. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-003** — Persist approval request before queued state for approval-gated tools; never indicate queued/executing while approval pending. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-004** — Commit tool.accepted event, invocation state and outbox atomically before dispatching a declared BackgroundDurable tool. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-005** — Distinguish durable acceptance from actual client display delivery; do not wait for browser render ACK before executing. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-006** — Persist real tool.started only after handler/worker claims task and execution actually begins. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-007** — Expose measured phase, completed units and verified total with monotonic bounds; never synthesize percentages. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-008** — Keep progress events bounded/coalesced and allow independently configured latest snapshot vs transient updates. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-009** — Emit heartbeat only from verified lease/process liveness; prevent heartbeat from implying actual work advanced. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-010** — Emit explicit Finalizing when work reports 100 percent but output validation or durable commit remains pending. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-011** — Validate tool result schema/privacy and commit terminal event before telling native MAF continuation the operation succeeded. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-012** — Resume MAF pending tool request with one logical result across duplicate notifications/restarts; deduplicate by invocation receipt. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-013** — Map cancellation.requested vs confirmed cancelled/completed/outcome_unknown as separate transitions with racing outcome test. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-014** — Do not retry uncertain non-idempotent remote effects without reconciliation; provide operator review/recovery endpoint. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-015** — Implement timeout/watchdog for missing heartbeat, stale lease, cancellation and dead-letter quarantine with safe diagnostics. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-016** — Expose task/get tool status endpoint and replay snapshot, with tenant/actor scope and no raw arguments in browser event. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-017** — Use deterministic localized status keys for MiniComposer, not additional LLM-generated chat turns or unmetered commentary. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-018** — Test a disconnected client before ACK delivery, a second client reconnect and a tool finish under WS outage. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-ACK-019** — Test progress floods/backpressure, re-ordered events, duplicate NATS notices, age-bounded replay and percent=100-before-commit fault. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.10 Default-on privacy firewall, detector coverage, vault and information flow
+
+**Requirement ownership:** `OC-FW-001–064; OC-MSTR-007; OC2-IMP-009`. **Primary acceptance:** `OC2-AT-055–058`.
+- [ ] **OC2-D-PRIVACY-001** — Register .NET host privacy enforcement default-on and separate always-on authentication/authorization regardless privacy enabled state. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-002** — Define policy snapshots with trust zone, data class, actor, session/task, detector coverage requirements, destinations and revisions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-003** — Implement authenticated local security-worker channel with strict size/deadline/resource bounds and no worker DB/vault key access. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-004** — Implement deterministic local PII/secrets/checksum rules and optional custom matchers with stable Unicode-safe offsets. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-005** — Enable GLiNER semantic PII independently with pinned reviewed checkpoint and truthful supported language/entity capabilities. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-006** — Enable DeBERTa injection independently and distinguish probabilistic risk signal from permission authority. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-007** — Enable Qwen3Guard independently with calibrated/tested safety categories and no universal safety claim. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-008** — Enable PaddleOCR independently with original-image and PDF hidden-layer security tests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-009** — Enable YuNet independently with actual image redaction/face detection verification when policy requires it. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-010** — Prove all disabled detector paths avoid downloading, importing model weights, allocating GPU sessions or advertising capabilities. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-011** — Validate detector signals against host-owned input bounds; reject malicious/invalid offsets and forged allow decisions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-012** — Implement required vs achieved coverage matrix per operation/media/destination, with fail-closed or approved review/local-only routes. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-013** — Tokenize with cryptographically random opaque placeholders and encrypted per-tenant/principal/session/turn mappings. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-014** — Implement persistent protected local KEK/DEK envelope AES-GCM vault and optional key wrapping interface without plaintext database columns. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-015** — Implement authorized path-specific restoration for final user output and separately trusted tool argument fields. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-016** — Implement streaming placeholder split buffering with every split-point property tests and no partial secret emission. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-017** — Scan outgoing model/tool response and tool result content independently, including literal sensitive values not just known placeholders. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-018** — Gate images, documents, EXIF, hidden PDF text and audio modality egress; never claim transcript-only redaction protects remote raw audio. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-019** — Prohibit raw prompts, secrets, token maps, sensitive tool args, audio and private checkpoints in NATS and telemetry. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-020** — Run malicious prompt/MCP/skill/memory/child context test fixtures against all policy boundaries and verify no unsafe egress. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-021** — Verify privacy-disabled trusted-host option emits warning but leaves all auth, tenant and tool controls enforced. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-022** — Verify security-worker crash, stale readiness, wrong checkpoint hash, unsupported language and timeout block only policy-required paths. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-PRIVACY-023** — Create independent licensing/benchmark report with FP/FN, leakage/overmask, p50/p95 latency, models/languages/hardware. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.11 NATS JetStream, committed subscriptions, HTTP/WS, AG-UI
+
+**Requirement ownership:** `OC-EVT-*; OC-API-*; OC2-IMP-014`. **Primary acceptance:** `OC2-AT-041–054`.
+- [ ] **OC2-D-EVENTS-001** — Define canonical versioned OpenAPI routes, error ProblemDetails codes and authenticated tenant/actor derivation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-002** — Implement POST sessions/tasks with idempotency and durable 202 semantics only after relational commit. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-003** — Implement GET task/session and bounded per-session replay with monotonic database cursor and replay-window expiry resnapshot. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-004** — Implement authenticated WebSocket subscribe/reconnect, origin verification, bounded backpressure and revocation-aware auth refresh. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-005** — Implement safe event schemas for task/agent/harness plan/todo/workflow/tool/approval/progress/voice and extension payloads. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-006** — Distinguish committed authoritative lifecycle events from non-durable high-frequency streaming deltas. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-007** — Map native MAF events into OpenConnect client projections without fabricated execution trees or fake agent steps. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-008** — Persist sanitized notices in transactional outbox and deliver to NATS only after domain commit. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-009** — Use NATS-Msg-Id and ACK-after-durable-consumer processing; test duplicate publish, consumer crash and broker outage. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-010** — Keep IEventJournal replay scoped to known SessionId; expose distinct approved committed-event subscription abstraction. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-011** — Implement per-consumer role-limited NATS subjects; workers cannot create/delete streams or see unrelated tenants. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-012** — Use authenticated short-lived payload reference fetch for worker-private original content, not NATS body or URL query. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-013** — Implement optional AG-UI endpoint using MAF adapter when installed; preserve independent OpenConnect task API authority. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-014** — Verify AG-UI/tool approval/session/authorization/cancellation parity with OpenConnect HTTP/WS behavior. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-015** — Do not require NATS or AG-UI when only basic Direct agent and in-process execution are configured. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EVENTS-016** — Document safe NATS subject/version migration, retention and loss/rebuild of ephemeral client events. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.12 C# / Blazor / TypeScript / Node client parity and compact composer
+
+**Requirement ownership:** `OC-CLI-*; ACR-*; CMP-*; OC2-IMP-015`. **Primary acceptance:** `OC2-AT-051–054`.
+- [ ] **OC2-D-CLIENT-001** — Implement net8/9/10 IOpenConnectClient with typed authenticated task/session/cancel/capability/subscription APIs. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-002** — Implement browser-and-Node @openconnect/client with typed OpenAPI DTOs, AbortSignal, WebSocket reconnect and SSR-safe import. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-003** — Implement shared client event dedup, cursor replay/resnapshot and auth switch/logout clearing of scoped projections. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-004** — Implement Blazor OpenConnectProvider with correct cascading child content and no duplicate MudBlazor providers. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-005** — Implement default MiniComposer bottom-right 44–56px FAB, no document reflow or unsolicited popups. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-006** — Implement compact 23.5–24rem responsive anchored bubble, subtle tail, drag handle, settings, stop and close. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-007** — Implement pointer/touch/keyboard drag constrained to viewport; arrows 24px and Home reset, mobile keyboard/safe-area zoom handling. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-008** — Implement textarea initial 1 row/max5/8000 chars and Enter/ShiftEnter/IME/double submit safe task admission. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-009** — Implement distinct Stop/Cancel versus Close/Minimize; close must not silently cancel durable run. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-010** — Implement bounded latest user/assistant/partial transcript snippets and real streaming output status. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-011** — Implement concise Harness native plan/todo/Workflow execution status without inventing progress or exposing private reasoning. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-012** — Implement long-running tool ACK/heartbeat display with accessible non-spam coalescing and approval state. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-013** — Implement independent voice output and microphone controls, conditional availability and browser permission only from user gesture. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-014** — Implement responsive light/dark/RTL/high-contrast/reduced-motion/a11y controls and accessible 44px touch hit regions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-015** — Implement optional component metadata (IOpenConnectComponent descriptor), schemas, capability maps and server-side filtering. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-016** — Implement validated component proposal mapping to locally registered renderers only; deny arbitrary HTML/CSS/JS execution. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-017** — Implement framework-neutral browser composer package with stylesheet scope/ShadowRoot strategy and no global host CSS interference. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-018** — Implement optional React wrapper sharing underlying client and state; no duplicate data model or session coordinator. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-019** — Implement attached Navigator composer mode reusing same core editor state and hiding FAB/tail/drag. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-020** — Run bUnit, Blazor Server/WASM, Playwright screenshot/visual parity, Node SSR and React StrictMode disposal tests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-CLIENT-021** — Test network loss, WS reconnection, auth expiry, two users, multiple renders, modal stacking and mobile viewport. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.13 Voice capture, VAD, transcribe and playback coordination
+
+**Requirement ownership:** `WRK-REQ-121–150; OC-VOI-*; OC2-IMP-016`. **Primary acceptance:** `OC2-AT-059–060`.
+- [ ] **OC2-D-VOICE-001** — Define typed client/server/hybrid/disabled VAD modes, threshold options, frame/session state and capability manifests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-002** — Reuse approved Silero ONNX model through optional .NET server VAD adapter, with independently scoped recurrent state per audio stream. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-003** — Verify server Silero frames use actual model-required rate/size (16kHz/512 samples for selected pinned model) and reject invalid PCM. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-004** — Implement bounded PCM16 resampler from client sample rate to selected detector, with explicit source absolute sample positions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-005** — Reset VAD recurrent state on sequence discontinuity, sample-rate change, stream epoch reset or disposed session. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-006** — Provide browser Silero ONNX/WASM local VAD with pinned assets and zero request-time model download; lazy load only after user action. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-007** — Provide WebRTC-class short-frame client barge-in detector with actual speech confirmation threshold and single-shot reset. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-008** — Support optional native Android Silero VAD without duplicate microphone ownership or extra audio enhancement chain. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-009** — Implement client silence gating, pre-roll buffering, segment start/end/heartbeat packets and bounded resource limits. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-010** — Enforce server authority for accepted speech turns, final STT/transcripts and durable task admission regardless client VAD decisions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-011** — Fence speech epochs across microphone capture, STT, model response, TTS, output playback and interruption. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-012** — Test suppression of stale audio on barge-in and retained text transcript availability when TTS absent. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-013** — Maintain privacy-zone policy: local VAD alone does not make remote raw audio privacy preserving. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-VOICE-014** — Test frame gaps, concurrent sessions, silence, synthetic voiced signal, browser permission denial, missing model and clean disposal. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.14 Python worker common platform and each Dockerized Python capability
+
+**Requirement ownership:** `WRK-REQ-001–150; WRK-IMP-*; OC2-IMP-017`. **Primary acceptance:** `OC2-AT-061–064`.
+- [ ] **OC2-D-WORKERS-001** — Build common Python 3.12 uv-locked package with versioned Pydantic schemas and golden C#/TS parity fixtures. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-002** — Provide worker machine authentication, scoped payload fetch, NATS pull/ACK and bounded leases/retries/cancellation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-003** — Separate liveness from model-backed true readiness and report health TTL, model ID/revision/license and installed capabilities. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-004** — Create security Python image with selectable rules, GLiNER, DeBERTa, Qwen3Guard, PaddleOCR and YuNet detectors. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-005** — Create classification Python image with selectable licensed models, language/label taxonomy and abstention semantics. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-006** — Create NLLB Python translation image with pinned model and explicit supported language pairs and license clearance. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-007** — Create self-hosted inference Python image that advertises chat/stream/tool/embedding only when backend actually supports each. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-008** — Create transcription Python image with codec/sample-rate/locale and actual recorded/streaming STT capability declaration. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-009** — Create realtime-voice Python image with VAD/STT/TTS adapters, speech epochs and interruption/cancellation semantics. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-010** — Create independent Kokoro Python image with English af_heart preferred only when approved model/voice installed. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-011** — Create independent MMS-TTS Python image with opt-in permitted language checkpoints and noncommercial licensing guard. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-012** — For every Python image create own Dockerfile, pyproject.toml, uv.lock, tests, manifest, health endpoints and Compose profile. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-013** — Provision only enabled worker model assets at first startup using signed/pinned manifests, checksum and audited license. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-014** — Persist model cache in dedicated named volume with atomic staging/checksum/promotion, lock and offline reuse. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-015** — Never download models during inference/synthesis request or import disabled detector models as side effects. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-016** — Create CPU-only smoke, optional GPU profile, memory/concurrency admission and clean SIGTERM/health behavior for each image. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-017** — Verify each worker independently can be absent without breaking unrelated text agent, MCP and MiniComposer functionality. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-WORKERS-018** — Test broker redelivery and completion ACK only after durable OpenConnect host outcome for each durable worker job. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.15 Navigator semantic UI, Playwright MCP and optional standalone .NET worker hosts
+
+**Requirement ownership:** `NAV-*; R-GOAL/DEP/ID/API/UI/MCP-*; OC2-IMP-017–018`. **Primary acceptance:** `OC2-AT-063–064`.
+- [ ] **OC2-D-BROWSER-001** — Implement optional Navigator semantic targets with stable registered ID/route/action/sensitivity/capability metadata. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-002** — Implement read-only tours, highlighting, focus/scroll/next/back/pause/skip and a11y without Playwright/TTS. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-003** — Implement bounded DOM observation with permission filtering, no secret/input value capture and injection-safe context treatment. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-004** — Implement short-lived authenticated client bridge grants scoped to user/tenant/route/target/revision/action digest. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-005** — Require independent explicit consent for screenshots/capture and separate authorization for UI mutations. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-006** — Require registered target + fresh reauthorization + actual postcondition receipts for any mutating UI operation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-007** — Create Node.js/Chromium Playwright MCP Docker image with per-job isolated browser profiles and explicit tool allowlist. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-008** — Enforce network origin allowlists, SSRF/redirect/DNS rebinding defenses and ban unrestricted JS evaluation by default. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-009** — Ensure Playwright absence does not affect semantic read-only navigation or unrelated MCP services. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-010** — Wire operational Navigator through existing workload identity and selected durable run owner, not another scheduler. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-011** — Provide optional standalone .NET operational-agent worker-host image reusing same native MAF durable backend. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-012** — Provide optional standalone .NET outbox-dispatcher worker-host image, with single consumer ownership and safe embedded alternative. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-013** — Prevent embedded and standalone supervisor/dispatcher from simultaneously owning same lease or publishing twice. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-BROWSER-014** — Test capture redaction on actual image bytes/metadata and deny uncertain sensitive pixels/frames. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.16 Qdrant semantic projections, Infisical key wrapping and extension contracts
+
+**Requirement ownership:** `VEC-*; KMS-*; OC2-IMP-018`. **Primary acceptance:** `OC2-AT-037–040`.
+- [ ] **OC2-D-EXT-001** — Implement independently installable QdrantVactor registration with no Qdrant client/consumer when absent. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-002** — Subscribe to committed safe agent events using approved IAgentEventSubscription, not unbounded journal-wide scan. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-003** — Retrieve sanitized policy-approved projection with tenant/actor authorization before embedding any memory content. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-004** — Generate embedding asynchronously with pinned model revision and idempotent vector IDs; no vectors added to EventRecord. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-005** — Filter Qdrant retrieval by tenant/agent/principal scopes at query time; prevent stale indexing from widening rights. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-006** — Propagate source deletion, retention expiry and consent revocation to Qdrant vector removal/quarantine. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-007** — Prove Qdrant outage or missing embedder leaves direct/harness/workflow tasks independently usable. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-008** — Implement default encrypted local key-wrapping provider with securely persistent rotated master key policy. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-009** — Provide optional Infisical KMS adapter strictly for KEK wrap/unwrap; never export original PII or vault mappings. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-010** — Validate key rotation, unwrap outage, cache TTL, scope binding and inability to restore across tenants. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-EXT-011** — Test extension registration/unregistration has no mandatory DB/worker/transport dependency leak. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.17 Observability, financial metering, evaluation, budgets and operator UX
+
+**Requirement ownership:** `OBS-*; REQ-TEL/MET/FW/AG/ADM/ASP-*; OC2-IMP-019`. **Primary acceptance:** `OC2-AT-065–067`.
+- [ ] **OC2-D-OBS-001** — Use existing MAF instrumentation and add OpenConnect ActivitySources/Meters only for application-specific stages; avoid duplicate spans. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-002** — Implement W3C trace context over approved HTTP/JetStream metadata and agent/harness/tool/workflow lineage. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-003** — Use metadata-only default for all logs/traces/metrics with bounded-cardinality dimensions and synthetic canary tests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-004** — Instrument detector state Disabled/NotInstalled/Executed/Failed/TimedOut and measured firewall queue/latency separately. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-005** — Implement durable model attempt ledger outside OTLP/sampled traces with provider reported/estimated/unknown provenance. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-006** — Record pricing catalog with immutable effective dates, decimal rates, cache/reasoning modality overlap and currency provenance. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-007** — Record retries, streaming cancellation, unknown usage and late provider correction without double billing. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-008** — Implement hard budget reservation/settlement transaction and cost-aware model routing thresholds with safe unknown-cost policy. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-009** — Distinguish local CPU/GPU infrastructure estimates from actual externally billed charges in every admin report. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-010** — Implement native MAF evaluation harness using Microsoft.Extensions.AI.Evaluation where supported; avoid custom evaluator engine. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-011** — Create reproducible labeled eval sets for tool choice, grounding, instruction hierarchy, workflow outcome, privacy and injection. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-012** — Track eval dataset version, model checkpoint, run config, metrics, CI trends and test evidence—not unsupported global accuracy claim. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-013** — Provide authenticated tenant/operator Admin API for workflow cost, reliability, firewall and budgets with strict RBAC. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-014** — Provide optional embeddable admin UI without turning it into another official public OpenConnect application. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-015** — Integrate optional OpenTelemetry OTLP exporter and .NET Aspire dashboard/AppHost without making either mandatory. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-016** — Fault-inject OTLP outage and dashboard disconnection; gateway firewall and durable cost ledger continue independently. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-OBS-017** — Prove alerts, retention, trace links and export/pagination cannot reveal another tenant's data. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.18 Cross-framework .NET 8/9/10 build, EF dependencies and runtime testing
+
+**Requirement ownership:** `CF-REQ-*; OC2-IMP-020`. **Primary acceptance:** `OC2-AT-068–070`.
+- [ ] **OC2-D-TFM-001** — Multi-target all public .NET libraries for net8.0, net9.0 and net10.0 only where pinned dependencies support each target. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-002** — Pin exact centrally managed dependency versions and target-conditional references for EF Core 8/9/10 where required. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-003** — Pin actual MAF/Harness/Durable/MCP/MudBlazor compatibility for each TFM or declare individual feature unavailable before packaging. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-004** — Verify public API parity across TFMs with baseline assembly/API compatibility and no accidental conditional member loss. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-005** — Run net8 targeted test assemblies under installed .NET 8 runtime, not merely compile using .NET 10 SDK. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-006** — Run net9 targeted test assemblies under installed .NET 9 runtime, not merely compile using .NET 10 SDK. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-007** — Run net10 targeted test assemblies under installed .NET 10 runtime, not merely compile using .NET 10 SDK. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-008** — Run EF SQLServer/PostgreSQL/SQLite provider matrix on representative TFM-compatible EF provider majors. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-009** — Run real Blazor server/WASM and OpenConnect.Client smoke tests on each advertised compatible TFM. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-010** — Build standalone .NET worker images on supported runtime (default net10) and verify wire interoperability with net8/9 libraries. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-011** — Document .NET 8/9 vendor end-of-support as compatibility-only and .NET 10 production recommendation. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-012** — Verify single NuGet package per library contains lib/net8.0, lib/net9.0, lib/net10.0 and correct framework-specific dependency groups. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-TFM-013** — Run clean third-party app package consumers on all advertised TFMs with no source project references. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+### 3.19 GitHub Actions, 11-image Docker Hub publication, NuGet/npm and documentation
+
+**Requirement ownership:** `OC-REL-*; WRK-IMP-*; OC2-IMP-020`. **Primary acceptance:** `OC2-AT-063–071`.
+- [ ] **OC2-D-REL-001** — Implement protected branch PR checks for locked dotnet restore/build/test, MAF native integration, format and warning-as-error. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-002** — Implement per-TFM net8/net9/net10 runtime test matrix with net8/9 compatibility only where supported. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-003** — Implement provider-specific SQL Server/Postgres/SQLite integration CI with Testcontainers and NATS crash/replay fault tests. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-004** — Implement Python uv/Ruff/mypy/pytest worker matrix and Dockerfile builds for each of eight Python images. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-005** — Implement Node Playwright worker image build, browser security and CVE scanning. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-006** — Implement two standalone .NET worker-host Docker image builds and in-process/standalone ownership smoke. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-007** — Implement client TypeScript/Node/browser/React and Blazor bUnit/Playwright screenshot/a11y CI jobs. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-008** — Implement C#/TS/Python OpenAPI/JSON Schema golden contract parity and breaking-change release gates. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-009** — Implement MAF native Harness/Workflow/Durable proof tests with pinned dependency snapshot in CI. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-010** — Implement firewall/security/adversarial canary suites for worker, tool, MCP, session memory and UI leakage. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-011** — Implement selected model-backed scheduled/manual tests gated on checkpoint/license approvals and truthful SKIP status. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-012** — Define Docker Hub image matrix: matibevuminkosi/openconnect-worker-security, classification, nllb, inference, transcription, realtime-voice, kokoro, mms-tts, navigator-playwright, operational-agents, outbox. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-013** — Use canonical full image name matibevuminkosi/openconnect-worker-<name>:<version> for all 11, with immutable SHA/digest manifest. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-014** — Implement PR image build/test/scan with no registry push and restricted untrusted workflow permissions. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-015** — Implement protected tag release that builds and pushes exact version tags for each of 11 images only after passing image gates. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-016** — Verify all version images by digest pull/start/health and artifact provenance before promoting :latest tags. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-017** — Document Docker Hub bot token/credential scope, secret handling and protected release environment approvals. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-018** — Publish GHCR only as optional mirror, never silently substitute GHCR for primary Docker Hub registry. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-019** — Implement signed/SBOM/provenance/vulnerability/license reports for NuGet/npm/containers and maintain release manifest. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-020** — Implement nuget.org trusted publishing where account supports it and inspect nupkg/snupkg/XML docs/source links. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-021** — Implement npm @openconnect/client/composer/navigator packages with ESM/type exports, SSR-safe headless modules and optional React bindings. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-022** — Verify registry-installed NuGet/npm artifacts in clean external consumers, not source project references. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-023** — Create Astro Starlight static docs, versioned navigation/search, DocFX .NET API and generated OpenAPI contracts from actual assemblies. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-024** — Implement optional docs-only read-agent through published OpenConnect APIs with grounded citations, authentication and read-only tools. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-025** — Verify docs site/search works when all AI/worker/backend services are offline. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-026** — Define staged release, partial failure, immutable-version recovery, rollback and image digest re-deploy procedures. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+- [ ] **OC2-D-REL-027** — Ensure deployment/manifests and operator docs document optional worker absence, cache persistence, credential rotation and profile-level readiness. **Evidence:** implementation or reviewed design artifact, exact validation command/results, and negative/security tests wherever applicable.
+
+## 4. MAF-aligned end-to-end acceptance suite (71 scenarios)
+
+**All start `NOT RUN` pending independent current-repository test evidence.** These are baseline end-to-end tests; subsystem-specific historical suites remain in §5.
+
+| ID | Expected result | Evidence type | Status |
+|---|---|---|---|
+| OC2-AT-001 | MAF Direct real stream/tool | pinned run | NOT RUN |
+| OC2-AT-002 | MAF Harness native plan/todo | native todo proof | NOT RUN |
+| OC2-AT-003 | Harness mode/todo across turns | session run | NOT RUN |
+| OC2-AT-004 | Native AgentSession serial/deserial across restart | 10-turn restart | NOT RUN |
+| OC2-AT-005 | Harness compaction native | context budget test | NOT RUN |
+| OC2-AT-006 | MAF skill file source sandbox | negative path | NOT RUN |
+| OC2-AT-007 | MAF MCP skill source no script escalation | negative execution | NOT RUN |
+| OC2-AT-008 | MAF typed workflow function+agent | native run | NOT RUN |
+| OC2-AT-009 | MAF sequential correct agent graph | lineage | NOT RUN |
+| OC2-AT-010 | MAF parallel isolated context | stress test | NOT RUN |
+| OC2-AT-011 | MAF native handoff multi-turn | participant sessions | NOT RUN |
+| OC2-AT-012 | MAF HITL approval+pending resume | checkpoint evidence | NOT RUN |
+| OC2-AT-013 | MAF Durable Extension actual host | real storage smoke | NOT RUN |
+| OC2-AT-014 | Unsupported Durable profile fails explicitly | config negative | NOT RUN |
+| OC2-AT-015 | One lease/replay owner per workflow | crash audit | NOT RUN |
+| OC2-AT-016 | Typed config unknown/numeric rejection | schema golden | NOT RUN |
+| OC2-AT-017 | AddOpenConnect DI no implicit DB/Docker | startup probe | NOT RUN |
+| OC2-AT-018 | Template override may narrow only | hot reload proof | NOT RUN |
+| OC2-AT-019 | Delegation 0→1→2 allowed | native lineage | NOT RUN |
+| OC2-AT-020 | Depth3/background agent spawn denied | runtime negative | NOT RUN |
+| OC2-AT-021 | Cycle/reentry rejected | graph tests | NOT RUN |
+| OC2-AT-022 | Bounded fanout/tool/model/token cost | budget tests | NOT RUN |
+| OC2-AT-023 | Interactive host user scope | auth middleware | NOT RUN |
+| OC2-AT-024 | Operational workload identity not HttpContext | run trace | NOT RUN |
+| OC2-AT-025 | Auth revoke mid-run blocks new effect | revocation probe | NOT RUN |
+| OC2-AT-026 | Exact approval args/nonce/version enforcement | tamper test | NOT RUN |
+| OC2-AT-027 | Unauthorized tool denied at execution | tool hook negative | NOT RUN |
+| OC2-AT-028 | MCP service allowlist identity and SSRF | microservice integration | NOT RUN |
+| OC2-AT-029 | MCP client/server actual MAF tool call | end-to-end | NOT RUN |
+| OC2-AT-030 | Opaque remote agent unobservable privacy blocked | egress negative | NOT RUN |
+| OC2-AT-031 | Direct text-only with optional modules missing | minimal host | NOT RUN |
+| OC2-AT-032 | Native local/provider managed history not duplicated | session owner | NOT RUN |
+| OC2-AT-033 | Scoped MAF context memory authorization | tenant consent | NOT RUN |
+| OC2-AT-034 | Qdrant deletion + optional outage | projection replay | NOT RUN |
+| OC2-AT-035 | Accepted task+event+outbox atomic | rollback | NOT RUN |
+| OC2-AT-036 | No EF DDL on registration | migration probe | NOT RUN |
+| OC2-AT-037 | SQL Server real concurrent claims | container integration | NOT RUN |
+| OC2-AT-038 | Postgres real concurrent claims | container integration | NOT RUN |
+| OC2-AT-039 | SQLite file-based retry/busy safety | sqlite integration | NOT RUN |
+| OC2-AT-040 | EF InMemory rejects durable mode | negative test | NOT RUN |
+| OC2-AT-041 | Native checkpoint reference persists | restart and resume | NOT RUN |
+| OC2-AT-042 | Durable tool accepted before start | ordering and crash | NOT RUN |
+| OC2-AT-043 | Approval before durable tool queue | no-effect preapproval | NOT RUN |
+| OC2-AT-044 | Actual started requires actual start | execution trace | NOT RUN |
+| OC2-AT-045 | Measured progress monotonic, no invented ETA | progress source | NOT RUN |
+| OC2-AT-046 | Heartbeat only with liveness proof | stalled worker | NOT RUN |
+| OC2-AT-047 | 100% progress != committed final | fault injection | NOT RUN |
+| OC2-AT-048 | Cancellation requested != cancelled | raced cancellation | NOT RUN |
+| OC2-AT-049 | Unknown remote effect not automatically replayed | external idempotency | NOT RUN |
+| OC2-AT-050 | MAF tool continuation receives one result | resume dedup | NOT RUN |
+| OC2-AT-051 | Auth scoped WS reconnect/progress replay | client tests | NOT RUN |
+| OC2-AT-052 | MiniComposer real Harness plan/Workflow status | UI rendering | NOT RUN |
+| OC2-AT-053 | No fake conversational progress turns | turn counts | NOT RUN |
+| OC2-AT-054 | AG-UI auth/session approval parity | protocol tests | NOT RUN |
+| OC2-AT-055 | Firewall missing required detector blocks egress | network sink | NOT RUN |
+| OC2-AT-056 | Optional detectors off no loading/adverts | worker memory | NOT RUN |
+| OC2-AT-057 | Vault scope AES-GCM/key rotation | canary tests | NOT RUN |
+| OC2-AT-058 | MCP/skill/tool/memory injection denied | threat suite | NOT RUN |
+| OC2-AT-059 | Client/server hybrid VAD state isolation | ONNX and JS | NOT RUN |
+| OC2-AT-060 | Barge-in epochs reject stale audio | voice integration | NOT RUN |
+| OC2-AT-061 | Kokoro pinned model cache offline restart | live model smoke | NOT RUN |
+| OC2-AT-062 | MMS license/model language opt-in | license tests | NOT RUN |
+| OC2-AT-063 | All 11 Docker images PR build no publish | CI image jobs | NOT RUN |
+| OC2-AT-064 | Docker Hub version/latest promotion verified | digest pull | NOT RUN |
+| OC2-AT-065 | Native MAF OTel correlation and no sensitive data | trace canaries | NOT RUN |
+| OC2-AT-066 | Usage ledger not sampled/double counted | metering replay | NOT RUN |
+| OC2-AT-067 | MAF eval reproducible tool/workflow quality | eval report | NOT RUN |
+| OC2-AT-068 | net8 NuGet consumer verified MAF supported behavior | net8 runtime | NOT RUN |
+| OC2-AT-069 | net9 NuGet consumer verified MAF supported behavior | net9 runtime | NOT RUN |
+| OC2-AT-070 | net10 NuGet consumer verified MAF supported behavior | net10 runtime | NOT RUN |
+| OC2-AT-071 | Starlight static/docs assistant real package test | offline docs smoke | NOT RUN |
+
+## 5. Historical acceptance preservation / requirements traceability
+
+The following prior IDs are **preserved as individual verification obligations** rather than silently reduced to 71 tests. Each must be mapped to at least one `OC2-D-*` task and a current execution/evidence artifact before it can be marked complete. Some old test plans mention PostgreSQL-only, GHCR-only or a custom MAF planner: retain the **behavior and negative tests**, but use the new MAF-native execution, provider-neutral EF Core, and primary Docker Hub architectures. A prior test `PASS` is a historic evidence claim only until its commit/log is independently rechecked.
+
+Each `[ ]` below is an **evidence-review requirement**; don't run obsolete commands as-is. For current source details, refer to the named original specification, not guesses generated from an ID.
+
+### 5.1 Core/legacy — 42 individually retained test identifiers
+
+- [ ] **AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-025** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-026** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-027** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-028** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-029** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-030** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-031** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-032** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-033** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-034** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-035** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-036** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-037** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-038** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-039** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-040** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-041** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AT-042** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.2 EF provider — 30 individually retained test identifiers
+
+- [ ] **EF-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-025** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-026** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-027** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-028** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-029** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **EF-AT-030** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.3 Agents — 40 individually retained test identifiers
+
+- [ ] **AG-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-025** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-026** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-027** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-028** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-029** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-030** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-031** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-032** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-033** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-034** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-035** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-036** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-037** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-038** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-039** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **AG-AT-040** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.4 Workers — 57 individually retained test identifiers
+
+- [ ] **WRK-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-025** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-026** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-027** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-028** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-029** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-030** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-031** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-032** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-033** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-034** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-035** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-036** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-037** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-038** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-039** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-040** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-041** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-042** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-043** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-044** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-045** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-046** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-047** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-048** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-049** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-050** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-051** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-052** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-053** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-054** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-055** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-056** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **WRK-AT-057** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.5 Navigator — 24 individually retained test identifiers
+
+- [ ] **NAV-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **NAV-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.6 Composer — 24 individually retained test identifiers
+
+- [ ] **CMP-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CMP-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.7 Cross-framework — 40 individually retained test identifiers
+
+- [ ] **CF-AT-001** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-002** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-003** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-004** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-005** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-006** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-007** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-008** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-009** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-010** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-011** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-012** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-013** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-014** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-015** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-016** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-017** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-018** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-019** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-020** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-021** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-022** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-023** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-024** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-025** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-026** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-027** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-028** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-029** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-030** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-031** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-032** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-033** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-034** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-035** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-036** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-037** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-038** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-039** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+- [ ] **CF-AT-040** — Reconcile the original source acceptance condition with current MAF-first implementation; attach exact proof and current-requirement mapping.
+
+### 5.8 Requirement families that must remain mapped individually
+
+- [ ] `OC-ARC-*`, `OC-CFG-*`, `OC-AGT-*`, `OC-CAP-*`, `OC-PRV-*`, `OC-EVT-*`, `OC-API-*`, `OC-CLI-*`, `OC-REL-*` — original framework requirements; map to GOV/MAF/CONFIG/AUTH/TOOLS/PRIVACY/EVENTS/CLIENT/REL without discarding negative tests.
+- [ ] `OC-EF-001–096` and `EF-IMP-001–016` — preserve individual EF mapping, transaction, migration and provider tests; map to DATA tasks.
+- [ ] `OC-FW-001–064`, `IMP-080–089` — preserve every detector, vault, egress and model-backed release gate; map to PRIVACY tasks.
+- [ ] `AG-REQ-001–116`, `AG-IMP-001–020` — map all agent/harness/ACK/history/delegation requirements to MAF/CONFIG/AUTH/TOOLS/SESSION/DURABLE/ACK.
+- [ ] `WRK-REQ-001–150`, `WRK-IMP-001–031` — map worker, VAD, Docker/CI/license/cache tasks to VOICE/WORKERS/BROWSER/REL.
+- [ ] `ACR-*`, `CMP-IMP-001–014`, `NAV-IMP-001–020` — preserve compact composer and Navigator visual/semantic/consent and security tests.
+- [ ] `OBS-*`, `REQ-TEL-*`, `REQ-MET-*`, `REQ-FW-*`, `REQ-AG-*`, `REQ-ADM-*`, `REQ-ASP-*` — preserve metering and observability detailed criteria.
+- [ ] `CF-*` cross-framework requirements — preserve TFM-specific support evidence and end-of-support documentation.
+- [ ] `SITE-*`, `VEC-*`, `KMS-*` — preserve docs, Qdrant and Infisical extensions and their independent absence tests.
+
+**Mandatory crosswalk format:** `original requirement ID → new OC2-D task ID → spec section → test ID → CI evidence → disposition` (`AdoptedNativeMAF`, `OpenConnectExtension`, `RevisedImplementation`, `DeferredWithGate`, `SupersededImplementationOnly`). `SupersededImplementationOnly` cannot eliminate behavior or tests.
+
+## 6. Required vertical-slice demonstrations
+
+- [ ] **DEMO-01:** Direct agent with one restricted tool, live MAF stream, no NATS/EF/Docker installed; scope, privacy policy and useful errors demonstrated.
+- [ ] **DEMO-02:** Harness with native plan/todos, skill, compact status UI, two turns and native session state restoration.
+- [ ] **DEMO-03:** Lead + two nested agents, depth3 denied at runtime, sequential/parallel MAF workflows and scoped merge.
+- [ ] **DEMO-04:** MCP orders and inventory microservices, filtered tool discovery, real approval-gated write and revoked-authorization denial.
+- [ ] **DEMO-05:** Durable MAF workflow pauses for HITL; DB commit/outbox; process kill; restores and finishes once logically.
+- [ ] **DEMO-06:** Long tool queued before side effect, user-visible ACK/status, measured progress, offline reconnect and cancel-outcome race.
+- [ ] **DEMO-07:** Rules-only firewall under declared allowed coverage; required semantic PII unavailable blocks external egress; encrypted restorer isolated.
+- [ ] **DEMO-08:** Shared ApplicationDbContext on SQL Server, PostgreSQL, SQLite; migrations manual; business+outbox atomic when same transaction.
+- [ ] **DEMO-09:** No optional worker; client/server VAD modes when opted in; permitted text and MCP still succeed.
+- [ ] **DEMO-10:** Independent images under Docker Hub matibevuminkosi namespace; 11 version tags verified before latest; Kokoro cached offline and MMS license gating.
+- [ ] **DEMO-11:** MiniComposer/TS/browser/Blazor/Node client tasks, authentic workflow progress, clean reconnect, no invented status.
+- [ ] **DEMO-12:** net8, net9 and net10 external NuGet consuming apps and .NET10 standalone worker host wire interoperability.
+- [ ] **DEMO-13:** OTel outage does not interrupt firewall; durable usage ledger cost+budget correctness and MAF eval evidence.
+- [ ] **DEMO-14:** Starlight/DocFX static docs offline and optional read-only docs assistant through published framework.
+
+## 7. Detailed task evidence and PR execution template
+
+For every `OC2-D-*` checkbox, copy and complete this record; a blank or `NOT RUN` record cannot justify `[x]`:
+
+```yaml
+task_id: OC2-D-AREA-001
+legacy_ids: []
+canonical_requirement_ids: []
+maf_ownership: OpenConnectExtension # or NativeMAFIntegration / Composite
+source_paths_changed: []
+api_package_versions: {}
+target_frameworks: [net8.0, net9.0, net10.0] # narrow only if explicit supported-scope decision
+test_ids: []
+commands_and_results: []
+negative_security_tests: []
+ci_run_and_artifact_urls: []
+commit: null
+reviewer: null
+status: NOT_RUN
+blocking_decisions: []
+known_limitations: []
 ```
 
-## 16. Deferrals, blockers and change control
+## 8. Evidence ledger (append-only)
 
-For each blocker log `{ID, owner, observed problem, prerequisite, effect on stable release, workaround, reassessment date}`. A feature can move to experimental only when absent from production default capability map, omitted from stable promises, tested in isolation, and accepted by maintainer. Do not silently omit critical platform security, durable task, client or release verification.
+| UTC date | Task ID | Requirement IDs | Test IDs | Commit / PR | MAF/EF/TFM/provider | Exact command | Result | Artifact/reviewer |
+|---|---|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — | NOT RUN | — |
 
-## 17. References
+## 9. Release readiness gates (all unchecked)
 
-- `spec.md` — normative technical requirements and acceptance definitions.
-- `firewall.md` — security-worker architecture, detection, vault, modality boundaries, test requirements and release gates.
-- `implementation.md` — exact staged implementation work packages and release DAG.
-- https://github.com/Vuminkosi/Swift-Aid — code extraction source.
-- https://github.com/Vuminkosi/Swift-Aid/tree/master/workers — Python classification source.
-- https://github.com/Vuminkosi/Swift-Aid/tree/master/infra/ellai-tts — Python MMS-TTS source.
-- https://learn.microsoft.com/en-us/agent-framework/overview/
-- https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing
-- https://docs.npmjs.com/trusted-publishers/
-
-
-
-
----
-
-# Part III — Automatically enumerated source requirement and acceptance coverage ledger
-
-Each identifier here was found in an uploaded document and is retained by verbatim source annex. The checkbox is a **verification checkpoint**, not evidence that a requirement has been implemented. Some source documents use identifiers for ranges, not explicit per-number definitions; a range is preserved as a range and must be decomposed by the implementing agent where applicable. Canonical conflict precedence applies.
-
-
-## Source requirement index: Foundation framework (`spec(2).md`, 68 explicit identifiers)
-
-- [ ] **OC-AGT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-API-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-API-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-ARC-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CAP-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CLI-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-DOC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-DOC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EVT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-OBS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-OBS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-PRV-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-REL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-REL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-REL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-REL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-REL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: EF Core (`entityframework-requirements(1).md`, 96 explicit identifiers)
-
-- [ ] **OC-EF-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-026** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-027** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-029** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-030** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-031** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-032** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-033** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-034** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-035** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-036** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-037** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-038** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-039** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-040** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-041** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-042** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-043** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-044** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-045** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-046** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-047** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-048** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-050** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-051** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-052** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-053** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-054** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-055** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-056** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-057** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-058** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-059** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-060** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-061** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-062** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-063** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-064** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-065** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-066** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-067** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-068** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-069** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-070** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-071** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-072** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-073** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-074** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-075** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-076** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-077** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-078** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-079** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-080** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-081** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-082** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-083** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-084** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-085** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-086** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-087** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-088** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-089** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-090** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-091** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-092** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-093** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-094** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-095** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-EF-096** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: Firewall (`firewall(1).md`, 56 explicit identifiers)
-
-- [ ] **OC-FW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-026** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-027** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-029** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-030** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-031** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-032** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-033** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-034** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-035** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-036** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-037** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-038** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-039** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-040** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-041** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-042** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-043** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-044** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-045** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-046** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-047** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-048** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-050** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-051** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-052** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-053** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-054** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-055** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-064** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: Composer (`composer-requirements(1).md`, 61 explicit identifiers)
-
-- [ ] **ACR-AUD-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-AUD-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-LIFE-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-LIFE-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-LIFE-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-LIFE-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-LIFE-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-OPS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-SDK-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-TXT-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-UX-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **ACR-VIS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: Navigator (`navigator-requirements(3).md`, 84 explicit identifiers)
-
-- [ ] **R-API-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-API-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-DEP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-DEP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-DEP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-DEP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-DEP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-GOAL-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-ID-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-INT-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-MCP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-MCP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-MCP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-MCP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-MCP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-OPS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-REL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-TTS-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **R-UI-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: Observability (`observability-requirements(1).md`, 128 explicit identifiers)
-
-- [ ] **NFR-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **NFR-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-017** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-018** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-019** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-021** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-022** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-023** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-024** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OBS-025** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ADM-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-AG-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-ASP-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-CFG-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-FW-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-GW-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-011** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-012** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-013** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-014** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-015** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MET-016** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MM-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MM-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MM-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MM-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-MM-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-SEC-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-001** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-002** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-003** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-004** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-005** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-006** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-007** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-008** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-009** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **REQ-TEL-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-## Source requirement index: Configuration (`configuration.md`, 4 explicit identifiers)
-
-- [ ] **OC-AGT-020** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-AGT-028** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-CFG-010** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-- [ ] **OC-FW-049** — Verify corresponding source requirement in preserved annex; attach implementation/test evidence.
-
-**Generated explicit requirement checkpoints:** 497 (may include references to identifiers defined in another document).
-
-## Complete specialized acceptance status register
-
-
-### Core framework — 42 tests, all NOT RUN until evidenced
-
-- [ ] **AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-025** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-026** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-027** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-028** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-031** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-032** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-033** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-034** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-035** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-036** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-037** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-038** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-039** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-040** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-041** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **AT-042** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-
-### EF Core — 30 tests, all NOT RUN until evidenced
-
-- [ ] **EF-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-025** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-026** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-027** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-028** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **EF-AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-
-### Navigator — 24 tests, all NOT RUN until evidenced
-
-- [ ] **NAV-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-
-### Composer — 24 tests, all NOT RUN until evidenced
-
-- [ ] **CMP-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **CMP-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-
-**Additional extension gates:** OBS-AT-001–025, SITE-AT-001–015, VEC-AT-001–006 and KMS-AT-001–005 are already specified in the canonical checklist above and remain NOT RUN.
+- [ ] Every advertised MAF native Direct/Harness/Workflow/Durable profile has a compiled and executed pinned-version test, with no duplicate agent loop/planner/replay.
+- [ ] Native MAF/Harness state ownership and approved checkpoint codecs survive documented restart/upgrade scenarios; revoked approvals cannot resume.
+- [ ] Depth2, fan-out, user/workload identity, MCP/skills, tool authorization and exact HITL approvals pass cross-tenant adversarial tests.
+- [ ] Declared long tools durably ACK before start and send genuine progress/heartbeats, final receipt and bounded replay.
+- [ ] SQL Server/PostgreSQL/SQLite real transactions, migrations, claims/leases and broker-crash recovery pass the advertised production profile; InMemory is dev only.
+- [ ] Firewall, encrypted vault, restoration, detector opt-in, media trust zones and sensitive canary-negative tests pass for every advertised protected modality.
+- [ ] Native and optional model workers do not download or activate when disabled; all shipping models licensed/manifest verified; no hidden Docker/NATS/Qdrant dependencies.
+- [ ] Compact composer visual/keyboard/auth/reconnect, browser/Node SDK and optional AG-UI pass real user-identity and clean package-consumer tests.
+- [ ] Client/server VAD and speech barge-in/epoch tests pass where installed; text-only path remains fully usable.
+- [ ] Actual net8/net9/net10 target assemblies are compatible with pinned MAF and EF combinations; vendor end-of-support policy is documented.
+- [ ] All 11 Docker Hub images built, scanned, signed/attested and verified by digest/version before any latest promotion; GHCR only optional mirror.
+- [ ] Durable provider cost ledger, budgets, native MAF evaluations and OTLP privacy/failure isolation pass.
+- [ ] Starlight static site, generated reference docs, optional docs assistant and external NuGet/npm install smoke pass.
+- [ ] Single evidence registry marks each claim PASS only with commit+command+artifact; any BLOCKED/experimental feature is accurately absent from stable capability manifest.

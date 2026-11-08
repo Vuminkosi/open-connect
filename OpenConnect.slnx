@@ -1,9 +1,41 @@
 <Solution>
-  <Folder Name="src" />
-  <Folder Name="packages" />
-  <Folder Name="workers" />
-  <Folder Name="contracts" />
-  <Folder Name="tests" />
-  <Folder Name="examples" />
-  <Folder Name="infra" />
+  <Folder Name="/src/">
+    <Project Path="src/OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+    <Project Path="src/OpenConnect.Agents/OpenConnect.Agents.csproj" />
+    <Project Path="src/OpenConnect.Client/OpenConnect.Client.csproj" />
+    <Project Path="src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
+    <Project Path="src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
+    <Project Path="src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <Project Path="src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
+    <Project Path="src/OpenConnect.Metering/OpenConnect.Metering.csproj" />
+    <Project Path="src/OpenConnect.Observability/OpenConnect.Observability.csproj" />
+    <Project Path="src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
+    <Project Path="src/OpenConnect.Persistence.Postgres/OpenConnect.Persistence.Postgres.csproj" />
+    <Project Path="src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
+    <Project Path="src/OpenConnect.QdrantVactor/OpenConnect.QdrantVactor.csproj" />
+    <Project Path="src/OpenConnect.Tools/OpenConnect.Tools.csproj" />
+    <Project Path="src/OpenConnect.Transport.Nats/OpenConnect.Transport.Nats.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Contracts/OpenConnect.Contracts.Tests/OpenConnect.Contracts.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Abstractions.Tests/OpenConnect.Abstractions.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Blazor.Tests/OpenConnect.Blazor.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Client.Tests/OpenConnect.Client.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Hosting.Tests/OpenConnect.Hosting.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Metering.Tests/OpenConnect.Metering.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Observability.Tests/OpenConnect.Observability.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Persistence.Tests/OpenConnect.Persistence.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Privacy.Tests/OpenConnect.Privacy.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.QdrantVactor.Tests/OpenConnect.QdrantVactor.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Tools.Tests/OpenConnect.Tools.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj" />
+  </Folder>
+  <Folder Name="/packages/" />
+  <Folder Name="/workers/" />
+  <Folder Name="/contracts/" />
+  <Folder Name="/examples/" />
+  <Folder Name="/infra/" />
 </Solution>

@@ -1,0 +1,102 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/target.json",
+    "title":  "Navigator target",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "schemaVersion",
+                     "targetId",
+                     "componentId",
+                     "componentVersion",
+                     "label",
+                     "description",
+                     "routeId",
+                     "allowedActions",
+                     "requiredCapabilities",
+                     "sensitivity"
+                 ],
+    "properties":  {
+                       "schemaVersion":  {
+                                             "const":  "openconnect.navigator.target/v1"
+                                         },
+                       "targetId":  {
+                                        "minLength":  1,
+                                        "type":  "string"
+                                    },
+                       "componentId":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "componentVersion":  {
+                                                "type":  "integer",
+                                                "minimum":  1
+                                            },
+                       "label":  {
+                                     "minLength":  1,
+                                     "type":  "string"
+                                 },
+                       "description":  {
+                                           "type":  "string"
+                                       },
+                       "routeId":  {
+                                       "minLength":  1,
+                                       "type":  "string"
+                                   },
+                       "allowedActions":  {
+                                              "uniqueItems":  true,
+                                              "items":  {
+                                                            "type":  "string",
+                                                            "enum":  [
+                                                                         "observe",
+                                                                         "explain",
+                                                                         "highlight",
+                                                                         "focus",
+                                                                         "scroll",
+                                                                         "navigate",
+                                                                         "click",
+                                                                         "fill",
+                                                                         "select",
+                                                                         "toggle",
+                                                                         "invoke-registered-action",
+                                                                         "capture",
+                                                                         "speak"
+                                                                     ]
+                                                        },
+                                              "type":  "array"
+                                          },
+                       "requiredCapabilities":  {
+                                                    "uniqueItems":  true,
+                                                    "items":  {
+                                                                  "minLength":  1,
+                                                                  "type":  "string"
+                                                              },
+                                                    "type":  "array"
+                                                },
+                       "sensitivity":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "suggestions":  {
+                                           "items":  {
+                                                         "additionalProperties":  false,
+                                                         "properties":  {
+                                                                            "id":  {
+                                                                                       "minLength":  1,
+                                                                                       "type":  "string"
+                                                                                   },
+                                                                            "text":  {
+                                                                                         "minLength":  1,
+                                                                                         "type":  "string"
+                                                                                     }
+                                                                        },
+                                                         "type":  "object",
+                                                         "required":  [
+                                                                          "id",
+                                                                          "text"
+                                                                      ]
+                                                     },
+                                           "type":  "array"
+                                       }
+                   }
+}

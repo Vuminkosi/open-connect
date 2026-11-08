@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/OpenConnect.Navigator.AspNetCore/OpenConnect.Navigator.AspNetCore.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Transport.Nats/OpenConnect.Transport.Nats.csproj" />
+  </ItemGroup>
+</Project>

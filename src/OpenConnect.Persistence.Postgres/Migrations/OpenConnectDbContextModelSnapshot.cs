@@ -29,6 +29,18 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CommandDigest")
+                        .HasColumnType("text")
+                        .HasColumnName("command_digest");
+
+                    b.Property<string>("CommandId")
+                        .HasColumnType("text")
+                        .HasColumnName("command_id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -40,6 +52,10 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                     b.Property<string>("Decision")
                         .HasColumnType("text")
                         .HasColumnName("decision");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
 
                     b.Property<Guid>("PrincipalId")
                         .HasColumnType("uuid")
@@ -60,7 +76,13 @@ namespace OpenConnect.Persistence.Postgres.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PrincipalId", "TaskId");
+                    b.HasIndex("TenantId", "PrincipalId", "State", "ExpiresAt")
+                        .HasDatabaseName("idx_approvals_pending")
+                        .HasFilter("state = 'pending'");
+
+                    b.HasIndex("TenantId", "PrincipalId", "TaskId", "CommandId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_approval_command");
 
                     b.ToTable("oc_approvals", (string)null);
                 });
@@ -90,6 +112,10 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("payload");
 
+                    b.Property<Guid>("PrincipalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("principal_id");
+
                     b.Property<long>("Sequence")
                         .HasColumnType("bigint")
                         .HasColumnName("sequence");
@@ -98,9 +124,13 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("SessionId", "Sequence")
+                    b.HasIndex("TenantId", "PrincipalId", "SessionId", "Sequence")
                         .IsUnique()
                         .HasDatabaseName("uq_event_sequence");
 
@@ -109,6 +139,10 @@ namespace OpenConnect.Persistence.Postgres.Migrations
 
             modelBuilder.Entity("OpenConnect.Persistence.Postgres.Entities.LeaseEntity", b =>
                 {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<string>("Name")
                         .HasColumnType("text")
                         .HasColumnName("name");
@@ -127,7 +161,7 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("version");
 
-                    b.HasKey("Name");
+                    b.HasKey("TenantId", "Name");
 
                     b.ToTable("oc_leases", (string)null);
                 });
@@ -324,6 +358,14 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("principal_id");
 
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("receipt_payload");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("receipt_status");
+
                     b.Property<string>("ResultRef")
                         .HasColumnType("text")
                         .HasColumnName("result_ref");
@@ -426,6 +468,16 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                         .HasForeignKey("TenantId", "PrincipalId", "TaskId")
                         .HasPrincipalKey("TenantId", "PrincipalId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.Postgres.Entities.EventEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.Postgres.Entities.SessionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "PrincipalId", "SessionId")
+                        .HasPrincipalKey("TenantId", "OwnerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

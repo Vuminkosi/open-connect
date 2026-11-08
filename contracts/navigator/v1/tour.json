@@ -1,0 +1,98 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/tour.json",
+    "title":  "Navigator tour",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "tourId",
+                     "version",
+                     "steps",
+                     "routeId"
+                 ],
+    "properties":  {
+                       "tourId":  {
+                                      "minLength":  1,
+                                      "type":  "string"
+                                  },
+                       "version":  {
+                                       "type":  "integer",
+                                       "minimum":  1
+                                   },
+                       "routeId":  {
+                                       "minLength":  1,
+                                       "type":  "string"
+                                   },
+                       "isDynamic":  {
+                                         "type":  "boolean"
+                                     },
+                       "steps":  {
+                                     "minItems":  1,
+                                      "items":  {
+                                                    "additionalProperties":  false,
+                                                   "properties":  {
+                                                                      "action":  {
+                                                                                     "type":  "string",
+                                                                                     "enum":  [
+                                                                                                  "observe",
+                                                                                                  "explain",
+                                                                                                  "highlight",
+                                                                                                  "focus",
+                                                                                                  "scroll",
+                                                                                                  "navigate",
+                                                                                                  "click",
+                                                                                                  "fill",
+                                                                                                  "select",
+                                                                                                  "toggle",
+                                                                                                  "invoke-registered-action",
+                                                                                                  "capture",
+                                                                                                  "speak"
+                                                                                              ]
+                                                                                 },
+                                                                      "targetId":  {
+                                                                                       "minLength":  1,
+                                                                                       "type":  "string"
+                                                                                   },
+                                                                      "timeout":  {
+                                                                                      "format":  "duration",
+                                                                                      "pattern":  "^PT(?:(?:[0-9]+(?:\\.[0-9]+)?)H)?(?:(?:[0-9]+(?:\\.[0-9]+)?)M)?(?:(?:[0-9]+(?:\\.[0-9]+)?)S)?$",
+                                                                                      "type":  "string"
+                                                                                  },
+                                                                      "type":  {
+                                                                                   "type":  "string",
+                                                                                   "enum":  [
+                                                                                                "explain",
+                                                                                                "navigate",
+                                                                                                "locate",
+                                                                                                "highlight",
+                                                                                                "focus",
+                                                                                                "wait-for",
+                                                                                                "request-approval",
+                                                                                                "execute",
+                                                                                                "narrate",
+                                                                                                "capture",
+                                                                                                "complete"
+                                                                                            ]
+                                                                               },
+                                                                      "text":  {
+                                                                                   "type":  "string"
+                                                                               }
+                                                                  },
+                                                   "type":  "object",
+                                                    "required":  ["type"],
+                                                    "allOf": [
+                                                        {
+                                                            "if": {"properties": {"type": {"enum": ["highlight", "focus", "locate", "execute"]}}, "required": ["type"]},
+                                                            "then": {"required": ["targetId"]}
+                                                        },
+                                                        {
+                                                            "if": {"properties": {"type": {"const": "execute"}}, "required": ["type"]},
+                                                            "then": {"required": ["action"], "properties": {"action": {"enum": ["navigate", "observe", "highlight", "focus"]}}}
+                                                        }
+                                                    ]
+                                               },
+                                     "type":  "array",
+                                     "maxItems":  25
+                                 }
+                   }
+}
