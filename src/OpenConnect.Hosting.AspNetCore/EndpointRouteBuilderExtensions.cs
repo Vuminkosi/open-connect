@@ -37,7 +37,7 @@ public static class EndpointRouteBuilderExtensions
         group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
         group.MapPost("/sessions", HandleCreateSession).RequireAuthorization();
         group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
-        group.MapGet("/sessions/{id}/events", HandleGetSessionEvents).RequireAuthorization();
+        group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequest).RequireAuthorization();
         group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
         group.MapGet("/components", HandleComponents).RequireAuthorization();
         group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
@@ -129,6 +129,32 @@ public static class EndpointRouteBuilderExtensions
         var session = store.Get(value);
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
         return Results.Ok(store.GetEvents(value, after ?? 0));
+    }
+
+    internal static IResult HandleGetSessionEventsFromRequest(string id, HttpContext context, InMemorySessionStore store)
+    {
+        var query = context.Request.Query;
+        var hasAfterSequence = query.ContainsKey("afterSequence");
+        var hasAfter = query.ContainsKey("after");
+        if (hasAfterSequence && hasAfter ||
+            !TryReadCursor(query, hasAfterSequence ? "afterSequence" : "after", out var cursor))
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The event position is invalid.", type: "https://openconnect.dev/problems/invalid_request");
+
+        return HandleGetSessionEvents(id, cursor, context, store);
+    }
+
+    private static bool TryReadCursor(IQueryCollection query, string name, out long? cursor)
+    {
+        cursor = 0;
+        if (!query.ContainsKey(name)) return true;
+
+        var values = query[name];
+        if (values.Count != 1 || !long.TryParse(values[0], System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return false;
+
+        cursor = parsed;
+        return parsed >= 0;
     }
 
     private static bool TryIdentity(HttpContext context, out Ulid tenant, out Ulid principal)
