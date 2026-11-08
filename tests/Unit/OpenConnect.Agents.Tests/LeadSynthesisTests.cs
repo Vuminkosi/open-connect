@@ -11,23 +11,65 @@ namespace OpenConnect.Agents.Tests;
 public sealed class LeadSynthesisTests
 {
     [Fact]
-    public async Task SynthesizeAsync_includes_child_summaries_in_request_order_and_calls_once()
+    public void Unguarded_legacy_synthesis_entry_point_is_not_exposed()
+    {
+        Assert.Null(typeof(LeadSynthesizer).GetMethod("SynthesizeAsync"));
+    }
+
+    [Fact]
+    public async Task Policy_synthesis_includes_approved_child_summaries_in_request_order_and_calls_once()
     {
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client);
         var merged = Merged(true, Child("first", "one", 0), Child("second", "two", 1));
         var originalResults = merged.Results.ToArray();
 
-        var result = await synthesizer.SynthesizeAsync(context.AgentExecutionId, new AgentId("lead"), merged,
-            context, null, CancellationToken.None);
+        var outcome = await synthesizer.SynthesizeWithPolicyAsync(context.AgentExecutionId, new AgentId("lead"), merged,
+            merged.Results.Select(result => result.ExecutionId).ToHashSet(), context, null, CancellationToken.None);
 
         Assert.Equal(1, client.CallCount);
-        Assert.Equal(client.Prompt, result);
+        Assert.Equal(client.Prompt, outcome.Text);
         Assert.True(client.Prompt!.IndexOf("agent first", StringComparison.Ordinal) < client.Prompt.IndexOf("agent second", StringComparison.Ordinal));
         Assert.Contains("untrusted", client.Prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("one", client.Prompt);
         Assert.Contains("two", client.Prompt);
         Assert.Equal(originalResults, merged.Results);
+    }
+
+    [Fact]
+    public async Task Policy_synthesis_includes_only_approved_results_and_reports_withheld_count()
+    {
+        var client = new RecordingClient();
+        var (synthesizer, context) = Create(client);
+        var first = Child("first", "approved one", 0);
+        var withheld = Child("withheld", "secret withheld text", 1);
+        var last = Child("last", "approved two", 2);
+        var merged = Merged(true, first, withheld, last);
+
+        var outcome = await synthesizer.SynthesizeWithPolicyAsync(context.AgentExecutionId, new AgentId("lead"), merged,
+            new HashSet<ExecutionId> { first.ExecutionId, last.ExecutionId }, context, null, CancellationToken.None);
+
+        Assert.Equal(1, client.CallCount);
+        Assert.Equal(1, outcome.WithheldCount);
+        Assert.Contains("approved one", client.Prompt);
+        Assert.Contains("approved two", client.Prompt);
+        Assert.DoesNotContain("secret withheld text", client.Prompt);
+        Assert.True(client.Prompt!.IndexOf("agent first", StringComparison.Ordinal) < client.Prompt.IndexOf("agent last", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Policy_synthesis_with_no_approved_results_denies_without_call_or_budget_charge()
+    {
+        var client = new RecordingClient();
+        var (synthesizer, context) = Create(client);
+        var ledger = new RunBudgetLedger(new AgentBudget(1, 1, 10_000, TimeSpan.FromMinutes(1), 1, 1, 1));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), Merged(true, Child("child", "not approved", 0)),
+            new HashSet<ExecutionId>(), context, ledger, CancellationToken.None));
+
+        Assert.Equal(0, client.CallCount);
+        Assert.Equal(1, ledger.Remaining.MaxModelCalls);
     }
 
     [Fact]
@@ -44,8 +86,9 @@ public sealed class LeadSynthesisTests
             TimeSpan.FromMinutes(1), 1, 1, 1));
 
         // This must fail with the former UTF-16 character-count estimator, which would allow this call.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeAsync(
-            context.AgentExecutionId, new AgentId("lead"), merged, context, ledger, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), merged,
+            merged.Results.Select(result => result.ExecutionId).ToHashSet(), context, ledger, CancellationToken.None));
 
         Assert.Equal(0, client.CallCount);
     }
@@ -56,54 +99,62 @@ public sealed class LeadSynthesisTests
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client, deadline: DateTimeOffset.UtcNow.AddSeconds(-1));
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => synthesizer.SynthesizeAsync(
-            context.AgentExecutionId, new AgentId("lead"), Merged(true), context, null, CancellationToken.None));
+        var child = Child("child", "content", 0);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), Merged(true, child),
+            new HashSet<ExecutionId> { child.ExecutionId }, context, null, CancellationToken.None));
 
         Assert.Equal(0, client.CallCount);
     }
 
     [Fact]
-    public async Task SynthesizeAsync_reserves_model_budget_before_call()
+    public async Task Policy_synthesis_reserves_model_budget_before_call()
     {
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client);
         var ledger = new RunBudgetLedger(new AgentBudget(1, 0, 0, TimeSpan.FromMinutes(1), 1, 1, 1));
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeAsync(
-            context.AgentExecutionId, new AgentId("lead"), Merged(true), context, ledger, CancellationToken.None));
+        var child = Child("child", "content", 0);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), Merged(true, child),
+            new HashSet<ExecutionId> { child.ExecutionId }, context, ledger, CancellationToken.None));
 
         Assert.Equal("run-wide model budget exhausted", error.Message);
         Assert.Equal(0, client.CallCount);
     }
 
     [Fact]
-    public async Task SynthesizeAsync_rejects_merge_not_requiring_synthesis()
+    public async Task Policy_synthesis_rejects_merge_not_requiring_synthesis()
     {
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeAsync(
-            context.AgentExecutionId, new AgentId("lead"), Merged(false), context, null, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), Merged(false),
+            new HashSet<ExecutionId>(), context, null, CancellationToken.None));
         Assert.Equal(0, client.CallCount);
     }
 
     [Fact]
-    public async Task SynthesizeAsync_rejects_revoked_execution_before_call()
+    public async Task Policy_synthesis_rejects_revoked_execution_before_call()
     {
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client, revoked: true);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => synthesizer.SynthesizeAsync(
-            context.AgentExecutionId, new AgentId("lead"), Merged(true), context, null, CancellationToken.None));
+        var child = Child("child", "content", 0);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            context.AgentExecutionId, new AgentId("lead"), Merged(true, child),
+            new HashSet<ExecutionId> { child.ExecutionId }, context, null, CancellationToken.None));
         Assert.Equal(0, client.CallCount);
     }
 
     [Fact]
-    public async Task SynthesizeAsync_charges_run_ledger_for_one_model_call()
+    public async Task Policy_synthesis_charges_run_ledger_for_one_model_call()
     {
         var client = new RecordingClient();
         var (synthesizer, context) = Create(client);
         var ledger = new RunBudgetLedger(new AgentBudget(1, 1, 10_000, TimeSpan.FromMinutes(1), 1, 1, 1));
-        await synthesizer.SynthesizeAsync(context.AgentExecutionId, new AgentId("lead"), Merged(true),
-            context, ledger, CancellationToken.None);
+        var child = Child("child", "content", 0);
+        await synthesizer.SynthesizeWithPolicyAsync(context.AgentExecutionId, new AgentId("lead"), Merged(true, child),
+            new HashSet<ExecutionId> { child.ExecutionId }, context, ledger, CancellationToken.None);
         Assert.Equal(0, ledger.Remaining.MaxModelCalls);
         Assert.Equal(1, client.CallCount);
     }

@@ -22,9 +22,10 @@ public sealed class MergeSynthesizeCompositionTests
         Assert.Equal(2, merged.Results.Count);
         Assert.Equal(new[] { "first", "second" }, merged.Results.Select(result => result.AgentId.Value));
 
-        var text = await synthesizer.SynthesizeAsync(parent, new AgentId("lead"), merged, context, ledger, timeout.Token);
+        var outcome = await synthesizer.SynthesizeWithPolicyAsync(parent, new AgentId("lead"), merged,
+            merged.Results.Select(result => result.ExecutionId).ToHashSet(), context, ledger, timeout.Token);
 
-        Assert.Contains("child output", text);
+        Assert.Contains("child output", outcome.Text);
         Assert.Equal(3, client.CallCount);
     }
 
@@ -40,8 +41,9 @@ public sealed class MergeSynthesizeCompositionTests
         var callsAfterMerge = client.CallCount;
         Assert.False(merged.RequiresLeadSynthesis);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeAsync(
-            parent, new AgentId("lead"), merged, context, ledger, timeout.Token));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            parent, new AgentId("lead"), merged, merged.Results.Select(result => result.ExecutionId).ToHashSet(),
+            context, ledger, timeout.Token));
 
         Assert.Equal(callsAfterMerge, client.CallCount);
         Assert.Equal(2, callsAfterMerge);
@@ -62,8 +64,9 @@ public sealed class MergeSynthesizeCompositionTests
         Assert.Empty(merged.Quarantined);
         Assert.Equal(0, ledger.Remaining.MaxModelCalls);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeAsync(
-            parent, new AgentId("lead"), merged, context, ledger, timeout.Token));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => synthesizer.SynthesizeWithPolicyAsync(
+            parent, new AgentId("lead"), merged, merged.Results.Select(result => result.ExecutionId).ToHashSet(),
+            context, ledger, timeout.Token));
 
         Assert.Equal(2, merged.Results.Count);
         Assert.Empty(merged.Quarantined);
