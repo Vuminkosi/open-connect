@@ -286,6 +286,76 @@ public sealed class NativeWorkflowApprovalBridgeTests
         await interaction.CancelAsync().WaitAsync(Timeout);
     }
 
+    [Fact]
+    public async Task ExpiryFlip_BetweenPrecheckAndAuthorize_DeniesWithoutBurningNonce()
+    {
+        var valid = DateTimeOffset.UtcNow;
+        var expiresAt = valid.AddMinutes(5);
+        var late = expiresAt.AddMinutes(1);
+        // Reads: precheck valid, authorize expired, retry precheck valid, retry authorize valid.
+        var clock = new ScriptedTimeProvider([valid, late, valid, valid]);
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope, timeProvider: clock);
+        var decision = CreateDecision(scope, request, "n-expiry-flip", expiresAt: expiresAt);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            bridge.ApproveAsync(request, decision, "approved")
+                .WaitAsync(Timeout));
+
+        Assert.Same(request, interaction.PendingExternalRequest);
+
+        // The denied attempt burned no nonce: the same nonce succeeds once the clock reads valid.
+        await bridge.ApproveAsync(request, decision, "approved")
+            .WaitAsync(Timeout);
+
+        var second = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.NotSame(request, second);
+
+        await interaction.CancelAsync().WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task RevocationLanding_BeforeAuthorize_DeniesWithoutBurningNonce()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var revoked = false;
+        // Land the revocation between the precheck read (index 0) and the authorize read (index 1).
+        var clock = new ScriptedTimeProvider([now, now, now, now], readIndex =>
+        {
+            if (readIndex == 1)
+            {
+                revoked = true;
+            }
+        });
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope,
+            revoked: _ => ValueTask.FromResult(revoked),
+            timeProvider: clock);
+        var decision = CreateDecision(scope, request, "n-revoke-flip", expiresAt: now.AddMinutes(5));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            bridge.ApproveAsync(request, decision, "approved")
+                .WaitAsync(Timeout));
+
+        Assert.Same(request, interaction.PendingExternalRequest);
+
+        // The denied attempt burned no nonce: clearing the revocation lets the same nonce succeed.
+        revoked = false;
+        await bridge.ApproveAsync(request, decision, "approved")
+            .WaitAsync(Timeout);
+
+        var second = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.NotSame(request, second);
+
+        await interaction.CancelAsync().WaitAsync(Timeout);
+    }
+
     private static NativeWorkflowApprovalScope NewScope() => new(
         new TenantId(Ulid.NewUlid()),
         new PrincipalId(Ulid.NewUlid()),
@@ -296,8 +366,9 @@ public sealed class NativeWorkflowApprovalBridgeTests
         NativeWorkflowInteraction interaction,
         NativeWorkflowApprovalScope scope,
         Func<CancellationToken, ValueTask<bool>>? revoked = null,
-        Func<CancellationToken, ValueTask<bool>>? grantValid = null) =>
-        new(interaction, scope, ExpectedArgs, ExpectedToolRev, revoked, grantValid);
+        Func<CancellationToken, ValueTask<bool>>? grantValid = null,
+        TimeProvider? timeProvider = null) =>
+        new(interaction, scope, ExpectedArgs, ExpectedToolRev, revoked, grantValid, timeProvider);
 
     private static NativeWorkflowApprovalDecision CreateDecision(
         NativeWorkflowApprovalScope scope,
@@ -350,4 +421,15 @@ public sealed class NativeWorkflowApprovalBridgeTests
     }
 
     private sealed record ApprovalRequest(string Text);
+
+    private sealed class ScriptedTimeProvider(IReadOnlyList<DateTimeOffset> moments, Action<int>? onRead = null) : TimeProvider
+    {
+        private int _reads;
+        public override DateTimeOffset GetUtcNow()
+        {
+            var index = _reads++;
+            onRead?.Invoke(index);
+            return index < moments.Count ? moments[index] : moments[moments.Count - 1];
+        }
+    }
 }
