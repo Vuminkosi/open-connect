@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Persistence;
 
 namespace OpenConnect.Agents.Execution;
 
@@ -22,6 +23,9 @@ public sealed class MafConversationRunner
     private long _turnSequence;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _turnGate = new(1, 1);
+    private bool? _durableMode;
+    private NativeAgentSessionBinding? _durableBinding;
+    private bool _unusable;
 
     /// <summary>Creates a conversation runner for the specified lead agent.</summary>
     /// <param name="factory">Factory used to create the lead agent.</param>
@@ -56,6 +60,7 @@ public sealed class MafConversationRunner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         cancellationToken.ThrowIfCancellationRequested();
+        PinMode(false, null);
         if (_concurrency == SessionTurnConcurrency.RejectConflict)
         {
             if (!_turnGate.Wait(0)) throw new InvalidOperationException("A conversation turn is already active; concurrent turns are not allowed.");
@@ -140,6 +145,11 @@ public sealed class MafConversationRunner
         ArgumentException.ThrowIfNullOrEmpty(childAgentId.Value);
         if (!string.IsNullOrEmpty(childSessionKey) && string.IsNullOrWhiteSpace(childSessionKey))
             throw new ArgumentException("Session key cannot be whitespace.", nameof(childSessionKey));
+        lock (_sync)
+        {
+            if (_unusable)
+                throw new InvalidOperationException("This conversation runner is unusable after native session ownership cleanup failed.");
+        }
         ReserveModelCall(prompt);
         var agent = _factory.CreateAgent(childAgentId);
         if (string.IsNullOrEmpty(childSessionKey))
@@ -181,6 +191,145 @@ public sealed class MafConversationRunner
         {
             CompleteTrace(keyedExecutionId);
         }
+    }
+
+    /// <summary>Indicates whether this runner can safely accept additional turns.</summary>
+    /// <remarks>False means native-session ownership cleanup failed and the runner must be discarded.</remarks>
+    public bool IsUsable
+    {
+        get { lock (_sync) return !_unusable; }
+    }
+
+    /// <summary>Runs one authorized native-session turn and publishes local state only after durable CAS succeeds.</summary>
+    /// <remarks>Authentication, authorization and trusted binding selection belong to the host. History is only this runner's projection and is not restored as a transcript. This runner cannot prove distributed effect fencing; effect implementations need their own fencing or idempotency.</remarks>
+    public async Task<AgentResponse> TurnDurableAsync(string prompt, AgentExecutionContext executionContext,
+        IsExecutionRevoked isExecutionRevoked, NativeSessionTurnPersistenceContext persistenceContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+        ArgumentNullException.ThrowIfNull(executionContext);
+        ArgumentNullException.ThrowIfNull(isExecutionRevoked);
+        ArgumentNullException.ThrowIfNull(persistenceContext);
+        var binding = persistenceContext.Binding;
+        ValidateExecutionBinding(executionContext, binding);
+        using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, executionContext.CancellationToken);
+        var requestToken = requestCancellation.Token;
+        await EnsureAuthorizedAsync(executionContext, isExecutionRevoked, requestToken).ConfigureAwait(false);
+        PinMode(true, binding);
+        var ownership = await persistenceContext.TurnGate.TryAcquireAsync(binding, executionContext, requestToken)
+            .ConfigureAwait(false);
+        if (ownership is null)
+            throw new InvalidOperationException("The native session is busy or authorization was rejected.");
+
+        using (var turnCancellation = CancellationTokenSource.CreateLinkedTokenSource(requestToken, ownership.OwnershipLost))
+        {
+            var ct = turnCancellation.Token;
+            var promptIndex = -1;
+            var executionId = Guid.Empty;
+            var committed = false;
+            Exception? turnFailure = null;
+            try
+            {
+                await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
+                lock (_sync) _ = checked(_turnSequence + 1);
+                var agent = _factory.CreateAgent(_leadAgentId);
+                var loaded = await persistenceContext.Persistence.LoadAsync(agent, binding, ct).ConfigureAwait(false);
+                await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
+                var candidateSession = loaded?.Session ?? await agent.CreateSessionAsync(ct).ConfigureAwait(false);
+                var expectedVersion = loaded?.Version ?? 0;
+                ReserveModelCall(prompt);
+                await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
+                executionId = Guid.NewGuid();
+                AddTrace(new ExecutionTraceRecord(executionId, null, _leadAgentId.Value, "lead", DateTimeOffset.UtcNow, null));
+                lock (_sync)
+                {
+                    promptIndex = _history.Count;
+                    _history.Add(new ChatMessage(ChatRole.User, prompt));
+                }
+                var response = await agent.RunAsync(prompt, candidateSession, cancellationToken: ct).ConfigureAwait(false);
+                await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
+                var save = await persistenceContext.Persistence.SaveAsync(agent, candidateSession, binding, expectedVersion, ct).ConfigureAwait(false);
+                if (save == NativeAgentSessionSaveOutcome.Conflict)
+                    throw new InvalidOperationException("The native session changed during this turn; no result was committed.");
+                if (save != NativeAgentSessionSaveOutcome.Saved)
+                    throw new InvalidOperationException("The native session save returned an unsupported outcome.");
+                lock (_sync)
+                {
+                    _history.AddRange(response.Messages);
+                    _turnSequence = checked(_turnSequence + 1);
+                    _leadAgent = agent;
+                    _leadSession = candidateSession;
+                }
+                committed = true;
+                CompleteTrace(executionId);
+                return response;
+            }
+            catch (Exception exception)
+            {
+                turnFailure = exception;
+                lock (_sync)
+                {
+                    if (promptIndex >= 0 && promptIndex < _history.Count && _history[promptIndex].Role == ChatRole.User && _history[promptIndex].Text == prompt)
+                        _history.RemoveAt(promptIndex);
+                }
+                if (executionId != Guid.Empty) CompleteTrace(executionId);
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    await ownership.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    lock (_sync) _unusable = true;
+                    // A known durable commit must remain an accurately reported success. If the turn
+                    // itself failed, preserve that original failure rather than masking it with cleanup.
+                    // No logging/diagnostic hook exists on this runner; future use fails closed.
+                    if (!committed && turnFailure is null)
+                        throw new InvalidOperationException("Native session ownership cleanup failed; this runner is unusable.");
+                }
+            }
+        }
+    }
+
+    private void PinMode(bool durable, NativeAgentSessionBinding? binding)
+    {
+        lock (_sync)
+        {
+            if (_unusable)
+                throw new InvalidOperationException("This conversation runner is unusable after native session ownership cleanup failed.");
+            if (_durableMode is not null && (_durableMode != durable || (durable && _durableBinding != binding)))
+                throw new InvalidOperationException("A conversation runner cannot change persistence mode or durable session binding.");
+            _durableMode ??= durable;
+            if (durable) _durableBinding ??= binding;
+        }
+    }
+
+    private static void ValidateExecutionBinding(AgentExecutionContext context, NativeAgentSessionBinding binding)
+    {
+        if (context.IdentityKind != AgentIdentityMode.ActiveUser ||
+            !StringComparer.Ordinal.Equals(context.TenantScope, binding.TenantId.Value.ToString()) ||
+            !StringComparer.Ordinal.Equals(context.PrincipalOrWorkloadScope, binding.PrincipalId.Value.ToString()) ||
+            context.SessionId != binding.SessionId)
+            throw new UnauthorizedAccessException("The execution identity does not match the native session binding.");
+    }
+
+    private static async Task EnsureAuthorizedAsync(AgentExecutionContext context, IsExecutionRevoked revoked, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (DateTimeOffset.UtcNow >= context.Deadline || await revoked(context, ct).ConfigureAwait(false))
+            throw new UnauthorizedAccessException("The execution is expired or authorization has been revoked.");
+    }
+
+    private static async Task ValidateOwnershipAndAuthorizationAsync(INativeSessionTurnOwnership ownership,
+        AgentExecutionContext context, IsExecutionRevoked revoked, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await ownership.ValidateOwnershipAsync(ct).ConfigureAwait(false);
+        await EnsureAuthorizedAsync(context, revoked, ct).ConfigureAwait(false);
     }
 
     /// <summary>Exports opaque checkpoint metadata without copying MAF transcript contents.</summary>
