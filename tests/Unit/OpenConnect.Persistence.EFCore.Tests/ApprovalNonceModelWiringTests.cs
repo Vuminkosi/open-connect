@@ -37,6 +37,29 @@ public sealed class ApprovalNonceModelWiringTests
                 index.Properties.Select(p => p.Name).SequenceEqual(["ApprovalId"]));
     }
 
+    [Fact]
+    public void ApplyOpenConnectModel_maps_approval_nonce_request_id_as_required_indexed()
+    {
+        using var db = new WiringContext(
+            new DbContextOptionsBuilder<WiringContext>()
+                .UseSqlite("Data Source=:memory:")
+                .ReplaceService<IModelCacheKeyFactory, OpenConnectModelCacheKeyFactory>()
+                .Options);
+
+        var entity = db.Model.FindEntityType(typeof(ApprovalNonceEntity));
+        Assert.NotNull(entity);
+
+        var requestId = entity.FindProperty(nameof(ApprovalNonceEntity.RequestId));
+        Assert.NotNull(requestId);
+        Assert.False(requestId.IsNullable);
+        Assert.Equal(256, requestId.GetMaxLength());
+
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => !index.IsUnique &&
+                index.Properties.Select(p => p.Name).SequenceEqual([nameof(ApprovalNonceEntity.RequestId)]));
+    }
+
     private sealed class WiringContext(DbContextOptions<WiringContext> options)
         : DbContext(options), IOpenConnectModelOptionsProvider
     {
