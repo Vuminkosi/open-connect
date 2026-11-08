@@ -40,6 +40,7 @@ public static class OpenConnectEfServiceCollectionExtensions
         services.TryAddScoped<ILeaseStore, EfLeaseStore<TContext>>();
         services.TryAddScoped<IApprovalStore, EfApprovalStore<TContext>>();
         services.TryAddScoped<IPrivacyTokenVault, EfPrivacyTokenVault<TContext>>();
+        services.TryAddScoped<INativeAgentSessionStore, EfNativeAgentSessionStore<TContext>>();
         services.TryAddScoped<IOpenConnectPersistenceUnitOfWork, EfUnitOfWork<TContext>>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, Health.EfStartupValidator<TContext>>());
         return services;

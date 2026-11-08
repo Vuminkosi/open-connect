@@ -483,6 +483,45 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                     b.ToTable("Turns", "openconnect");
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.NativeAgentSessionEntity", b =>
+                {
+                    b.Property<string>("BindingKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("AgentId").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<string>("DefinitionRevision").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<string>("MafVersion").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<string>("SchemaVersion").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<string>("ProviderId").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<long>("Version").IsRequired().HasColumnType("bigint");
+                    b.Property<byte[]>("Ciphertext").IsRequired().HasColumnType("varbinary(max)");
+
+                    b.HasKey("BindingKey");
+
+                    b.ToTable("NativeAgentSessions", "openconnect");
+                });
+
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Tests.Customer", b =>
                 {
                     b.Property<Guid>("Id")

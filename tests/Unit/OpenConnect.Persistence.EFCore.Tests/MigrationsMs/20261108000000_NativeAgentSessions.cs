@@ -1,0 +1,31 @@
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs;
+
+/// <summary>Adds opaque native-session ciphertext storage to the SQL Server fixture model.</summary>
+public partial class NativeAgentSessions : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder) => migrationBuilder.CreateTable(
+        name: "NativeAgentSessions",
+        schema: "openconnect",
+        columns: table => new
+        {
+            BindingKey = table.Column<string>(type: "varchar(64)", unicode: false, maxLength: 64, nullable: false),
+            SessionId = table.Column<string>(type: "varchar(26)", unicode: false, maxLength: 26, nullable: false),
+            TenantId = table.Column<string>(type: "varchar(26)", unicode: false, maxLength: 26, nullable: false),
+            PrincipalId = table.Column<string>(type: "varchar(26)", unicode: false, maxLength: 26, nullable: false),
+            AgentId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+            DefinitionRevision = table.Column<string>(type: "nvarchar(max)", nullable: false),
+            MafVersion = table.Column<string>(type: "nvarchar(max)", nullable: false),
+            SchemaVersion = table.Column<string>(type: "nvarchar(max)", nullable: false),
+            ProviderId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+            Version = table.Column<long>(type: "bigint", nullable: false),
+            Ciphertext = table.Column<byte[]>(type: "varbinary(max)", nullable: false)
+        },
+        constraints: table => table.PrimaryKey("PK_NativeAgentSessions", x => x.BindingKey));
+
+    protected override void Down(MigrationBuilder migrationBuilder) => migrationBuilder.DropTable(
+        name: "NativeAgentSessions", schema: "openconnect");
+}

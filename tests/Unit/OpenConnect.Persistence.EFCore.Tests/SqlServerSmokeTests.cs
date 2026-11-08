@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Context;
@@ -12,7 +13,10 @@ namespace OpenConnect.Persistence.EFCore.Tests;
 
 public sealed class SqlServerSmokeTests(ITestOutputHelper output)
 {
-    private const string ConnectionString = "Server=127.0.0.1,51434;Database=oc_smoke;User Id=sa;Password=Str0ng!Passw0rd!;TrustServerCertificate=True;Connect Timeout=2";
+    private const string DefaultConnectionString = "Server=127.0.0.1,51434;Database=oc_smoke;User Id=sa;Password=Str0ng!Passw0rd!;TrustServerCertificate=True;Connect Timeout=2";
+    private static readonly bool RequireProviderTests = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_REQUIRE_PROVIDER_TESTS"), "true", StringComparison.OrdinalIgnoreCase);
+    private static readonly string? ConfiguredConnectionString = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_SQLSERVER_CONNECTION_STRING");
+    private static readonly string ConnectionString = ConfiguredConnectionString ?? DefaultConnectionString;
     private static OpenConnectDbContext CreateContext() => new(new DbContextOptionsBuilder<OpenConnectDbContext>().UseSqlServer(ConnectionString, o => o.MigrationsHistoryTable("__EFMigrationsHistory", "openconnect")).Options);
 
     [Fact]
@@ -32,9 +36,10 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
             if (File.Exists(scriptPath)) File.Delete(scriptPath);
         }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
-        Assert.Equal(9, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
-        Assert.Equal(9, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
-        Assert.Equal(9, db.Model.GetEntityTypes().Count());
+        Assert.Equal(10, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
+        Assert.Equal(10, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
+        Assert.Equal(10, db.Model.GetEntityTypes().Count());
+        Assert.Contains("NativeAgentSessions", script);
     }
 
     [Fact]
@@ -56,12 +61,20 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
     }
     private async Task<bool> ServiceAvailableAsync()
     {
-        using var client = new System.Net.Sockets.TcpClient();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        try { await client.ConnectAsync("127.0.0.1", 51434, timeout.Token); return true; }
-        catch (Exception exception) when (exception is System.Net.Sockets.SocketException or OperationCanceledException)
+        if (RequireProviderTests && string.IsNullOrWhiteSpace(ConfiguredConnectionString))
+            throw new Xunit.Sdk.XunitException("SQL Server provider is required but OPENCONNECT_TEST_SQLSERVER_CONNECTION_STRING is not configured.");
+
+        try
         {
-            output.WriteLine($"SKIP SQL Server: unavailable at 127.0.0.1:51434 ({exception.GetType().Name}).");
+            await using var connection = new SqlConnection(ConnectionString);
+            await connection.OpenAsync();
+            return true;
+        }
+        catch (Exception exception) when (exception is SqlException or System.Net.Sockets.SocketException or OperationCanceledException)
+        {
+            if (RequireProviderTests)
+                throw new Xunit.Sdk.XunitException($"SQL Server provider is required but unavailable ({exception.GetType().Name}).");
+            output.WriteLine($"SKIP SQL Server: unavailable ({exception.GetType().Name}).");
             return false;
         }
     }
