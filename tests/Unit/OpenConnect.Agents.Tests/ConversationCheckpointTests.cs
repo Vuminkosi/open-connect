@@ -24,11 +24,35 @@ public sealed class ConversationCheckpointTests
         Assert.DoesNotContain(resumed.History, message => message.Text == "private transcript");
     }
 
-    [Fact]
-    public void Import_rejects_incompatible_version()
+    [Theory]
+    [InlineData("oc-checkpoint/v99")]
+    [InlineData("")]
+    public void Import_rejects_incompatible_version_with_migration_guidance(string version)
     {
-        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 3, []) with { Version = "oc-checkpoint/v99" };
-        Assert.Throws<NotSupportedException>(() => ConversationCheckpointCodec.Import(checkpoint, "lead", "session"));
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 3, []) with { Version = version };
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            ConversationCheckpointCodec.Import(checkpoint, "lead", "session"));
+
+        Assert.Contains(version, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("oc-checkpoint/v1", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Export a new checkpoint from the current runner; cross-version restore is not supported.",
+            exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("oc-checkpoint/v99")]
+    [InlineData("")]
+    public void Import_rejects_unsupported_version_without_mutating_runner(string version)
+    {
+        var runner = CreateRunner();
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 3, []) with
+        {
+            Version = version
+        };
+
+        Assert.Throws<NotSupportedException>(() => runner.ImportCheckpoint(checkpoint, "session"));
+
+        Assert.Equal(0, runner.ExportCheckpoint("session").TurnSequence);
     }
 
     [Theory]

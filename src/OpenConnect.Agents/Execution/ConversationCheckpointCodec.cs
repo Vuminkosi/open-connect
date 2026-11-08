@@ -44,7 +44,9 @@ public static class ConversationCheckpointCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedLeadAgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedSessionKey);
         if (!StringComparer.Ordinal.Equals(checkpoint.Version, CurrentVersion))
-            throw new NotSupportedException($"Checkpoint version '{checkpoint.Version}' is not supported.");
+            throw new NotSupportedException(
+                $"Checkpoint version '{checkpoint.Version}' is not supported; expected '{CurrentVersion}'. " +
+                "Export a new checkpoint from the current runner; cross-version restore is not supported.");
         if (!StringComparer.Ordinal.Equals(checkpoint.LeadAgentId, expectedLeadAgentId) ||
             !StringComparer.Ordinal.Equals(checkpoint.SessionKey, expectedSessionKey))
             throw new InvalidOperationException("Checkpoint belongs to a different lead agent or conversation session.");
