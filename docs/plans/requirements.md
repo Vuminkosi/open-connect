@@ -1,1551 +1,1239 @@
-# OpenConnect — Unified Product and Engineering Requirements
+# OpenConnect — Exhaustive MAF-First Application Harness Requirements
 
-**Document:** `requirements.md` · **Baseline:** Consolidated 2026-11-07 · **Status:** Normative implementation target, not evidence of completed work  
-**Companions:** [`spec.md`](./spec.md) and [`checklist.md`](./checklist.md).  
-**Source:** Every specialist document uploaded for this consolidation is retained in a labeled annex within the three-file master set; no functional workstream is intentionally removed.
+**Document:** `requirements.md`  
+**Version:** 2.1-draft · **Updated:** 2026-11-08  
+**Status:** Normative target, **not** evidence of implemented features, passing CI, published packages or verified MAF APIs.  
+**Companion:** `spec.md` v2.1 (technical behavior), `checklist.md` v2.1 (356 independently testable tasks), `implementation.md` (execution order), `agents-requirements.md` and `agents-spec.md` (agent specialization).  
+**Traceability:** `OC2-REQ-{AREA}-{NNN}` ↔ `OC2-D-{AREA}-{NNN}` for every one of 356 tasks; `OC2-AT-001`–`071`; preserved historical test families and pre-existing `OC2-*` obligations.  
+**Scope:** The full framework, not merely agents/RAG or a new database/agent engine.
 
-## 0. Purpose, precedence and scope preservation
+> **Product contract:** Microsoft Agent Framework (MAF) provides agent intelligence, harness behavior and workflow execution. **OpenConnect provides secure, durable, observable, multimodal application integration** around these native MAF capabilities for ASP.NET Core, Blazor, browsers and Node.js.
 
-OpenConnect is an **open-source, .NET-first, privacy-first, configurable and reusable agentic AI framework based on Microsoft Agent Framework**. Developers initialize lead agents, interactive agents, operational agents, subagents, tool/MCP discoveries, `agent-runtime.md`, and capability maps, then integrate secure task/voice/UI capabilities into their own products. The official OpenConnect product-facing application is its **static-first documentation website, with an optional OpenConnect-powered documentation assistant**. Other UI examples, sample applications, admin surfaces and test hosts are framework deliverables or optional integrator components—not an additional official end-user product.
+## 0. Normative language, document authority and assumptions
 
-This master set is intended for Codex, Muse, DeepSeek and human maintainers. It does **not** claim any proposed APIs compile, any model has been run, any release workflow has published, or any acceptance test has passed.
+- **SHALL/MUST** means an externally promised stable capability is release-blocked until its validation passes; **SHALL NOT/MUST NOT** prohibits implementation shortcuts regardless of marketing status; **SHOULD** is the preferred design and deviations require a recorded ADR; **MAY** marks opt-in features with separate release gates.
+- **Architecture ownership:** `requirements.md` defines the obligations; `spec.md` defines technical interfaces, profiles, state machines and protocol rules; `implementation.md` defines task dependencies; `checklist.md` records discrete deliverables, acceptance results and evidence. The agent documents specialize but do not override framework policy.
+- **Every requirement below is concrete and traceable.** An item `OC2-REQ-CODE-012` is mapped to checklist `OC2-D-CODE-012` (the same AREA and number). No checklist item may be marked complete simply because the requirement exists in prose.
+- **Runtime verification:** sample OpenConnect-facing APIs are proposals; MAF type/method availability must be demonstrated by a compiled smoke test against pinned package versions on each claimed target. Conceptual MAF documentation does not prove implementation compatibility.
+- **Test status:** All new framework tests start `NOT RUN`. Historical results and claims are retained for provenance but must be re-associated with a real commit and test run before they prove this revision.
+- **No scope deletion:** optional services may be `Disabled`, `Unavailable`, `Experimental` or `Blocked`; their requirements remain recorded. Unavailable capabilities cannot be advertised as healthy. No Docker, database migration, model download, NATS provisioning or registry publishing may happen implicitly during basic DI registration.
+- **Threat model:** Browser and model messages, skill files, MCP descriptions, remote agents, retrieval, document text, worker results and transport messages are untrusted for control-plane authority. Only trusted host identity, registration and policy can grant permissions.
 
-**Precedence order for actual implementation:**
-1. **This document §§0–18**: product goals, mandatory scope, authoritative conflict decisions, acceptance boundaries.
-2. **`spec.md` canonical §§0–21**: package interfaces, inter-service protocols, data models, deployment and engineering implementation contracts.
-3. **`checklist.md` canonical sections**: all work packages, test gates, evidence and execution order.
-4. **Source-preservation annexes** inside these files: detailed original requirements, tests, examples and reasoning. Retain as requirements and design evidence except where a canonical decision explicitly supersedes an incompatible sentence, API name, or hard dependency. An obsolete clause is not permission to drop the underlying feature; carry it into the canonical design.
+### 0.1 Framework layers and non-overlapping responsibilities
 
-All source requirement identifiers (`OC-*`, `R-*`, `ACR-*`, `OBS-*`, `REQ-*`, `EF-AT-*`, `NAV-AT-*`, `CMP-AT-*`, etc.) are retained verbatim in the relevant annex; implementation work IDs are preserved or explicitly mapped. Requirements omitted from the top-level summary **remain in scope** through the annexes and traceability checklist. MUST/SHALL = mandatory for advertised stable capability, SHOULD = default with recorded rationale for deviation, MAY = opt-in extension. Experimental feature labeling may defer release gates, not erase scope.
-
-## 1. Non-negotiable architectural requirements
-
-- **OC-MSTR-001 — Framework, not application:** provide composable NuGet and npm SDKs, opt-in Docker workers, ASP.NET Core hosting and secure defaults. The documentation site is the only official product website; the docs assistant must dogfood published/real OpenConnect packages.
-- **OC-MSTR-002 — Microsoft Agent Framework:** reuse supported MAF agents, workflows, tools, and model integration. Never implement a competing general orchestration engine. Verify pinned MAF APIs and event hooks against actual code before implementation.
-- **OC-MSTR-003 — Startup DX:** `.AddOpenConnect()` registers a default **interactive lead agent** and default-on host firewall policy without launching Docker, running schema migrations or loading optional model checkpoints.
-- **OC-MSTR-004 — Config first:** strongly typed .NET `Options` and enums for closed choices, typed registration APIs, versioned JSON/YAML serialization, strict validation on startup and runtime policy revisions; agent instructions do not grant permission.
-- **OC-MSTR-005 — Two execution modes:** Interactive agents assume the current authenticated user’s derived scoped authority; operational agents run under independently authorized constrained workload identities and a durable .NET `OpenConnectOperationalAgentSupervisor : BackgroundService`. Never silently transfer interactive credentials to operational agents.
-- **OC-MSTR-006 — Tool security:** server-authorized tools/MCP capabilities, descriptions, typed schemas, side-effect classes, approvals, bounded execution, provenance and per-agent capability maps; discovery is not authority.
-- **OC-MSTR-007 — Privacy boundaries:** policy, egress authorization, reversible opaque tokenization, AES-GCM envelope encryption, protected vault and authorized restoration remain in .NET; optional Python security worker executes independently enabled rules/AI detectors. Required missing coverage fails closed.
-- **OC-MSTR-008 — Durability:** accepted tasks/session/events/transactional outbox persisted atomically where a real relational provider allows it. In-memory mode must not claim durability. JetStream is the internal durable publication/subscription mechanism for configured distributed deployments; HTTP(S)/WS(S) are public task/event transports.
-- **OC-MSTR-009 — Provider-neutral storage:** `.AddOpenConnectEntityFramework<TContext>()` uses developer’s own EF Core provider, supports existing DbContext and dedicated context, no forced PostgreSQL, and no SQL Server/SQLite/Npgsql/InMemory provider package transitively pulled into OpenConnect EF adapter. Manual migrations default.
-- **OC-MSTR-010 — Optionality:** QdrantVactor, Infisical KMS, Navigator, Playwright MCP, Kokoro, MMS-TTS, NLLB, inference, classification, STT, real-time voice, Aspire, OTLP exporter, admin analytics, richer UI adapters all install only when selected. Missing unrelated extensions must not disable core interactive/MCP/text capabilities.
-- **OC-MSTR-011 — Thin composer:** default UI is the small, discreet, draggable anchored MiniComposer (separate FAB launcher and compact bubble), not a full-screen chat application. Same interaction contract across Blazor and browser composer; headless Node remains DOM-free.
-- **OC-MSTR-012 — Real events:** client status, subagent execution tree, progress, operational runs, usage, voice playback and UI actions reflect actual committed/runtime events, not model-generated fictional activity.
-- **OC-MSTR-013 — Privacy-safe observability:** OpenTelemetry is composable and optional exporters/Aspire never gate the firewall. Durable model metering and usage ledger are separate from sampled traces; user/admin isolation and minimal content telemetry apply.
-- **OC-MSTR-014 — Multi-repo/source hygiene:** reuse safe generic ideas/code from the designated reference only after revision pin, model/dependency/license review, extracted test migration and removal of domain-specific business/health data. Necessary copyright/third-party notices must remain; public runtime should not contain borrowed app branding.
-- **OC-MSTR-015 — Release correctness:** GitHub Actions gated CI, clean package consumer tests, versioned contracts, NuGet/npm trusted publishing when available, optional GHCR worker images, SBOM/provenance, security tests and documented partial-release recovery.
-
-## 2. Required developer integration contracts
-
-### 2.1 Host and persistence
-
-Target fluent API (illustrative until implemented and compiled):
-
-```csharp
-builder.Services.AddDbContext<ApplicationDbContext>(db =>
-    db.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
-
-builder.Services.AddOpenConnect(options =>
-{
-    options.Agents.DefaultExecutionMode = AgentExecutionMode.Interactive;
-    options.Privacy.Enabled = true;
-    options.Privacy.Mode = FirewallMode.StrictLocal;
-});
-
-builder.Services.AddOpenConnectEntityFramework<ApplicationDbContext>(options =>
-{
-    options.Schema = "openconnect";
-    options.Migrations = OpenConnectMigrationMode.Manual;
-});
-
-builder.Services.AddOpenConnectNats(/* independently configured transport */);
-```
-
-The existing context imports `modelBuilder.ApplyOpenConnectModel(...)` explicitly; `DbSet<T>` properties are NOT required. SQL Server/PostgreSQL may use `openconnect` schema, SQLite `oc_` table prefixes, and EF Core InMemory is explicitly non-durable/test-only. A dedicated `OpenConnectDbContext` may share the same database/connection string, but cross-context ACID coordination is **not** automatic. Registration does not create schema objects. Dedicated-context startup migration MAY be explicitly enabled with tested provider/cluster controls; shared application context migrations remain application-owned and manual. This storage decision **supersedes PostgreSQL-required clauses** in earlier source specifications and checklists, but preserves every session/task/event/outbox/lease/approval/privacy-token/operational/usage entity requirement.
-
-### 2.2 Interactive and operational agent registration
-
-Interactive agent: user-initiated via HTTP/WS/SDK; scope derived from authenticated server context, reauthorize before consequential tools; subagent delegation narrows permissions. Operational agent: scheduled, event-triggered, continuous or explicitly enqueued; monitored by .NET background supervisor, workload credential, lease/fence, retry and review controls; no ambient `HttpContext`. Mixed-mode transitions require explicit authorized enqueue/review, never silent delegation.
-
-### 2.3 Client integration
-
-`.AddOpenConnectClient()` accepts task API HTTPS and event WSS URI. Blazor uses `<OpenConnectProvider>` and `<MiniComposer />`; browser uses `@openconnect/client` (headless) plus optional `@openconnect/composer`, and React/browser bindings when installed. Do not add global styling, browser-to-NATS, or a parallel agent/session system. `IOpenConnectComponent` describes permitted UI, discoverable contracts, capability maps, descriptions and suggestions with local allowlisted renderer and schema validation.
-
-## 3. Product requirements by capability
-
-### 3.1 Gateway, agent, MCP and event contracts
-
-- Reusable task/session API with idempotent task acceptance, authorization, cancellation, streaming deltas, bounded cursor replay, reconnect, typed errors and output projections.
-- Authenticated HTTP(S)/WS(S); NATS JetStream durable committed event subjects/consumers, transactional outbox, bounded payloads/leases/ACK-after-commit and dead-letter recovery. No sensitive raw prompt/audio/PII in broker events. Session journal remains scoped to known SessionId; introduce a separate committed agent event subscription interface for optional global subscribers.
-- Declarative `agent-runtime.md` and agent/subagent definitions; validated tool discovery and permission-limited MCP adapters; event-driven actual execution tree; per-agent model capability selection.
-- Optional QdrantVactor `.AddQdrantVactor(configure)` subscribes to committed, policy-approved agent events, resolves scoped sanitized projections, generates embeddings asynchronously, upserts idempotently, filters retrieval by tenant/principal and handles deletion/revocation. No required Qdrant, global journal enumeration or vector property on EventRecord.
-
-### 3.2 Privacy firewall and vault
-
-- Default-on .NET enforcement; configurable trusted host-only privacy-off state must not disable authentication, tool authorization or tenant isolation.
-- Separate optional Python security-worker image, running local rules by lightweight baseline. GLiNER PII, DeBERTa injection, Qwen3Guard safety, PaddleOCR image text and YuNet faces are **independent opt-in detectors**, load only if enabled, declare actual coverage and resource demands. Optional model downloads are pinned and gated, never per request.
-- The security worker detects; the gateway owns allow/mask/redact/block/review verdicts, secret and tenant policies, vault encryption, token scopes and streaming authorized restoration.
-- Default encrypted token mapping store may use the provider-neutral EF Core adapter with AES-256-GCM envelope encryption, protected persistent local key for development, optional Infisical KMS for key wrapping, TTL/rotation and no cross-scope restoration.
-- Strict-local mode describes the trusted processing zone, **not** universal detector quality: if policy requires semantic PII, image, face or audio coverage absent from active detectors, prevent external egress. Never ship raw originals to remote OCR/STT in that mode. HTML/screenshot masking must modify actual pixels/layers and verify metadata.
-- Every model, tool, RAG, event, worker and output boundary is protected by a policy admission point; streamed placeholders are restored only to approved fields under current authorization.
-
-### 3.3 Entity Framework and persistence
-
-- Required entity set covers sessions, tasks, turns, committed events, outbox, leases, approvals, encrypted privacy tokens, operational definitions/runs/schedules/checkpoints/reviews, component proposals, usage/ledger and optional module storage. Module tables registered explicitly, not by blanket assembly scan.
-- Shared host context imports mappings, with application-owned migrations. Dedicated context and migration history are optional. Compatibility across SQL Server, PostgreSQL, SQLite and EF InMemory (development only) with provider-aware claims and concurrency test suites. Outbox dispatch never holds a DB transaction across network publication.
-- Transactional boundary required for accepted task+event+outbox and any caller business writes claimed to be atomic; sharing a connection string is insufficient. On failure do not acknowledge accepted tasks before commit.
-
-### 3.4 MiniComposer and cross-platform clients
-
-- Visually anchored bottom-right launcher and compact ~23.5–24rem bubble; preserve source reference anatomy: drag handle, settings, stop, close, one-to-five-line editor, dynamic mic/live/send, bounded latest sent/response/partial transcript, animated three-bar status and independent `Voice on` / `Mic on`.
-- Launcher is standalone fixed FAB, no reserved page column or uninvited overlay. Bubble is movable with handle/touch/keyboard, clamped on viewport changes, optional attached mode for Navigator, safe default focus and no host CSS collisions. Legacy `20vh` launcher position remains optional, **not** default.
-- Close/minimize must not silently cancel a committed task; Stop is explicit cancellation; keyboard Enter send, Shift+Enter newline, IME safe. Status from actual event stream, replay idempotent and input current-value safe.
-- Unavailable speech hides/disables only voice controls; text, tools/MCP and components work. Browser mic requires user gesture and independent playback toggle; stale speech epochs discarded. Accessibility WCAG 2.2 AA target, RTL, reduced motion, safe areas, browser SSR, Blazor hydration and visual-regression screenshot evidence.
-
-### 3.5 Navigator and optional browser automation
-
-- Optional `.AddOpenConnectNavigator(configure)` and browser/Blazor bridge reuse UI discovery, component metadata, task IDs, gateway auth and events; semantic target registry, bounded observations, tours/highlighting, suggestions, consent and approvals.
-- Read-only observation/help should operate without Playwright and TTS. Browser action rights cannot exceed active user or operational workload principal. Mutation needs registered target, typed schema, exact-bound grant, postcondition receipt and review when required.
-- Optional isolated Playwright MCP operational adapter runs only under constrained workload identity, curated safe browser tools, per-job browser profile and network/SSRF restrictions. No arbitrary code evaluation, browsing secrets or cross-tenant contexts.
-- Navigator can optionally narrate through separate Kokoro and MMS-TTS workers, but those are generic OpenConnect speech capabilities, never prerequisites for interactive agents, MCP or tours.
-
-### 3.6 Python workers, model provisioning, voice and media
-
-- All executable model workers are independent Python 3.12+ projects/images with shared contracts, authenticated readiness, resource limits and targeted deployment profiles; optional workers are classification, NLLB, self-hosted inference, transcription, real-time dialogue, Kokoro TTS, MMS-TTS and the security detector worker.
-- Kokoro and MMS-TTS each have **separate Docker images, Compose profiles, independent named model volumes**, pinned manifests/checksums, controlled first-start model downloading into persistent cache, atomic staging+promotion, verified offline cache reuse, no user-request-time downloads, and provider-specific language/voice metadata. Kokoro English `af_heart` default only if present and verified. Confirm MMS checkpoint license suitability before distribution and use.
-- Voice runtime distinguishes recorded transcription, live turn/interrupt/VAD, reasoning, synthesis, playback-delivered acknowledgments and fenced speech epochs; missing TTS/STT degrades to text without breaking agent task/MCP.
-- Workers must advertise actual modality/languages/model/checkpoint/detected capability, with no phantom support, silent privacy-changing fallback or mandatory GPU profile.
-
-### 3.7 Observability, accounting, admin and Aspire
-
-- OpenTelemetry `ActivitySource`, `Meter`, safe structured logs and optional OTLP exporter/collector and .NET Aspire integrations. Hosted exporters and dashboards are not prerequisites to model execution.
-- **Durable per-provider-attempt usage ledger** with pricing version/currency, token subcategories, provenance (reported/estimated/unknown), late usage corrections, decimal calculations and idempotent retries. Tracing sample decisions cannot erase costs.
-- Firewall traces show enabled/disabled/skipped/running detector states, latency, coverage and security decisions without content; operational/interactive agent traces show different identities and real lifecycle.
-- Budget reservations, alerts and tenant-scoped administrative APIs/read models/UI. The admin UI is an **optional embeddable/operator component**, not a second official public OpenConnect application. It must work with provider-neutral storage, not a PostgreSQL-only backend.
-- Secure retention, authorized audit/export, no high-cardinality user/tenant IDs in metrics, no raw prompts or tokens, measured SLOs and clear cost estimate versus billing truth.
-
-### 3.8 Website and documentation assistant
-
-- Astro Starlight static-first developer documentation website with versioned Markdown/MDX, navigation/search, generated DocFX .NET API and OpenAPI reference, code samples, architecture diagrams, tutorials and developer quickstarts.
-- Optional backend service uses public OpenConnect runtime, read-only documentation agent/retrieval with citations, version filtering, privacy gates, authentication/anonymous restrictions and session isolation. Static docs must remain available when assistant/backend down. Optional UI composer is the compact SDK component, not a separate chat application.
-- CI-generated docs, tested copy/paste C# examples, preview deployments and approved release site deployment. No client-side provider API keys.
-
-### 3.9 Supply chain, CI and release
-
-- GitHub Actions PR/push pipelines for .NET, TS/npm, Python/uv, schema parity, EF provider matrix, auth/security/PII canary tests, real DB/NATS fault recovery, UI screenshot/a11y, docs, package consumers and image scans.
-- Protected version tags and release environment; NuGet and npm trusted publisher with OIDC if configured; GHCR worker images by digest, software bill of materials, signed provenance, license/model notices and clean external install verification.
-- Optional capability release gates individually verify actual models; no model weights or secrets baked into ordinary packages; partial release failure is visible and recoverable without mutating published immutable versions.
-
-## 4. Explicit reconciliation decisions (do not silently select outdated alternatives)
-
-| Conflict across uploaded documents | Canonical decision | What remains in scope |
+| Layer | Required role | Must never become |
 |---|---|---|
-| Core mandates PostgreSQL vs new EF proposal | **Provider-neutral optional EF Core adapter** supporting SQL Server, SQLite, PostgreSQL, EF InMemory dev; Manual migrations default | All durable entities, outbox, fencing, replay and crash testing; PostgreSQL remains supported |
-| Docs/admin UI vs official website-only product | Official OpenConnect app = docs site + optional assistant; **Admin API/UI is a reusable optional operator surface** in integrator-hosted systems | Full cost, budget, audit and detector analytics scope retained |
-| NER always on vs resource-efficient detectors | Rules enabled default; GLiNER/DeBERTa/Qwen3Guard/PaddleOCR/YuNet independently opt-in; policy-required coverage still fails closed | Full detector, OCR, safety, injection and benchmark requirements retained |
-| Strict privacy and optional security-worker Docker | Host firewall always installed; worker deployment opt-in, but protected egress **blocked** until required local detector ready | No unsafe automatic fail-open; local-only processing may work according to policy |
-| `AddOpenConnectPostgres` vs `AddOpenConnectEntityFramework<TContext>` | Prefer generic EF adapter for relational stores; old Postgres adapter may be maintained only as compatibility shim if actually implemented | Provider-specific optimizations remain internal/optional |
-| `OpenConnect.Gateway` vs `OpenConnect.Hosting.AspNetCore` | Adopt host package `OpenConnect.Hosting.AspNetCore` as canonical, aliases only with reviewed migration | All gateway HTTP/WS API and security requirements remain |
-| `OpenConnect.Firewall` vs `OpenConnect.Privacy` | Canonical enforcement package `OpenConnect.Privacy`; Python worker separate | Detector/policy/vault modules retain their functions |
-| NATS required vs small installs | NATS JetStream chosen durable distributed event backbone **when registered**, not direct browser dependency; in-process dev transport allowed, explicitly non-durable | Durable subscription/outbox/operational reliability goals retained |
-| Old 20vh launcher vs bottom-right | Default bottom-right; `LegacyViewport20Vh` preset supported | Compact screenshot fidelity and draggable/attached composer behavior retained |
-| Kokoro/MMS combined reference service vs independent containers | Two separate opt-in Python services and caches, first-start controlled download | All voice features, language coverage checks and image tests retained |
-| Observability default store Postgres vs EF-neutral | Metering and audits use provider-neutral persistence abstractions/EF mappings when selected; no PostgreSQL forced | Dedicated immutable usage ledger, budgets and admin API retained |
-| Operational agents on active user token | Operational workload identity only; interactive inherits current user | Both execution modes, schedules, approvals and delegated tools retained |
-| Infisical as vault itself vs key management | PostgreSQL/EF encrypted token mappings by default, optional Infisical as KEK wrap/unwrap adapter | Key rotation, vault isolation, restoration policy retained |
-| Qdrant vs IEventJournal known-session replay | Separate committed event subscription (NATS) and optional projection/embedding subscriber | Optional semantic retrieval, deletes and reindexing retained |
-| MiniComposer as heavy chat panel vs anchor bubble | Small FAB+card as default; long-form conversation opens only user-requested host-approved view | History, component rendering, real progress and settings retained |
-| Hosted workers always present vs modular stack | Never launch/download without explicit registration; truthful capabilities and text-only fallbacks | Every worker and multimodal requirement remains in complete roadmap |
-| Source instruction says never mention reference while requiring licenses | No borrowed app branding in public product UX; **mandatory legal attributions/third-party notices remain** | Source provenance and license audit must not be erased |
+| Developer application | Existing ASP.NET Core, Blazor, browser, Node.js products integrating library SDKs | An OpenConnect-owned obligatory end-user app |
+| OpenConnect Application Harness | Trusted typed composition; user/workload identity; tool authorization; privacy; application task/state; domain outbox; truthful progress; clients | A new LLM agent loop, planner, todo engine or workflow interpreter |
+| MAF Direct | Native agent invocation, model/tool streaming and provider integration | Custom OpenConnect completion loop |
+| MAF Harness | Native planning/todos, skills, compaction, mode, approval and session features | A second OpenConnect planning state machine |
+| MAF Workflow | Native executors, directed execution, handoffs, HITL and checkpoints | Graph scheduler written in OpenConnect |
+| MAF Durable Workflow | Selected validated durable MAF execution facility or a single qualified backend | Two simultaneous replay/checkpoint authorities |
+| Optional infrastructure | EF Core, NATS JetStream, official MCP libraries, Python workers, Qdrant, Infisical and OTel | Mandatory dependencies for a basic Direct agent |
 
-## 5. Requirement and acceptance ownership map
+**Independent axes:** `AgentExecutionProfile={Direct,Harness,Workflow,DurableWorkflow}` selects native MAF composition; `AgentExecutionMode={Interactive,Operational}` selects authority and lifecycle. They MUST NOT be conflated. Lead delegation depth is 0; direct child 1; grandchild 2; any attempt at depth 3 is denied before execution, including native Harness background delegation.
 
-| Domain | Preserved normative source identifier set | Technical implementation/test set |
-|---|---|---|
-| Foundation/core | `OC-ARC`, `OC-CFG`, `OC-AGT`, `OC-CAP`, `OC-PRV`, `OC-EVT`, `OC-CLI`, `OC-API`, `OC-REL` | `IMP-*`, `AT-001–042` |
-| Typed options + dual mode | `OC-CFG-010–029`, `OC-AGT-020–039` | `IMP-090–099`, `AT-031–042` |
-| Firewall/vault | `OC-FW-001–064` | `IMP-080–089`, `AT-021–030`; optional models tested separately |
-| EF adapter | `OC-EF-001–096` | `EF-IMP-001–016`, `EF-AT-001–030` |
-| Navigator | `R-GOAL`, `R-DEP`, `R-ID`, `R-API`, `R-UI`, `R-MCP`, `R-TTS`, `R-INT`, `R-OPS`, `R-REL` | `NAV-IMP-001–020`, `NAV-AT-001–024` |
-| MiniComposer | `ACR-UX`, `ACR-VIS`, `ACR-TXT`, `ACR-AUD`, `ACR-SDK`, `ACR-A11Y`, `ACR-LIFE`, `ACR-OPS` | `CMP-IMP-001–014`, `CMP-AT-001–024` |
-| Observability | `OBS-001–025`, `REQ-TEL`, `REQ-GW`, `REQ-MET`, `REQ-FW`, `REQ-AG`, `REQ-MM`, `REQ-ADM`, `REQ-ASP`, `REQ-SEC`, `REQ-CFG`, `NFR` | `OBS-IMP-*` created in canonical checklist; specialist detailed verification preserved |
-| Website | Doc platform instructions §§1–19 | `SITE-IMP-*`, `SITE-AT-*` from canonical checklist |
-| Optional vector memory / KMS | Integration proposals and core event/privacy contract | `VEC-IMP-*`, `KMS-IMP-*` in canonical checklist |
+### 0.2 Deployment acceptance profiles
 
-## 6. Release completeness and documentation rules
-
-A feature is **defined in scope** even when its code is not yet implemented. Stable capabilities require true end-to-end tests, cross-tenant negative tests, real-model verification when applicable and external package consumers. Scope may be staged; it must not be quietly deleted to satisfy an artificial deadline. Document `Planned`, `Experimental`, `Ready`, `Degraded`, `Disabled` accurately in APIs and docs. Evidence is required to change checklist status. Protect proprietary/reference source attribution and all third-party license notices even where product UI has been rebranded.
-
----
-
-# Part II — Preserved detailed source requirements (normative annexes)
-
-These annexes retain the full detailed uploaded requirements and options material rather than paraphrasing away functionality. **The canonical reconciliation table in §4 governs conflicting old examples**, especially PostgreSQL-only clauses, model defaults, deployment profiles and product identity. No line below independently authorizes a weakening of security controls.
-
-
----
-
-## Annex 1: Strongly typed configuration and agent modes
-
-**Preserved source:** `configuration.md` · **SHA-256:** `2a295418a44a666954754000686b7622c98560030d31e21c86a84124064f9514` · **Content retained verbatim below.**
-
-# OpenConnect — Strongly Typed Configuration and Agent Execution Modes
-
-**Status:** Normative proposed engineering contract · **Version:** 1.1-draft · **Date:** 2026-11-06  
-**Companions:** `spec.md`, `implementation.md`, `firewall.md`, `checklist.md`.  
-**Traceability:** OC-CFG-010–029, OC-AGT-020–039, OC-FW-049–064; IMP-090–099; AT-031–042.
-
-> All sample classes, APIs, and names are target contracts, **not compiled/existing implementations**. Check actual Microsoft Agent Framework APIs and supported target frameworks before implementation. Avoid treating enum types as a security boundary: configuration is trusted only when supplied by the server operator; requests, agents, Markdown and NATS events cannot alter it.
-
-## 1. Non-negotiable principles
-
-1. **One strongly typed options model.** Prefer public C# enums and typed options over arbitrary strings for closed vocabularies: execution mode, privacy mode, failure behavior, detector kinds, on/off, model device, load policy, transport, tool side-effects, scope selection and policy decisions. Allow strings for user-defined agent IDs, tool IDs, capability IDs and model names, but validate against registries at startup.
-2. **No enum-number configuration.** Serialize enums as stable kebab-case strings to JSON/YAML using explicit converters; reject unknown values and numeric enum payloads, and keep stable protocol identifiers independent of C# CLR spelling. Never use implicit `Enum.Parse` on untrusted inputs.
-3. **No magic switches.** Defaults are secure and documented; validate all combinations at startup with `IValidateOptions<T>` and `ValidateOnStart`. Agents cannot request more permissions than host policy.
-4. **No mandatory heavyweight detectors.** Security firewall on by default; rules-only is the default lightweight detector profile. GLiNER, DeBERTa, Qwen3Guard, PaddleOCR and YuNet are individually opt-in and must not load/download/allocate if disabled. Required protection depends on **explicit policy coverage**; no claim that rules-only covers freeform names, injection, safety, images or faces.
-5. **Two execution modes, distinct security principals.** `Interactive` agents execute under the **authenticated active user's derived immutable auth context** and can only access that user's rights. `Operational` agents execute from scheduled/durable background work under a **dedicated constrained workload identity**, never impersonate the last interactive user, and are monitored and reconciled by a .NET hosted background worker. Operational agents cannot inherit user session cookies or UI action authority. These are different modes of agent instance/execution, not different agent frameworks.
-6. **Model/worker isolation.** `.AddOpenConnect()` registers lead agent and host firewall enforcement; self-hosted Python security and capability workers are separate opt-in Docker deployments. Enabling a required detector without an available validated checkpoint makes that detector unready and blocks only flows requiring its coverage.
-7. **NATS durability ≠ authorization.** JetStream carries safe work notices; the .NET host remains final policy, authorization, session, and durable commit authority. Scans that gate egress run inline before external transfer, not asynchronously via JetStream.
-
-## 2. Public C# enum catalog (proposed)
-
-Use the following identifiers in `OpenConnect.Abstractions` or `OpenConnect.Core.Configuration`; avoid hidden stringly typed switch branches. Keep service-specific ASP.NET/NATS integrations outside abstractions.
-
-```csharp
-public enum OpenConnectTransportMode { JetStream, InMemoryDevelopment }
-public enum AgentExecutionMode { Interactive, Operational }
-public enum AgentActivationMode { OnDemand, Scheduled, Continuous, EventTriggered }
-public enum AgentRunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
-public enum AgentIdentityMode { ActiveUser, WorkloadIdentity }
-public enum ToolImpact { ReadOnly, Write, ExternalSideEffect }
-public enum ModelExecutionLocation { LocalOnly, SelfHosted, RemoteAllowed }
-public enum FirewallMode { StrictLocal, LocalOnly, PolicyControlled, Disabled }
-public enum FirewallFailureAction { Deny, LocalOnlyIfVerified }
-public enum SecurityDetectorKind { Rules, GlinerPii, DebertaInjection, Qwen3Guard, PaddleOcr, YuNet }
-public enum DetectorLoadPolicy { Startup, LazyOnFirstUse }
-public enum DetectorDevice { Auto, Cpu, Cuda }
-public enum DetectorState { Disabled, Loading, Ready, Degraded, Failed }
-public enum SecurityCoverage { StructuredPii, SemanticPii, PromptInjection, ContentSafety, ImageText, FaceDetection }
-public enum SecurityPolicyAction { Allow, Mask, Redact, Block, Review }
-public enum SecurityCoverageUnavailableAction { Block, Review, LocalOnlyIfVerified }
-public enum SchedulingMisfirePolicy { Skip, RunOnce }
-public enum OperationalConcurrencyPolicy { Forbid, Queue, ReplaceAfterFence }
-public enum OperationalRecoveryPolicy { RetryWithBackoff, PauseForReview, Disable }
-```
-
-**Enum compatibility:** External contracts use explicit wire names such as `interactive`, `operational`, `qwen3guard` and `strict-local`; maintain cross-language fixtures. New optional enum members are additive only with version negotiation and default-deny unknown behavior. `LocalOnlyIfVerified` is permitted only when the capability registry can prove the chosen model/tool remains in a specifically approved local trust zone. `Review` requires a real durable review queue and human approval; absence of one resolves to `Block`, never auto-allow.
-
-## 3. Typed registration — minimum DX
-
-```csharp
-// ASP.NET Core composition: signatures are proposed and must be implemented.
-builder.Services.AddOpenConnect(options =>
-{
-    options.Transport.Mode = OpenConnectTransportMode.JetStream;
-    options.Runtime.InstructionsPath = "agent-runtime.md";
-    options.Agents.DefaultExecutionMode = AgentExecutionMode.Interactive;
-    options.Agents.RegisterLeadAgent = true;
-
-    options.Privacy.Enabled = true;
-    options.Privacy.Mode = FirewallMode.StrictLocal;
-    options.Privacy.OnFailure = FirewallFailureAction.Deny;
-    options.Privacy.Detectors.Rules.Enabled = true;
-    options.Privacy.Detectors.GlinerPii.Enabled = false;
-    options.Privacy.Detectors.DebertaInjection.Enabled = false;
-    options.Privacy.Detectors.Qwen3Guard.Enabled = false;
-    options.Privacy.Detectors.PaddleOcr.Enabled = false;
-    options.Privacy.Detectors.YuNet.Enabled = false;
-
-    options.Privacy.Policies.StructuredPii = SecurityPolicyAction.Mask;
-    options.Privacy.Policies.UnsupportedRequiredCoverage = SecurityCoverageUnavailableAction.Block;
-});
-
-builder.Services.AddOpenConnectPostgres(builder.Configuration.GetConnectionString("OpenConnect")!);
-builder.Services.AddOpenConnectNats(builder.Configuration["Nats:Url"]!);
-builder.Services.AddOpenConnectSecurityWorker(options =>
-{
-    options.Endpoint = new Uri("https://security-worker.internal/");
-    options.Timeout = TimeSpan.FromSeconds(5);
-    options.RequireMutualTls = true;
-});
-
-builder.Services.AddOpenConnectAgent("docs-assistant", agent =>
-{
-    agent.ExecutionMode = AgentExecutionMode.Interactive;
-    agent.IdentityMode = AgentIdentityMode.ActiveUser;
-    agent.InstructionsPath = "agents/docs-assistant.md";
-    agent.AllowedTools.Add("docs.read");
-});
-
-builder.Services.AddOpenConnectAgent("nightly-indexer", agent =>
-{
-    agent.ExecutionMode = AgentExecutionMode.Operational;
-    agent.IdentityMode = AgentIdentityMode.WorkloadIdentity;
-    agent.Activation = AgentActivationMode.Scheduled;
-    agent.Schedule.Cron = "0 2 * * *"; // UTC unless validated time zone set
-    agent.Schedule.TimeZoneId = "Etc/UTC";
-    agent.Schedule.MisfirePolicy = SchedulingMisfirePolicy.RunOnce;
-    agent.Operational.Concurrency = OperationalConcurrencyPolicy.Forbid;
-    agent.Operational.MaxParallelRuns = 1;
-    agent.Operational.MaxAttempts = 3;
-    agent.Operational.Timeout = TimeSpan.FromMinutes(10);
-    agent.Operational.WorkloadIdentityRef = "openconnect/docs-indexer";
-    agent.AllowedTools.Add("docs.index");
-});
-```
-
-### 3.1 Option class shapes and validation
-
-```csharp
-public sealed class OpenConnectOptions
-{
-    public TransportOptions Transport { get; } = new();
-    public RuntimeOptions Runtime { get; } = new();
-    public AgentRegistryOptions Agents { get; } = new();
-    public PrivacyOptions Privacy { get; } = new();
-}
-public sealed class PrivacyOptions
-{
-    public bool Enabled { get; set; } = true;
-    public FirewallMode Mode { get; set; } = FirewallMode.StrictLocal;
-    public FirewallFailureAction OnFailure { get; set; } = FirewallFailureAction.Deny;
-    public SecurityDetectorOptions Detectors { get; } = new();
-    public SecurityPolicyOptions Policies { get; } = new();
-}
-public sealed class SecurityDetectorOptions
-{
-    public DetectorOptions Rules { get; } = new() { Enabled = true };
-    public DetectorOptions GlinerPii { get; } = new();
-    public DetectorOptions DebertaInjection { get; } = new();
-    public DetectorOptions Qwen3Guard { get; } = new();
-    public DetectorOptions PaddleOcr { get; } = new();
-    public DetectorOptions YuNet { get; } = new();
-}
-public sealed class DetectorOptions
-{
-    public bool Enabled { get; set; }
-    public string? ModelId { get; set; }
-    public string? Revision { get; set; }
-    public string? ModelDirectory { get; set; }
-    public DetectorDevice Device { get; set; } = DetectorDevice.Cpu;
-    public DetectorLoadPolicy LoadPolicy { get; set; } = DetectorLoadPolicy.Startup;
-    public int MaxConcurrentRequests { get; set; } = 1;
-    public int? MemoryBudgetMb { get; set; }
-    public double? Threshold { get; set; }
-}
-```
-
-`OpenConnectOptions` hosts **desired policy**; the Python security worker holds its own typed Pydantic config for actual model availability. Enforce negotiation between the host's enabled/required coverage and the worker's **signed/authenticated ready capability manifest**. Merely setting an option to true does not prove detector readiness or safety.
-
-**Required validation cases:** unknown enum strings; `FirewallMode.Disabled` with `Privacy.Enabled=true` (conflicting state); strict-local with permissive failure behavior; `AgentExecutionMode.Operational` plus `ActiveUser`; `Interactive` plus `Continuous` or cron; absent workload identity; schedule without valid cron/time zone; unsupported NATS in production; selected `Qwen3Guard` without a model manifest; `PaddleOcr` image policy without image-text handling; contradictory detector disable/required coverage; invalid thresholds/negative memory; unavailable review backend; unapproved model downloads or remote detector endpoints. Missing optional detectors do **not** block startup if no required policy depends on them. Do not enforce model-reported confidence as an authorization decision.
-
-## 4. JSON configuration with typed enums
-
-```json
-{
-  "OpenConnect": {
-    "Transport": { "Mode": "jet-stream" },
-    "Agents": { "DefaultExecutionMode": "interactive", "RegisterLeadAgent": true },
-    "Privacy": {
-      "Enabled": true,
-      "Mode": "strict-local",
-      "OnFailure": "deny",
-      "Detectors": {
-        "Rules": { "Enabled": true },
-        "GlinerPii": { "Enabled": false },
-        "DebertaInjection": { "Enabled": false },
-        "Qwen3Guard": { "Enabled": false },
-        "PaddleOcr": { "Enabled": false },
-        "YuNet": { "Enabled": false }
-      },
-      "Policies": {
-        "StructuredPii": "mask",
-        "UnsupportedRequiredCoverage": "block"
-      }
-    }
-  }
-}
-```
-
-The host uses `Microsoft.Extensions.Options` binding, documented converters and validators. Enum serialization/conversion must produce the same wire values across C#, JSON schema, YAML and Pydantic; create a single golden fixture and verify parity. Do not expose `Privacy.Enabled`, detector toggles, or scheduling credentials via public agent/tool request DTOs.
-
-## 5. Execution mode contracts
-
-### 5.1 Interactive agents
-
-**OC-AGT-020–027** The task enters via authenticated HTTP/WS, from an active session with a validated principal. The host creates a server-only `AgentExecutionContext` snapshot containing tenant, subject, authorization scope revision, session/task IDs, correlation, expiry, request cancellation and policy revision. It MUST NOT copy a raw bearer token/cookie into model prompts, traces, NATS or workers. A delegated subagent uses an equal-or-narrower scope; elevation is impossible through Markdown, tool discovery or model output. Enforce reauthorization on EVERY read/write tool invocation; signed approvals are bound to arguments, principal, session and expiry. If the principal is disabled, access expires or the session changes scope, revoke future tool calls and cancel/park any affected task according to policy. UI components and suggestions inherit the same entitlement filtering and require human action for privileged operations.
-
-**Interactive task sequence:** authenticated request -> derive active user scope -> validate typed agent and capabilities -> select MAF agent/subagent -> inline security pre-egress -> invoke model/tool with reauthorization -> durably commit answer -> output inspection/restoration only for authorized principal -> WS replay. A disconnected browser does not confer ongoing authority to subsequent actions; recheck grants.
-
-### 5.2 Operational agents
-
-**OC-AGT-028–036** Operational agents are registered explicitly and monitored by a .NET hosted `BackgroundService` (`OpenConnectOperationalAgentSupervisor`) using a durable scheduler/dispatch table and JetStream work notices. A user can trigger a permitted operation, but after acceptance execution MUST use the registered **workload identity** and its pre-approved scopes; the initiator is retained only as safe, audit-only provenance, not impersonated authority. Require per-agent enable/pause, owner, workload identity, allowlisted tools/capabilities, timezone-aware schedule or event trigger, concurrency policy, maximum runtime, attempts, backoff, cancellation, quotas, and data access policy. Do not use ambient `HttpContext`, `IHttpContextAccessor`, session cookies or direct user bearer tokens in operational execution. Use scoped DI for each run and a workload credential provider (prefer short-lived identity where possible).
-
-The supervisor should: acquire a DB lease with fencing token -> evaluate due schedules/event subscriptions -> create an idempotent run record -> publish NATS notice from the transactional outbox -> heartbeat/renew lease -> construct MAF agent from registered definition + workload context -> enforce firewall and tool broker -> commit outcomes -> ACK only after durable commit -> apply retry/backoff/quarantine on errors -> expose redacted metrics/status, pause/resume/replay and alerts. Multiple host replicas must elect only one lease owner for a logical run. A resumed run must not duplicate non-idempotent writes; require side-effect idempotency or explicit approval.
-
-An operational agent **must not** perform automatic client UI activation or assume the latest active user. If review/approval is needed, create a durable authorization-bound review item; a later authenticated reviewer may approve exact operation parameters. The approval must not change the workload's authorized capability budget.
-
-### 5.3 Delegation and shared rules
-
-An interactive lead agent can delegate only to agents whose definition and tool/capability scopes are equal-or-narrower for its task. Interactive -> operational is **not implicit delegation**: it must be an explicit, authorized durable *enqueue operation* with a configured operational identity, idempotency key, and approval if required. Operational -> interactive is never silent: it creates a review/task notification and requires a fresh authenticated user task. An operational agent may delegate to another appropriately configured **operational** subagent without adopting interactive credentials. Any mixed-mode transition is visible in execution telemetry.
-
-**Principal validation matrix:**
-
-| Context / operation | Interactive | Operational |
-|---|---|---|
-| Caller identity | Authenticated current user | Host-managed workload identity |
-| Auth information | Derived claims/scopes, no raw token propagation | Scoped workload grants, no user cookie |
-| Activation | HTTP/WS/user action, explicit API | Scheduled, event-triggered, continuous or authorized enqueue |
-| Hosting | Request/task processor with durable session | `BackgroundService` monitor + persistent run ledger |
-| Delegation | Scoped same-mode subagents only | Workload-scoped same-mode subagents only |
-| Tool authorization | Active principal and task | Workload principal and run ID |
-| UI actions | Authorized proposals requiring user interaction | No direct UI activation; review/notification only |
-| Authorization expiry | Revalidate before each consequential tool call | Revalidate workload grants before each consequential call |
-| Cancellation | User/owner/API with policy | Operator/supervisor/run control |
-| Audit | User/principal/session/task | Workload/run/trigger initiator (provenance only) |
-
-## 6. Operational storage, events, and monitoring
-
-Define `oc_operational_definitions`, `oc_operational_schedules`, `oc_operational_runs`, `oc_operational_leases`, `oc_operational_checkpoints`, `oc_operational_review_items`. Tenant/workload boundaries indexed and enforced; schedule occurrence/run idempotency must be unique per agent+tenant+scheduled occurrence or event ID. Store definition/policy revision on each run. New typed lifecycle events: `operational.agent.activated`, `operational.run.queued`, `.started`, `.heartbeat`, `.paused`, `.retry-scheduled`, `.review-required`, `.completed`, `.failed`, `.cancelled`, `.stale`; schema v1 typed and emitted sanitized through host event journal/outbox. Host readiness and health report supervisor status, lease lag, failed runs and alert thresholds without logging prompts/results.
-
-Public control APIs: authenticated, scoped `GET /openconnect/v1/operational/agents`, `GET /.../runs`, `POST /.../{agentId}/pause`, `POST /.../{agentId}/resume`, `POST /.../{agentId}/trigger`, `POST /.../runs/{runId}/cancel`, `POST /.../runs/{runId}/review` with exact-bound approvals and typed errors; use admin/operator role for pause/enable as policy dictates. Do not assume all users can see operational status.
-
-## 7. Detector profiles, resource admission and policy completeness
-
-### 7.1 Baseline defaults
-
-| Detector | Default | Expected capability | Hardware behavior |
+| Deployment | Mandatory behavior | Optional services omitted | Guaranteed level |
 |---|---|---|---|
-| Rules | **Enabled** | Validated patterns, secret formats and known values | CPU, minimal allocations |
-| GLiNER PII | Disabled | Semantic entity detection where calibrated/tested | Optional local checkpoint |
-| DeBERTa injection | Disabled | Injection risk evidence (not proof) | Optional local checkpoint |
-| Qwen3Guard | Disabled | Safety classifier (input/output, checkpoint-dependent) | Optional local checkpoint, potentially large |
-| PaddleOCR | Disabled | Text localization/OCR in images | Optional OCR assets |
-| YuNet | Disabled | Face bounding regions | Optional local ONNX model |
+| Minimal Direct | Real MAF agent and permitted tool/model with enforced host policy | EF, NATS, Qdrant, TTS, navigator, workers except required privacy gate | Non-durable unless configured store is proven |
+| Harness interactive | Native MAF plan/todo/skills/context according to enabled features | RAG/vector/voice, external infrastructure | Native session semantics; durable restarts only if storage provided |
+| Workflow | Actual supported MAF execution graph, bounded shared context, policy | Dedicated scheduler if not needed | Explicit graph/run semantics |
+| Durable Workflow | Exactly one verified replay authority, resume, domain outbox effects | NATS if local durable backend supports mode | Provider-qualified recovery, not exactly-once external effects |
+| Operational | Dedicated workload identity, leases/schedules/monitoring, secure review | User browser and last user's login | Workload-scope enforcement, requires durable mode |
+| Multimodal | Only enabled, verified and appropriately licensed worker/model capabilities | All others | No claims beyond model validation |
 
-No hardware figure, detection accuracy or language coverage is guaranteed without actual benchmark evidence. Disabled means **no module model initialization, download, allocated GPU context, or capability advertisement**. For `LazyOnFirstUse`, readiness is pending until first load and only permitted if the host policy explicitly allows waiting; never route protected data when required detector is unready.
+### 0.3 Required evidence for every task and acceptance test
 
-### 7.2 Coverage-aware security decisions
+At a minimum record: source revision and changed paths; requirement ID; checklist task ID; test/acceptance ID; selected MAF and EF provider package versions; target .NET runtime; API and wire schema revision; precise command executed; observed result and stdout/test artifact; positive **and negative** tests where privilege, privacy, durability or input trust is involved; reviewer; and release label (`Planned`, `Experimental`, `Verified`, `Degraded`, `Unavailable`, `Blocked`). No unverifiable `PASS`.
 
-Default lightweight profile (rules-only) may protect **structured PII** but does not claim semantic name detection or general image/face protection. Strict-local mode defines *where* detection executes, not a blanket promise of full detector coverage. Policy can require coverage levels per destination/content class, e.g. external model + unstructured free text requires `SemanticPii` and a healthy GLiNER (or verified equivalent) whereas a synthetic structured fixture may allow rules-only. When a required detector is missing, fail closed/review (if a real review backend exists), or proven local-only if allowed. A disabled optional detector is **not** a global denial for unrelated requests. Image with text and faces requires both image-text and face coverage under relevant policy; if missing, block external upload. Audio remains blocked from remote STT under strict-local unless an independently verified local processing/privacy path exists.
+## 1. Cross-cutting immutable platform invariants
 
-Policy result must include coverage evaluated, required, missing, detector states, rules applied, `SecurityPolicyAction`, policy revision and **redacted** reasoning codes. Model confidence is input evidence, not a privileged security decision. No client or agent can self-select `Allow`, toggle detector states or claim a higher coverage level.
+**OC2-REQ-SYS-001 — Reuse MAF.** OpenConnect SHALL compose the selected native `AIAgent`, Harness Agent, workflow, session, middleware, native tool calling, context providers and skill loading supported by its pinned dependency. OpenConnect SHALL NOT implement a competing generic agent/harness loop, context compaction algorithm or workflow replay/interpreter; unavoidable compatibility shims MUST be minimal and verified.
 
-### 7.3 Resource profiles (examples, not promises)
+**OC2-REQ-SYS-002 — Trusted host policy.** Every tool, MCP call, child spawn, worker dispatch, browser action, model egress, context sharing, memory retrieval and sensitive restoration SHALL be bound to a current, server-derived principal/workload grant, tenant, purpose, catalog/policy revisions, budgets and destination classification. A model response is never an authorization receipt.
 
-- `Minimal`: rules-only; no NER, OCR, safety, injection or face coverage.
-- `Balanced`: rules + selected GLiNER / YuNet, subject to actual model memory and policy coverage.
-- `Advanced`: operator-selectable GLiNER + DeBERTa + Qwen3Guard + PaddleOCR + YuNet; requires measured memory, CPU/GPU budgets and model licensing.
+**OC2-REQ-SYS-003 — State boundaries.** Native MAF session/provider history and harness plan/todo state SHALL have one native owner, while OpenConnect separately owns committed application task/turn/event records and outbox intents. Checkpoints SHALL be protected as opaque versioned native state and not synthesized from client status events.
 
-Profiles are convenience builders that materialize **explicit detector options**, not runtime-guessed safety levels. `MemoryBudgetMb`, `MaxConcurrentRequests`, model checksum, load policy and model device must be validated against measured local capability; failed resource admission = unready, not silent substitute.
+**OC2-REQ-SYS-004 — Atomic admission and effects.** An HTTP `202 Accepted` for durable tasks SHALL follow a successful relational commit of task+event+outbox under tested transaction ownership; external broker publication is asynchronous. Remote side effects SHALL NOT be described as exactly once without a provider-supported guarantee and reconciliation.
 
-## 8. Work packages and acceptance mapping
+**OC2-REQ-SYS-005 — Truthful progress.** `accepted`, `queued`, `started`, `progress`, `heartbeat`, `finalizing`, `completed`, `cancel-requested`, `cancelled` and `outcome-unknown` SHALL preserve distinct semantics. Measured percentages require observed counters; model-generated assistant text is not completion evidence.
 
-| ID | Work | Exit evidence |
+**OC2-REQ-SYS-006 — Default privacy.** Host-enforced privacy filtering SHALL be registered by default. Optional detectors SHALL report true modality/language/health coverage. Missing required coverage blocks the *relevant protected egress* rather than either silently passing raw content or preventing unrelated local work. Disabling privacy via trusted host settings SHALL NOT disable authN/authZ, scope or approvals.
+
+**OC2-REQ-SYS-007 — Locality, classification and declassification.** Local-only/strict-local processing zones, entity detection coverage, output restoration, content trust labels and destination policy SHALL be independently tracked. Raw sensitive data MUST NOT be sent to unapproved model, MCP, NATS, telemetry, vector or worker destinations.
+
+**OC2-REQ-SYS-008 — Optionality.** `AddOpenConnect()` SHALL provide a correctly scoped basic Direct agent when a compatible model/provider is configured without requiring Docker, NATS, EF, Qdrant, Infisical, browser DOM, Python, Aspire or audio. Enabling a security policy that requires absent local detection shall block only the affected remote call.
+
+**OC2-REQ-SYS-009 — One client contract.** Authenticated application HTTP/WS task/session/replay routes SHALL remain the OpenConnect contract across .NET, Blazor, browser and Node. Any AG-UI adapter SHALL translate actual MAF/OpenConnect events without becoming an alternate authorization or persistence authority. Browsers never connect directly to NATS.
+
+**OC2-REQ-SYS-010 — Source compatibility.** `net8.0;net9.0;net10.0` SHALL be supported for individually advertised NuGet assets only when real restore/build/runtime and MAF dependency proof exists. .NET 10 is preferred; .NET 8/9 are compatibility-only after Microsoft support ends. Wire clients remain runtime-independent.
+
+**OC2-REQ-SYS-011 — Supply chain.** All 11 worker runtime images SHALL build independently in CI; protected stable publishing SHALL target Docker Hub `matibevuminkosi/openconnect-worker-<name>:X.Y.Z` with verified immutable digest and coordinated `:latest` promotion, no silent rebuild. NuGet/npm publishing SHALL be gated by clean consumers and integrity checks; GHCR is optional mirror.
+
+**OC2-REQ-SYS-012 — No status invention.** Agent trees, tool receipts, speech playback, skills, browser actions, cost accounting and eval results SHALL be derived from real runtime/test evidence. Every planned but unimplemented capability remains expressly unavailable or experimental.
+
+**OC2-REQ-SYS-013 — Stable protocol evolution.** IDs, enum wire strings, API routes, tool schemas, events, worker payloads and checkpoints SHALL be versioned and compatible as declared; unknown control-plane values fail validation, and breaking releases require approved migrations/contract diffs.
+
+**OC2-REQ-SYS-014 — Failure containment.** A disconnected UI, failed optional TTS/model/vector backend, inaccessible telemetry exporter, or unrelated optional worker SHALL NOT silently cancel an accepted durable task, lose authorized committed output, broaden security or break a supported text-only path. A failed security gate that policy requires MUST block only its protected operation.
+
+**OC2-REQ-SYS-015 — No implicit infrastructure side effects.** Registering packages or resolving DI SHALL NOT automatically create/migrate/delete developer databases, provision NATS streams, launch Docker, fetch model weights, grant cloud access, or mutate app business entities.
+
+## 2. Source governance, design authority, provenance and release-truth
+
+Governance and artifact status are product requirements because coding agents must not infer architecture or completed functionality from ambiguous documents. The authoritative documents, decision registry, licensing ledger and runtime evidence MUST remain source-controlled, versioned and non-contradictory.
+
+**Boundary guarantees.** All six canonical documents must resolve to the same current version and no stale annex may override the canonical implementation. Preserve source licensing, model notices, Git SHA, and distinguish source-derived facts from new design targets. A completed checkbox must never imply release readiness without scope-specific tests.
+
+**OC2-REQ-GOV-001** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Create and verify the six canonical docs (requirements/spec/implementation/checklist/agents-requirements/agents-spec); give each a stable version and matching revision note. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-001`; `checklist.md` acceptance/evidence task `OC2-D-GOV-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-002** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Define document precedence: requirements behavior; spec interfaces and architecture; implementation ordered work; checklist task and evidence status; agents documents specialize without contradicting the four master files. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-002`; `checklist.md` acceptance/evidence task `OC2-D-GOV-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-003** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Create a single ADR registry covering MAF ownership, harness profile, durable backend, EF transaction ownership, MCP transport, privacy trust zones, event ownership, client protocol and release registries. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-003`; `checklist.md` acceptance/evidence task `OC2-D-GOV-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-004** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Record each architecture decision with alternatives, rationale, compatibility impact, approving reviewer and superseded IDs. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-004`; `checklist.md` acceptance/evidence task `OC2-D-GOV-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-005** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Inventory current repository projects and actual public APIs before adding new assemblies; map each proposed package to existing code or a concrete deliverable. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-005`; `checklist.md` acceptance/evidence task `OC2-D-GOV-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-006** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Pin the actual Microsoft Agent Framework packages and NuGet dependency graph for net8, net9 and net10; record exact supported features, not just concepts from documentation. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-006`; `checklist.md` acceptance/evidence task `OC2-D-GOV-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-007** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Pin a Swift-Aid reference commit SHA and audit copyright/licensing before adapting code; preserve attribution in legal notices where required. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-007`; `checklist.md` acceptance/evidence task `OC2-D-GOV-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-008** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Build source-to-destination migration ledger for composer, speech/VAD, gateway, NATS, session persistence and classification worker, with each file's disposition. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-008`; `checklist.md` acceptance/evidence task `OC2-D-GOV-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-009** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Inventory third-party model weights, ONNX/WASM assets, tokenizer packs, speech voices, code license, commercial-use terms and redistribution restrictions. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-009`; `checklist.md` acceptance/evidence task `OC2-D-GOV-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-010** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Publish a full trust-boundary threat model for browser, gateway, agents, MAF providers, MCP, SQL, NATS, workers, vault, memory, and observability. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-010`; `checklist.md` acceptance/evidence task `OC2-D-GOV-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-011** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Define what counts as a released capability versus experimental, disabled, degraded, blocked or planned; publish it in capability manifests. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-011`; `checklist.md` acceptance/evidence task `OC2-D-GOV-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-012** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Create reproducible baseline solution/CI with global.json, central package versions, lockfiles, .editorconfig and deterministic restore. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-012`; `checklist.md` acceptance/evidence task `OC2-D-GOV-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-013** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Set CODEOWNERS and mandatory review for security, workflow graph, public protocol, migrations, release pipeline and external source incorporation. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-013`; `checklist.md` acceptance/evidence task `OC2-D-GOV-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-014** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Prohibit secrets, personal data, hardcoded reference-app branding and unlicensed weights in packages, documentation, fixture recordings and container layers. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-014`; `checklist.md` acceptance/evidence task `OC2-D-GOV-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-015** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Create an append-only verification ledger containing task ID, requirement IDs, test ID, commit, reviewer, environment, exact command, outcome and artifacts. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-015`; `checklist.md` acceptance/evidence task `OC2-D-GOV-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-GOV-016** — The repository governance process SHALL satisfy this **independently verifiable outcome**: Audit prior reported PASS evidence against actual repo commit/CI; preserve evidence as historically claimed until verified and never automatically promote it to v2 PASS. **Normative mapping:** `spec.md` technical entry `OC2-D-GOV-016`; `checklist.md` acceptance/evidence task `OC2-D-GOV-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**GOV scope gate:** All 16 distinct `GOV` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 3. Native MAF capability proof and adoption
+
+Agent/harness/workflow implementations are supplied by pinned, executable MAF packages; OpenConnect MAY decorate and govern them but SHALL NOT fork their underlying execution algorithms. The capabilities and API shapes MUST be established by runnable per-framework tests and the pinned dependency graph, rather than conceptual examples.
+
+**Boundary guarantees.** Direct and Harness runs must use native `AIAgent` contracts, native agent session storage, and true streamed `AgentResponseUpdate`/equivalent from pinned packages. Native Harness plan/todo/compaction, skills, background agent behavior and approval controls are tested rather than reconstructed. Workflow typed functions, parallel/sequential/handoff and durable checkpoint semantics need real compiled MAF implementations, including unsupported-feature errors.
+
+**OC2-REQ-MAF-001** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Create standalone compile/run sample using a real MAF AIAgent and deterministic IChatClient; capture streaming text and structured updates. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-001`; `checklist.md` acceptance/evidence task `OC2-D-MAF-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-002** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify MAF native function-tool invocation, tool result handling and middleware invocation order against pinned assemblies. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-002`; `checklist.md` acceptance/evidence task `OC2-D-MAF-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-003** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Create a native HarnessAgent using AsHarnessAgent from a real IChatClient and verify documented configuration hooks. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-003`; `checklist.md` acceptance/evidence task `OC2-D-MAF-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-004** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Run a native Harness plan/execute sequence and inspect actual plan and todo state events without simulated OpenConnect replacements. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-004`; `checklist.md` acceptance/evidence task `OC2-D-MAF-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-005** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify Harness state survives additional turns in one AgentSession and document ownership of plan/todo/history. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-005`; `checklist.md` acceptance/evidence task `OC2-D-MAF-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-006** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify Harness compaction against a constrained context-window fixture and record source/native state changes. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-006`; `checklist.md` acceptance/evidence task `OC2-D-MAF-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-007** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify skill source loading, metadata and progressive disclosure under the chosen native MAF skill API; document unsupported targets. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-007`; `checklist.md` acceptance/evidence task `OC2-D-MAF-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-008** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify Harness file-access capability and its sandbox/allowlist boundaries; deny unsafe host filesystem access by default. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-008`; `checklist.md` acceptance/evidence task `OC2-D-MAF-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-009** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify native Harness tool-approval prompt and dont-ask-again behavior; record where OpenConnect policy must override or narrow approvals. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-009`; `checklist.md` acceptance/evidence task `OC2-D-MAF-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-010** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify native Harness background agent/delegation operation and test constrained child scopes against OpenConnect depth-2 ceiling. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-010`; `checklist.md` acceptance/evidence task `OC2-D-MAF-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-011** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Build a MAF typed functional workflow using real executor bind and WorkflowBuilder edges. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-011`; `checklist.md` acceptance/evidence task `OC2-D-MAF-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-012** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Build a native sequential agent workflow and verify actual step ordering, inputs and outputs. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-012`; `checklist.md` acceptance/evidence task `OC2-D-MAF-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-013** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Build a native concurrent workflow and verify typed merge/fan-in, branch cancellation and no shared unsafe mutable state. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-013`; `checklist.md` acceptance/evidence task `OC2-D-MAF-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-014** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Build native handoff/interactive multi-turn workflow and identify participant session ownership and request-port semantics. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-014`; `checklist.md` acceptance/evidence task `OC2-D-MAF-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-015** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify native human-in-the-loop checkpoint pause/restore and that pending action is not executed while unapproved. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-015`; `checklist.md` acceptance/evidence task `OC2-D-MAF-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-016** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Run native workflow checkpoint restart smoke and document checkpoint format/version constraints. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-016`; `checklist.md` acceptance/evidence task `OC2-D-MAF-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-017** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Evaluate Microsoft Agent Framework Durable Extension on a real configured durable store, or mark backend unsupported with compile/test evidence. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-017`; `checklist.md` acceptance/evidence task `OC2-D-MAF-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-018** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Verify MAF hosting registration, keyed agent services, workflow-as-agent support and its compatibility with OpenConnect hosting. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-018`; `checklist.md` acceptance/evidence task `OC2-D-MAF-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-019** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Inspect MAF MCP integration, remote A2A agent adapters and AG-UI protocol adapters; classify reuse, extension and incompatibilities. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-019`; `checklist.md` acceptance/evidence task `OC2-D-MAF-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-020** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Measure which MAF-native metrics/ActivitySources and evaluation hooks are reusable; prevent duplicate instrumentation. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-020`; `checklist.md` acceptance/evidence task `OC2-D-MAF-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-021** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Produce a MAF capability-adoption matrix with exact assembly/API, available TFM, test case, OpenConnect integration point and feature flag. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-021`; `checklist.md` acceptance/evidence task `OC2-D-MAF-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-MAF-022** — The MAF integration SHALL satisfy this **independently verifiable outcome**: Fail startup or selected profile explicitly when required native MAF capability is unsupported; no fake Harness/Workflow execution. **Normative mapping:** `spec.md` technical entry `OC2-D-MAF-022`; `checklist.md` acceptance/evidence task `OC2-D-MAF-022`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**MAF scope gate:** All 22 distinct `MAF` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 4. Typed registration and configuration
+
+All advertised features must be configurable through strongly typed host-owned registrations and compatible validated configuration projections. Unknown IDs/enums, conflicting profiles, privilege-widening template overrides or unsupported model/provider features MUST be rejected before effects occur.
+
+**Boundary guarantees.** Configuration binding and fluent registration produce the same immutable validated snapshot. Typed enum values use explicit string wire mappings, unknown/numeric payloads are rejected, and user-defined IDs are validated strings. Template version/override cannot increase grants; updates cannot silently modify in-flight run authority.
+
+**OC2-REQ-CONFIG-001** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Define a single canonical enum/type assembly for execution profile Direct/Harness/Workflow/DurableWorkflow and identity mode Interactive/Operational. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-001`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-002** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Enforce profile and identity as orthogonal options; reject invalid lifecycle + authority combinations before first request. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-002`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-003** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Define stable kebab-case wire names and reject unknown or numeric enum values in JSON, YAML, C# fixture imports and TS/Pydantic parity checks. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-003`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-004** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Implement AddOpenConnect registration that creates native MAF default interactive lead and host privacy policy with no DB, Docker or model side effects. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-004`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-005** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Ensure AddOpenConnect is idempotent and conflict-aware; repeated different policy registrations fail with precise diagnostics. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-005`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-006** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Implement validated AddOpenConnectLeadAgent, AddOpenConnectAgent and template APIs that reuse the MAF hosting builder where appropriate. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-006`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-007** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Implement typed template definitions with stable ID, revision, instructions, capability requirements, model route, tools, budgets and context sharing. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-007`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-008** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Support deterministic single-base template inheritance, including policy narrowing and prevention of privilege expansion by derived definitions. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-008`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-009** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Implement trusted template variable substitution with typed allowlist, escaping and zero secret interpolation in instructions. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-009`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-010** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Load agent-runtime.md and per-agent files safely with path containment, UTF8/size limits, immutable SHA revision and atomic reload. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-010`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-011** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Validate static delegation DAG with depth0 lead, depth1 child and depth2 grandchild; reject depth3, cycles and self recursion. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-011`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-012** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Enforce depth and fan-out limits again at runtime even if native Harness/MAF dynamically proposes new background delegates. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-012`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-013** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Enforce independent limits for model calls, tool calls, depth, concurrency, tokens, wall-clock time, queue size and cost. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-013`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-014** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Make model capability selection explicit (tools, streaming, structured output, vision, locality and fallback). **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-014`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-015** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Validate structured outputs before use, including bounded repair/retry and prohibition on invalid output triggering external effects. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-015`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-016** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Freeze catalog revision per run and enforce compatibility on resume; hot reload cannot silently add rights or mutate pending approvals. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-016`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-017** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Provide developer quickstart for Direct agent with one tool and no database/broker/optional workers. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-017`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-018** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Provide developer quickstart for Harness with native plan/todo and AgentSession across multiple turns. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-018`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-019** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Provide developer quickstart for typed Workflow with sequential, parallel and HITL nodes. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-019`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-020** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Provide developer quickstart for DurableWorkflow with verified backend or explicit unsupported feature diagnostic. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-020`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CONFIG-021** — The OpenConnect composition layer SHALL satisfy this **independently verifiable outcome**: Create schema parity tests across fluent API, JSON/YAML, C#/TS/Python and invalid configuration matrices. **Normative mapping:** `spec.md` technical entry `OC2-D-CONFIG-021`; `checklist.md` acceptance/evidence task `OC2-D-CONFIG-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**CONFIG scope gate:** All 21 distinct `CONFIG` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 5. Identity, scope narrowing and authorization
+
+The execution identity SHALL remain independent from whether MAF is running Direct, Harness, Workflow or DurableWorkflow. The gateway MUST derive current-user authority for Interactive runs and dedicated workload authority for Operational runs, with operation-time enforcement and bounded delegation.
+
+**Boundary guarantees.** Interactive mode derives the current active user from host authentication; Operational never uses `HttpContext` or the last user. Child delegation inherits intersection of effective grants, and all effects reauthorize. Maximum 2 delegation edges applies to static workflows and dynamic harness child creation; fanout, tokens, calls, costs and elapsed time are independently enforced.
+
+**OC2-REQ-AUTH-001** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Resolve interactive actor from authenticated ASP.NET host and trusted tenant resolver; ignore tenant or role fields supplied by browser/LLM. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-001`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-002** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Build immutable per-task authorization/policy snapshot bound to user, tenant, session, task, catalog revision and expiry. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-002`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-003** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Reauthorize every consequential tool call against current grants, not just the initial task snapshot or capability discovery. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-003`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-004** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Cancel or pause newly privileged work when user is disabled, token expires, grants revoke, tenant changes or session is invalidated. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-004`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-005** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Ensure an interactive child inherits the intersection of parent, child registration, tenant and tool policy—not the union. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-005`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-006** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Reject depth3 and excessive background/harness delegation before any child model or tool begins. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-006`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-007** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Enforce per-subagent budgets as a slice of parent budget and ensure delegated spend cannot be counted twice. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-007`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-008** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Create explicit operational workload identity provider that does not rely on HttpContext, cookies or prior interactive tokens. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-008`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-009** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Permit scheduled/event-triggered operational activation only after dedicated operator authorization and durable registration. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-009`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-010** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Enforce workload scopes and tenant restrictions before each operational read/write and remote MCP call. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-010`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-011** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Require explicit authorized durable enqueue for interactive-to-operational transitions; do not treat this as recursive delegation. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-011`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-012** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Require fresh authenticated review/notification for operational-to-interactive transitions; never activate another user's browser. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-012`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-013** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Prevent prompts, skill manifests, MCP descriptions and retrieved content from changing actor identity or grants. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-013`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-014** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Keep principal raw credentials out of MAF prompts, NATS metadata, checkpoint diagnostics and worker payloads. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-014`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-015** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Provide per-tenant and per-application rate limits, quotas, budgets and signed audit metadata across both modes. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-015`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-AUTH-016** — The OpenConnect identity and policy layer SHALL satisfy this **independently verifiable outcome**: Write adversarial tests for cross-tenant session IDs, revoked rights on reconnect, forged approval, compromised worker and malicious child contexts. **Normative mapping:** `spec.md` technical entry `OC2-D-AUTH-016`; `checklist.md` acceptance/evidence task `OC2-D-AUTH-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**AUTH scope gate:** All 16 distinct `AUTH` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 6. Native tool invocation, MCP microservices, skills and remote agents
+
+OpenConnect SHALL adapt policy-controlled capabilities to real MAF tool/skills/MCP integrations; tools are not a separate orchestration engine. All externally supplied tool/skill metadata is lower-trust, and every consequential effect requires server-side schema, policy, current authorization and approval checks.
+
+**Boundary guarantees.** Only registered and approved tools enter MAF's candidate set. Input/output JSON schemas, impact, idempotency, host-mandated approval, privacy zone and exact canonical input digest must be validated. MCP services use official SDK transports and allowlists, workload/delegated identity, DNS/SSRF controls and untrusted descriptor handling; A2A agents remain separate remote-agent category. Agent Skills may be read as instructions only from bounded sources and never confer tool or filesystem rights.
+
+**OC2-REQ-TOOLS-001** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement canonical OpenConnect tool descriptors (ID/version, schemas, impact, residency, scopes, timeout, cancellation, idempotency, progress capability). **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-001`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-002** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Adapt typed DI-registered C# service tools to real MAF AITool/AIFunctionFactory without building a second tool invocation loop. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-002`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-003** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Register existing MAF tools as first-class OpenConnect-governed tools, preserving native tool behavior. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-003`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-004** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Build bounded tool discovery that intersects agent registration, current actor grants, tenant, task, model ability, policy and live service readiness. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-004`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-005** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Return discoverable tool descriptions only after policy filtering and redact untrusted descriptions before model context. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-005`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-006** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Validate input arguments with explicit JSON schema and canonicalization before approval or execution. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-006`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-007** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Validate tool outputs with schema, size caps, MIME and privacy rules before they are returned to the MAF run. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-007`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-008** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Define side-effect taxonomy (read, write, external effect) and approval requirements, with conservative unknown-tool default deny. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-008`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-009** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Apply exact-argument-digest/nonce/actor/tenant/session/tool-revision approvals through the pinned native MAF HITL mechanism. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-009`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-010** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Prove approved tool execution cannot occur before approval receipt; expired/revoked approvals cannot be replayed after restart. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-010`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-011** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement policy-controlled tool retry classification; never automatically replay non-idempotent effect with uncertain outcome. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-011`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-012** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Provide tool cancellation tokens and measured IProgress equivalent with scoped execution context, without leaking credentials. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-012`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-013** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement MCP client adapter using official MCP .NET SDK and supported Streamable HTTP remote transport. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-013`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-014** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement MCP server exposure of explicitly selected microservice tools/resources/prompts through approved hosting routes. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-014`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-015** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement MCP gateway aggregation with normalized namespaced IDs and service/version collision rejection. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-015`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-016** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement MCP service identity (workload/delegated user), origin allowlists, transport security, DNS/redirect/SSRF defenses and token isolation. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-016`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-017** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Require explicit user-identity delegation strategy where remote service supports it; never forward unrelated bearer tokens. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-017`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-018** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Require tool metadata refresh and schema-diff review before newly discovered MCP capabilities become callable. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-018`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-019** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Handle MCP progress notifications only as validated non-authoritative progress; map durable job polling/receipts explicitly. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-019`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-020** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Implement remote A2A integration only when registered, with trust/identity boundaries and no implicit transitive tool permissions. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-020`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-021** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Integrate native MAF skill catalogs and verified progressive loading; avoid OpenConnect's own generic skills engine. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-021`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-022** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Enforce skill package provenance, path containment, size quotas, policy metadata and tool grants. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-022`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-022`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-023** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Sandbox any privileged shell/file/network skill execution separately and default it to disabled. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-023`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-023`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-024** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Test hostile MCP tool names, misleading capability descriptions, URL rebinds, shadowed tools, script injection and output exfiltration. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-024`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-024`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TOOLS-025** — The OpenConnect tool/MCP integration SHALL satisfy this **independently verifiable outcome**: Provide one real sample exposing orders/inventory microservices with read-only and approval-gated write tools. **Normative mapping:** `spec.md` technical entry `OC2-D-TOOLS-025`; `checklist.md` acceptance/evidence task `OC2-D-TOOLS-025`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**TOOLS scope gate:** All 25 distinct `TOOLS` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 7. Native MAF session state, context, memory and compaction
+
+MAF owns native conversation/harness history and state; OpenConnect owns scoped storage adapters and application-level event/audit state. An application journal MUST NOT be blindly replayed as provider-managed history; scoped memory and optional vector search remain separate from native harness planning.
+
+**Boundary guarantees.** MAF session bytes/checkpoint formats are versioned and encrypted or protected by scoped blob references. Do not install duplicate chat-history providers on service-managed sessions. Compaction preserves decisions, unresolved approvals and source references and is budgeted/metered. Consent/revocation/deletion propagate to derived vector projections; no tenant-wide unrestricted memory read.
+
+**OC2-REQ-SESSION-001** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Document authoritative owner of model history per provider: native MAF session/local history provider or service-managed history, never both. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-001`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-002** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Use native AgentSession serialization and restore where supported, preserving provider-specific compatibility metadata. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-002`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-003** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Persist and restore native Harness planning, todo lists, approval and background-child state through native MAF codecs. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-003`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-004** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Persist workflow checkpoint references with native graph identity/revision and checkpoint-version compatibility. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-004`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-005** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Define OpenConnect app conversation/turn event history separately from raw MAF transcript/state and provenance. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-005`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-006** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Ensure ten sequential turns across host restart restore the same authorized native session and produce coherent answers. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-006`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-007** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Enforce per-session turn serialization/queue-or-conflict policy with optimistic revision and no silent concurrent history mutation. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-007`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-008** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Define approved context projection types (task summary, relevant history, approved artifacts, memory) with bounded sizes and TTL. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-008`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-009** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Restrict child context by identity, tenant, classification, purpose, data zone, model route and delegated token budget. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-009`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-010** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Keep parallel branch scratchpads and provider sessions isolated; merge only validated, versioned child result summaries. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-010`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-011** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Integrate MAF AIContextProvider / ChatHistoryProvider rather than creating a competing prompt history injector. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-011`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-012** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Use native Harness compaction where supported and preserve sources, user commitments, approvals and privacy boundaries. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-012`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-013** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Treat retrieved memory, summaries, tools and prior conversations as untrusted data, not new system authority. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-013`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-014** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Implement optional scoped durable memory key/value/summary records with consent, provenance, retention and deletion tombstones. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-014`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-015** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Implement optional semantic-memory retrieval adapter with query-time authorization and no core Qdrant dependency. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-015`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-016** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Implement memory erase/revoke propagation to derived vector projections and caches, with proof of unauthorized retrieval denial. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-016`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-017** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Store large/private attachments as encrypted, tenant-scoped object refs instead of unrestricted prompt/NATS payloads. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-017`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-SESSION-018** — The session and context integration SHALL satisfy this **independently verifiable outcome**: Test provider history incompatibility, checkpoint version mismatch, branch merge race, retained secrets and cross-session memory leakage. **Normative mapping:** `spec.md` technical entry `OC2-D-SESSION-018`; `checklist.md` acceptance/evidence task `OC2-D-SESSION-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**SESSION scope gate:** All 18 distinct `SESSION` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 8. EF Core portability, database ownership and transactions
+
+The EF Core adapter SHALL use the developer-selected provider and must not mutate database schema at DI registration. Atomicity, leases and recovery claims require provider-specific relational evidence; a shared connection string alone is not a shared transaction.
+
+**Boundary guarantees.** Developers register the real `DbContext` and provider. `ApplyOpenConnectModel()` includes only approved mappings without requiring host `DbSet<>` fields. Shared context migrations are developer-owned/manual; dedicated context migrations require explicit opt-in. SQL Server, PostgreSQL and SQLite each prove CAS/lease/transaction invariants; EF InMemory remains development-only. Connection string equality never implies cross-context ACID.
+
+**OC2-REQ-DATA-001** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement OpenConnect.Persistence.EFCore with no concrete SQL Server, SQLite, PostgreSQL or EF InMemory provider package references. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-001`; `checklist.md` acceptance/evidence task `OC2-D-DATA-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-002** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement existing ApplicationDbContext adapter registration using application's registered DbContext and provider configuration. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-002`; `checklist.md` acceptance/evidence task `OC2-D-DATA-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-003** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement ApplyOpenConnectModel() explicit entity mappings with internal entities, no user DbSet properties and no unrelated model scans. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-003`; `checklist.md` acceptance/evidence task `OC2-D-DATA-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-004** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Provide optional OpenConnectDbContext with explicit provider setup, not inferred from connection string. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-004`; `checklist.md` acceptance/evidence task `OC2-D-DATA-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-005** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Define schema openconnect for PostgreSQL/SQL Server and portable oc_ table prefix for SQLite without pretending named schema exists. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-005`; `checklist.md` acceptance/evidence task `OC2-D-DATA-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-006** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Define and verify schema/model cache keys when mapping-shaping settings vary by provider/schema/prefix. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-006`; `checklist.md` acceptance/evidence task `OC2-D-DATA-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-007** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Keep migrations Manual by default and prohibit migration/EnsureCreated/EnsureDeleted during DI registration. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-007`; `checklist.md` acceptance/evidence task `OC2-D-DATA-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-008** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Generate reviewed shared-context app-owned migration scripts and confirm business tables/rows remain untouched. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-008`; `checklist.md` acceptance/evidence task `OC2-D-DATA-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-009** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Provide provider-compatible dedicated-context migration assembly/history and safe manual migration workflow. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-009`; `checklist.md` acceptance/evidence task `OC2-D-DATA-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-010** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Reject unsafe ApplyOnStartup for shared context; dedicated startup migrations require tested cross-replica coordination. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-010`; `checklist.md` acceptance/evidence task `OC2-D-DATA-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-011** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Map sessions, tasks, turns, sanitized events, outbox, leases, approvals and encrypted token mappings with scoped indexes. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-011`; `checklist.md` acceptance/evidence task `OC2-D-DATA-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-012** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Map operational schedules/runs/leases and selected optional feature tables only when their modules are installed. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-012`; `checklist.md` acceptance/evidence task `OC2-D-DATA-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-013** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Define native MAF checkpoint blob/reference store with encryption, compatibility metadata and strict scope. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-013`; `checklist.md` acceptance/evidence task `OC2-D-DATA-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-014** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement IOpenConnectPersistenceUnitOfWork for owned/shared/external transaction modes with explicit commit owner. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-014`; `checklist.md` acceptance/evidence task `OC2-D-DATA-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-015** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Prove application business changes and OpenConnect outbox are atomic only when they share an actual transaction, not merely a connection string. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-015`; `checklist.md` acceptance/evidence task `OC2-D-DATA-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-016** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Persist accepted task/session mutation/committed event/outbox in a single relational transaction. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-016`; `checklist.md` acceptance/evidence task `OC2-D-DATA-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-017** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Allocate monotonic per-session sequence with atomic concurrency control and test simultaneous admitted turns. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-017`; `checklist.md` acceptance/evidence task `OC2-D-DATA-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-018** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement idempotency key + scoped content-hash uniqueness; identical retries return same accepted task, divergent payload conflicts. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-018`; `checklist.md` acceptance/evidence task `OC2-D-DATA-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-019** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement short fenced outbox claim, broker-ACK publish, delivery marking and expiry recovery without DB transaction across network. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-019`; `checklist.md` acceptance/evidence task `OC2-D-DATA-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-020** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Implement provider-specific validated claim/CAS strategy; prohibit universal use of Postgres-only SKIP LOCKED or SQLServer rowversion assumptions. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-020`; `checklist.md` acceptance/evidence task `OC2-D-DATA-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-021** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test SQL Server multi-host concurrent claims, split-brain fencing and broker failure with real disposable database. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-021`; `checklist.md` acceptance/evidence task `OC2-D-DATA-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-022** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test PostgreSQL multi-host concurrent claims, split-brain fencing and broker failure with real disposable database. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-022`; `checklist.md` acceptance/evidence task `OC2-D-DATA-022`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-023** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test SQLite file-based restart/lock contention and bounded retry policy; document supported small-instance scale. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-023`; `checklist.md` acceptance/evidence task `OC2-D-DATA-023`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-024** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test EF InMemory dev-only capability with explicit rejection of production distributed/outbox durability claims. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-024`; `checklist.md` acceptance/evidence task `OC2-D-DATA-024`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-025** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test rollback, outbox crash-after-publish, duplicate consumer receipt, replay recovery and lease takeover after process kill. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-025`; `checklist.md` acceptance/evidence task `OC2-D-DATA-025`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-026** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Test tenant/actor isolation for all session, approval, checkpoint, vault and background run records. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-026`; `checklist.md` acceptance/evidence task `OC2-D-DATA-026`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-027** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Validate schema readiness without creating tables, and expose exact actionable diagnostics for missing/mismatched mappings. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-027`; `checklist.md` acceptance/evidence task `OC2-D-DATA-027`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DATA-028** — The EF Core persistence adapter SHALL satisfy this **independently verifiable outcome**: Document backup/restore, forward-compatible migration, destructive retention/purge, legal hold and rolling upgrade restrictions. **Normative mapping:** `spec.md` technical entry `OC2-D-DATA-028`; `checklist.md` acceptance/evidence task `OC2-D-DATA-028`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**DATA scope gate:** All 28 distinct `DATA` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 9. MAF durable workflow execution and operational background work
+
+Exactly one selected workflow execution backend owns replay, continuation and checkpoints; OpenConnect owns domain admission/outbox and workload authorization. A scheduled operational run is not synonymous with MAF Harness background delegation or model-provider background responses.
+
+**Boundary guarantees.** The selected native MAF Durable Extension or tested alternate is the sole workflow replay authority. Application DB stores task/job intents and receipts; external writes are outside DB transactions with idempotency/reconciliation. Operational scheduler enforces workload identity, lease/fence, misfire/overlap/disable policy, and review; Harness background delegation is not the operational scheduler.
+
+**OC2-REQ-DURABLE-001** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Define one selected runtime execution backend per run (native MAF Durable Extension or qualified alternative); do not run competing workflow schedulers. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-001`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-002** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Build actual MAF Durable Extension lab with relevant storage/hosting and document supported TFMs and checkpoint behavior. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-002`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-003** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Implement explicit backend option validation and fail if requested durable backend is unavailable or incompatible. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-003`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-004** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Map OpenConnect TaskId/RunId to native workflow instance and checkpoint identity with stable versioned association. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-004`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-005** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Keep OpenConnect domain transaction/outbox separate from native workflow state transaction; document cross-store consistency limits. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-005`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-006** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Implement operational workload triggers via bounded scheduler integration without reimplementing native workflow graph traversal. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-006`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-007** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Define cron/timezone and misfire validation, overlap policy, concurrency caps, budgets and max runtime for operational activation. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-007`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-008** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Implement durable run acceptance, lease/fencing and stable schedule-occurrence idempotency when the chosen backend requires it. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-008`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-009** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Prevent double lease ownership when MAF durable backend provides distributed leases; only one component owns execution lease. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-009`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-010** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Persist exact planned external side-effect intent and result receipt with idempotency/reconciliation in OpenConnect domain store. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-010`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-011** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Implement prompt/approval pause using native MAF continuation, not a custom execution loop replaying every step. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-011`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-012** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Revalidate principal/workload grants and privacy policy before any resumed external effect. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-012`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-013** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Implement cancelled/failed/stale run status mapping from real native runtime and committed OpenConnect events. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-013`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-014** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Document unknown external-effect reconciliation after crash and prohibit automatic replay of uncertain writes. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-014`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-015** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Test host restart between workflow checkpoint and external tool acceptance without duplicate native executor or business effects. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-015`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-016** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Test work distributed over two host instances with a real lease backend and deterministic run outcome. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-016`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-DURABLE-017** — The durable execution integration SHALL satisfy this **independently verifiable outcome**: Test MAF package upgrade/checkpoint incompatible restore fails safe with migration/recovery playbook. **Normative mapping:** `spec.md` technical entry `OC2-D-DURABLE-017`; `checklist.md` acceptance/evidence task `OC2-D-DURABLE-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**DURABLE scope gate:** All 17 distinct `DURABLE` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 10. Long-running tools, acknowledgements, progress and cancellation
+
+OpenConnect SHALL truthfully describe long-tool admission and work stages, with state derived from real commits/handler receipts and bounded client projections. A client-visible heartbeat is not measured progress, a cancellation request is not confirmed cancellation, and a model-written status is not authoritative.
+
+**Boundary guarantees.** For registered durable-long tools, record `tool.accepted` before dispatch and report `tool.started` only when real work starts. UI delivery cannot block execution; reconnect replays safe committed status. `100%` is not `completed` until validated result committed; no retry of uncertain non-idempotent remote effects. Progress percentages only from measured counters, heartbeat only when actual liveness is known.
+
+**OC2-REQ-ACK-001** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Define ToolExecutionMode Inline versus BackgroundDurable and typed expected-duration policy; require explicit long-running declaration for guaranteed pre-start ACK. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-001`; `checklist.md` acceptance/evidence task `OC2-D-ACK-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-002** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Create durable invocation row with stable invocation ID, attempt, owner, canonical argument hash, tool revision and auth/policy snapshot. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-002`; `checklist.md` acceptance/evidence task `OC2-D-ACK-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-003** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Persist approval request before queued state for approval-gated tools; never indicate queued/executing while approval pending. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-003`; `checklist.md` acceptance/evidence task `OC2-D-ACK-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-004** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Commit tool.accepted event, invocation state and outbox atomically before dispatching a declared BackgroundDurable tool. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-004`; `checklist.md` acceptance/evidence task `OC2-D-ACK-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-005** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Distinguish durable acceptance from actual client display delivery; do not wait for browser render ACK before executing. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-005`; `checklist.md` acceptance/evidence task `OC2-D-ACK-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-006** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Persist real tool.started only after handler/worker claims task and execution actually begins. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-006`; `checklist.md` acceptance/evidence task `OC2-D-ACK-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-007** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Expose measured phase, completed units and verified total with monotonic bounds; never synthesize percentages. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-007`; `checklist.md` acceptance/evidence task `OC2-D-ACK-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-008** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Keep progress events bounded/coalesced and allow independently configured latest snapshot vs transient updates. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-008`; `checklist.md` acceptance/evidence task `OC2-D-ACK-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-009** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Emit heartbeat only from verified lease/process liveness; prevent heartbeat from implying actual work advanced. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-009`; `checklist.md` acceptance/evidence task `OC2-D-ACK-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-010** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Emit explicit Finalizing when work reports 100 percent but output validation or durable commit remains pending. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-010`; `checklist.md` acceptance/evidence task `OC2-D-ACK-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-011** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Validate tool result schema/privacy and commit terminal event before telling native MAF continuation the operation succeeded. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-011`; `checklist.md` acceptance/evidence task `OC2-D-ACK-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-012** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Resume MAF pending tool request with one logical result across duplicate notifications/restarts; deduplicate by invocation receipt. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-012`; `checklist.md` acceptance/evidence task `OC2-D-ACK-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-013** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Map cancellation.requested vs confirmed cancelled/completed/outcome_unknown as separate transitions with racing outcome test. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-013`; `checklist.md` acceptance/evidence task `OC2-D-ACK-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-014** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Do not retry uncertain non-idempotent remote effects without reconciliation; provide operator review/recovery endpoint. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-014`; `checklist.md` acceptance/evidence task `OC2-D-ACK-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-015** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Implement timeout/watchdog for missing heartbeat, stale lease, cancellation and dead-letter quarantine with safe diagnostics. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-015`; `checklist.md` acceptance/evidence task `OC2-D-ACK-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-016** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Expose task/get tool status endpoint and replay snapshot, with tenant/actor scope and no raw arguments in browser event. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-016`; `checklist.md` acceptance/evidence task `OC2-D-ACK-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-017** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Use deterministic localized status keys for MiniComposer, not additional LLM-generated chat turns or unmetered commentary. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-017`; `checklist.md` acceptance/evidence task `OC2-D-ACK-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-018** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Test a disconnected client before ACK delivery, a second client reconnect and a tool finish under WS outage. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-018`; `checklist.md` acceptance/evidence task `OC2-D-ACK-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-ACK-019** — The long-running tool coordinator SHALL satisfy this **independently verifiable outcome**: Test progress floods/backpressure, re-ordered events, duplicate NATS notices, age-bounded replay and percent=100-before-commit fault. **Normative mapping:** `spec.md` technical entry `OC2-D-ACK-019`; `checklist.md` acceptance/evidence task `OC2-D-ACK-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**ACK scope gate:** All 19 distinct `ACK` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 11. Privacy firewall, detector coverage, encrypted vault and information flow
+
+Every protected egress path SHALL be subject to host-owned privacy policy and current authorization, with truthful per-modality detector coverage. Remote services, model outputs and optional detector workers cannot weaken privacy policy, recover vault secrets or grant authority.
+
+**Boundary guarantees.** The .NET host alone enforces destination/purpose privacy and token restoration. The Python detector worker runs authenticated local span detection with independent rules, GLiNER, DeBERTa, Qwen3Guard, OCR and YuNet readiness, never vault permissions. AES-GCM scoped token mappings have TTL/rotation, streaming placeholder safety, schema-path restoration controls and canary checks across logs, tools, NATS, vector and telemetry. Unsupported remote audio/image protected egress is blocked.
+
+**OC2-REQ-PRIVACY-001** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Register .NET host privacy enforcement default-on and separate always-on authentication/authorization regardless privacy enabled state. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-001`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-002** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Define policy snapshots with trust zone, data class, actor, session/task, detector coverage requirements, destinations and revisions. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-002`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-003** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement authenticated local security-worker channel with strict size/deadline/resource bounds and no worker DB/vault key access. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-003`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-004** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement deterministic local PII/secrets/checksum rules and optional custom matchers with stable Unicode-safe offsets. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-004`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-005** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Enable GLiNER semantic PII independently with pinned reviewed checkpoint and truthful supported language/entity capabilities. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-005`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-006** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Enable DeBERTa injection independently and distinguish probabilistic risk signal from permission authority. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-006`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-007** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Enable Qwen3Guard independently with calibrated/tested safety categories and no universal safety claim. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-007`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-008** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Enable PaddleOCR independently with original-image and PDF hidden-layer security tests. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-008`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-009** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Enable YuNet independently with actual image redaction/face detection verification when policy requires it. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-009`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-010** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Prove all disabled detector paths avoid downloading, importing model weights, allocating GPU sessions or advertising capabilities. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-010`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-011** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Validate detector signals against host-owned input bounds; reject malicious/invalid offsets and forged allow decisions. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-011`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-012** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement required vs achieved coverage matrix per operation/media/destination, with fail-closed or approved review/local-only routes. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-012`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-013** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Tokenize with cryptographically random opaque placeholders and encrypted per-tenant/principal/session/turn mappings. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-013`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-014** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement persistent protected local KEK/DEK envelope AES-GCM vault and optional key wrapping interface without plaintext database columns. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-014`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-015** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement authorized path-specific restoration for final user output and separately trusted tool argument fields. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-015`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-016** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Implement streaming placeholder split buffering with every split-point property tests and no partial secret emission. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-016`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-017** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Scan outgoing model/tool response and tool result content independently, including literal sensitive values not just known placeholders. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-017`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-018** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Gate images, documents, EXIF, hidden PDF text and audio modality egress; never claim transcript-only redaction protects remote raw audio. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-018`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-019** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Prohibit raw prompts, secrets, token maps, sensitive tool args, audio and private checkpoints in NATS and telemetry. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-019`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-020** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Run malicious prompt/MCP/skill/memory/child context test fixtures against all policy boundaries and verify no unsafe egress. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-020`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-021** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Verify privacy-disabled trusted-host option emits warning but leaves all auth, tenant and tool controls enforced. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-021`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-022** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Verify security-worker crash, stale readiness, wrong checkpoint hash, unsupported language and timeout block only policy-required paths. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-022`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-022`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-PRIVACY-023** — The privacy and information-flow layer SHALL satisfy this **independently verifiable outcome**: Create independent licensing/benchmark report with FP/FN, leakage/overmask, p50/p95 latency, models/languages/hardware. **Normative mapping:** `spec.md` technical entry `OC2-D-PRIVACY-023`; `checklist.md` acceptance/evidence task `OC2-D-PRIVACY-023`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**PRIVACY scope gate:** All 23 distinct `PRIVACY` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 12. Committed distributed events, task API, NATS and AG-UI
+
+Application events have a durable source of truth independent of ephemeral streaming and broker delivery order. NATS is an optional distributed delivery backbone; AG-UI is an optional protocol adapter; neither can bypass gateway authorization or forge completed application state.
+
+**Boundary guarantees.** Journal cursors use per-session committed sequence, not NATS order. `IEventJournal` remains replay-by-known-session; `IAgentEventSubscription` subscribes to approved committed events. NATS stores sanitized metadata/opaque references and ACKs only after durable consumer outcome. HTTP/WS authentication, replay expiry, cursor dedup and AG-UI approval/status parity are tested.
+
+**OC2-REQ-EVENTS-001** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Define canonical versioned OpenAPI routes, error ProblemDetails codes and authenticated tenant/actor derivation. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-001`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-002** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement POST sessions/tasks with idempotency and durable 202 semantics only after relational commit. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-002`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-003** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement GET task/session and bounded per-session replay with monotonic database cursor and replay-window expiry resnapshot. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-003`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-004** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement authenticated WebSocket subscribe/reconnect, origin verification, bounded backpressure and revocation-aware auth refresh. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-004`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-005** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement safe event schemas for task/agent/harness plan/todo/workflow/tool/approval/progress/voice and extension payloads. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-005`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-006** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Distinguish committed authoritative lifecycle events from non-durable high-frequency streaming deltas. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-006`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-007** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Map native MAF events into OpenConnect client projections without fabricated execution trees or fake agent steps. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-007`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-008** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Persist sanitized notices in transactional outbox and deliver to NATS only after domain commit. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-008`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-009** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Use NATS-Msg-Id and ACK-after-durable-consumer processing; test duplicate publish, consumer crash and broker outage. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-009`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-010** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Keep IEventJournal replay scoped to known SessionId; expose distinct approved committed-event subscription abstraction. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-010`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-011** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement per-consumer role-limited NATS subjects; workers cannot create/delete streams or see unrelated tenants. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-011`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-012** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Use authenticated short-lived payload reference fetch for worker-private original content, not NATS body or URL query. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-012`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-013** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Implement optional AG-UI endpoint using MAF adapter when installed; preserve independent OpenConnect task API authority. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-013`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-014** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Verify AG-UI/tool approval/session/authorization/cancellation parity with OpenConnect HTTP/WS behavior. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-014`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-015** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Do not require NATS or AG-UI when only basic Direct agent and in-process execution are configured. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-015`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EVENTS-016** — The transport and committed event layer SHALL satisfy this **independently verifiable outcome**: Document safe NATS subject/version migration, retention and loss/rebuild of ephemeral client events. **Normative mapping:** `spec.md` technical entry `OC2-D-EVENTS-016`; `checklist.md` acceptance/evidence task `OC2-D-EVENTS-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**EVENTS scope gate:** All 16 distinct `EVENTS` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 13. Client SDK interoperability, Blazor/Node and MiniComposer
+
+All clients SHALL consume one versioned task/event contract and faithfully represent real server state; browser/Node SDKs MUST be usable without optional speech. Client widgets, component proposals and navigator activation are not authorization authorities and must not inject arbitrary executable content.
+
+**Boundary guarantees.** MiniComposer is a small anchored draggable FAB-and-bubble UI, not a modal chat application: 1–5 line editor, IME-safe Send, status, Stop distinct from Close, mic/voice independent, accessibility, RTL/mobile/reduced motion. Node SDK is DOM-free. Only registered local components render, with validated props and permission gates; no arbitrary model-produced HTML or scripts.
+
+**OC2-REQ-CLIENT-001** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement net8/9/10 IOpenConnectClient with typed authenticated task/session/cancel/capability/subscription APIs. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-001`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-002** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement browser-and-Node @openconnect/client with typed OpenAPI DTOs, AbortSignal, WebSocket reconnect and SSR-safe import. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-002`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-003** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement shared client event dedup, cursor replay/resnapshot and auth switch/logout clearing of scoped projections. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-003`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-004** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement Blazor OpenConnectProvider with correct cascading child content and no duplicate MudBlazor providers. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-004`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-005** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement default MiniComposer bottom-right 44–56px FAB, no document reflow or unsolicited popups. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-005`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-006** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement compact 23.5–24rem responsive anchored bubble, subtle tail, drag handle, settings, stop and close. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-006`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-007** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement pointer/touch/keyboard drag constrained to viewport; arrows 24px and Home reset, mobile keyboard/safe-area zoom handling. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-007`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-008** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement textarea initial 1 row/max5/8000 chars and Enter/ShiftEnter/IME/double submit safe task admission. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-008`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-009** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement distinct Stop/Cancel versus Close/Minimize; close must not silently cancel durable run. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-009`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-010** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement bounded latest user/assistant/partial transcript snippets and real streaming output status. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-010`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-011** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement concise Harness native plan/todo/Workflow execution status without inventing progress or exposing private reasoning. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-011`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-012** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement long-running tool ACK/heartbeat display with accessible non-spam coalescing and approval state. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-012`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-013** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement independent voice output and microphone controls, conditional availability and browser permission only from user gesture. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-013`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-014** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement responsive light/dark/RTL/high-contrast/reduced-motion/a11y controls and accessible 44px touch hit regions. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-014`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-015** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement optional component metadata (IOpenConnectComponent descriptor), schemas, capability maps and server-side filtering. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-015`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-016** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement validated component proposal mapping to locally registered renderers only; deny arbitrary HTML/CSS/JS execution. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-016`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-017** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement framework-neutral browser composer package with stylesheet scope/ShadowRoot strategy and no global host CSS interference. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-017`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-018** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement optional React wrapper sharing underlying client and state; no duplicate data model or session coordinator. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-018`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-019** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Implement attached Navigator composer mode reusing same core editor state and hiding FAB/tail/drag. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-019`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-020** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Run bUnit, Blazor Server/WASM, Playwright screenshot/visual parity, Node SSR and React StrictMode disposal tests. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-020`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-CLIENT-021** — The client and UI integration SHALL satisfy this **independently verifiable outcome**: Test network loss, WS reconnection, auth expiry, two users, multiple renders, modal stacking and mobile viewport. **Normative mapping:** `spec.md` technical entry `OC2-D-CLIENT-021`; `checklist.md` acceptance/evidence task `OC2-D-CLIENT-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**CLIENT scope gate:** All 21 distinct `CLIENT` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 14. Voice capture, client/server VAD, transcription and speech epochs
+
+Voice privacy, acoustic speech evidence, end-of-turn acceptance and playback receipts are separate concepts with distinct owners. Mic activation requires user gesture, client VAD is advisory, server turn admission is authoritative, and interruption fencing MUST prevent stale audio.
+
+**Boundary guarantees.** Browser VAD may use pinned Silero ONNX/WASM and WebRTC for barge-in; server .NET Silero maintains independent per-stream recurrent state and is authoritative for turn admission. Hybrid mode must resample safely, track sample offsets/sequence, deal with gaps and reset epochs. No client speech flag alone is an approved turn or policy verdict. Microphone is user-consent-bound; old TTS chunks are fenced after interrupt.
+
+**OC2-REQ-VOICE-001** — The voice stack SHALL satisfy this **independently verifiable outcome**: Define typed client/server/hybrid/disabled VAD modes, threshold options, frame/session state and capability manifests. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-001`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-002** — The voice stack SHALL satisfy this **independently verifiable outcome**: Reuse approved Silero ONNX model through optional .NET server VAD adapter, with independently scoped recurrent state per audio stream. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-002`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-003** — The voice stack SHALL satisfy this **independently verifiable outcome**: Verify server Silero frames use actual model-required rate/size (16kHz/512 samples for selected pinned model) and reject invalid PCM. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-003`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-004** — The voice stack SHALL satisfy this **independently verifiable outcome**: Implement bounded PCM16 resampler from client sample rate to selected detector, with explicit source absolute sample positions. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-004`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-005** — The voice stack SHALL satisfy this **independently verifiable outcome**: Reset VAD recurrent state on sequence discontinuity, sample-rate change, stream epoch reset or disposed session. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-005`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-006** — The voice stack SHALL satisfy this **independently verifiable outcome**: Provide browser Silero ONNX/WASM local VAD with pinned assets and zero request-time model download; lazy load only after user action. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-006`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-007** — The voice stack SHALL satisfy this **independently verifiable outcome**: Provide WebRTC-class short-frame client barge-in detector with actual speech confirmation threshold and single-shot reset. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-007`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-008** — The voice stack SHALL satisfy this **independently verifiable outcome**: Support optional native Android Silero VAD without duplicate microphone ownership or extra audio enhancement chain. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-008`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-009** — The voice stack SHALL satisfy this **independently verifiable outcome**: Implement client silence gating, pre-roll buffering, segment start/end/heartbeat packets and bounded resource limits. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-009`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-010** — The voice stack SHALL satisfy this **independently verifiable outcome**: Enforce server authority for accepted speech turns, final STT/transcripts and durable task admission regardless client VAD decisions. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-010`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-011** — The voice stack SHALL satisfy this **independently verifiable outcome**: Fence speech epochs across microphone capture, STT, model response, TTS, output playback and interruption. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-011`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-012** — The voice stack SHALL satisfy this **independently verifiable outcome**: Test suppression of stale audio on barge-in and retained text transcript availability when TTS absent. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-012`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-013** — The voice stack SHALL satisfy this **independently verifiable outcome**: Maintain privacy-zone policy: local VAD alone does not make remote raw audio privacy preserving. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-013`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-VOICE-014** — The voice stack SHALL satisfy this **independently verifiable outcome**: Test frame gaps, concurrent sessions, silence, synthetic voiced signal, browser permission denial, missing model and clean disposal. **Normative mapping:** `spec.md` technical entry `OC2-D-VOICE-014`; `checklist.md` acceptance/evidence task `OC2-D-VOICE-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**VOICE scope gate:** All 14 distinct `VOICE` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 15. Python worker platform, model provisioning and independent capabilities
+
+Each model worker is independently deployable, versioned and honest about model health, licenses, languages and resources. An optional worker being disabled MUST NOT cause a core text/tool failure, except that protected external flows may be denied when mandatory privacy coverage is absent.
+
+**Boundary guarantees.** Eight Python worker images—security, classification, NLLB, inference, transcription, realtime-voice, Kokoro and MMS-TTS—must have separate reproducible builds, capabilities, readiness and bounded identity. Models are approved, pinned/hash-checked/license-gated and downloaded only on first enabled startup to persistent volumes (not per request); cache reuse is proven offline. Kokoro `af_heart` and MMS/NLLB model languages/licenses are declared only when verified.
+
+**OC2-REQ-WORKERS-001** — The worker platform SHALL satisfy this **independently verifiable outcome**: Build common Python 3.12 uv-locked package with versioned Pydantic schemas and golden C#/TS parity fixtures. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-001`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-002** — The worker platform SHALL satisfy this **independently verifiable outcome**: Provide worker machine authentication, scoped payload fetch, NATS pull/ACK and bounded leases/retries/cancellation. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-002`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-003** — The worker platform SHALL satisfy this **independently verifiable outcome**: Separate liveness from model-backed true readiness and report health TTL, model ID/revision/license and installed capabilities. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-003`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-004** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create security Python image with selectable rules, GLiNER, DeBERTa, Qwen3Guard, PaddleOCR and YuNet detectors. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-004`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-005** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create classification Python image with selectable licensed models, language/label taxonomy and abstention semantics. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-005`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-006** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create NLLB Python translation image with pinned model and explicit supported language pairs and license clearance. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-006`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-007** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create self-hosted inference Python image that advertises chat/stream/tool/embedding only when backend actually supports each. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-007`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-008** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create transcription Python image with codec/sample-rate/locale and actual recorded/streaming STT capability declaration. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-008`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-009** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create realtime-voice Python image with VAD/STT/TTS adapters, speech epochs and interruption/cancellation semantics. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-009`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-010** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create independent Kokoro Python image with English af_heart preferred only when approved model/voice installed. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-010`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-011** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create independent MMS-TTS Python image with opt-in permitted language checkpoints and noncommercial licensing guard. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-011`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-012** — The worker platform SHALL satisfy this **independently verifiable outcome**: For every Python image create own Dockerfile, pyproject.toml, uv.lock, tests, manifest, health endpoints and Compose profile. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-012`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-013** — The worker platform SHALL satisfy this **independently verifiable outcome**: Provision only enabled worker model assets at first startup using signed/pinned manifests, checksum and audited license. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-013`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-014** — The worker platform SHALL satisfy this **independently verifiable outcome**: Persist model cache in dedicated named volume with atomic staging/checksum/promotion, lock and offline reuse. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-014`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-015** — The worker platform SHALL satisfy this **independently verifiable outcome**: Never download models during inference/synthesis request or import disabled detector models as side effects. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-015`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-016** — The worker platform SHALL satisfy this **independently verifiable outcome**: Create CPU-only smoke, optional GPU profile, memory/concurrency admission and clean SIGTERM/health behavior for each image. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-016`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-017** — The worker platform SHALL satisfy this **independently verifiable outcome**: Verify each worker independently can be absent without breaking unrelated text agent, MCP and MiniComposer functionality. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-017`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-WORKERS-018** — The worker platform SHALL satisfy this **independently verifiable outcome**: Test broker redelivery and completion ACK only after durable OpenConnect host outcome for each durable worker job. **Normative mapping:** `spec.md` technical entry `OC2-D-WORKERS-018`; `checklist.md` acceptance/evidence task `OC2-D-WORKERS-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**WORKERS scope gate:** All 18 distinct `WORKERS` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 16. Navigator, Playwright MCP and standalone .NET worker hosts
+
+Navigator and Playwright are optional tools of the host-authorized workflow, not separate AI runtimes. Read-only tours remain available without Playwright/TTS; browser mutations require approved scoped targets and independently verified effects.
+
+**Boundary guarantees.** Navigator uses existing host agent/tool/session/progress authority, semantic registered UI targets and consented guided actions. Optional Node/Chromium Playwright MCP service must sandbox browser and deny unrestricted evaluate/network access. Two separately Dockerized .NET operational supervisor/outbox services are optional deployment forms, and embedded hosted services remain the default; no duplicate scheduler or outbox publisher active concurrently.
+
+**OC2-REQ-BROWSER-001** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Implement optional Navigator semantic targets with stable registered ID/route/action/sensitivity/capability metadata. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-001`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-002** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Implement read-only tours, highlighting, focus/scroll/next/back/pause/skip and a11y without Playwright/TTS. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-002`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-003** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Implement bounded DOM observation with permission filtering, no secret/input value capture and injection-safe context treatment. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-003`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-004** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Implement short-lived authenticated client bridge grants scoped to user/tenant/route/target/revision/action digest. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-004`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-005** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Require independent explicit consent for screenshots/capture and separate authorization for UI mutations. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-005`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-006** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Require registered target + fresh reauthorization + actual postcondition receipts for any mutating UI operation. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-006`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-007** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Create Node.js/Chromium Playwright MCP Docker image with per-job isolated browser profiles and explicit tool allowlist. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-007`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-008** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Enforce network origin allowlists, SSRF/redirect/DNS rebinding defenses and ban unrestricted JS evaluation by default. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-008`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-009** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Ensure Playwright absence does not affect semantic read-only navigation or unrelated MCP services. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-009`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-010** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Wire operational Navigator through existing workload identity and selected durable run owner, not another scheduler. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-010`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-011** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Provide optional standalone .NET operational-agent worker-host image reusing same native MAF durable backend. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-011`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-012** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Provide optional standalone .NET outbox-dispatcher worker-host image, with single consumer ownership and safe embedded alternative. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-012`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-013** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Prevent embedded and standalone supervisor/dispatcher from simultaneously owning same lease or publishing twice. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-013`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-BROWSER-014** — The Navigator/worker-host integration SHALL satisfy this **independently verifiable outcome**: Test capture redaction on actual image bytes/metadata and deny uncertain sensitive pixels/frames. **Normative mapping:** `spec.md` technical entry `OC2-D-BROWSER-014`; `checklist.md` acceptance/evidence task `OC2-D-BROWSER-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**BROWSER scope gate:** All 14 distinct `BROWSER` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 17. Optional semantic memory, vector and cryptography adapters
+
+Qdrant indexes approved derived projections and Infisical may wrap key material; neither becomes the application event journal, primary vault or general agent authority. Extensions MUST preserve deletion/revocation, scope filtering, idempotency and isolation while remaining absent from minimal installations.
+
+**Boundary guarantees.** QdrantVactor consumes committed approved event notifications, resolves authorized sanitized projections and uses idempotent vector upsert/deletion; neither global session enumeration nor vectors in raw `EventRecord` are required. Infisical wraps approved key material, does not store the OpenConnect PII mapping vault or decide restoration.
+
+**OC2-REQ-EXT-001** — The optional extension SHALL satisfy this **independently verifiable outcome**: Implement independently installable QdrantVactor registration with no Qdrant client/consumer when absent. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-001`; `checklist.md` acceptance/evidence task `OC2-D-EXT-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-002** — The optional extension SHALL satisfy this **independently verifiable outcome**: Subscribe to committed safe agent events using approved IAgentEventSubscription, not unbounded journal-wide scan. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-002`; `checklist.md` acceptance/evidence task `OC2-D-EXT-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-003** — The optional extension SHALL satisfy this **independently verifiable outcome**: Retrieve sanitized policy-approved projection with tenant/actor authorization before embedding any memory content. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-003`; `checklist.md` acceptance/evidence task `OC2-D-EXT-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-004** — The optional extension SHALL satisfy this **independently verifiable outcome**: Generate embedding asynchronously with pinned model revision and idempotent vector IDs; no vectors added to EventRecord. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-004`; `checklist.md` acceptance/evidence task `OC2-D-EXT-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-005** — The optional extension SHALL satisfy this **independently verifiable outcome**: Filter Qdrant retrieval by tenant/agent/principal scopes at query time; prevent stale indexing from widening rights. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-005`; `checklist.md` acceptance/evidence task `OC2-D-EXT-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-006** — The optional extension SHALL satisfy this **independently verifiable outcome**: Propagate source deletion, retention expiry and consent revocation to Qdrant vector removal/quarantine. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-006`; `checklist.md` acceptance/evidence task `OC2-D-EXT-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-007** — The optional extension SHALL satisfy this **independently verifiable outcome**: Prove Qdrant outage or missing embedder leaves direct/harness/workflow tasks independently usable. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-007`; `checklist.md` acceptance/evidence task `OC2-D-EXT-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-008** — The optional extension SHALL satisfy this **independently verifiable outcome**: Implement default encrypted local key-wrapping provider with securely persistent rotated master key policy. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-008`; `checklist.md` acceptance/evidence task `OC2-D-EXT-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-009** — The optional extension SHALL satisfy this **independently verifiable outcome**: Provide optional Infisical KMS adapter strictly for KEK wrap/unwrap; never export original PII or vault mappings. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-009`; `checklist.md` acceptance/evidence task `OC2-D-EXT-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-010** — The optional extension SHALL satisfy this **independently verifiable outcome**: Validate key rotation, unwrap outage, cache TTL, scope binding and inability to restore across tenants. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-010`; `checklist.md` acceptance/evidence task `OC2-D-EXT-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-EXT-011** — The optional extension SHALL satisfy this **independently verifiable outcome**: Test extension registration/unregistration has no mandatory DB/worker/transport dependency leak. **Normative mapping:** `spec.md` technical entry `OC2-D-EXT-011`; `checklist.md` acceptance/evidence task `OC2-D-EXT-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**EXT scope gate:** All 11 distinct `EXT` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 18. Observability, cost accounting, evaluation, budgets and admin
+
+OpenTelemetry is telemetry rather than billable usage authority; durable attempt metering and evaluations are distinct from traces. Administrative views and cost budgets require scope isolation, numerical correctness and safe metadata-only observability defaults.
+
+**Boundary guarantees.** OTel carries safe process/agent traces without raw prompts, PII, vault values, tokens, audio or high-cardinality user labels. Durable token/cost attempts have provenance, currency, pricing revision, late reconciliation, reservation and settlement independent of exporter uptime. Use native MAF evaluation where verified; test groundedness, tool correctness, security, regression and performance separately.
+
+**OC2-REQ-OBS-001** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Use existing MAF instrumentation and add OpenConnect ActivitySources/Meters only for application-specific stages; avoid duplicate spans. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-001`; `checklist.md` acceptance/evidence task `OC2-D-OBS-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-002** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Implement W3C trace context over approved HTTP/JetStream metadata and agent/harness/tool/workflow lineage. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-002`; `checklist.md` acceptance/evidence task `OC2-D-OBS-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-003** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Use metadata-only default for all logs/traces/metrics with bounded-cardinality dimensions and synthetic canary tests. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-003`; `checklist.md` acceptance/evidence task `OC2-D-OBS-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-004** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Instrument detector state Disabled/NotInstalled/Executed/Failed/TimedOut and measured firewall queue/latency separately. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-004`; `checklist.md` acceptance/evidence task `OC2-D-OBS-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-005** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Implement durable model attempt ledger outside OTLP/sampled traces with provider reported/estimated/unknown provenance. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-005`; `checklist.md` acceptance/evidence task `OC2-D-OBS-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-006** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Record pricing catalog with immutable effective dates, decimal rates, cache/reasoning modality overlap and currency provenance. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-006`; `checklist.md` acceptance/evidence task `OC2-D-OBS-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-007** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Record retries, streaming cancellation, unknown usage and late provider correction without double billing. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-007`; `checklist.md` acceptance/evidence task `OC2-D-OBS-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-008** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Implement hard budget reservation/settlement transaction and cost-aware model routing thresholds with safe unknown-cost policy. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-008`; `checklist.md` acceptance/evidence task `OC2-D-OBS-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-009** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Distinguish local CPU/GPU infrastructure estimates from actual externally billed charges in every admin report. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-009`; `checklist.md` acceptance/evidence task `OC2-D-OBS-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-010** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Implement native MAF evaluation harness using Microsoft.Extensions.AI.Evaluation where supported; avoid custom evaluator engine. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-010`; `checklist.md` acceptance/evidence task `OC2-D-OBS-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-011** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Create reproducible labeled eval sets for tool choice, grounding, instruction hierarchy, workflow outcome, privacy and injection. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-011`; `checklist.md` acceptance/evidence task `OC2-D-OBS-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-012** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Track eval dataset version, model checkpoint, run config, metrics, CI trends and test evidence—not unsupported global accuracy claim. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-012`; `checklist.md` acceptance/evidence task `OC2-D-OBS-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-013** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Provide authenticated tenant/operator Admin API for workflow cost, reliability, firewall and budgets with strict RBAC. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-013`; `checklist.md` acceptance/evidence task `OC2-D-OBS-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-014** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Provide optional embeddable admin UI without turning it into another official public OpenConnect application. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-014`; `checklist.md` acceptance/evidence task `OC2-D-OBS-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-015** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Integrate optional OpenTelemetry OTLP exporter and .NET Aspire dashboard/AppHost without making either mandatory. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-015`; `checklist.md` acceptance/evidence task `OC2-D-OBS-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-016** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Fault-inject OTLP outage and dashboard disconnection; gateway firewall and durable cost ledger continue independently. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-016`; `checklist.md` acceptance/evidence task `OC2-D-OBS-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-OBS-017** — The metering/observability platform SHALL satisfy this **independently verifiable outcome**: Prove alerts, retention, trace links and export/pagination cannot reveal another tenant's data. **Normative mapping:** `spec.md` technical entry `OC2-D-OBS-017`; `checklist.md` acceptance/evidence task `OC2-D-OBS-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OBS scope gate:** All 17 distinct `OBS` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 19. Multi-target .NET compatibility and clean package consumers
+
+OpenConnect .NET assemblies SHALL target net8.0/net9.0/net10.0 where the selected MAF, EF Core and component dependency versions compile and actually execute. A successful build with .NET 10 SDK alone is not evidence that a package works on .NET 8/9 runtimes; EOS labels and test matrices must remain truthful.
+
+**Boundary guarantees.** Exact central NuGet dependencies, framework-compatible MAF and EF Core majors, and bUnit/Blazor package compatibility must be verified independently. Produce one NuGet package with target-specific assets, not framework-suffixed package IDs. `net8.0` and `net9.0` are compatibility-only after their November 2026 EOS; .NET 10 is the recommended production runtime.
+
+**OC2-REQ-TFM-001** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Multi-target all public .NET libraries for net8.0, net9.0 and net10.0 only where pinned dependencies support each target. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-001`; `checklist.md` acceptance/evidence task `OC2-D-TFM-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-002** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Pin exact centrally managed dependency versions and target-conditional references for EF Core 8/9/10 where required. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-002`; `checklist.md` acceptance/evidence task `OC2-D-TFM-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-003** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Pin actual MAF/Harness/Durable/MCP/MudBlazor compatibility for each TFM or declare individual feature unavailable before packaging. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-003`; `checklist.md` acceptance/evidence task `OC2-D-TFM-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-004** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Verify public API parity across TFMs with baseline assembly/API compatibility and no accidental conditional member loss. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-004`; `checklist.md` acceptance/evidence task `OC2-D-TFM-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-005** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run net8 targeted test assemblies under installed .NET 8 runtime, not merely compile using .NET 10 SDK. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-005`; `checklist.md` acceptance/evidence task `OC2-D-TFM-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-006** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run net9 targeted test assemblies under installed .NET 9 runtime, not merely compile using .NET 10 SDK. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-006`; `checklist.md` acceptance/evidence task `OC2-D-TFM-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-007** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run net10 targeted test assemblies under installed .NET 10 runtime, not merely compile using .NET 10 SDK. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-007`; `checklist.md` acceptance/evidence task `OC2-D-TFM-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-008** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run EF SQLServer/PostgreSQL/SQLite provider matrix on representative TFM-compatible EF provider majors. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-008`; `checklist.md` acceptance/evidence task `OC2-D-TFM-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-009** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run real Blazor server/WASM and OpenConnect.Client smoke tests on each advertised compatible TFM. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-009`; `checklist.md` acceptance/evidence task `OC2-D-TFM-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-010** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Build standalone .NET worker images on supported runtime (default net10) and verify wire interoperability with net8/9 libraries. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-010`; `checklist.md` acceptance/evidence task `OC2-D-TFM-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-011** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Document .NET 8/9 vendor end-of-support as compatibility-only and .NET 10 production recommendation. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-011`; `checklist.md` acceptance/evidence task `OC2-D-TFM-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-012** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Verify single NuGet package per library contains lib/net8.0, lib/net9.0, lib/net10.0 and correct framework-specific dependency groups. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-012`; `checklist.md` acceptance/evidence task `OC2-D-TFM-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-TFM-013** — The cross-framework package release SHALL satisfy this **independently verifiable outcome**: Run clean third-party app package consumers on all advertised TFMs with no source project references. **Normative mapping:** `spec.md` technical entry `OC2-D-TFM-013`; `checklist.md` acceptance/evidence task `OC2-D-TFM-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**TFM scope gate:** All 13 distinct `TFM` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 20. Continuous integration, coordinated release and documentation
+
+Releases SHALL be gated by exact-source tests, supply-chain checks, clean consumers, verified registry artifacts and approved operator release workflow. Eleven container images must have independent actual builds and Docker Hub names/digests; a version and latest promotion MUST NOT silently rebuild distinct images.
+
+**Boundary guarantees.** CI builds all 11 images on PR without push; protected release pushes version tags to Docker Hub under `matibevuminkosi/openconnect-worker-{name}` and promotes identical verified digests to `latest` only after coordinated checks. Model weights excluded from images by default; SBOM, provenance, vulnerability/license tests, Git SHA and trusted NuGet/npm publisher checks apply. Docs site static-first and operational when assistant unavailable.
+
+**OC2-REQ-REL-001** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement protected branch PR checks for locked dotnet restore/build/test, MAF native integration, format and warning-as-error. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-001`; `checklist.md` acceptance/evidence task `OC2-D-REL-001`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-002** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement per-TFM net8/net9/net10 runtime test matrix with net8/9 compatibility only where supported. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-002`; `checklist.md` acceptance/evidence task `OC2-D-REL-002`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-003** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement provider-specific SQL Server/Postgres/SQLite integration CI with Testcontainers and NATS crash/replay fault tests. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-003`; `checklist.md` acceptance/evidence task `OC2-D-REL-003`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-004** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement Python uv/Ruff/mypy/pytest worker matrix and Dockerfile builds for each of eight Python images. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-004`; `checklist.md` acceptance/evidence task `OC2-D-REL-004`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-005** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement Node Playwright worker image build, browser security and CVE scanning. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-005`; `checklist.md` acceptance/evidence task `OC2-D-REL-005`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-006** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement two standalone .NET worker-host Docker image builds and in-process/standalone ownership smoke. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-006`; `checklist.md` acceptance/evidence task `OC2-D-REL-006`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-007** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement client TypeScript/Node/browser/React and Blazor bUnit/Playwright screenshot/a11y CI jobs. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-007`; `checklist.md` acceptance/evidence task `OC2-D-REL-007`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-008** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement C#/TS/Python OpenAPI/JSON Schema golden contract parity and breaking-change release gates. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-008`; `checklist.md` acceptance/evidence task `OC2-D-REL-008`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-009** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement MAF native Harness/Workflow/Durable proof tests with pinned dependency snapshot in CI. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-009`; `checklist.md` acceptance/evidence task `OC2-D-REL-009`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-010** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement firewall/security/adversarial canary suites for worker, tool, MCP, session memory and UI leakage. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-010`; `checklist.md` acceptance/evidence task `OC2-D-REL-010`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-011** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement selected model-backed scheduled/manual tests gated on checkpoint/license approvals and truthful SKIP status. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-011`; `checklist.md` acceptance/evidence task `OC2-D-REL-011`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-012** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Define Docker Hub image matrix: matibevuminkosi/openconnect-worker-security, classification, nllb, inference, transcription, realtime-voice, kokoro, mms-tts, navigator-playwright, operational-agents, outbox. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-012`; `checklist.md` acceptance/evidence task `OC2-D-REL-012`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-013** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Use canonical full image name matibevuminkosi/openconnect-worker-<name>:<version> for all 11, with immutable SHA/digest manifest. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-013`; `checklist.md` acceptance/evidence task `OC2-D-REL-013`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-014** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement PR image build/test/scan with no registry push and restricted untrusted workflow permissions. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-014`; `checklist.md` acceptance/evidence task `OC2-D-REL-014`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-015** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement protected tag release that builds and pushes exact version tags for each of 11 images only after passing image gates. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-015`; `checklist.md` acceptance/evidence task `OC2-D-REL-015`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-016** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Verify all version images by digest pull/start/health and artifact provenance before promoting :latest tags. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-016`; `checklist.md` acceptance/evidence task `OC2-D-REL-016`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-017** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Document Docker Hub bot token/credential scope, secret handling and protected release environment approvals. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-017`; `checklist.md` acceptance/evidence task `OC2-D-REL-017`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-018** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Publish GHCR only as optional mirror, never silently substitute GHCR for primary Docker Hub registry. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-018`; `checklist.md` acceptance/evidence task `OC2-D-REL-018`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-019** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement signed/SBOM/provenance/vulnerability/license reports for NuGet/npm/containers and maintain release manifest. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-019`; `checklist.md` acceptance/evidence task `OC2-D-REL-019`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-020** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement nuget.org trusted publishing where account supports it and inspect nupkg/snupkg/XML docs/source links. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-020`; `checklist.md` acceptance/evidence task `OC2-D-REL-020`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-021** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement npm @openconnect/client/composer/navigator packages with ESM/type exports, SSR-safe headless modules and optional React bindings. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-021`; `checklist.md` acceptance/evidence task `OC2-D-REL-021`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-022** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Verify registry-installed NuGet/npm artifacts in clean external consumers, not source project references. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-022`; `checklist.md` acceptance/evidence task `OC2-D-REL-022`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-023** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Create Astro Starlight static docs, versioned navigation/search, DocFX .NET API and generated OpenAPI contracts from actual assemblies. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-023`; `checklist.md` acceptance/evidence task `OC2-D-REL-023`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-024** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Implement optional docs-only read-agent through published OpenConnect APIs with grounded citations, authentication and read-only tools. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-024`; `checklist.md` acceptance/evidence task `OC2-D-REL-024`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-025** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Verify docs site/search works when all AI/worker/backend services are offline. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-025`; `checklist.md` acceptance/evidence task `OC2-D-REL-025`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-026** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Define staged release, partial failure, immutable-version recovery, rollback and image digest re-deploy procedures. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-026`; `checklist.md` acceptance/evidence task `OC2-D-REL-026`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**OC2-REQ-REL-027** — The release pipeline SHALL satisfy this **independently verifiable outcome**: Ensure deployment/manifests and operator docs document optional worker absence, cache persistence, credential rotation and profile-level readiness. **Normative mapping:** `spec.md` technical entry `OC2-D-REL-027`; `checklist.md` acceptance/evidence task `OC2-D-REL-027`. The implementation MUST document applicable failure, unavailability, authorization and compatibility behavior and MUST NOT substitute mock completion for runtime evidence.
+
+**REL scope gate:** All 27 distinct `REL` obligations remain in scope when the module is staged; a missing optional dependency is recorded as unavailable/blocked, not deleted. Affected critical security and durability tests must pass before this feature is labeled stable.
+
+## 21. Cross-component control and failure contracts
+
+### 21.1 Agent and workflow identity and budget intersections
+
+1. On each run, resolve an immutable versioned definition snapshot, then current principal/workload grants, requested execution profile, enabled native MAF capabilities, model and tool capability support, privacy destination policy, and budgets **before** executing a model, tool or child.
+2. Effective scopes are the intersection of child, parent, tenant, task/purpose, current identity policy, tool metadata and approval constraints; delegations never widen these. A policy change may narrow a running grant but never hot-reload escalate without an authorized new execution.
+3. Static workflow graphs and dynamic native Harness delegate requests share the exact depth-2 and fanout enforcement; no child can bypass budget limits by creating a new native `AgentSession` or reentrant child.
+4. Native MAF middleware/context providers may not be installed on opaque remote agents in ways the actual adapter cannot inspect. When the required gateway privacy boundary cannot prove protected egress coverage, deny or explicitly restrict that remote-agent capability.
+
+### 21.2 State and replay transaction guarantees
+
+1. Native `AgentSession` serialization and workflow checkpoint references are stored with provider/MAF version, schema version, actor/tenant, revision, confidentiality and retention metadata; consumers must not edit MAF's internal format or treat it as public JSON.
+2. The application event journal and committed task state are the **source of truth for user-facing status**, not native MAF `AgentResponseUpdate` delta streams or NATS broker sequence numbers. Ephemeral streaming may precede final commit only when clearly labeled provisional and must be reconciled.
+3. The committed durable task+accepted event+outbox transaction is one relational unit; no acknowledgment of durability precedes commit. A retry after DB failure cannot create two committed logical tasks for the same scoped idempotency key.
+4. NATS/outbox delivery is at least once. Worker effects require leases/fencing and source-defined idempotency. An unknown remote side effect cannot be retried automatically merely because the process crashed or NATS redelivered a notice.
+5. MAF Durable workflow replay and application outbox replay are distinct, complementary domains. A single native workflow backend must own executor scheduling/checkpoint replay; OpenConnect owns its own domain effect receipts and policy-bound task state transitions.
+
+### 21.3 Privacy and approval preconditions
+
+1. Tool approval is separate from acknowledgment. Pending approval MUST block execution; exact-argument approval includes current actor, tenant, task, tool revision, operation, expiry and single-use integrity nonce.
+2. Protected remote egress runs approved local detection (when required) and host privacy policy before sending original bytes. Locality, detector quality and modality coverage are independent facts. Missing required coverage fails closed for that transfer, not automatically for all local application tasks.
+3. The random token vault and AES-GCM wrapped mapping store must never be accessible to detector/model workers. Restoration happens only for approved schema paths under current privilege; NATS, OTel and Qdrant retain only safe projections.
+4. Input from MCP tools, skills, LLMs, retrieval results and browser observation cannot grant tool permission or dictate policy; output classification is reapplied before context/memory or end-user projection.
+
+### 21.4 Client and media semantics
+
+1. Task status and tool progress must be truthful and reconcilable after WS disconnect. Users can close MiniComposer without implicitly cancelling accepted durable tasks. Explicit Stop is a cancellation request until server confirmation.
+2. VAD speech detection is acoustic evidence, not a final transcript, user turn acceptance or authorization. Server turn coordinator owns acceptance, while client Silero/WebRTC may suppress silence and initiate local playback interruption quickly.
+3. Speech output epochs must prevent stale chunks from a cancelled/interrupted turn being played or marked delivered; voice and mic controls are separately opted into.
+4. AG-UI interoperability maps native MAF state through OpenConnect's current auth/approval and confidentiality checks; it may not mint an alternate durable session or permission system.
+
+### 21.5 Compatibility and shipping semantics
+
+1. Package builds require separate net8/net9/net10 executable consumer tests using framework-compatible EF/MAF dependencies. A green net10 SDK multi-target build alone does not justify claiming runtime support.
+2. All eleven Docker images have independent readiness, licensing and digest identities. No Python speech or image model weights are downloaded simply because `AddOpenConnect()` was registered.
+3. Docs, client examples, configuration snippets, contract fixtures, release image manifest and CI protected-check lists must match the actually published API and implementation state. Unsupported functionality remains documented as planned/experimental.
+
+## 22. Original MAF-first v2 normative requirements — preserved verbatim for compatibility
+
+The following numbered `OC2-*` requirements from the earlier v2 document retain their normative meaning and are **additional constraints**, not obsoleted by the 356 new atomic IDs. Where a wording conflict or mismatch arises, resolve it via ADR before code changes; do not silently drop the original behavior. The outer heading levels below are historical.
+
+# OpenConnect — Framework Requirements
+
+**Version:** 2.0-draft · **Date:** 2026-11-08 · **Status:** Proposed normative target; no new tests assumed passed  
+**Companions:** `spec.md`, `implementation.md`, `checklist.md`, `agents-requirements.md`, `agents-spec.md`  
+**Product thesis:** **Microsoft Agent Framework (MAF) supplies agent intelligence, harness behavior, and workflow execution. OpenConnect supplies the secure, durable, observable, multimodal application-integration layer around them.**
+
+## 0. Scope and governance
+
+MUST/SHALL denote release-blocking obligations for an **advertised** capability; SHOULD denotes preferred approach with documented ADR for exceptions; MAY denotes an optional extension. Documentation design is not implementation evidence. The six files in this bundle are the new authoritative engineering documents; previously prepared specifications remain historical input and scope inventory, not competing implementation instructions. No intentional feature removals. Each capability may be staged as `Planned`, `Experimental`, `Verified`, `Degraded`, or `Unavailable` based on recorded evidence.
+
+### Product outcomes
+
+- **OC2-001:** Deliver an open-source, .NET-first development stack that embeds into developers' ASP.NET Core, Blazor, browser, and Node.js applications instead of requiring a separate app or mandatory cloud service.
+- **OC2-002:** Treat MAF `AIAgent`, `HarnessAgent`, workflows, `AgentSession`, middleware, context/history providers, hosting, skills, tools and supported execution facilities as primary implementations; document every extension point before authoring any parallel mechanism.
+- **OC2-003:** Provide one default interactive lead agent through `AddOpenConnect()` with safe policy defaults, without starting Docker, installing infrastructure, downloading model checkpoints or applying DB migrations.
+- **OC2-004:** Keep **execution profile** (Direct, Harness, Workflow, DurableWorkflow), **identity mode** (Interactive, Operational), **deployment mode**, and **persistence mode** orthogonal. Never encode identity or durability merely by selecting an agent subclass.
+- **OC2-005:** Provide one capability-aware, strongly typed, easy-to-register product surface with runtime options validation; versioned JSON/YAML configuration is a trusted host alternative, not a privilege source.
+- **OC2-006:** Do not force RAG, embeddings, vector DB, Docker, NATS, a dedicated database, Aspire, UI, browser automation or speech on an application that only needs a guarded direct agent.
+- **OC2-007:** The official OpenConnect public-facing app is its static Astro Starlight documentation site and optional real OpenConnect documentation assistant; operator/admin interfaces are reusable integrations.
+
+## 1. MAF-first execution and capability ownership
+
+- **OC2-MAF-001:** Deliver four selectable execution profiles: `Direct` wraps native `AIAgent`; `Harness` wraps native MAF Harness; `Workflow` compiles declared graph/steps into native MAF workflow; `DurableWorkflow` composes validated native MAF durable hosting/execution when available or an explicitly qualified compatible execution adapter.
+- **OC2-MAF-002:** A profile must be backed by executable, version-pinned MAF APIs, with parity tests; unsupported capabilities fail validation rather than being simulated.
+- **OC2-MAF-003:** Expose native MAF agent registration/hosting and `IChatClient` model adapters where possible. OpenConnect registration creates and configures MAF agents; OpenConnect does not implement an independent LLM loop, planner, todo engine, compactor, workflow graph interpreter or agent scratchpad.
+- **OC2-MAF-004:** Native Harness capabilities include planning/todos, operating mode, memory/compaction, skill discovery, tool approvals, background-agent delegation and optional looping **only when supported and enabled**; do not duplicate them with OpenConnect custom state machines.
+- **OC2-MAF-005:** Native workflow capabilities include typed executors, functional/graph compositions, sequential/concurrent/fan-out/fan-in, handoffs, HITL requests and checkpoints where supported. Workflows can contain functions, agents and harnesses without all steps being LLM calls.
+- **OC2-MAF-006:** Delegation depth limit = **2 edges** (`lead=0`, child=1, grandchild=2); graph cycles, reentry, model-mediated delegation, harness background agents and dynamically resolved tools must all obey the same limit, independent of workflow graph size.
+- **OC2-MAF-007:** Independently bound tokens, model calls, tool calls, fan-out, active children, elapsed time, tool concurrency, external cost, context bytes and retry counts; child budgets are slices of the parent's remaining allowance.
+- **OC2-MAF-008:** Require a native MAF capability/ownership matrix with real code proof for direct agent, harness, session serialization, tools, approval, workflow execution, checkpoint/resume, MCP, skills, AG-UI, hosting and durable extension before freezing corresponding OpenConnect API shapes.
+- **OC2-MAF-009:** Distinguish native MAF **background-agent delegation** from operational background **workload identity**, and provider-managed background model responses from durable workflow jobs. None is interchangeable.
+- **OC2-MAF-010:** Support both MAF events and OpenConnect application events with provenance; do not invent internal agent runs based on LLM prose. Protocol projection is an adapter, not another execution engine.
+
+## 2. Typed configuration, templates and registration
+
+- **OC2-CFG-001:** Provide stable typed builders for global options, lead, agent, harness, workflow template, tool, skill and MCP service; resolve one lead per request and validate duplicate IDs/revisions/definition hashes.
+- **OC2-CFG-002:** One canonical enum/wire-name catalog covers profile, execution mode, auth identity, activation, tool side-effects, approvals, progress, storage, privacy, memory, VAD, and runtime capability states. Reject unknown and numeric enum values at config boundaries.
+- **OC2-CFG-003:** Templates offer bounded one-level inheritance, versioned IDs, typed placeholders, instructions, model capability requirements, enabled MAF features, tool/skill allowlists, context policy, budgets, result schema and parent-child edges; inherited permissions can only narrow at runtime.
+- **OC2-CFG-004:** `agent-runtime.md` and per-agent instruction files are content-only behavioral guidance, safe path/UTF-8/size/hash validated; no trusted configuration, credentials, privilege grants or policy overrides can be introduced by Markdown.
+- **OC2-CFG-005:** MAF dependency changes require compatibility matrix and contract tests; `net8.0`, `net9.0`, `net10.0` assembly targets are goals **subject to verified MAF/provider support**; .NET 10 is the preferred supported runtime. Publish one NuGet package with appropriate target assets, not three package names.
+- **OC2-CFG-006:** Options and provider combinations are validated at startup; unavailable optional capability is reported and must not cause an unrelated text/agent path to fail.
+
+## 3. Identity, authorization, information flow
+
+- **OC2-SEC-001:** Interactive mode uses current server-authenticated user/tenant scope with operation-time reauthorization. Operational mode uses a dedicated restricted workload principal with schedule/trigger policy and no inherited user credentials or ambient HttpContext.
+- **OC2-SEC-002:** Effective authorization is intersection of host policy, actor identity, agent definition, delegated scope, tool registration, resource permissions, tenant and data-location policy, current approval state, and per-run budgets.
+- **OC2-SEC-003:** MCP discovery, skills, context providers, tools, memory results, web content, remote agent output, UI observations and model text are untrusted; none may grant capabilities, change policies or override authorization.
+- **OC2-SEC-004:** Provide exact-argument canonical digest-bound, scope-bound, version-bound, expiry-bound, single-use approvals for consequential effects; adapt MAF approval/HITL mechanism rather than implementing duplicate approval prompts.
+- **OC2-SEC-005:** Sensitive operations and data movement require .NET host-side policy enforcement, even for remote `AIAgent` implementations that cannot expose inner `IChatClient` middleware. The documented guarantee is based on enforcement points actually under host control; opaque remote agents must be denied where required inspection cannot be verified.
+- **OC2-SEC-006:** Default-on privacy firewall with host-owned policy decisions, egress controls, cryptographically random reversible placeholders, protected AES-GCM vault mappings, scoped restoration, and output inspection. Explicit trusted-host `Privacy.Enabled=false` never disables authentication, authorization, tenancy or tool approvals.
+- **OC2-SEC-007:** Dedicated Python security worker runs deterministic rules by default when deployed; GLiNER, DeBERTa, Qwen3Guard, PaddleOCR and YuNet are independently opt-in. Locality does not imply detection coverage; required missing capability prevents corresponding external egress.
+- **OC2-SEC-008:** Provide context/data provenance, labels, destination classifications and policy-enforced declassification for model/tool/worker/memory/NATS/telemetry sharing; protect against prompt injection and cross-agent context escalation. MAF security integrations may be reused when applicable, but .NET protection is independently tested.
+- **OC2-SEC-009:** Never log/transmit raw secrets, unmasked protected values, credentials or full private prompts into untrusted NATS, metrics, public event projections, vector storage or client analytics.
+
+## 4. Tools, MCP, skills and long-running progress
+
+- **OC2-TOOL-001:** Register native typed .NET tools, functions and DI handlers, approved MCP remote tools, HTTP/gRPC microservice adapters, and worker capabilities behind one metadata/policy projection compatible with MAF tool execution.
+- **OC2-TOOL-002:** Discovery is bounded, ranked and permission filtered, and refreshed catalog revisions are validated; runtime invokes only registered/allowed tools with per-call validation and reauthorization.
+- **OC2-TOOL-003:** MCP is a pluggable **client, server and gateway adapter** for microservices, not a replacement for NATS, HTTP/gRPC, A2A or MAF orchestration. Prefer supported MCP SDK transports/protocols; service identities, SSRF controls and tool-name collisions are governed by OpenConnect.
+- **OC2-TOOL-004:** Agent Skills use MAF skills providers including file/registered/MCP skill sources where supported; execution of skill scripts/resources requires separate explicit capability and sandboxing/approval. Untrusted skill metadata cannot become policy.
+- **OC2-TOOL-005:** Background-durable tools require an authoritative `Accepted/Queued` event committed **before execution starts**. HTTP 202 means task accepted, not tool started. Approval must precede accepted execution when required.
+- **OC2-TOOL-006:** Actual `Started`, measured `Progress`, proven-liveness `Heartbeat`, `Finalizing`, `Completed`, `Failed`, `CancelRequested`, `Cancelled`, `OutcomeUnknown` are distinct. Never fabricate percentages, deadlines, remote cancellation success or task completion.
+- **OC2-TOOL-007:** No dependency on browser receipt to start durably queued work. Progress events are display/status projections, not synthetic assistant/user turns and do not add LLM requests unless explicitly enabled and metered.
+- **OC2-TOOL-008:** Inline MAF tools can emit running/heartbeat after elapsed threshold, but **cannot claim a pre-start durable acknowledgement retroactively**. Durable background tools must use a MAF-compatible pause/resume/checkpoint interface proven by tests.
+- **OC2-TOOL-009:** At-least-once completion implies idempotent side-effect handling and reconciliation of uncertain external effects; never promise exactly-once remote effects or auto-retry a non-idempotent unknown outcome.
+
+## 5. Sessions, workflow state, memory and durable infrastructure
+
+- **OC2-STATE-001:** MAF owns `AgentSession`, provider history, Harness planning/todo/compaction state and native workflow checkpoints. OpenConnect owns authenticated application session registry, accepted turns, durable task admission, authorization/audit evidence, event projections and business outbox. Cross-link with opaque, encrypted/versioned checkpoint identifiers; no double writer.
+- **OC2-STATE-002:** MAF session serialization/deserialization and workflow checkpoint restore must be implemented through supported APIs, with version/size/encryption/retention tests. A service-managed provider conversation ID must not be double-managed locally.
+- **OC2-STATE-003:** Scoped derived memory uses MAF context providers with OpenConnect authorization/retention/consent adapters. `IAgentMemoryStore` is a storage capability, not a second prompt-injection or memory loop. QdrantVactor is an optional committed-event projection for approved semantic memory.
+- **OC2-STATE-004:** Child agents receive immutable narrow task/context projections, not a shared mutable MAF session or unrestricted parent tool/harness state. Handoff, concurrent merges and follow-up multi-turn use supported MAF semantics and versions.
+- **OC2-STATE-005:** Optional `.AddOpenConnectEntityFramework<TContext>` uses host EF Core context via `ApplyOpenConnectModel()` and `Set<TEntity>()`; SQL Server, PostgreSQL, SQLite tested relational adapters, InMemory development only. Dedicated context optional. Manual migrations default and no provider forced transitively.
+- **OC2-STATE-006:** Application accepted task+event+outbox share an ACID transaction when claimed; same connection string does not imply shared cross-context transaction. Outbox short-fenced claims, broker ACK and idempotent delivery are required for distributed deployments.
+- **OC2-STATE-007:** MAF Durable Extension is the preferred capability evaluation for durable agent/workflow replay. OpenConnect may provide a verified alternate execution backend only behind a single durable-execution interface and without competing independent workflow replay; document exactly which system owns job scheduling, session checkpoints, and transaction commit.
+- **OC2-STATE-008:** NATS JetStream is optional for distributed event delivery and worker dispatch, not a prerequisite for an in-process MAF direct/harness agent. A local mode must state its exact durability limits; EF InMemory must never claim production recovery.
+- **OC2-STATE-009:** Agent execution/session events are committed with per-session sequences, bounded replay and separate `IAgentEventSubscription` for approved durable listeners; `IEventJournal` remains replay-by-known-session, not global enumeration. Qdrant is optional and receives no unapproved original content.
+
+## 6. Clients, multimodal, navigator and worker extensions
+
+- **OC2-UX-001:** Provide .NET `AddOpenConnectClient`, browser/Node `@openconnect/client`, and optional Blazor/browser/React MiniComposer using common versioned tasks/events, auth, replay and cancellation. Node is DOM-free.
+- **OC2-UX-002:** Default compact user UI is a bottom-right separate FAB plus draggable ~24rem bubble with header move/settings/stop/close, 1–5 line editor, latest bounded response, truthful status and independent mic/voice controls; full-chat takeover is not default. Keyboard, RTL, reduced motion, accessibility and mobile are required.
+- **OC2-UX-003:** Offer an explicit AG-UI interoperability adapter where MAF supports it; reuse its compatible events/approval semantics while keeping OpenConnect application task/WS APIs as one stable interface. No duplicate competing authorization or session owner.
+- **OC2-UX-004:** Navigator is optional semantic UI observation, tours, highlighting, consented capture and approved actions. Playwright MCP is an optional isolated operational browser worker and never has arbitrary unrestricted execution rights.
+- **OC2-VOICE-001:** Support client-side and server-side VAD: browser ONNX/WASM Silero, optional WebRTC fast barge-in, .NET server Silero per-stream state, optional Android native; server/host remains authoritative for accepted turns. Hybrid, client, server, disabled modes are typed; no mic on page load.
+- **OC2-VOICE-002:** Optional speech and model workers: security, classification, NLLB, inference, transcription, real-time voice, Kokoro TTS, MMS-TTS (8 Python images); optional Node Playwright worker; optional standalone .NET supervisor/outbox images. Worker absence must not break unrelated text tools.
+- **OC2-VOICE-003:** Each enabled model worker gets pinned/license-approved on-first-start model provision into persistent named volumes; verify/hash/atomic promote and reuse cache offline; no per-request downloads. Kokoro defaults to English `af_heart` only when verified; MMS/NLLB licensing is checkpoint-specific.
+- **OC2-VOICE-004:** Voice epochs fence old audio on interruption and preserve distinction among VAD detection, end-of-utterance, transcript finality, agent acceptance, synthesis and playback completion. Strict-local audio protection prohibits sending unprotected originals to remote STT.
+
+## 7. Observability, evaluation, compatibility and delivery
+
+- **OC2-OPS-001:** Instrument MAF/native agent, harness, workflows, tool calls, firewall, storage, workers and clients using safe OTel and optional Aspire, with bounded cardinality. Trace/export outage must not weaken security.
+- **OC2-OPS-002:** Durable metering ledger records each provider attempt, reported/estimated/unknown usage, pricing/version/currency and adjustments independent of tracing. Hard budgets reserve/settle atomically. Optional tenant-scoped admin APIs/UI.
+- **OC2-OPS-003:** Reuse Microsoft.Extensions.AI.Evaluation/MAF evaluation integrations where supported; add application-owned eval suites for correct tool choice, workflow outcomes, groundedness, privacy canaries, regression, latency, cost, fairness and failure recovery. Evaluations never substitute for authorization tests.
+- **OC2-OPS-004:** NuGet targets net8/net9/net10 where proven; treat post-vendor-EOS 8/9 as compatibility-only and document dependency matrix. Run actual test processes on each claimed runtime. Browser/Node/Python workers depend on versioned protocols, not runtime DLLs.
+- **OC2-OPS-005:** GitHub Actions build/test/scan/publish independent containers to **Docker Hub `matibevuminkosi/<containername>:<version>` and stable `:latest` only after verification**, with protected secrets and immutable digests. GHCR is optional mirror, not canonical-only registry. Publish NuGet/npm with protected OIDC where available.
+- **OC2-OPS-006:** Documentation site built with Astro Starlight + DocFX/OpenAPI using actual packages; optional read-only docs assistant dogfoods MAF Harness/Workflow via OpenConnect, with citations and static fallback.
+- **OC2-OPS-007:** CI includes real MAF harness/skills/workflow/approval/checkpoint sample, EF provider suites, workflow crash recovery, NATS outage, security/tenant tests, no-workers minimal sample, clients/screenshots, model/voice smoke when advertised, clean package consumers and supply-chain attestation.
+- **OC2-OPS-008:** Every implementation/test carries requirement ID, verified source/API version, exact commands, result, CI link, risk review and capability label; only evidenced assertions are `PASS`.
+
+## 8. Binding decisions / legacy reconciliation
+
+| Earlier ambiguity | Binding decision in v2 | Preserved scope |
 |---|---|---|
-| IMP-090 | Public typed enum/options catalog; stable wire converters and schema synchronization | AT-031 |
-| IMP-091 | Strongly typed options builders/DI validation and JSON/YAML binding, secure defaults | AT-032 |
-| IMP-092 | Interactive `AgentExecutionContext` derived from authenticated user, scope-bound delegation and tool auth | AT-033, AT-034 |
-| IMP-093 | Operational agent definitions, scheduler, supervisor hosted service, workload identities | AT-035, AT-036 |
-| IMP-094 | Operational Postgres schema, leases/fences, idempotency, outbox, NATS lifecycle | AT-037 |
-| IMP-095 | Operational observability, typed pause/resume/review/trigger APIs and negative access tests | AT-038 |
-| IMP-096 | Per-detector typed options and Python Pydantic parity, independently disabled/lazy/startup loaders | AT-039 |
-| IMP-097 | Coverage-aware policy engine, truthful capability registry, missing-detector matrix | AT-040 |
-| IMP-098 | Resource-constrained Docker profiles, no unwanted downloads and model startup tests | AT-041 |
-| IMP-099 | CI, NuGet/npm/GHCR/docs integration for enum stability and both agent modes | AT-042 |
+| `Agents` seen as thin MAF loop | Native `AIAgent` + Harness + Workflow + Durable Execution | Typed agents, long tasks, multi-turn, tools, identity |
+| Build planner/todos/memory orchestration | Reuse Harness and MAF providers; OpenConnect owns policy-bound adapters | Planning, context/memory, skills and compaction |
+| Custom workflow replay and MAF durability | One validated durable execution backend per deployment; prefer MAF Durable Extension after parity proof | DB/outbox, resumability, scheduling, leases |
+| MAF approval + local approval engines | MAF HITL mechanism for pause/resume; OpenConnect exact-argument authorization receipt | Safety, review, single-use approvals |
+| Postgres-only vs provider-neutral | Optional EF Core, shared app context, migration/manual, SQLServer/PG/SQLite, InMemory dev | Every prior durable entity and test |
+| Broker always-on vs optional | In-process for basic MAF; JetStream for distributed work/events | Outbox, durable notification, Qdrant subscriptions |
+| MCP another orchestrator | MAF tools + MCP client/server/gateway optional adapters | Microservices, policy-bound dynamic discovery |
+| Custom browser stream vs AG-UI | OpenConnect task API canonical + optional interoperable AG-UI adapter | MiniComposer, replay, progress, approvals |
+| Model-backed detectors mandatory | Rules baseline when worker deployed, other models independently opt-in | Privacy checks and missing-coverage denial |
+| GHCR only vs Docker Hub | `matibevuminkosi/<name>:version/latest` primary; GHCR mirror optional | All 11 image build/verify requirements |
+| Server VAD only vs hybrid | Client/browser/Android + .NET server VAD as independent opt-in adapters | Voice endpoints, barge-in, split stream correctness |
+| Docs/observability admin app | Docs site official; admin UI embeddable, auth-scoped | Full operator analytics and costs |
+| 8/9/10 packages omitted | Conditional multi-targeting and actual consumer runtime tests | Provider/MAF compatibility gates |
 
-### Acceptance scenarios — all initially NOT RUN
+## 9. Required scope traceability
 
-- **AT-031** Public C# enum catalog and JSON/YAML/Pydantic golden fixture parity, numeric/unknown enum rejection.
-- **AT-032** `.AddOpenConnect()` typed defaults, `IValidateOptions` on startup, invalid configuration matrix rejects early; fluent and configuration binding equivalent.
-- **AT-033** Interactive task uses active user's actual auth scope; one user never receives another user's data after scope refresh.
-- **AT-034** Delegation never expands tools/principal; revoked active authorization blocks next tool action and cannot revive via WS reconnect.
-- **AT-035** Operational agent initializes and runs under its workload identity with no `HttpContext` or user cookies; reviewer/initiator cannot impersonate execution.
-- **AT-036** Operational scheduler misfire/pause/resume/overlap/backoff/cancellation and multi-instance lease/restart recovery.
-- **AT-037** Operational run's acceptance/outbox/NATS ACK lifecycle idempotent, fencing prevents duplicate side effects after crash/replay.
-- **AT-038** Operational controls RBAC and review-item exact-argument approval; inaccessible tenant and malicious trigger denied.
-- **AT-039** All six detector switches independently exercised: disabled means no model download/init/advertisement, enabled reports truthfully.
-- **AT-040** Coverage-required/missing matrix blocks relevant external egress but unrelated rules-only tasks still function; safety/injection models treated as evidence.
-- **AT-041** Low-memory/CPU-only Docker profile and selected detector resource admission + SIGTERM; disabled model artifacts absent.
-- **AT-042** PR CI and clean NuGet/npm consumers verify typed APIs, both agent modes, detector configuration and stable wire contracts; required release gates recorded.
+This document supersedes the **rules**, not the functional scope, of prior docs. Preserve and map these families in `checklist.md`: `OC-*`, `OC-EF-*`, `OC-FW-*`, `AG-REQ-*`, `R-GOAL/DEP/ID/API/UI/MCP/TTS/INT/OPS/REL-*`, `ACR-*`, `REQ-TEL/GW/MET/FW/AG/MM/ADM/ASP/SEC/CFG-*`, `OBS-*`, `WRK-REQ-*`, `CF-*`, `IMP-*`, `EF-IMP-*`, `AG-IMP-*`, `NAV-IMP-*`, `CMP-IMP-*`, `WRK-IMP-*`, `CF-IMP-*` and source acceptance suites. Never mark a historical test as passed without verifying existing evidence.
 
-## 9. Coding-agent execution instructions
+## 10. Sources and implementation validation
 
-Read `spec.md` -> `configuration.md` -> `firewall.md` -> `implementation.md` -> `checklist.md`. Implement `IMP-090`/`091` **before** writing agent-mode or detector adapters. `IMP-092` can proceed after host authentication and tool broker; `IMP-093`/`094` require durable persistence/outbox and NATS. `IMP-096` depends on the Python security worker bootstrap; `IMP-097` requires host policy and detector capability negotiation. Change only one numbered work package or tightly related group per PR; add focused tests first, then code, then checklist evidence. Do not mark any `AT-*` complete without run logs. Document third-party source/model licenses and true tested supported languages. 
+- **User-provided MAF reference PDF**, pp. 1–33 (agents, harness, workflows, context layers, hosted agents) and its later native Harness/Skills/Durable/AG-UI chapters. Verify against pinned installed MAF packages during coding.
+- Historical OpenConnect master requirements/spec/implementation/checklist and specialist agents/EF/firewall/workers/voice/navigator/observability/compatibility docs supplied in this project. Those documents are background sources, not a second normative authority.
+- [Microsoft Agent Framework overview](https://learn.microsoft.com/en-us/agent-framework/overview/) and [MAF GitHub](https://github.com/microsoft/agent-framework).
 
+**Release rule:** Capability claims require working implementations and reproducible test evidence. A documented API is not a working API.
 
 
+## 23. Seventy-one end-to-end acceptance obligations
 
----
+The exact IDs and expected results below match `checklist.md` §4 and `spec.md` §21. Each case requires real execution evidence and stays `NOT RUN` until verified against the selected commit, SDK/MAF package, tested framework and provider. Individual area-specific tests are additional and may not be replaced by a general smoke test.
 
-## Annex 2: Entity Framework requirements
-
-**Preserved source:** `entityframework-requirements(1).md` · **SHA-256:** `a442a916a927d6d204b0f32b9344fb7217e7423b35fcfc5596eeb393d5a6195a` · **Content retained verbatim below.**
-
-# OpenConnect — Pluggable Entity Framework Core Persistence Requirements
-
-**File:** `entityframework-requirements.md`  
-**Version:** 1.0-draft  
-**Date:** 2026-11-07  
-**Status:** Proposed normative requirements; not proof of implementation  
-**Companion:** `entityframework-spec.md`  
-**Audience:** Codex, Muse, DeepSeek, maintainers and application integrators
-
-## 0. Product intent and normative language
-
-OpenConnect is a .NET-first, privacy-first reusable AI framework, not an application. Its persistence implementation MUST integrate with developers' **existing EF Core database configuration** instead of imposing PostgreSQL, creating a second database, or requiring them to define `DbSet<T>` properties. The framework retains its provider-independent `ISessionStore`, `ITaskStore`, `IEventJournal`, `IOutboxStore`, approvals, leases, privacy-vault and operational-run contracts. The EF Core adapter is optional and selected only by explicit DI registration.
-
-- **MUST / SHALL:** required to claim feature support and pass release gates.
-- **SHOULD:** preferred default; deviations require a documented architectural decision and tests.
-- **MAY:** optional extension.
-- **Normative precedence:** OpenConnect security, agent-identity, operational scheduling and event-contract requirements remain in force. This document governs EF Core adapter registration, schema, migrations and transactional guarantees where earlier documentation prescribed PostgreSQL specifically.
-- **Traceability:** `OC-EF-001`–`OC-EF-096`; work packages `EF-IMP-001`–`EF-IMP-016`; tests `EF-AT-001`–`EF-AT-030` in companion spec. Mark status only after actual tests.
-- **No invented functionality:** All example APIs in these documents are **target contracts** and must be compiled against the chosen supported EF Core version before describing them as shipped.
-
-## 1. Architectural invariants
-
-**OC-EF-001** `OpenConnect.Abstractions`, default agent registration, HTTP/WS clients, MCP and Navigator MUST NOT depend on EF Core or any particular provider; only the optional `OpenConnect.Persistence.EFCore` package introduces EF Core dependencies.
-
-**OC-EF-002** `AddOpenConnect()` MUST NOT create tables, open connections, execute migrations, register a database provider, install NuGet provider packages or add a second database.
-
-**OC-EF-003** The intended primary developer API is:
-
-```csharp
-builder.Services
-    .AddOpenConnectEntityFramework<ApplicationDbContext>(options =>
-    {
-        options.Schema = "openconnect";
-        options.Migrations = OpenConnectMigrationMode.Manual;
-    });
-```
-
-`ApplicationDbContext` is already registered by the application using its chosen provider. This API SHALL register EF-backed OpenConnect stores but not override or recreate the developer's provider configuration.
-
-**OC-EF-004** Entities MUST be discoverable through `modelBuilder.ApplyOpenConnectModel()` in `OnModelCreating`. Consumers MUST NOT be forced to declare `DbSet<SessionEntity>`, `DbSet<TaskEntity>`, etc. Existing host business entities and mappings remain untouched.
-
-**OC-EF-005** The same **connection string and database** are the usual configuration; a separate `OpenConnectDbContext` and/or separate physical database MAY be configured explicitly. This choice MUST not be inferred from an arbitrary connection string string comparison.
-
-**OC-EF-006** Prefer isolated tables within SQL Server/PostgreSQL schema `openconnect`; SQLite and InMemory use prefixed logical tables/entity names because schema support differs. Entity mapping names MUST be consistent across EF model, generated migrations and runtime repositories.
-
-**OC-EF-007** No backend may advertise durable outbox guarantees without real transactional atomicity, concurrency control, recovery and tested isolation semantics.
-
-**OC-EF-008** `InMemory` is explicitly **development/test-only** with no durable, multi-process, transactional-outbox, distributed-lease or crash-recovery guarantees. An app requiring operational-agent leases/durable outbox MUST fail production startup if InMemory is selected.
-
-**OC-EF-009** EF Core **provider portability** means supported contracts across the four tested provider families, not identical SQL, migrations or lock APIs. Provider-specific strategies may be selected via a validated dialect/capability abstraction without putting provider packages into the core EF adapter.
-
-**OC-EF-010** All EF mappings, migrations, schema changes and migration execution are opt-in. Defaults MUST be safe for an existing live database.
-
-## 2. Supported providers and external packages
-
-| Provider | Developer-owned provider package | EF relation | Production durability | Schema strategy | Concurrency strategy |
-|---|---|---|---|---|---|
-| InMemory | `Microsoft.EntityFrameworkCore.InMemory` | Non-relational fake | **No** | Logical entity mapping | Single-process development behavior only |
-| SQL Server | `Microsoft.EntityFrameworkCore.SqlServer` | Relational | Yes, tested | `openconnect` schema | App-managed concurrency token + provider-appropriate transactional claim |
-| SQLite | `Microsoft.EntityFrameworkCore.Sqlite` | Relational | Yes within single-node/writer limits | `oc_` table prefix, no schema | App-managed concurrency token, serialized writers/retry busy |
-| PostgreSQL | `Npgsql.EntityFrameworkCore.PostgreSQL` | Relational | Yes, tested | `openconnect` schema | App-managed concurrency token + provider-appropriate transactional claim |
-
-**OC-EF-011** `OpenConnect.Persistence.EFCore` MUST NOT reference a concrete `UseSqlServer`, `UseSqlite`, `UseNpgsql` or `UseInMemoryDatabase` extension, include provider package references, or automatically resolve/install missing packages.
-
-**OC-EF-012** Developers choose the provider in their normal `AddDbContext<TContext>`/`AddDbContextFactory<TContext>` configuration. The package only consumes the configured context.
-
-**OC-EF-013** Package and compatibility docs MUST declare the supported EF Core major version and a four-provider build/test matrix; integration with other EF Core providers is experimental until dialect/capability tests pass.
-
-**OC-EF-014** SQL Server/PostgreSQL require actual running database integration tests, not simulated EF InMemory tests. SQLite file-based and in-memory relational SQLite are separate tests.
-
-**OC-EF-015** Provider-specific optimizations MUST be isolated behind dialect interfaces or user-installed provider-specific adapter packages if direct provider dependencies are necessary. Public EF stores must continue using common abstractions.
-
-## 3. Integration and configuration
-
-**OC-EF-016** `AddOpenConnectEntityFramework<TContext>(Action<OpenConnectEfOptions>? configure)` MUST require `TContext : DbContext` and validate it is registered and has the OpenConnect entity model installed. Missing model integration fails with an actionable error, not an automatic mutation of a precompiled model.
-
-**OC-EF-017** `ApplyOpenConnectModel(ModelBuilder, ...)` SHALL register all required entities with public model-registration extension and internal implementations, supported keys, indexes, max lengths, concurrency and required provider-specific schema/table conventions. No public `DbSet<>` property interface is required.
-
-**OC-EF-018** `OpenConnectDbContext` SHALL be offered as an alternative to modifying an existing context. It can use any application-supplied EF provider/connection string, including the same physical database. Registering it MUST NOT silently bootstrap a database.
-
-**OC-EF-019** Typed options MUST be exposed for `OpenConnectMigrationMode`, `OpenConnectEfIntegrationMode`, `OpenConnectOutboxClaimStrategy`, `OpenConnectPersistenceConsistency`, and `OpenConnectSchemaValidationMode`, with validated string wire representation where bound from configuration.
-
-**OC-EF-020** Default migration mode MUST be `Manual`; no call to `Migrate`, `EnsureCreated`, `EnsureDeleted`, DDL or provider-specific schema creation may occur from `AddOpenConnectEntityFramework` alone.
-
-**OC-EF-021** `None` mode means neither schema creation nor migration apply and only explicit model/runtime validation if enabled. `Manual` means the application/deployer runs migration commands/scripts; `ApplyOnStartup` is a separately explicit opt-in for a dedicated OpenConnect context only and must coordinate startup concurrency (or be denied when unsafe). In a shared application context, this option MUST be rejected rather than migrating unrelated app tables.
-
-**OC-EF-022** Safe default migration workflow for existing context: add `ApplyOpenConnectModel` to host `OnModelCreating`; generate migration in host's migration project; review/apply migration using application's deployment process. Migrations must create only intended new tables and never drop/change unrelated business tables.
-
-**OC-EF-023** For dedicated context, users can manage a provider-compatible, independently versioned migration assembly and migration history table. One monolithic compiled set of SQL Server migrations MUST NOT be assumed portable to SQLite/PostgreSQL; provide provider-specific migration guidance and examples.
-
-**OC-EF-024** Existing-context migration history remains application-owned; dedicated OpenConnect context history should use e.g. `__OpenConnectMigrationsHistory` and `openconnect` schema where supported, configured via provider-specific options. Never edit migration history automatically from the EF adapter.
-
-**OC-EF-025** Model cache key MUST include mapping-shaping options (schema, prefix, provider family) where a single context type can be used with multiple option sets in the same process. Design-time and runtime model must match; otherwise reject divergent configuration.
-
-**OC-EF-026** All public options MUST be validated using .NET Options pattern, with startup validation; arbitrary client/agent/YAML instructions cannot change provider, schema, migration policy or table names.
-
-**OC-EF-027** Default table naming SHOULD be predictable, e.g. `Sessions`, `Tasks`, `Turns`, `Events`, `Outbox`, `Leases`, `Approvals`, `PrivacyTokens`, `OperationalRuns`; SQLite maps with prefix `oc_`, such as `oc_sessions`. Explicitly document aliases/mapping decisions; no table-name collisions with existing host tables.
-
-**OC-EF-028** Schema customization is allowed only through strongly validated, fixed identifier options (not raw SQL). Reject SQL injection, reserved names, excessively long identifiers and configuration drift against applied schema.
-
-## 4. Entity and database model
-
-**OC-EF-029** Support at least these entities, leaving optional modules to register their extensions: sessions, tasks, turns, events, outbox messages, outbox delivery status/leases, operational runs/leases, approvals, privacy tokens, and schema/version metadata where needed.
-
-**OC-EF-030** OpenConnect entities are internal implementation details by default and accessed by OpenConnect stores with `DbContext.Set<TEntity>()`. Public domain contracts remain separate from persistence records. Avoid forcing callers to know persistence entity classes or map their own `DbSet` properties.
-
-**OC-EF-031** All tenant/owner-scoped tables MUST include tenant and relevant principal/workload scope columns, be indexed for access paths, and be queried under a server-resolved authorization context. No user-supplied tenant ID confers authority. Global query filters MAY provide defense-in-depth but cannot replace explicit authorization checks.
-
-**OC-EF-032** Events MUST retain per-session monotonic sequence, event UUID/idempotency identifier, sanitized payload, timestamp and correlation. They MUST NOT store unmasked prompts or arbitrary tool contents by default.
-
-**OC-EF-033** Tasks and turns MUST support unique scoped client request IDs, optimistic version/fence, cancellation/terminal outcomes and unambiguous replay.
-
-**OC-EF-034** Outbox rows MUST track delivery status, retry count, next attempt, lease owner/id, lease expiry, fencing version, payload digest, event id and safe failure code. Never persist broker credentials or unsanitized payloads.
-
-**OC-EF-035** Privacy token mappings MUST be encrypted with keys controlled by approved .NET vault/key services (local protected key or optional Infisical KMS) and never expose plaintext through relational queries, logs or migration seeds. A database provider is NOT an encryption provider.
-
-**OC-EF-036** Approved operational-agent definitions/runs, schedules and leases use dedicated constrained workload identity, not an interactive user token. Run leases and task outcomes obey the same provider-specific concurrency guarantees.
-
-**OC-EF-037** Schema naming, collations, indexing, key lengths, blob types, date/time types and identifier length MUST be tested for each provider. Avoid relying on automatically generated rowversion/sequence support unavailable in SQLite.
-
-## 5. Transactional outbox and durability
-
-**OC-EF-038** When using one shared `ApplicationDbContext` instance, OpenConnect changes and application changes MAY participate in the **same EF Core transaction**, provided they are persisted within a defined transaction boundary and commit owner. The framework MUST expose a unit-of-work API and not call `SaveChangesAsync` or `CommitAsync` prematurely on behalf of a caller-owned transaction.
-
-**OC-EF-039** Atomic persistence MUST cover accepted task / session mutation / appended committed event / enqueued outbox message in one relational transaction for durable mode. The exact trigger for publishing MUST be a committed outbox record—not an in-memory agent event callback.
-
-**OC-EF-040** If application business data and OpenConnect outbox are in different DbContexts, even with identical connection strings, atomic commit is NOT guaranteed until their connection/transaction is deliberately shared with provider support. If separate physical databases are used, the feature MUST NOT claim a single-database ACID transaction; use a documented eventual consistency/compensating workflow instead.
-
-**OC-EF-041** Support `IExecutionStrategy` for retriable transient database failures with correctly scoped transaction delegate and idempotency. Avoid nested implicit transactions that conflict with a caller-managed transaction; respect cancellation and prevent retries of already-completed non-idempotent external actions.
-
-**OC-EF-042** Outbox dispatcher MUST not hold a DB transaction open during network publication. Claim/lease in short transaction -> publish to NATS -> confirm broker ACK -> short transaction mark delivered, with idempotent retry. If crash occurs after publish before delivered marking, duplicate broker events are expected and MUST be deduplicated downstream.
-
-**OC-EF-043** Claims MUST be safe with multiple host replicas: use optimistic compare-and-swap/fenced lease or validated provider-specific claim strategy. No reliance on `SELECT ... FOR UPDATE SKIP LOCKED` across all providers.
-
-**OC-EF-044** Lease acquisition, heartbeat and completion MUST compare fencing/version and reject stale owners. Operational agents and worker dispatch use the same platform primitives where appropriate.
-
-**OC-EF-045** SQLite mode MUST document single-writer limitations, busy timeout/retry bounds and recommended limits for concurrent dispatchers. Support single-node/small deployment; distributed multi-writer guarantees are unavailable unless proven by tests and configuration.
-
-**OC-EF-046** InMemory mode MUST NOT use real outbox dispatcher success semantics or pretend atomic commit. Offer a deterministic in-process test transport and explicit non-durable status; reject operational durable mode.
-
-**OC-EF-047** Outbox processing failures must be retried with exponential backoff/jitter, bounded attempts, visibility timeout and quarantined terminal states, with safe diagnostics. Support maintenance repair/requeue through authorized operator API.
-
-**OC-EF-048** Delivery ordering is guaranteed only for the specifically defined scope (e.g. per-session sequence) by the database journal; NATS cross-subject/consumer scheduling order is not a substitute for the journal's session sequence.
-
-**OC-EF-049** Explicitly define transaction boundaries for privacy-token creation and consent/approval records; protected data may not be dispatched externally before required persisted privacy state is committed.
-
-**OC-EF-050** Event and outbox deletes/retention must honor session/legal/privacy policies. Retries must not resurrect deleted sessions or republish revoked payload references; use versioned tombstones/revocation checks.
-
-## 6. Service lifecycle, schema validation and migrations
-
-**OC-EF-051** Adapter registration MUST be idempotent where repeated with identical settings, and MUST reject ambiguous registrations with different contexts, providers or schema configurations unless a named-store feature is implemented.
-
-**OC-EF-052** Host startup MUST validate required model entity types and table mappings, relational capability when durability is required, and optionally the database schema version/readiness. Startup validation must be configurable to avoid connecting merely to build a container or generate tooling.
-
-**OC-EF-053** No package-level automatic migrations, no `EnsureCreated` shortcut for shared databases, and no database deletion in any production code path.
-
-**OC-EF-054** When `ApplyOnStartup` is explicitly supported in a **dedicated** context, coordinate migration concurrency across service replicas with a supported provider-compatible mechanism; otherwise reject startup and instruct operator to use a migration bundle/job. Never automatically migrate a shared application's context.
-
-**OC-EF-055** A manual migration workflow MUST include a runnable CLI example (`dotnet ef migrations add` and reviewed `dotnet ef database update`/bundle) and must distinguish installing the adapter from executing schema changes.
-
-**OC-EF-056** Migrations MUST preserve existing application tables, relationships, schema versions and history. Test before/after snapshots, foreign keys and unrelated business rows in all relational providers.
-
-**OC-EF-057** Schema upgrades must be forwards-compatible for rolling deployments where practical, with safe fail/read-only mode on incompatible version and an explicit rollback/backup plan. No forced schema reset.
-
-**OC-EF-058** Schema validation cannot simply assume one database schema contains only OpenConnect tables. Validate only owned objects; do not introspect business data unnecessarily.
-
-## 7. Security, privacy and tenancy
-
-**OC-EF-059** No raw sensitive values in logs, traces, query diagnostics or error messages. Enable EF Core sensitive-data logging only in controlled synthetic test hosts; never in production default.
-
-**OC-EF-060** Connection strings/credentials must originate in application's secret configuration and MUST NOT be copied into `agent-runtime.md`, models, task payloads, NATS, docs examples or OpenTelemetry tags.
-
-**OC-EF-061** SQL injection must be excluded by validated identifiers, parameterized queries and provider-specific SQL guards. Reject arbitrary schema/table name interpolation from client input.
-
-**OC-EF-062** Privacy-token storage MUST use authenticated encryption before DB writes, scoped to tenant + principal/workload + session + turn and expiry. KMS/Infisical integrations remain optional and separate packages.
-
-**OC-EF-063** All retry claims, event projections, sessions, approvals and deletions enforce tenant isolation and appropriate principal/workload permissions. Operational agents cannot inherit the latest interactive user's context.
-
-**OC-EF-064** Bulk deletion, retention, migration tooling and administrative diagnostics require explicit authorization and no uncontrolled cross-tenant disclosure.
-
-**OC-EF-065** EF Core concurrency conflicts must not leak entity values; map to stable typed errors and safe retries.
-
-**OC-EF-066** A compromised NATS consumer, agent or browser must not be able to change EF store authorization scope or access the token vault by supplying a session ID.
-
-## 8. API design and extension boundaries
-
-**OC-EF-067** Public store interfaces remain generic and provider-independent; implementations of `IEventJournal`, `IOutboxStore`, `ITaskStore`, `ISessionStore`, `ILeaseStore`, `IApprovalStore` and `IPrivacyTokenVault` MUST be properly registered via a single adapter.
-
-**OC-EF-068** An `IOpenConnectPersistenceUnitOfWork` (or equivalent) MUST expose atomic execution/transaction ownership semantics, not merely `SaveChangesAsync`. Distinguish `OwnedTransaction`, `AmbientSharedContext` and `ExternalTransaction` where required.
-
-**OC-EF-069** Data transfer records and persistence entity types are separate. EF models do not become API contracts or require serialization to clients.
-
-**OC-EF-070** Mapping extension accepts explicit options (`schema`, `table prefix`, `provider capability`) so shared-context and dedicated-context mappings behave identically for a given provider.
-
-**OC-EF-071** No reflective, auto-discovered assembly scans that accidentally map unrelated host entities. OpenConnect mappings are registered by a closed explicit set of `IEntityTypeConfiguration<T>` types and optional modules registered explicitly.
-
-**OC-EF-072** `OpenConnect.Persistence.EFCore` MUST NOT reference Blazor, browser, MAF provider adapters, NATS server SDK, Docker or Qdrant implementation packages. It may depend on common OpenConnect abstractions and EF Core relational APIs needed for supported relational behavior.
-
-**OC-EF-073** A higher-level `.AddOpenConnectEntityFramework()` convenience API MAY register a dedicated context when developer explicitly supplies provider configuration; it MUST NOT guess a connection string/provider by constructing another context from an existing `DbContext`'s current connection.
-
-**OC-EF-074** `IOpenConnectComponent` and Navigator client metadata remain unaffected by provider selection; only authenticated domain events and authorization context flow to client.
-
-**OC-EF-075** Optional event subscribers such as QdrantVactor use committed outbox/JetStream notifications; they MUST NOT require scanning all `IEventJournal` sessions or injecting vectors into `EventRecord`.
-
-**OC-EF-076** Support optional application-level usage through an explicitly registered shared transaction coordinator for business data + OpenConnect events; document ambient/interleaved `SaveChanges` behavior precisely.
-
-## 9. Testing and acceptance
-
-**OC-EF-077** Unit tests SHALL cover model registration without `DbSet` properties, typed options, schema/table name normalization, duplicate DI and missing model detection.
-
-**OC-EF-078** Integration suite SHALL run SQLite in-memory relational + SQLite persistent file; SQL Server disposable test instance; PostgreSQL disposable instance; EF InMemory only for clearly labeled non-durable tests.
-
-**OC-EF-079** Existing application DbContext with `Customers`/`Orders` must maintain rows and unrelated schema before and after adding OpenConnect mappings and migrations.
-
-**OC-EF-080** Per-provider outbox concurrency/fault tests: claim race, lease expiration, fail during publish, duplicate NATS ACK, restart, stranded outbox and multiple hosts.
-
-**OC-EF-081** Outbox write and task/session commit must prove transaction rollback and idempotency. Shared vs dedicated context transaction semantics must be separately demonstrated.
-
-**OC-EF-082** SQLite specifically must prove safe high-contention behavior for documented supported profile, or be restricted to a smaller deployment profile.
-
-**OC-EF-083** InMemory cannot pass transactional durability tests; startup must reject when durable production mode is required.
-
-**OC-EF-084** Migrations tests must show: no registration-time DDL, correct `Manual` behavior, dedicated-only startup migration opt-in, host-business migration isolation, SQLite no-schema mapping and separate migration history.
-
-**OC-EF-085** Provider-neutral contracts must be tested through the same test vectors against all relational adapters, not forked per-provider logic that diverges.
-
-**OC-EF-086** Package consumer tests must reference only published/packed OpenConnect NuGet packages + one installed EF provider, and compile with user's DbContext without adding any OpenConnect `DbSet<>` properties.
-
-## 10. Performance, operations and releases
-
-**OC-EF-087** Configure batch size, dispatch concurrency, poll delay, lease duration, max retries, retention, table prefix/schema and query timeout with strongly typed options and safe bounds. No unbounded scans.
-
-**OC-EF-088** Index session/event/outbox queries and keep payload sizes bounded. Large data uses authorized references to encrypted blobs, never unbounded event columns.
-
-**OC-EF-089** OTel signals include DB duration, pending outbox age/count, publish lag, lease conflicts, retry/dlq, schema version and provider family, without connection-string/user payload labels.
-
-**OC-EF-090** Core host works without the adapter if a different persistence implementation is registered. No startup error due simply to missing EF package when not selected.
-
-**OC-EF-091** Document single-process vs multi-host suitability by provider; SQLite/InMemory not described as equivalent to SQL Server/PostgreSQL under distributed load.
-
-**OC-EF-092** Provider package versions are controlled by the application and compatibility-tested, without forcing unneeded package installation or binary redistribution of database drivers.
-
-**OC-EF-093** CI gates: model/contract tests, migration script inspect, SQLite/in-memory, SQL Server/PostgreSQL integration, fault injection, package-consumer smoke, security scan and retention tests.
-
-**OC-EF-094** Release package is `OpenConnect.Persistence.EFCore` on NuGet; additional provider dialect packages are OPTIONAL only if implementation genuinely requires them and must never be transitively pulled into core.
-
-**OC-EF-095** Release documentation provides exact `AddDbContext` and `AddOpenConnectEntityFramework` examples for all four providers, alongside manual migrations and transaction warnings.
-
-**OC-EF-096** Release acceptance requires ALL critical EF-AT tests for included production providers; features not validated must be marked experimental and cannot be advertised with full durable outbox guarantees.
-
-## 11. Required developer experiences
-
-### 11.1 Existing SQL Server context (primary)
-
-```csharp
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
-
-builder.Services.AddOpenConnect();
-builder.Services.AddOpenConnectEntityFramework<ApplicationDbContext>(options =>
-{
-    options.Schema = "openconnect";
-    options.Migrations = OpenConnectMigrationMode.Manual;
-});
-
-// One-time application source change:
-// protected override void OnModelCreating(ModelBuilder modelBuilder)
-// {
-//     base.OnModelCreating(modelBuilder);
-//     modelBuilder.ApplyOpenConnectModel();
-// }
-```
-
-### 11.2 Existing PostgreSQL context
-
-Same mapping + registration but the application's own provider configuration uses `UseNpgsql(...)`. No `OpenConnect.Persistence.Postgres` installation is required.
-
-### 11.3 Existing SQLite context
-
-Application uses `UseSqlite(...)`. `Schema = "openconnect"` is mapped to provider-safe table prefix `oc_` (or explicitly configured prefix); it MUST NOT silently pretend SQLite has a named relational schema.
-
-### 11.4 InMemory development
-
-Application uses `UseInMemoryDatabase(...)` and chooses `Migrations = None` with `Durability = DevelopmentOnly`. Developer documentation MUST show that this does not persist across restart and is not a transactional-outbox integration.
-
-### 11.5 Dedicated context (optional)
-
-Provide `OpenConnectDbContext` and a registration overload where the developer configures EF provider explicitly and the app may choose the same connection string or a separate database. No requirement to add OpenConnect entity configurations to `ApplicationDbContext` in this mode; cross-context business/outbox atomicity is **not automatic**.
-
-## 12. Failure behavior and boundaries
-
-| Condition | Required behavior |
-|---|---|
-| EF adapter not registered, other persistence registered | Core uses configured persistence; no provider packages pulled in |
-| Existing DbContext not registered | Fail with `ef_context_missing` at startup |
-| OpenConnect model not applied | Fail with `ef_model_missing`, include setup instruction |
-| SQL Server/Postgres schema absent, Manual mode | Startup readiness/config warning; never auto-create |
-| SQLite no named schema | Map prefixed tables; no schema DDL |
-| DB unavailable | Accepted task not reported committed without database commit; bounded retry |
-| Outbox crash after broker publish | Message redelivered, idempotent downstream processing |
-| Shared context with external transaction | Respect caller commit owner, no premature publish or commit |
-| Separate context with same connection string | Warn/no claim of atomic shared business transaction |
-| Separate databases | Explicit eventual-consistency/compensation design; no ACID claim |
-| InMemory in durable production mode | Reject startup |
-| SQLite multiple writer contention | Bounded retries/lease handling, documented scale limits |
-| Incompatible migrations | Fail safely; no destructive schema reset |
-| Privacy vault unavailable | Block required protected transfer, never write plaintext |
-
-## 13. Source and verification references
-
-- EF Core model discovery: https://learn.microsoft.com/en-us/ef/core/modeling/entity-types
-- EF Core transactions and cross-context sharing: https://learn.microsoft.com/en-us/ef/core/saving/transactions
-- EF Core concurrency: https://learn.microsoft.com/en-us/ef/core/saving/concurrency
-- EF Core migrations: https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing
-- EF Core separate migration projects: https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/projects
-- EF Core migration history: https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/history-table
-- SQLite limitations: https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations
-- EF Core InMemory cautions: https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy
-
-**Implementation agent must validate chosen EF Core release and provider APIs rather than assuming all provider-specific operations compile unchanged.**
-
-
-
-
----
-
-## Annex 3: Anchor MiniComposer requirements
-
-**Preserved source:** `composer-requirements(1).md` · **SHA-256:** `426cd8aad111f61bbb3fc36e05b28c8bf7f4ec71fa02935a272428434b0988fa` · **Content retained verbatim below.**
-
-# OpenConnect Anchor Composer — Product & Acceptance Requirements
-
-**Document:** `composer-requirements.md`  
-**Version:** 1.0-draft · **Date:** 2026-11-07  
-**Status:** Normative implementation specification; no feature assumed implemented  
-**Companion:** [`composer-spec.md`](./composer-spec.md)  
-**Target packages:** `OpenConnect.Components.Blazor`, `OpenConnect.Client`, `@openconnect/client`, and optional `@openconnect/react`/browser components.
-
-## 0. Objective and immutable design decision
-
-**OpenConnect's default end-user interaction surface SHALL replicate the compact anchored composer from the supplied reference image and reviewed source, not create a full-screen chat application, sidebar, large modal, or permanent chat history panel.** The SDK must disappear into a developer's application until the user explicitly calls upon it, preserving application workspace. A floating bottom-right launcher opens a small conversation bubble immediately above it; the user can drag the bubble to another safe location. Text tasks, status, voice input/output, session stop, settings and context-aware UI guidance all operate through the same minimal surface.
-
-The anchor composer is the **shared user-facing entry** into the default OpenConnect lead agent, permitted subagents, tools, MCP, `IOpenConnectComponent` discovery, Navigator, and optional speech workers. It is *not* an independent AI agent, model runtime, transport, security policy, or replacement for host UI. All actual task routing, durable events, privacy and authorization are owned by the OpenConnect host.
-
-**MUST/MUST NOT** are release-blocking. **SHOULD** needs documented deviation; **MAY** optional. IDs `ACR-*` map to `composer-spec.md` implementation work items `CMP-IMP-*` and tests `CMP-AT-*`. No acceptance is complete without reproducible evidence.
-
-## 1. Reviewed reference versus design interpretation
-
-Repository reviewed: [`Vuminkosi/Swift-Aid`](https://github.com/Vuminkosi/Swift-Aid), pinned tree SHA `1c98e0a1efc94ac517805a6454216fde7b6e8743`. Relevant observed source:
-
-- `src/SwiftAid.UI/Ellai/Components/EllaiCompactComposer.razor` and `.razor.css`: compact input, header, status, audio controls, drag handle, callbacks, sizing and message snippets.
-- `src/SwiftAid.UI/Ellai/Components/EllaiLauncherMenu.razor` and `.razor.css`: independent, fixed `MudFabMenu` launcher and action items.
-- `src/SwiftAid.UI/Ellai/Guidance/EllaiGuidanceHost.razor` and `.razor.css`: floating versus attached presentation, session state and latest messages, tour attachment and position binding.
-- `src/SwiftAid.UI/Ellai/Components/EllaiStatusLine.razor` and `.razor.css`: three-bar animated status, safe structured text, expanded status, reduced motion.
-- `src/SwiftAid.UI/Ellai/EllaiComposerPosition.cs`, `wwwroot/js/ellai-composer-drag.js`, `wwwroot/js/ellai-composer-input.js`, corresponding `tests/voice/*.test.mjs`: clamp, move by drag/keyboard, callback/disposal, Enter/Shift+Enter and IME safeguards.
-
-The supplied reference screenshot is **634×326 pixels** and shows an *open bubble*: thin-bordered white rounded rectangle, small move handle at upper left, settings/stop/close at upper right, "Message Ellai" and "Ask Ellai..." input, red stop and grey live audio controls, a dotted separator, `Ready` with green animated bars, `Voice on`, `Mic on`, and a distinct green circular assistant FAB below/right. It is a cropped snapshot—not a reliable measurement of underlying CSS viewport scaling, not proof that every state is functional.
-
-Source specifics to preserve: source composer declares `inline-size: min(24rem, calc(100vw - 2rem))`; source host floating width `min(23.5rem, calc(100vw - 2rem))`, with max-height bounded by viewport; launch button 2.75rem square and positioned `20vh` from bottom and at least 1rem from right; drag handle has keyboard arrow movement of 24 CSS pixels and Home reset; input MaxLength 8000, one initial row, grows to five lines; source status response area max 12rem height, latest user text max 4.5rem, partial transcript max 4.5rem. The OpenConnect default MAY intentionally change FAB vertical placement to the user's previously specified *bottom right*, but MUST retain the anchored bubble visual language, tiny footprint, and a configurable legacy `20vh` placement preset. This difference is an explicit design change, not source behavior.
-
-## 2. Non-negotiable user experience
-
-- **ACR-UX-001:** Closed/minimized state takes no more than one small FAB button footprint (target 44–56 CSS px touch area), no full-height overlay or reserved layout column. No automatic pop-up on first load by default.
-- **ACR-UX-002:** Expanded state is a **popover-like compact bubble**, anchored above and aligned to the FAB with a small notch/tail. It floats over the host document and does not cause surrounding layout reflow, horizontal scroll, or resize.
-- **ACR-UX-003:** Default anchor is bottom-right with safe-area padding; offer typed enum positions (`BottomRight`, `BottomLeft`, `TopRight`, `TopLeft`, `Custom`) and optional screenshot-faithful `LegacyViewport20Vh` preset. On narrow viewports, clamp width to viewport minus margins and keep input/buttons visible.
-- **ACR-UX-004:** The bubble must visually resemble the reference image: pale/host-themed surface, subtle stroke/shadow, rounded corners, small drag glyph at left, small settings/stop/close at right, a labeled text field, context-sensitive right-end icons, subdued divider, tiny status indicator at bottom-left and compact voice/mic controls at bottom-right.
-- **ACR-UX-005:** Drag is **handle-only**; input, buttons and other page elements remain interactive. Pointer/touch drag stays inside visual viewport and updates an optional persisted position; keyboard focus on handle accepts arrows (24 CSS px increments by default) and Home to reset. Position must re-clamp on resize, zoom, orientation and virtual keyboard changes. Drag disabled in attached/in-flow mode.
-- **ACR-UX-006:** Opening always gives predictable focus to the input when not loading/listening; Escape returns to launcher if not dismissing a nested dialog; closing restores launcher focus and does not silently cancel a durable task unless close policy is explicitly `Cancel`.
-- **ACR-UX-007:** User may close/minimize composer, navigate the host app or reconnect without losing the authorized durable task/session. The launcher can show a restrained unread/active indicator without intrusive badges or constant motion.
-- **ACR-UX-008:** No forced OpenConnect brand name: host app supplies label, placeholder, launcher icon, accent tokens, header/help text and optional empty-state suggestions. Safe neutral default name is "Assistant"; do not retain hardcoded "Ellai" in public SDK.
-- **ACR-UX-009:** Host CSS, MudBlazor themes and JavaScript apps must not be overridden by broad selectors; style via local CSS isolation (Blazor) or scoped CSS variables/Shadow DOM strategy (web) with an explicit documented theme bridge.
-- **ACR-UX-010:** Attached mode (e.g. Navigator tour card) reuses the *same composer content* without FAB and without floating positioning; not a second behavior implementation.
-
-## 3. Launcher actions and visual anatomy
-
-- **ACR-VIS-001:** Header row uses `Move` on left, `Settings`, `Stop session` and `Close` on right. Stop is disabled or hidden when no active/cancellable session; close remains operable while disconnected.
-- **ACR-VIS-002:** Text input has a small label above/within field (`Message {AssistantName}`), placeholder (`Ask {AssistantName}…`), immediate editing state, auto-grow 1–5 lines, 8000-character configurable limit (hard server limit), and right-hand action cluster that never overlays typed text.
-- **ACR-VIS-003:** Empty input shows a live-voice action (if available) and recorded mic action where relevant; nonempty valid input replaces the live-voice action with Send. When capturing, recorded mic becomes Stop; live voice shows an active waveform/graphic equalizer control and Stop. Disabled actions must expose truthful description, never pretend mic support.
-- **ACR-VIS-004:** Response text and last sent message are concise **inline snippets** between field and status; they scroll within bounded local regions rather than turning the composer into an unbounded transcript. Richer history is an *optional explicit action* (view conversation in another host-approved surface).
-- **ACR-VIS-005:** Bottom status row shows animated three-bar indicator and plain-language status (`Ready`, `Connecting…`, `Thinking…`, `Listening`, `Speaking`, `Waiting for approval`, `Reconnecting…`, `Error`); status long text is clamped/expandable, media links sanitized. Animation respects reduced motion.
-- **ACR-VIS-006:** Optional audio footer shows small `Voice on`/`Listen` toggle and, when voice playback enabled, mic on/off state, with visible active/disabled semantic indicators. When no speech capability exists, omit nonfunctional toggles; text-first composer stays fully usable.
-- **ACR-VIS-007:** Settings opens a small, explicit view for voice preferences, privacy notice, worker status, accessibility and available actions; no full settings page required. Dangerous settings never changed directly by model-generated UI.
-- **ACR-VIS-008:** Launcher is a distinct circular FAB with primary accent and assistant/robot icon by default. Optional menu modes are derived from *authorized capability maps* (Ask, Show Me, Guide Me, Help Me Work); no fixed healthcare/business-specific choices or unavailable mode entries.
-- **ACR-VIS-009:** For minimal mode, a single FAB click opens Ask composer; alternate modes may appear in optional FAB menu when multiple enabled capabilities exist.
-- **ACR-VIS-010:** Visual fidelity must be verified with golden screenshots at reference-like desktop crop, phone viewport, dark theme, 200% zoom and small landscape. Layout targets in `composer-spec.md` are intended CSS targets, not claims extracted as pixel-perfect from the screenshot.
-
-## 4. Text interaction, task and event lifecycle
-
-- **ACR-TXT-001:** Enter submits valid nonempty text, Shift+Enter inserts newline, IME composition does not submit, held Enter cannot send twice, and disabled/cancelled states reject submission. Use the most recent DOM value for user gesture to avoid stale asynchronous binding races; server remains authoritative.
-- **ACR-TXT-002:** Submit creates a task with a client idempotency key, maps to an authorized session and lead agent, and records accepted/processing/final state through existing OpenConnect API. A duplicated click/keydown or reconnect must not duplicate committed turns.
-- **ACR-TXT-003:** Cancel (`Stop`) is distinct from Close/Minimize: it cancels active task and/or session according to explicit typed policy. The UI renders `Cancelling…`, waits for authoritative receipt, handles unknown outcome and retains a meaningful recovery action.
-- **ACR-TXT-004:** UI status is derived from *real* gateway task/agent/tool/voice events over existing HTTP(S)+WS(S), never timers pretending execution or synthetic subagent progress. NATS JetStream remains internal to gateway/outbox; browser never connects to NATS.
-- **ACR-TXT-005:** Accept partial streamed text and final sanitized response; maintain compact latest-user/latest-answer views. Reconnect uses session cursor, deduplication and user-scope authorization; uncommitted deltas may be reset from a durable snapshot.
-- **ACR-TXT-006:** Model/tool outputs require default-on firewall and output inspection before being displayed/restored; tool authorization/capability discovery controlled on server. No model-generated arbitrary Razor, HTML, JS or client action.
-- **ACR-TXT-007:** Detect and describe disconnected, offline, authorization expired, policy blocked, approval pending, invalid input, capability unavailable and server error states without trapping user input.
-- **ACR-TXT-008:** Interactive agents use current authenticated user's execution context; operational runs use workload identity and are not automatically exposed in an unrelated user's composer. All component suggestions are filtered by the active user's grants.
-- **ACR-TXT-009:** `IOpenConnectComponent` proposals can be activated in an optional scoped supplementary host-approved renderer; compact bubble displays a minimal link/button/summary and remains small.
-- **ACR-TXT-010:** No prompt text, speech bytes, sensitive DOM data, bearer tokens or placeholder-to-PII mappings logged in frontend analytics or NATS events.
-
-## 5. Speech and microphone behavior
-
-- **ACR-AUD-001:** Voice output, recorded speech transcription, live speech dialog and microphone capture are **independent capabilities**, advertised by actual healthy workers/browser permissions; none are prerequisites for text composition or MCP.
-- **ACR-AUD-002:** The voice toggle never implicitly asks for microphone access; mic permission is requested only from an explicit user gesture, with clear stop and indicator. Closing/leaving session stops active capture as policy requires.
-- **ACR-AUD-003:** Recorded mic: start -> capture -> stop -> transcribe -> optionally auto-submit only once if configured and transcript accepted. Live mic: start -> VAD/turn recognition -> automatic accepted turn(s) -> stay listening until stop. Both use distinct user-facing state.
-- **ACR-AUD-004:** Voice output uses OpenConnect's optional Kokoro/MMS-TTS routing and real speech capability metadata; default Kokoro English `af_heart` only when installed and healthy. If no TTS exists, voice UI hides/degrades gracefully and text remains complete.
-- **ACR-AUD-005:** Output speech playback and input mic state must be independently toggled; `Voice on` does not imply `Mic on`, nor vice versa. Stop speech on barge-in; fence late audio chunks by speech epoch.
-- **ACR-AUD-006:** Speech streams require appropriate codec/sample-rate/channel metadata, permissions, interruption and cancellation. No unauthorized external STT for strict-local audio; unsupported privacy coverage is blocked.
-- **ACR-AUD-007:** UI shall disclose unavailable permission/insecure context/device, inactive worker, resource overload or explicit language mismatch. Never render fake waveform indicating recording when no capture is active.
-- **ACR-AUD-008:** Browser autoplay must be activated through a user gesture; no surprise audio. Screen readers get status text and transcript even without speech.
-- **ACR-AUD-009:** Stopping a live microphone session does not automatically disable response speech playback. Voice output may continue if the user leaves it on.
-- **ACR-AUD-010:** Audio and transcription are optional across .NET Blazor, TS browser, and Node headless; Node headless SDK supports task APIs but does not expose browser microphone/UI functionality.
-
-## 6. SDK integration and feature ownership
-
-- **ACR-SDK-001:** Blazor integration: `AddOpenConnectClient(configure)` for task API and WS address; `<OpenConnectProvider>` in root/layout; `<MiniComposer />` anywhere inside provider scope (or layout-level default anchor). Do not register duplicate MudBlazor popover/dialog providers if already present.
-- **ACR-SDK-002:** TypeScript package `@openconnect/client` remains headless/browser-neutral and supports existing fetch/WS client, versioned contracts and abort/reconnect. A framework-neutral browser UI package `@openconnect/composer` renders the same design; optional React adapter `@openconnect/react` (or a separate subpath) composes with existing client. A Node process MUST NOT require DOM globals.
-- **ACR-SDK-003:** `MiniComposer` is a single **public design/API name** across platforms (Blazor component and browser/React renderable) with shared type/state/event behavior and design tokens. Pixel-perfect replication must be validated via cross-platform screenshots, not duplicated by hand-wavy styling.
-- **ACR-SDK-004:** Both SDKs use same canonical OpenAPI/JSON schema events, common agent session IDs, client task idempotency and runtime status projection. No second backend channel, agent coordinator or token vault.
-- **ACR-SDK-005:** Developers configure strongly typed options/enums for anchor position, close behavior, initial mode, voice visibility, input policy, status presentation, appearance and optional capability menus. Custom labels and brand tokens are validated strings.
-- **ACR-SDK-006:** Composer actions use existing client task API, voice/router SDK and Navigator capability hooks. Disabling Navigator, voice, Playwright or other worker never disables the text composer.
-- **ACR-SDK-007:** The UI must not self-grant cross-origin tool access, run arbitrary commands or mutate business data; all suggestions, Navigator commands and component renderers undergo host authorization.
-- **ACR-SDK-008:** Native browser composer must be safe with SPA routing, SSR, hydration, Shadow DOM optionality and host app CSS. Multiple render roots are supported without event-handler duplication or leaked global CSS.
-- **ACR-SDK-009:** Blazor Server and WebAssembly require tested rendering lifecycle; auto render mode must not execute JS interop before hydration or retain stale DotNetObjectReference after disconnect.
-- **ACR-SDK-010:** No `Ellai`, SwiftAid, healthcare or application-domain literal labels in packaged SDK runtime; retain correct license/copyright attribution where actually required by copied code in a separate legal ledger.
-
-## 7. Accessibility, responsiveness, compatibility
-
-- **ACR-A11Y-001:** WCAG 2.2 AA targets, visible focus, semantic buttons/inputs and status `role=status`, labels for all icons; no pointer-only drag, keyboard trap or screen-reader inaccessible active/disabled control.
-- **ACR-A11Y-002:** Accessible voice states announce `Microphone on/off`, `Voice playback on/off`, not just icon color. Recording permissions and stop are available by keyboard and touch.
-- **ACR-A11Y-003:** When browser reports `prefers-reduced-motion`, suppress bar-wave and glowing animations while preserving state labels.
-- **ACR-A11Y-004:** Maintain usable 44×44 CSS pixel target hitboxes on touch screens where possible; visual icon may remain smaller than hitbox. No minimum target sizes that make the bubble overflow narrow screens.
-- **ACR-A11Y-005:** RTL, browser zoom, device safe-area insets, soft keyboard and mobile visualViewport must not strand the composer offscreen.
-- **ACR-A11Y-006:** Honor high contrast and host font scaling; enforce minimum legible status typography and avoid relying on red/green alone for error/recording state.
-- **ACR-A11Y-007:** No automatic focus/voice permission prompts on page load; user invocation is the activation boundary.
-
-## 8. Lifecycle and persistence
-
-- **ACR-LIFE-001:** Persist only safe UI preferences per authorized user/app: launcher corner, normalized drag offset, voice-enabled preference when consented, last open/closed state if explicitly configured, and dismissed introduction; never store raw messages or tokens in localStorage.
-- **ACR-LIFE-002:** Close minimizes UI and disposes browser media/capture correctly; task may continue on server. Stop actively cancels selected task/session per configured policy. Logout clears scoped local state/permissions, disposes event listeners and avoids cross-user reuse.
-- **ACR-LIFE-003:** Drag/input bridge attach must be idempotent; browser detachment/Blazor unmount while async module loading must not resurrect listeners. No leaked `ResizeObserver`, `MutationObserver`, audio context, WS subscription or timer.
-- **ACR-LIFE-004:** Double mount/React StrictMode and Blazor rerender must not initialize duplicate composers or subscribe twice.
-- **ACR-LIFE-005:** Composer may be placed in attached layout during Navigator/onboarding and return to floating anchor with coherent state, no duplicate sessions or keyboard listeners.
-
-## 9. Operational and CI requirements
-
-- **ACR-OPS-001:** Bundle size measured and published for the web UI; no dependency on Python models, Chromium or TTS just to render composer. Lazy-load interaction JS and any optional audio modules.
-- **ACR-OPS-002:** `OpenConnect.Components.Blazor` uses MudBlazor components where appropriate; browser UI uses standards-based DOM/CSS with equivalent interaction semantics, not a NuGet-to-JS dependency.
-- **ACR-OPS-003:** Tests include bUnit, JS unit tests, Playwright screenshot regression, accessibility scan, package-consumer installs and auth/WS integration against a real gateway.
-- **ACR-OPS-004:** CI must enforce visual screenshot baselines from supplied reference-style design across mobile/tablet/desktop, light/dark, no voice/voice active/status long/keyboard/drag.
-- **ACR-OPS-005:** NuGet/npm release workflows publish composer packages with source links/symbols/types and dependency compatibility. Release only after clean consuming Blazor and TypeScript/React apps can mount, open, send, reconnect, close and dispose without layout regression.
-- **ACR-OPS-006:** No model/worker download when launching text-only composer; capability absence is not shown as a fatal global error.
-
-## 10. Acceptance test matrix
-
-| ID | Scenario | Passing condition |
-|---|---|---|
-| CMP-AT-001 | Closed minimal UI | Only FAB visible, no reserved layout width or unsummoned overlay |
-| CMP-AT-002 | Open anchor geometry | Compact bubble and tail align with FAB; no viewport overflow |
-| CMP-AT-003 | Reference screenshot parity | Header/input/divider/status/voice/mic controls visually faithful at target crop |
-| CMP-AT-004 | Close versus Stop | Close hides but does not silently cancel; Stop dispatches scoped cancellation |
-| CMP-AT-005 | Drag pointer + keyboard | Handle only, 24px arrows, Home reset, resize clamp, no offscreen state |
-| CMP-AT-006 | Enter + IME | Single current-value submit; Shift+Enter newline; IME/held Enter ignored |
-| CMP-AT-007 | Text-only environment | No TTS/STT/browser worker; send/response/status still work |
-| CMP-AT-008 | Control conditionality | Empty field live icon, filled field Send, active recording Stop and waveform |
-| CMP-AT-009 | Output status/progress | Real `Ready/Thinking/Reconnecting/...` from authorized events, no fake task lifecycle |
-| CMP-AT-010 | Mic/voice independent state | Voice/mic toggled separately; stopping mic leaves playback setting intact |
-| CMP-AT-011 | Real voice worker | Enabled installed capability, correct audio metadata, speech epoch and stop |
-| CMP-AT-012 | Offline/unavailable microphone | No unauthorized permission prompt; readable disabled/unavailable state |
-| CMP-AT-013 | Compact response | Latest messages scroll in bounded regions; bubble does not become large transcript |
-| CMP-AT-014 | Reconnect and idempotency | No duplicated accepted turn, durable session restored within scope |
-| CMP-AT-015 | Auth change | Logout/user switch clears scoped bridge/capability/session UI; no leak |
-| CMP-AT-016 | Blazor external consumer | Layout Provider + MiniComposer mounts in tested render modes; no duplicate Mud providers |
-| CMP-AT-017 | TS/React external consumer | Browser UI mounts; Node SSR import without DOM access succeeds |
-| CMP-AT-018 | A11y | Labels, keyboard focus, touch hitboxes, reduced motion, contrast tests pass |
-| CMP-AT-019 | Mobile/RTL/zoom | Within viewport and safe areas, keyboard does not cover composer |
-| CMP-AT-020 | Component/Navigator integration | Authorized suggestion triggers standard task; attached tour uses same content |
-| CMP-AT-021 | Privacy/observability | No raw canary prompt/PII/audio or user credentials in unsafe sinks |
-| CMP-AT-022 | Event state and replay | Accepted/delta/final/stop status reconciles across WS reconnect |
-| CMP-AT-023 | Package build and release | NuGet/npm OIDC workflow and clean-consumer smoke pass |
-| CMP-AT-024 | Cleanup/StrictMode | Unmount/re-attach doesn't leak duplicate handlers/audio/WS observers |
-
-## 11. Release phases and definition of done
-
-**P0:** reproduce shell, FAB, input, drag, status, close/stop and text-only gateway interaction in Blazor and TypeScript/browser. **P1:** voice capture/playback and conditional actions with honest capability detection. **P2:** authorized component suggestions/Navigator attachment, settings/menu, enhanced accessibility, dark/mobile/RTL hardening. **P3:** package publishing/visual regression in CI and docs examples; release of P0 only as clearly labeled limited preview if voice and Navigator remain absent. Each release must preserve all core security tests, and no voice feature may be advertised without real worker evidence.
-
-## 12. Reference and migration hygiene
-
-Sources were inspected on public GitHub at pinned tree SHA `1c98e0a1efc94ac517805a6454216fde7b6e8743`, and the screenshot was supplied by the user. This is evidence of source structure, **not** proof a clean OpenConnect runtime already exists or its tests pass. For code extraction, inspect repository license, copyright headers and third-party licenses; record source SHA and treatment in migration ledger. Do not copy domain-specific application state, credentials, patient data or healthcare-only modes into OpenConnect. Product-facing package documentation should use generic OpenConnect/host terminology; legal notices must remain as required.
-
-
-
-
----
-
-## Annex 4: Navigator requirements
-
-**Preserved source:** `navigator-requirements(3).md` · **SHA-256:** `954e304b78daaa4f88ee5b6c7790a5ea6216b985955274de315ad884a92cc52a` · **Content retained verbatim below.**
-
-# OpenConnect.Navigator — Framework-Aligned Requirements
-
-**Version:** 2.0-draft  
-**Date:** 2026-11-07  
-**Status:** Normative implementation target; not evidence of shipped functionality  
-**Companion:** `navigator-spec.md`  
-**Product:** OpenConnect — open-source, .NET-first, privacy-first reusable AI framework built around Microsoft Agent Framework (MAF).
-
-## 0. Normative contract and source of truth
-
-MUST/SHALL are release-blocking; SHOULD requires an ADR for deviation; MAY is optional. The existing OpenConnect `spec.md`, `implementation.md`, `checklist.md`, `firewall.md` and `configuration.md` (if present) remain authoritative for common agent, authorization, privacy, events, and package contracts. This document extends those contracts, and MUST NOT fork their semantics. Coding agents must first inspect actual repository APIs and record any mismatch in an ADR before coding. All proposed API names below require compile-time confirmation. Source-derived references and proposed changes are distinguished explicitly.
-
-**Primary goal:** make navigation, discoverable UI guidance, onboarding, demonstrations, and optional spoken narration *reusable capabilities* of developers' AI products. OpenConnect itself ships a website/documentation portal and an OpenConnect-powered documentation assistant—not a standalone Navigator application. Demo hosts are tests and examples only.
-
-## 1. Product fit and boundaries
-
-- **R-GOAL-001:** Navigator SHALL be an independently installable OpenConnect extension. `AddOpenConnect()` continues to provide the default lead agent, policy, sessions, event infrastructure and tool broker. Navigator registration adds only semantic UI guidance and controlled execution contracts.
-- **R-GOAL-002:** Core interactive agents, tool discovery, MCP and MiniComposer MUST continue when Navigator, Playwright and both speech workers are absent.
-- **R-GOAL-003:** A developer SHOULD accomplish a read-only app tour by installing Navigator packages, registering semantic UI targets and adding a provider/bridge; no custom agent runtime or domain infrastructure is required.
-- **R-GOAL-004:** Navigator SHALL reuse `IOpenConnectComponent` capability maps, descriptions and suggestions for discoverability rather than inventing a competing component registry.
-- **R-GOAL-005:** Navigator SHALL expose narrow tools to OpenConnect lead/subagents through the existing allowlisted tool broker; it must not run its own general-purpose autonomous agent engine.
-- **R-GOAL-006:** Navigator SHALL use the shared `agent-runtime.md` instruction hierarchy, task/session IDs, privacy policy and OpenTelemetry correlation.
-- **R-GOAL-007:** Live task/event streaming SHALL use existing authenticated OpenConnect HTTP(S)/WS(S) client transport and committed events over NATS JetStream when durable; no separate SignalR transport or browser-facing NATS dependency is required. An adapter to SignalR MAY be added only where an existing host explicitly uses it.
-- **R-GOAL-008:** The documentation assistant MAY demonstrate Navigator on its own documentation UI through the same published packages used by third-party products, never a privileged internal one-off implementation.
-- **R-GOAL-009:** Optional QdrantVactor or other semantic-memory subscribers MAY index policy-approved, committed Navigator events through the common durable event subscription. Navigator MUST NOT depend on Qdrant, embed vectors in EventRecord or enumerate all sessions.
-- **R-GOAL-010:** No TTS worker is part of the security firewall, mandatory gateway, agent execution engine or MCP capability. Speech makes presentation richer but never determines correctness or task authorization.
-
-## 2. Deployment matrix: capability is not a dependency
-
-| Deployment | Core lead/agents | MCP/tools | Semantic tour / highlight | Operational Playwright | Spoken narration |
-|---|---|---|---|---|---|
-| OpenConnect alone | Yes | Yes, when configured | No Navigator UI | No | No |
-| + Navigator .NET/TS bridge | Yes | Yes | Yes, text-first | No | No |
-| + Navigator Playwright adapter | Yes | Yes | Yes | Optional isolated runs | No |
-| + Kokoro worker | Yes | Yes | Yes | Optional | English/installed Kokoro voices |
-| + MMS-TTS worker | Yes | Yes | Yes | Optional | Licensed installed MMS languages |
-| + both TTS workers | Yes | Yes | Yes | Optional | Explicit provider selection/fallback |
-
-- **R-DEP-001:** Navigator registration MUST NOT launch Docker, models, Chromium, NATS, or other infrastructure automatically.
-- **R-DEP-002:** Disabled adapters MUST create no service connection, model download, model allocation, background subscription or hosted worker instance.
-- **R-DEP-003:** Worker failure or absence SHALL return truthful `unavailable/degraded` capability status and text-only UX without failing interactive/MCP tasks.
-- **R-DEP-004:** Core event journal remains session-scoped; any optional projection subscriber consumes committed notifications via the transport abstraction, not journal-wide polling.
-- **R-DEP-005:** Python is required for model workers, not for a minimal .NET/TypeScript Navigator installation. The operational scheduler is an OpenConnect-hosted .NET background worker; Playwright MCP is a separate isolated browser runtime and is not a Python TTS worker.
-
-## 3. Agent execution modes and identities
-
-- **R-ID-001:** Interactive Navigator sessions are launched by interactive agents using the **current authenticated user's** scoped principal, tenant, active session and permissions. The server reauthorizes before each action; browser data or a session ID alone confers no authority.
-- **R-ID-002:** Operational Navigator work is activated and monitored by OpenConnect's existing background operational-agent worker using a *service/workload principal*, durable lease, scheduler, recovery and policy snapshot. Operational agents never inherit interactive cookies/tokens or impersonate live users.
-- **R-ID-003:** Operational browser demos can use separately provisioned sandbox/demo credentials, scoped to an approved app/tenant and read-only by default; no login bypass, MFA bypass or imported live browser profile.
-- **R-ID-004:** Browser/client bridge action execution is bound to a current authenticated connection and a short-lived, signed or server-state-backed command grant scoped to tenant, principal, client instance, navigator session, target, command hash, policy revision and expiry.
-- **R-ID-005:** User-driven mutation requires explicit approval where configured and independent authorization by the underlying host resource/API. Consent to capture and approval to mutate are separate.
-- **R-ID-006:** Authentication changes, logout, revoked tenant grants, or disconnected bridge invalidate command delivery and require state reconciliation; never replay an uncertain mutation.
-- **R-ID-007:** Operational jobs have bounded leases, cancellation, retries for safe reads only, and audited completion/error states, using common OpenConnect operational-agent contracts.
-
-## 4. Registration and developer experience
-
-- **R-API-001:** .NET registration SHALL be strongly typed and opt-in, e.g. `.AddOpenConnectNavigator(options => ...)`, calling existing OpenConnect registration as prerequisite or failing with actionable validation.
-- **R-API-002:** Existing `.AddOpenConnectClient()` configures task HTTP(S) and WS(S); Navigator client adapters reuse that instance and connection, rather than requiring a second authentication/transport stack.
-- **R-API-003:** The initial generic JavaScript package SHALL be `@openconnect/navigator`, with an optional `@openconnect/navigator-react` provider that composes the existing OpenConnect provider. Blazor integration SHALL be provided by an OpenConnect component adapter where supported, not a new incompatible UI protocol.
-- **R-API-004:** `OpenConnectProvider`, `MiniComposer`, and registered `IOpenConnectComponent` metadata continue to function as existing core client UX. `OpenConnectNavigatorProvider` or native bridge adds overlays/targets to that composition and MUST NOT replace MiniComposer.
-- **R-API-005:** Semantic targets SHALL have stable ID/version, description, route, capability map, sensitivity, allowed actions and optional user-facing suggestions. User/agent discoverability is permission-filtered and bounded.
-- **R-API-006:** Public enums SHALL define closed choices (mode, browser provider, speech provider, action, risk, capture, fallback); custom target IDs, voices, locales and provider URLs remain validated strings.
-- **R-API-007:** Options SHALL be validated on startup and against worker capability handshake. Disabled feature paths cannot silently enable another provider or egress route.
-- **R-API-008:** Users MAY opt in to Navigator from existing lead agents through tool-scoped capabilities; an agent without those grants SHALL not discover operational execution or browser automation tools.
-
-## 5. Semantic UI, tours and actions
-
-- **R-UI-001:** Registered semantic targets and accessibility-role observations take priority over generated selectors. No full-DOM scraping or direct secret form values by default.
-- **R-UI-002:** Observations are bounded, current-route-scoped, filtered by user/tenant permissions, labeled untrusted and screened by the configured OpenConnect firewall before reaching an external provider.
-- **R-UI-003:** Static developer-authored tours and dynamically proposed agent tours compile to the same typed, versioned, policy-validated plan. Plans are bounded by step count, time and capability budget.
-- **R-UI-004:** Read-only steps include explain, locate, highlight, scroll, focus and permitted internal navigation; write steps require verified registered actions, fresh authorization, optional user approval and postcondition receipts.
-- **R-UI-005:** Mutations MUST NOT be performed from unreliable best-guess selectors, hidden controls, cross-origin frames, page-authored scripts or unrestricted JS evaluation.
-- **R-UI-006:** Overlays must provide next/back/skip/pause, focus safety, Escape, reduced motion, screen-reader announcements and responsive positioning without breaking host CSS.
-- **R-UI-007:** Target movement/unmount/route changes require re-resolution and safe pause. No probabilistic replacement click.
-- **R-UI-008:** All UI mutations produce intent, action receipt, outcome and uncertainty markers; a sent command is not proof of a successful effect.
-- **R-UI-009:** Existing `IOpenConnectComponent` suggestion actions are prompts/tasks, never autonomous privileged commands.
-- **R-UI-010:** No capture by default. Semantic snapshots require minimization; screenshots require scoped, revocable consent, local masking where feasible, server validation, encryption and TTL. Unsupported masking causes denial.
-- **R-UI-011:** The JavaScript package is SSR-safe: no `window`/`document` access at module import. Bind to DOM only when the browser bridge starts.
-
-## 6. Playwright MCP optional adapter
-
-- **R-MCP-001:** Playwright MCP is an optional *isolated-browser* capability, not the required implementation of live UI navigation. Interactive UI relies on the connected client semantic bridge.
-- **R-MCP-002:** Tool façade explicitly maps approved Navigator actions to a small allowlist of MCP tools. Model never sees `browser_evaluate`, unrestricted filesystem/network, arbitrary Playwright code, credential storage or unreviewed upstream additions.
-- **R-MCP-003:** Per-job browser context/process, temporary storage, egress restrictions (including SSRF/DNS rebinding/redirects), fixed origin allowlists, resource budgets and separate workload identity are mandatory for operational runs.
-- **R-MCP-004:** Playwright MCP results are untrusted tool output; firewall, schema validation and authorization still apply. MCP availability cannot upgrade an agent's tool rights.
-- **R-MCP-005:** No Playwright service, browser download or Chromium launch when disabled. Missing browser worker does not prevent live text-based tours or MCP tools unrelated to browser automation.
-
-## 7. Speech: independent optional Kokoro and MMS-TTS Python workers
-
-- **R-TTS-001:** Kokoro and MMS-TTS MUST be separate deployable Docker images, separate Python 3.12+ uv-locked packages, separate ports/services, separate model volumes, separate health/capability descriptors and independently enableable Compose profiles.
-- **R-TTS-002:** These are reusable OpenConnect *speech capabilities*, exposed through the shared worker/capability registry. Navigator is one possible consumer; MiniComposer, interactive agents and other OpenConnect client components MAY use them. Their images MUST NOT be branded as Navigator-only dependencies.
-- **R-TTS-003:** Kokoro, when speech is enabled and no alternative is selected, defaults to English `en-US`, voice `af_heart` **only if installed and verified**. The default narration mode without any TTS worker is text-only.
-- **R-TTS-004:** MMS-TTS is separately opt-in. Every language/model is explicitly selected; do not download the full MMS catalog, silently change language or assume broad language support from a generic model card.
-- **R-TTS-005:** For enabled speech workers, **first container startup** MAY download only approved, pinned, allowlisted model assets into a named persistent Docker volume, after deployment-time configuration/license acceptance. If a complete verified cache exists, startup MUST reuse it with no network access. No on-demand downloads within a user synthesis request.
-- **R-TTS-006:** Download must be checksum/revision-verified, guarded by exclusive per-model lock, written to temporary staging then atomically promoted. Corrupt/incomplete assets trigger controlled reprovision or fail (policy-dependent), never unverified inference.
-- **R-TTS-007:** Offline startup using a verified cache MUST work without external model-host connectivity; when cache missing and network disabled, worker reports `model_unavailable`, core experience stays text-only.
-- **R-TTS-008:** Worker models, artifacts, tokenizer/linguistic assets and voices have separate notices and license checks. Kokoro-82M model card lists Apache-2.0. MMS-TTS model cards list CC BY-NC 4.0; do not authorize commercial deployment on this basis alone. Different checkpoints may have different terms; verify pinned artifacts.
-- **R-TTS-009:** Model downloader uses limited network egress to approved model hosts during provisioning only. Runtime inference is offline, uses no secret model download credentials in image layers, and mounts its model cache read-only after bootstrap where practical.
-- **R-TTS-010:** Worker health separates liveness from readiness. `ready` is true only after model/tokenizer/voice checksum validation and actual load; unready worker must not advertise synthesis capability.
-- **R-TTS-011:** Speech router exposes provider, voice, language, codec, sample rate, channels, format, chunk sequence, limits and model revision. Different workers may emit different native sample rates; never fabricate a universal sample rate.
-- **R-TTS-012:** Sanitize narration through OpenConnect privacy policy. Interruption cancels playback and rejects stale chunks by speech epoch; UI progress follows actual playback acknowledgment rather than mere TTS completion.
-- **R-TTS-013:** On missing, unhealthy, unlicensed or overloaded TTS, return visible text/subtitles and optional explicitly authorized alternate provider; no failed agent task, failed MCP call or aborted tour.
-- **R-TTS-014:** Model caches persist across `docker compose down` / container recreation. Volume deletion requires explicit operator action; upgrades revalidate revision and provide rollback to prior compatible cache.
-- **R-TTS-015:** Models are never committed to git or bundled in images by default. Multi-replica provisioning must use one initializer/lock and safe shared-volume semantics; no concurrent partial downloads.
-
-## 8. Shared worker/events/privacy requirements
-
-- **R-INT-001:** Events used by Navigator (`navigator.session.*`, `navigator.step.*`, `navigator.command.*`, `speech.*`) use shared versioned OpenConnect event contracts, per-session ordering and JetStream-backed transactional outbox when durable; browser receives only authorized filtered events over existing WS.
-- **R-INT-002:** The common Python worker protocol and machine authentication shall be reused by Kokoro/MMS rather than a second private ad-hoc protocol; streaming binary audio may use an authenticated private HTTP stream while status/progress are sanitized durable events.
-- **R-INT-003:** No raw sensitive text, screenshot bytes, audio PCM, model credentials or bearer tokens in JetStream event bodies, activity tags or Qdrant payloads.
-- **R-INT-004:** Privacy firewall is default-on at protected data boundaries, with optional detectors controlled by trusted typed settings. Absent optional detectors must not be misrepresented as active. Unauthorized UI commands remain blocked even if privacy inspection is explicitly disabled.
-- **R-INT-005:** Privileged actions are reauthorized at execution time; model output, UI text, MCP responses and worker payloads are never sources of policy authority.
-- **R-INT-006:** Speech worker access requires scoped machine identity; gateway performs routing, quota, user/tenant authorization and text-policy checks. Workers have no database token-vault access and cannot authorize user actions.
-- **R-INT-007:** External/provider egress is policy-controlled; local TTS does not make remote text transfer mandatory.
-- **R-INT-008:** Operational event subscribers see only sanitized committed notices; QdrantVactor and observability remain separately installable.
-
-## 9. Availability, failures, retention, observability
-
-- **R-OPS-001:** A missing/disabled speech worker is not a readiness failure for the gateway, Navigator or MCP. Only explicitly configured required dependencies may gate host readiness.
-- **R-OPS-002:** A missing/disabled Playwright worker is not a readiness failure for interactive Navigator.
-- **R-OPS-003:** Persist navigation session state, versioned plans, safe action receipts and operational leases using existing OpenConnect persistence adapters. No duplicate domain database or new identity service.
-- **R-OPS-004:** Capture is opt-in and ephemeral by default; encrypted retained artifacts, consent and retention deletion follow existing vault/secret policy.
-- **R-OPS-005:** OpenTelemetry spans include navigation step, capability resolution, action authorization, worker selection, provisioning status and speech latency; safe model/voice revision metadata permitted. No raw input, DOM text or audio content.
-- **R-OPS-006:** Distinguish billed provider cost from estimated CPU/GPU runtime costs. Worker counts and memory load are metrics, not guessed billing.
-- **R-OPS-007:** Worker resource limits and circuit breakers must be configurable; over-capacity produces retryable bounded error and text-only UI.
-- **R-OPS-008:** Compose documentation includes independent `navigator-browser`, `kokoro`, `mms-tts` profiles, persistent volumes, offline reuse, license gates, health probes and clear cold-start behavior.
-
-## 10. CI, migration and releases
-
-- **R-REL-001:** Reuse source from local `C:\DevOps\SwiftAidv2` where available, or the pinned corresponding GitHub commit if not; inspect `infra/ellai-tts/{kokoro_voice.py,app.py,voice_pool.py,Dockerfile.kokoro,Dockerfile,pyproject.toml,uv.lock,tests}` and related integration; record source SHA/license/file map and modifications. Source observation is not confirmation of copy rights for every model/dependency.
-- **R-REL-002:** Swift-Aid currently combines Kokoro and MMS paths; the extraction SHALL deliberately split Python worker packages and shared generic modules. Remove Swift-Aid-specific application/case semantics and legacy hardcoded image dependencies.
-- **R-REL-003:** CI MUST test core without Navigator, Navigator without Playwright/TTS, Kokoro alone, MMS alone (license/config gates), and both together; install-time dependency checks and contract validation.
-- **R-REL-004:** PR CI SHALL use fake models and cached test fixtures without network/model downloads. Separate gated integration workflows test approved first-run download, restart/offline cache, checksums, interrupted download, bad license and real synthesis.
-- **R-REL-005:** Independently package Navigator .NET NuGet and TypeScript npm packages, plus two GHCR images with immutable tags/digests and SBOM/license notices; verify clean external package consumers.
-- **R-REL-006:** Do not claim operational Playwright, actual TTS quality, GPU, browser or published registry results without recorded real execution evidence.
-- **R-REL-007:** Full release gates include threat-model review, connector authorization, license verification, no cross-tenant disclosure, no unauthorized mutations, and text-only fallback under every optional-worker failure.
-
-## 11. Acceptance matrix (new IDs avoid collision with OpenConnect core AT tests)
-
-| Test | Required evidence |
-|---|---|
-| NAV-AT-001 | Existing core lead + MCP still run without any Navigator/TTS/Playwright registration |
-| NAV-AT-002 | Navigator static text tour with bridge, no model workers/browser |
-| NAV-AT-003 | Interactive navigator action cannot exceed authenticated user's grants |
-| NAV-AT-004 | Operational job uses isolated workload identity and background lease/recovery |
-| NAV-AT-005 | Unregistered/ambiguous/stale target never causes a mutating click |
-| NAV-AT-006 | Approval hash mismatch, expired grant, reconnect and revocation deny execution |
-| NAV-AT-007 | React SSR-safe import; host MiniComposer + Navigator provider coexist |
-| NAV-AT-008 | Only committed, safe Navigator events become visible on existing WS; duplicates deduped |
-| NAV-AT-009 | Optional Playwright absent: live tour still works; arbitrary MCP browser tools refused |
-| NAV-AT-010 | Capture denied or pixel-redacted under sensitive/ambiguous field scenarios |
-| NAV-AT-011 | Kokoro-only first start provisions pinned `af_heart`, checks SHA, returns correct audio metadata |
-| NAV-AT-012 | Kokoro restart with network denied uses persisted cache; no download attempted |
-| NAV-AT-013 | MMS-only provisions exactly opted-in licensed language checkpoint; no full catalog fetch |
-| NAV-AT-014 | MMS commercial/unapproved license scenario blocked; core text tours still work |
-| NAV-AT-015 | Interrupted download cannot corrupt active validated cache; retry recovers |
-| NAV-AT-016 | Concurrent initializer instances cannot expose partial model files |
-| NAV-AT-017 | Missing/failed both TTS workers: interactive, MCP, Navigator complete text-only |
-| NAV-AT-018 | Speech stop/barge-in rejects stale chunks and maintains tour checkpoint |
-| NAV-AT-019 | Client/worker options enum validation and capability handshakes reject invalid combinations |
-| NAV-AT-020 | End-to-end GHCR image install + persistent volume + NuGet/npm consumer smoke |
-| NAV-AT-021 | Observability/log/NATS/capture artifacts contain no seeded sensitive canaries |
-| NAV-AT-022 | Model provenance, artifact notices, code migration ledger and release security scan complete |
-| NAV-AT-023 | Operational Playwright worker SSRF, profile reuse and tool-allowlist adversarial tests pass |
-| NAV-AT-024 | Event consumer optional QdrantVactor absent causes no Navigator failure or requirement |
-
-## 12. Delivery order and exit conditions
-
-1. **P0 extension fit:** align repository APIs, core agent modes, unified transport/registry, contracts, threat model, source/license audit.
-2. **P1 text-only:** semantic target metadata, bridge, provider, static tours/highlighter, no side effects, no speech or browser required. Releaseable preview after security tests.
-3. **P2 interactive safety:** agent tool facade, approvals, durable commands, reconnect and read-only dynamic tours.
-4. **P3 two speech workers:** split Swift-Aid sources, independent Python services, first-run model provisioners + persistent caches, explicit license/checksum gates, text fallback.
-5. **P4 isolated browser:** optional Playwright MCP adapter and operational-agent background jobs, secure egress, audited captures.
-6. **P5 full release:** opt-in capture, observability, resource testing, docs assistant integration, NuGet/npm/GHCR publishing and external consumer verification.
-
-**Definition of done:** all enabled feature paths have tests, reproducible configuration, authorization/redaction boundaries and real evidence. Missing optional capability is shown as unavailable and cannot block unrelated OpenConnect functionality.
-
-## 13. Source references
-
-- OpenConnect uploaded prior specification and implementation files are the internal baseline; validate actual repository APIs before changing them.
-- Swift-Aid: https://github.com/Vuminkosi/Swift-Aid and local `C:\DevOps\SwiftAidv2` (local path not accessible to this document author; coding agent working on that machine must inspect it).
-- Source candidates: `infra/ellai-tts/kokoro_voice.py`, `app.py`, `voice_pool.py`, `Dockerfile.kokoro`, `Dockerfile`, `pyproject.toml`, `uv.lock`, tests.
-- Playwright MCP: https://github.com/microsoft/playwright-mcp
-- Kokoro model card: https://huggingface.co/hexgrad/Kokoro-82M
-- MMS-TTS model card: https://huggingface.co/facebook/mms-tts
-- Microsoft Agent Framework: https://learn.microsoft.com/en-us/agent-framework/overview/
-
-
-
-
----
-
-## Annex 5: Observability requirements
-
-**Preserved source:** `observability-requirements(1).md` · **SHA-256:** `ff90f439e2459b49e680941078f0d9328537cdd9715dbb212f59c4ae678f5db6` · **Content retained verbatim below.**
-
-# OpenConnect — End-to-End Observability Requirements
-
-> **File:** `observability-requirements.md`  
-> **Status:** Proposed baseline for implementation  
-> **Version:** 1.0.0  
-> **Date:** 2026-11-06  
-> **Applies to:** OpenConnect gateway, firewall, model adapters, multimodal pipelines, interactive and operational agents, durable conversations, vault, and background workers  
-> **Companion:** [`observability-spec.md`](./observability-spec.md)
-
-## 1. Executive summary
-
-OpenConnect SHALL provide an integrated, privacy-preserving observability system built on **OpenTelemetry** (standard instrumentation and OTLP interoperability) with **optional .NET Aspire** integrations for local orchestration and diagnostics. OpenConnect SHALL retain ownership of cost accounting, budgets, governance, policy analytics, and tenant-aware administrative reports in its **durable metering and audit stores**. No Aspire AppHost, external collector, Grafana installation, or third-party hosted observability vendor may be required to run the core gateway.
-
-The system SHALL provide correlated visibility into every material stage of a multimodal AI operation: ingress, authentication, policy selection, input firewall, PII tokenization, model routing, provider inference, tool or agent execution, response firewall, restoration, response streaming, persistence, and egress. It SHALL allow administrators to understand security decisions and added latency without exposing raw protected content. It SHALL account for external provider expenses and, where configured, estimate local infrastructure expenses for running models, speech workers, and detectors.
-
-These requirements use **MUST/SHALL** for mandatory capabilities, **SHOULD** for strongly recommended capabilities, and **MAY** for optional enhancements. **P0** = foundational release, **P1** = production-hardening release, **P2** = future enhancement. Targets marked *initial SLO proposal* are adjustable operational defaults, not validated performance claims.
-
-## 2. Goals and non-goals
-
-### 2.1 Goals
-
-1. End-to-end cross-process traces across HTTP, streaming, asynchronous messaging, agents, workers, tool calls, and model providers.
-2. Minimal instrumentation and infrastructure overhead for low-resource installations.
-3. Cost and usage accounting that remains correct with tracing disabled or sampled and survives exporter outages.
-4. Actionable firewall telemetry, including configurable GLiNER/rules, DeBERTa prompt-injection detection, Qwen3Guard safety checks, tokenization and restoration, and custom plugins.
-5. A tenant-scoped, authenticated Admin Console covering reliability, security, budgets, spend, workflows, and configuration health.
-6. OTLP interoperability, optional Aspire AppHost and standalone dashboard, and portable backends.
-7. Strongly typed .NET configuration with explicit enums, validation, secure defaults, and deployment profiles.
-8. Auditability, security boundaries, retention, cardinality controls, and privacy by construction.
-9. Deterministic verification through integration tests, synthetic workloads, benchmark datasets, and operational runbooks.
-
-### 2.2 Non-goals
-
-- Replacing existing log, trace, or metric storage vendors.
-- Treating sampled spans or Prometheus counters as the source of truth for customer invoices.
-- Recording full prompts, completions, PII, secrets, or vault plaintext by default.
-- Claiming classifier precision/recall from unreviewed live traffic alone.
-- Mandating deployment of every detector, model worker, or dashboard.
-- Promising precise provider invoice equivalence where provider pricing, rounding, taxes, or hidden usage are unavailable.
-- Automatically charging tenants for local compute estimates without an explicit billing policy.
-
-## 3. Actors and authorization boundaries
-
-| Actor | Authorized visibility | Restrictions |
-|---|---|---|
-| Platform operator | Cross-service health, aggregate cost, provider and detector performance | No raw message content by default; privileged access audited |
-| Security administrator | Firewall policies, detection outcomes, reviewed cases, detector effectiveness | Case review must use explicit permission and safe/redacted view |
-| Billing administrator | Price schedules, usage records, budgets, reconciliation, cost exports | Cannot retrieve secrets or vault mappings |
-| Tenant administrator | Own tenant's agents, usage, requests, spend, and budgets | No data from other tenants |
-| Application operator | Authorized applications, usage, alerts, and traces | Scoped to application and tenant |
-| Interactive end user | Only own request status or cost if explicitly enabled by product | No access to admin diagnostic spans |
-| Operational-agent scheduler/service | Machine identity for background jobs and usage attribution | Never impersonates an active human user |
-| Auditor | Immutable security and administrative audit events | Read-only; access independently logged |
-
-Authorization SHALL be enforced server-side at query time for every drill-down, export, trace link, and API endpoint. Tenant identifiers SHALL originate from validated authorization context, not user-supplied telemetry labels.
-
-## 4. Capability and priority matrix
-
-| ID | Capability | Priority | Required outcome |
+| Acceptance ID | Required observed outcome | Evidence class | Initial status |
 |---|---|---|---|
-| OBS-001 | Native `ActivitySource`, `Meter`, structured logs | P0 | All core execution paths instrumented |
-| OBS-002 | OpenTelemetry and OTLP export configuration | P0 | Opt-in external export, no hard dependency |
-| OBS-003 | Optional Aspire AppHost integration | P1 | Start development stack with correlated resources |
-| OBS-004 | Optional standalone Aspire Dashboard | P1 | OTLP diagnostics without AppHost |
-| OBS-005 | Durable per-operation model metering | P0 | Every billable attempt accounted once |
-| OBS-006 | Versioned provider pricing and estimates | P0 | Reproducible costs and provenance |
-| OBS-007 | Tenant/app/model/agent cost breakdowns | P0 | Secure aggregation and drill-down |
-| OBS-008 | Budgets, quotas, and spending alerts | P1 | Enforcement and notifications where configured |
-| OBS-009 | Firewall spans, metrics, and outcomes | P0 | Decision, stage, and detector timings |
-| OBS-010 | Optional detector deployment awareness | P0 | Disabled/skipped/not-installed versus executed |
-| OBS-011 | PII vault/tokenization instrumentation | P0 | Latency and errors without secrets |
-| OBS-012 | Interactive-agent identity correlation | P0 | Auth-context attribution without identity leakage |
-| OBS-013 | Operational-agent and worker visibility | P0 | Durable run lifecycle and retries |
-| OBS-014 | Multimodal telemetry | P1 | Text, speech, image, video unit accounting |
-| OBS-015 | Low-resource deployment profile | P0 | No mandatory collector or external database |
-| OBS-016 | Privacy, RBAC, retention and audit | P0 | Tenant isolation and redaction default |
-| OBS-017 | Alerting, SLOs, and runbooks | P1 | Actionable incident response |
-| OBS-018 | Telemetry pipeline self-monitoring | P1 | Drops, failures, buffers, export health |
-| OBS-019 | Detector quality benchmarking | P1 | Ground-truth precision/recall/calibration |
-| OBS-020 | Firewall configuration comparison | P2 | Evidence-based security/performance trade-offs |
-| OBS-021 | Admin APIs and dashboards | P1 | Unified operational view |
-| OBS-022 | Reconciliation and audit-safe exports | P1 | Explain estimates, corrections and provider differences |
-| OBS-023 | Forward-compatible GenAI semantic conventions | P0 | Versioned mapping; no double-emission |
-| OBS-024 | Cancellation, streaming and partial failure accounting | P0 | No dropped or doubled usage |
-| OBS-025 | Deployment/upgrade compatibility | P1 | Rolling upgrades with versioned schemas |
-
-## 5. Functional requirements
-
-### 5.1 Telemetry foundation
-
-- **REQ-TEL-001 [P0]** OpenConnect SHALL expose stable named .NET `ActivitySource` and `Meter` instances for gateway, firewall, AI inference, metering, agents, vault, and workers.
-- **REQ-TEL-002 [P0]** SDK registration SHALL be additive and idempotent with existing OpenTelemetry configuration, including Aspire Service Defaults; duplicate span processors, exporters, and HTTP instrumentation SHALL be avoided.
-- **REQ-TEL-003 [P0]** Tracing, metrics, structured logging, diagnostic export, and durable accounting SHALL have independent enablement and settings. Disabling tracing SHALL NOT disable ledger writes.
-- **REQ-TEL-004 [P0]** Each trace SHALL carry service name, deployment environment, service version, and instance identifier when available. Request correlation SHALL use W3C trace context; baggage SHALL be minimal and allowlisted.
-- **REQ-TEL-005 [P0]** The system SHALL support OTLP/gRPC and OTLP/HTTP via configured exporter packages, including endpoint, protocol, authentication headers, TLS, timeouts, buffering, and batch settings.
-- **REQ-TEL-006 [P0]** Instrumentation MUST NOT block successful inference or downgrade firewall policy on export failures. Local financial accounting failure SHALL be handled separately according to a configured accounting-failure policy.
-- **REQ-TEL-007 [P0]** Admin-configurable head sampling SHALL be supported; events and measurements required for metering and audit SHALL never depend on sample decisions.
-- **REQ-TEL-008 [P1]** Optional collector-side tail sampling, filtering, routing and retention SHALL be supported without gateway-specific collector coupling.
-- **REQ-TEL-009 [P0]** OpenConnect-specific instrumentation names SHALL be versioned and documented. Published semantic conventions SHALL be adopted through a pinned compatibility profile, because GenAI conventions may evolve.
-- **REQ-TEL-010 [P1]** A telemetry health endpoint SHALL report operational export readiness and recent failures without leaking endpoints, credentials, or tenant identifiers.
-
-### 5.2 Gateway, routing and conversation visibility
-
-- **REQ-GW-001 [P0]** Each ingress operation SHALL measure request count, outcome, payload-size bands, total latency, first-response latency, streaming duration, and in-flight requests.
-- **REQ-GW-002 [P0]** Traces SHALL distinguish authentication/authorization, route selection, rate limiting, input inspection, inference, output inspection, storage, and response delivery.
-- **REQ-GW-003 [P0]** Routing telemetry SHALL capture policy identifier/version, provider and model chosen, retry/failover count, circuit-breaker decisions, and failure category. Secrets and full routing prompt content MUST NOT appear.
-- **REQ-GW-004 [P0]** Durable conversation operations SHALL track persistence latency, append failures, concurrency conflicts, and storage errors. Actual conversation payloads SHALL remain outside telemetry.
-- **REQ-GW-005 [P1]** Operations SHALL expose request correlation for a conversation turn without adding high-cardinality conversation IDs as metric dimensions.
-- **REQ-GW-006 [P0]** Streaming traces SHALL record time-to-first-token/chunk and distinguish successful completion, client cancellation, timeout, provider interruption, and late usage reports.
-
-### 5.3 Model inference usage and cost metering
-
-- **REQ-MET-001 [P0]** Every logically billable provider or local-model inference attempt SHALL create one uniquely identified usage operation. Retries SHALL have separate attempt IDs and a common parent logical-request ID.
-- **REQ-MET-002 [P0]** Metering SHALL record tenant, application, provider, model, operation/modality, region if known, agent execution if applicable, timestamps, status, usage provenance, price version, monetary currency and amounts.
-- **REQ-MET-003 [P0]** Usage SHALL distinguish input/output totals, cached-read/cache-write subsets, reasoning-output subsets, modality-specific units, and extra billable provider/tool charges as supported.
-- **REQ-MET-004 [P0]** Provider-reported usage SHALL take precedence. Tokenizer/local estimates SHALL be explicitly flagged; unknown usage SHALL remain unknown rather than silently becoming zero.
-- **REQ-MET-005 [P0]** The pricing catalog SHALL be versioned with effective intervals, currencies, units, region/tier qualifiers, and source provenance. Original price schedule or immutable snapshot SHALL remain accessible for recalculation.
-- **REQ-MET-006 [P0]** Costs SHALL be calculated using decimal arithmetic and correctly normalize cache and reasoning subcategories to avoid double counting.
-- **REQ-MET-007 [P0]** At-least-once delivery and idempotent ledger ingestion SHALL ensure retries or worker restarts do not duplicate billable usage.
-- **REQ-MET-008 [P0]** Usage from streamed, aborted, failed, or timed-out requests SHALL be recorded if billable, including late provider usage and provisional-to-final corrections.
-- **REQ-MET-009 [P0]** Cost ledgers SHALL survive OTLP outages and trace sampling; ledger writes SHALL be independent of dashboards and exporters.
-- **REQ-MET-010 [P1]** Reports SHALL support provider, model, tenant, application, agent, work item, route, modality, and date-range aggregations, with authorization-safe filtering and pagination.
-- **REQ-MET-011 [P1]** A reconciliation job SHALL compare estimates against final provider reports/invoices where integrations exist and apply immutable adjustment records rather than overwrite financial history.
-- **REQ-MET-012 [P1]** Budgets SHALL support hard and soft limits, rolling/calendar periods, quota units, alert thresholds, and policy for unknown/estimated usage.
-- **REQ-MET-013 [P1]** When configured for hard enforcement, reservations or conservative pre-call estimates SHALL prevent concurrent requests from overrunning a budget without coordination.
-- **REQ-MET-014 [P1]** External API expense SHALL be distinguished from optional locally estimated CPU/GPU/infrastructure cost. These SHALL never be combined into an invoiced amount without explicit billing policy.
-- **REQ-MET-015 [P0]** Currency and unit conversions SHALL be explicit and versioned; multi-currency totals SHALL not be summed without a chosen conversion rate and timestamp.
-- **REQ-MET-016 [P1]** Export of usage records SHALL be supportable via paginated APIs and audit-safe CSV/Parquet or equivalent, with documented schemas.
-
-### 5.4 Firewall and detector observability
-
-- **REQ-FW-001 [P0]** Each request SHALL expose an aggregate firewall decision and separate input, output, and other applicable inspection stages.
-- **REQ-FW-002 [P0]** Each configured detector SHALL expose its detector type, logical name, configuration/model version, execution state, duration, queue wait, and outcome.
-- **REQ-FW-003 [P0]** Detector state SHALL distinguish `Disabled`, `NotInstalled`, `NotApplicable`, `SkippedByPolicy`, `SkippedByBudget`, `Executed`, `TimedOut`, `Failed`, and `Cancelled`.
-- **REQ-FW-004 [P0]** Policy outcomes SHALL distinguish `Allow`, `Block`, `Review`, `Redact`, `Tokenize`, `Sanitize`, `Quarantine`, and `Error`; multiple detector findings SHALL not be counted as multiple blocked requests.
-- **REQ-FW-005 [P0]** GLiNER/rules SHALL report PII entity-class counts and redact/tokenize action counts without raw entity values, offsets, restored values or token mappings.
-- **REQ-FW-006 [P0]** DeBERTa shall report injection classification outcomes, bounded confidence bucket, and policy action, not raw prompt text.
-- **REQ-FW-007 [P0]** Qwen3Guard SHALL report safety categories, outcome, model revision, and stage without disclosing content.
-- **REQ-FW-008 [P0]** Vault tokenization and restoration SHALL report provider type, duration, operation count, availability and error class, but never tokens, cleartext, secrets, mapping keys, or vault paths.
-- **REQ-FW-009 [P0]** Measurement SHALL separate detector execution time from queue time, wall-clock aggregate stage time, and overall additional request latency. Concurrent detector durations SHALL NOT be naively summed into request overhead.
-- **REQ-FW-010 [P0]** Runtime SHALL report detector cold starts, resource pressure, timeouts, concurrency limits, circuit-breaker states, fallback actions and fail-open/fail-closed decisions.
-- **REQ-FW-011 [P1]** Quality reports (precision, recall, F1, false-positive rate, false-negative rate, calibration) SHALL be computed only from labeled or reviewed evaluation datasets and SHALL display evaluation set/version and sample size.
-- **REQ-FW-012 [P1]** Firewall analytics SHALL allow slicing by policy version, detector/version, traffic class, stage, outcome, deployment, and time range without high-cardinality metrics.
-- **REQ-FW-013 [P1]** Shadow evaluation/canary comparison MAY run only with explicit policy authorization and bounded resource budgets; shadow output MUST NOT implicitly affect live policy decisions.
-- **REQ-FW-014 [P2]** An optimizer MAY compare candidate detector configurations on latency, resource usage, estimated infrastructure cost, and labeled security performance.
-
-### 5.5 Agents, tools and background workers
-
-- **REQ-AG-001 [P0]** Interactive agents SHALL inherit the active authenticated user's authorized context for execution and attribution, without exposing raw credentials in telemetry.
-- **REQ-AG-002 [P0]** Operational agents SHALL execute under a designated service/workload identity and record scheduling, activation, lease acquisition, heartbeats, execution, retries, checkpoints, and completion.
-- **REQ-AG-003 [P0]** Agent traces SHALL distinguish plan/step, model calls, tool invocation, human-approval wait, delegated work, memory/retrieval, and external API calls.
-- **REQ-AG-004 [P0]** Agent execution and child model/tool cost SHALL be attributable without summing an aggregate run charge twice.
-- **REQ-AG-005 [P0]** Async trace propagation SHALL support `traceparent` and `tracestate` in approved message metadata; durable execution ID SHALL allow correlation when trace continuity is intentionally broken.
-- **REQ-AG-006 [P1]** Admin views SHALL show current agent health, queue depth, task lag, stuck runs, and failure/retry distributions by agent type.
-- **REQ-AG-007 [P1]** Tool telemetry SHALL identify tool kind, status, duration, and explicit charges while respecting per-tool secret and payload suppression.
-
-### 5.6 Multimodal, local models and detector infrastructure
-
-- **REQ-MM-001 [P1]** Audio workloads SHALL report provider billable units (e.g., seconds/minutes/tokens as defined by price schedule), audio duration, stream latency, and cancellation.
-- **REQ-MM-002 [P1]** Image workloads SHALL report image count, configured resolution/quality tiers, modality-specific tokens where returned, and model usage source.
-- **REQ-MM-003 [P1]** Video workloads SHALL report duration, frame count where applicable, and provider-specific billable units.
-- **REQ-MM-004 [P1]** Local inference worker telemetry SHALL expose process/container CPU, memory, queue depth, concurrency and optional accelerator utilization where measurable; unavailable GPU counters SHALL show `unavailable` rather than `0`.
-- **REQ-MM-005 [P1]** Infrastructure cost estimates SHALL disclose allocation method, sampling granularity, machine price profile, and confidence/quality limitations.
-
-### 5.7 Administrative experience and alerting
-
-- **REQ-ADM-001 [P1]** Admin UI SHALL provide overview, model cost, firewall, detectors, routing, agent execution, runtime health, vault health, audit, budgets, alerts, and integrations views.
-- **REQ-ADM-002 [P1]** Default landing page SHALL present request volume, error rate, p50/p95/p99 latency, first-token latency, total spend, unknown-cost percentage, security decisions, firewall overhead, and active alerts.
-- **REQ-ADM-003 [P1]** Every aggregated figure SHALL indicate its time zone, aggregation window, source, completeness/freshness and whether calculated or estimated.
-- **REQ-ADM-004 [P1]** Users SHALL drill from aggregate to an authorized request/execution detail and from there to its trace via a backend-neutral link or configured viewer.
-- **REQ-ADM-005 [P1]** Admin APIs SHALL support filtering, stable pagination, tenant isolation, RBAC, throttling, and export authorization.
-- **REQ-ADM-006 [P1]** Alert rules SHALL support request error/latency, provider failures, cost rate/budget, firewall fail-open, detector saturation, vault errors, dropped telemetry, and stalled agents.
-- **REQ-ADM-007 [P1]** Alerts SHALL include routing, deduplication, silence windows, escalation policy, and actionable runbook links. Notifications MAY be implemented via webhook, email, or configured integrations.
-- **REQ-ADM-008 [P1]** Each admin change to observability, pricing, budgets, detector policy or export settings SHALL create an auditable event with actor, time, scope, old/new safe summary, and result.
-- **REQ-ADM-009 [P1]** UI SHALL clearly distinguish detection **rate** from empirically evaluated **accuracy**; unavailable quality labels SHALL not be replaced with guesses.
-
-### 5.8 Aspire and export interoperability
-
-- **REQ-ASP-001 [P1]** `OpenConnect.Hosting.Aspire` SHALL be optional and SHALL not be referenced by core packages.
-- **REQ-ASP-002 [P1]** OpenConnect SHALL run in Aspire AppHost and independently (ordinary ASP.NET Core host, Docker Compose, Kubernetes or system service).
-- **REQ-ASP-003 [P1]** Standalone Aspire Dashboard SHALL consume OpenConnect OTLP streams with no AppHost requirement.
-- **REQ-ASP-004 [P1]** Integration documentation SHALL distinguish standalone telemetry viewing from AppHost-only resource orchestration features.
-- **REQ-ASP-005 [P1]** Aspire UI SHALL be treated as sensitive operational administration; exposure SHALL require network isolation and authentication. Linking from Admin UI SHALL NOT bypass Aspire authorization.
-- **REQ-ASP-006 [P1]** Production deployment SHALL support collector-to-backend pipelines (e.g. Prometheus-compatible metrics, Grafana-compatible traces/logs), without requiring vendor-specific SDK instrumentation.
-- **REQ-ASP-007 [P1]** OpenConnect SHALL expose a capability/health report so the Admin UI can report which diagnostic backend is enabled, misconfigured, degraded or disconnected.
-
-## 6. Required data semantics
-
-### 6.1 Entity and identity model
-
-At minimum, instrumentation and accounting SHALL define: `Tenant`, `Application`, `Environment`, `Service`, `Request`, `ConversationTurn`, `AgentExecution`, `AgentStep`, `ModelCall`, `ModelAttempt`, `FirewallEvaluation`, `DetectorExecution`, `VaultOperation`, `UsageRecord`, `PriceSchedule`, `CostAdjustment`, `Budget`, `AuditEvent`, and `TelemetryExportStatus`. IDs MUST be globally unambiguous within their declared scope. Public/metric labels SHALL be separate from confidential entity IDs.
-
-### 6.2 Financial correctness
-
-- A logical user request may make multiple paid model attempts, including retries, tool calls, planning and shadow calls.
-- **Attribution:** each attempt belongs to exactly one ledger identity; parent summaries derive costs from children rather than posting duplicate line items.
-- **Idempotency:** repeated finalization of the same provider attempt produces at most one final charge record plus explicit adjustments.
-- **Partiality:** when usage is unknown, record `Unknown`; do not treat it as free.
-- **Estimate revisions:** provisional estimates and final provider usage must be linked and versioned. Reconciliation adjustments retain an audit trail.
-- **Currency:** amount/currency and conversion rate are explicit. No implicit mixed-currency sums.
-- **Retention:** financial records and their price references remain for the configured accounting retention independent of trace sampling/TTL.
+| `OC2-AT-001` | MAF Direct real stream/tool | pinned run | NOT RUN |
+| `OC2-AT-002` | MAF Harness native plan/todo | native todo proof | NOT RUN |
+| `OC2-AT-003` | Harness mode/todo across turns | session run | NOT RUN |
+| `OC2-AT-004` | Native AgentSession serial/deserial across restart | 10-turn restart | NOT RUN |
+| `OC2-AT-005` | Harness compaction native | context budget test | NOT RUN |
+| `OC2-AT-006` | MAF skill file source sandbox | negative path | NOT RUN |
+| `OC2-AT-007` | MAF MCP skill source no script escalation | negative execution | NOT RUN |
+| `OC2-AT-008` | MAF typed workflow function+agent | native run | NOT RUN |
+| `OC2-AT-009` | MAF sequential correct agent graph | lineage | NOT RUN |
+| `OC2-AT-010` | MAF parallel isolated context | stress test | NOT RUN |
+| `OC2-AT-011` | MAF native handoff multi-turn | participant sessions | NOT RUN |
+| `OC2-AT-012` | MAF HITL approval+pending resume | checkpoint evidence | NOT RUN |
+| `OC2-AT-013` | MAF Durable Extension actual host | real storage smoke | NOT RUN |
+| `OC2-AT-014` | Unsupported Durable profile fails explicitly | config negative | NOT RUN |
+| `OC2-AT-015` | One lease/replay owner per workflow | crash audit | NOT RUN |
+| `OC2-AT-016` | Typed config unknown/numeric rejection | schema golden | NOT RUN |
+| `OC2-AT-017` | AddOpenConnect DI no implicit DB/Docker | startup probe | NOT RUN |
+| `OC2-AT-018` | Template override may narrow only | hot reload proof | NOT RUN |
+| `OC2-AT-019` | Delegation 0→1→2 allowed | native lineage | NOT RUN |
+| `OC2-AT-020` | Depth3/background agent spawn denied | runtime negative | NOT RUN |
+| `OC2-AT-021` | Cycle/reentry rejected | graph tests | NOT RUN |
+| `OC2-AT-022` | Bounded fanout/tool/model/token cost | budget tests | NOT RUN |
+| `OC2-AT-023` | Interactive host user scope | auth middleware | NOT RUN |
+| `OC2-AT-024` | Operational workload identity not HttpContext | run trace | NOT RUN |
+| `OC2-AT-025` | Auth revoke mid-run blocks new effect | revocation probe | NOT RUN |
+| `OC2-AT-026` | Exact approval args/nonce/version enforcement | tamper test | NOT RUN |
+| `OC2-AT-027` | Unauthorized tool denied at execution | tool hook negative | NOT RUN |
+| `OC2-AT-028` | MCP service allowlist identity and SSRF | microservice integration | NOT RUN |
+| `OC2-AT-029` | MCP client/server actual MAF tool call | end-to-end | NOT RUN |
+| `OC2-AT-030` | Opaque remote agent unobservable privacy blocked | egress negative | NOT RUN |
+| `OC2-AT-031` | Direct text-only with optional modules missing | minimal host | NOT RUN |
+| `OC2-AT-032` | Native local/provider managed history not duplicated | session owner | NOT RUN |
+| `OC2-AT-033` | Scoped MAF context memory authorization | tenant consent | NOT RUN |
+| `OC2-AT-034` | Qdrant deletion + optional outage | projection replay | NOT RUN |
+| `OC2-AT-035` | Accepted task+event+outbox atomic | rollback | NOT RUN |
+| `OC2-AT-036` | No EF DDL on registration | migration probe | NOT RUN |
+| `OC2-AT-037` | SQL Server real concurrent claims | container integration | NOT RUN |
+| `OC2-AT-038` | Postgres real concurrent claims | container integration | NOT RUN |
+| `OC2-AT-039` | SQLite file-based retry/busy safety | sqlite integration | NOT RUN |
+| `OC2-AT-040` | EF InMemory rejects durable mode | negative test | NOT RUN |
+| `OC2-AT-041` | Native checkpoint reference persists | restart and resume | NOT RUN |
+| `OC2-AT-042` | Durable tool accepted before start | ordering and crash | NOT RUN |
+| `OC2-AT-043` | Approval before durable tool queue | no-effect preapproval | NOT RUN |
+| `OC2-AT-044` | Actual started requires actual start | execution trace | NOT RUN |
+| `OC2-AT-045` | Measured progress monotonic, no invented ETA | progress source | NOT RUN |
+| `OC2-AT-046` | Heartbeat only with liveness proof | stalled worker | NOT RUN |
+| `OC2-AT-047` | 100% progress != committed final | fault injection | NOT RUN |
+| `OC2-AT-048` | Cancellation requested != cancelled | raced cancellation | NOT RUN |
+| `OC2-AT-049` | Unknown remote effect not automatically replayed | external idempotency | NOT RUN |
+| `OC2-AT-050` | MAF tool continuation receives one result | resume dedup | NOT RUN |
+| `OC2-AT-051` | Auth scoped WS reconnect/progress replay | client tests | NOT RUN |
+| `OC2-AT-052` | MiniComposer real Harness plan/Workflow status | UI rendering | NOT RUN |
+| `OC2-AT-053` | No fake conversational progress turns | turn counts | NOT RUN |
+| `OC2-AT-054` | AG-UI auth/session approval parity | protocol tests | NOT RUN |
+| `OC2-AT-055` | Firewall missing required detector blocks egress | network sink | NOT RUN |
+| `OC2-AT-056` | Optional detectors off no loading/adverts | worker memory | NOT RUN |
+| `OC2-AT-057` | Vault scope AES-GCM/key rotation | canary tests | NOT RUN |
+| `OC2-AT-058` | MCP/skill/tool/memory injection denied | threat suite | NOT RUN |
+| `OC2-AT-059` | Client/server hybrid VAD state isolation | ONNX and JS | NOT RUN |
+| `OC2-AT-060` | Barge-in epochs reject stale audio | voice integration | NOT RUN |
+| `OC2-AT-061` | Kokoro pinned model cache offline restart | live model smoke | NOT RUN |
+| `OC2-AT-062` | MMS license/model language opt-in | license tests | NOT RUN |
+| `OC2-AT-063` | All 11 Docker images PR build no publish | CI image jobs | NOT RUN |
+| `OC2-AT-064` | Docker Hub version/latest promotion verified | digest pull | NOT RUN |
+| `OC2-AT-065` | Native MAF OTel correlation and no sensitive data | trace canaries | NOT RUN |
+| `OC2-AT-066` | Usage ledger not sampled/double counted | metering replay | NOT RUN |
+| `OC2-AT-067` | MAF eval reproducible tool/workflow quality | eval report | NOT RUN |
+| `OC2-AT-068` | net8 NuGet consumer verified MAF supported behavior | net8 runtime | NOT RUN |
+| `OC2-AT-069` | net9 NuGet consumer verified MAF supported behavior | net9 runtime | NOT RUN |
+| `OC2-AT-070` | net10 NuGet consumer verified MAF supported behavior | net10 runtime | NOT RUN |
+| `OC2-AT-071` | Starlight static/docs assistant real package test | offline docs smoke | NOT RUN |
+
+## 24. Historical requirement and acceptance preservation
+
+Preserve the complete historical behavior coverage rather than substituting the 71 general tests for specialist suites. Former PostgreSQL-only, GHCR-only, custom planner/replayer and model-on-start implementations are **superseded implementation choices**, not grounds to drop their expected durability, container publication or functional security tests. Verify the exact original test description in the originating source before updating it.
+
+The following acceptance IDs are individual evidence obligations listed in the detailed checklist; never infer a pass for them merely because the current `OC2-AT-*` suite passed:
+
+### 24.1 Core/legacy — 42 retained IDs
+
+`AT-001`, `AT-002`, `AT-003`, `AT-004`, `AT-005`, `AT-006`, `AT-007`, `AT-008`, `AT-009`, `AT-010`, `AT-011`, `AT-012`, `AT-013`, `AT-014`, `AT-015`, `AT-016`, `AT-017`, `AT-018`, `AT-019`, `AT-020`, `AT-021`, `AT-022`, `AT-023`, `AT-024`, `AT-025`, `AT-026`, `AT-027`, `AT-028`, `AT-029`, `AT-030`, `AT-031`, `AT-032`, `AT-033`, `AT-034`, `AT-035`, `AT-036`, `AT-037`, `AT-038`, `AT-039`, `AT-040`, `AT-041`, `AT-042`.
+
+### 24.2 EF — 30 retained IDs
+
+`EF-AT-001`, `EF-AT-002`, `EF-AT-003`, `EF-AT-004`, `EF-AT-005`, `EF-AT-006`, `EF-AT-007`, `EF-AT-008`, `EF-AT-009`, `EF-AT-010`, `EF-AT-011`, `EF-AT-012`, `EF-AT-013`, `EF-AT-014`, `EF-AT-015`, `EF-AT-016`, `EF-AT-017`, `EF-AT-018`, `EF-AT-019`, `EF-AT-020`, `EF-AT-021`, `EF-AT-022`, `EF-AT-023`, `EF-AT-024`, `EF-AT-025`, `EF-AT-026`, `EF-AT-027`, `EF-AT-028`, `EF-AT-029`, `EF-AT-030`.
+
+### 24.3 Agents — 40 retained IDs
+
+`AG-AT-001`, `AG-AT-002`, `AG-AT-003`, `AG-AT-004`, `AG-AT-005`, `AG-AT-006`, `AG-AT-007`, `AG-AT-008`, `AG-AT-009`, `AG-AT-010`, `AG-AT-011`, `AG-AT-012`, `AG-AT-013`, `AG-AT-014`, `AG-AT-015`, `AG-AT-016`, `AG-AT-017`, `AG-AT-018`, `AG-AT-019`, `AG-AT-020`, `AG-AT-021`, `AG-AT-022`, `AG-AT-023`, `AG-AT-024`, `AG-AT-025`, `AG-AT-026`, `AG-AT-027`, `AG-AT-028`, `AG-AT-029`, `AG-AT-030`, `AG-AT-031`, `AG-AT-032`, `AG-AT-033`, `AG-AT-034`, `AG-AT-035`, `AG-AT-036`, `AG-AT-037`, `AG-AT-038`, `AG-AT-039`, `AG-AT-040`.
+
+### 24.4 Workers — 57 retained IDs
+
+`WRK-AT-001`, `WRK-AT-002`, `WRK-AT-003`, `WRK-AT-004`, `WRK-AT-005`, `WRK-AT-006`, `WRK-AT-007`, `WRK-AT-008`, `WRK-AT-009`, `WRK-AT-010`, `WRK-AT-011`, `WRK-AT-012`, `WRK-AT-013`, `WRK-AT-014`, `WRK-AT-015`, `WRK-AT-016`, `WRK-AT-017`, `WRK-AT-018`, `WRK-AT-019`, `WRK-AT-020`, `WRK-AT-021`, `WRK-AT-022`, `WRK-AT-023`, `WRK-AT-024`, `WRK-AT-025`, `WRK-AT-026`, `WRK-AT-027`, `WRK-AT-028`, `WRK-AT-029`, `WRK-AT-030`, `WRK-AT-031`, `WRK-AT-032`, `WRK-AT-033`, `WRK-AT-034`, `WRK-AT-035`, `WRK-AT-036`, `WRK-AT-037`, `WRK-AT-038`, `WRK-AT-039`, `WRK-AT-040`, `WRK-AT-041`, `WRK-AT-042`, `WRK-AT-043`, `WRK-AT-044`, `WRK-AT-045`, `WRK-AT-046`, `WRK-AT-047`, `WRK-AT-048`, `WRK-AT-049`, `WRK-AT-050`, `WRK-AT-051`, `WRK-AT-052`, `WRK-AT-053`, `WRK-AT-054`, `WRK-AT-055`, `WRK-AT-056`, `WRK-AT-057`.
+
+### 24.5 Navigator — 24 retained IDs
+
+`NAV-AT-001`, `NAV-AT-002`, `NAV-AT-003`, `NAV-AT-004`, `NAV-AT-005`, `NAV-AT-006`, `NAV-AT-007`, `NAV-AT-008`, `NAV-AT-009`, `NAV-AT-010`, `NAV-AT-011`, `NAV-AT-012`, `NAV-AT-013`, `NAV-AT-014`, `NAV-AT-015`, `NAV-AT-016`, `NAV-AT-017`, `NAV-AT-018`, `NAV-AT-019`, `NAV-AT-020`, `NAV-AT-021`, `NAV-AT-022`, `NAV-AT-023`, `NAV-AT-024`.
+
+### 24.6 Composer — 24 retained IDs
+
+`CMP-AT-001`, `CMP-AT-002`, `CMP-AT-003`, `CMP-AT-004`, `CMP-AT-005`, `CMP-AT-006`, `CMP-AT-007`, `CMP-AT-008`, `CMP-AT-009`, `CMP-AT-010`, `CMP-AT-011`, `CMP-AT-012`, `CMP-AT-013`, `CMP-AT-014`, `CMP-AT-015`, `CMP-AT-016`, `CMP-AT-017`, `CMP-AT-018`, `CMP-AT-019`, `CMP-AT-020`, `CMP-AT-021`, `CMP-AT-022`, `CMP-AT-023`, `CMP-AT-024`.
 
-### 6.3 Firewall correctness
+### 24.7 Cross-framework — 40 retained IDs
 
-- Aggregate request block rate = number of distinct evaluated requests whose **final** action is `Block` / number of evaluated requests (same window/filter).
-- Detector finding count, individual detector block recommendation count, final policy block count, and prevented provider call count are separate measures.
-- Inspection latency is measured with a monotonic clock. End-to-end firewall overhead is the critical-path contribution and MUST account for concurrency and queuing.
-- True positive, false positive, true negative and false negative require reviewed ground truth and explicit dataset provenance.
+`CF-AT-001`, `CF-AT-002`, `CF-AT-003`, `CF-AT-004`, `CF-AT-005`, `CF-AT-006`, `CF-AT-007`, `CF-AT-008`, `CF-AT-009`, `CF-AT-010`, `CF-AT-011`, `CF-AT-012`, `CF-AT-013`, `CF-AT-014`, `CF-AT-015`, `CF-AT-016`, `CF-AT-017`, `CF-AT-018`, `CF-AT-019`, `CF-AT-020`, `CF-AT-021`, `CF-AT-022`, `CF-AT-023`, `CF-AT-024`, `CF-AT-025`, `CF-AT-026`, `CF-AT-027`, `CF-AT-028`, `CF-AT-029`, `CF-AT-030`, `CF-AT-031`, `CF-AT-032`, `CF-AT-033`, `CF-AT-034`, `CF-AT-035`, `CF-AT-036`, `CF-AT-037`, `CF-AT-038`, `CF-AT-039`, `CF-AT-040`.
 
-## 7. Privacy, safety and compliance requirements
+### 24.8 Requirements-to-task traceability gate
 
-- **REQ-SEC-001 [P0]** Default telemetry content policy is `MetadataOnly`; raw prompt/completion capture is prohibited by default.
-- **REQ-SEC-002 [P0]** Trace attributes, log scopes, metrics labels, exceptions, stack traces and exporter headers SHALL be scrubbed with an explicit allowlist/denylist before export where technically feasible.
-- **REQ-SEC-003 [P0]** Passwords, authorization headers, API keys, refresh tokens, vault mappings, tokenized original values and restoration output SHALL NEVER be exported as telemetry.
-- **REQ-SEC-004 [P0]** Tenant isolation SHALL be tested against direct API access, bulk export, indirect trace links, dashboards, and cross-tenant joins.
-- **REQ-SEC-005 [P0]** Telemetry transport SHALL support TLS/authenticated OTLP; production endpoints SHALL not be unauthenticated on public networks.
-- **REQ-SEC-006 [P0]** Metrics labels SHALL use a documented finite-cardinality allowlist. Per-request, per-user, conversation and other unbounded IDs SHALL NOT be metric dimensions.
-- **REQ-SEC-007 [P0]** Admin API/audit/storage SHALL use least privilege; secrets SHALL be injected through trusted configuration/secret stores.
-- **REQ-SEC-008 [P1]** Data retention SHALL be individually configurable for metrics, traces, logs, ledgers, evaluations, and audit events, with deletion/archival workflows and legal-hold policy where applicable.
-- **REQ-SEC-009 [P1]** Export destination changes, policy overrides, elevated diagnostic access, and report downloads SHALL be audited.
-- **REQ-SEC-010 [P1]** Optional redacted-content debugging SHALL require an explicit admin policy, limited duration, access logging and per-tenant approval; it SHALL NOT weaken vault isolation.
+Before an implementation PR is accepted, the author SHALL map each affected pre-existing `OC2-*`, `OC-MSTR-*`, `OC-FW-*`, `OC-EF-*`, `AG-REQ-*`, `WRK-REQ-*`, `CF-REQ-*`, `NAV-*`, `CMP-*`, `OBS-*` and `OC-AGT-*` requirement to its current normative `OC2-REQ-*`, detailed `OC2-D-*`, exact `spec.md` contract and evidence. If an old identifier references an unknown/unsupplied annex, mark `UNRESOLVED_SOURCE`, locate the original, and do not invent its semantics.
 
-## 8. Configuration and operational requirements
+**Required package-level traceability:** all 356 `OC2-REQ-*` atomic IDs each resolve to exactly one `OC2-D-*` checklist task; all 71 `OC2-AT-*` exist exactly once as acceptance definitions. One test can cover multiple tasks, but it must verify each independently and identify the applicable requirement IDs.
 
-- **REQ-CFG-001 [P0]** Use options classes, enums, configuration validation, and `ValidateOnStart()`. Unknown enum values and malformed URIs MUST fail startup configuration validation where relevant.
-- **REQ-CFG-002 [P0]** At least `Minimal`, `Standard` and `Full` deployment profiles SHALL be documented; low-resource mode SHALL require no Aspire, collector, message broker or hosted monitoring account.
-- **REQ-CFG-003 [P0]** Detector enablement and policy inclusion SHALL be independently configurable; disabling one detector shall not trigger implicit model download or initialization.
-- **REQ-CFG-004 [P0]** Sensitive values MUST come from secrets/environment/config providers, not checked-in JSON.
-- **REQ-CFG-005 [P1]** Settings SHALL have precedence rules (code defaults < configuration providers < environment < explicit operator override) and publish their effective *non-secret* configuration in admin view.
-- **REQ-CFG-006 [P1]** Runtime changes SHALL be classified as hot-reload-safe versus restart-required and audited.
-- **REQ-CFG-007 [P1]** Package and database schema version compatibility SHALL be maintained through supported rolling upgrades.
+## 25. Implementation and review approval
 
-## 9. Nonfunctional requirements and initial SLO proposals
-
-Targets below are **proposed acceptance defaults**; deployers MAY override by environment and benchmark findings.
-
-| ID | Area | Proposed target / constraint | Measurement |
-|---|---|---|---|
-| NFR-001 | Base gateway overhead | < 3% p95 latency increase from metrics-only instrumentation at reference load | A/B benchmark vs instrumentation off |
-| NFR-002 | Standard tracing overhead | < 5% p95 increase at 10% sampling at reference load | Controlled load benchmark |
-| NFR-003 | Export isolation | OTLP backend unavailable for 30 min without request failure attributable to exporter | Fault injection |
-| NFR-004 | Accounting correctness | 100% of successfully persisted billable attempts reconcile without duplicate finalized IDs | Integration/replay tests |
-| NFR-005 | Ledger durability | No acknowledged ledger event lost after process restart within selected persistence guarantees | Crash/recovery tests |
-| NFR-006 | Dashboard freshness | New finalized usage visible within 60 s p95 in Standard profile | Synthetic usage events |
-| NFR-007 | Tenant isolation | Zero cross-tenant read/export access in automated authorization suite | Penetration and property tests |
-| NFR-008 | Cardinality | Bounded metric series per deployment based on configured label budgets | Load tests and metric scrape audit |
-| NFR-009 | Health monitoring | Exporter/worker failure reported within 2 minutes in Full profile | Chaos tests |
-| NFR-010 | Cost drift | Estimated vs provider-finalized discrepancy explicitly reported; no hidden adjustment | Reconciliation checks |
-| NFR-011 | Detector completeness | Every scheduled detector yields exactly one terminal execution state | Correlation tests |
-| NFR-012 | Graceful degradation | Analytics outage does not disable firewall or grant unsafe permissions | Failure simulation |
-
-Performance tests SHALL specify hardware, concurrency, model selection, payload mix, sampling rates, database and collector placement, and network conditions. No universal detector latency SLA is implied.
-
-## 10. Deployment profiles
-
-| Capability | Minimal | Standard | Full |
-|---|---|---|---|
-| Built-in metrics | On | On | On |
-| Structured logs | On | On | On |
-| Trace collection | Off or manual | Sampled | Configurable/adaptive |
-| Durable metering | SQLite or configured provider | SQLite/PostgreSQL | PostgreSQL or production database |
-| OTLP exporter | Off | Optional | Recommended |
-| Collector | Not required | Optional | Recommended |
-| Aspire AppHost | Optional dev-only | Optional | Optional |
-| Standalone Aspire | Optional dev-only | Optional | Optional |
-| Production telemetry storage | None required | Optional | Required for historical dashboards |
-| Admin analytics | Local, bounded | Operational | Full historical and multi-tenant |
-| Alerting | Local limits | Basic | Routing/escalation |
-| GPU/resource meters | Optional | Optional | Configured as available |
-
-The package graph SHALL permit installing core instrumentation without the Aspire hosting package, Admin UI, external exporters, or vendor-specific integrations.
-
-## 11. User stories and acceptance criteria
-
-**US-01 — Small-environment deployer (P0):** As a developer operating a single-node instance, I can disable distributed tracing and external exporters, still see gateway/firewall counters, and still persist usage. **Accept:** startup succeeds offline; no external service is contacted; usage survives restart; absent detectors do not load models.
-
-**US-02 — Platform operator (P1):** I can investigate a slow request from gateway to model and firewall. **Accept:** authorized request detail shows stage timeline, nested spans or explicit correlation IDs, queue duration, retries, provider TTFT, final outcome and trace link when retained.
-
-**US-03 — Billing administrator (P0/P1):** I can calculate cost by tenant/model/provider and explain the result. **Accept:** record includes usage provenance, effective price version, units, currency, attempt identity, finalization state and corrections; totals avoid cached-token double charging.
-
-**US-04 — Security administrator (P0/P1):** I can tell whether an unsafe request was blocked by DeBERTa, Qwen3Guard or rules, and measure their overhead. **Accept:** finding/action is trace-correlated; skipped/disabled states visible; aggregate block count is de-duplicated; no raw prompt is exposed.
-
-**US-05 — Privacy officer (P0):** I can validate observability does not exfiltrate content or vault secrets. **Accept:** seeded secret/PII canary values never appear in logs, traces, metric labels, exports, errors or UI under default policy.
-
-**US-06 — Agent operator (P0/P1):** I can distinguish interactive user-scoped tasks and scheduler-owned operational runs. **Accept:** correct actor type, workload identity, run lifecycle, retry/lease events and child expenses; no recorded auth token.
-
-**US-07 — Dev with Aspire (P1):** I can run the AppHost sample and explore correlated traces. **Accept:** service defaults are not double registered and traces appear under expected service names.
-
-**US-08 — Dev without Aspire (P1):** I can connect OpenConnect to a standalone Aspire dashboard or any OTLP receiver. **Accept:** OTLP export works from a normal host without AppHost or embedded Aspire code.
-
-**US-09 — Budget owner (P1):** I can receive an alert or reject a model attempt when a quota is reached. **Accept:** concurrent requests follow documented reservation/settlement rules and alerts show clear currency and completeness.
-
-**US-10 — Quality evaluator (P1):** I can view detector false-positive/negative statistics. **Accept:** dashboard requires labeled dataset, sampling method, dataset size, evaluation timestamp and detector/policy revision; live block rate is separately named.
-
-**US-11 — Incident responder (P1):** I can observe an OTLP outage without an AI outage. **Accept:** exporter errors and drops surface through a separate health/diagnostic channel; inference policy and ledger remain correct.
-
-**US-12 — Operator upgrading versions (P1):** I can perform a rolling deployment across instrumentation schema changes. **Accept:** compatible migrations, resource attribute schema version, documentation and backward-compatible metrics exist during the upgrade window.
-
-## 12. Verification and release gates
-
-### 12.1 Required automated test classes
-
-1. Unit tests: pricing arithmetic, token subset normalization, enum validation, labeling, duration calculations, access policy, state transitions.
-2. Contract tests: every model provider adapter normalizes usage and error semantics; semantic convention names/attributes are pinned.
-3. Integration tests: HTTP/streaming gateway, optional firewall stages, background agent propagation, durable ledger, SQL idempotency, late usage correction.
-4. Security tests: cross-tenant reads/exports, canary PII/secret leaks, malicious attributes, trace link authorization, injection into log fields.
-5. Fault tests: OTLP unavailability, database outage, queue saturation, unexpected worker crash, duplicate events, clock skew, partial provider response.
-6. Load tests: minimal/standard/full profile, metric cardinality, p50/p95/p99 latency, allocation, memory and collector pressure.
-7. Evaluation tests: labeled detector datasets for security quality, stratified by language, policy, detector version, input length and modality where applicable.
-8. UI tests: aggregation window, UTC vs local time, completeness indicators, empty state, estimated cost labeling, keyboard navigation and permitted drill-down.
-
-### 12.2 Definition of done
-
-A release MUST NOT be declared ready until P0 requirements have automated coverage, a documented self-hosted Minimal example exists, accounting/trace failures are independent, privacy canary testing passes, mandatory operational events have valid terminal states, and field names/retention/access rules are published. P1 features require production observability runbooks and alert validation before general availability.
-
-## 13. Risks, mitigations and unresolved decisions
-
-| Risk | Mitigation |
-|---|---|
-| Evolving OTel GenAI conventions | Pin a versioned semantic profile; map internally; compatibility tests; no unannounced renaming |
-| Sampling hides a charged call | Separate ledger + audit from traces |
-| Provider usage missing in streaming | Provisional estimate, late reconciliation, explicit `Unknown` |
-| High-cardinality telemetry | Strict label allowlist and admission limits |
-| Over-instrumentation overloads small hosts | Minimal profile; optional collectors/exporters; bounded buffering |
-| Detector confidence mistaken for accuracy | Benchmark-derived metrics only |
-| External dashboard exposes sensitive fields | Authentication, network restriction, no content capture |
-| Collector or provider outage | Non-blocking bounded exporters, health and retry budgets |
-| Pricing schedule changes | Immutable schedules, effective time and adjustments |
-| Concurrency overspends quotas | Reservation/settlement with transactional enforcement |
-
-**Architecture decisions to resolve before production:** default ledger DB and durable write policy; whether unknown-cost calls are allowed under hard budgets; tenant data retention and regional residency; accepted currency conversion source; whether per-user spend is exposed; telemetry backend selection for Full deployments; local detector GPU accounting availability; and any enterprise requirement for content-debug sessions. All have safe defaults in the companion specification.
-
-## 14. References
-
-The references are external technical guidance, not hard runtime dependencies:
-
-1. OpenTelemetry GenAI client inference conventions: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/client-inference.md
-2. OpenTelemetry GenAI token metric conventions: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md
-3. OpenTelemetry general metrics conventions: https://opentelemetry.io/docs/specs/semconv/general/metrics/
-4. Aspire dashboard overview: https://learn.microsoft.com/dotnet/aspire/dashboard
-5. Standalone Aspire dashboard: https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/standalone
-
----
-
-**Document ownership:** OpenConnect maintainers. Changes to P0 identifiers, monetary semantics, security defaults or published telemetry contracts require an architecture review and a versioned migration note.
-
-
-
-
----
-
-## Annex 6: Prior bundle README
-
-**Preserved source:** `README.md` · **SHA-256:** `1096df9c231d61af4a90be1f3e7a6ff4b21168ff9ebc067c8743ca5b12b440af` · **Content retained verbatim below.**
-
-# OpenConnect engineering document bundle — v1.1
-
-Read in this order:
-1. `spec.md` — product scope, architecture and normative requirements.
-2. `configuration.md` — **new** strongly typed .NET enums/options, default detector choices, Interactive/Operational agent contracts.
-3. `firewall.md` — Python security worker, synchronous outbound gates, optional detectors and coverage-aware policy.
-4. `implementation.md` — staged coding tasks (including IMP-090–099), CI/release execution guidance.
-5. `checklist.md` — evidence gates and tests (including AT-031–042); items are unchecked intentionally.
-
-## Key updates
-- Privacy firewall remains default-on, but AI detector models are individually disabled by default. Rules-only is the lightweight baseline and is **not semantic PII protection**.
-- Interactive agents run in active authenticated user context, reauthorized for tool use and bounded delegation.
-- Operational agents run under distinct workload identities, scheduled and monitored by a durable .NET BackgroundService with NATS/outbox/leases.
-- All closed options use C# enums and validated wire names; JSON/YAML/Python/TS schema parity is required.
-- This bundle contains **design specifications**, not deployed code or verified CI results.
-
-
+The next implementation-plan revision SHALL follow this spec/checklist requirements crosswalk and retain every atomic task rather than collapsing worker images, EF providers, native MAF capability proofs or release targets into one task. New requirements are appended with unique IDs and mapped into all authoritative files in the same change. A coding agent cannot unilaterally change architectural ownership based on convenience. Every design/API replacement needs an ADR and security/compatibility tests; every provider/model-specific stable claim requires observed evidence.
