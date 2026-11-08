@@ -151,7 +151,7 @@ public sealed class InMemoryTaskStore
             if (_byKey.TryGetValue(storeKey, out var existing))
                 return Task.FromResult((existing.Fingerprint == fingerprint ? existing.Record : null, existing.Fingerprint != fingerprint));
 
-            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Queued);
+            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Accepted);
             var stored = new StoredTask(fingerprint, record);
             if (!_byKey.TryAdd(storeKey, stored)) continue;
             _byId[record.Id.Value] = record;
