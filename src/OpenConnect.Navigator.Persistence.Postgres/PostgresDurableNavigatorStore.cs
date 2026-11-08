@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -147,12 +149,53 @@ public sealed class PostgresDurableNavigatorStore(OpenConnectDbContext db) : IDu
     {
         if (!Scope(id,tenant,principal,out var sid,out var t,out var p)) return NavigatorStoreOutcome.Conflict;
         if (!NavigatorEventTypes.IsSafe(value) || value.SessionId != id || value.Sequence != expectedSequence) return NavigatorStoreOutcome.Conflict;
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         var exists=await db.Sessions.AsNoTracking().AnyAsync(x=>x.Id==sid && x.TenantId==t && x.OwnerId==p,cancellationToken);
         if (!exists) return NavigatorStoreOutcome.NotFound;
         var prev=await db.Events.AsNoTracking().Where(x=>x.SessionId==sid && x.TenantId==t && x.PrincipalId==p).Select(x=>(long?)x.Sequence).MaxAsync(cancellationToken) ?? -1;
         if (prev+1 != expectedSequence) return NavigatorStoreOutcome.Conflict;
-        db.Events.Add(new EventEntity { Id=Guid.TryParse(value.EventId,out var eid)?eid:Guid.NewGuid(), SessionId=sid,TenantId=t,PrincipalId=p,Sequence=value.Sequence,EventType=value.Type,Payload=JsonSerializer.Serialize(value.Metadata ?? new Dictionary<string,string>()),OccurredAt=value.OccurredAt,CorrelationId=value.CorrelationId });
-        try { await db.SaveChangesAsync(cancellationToken); return NavigatorStoreOutcome.Succeeded; } catch(DbUpdateException) { db.ChangeTracker.Clear(); return NavigatorStoreOutcome.Conflict; }
+        // This is the durable store's single-writer path: event and outbox are committed together.
+        // The separate host commit-hook path remains available, but callers must not invoke both
+        // paths for the same event or it will enqueue a duplicate notification.
+        var eventId = Guid.TryParse(value.EventId, out var eid) && eid != Guid.Empty
+            ? eid
+            : new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(value.EventId)).AsSpan(0, 16));
+        db.Events.Add(new EventEntity { Id=eventId, SessionId=sid,TenantId=t,PrincipalId=p,Sequence=value.Sequence,EventType=value.Type,Payload=JsonSerializer.Serialize(value.Metadata ?? new Dictionary<string,string>()),OccurredAt=value.OccurredAt,CorrelationId=value.CorrelationId });
+        var issuedAt = DateTimeOffset.UtcNow;
+        var topic = $"navigator.{value.Type}";
+        var envelope = new
+        {
+            schemaVersion = "openconnect.v1",
+            messageId = eventId,
+            taskId = value.SessionId,
+            kind = topic,
+            issuedAt,
+            expiresAt = issuedAt.AddHours(1),
+            lease = new { leaseId = Guid.NewGuid(), fencingToken = 1L },
+            payloadRef = $"navigator/{value.SessionId}/{value.EventId}",
+            correlationId = value.CorrelationId
+        };
+        db.Outbox.Add(new OutboxEntity
+        {
+            Id = eventId,
+            Topic = topic,
+            Payload = JsonSerializer.Serialize(envelope, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            State = "pending",
+            NextAttemptAt = issuedAt,
+            CreatedAt = issuedAt
+        });
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            return NavigatorStoreOutcome.Succeeded;
+        }
+        catch(DbUpdateException)
+        {
+            await tx.RollbackAsync(cancellationToken);
+            db.ChangeTracker.Clear();
+            return NavigatorStoreOutcome.Conflict;
+        }
     }
 
     public async ValueTask<IReadOnlyList<NavigatorEvent>> GetEventsAsync(string id, string tenant, string principal, long afterSequence, CancellationToken cancellationToken = default)
