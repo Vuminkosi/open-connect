@@ -32,6 +32,32 @@ public sealed class RunBudgetLedgerTests
     }
 
     [Fact]
+    public async Task ConcurrentTokenReservations_NeverExceedLimitOrPartiallyDebit()
+    {
+        const long limit = 101;
+        const long amount = 7;
+        const int attempts = 32;
+        var ledger = new RunBudgetLedger(Budget(tokens: limit));
+        using var barrier = new Barrier(attempts);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, attempts).Select(_ => Task.Run(() =>
+        {
+            barrier.SignalAndWait();
+            return ledger.TryReserveTokens(amount);
+        })));
+
+        var successes = results.Count(reserved => reserved);
+        var remaining = ledger.Remaining.MaxTokens;
+        Assert.Equal((int)(limit / amount), successes);
+        Assert.True(successes * amount <= limit);
+        Assert.Equal(limit - successes * amount, remaining);
+        Assert.True(remaining >= 0);
+
+        Assert.False(ledger.TryReserveTokens(remaining + 1));
+        Assert.Equal(remaining, ledger.Remaining.MaxTokens);
+    }
+
+    [Fact]
     public async Task CombinedReservations_NeverExceedConcurrencyAndDebitOnlySuccessfulChildren()
     {
         var ledger = new RunBudgetLedger(Budget(subagents: 8));
