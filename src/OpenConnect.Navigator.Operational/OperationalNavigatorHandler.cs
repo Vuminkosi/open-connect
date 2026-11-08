@@ -30,7 +30,7 @@ public sealed class OperationalNavigatorHandler(
         if (receipts is not null)
         {
             var prior = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken).ConfigureAwait(false);
-            if (prior?.Status == OperationalRunStatus.Completed) return prior;
+            if (prior?.Status == OperationalRunStatus.Completed) return prior with { IsReplay = true };
         }
 
         var idempotencyId = $"{job.TenantScope}\0{job.IdempotencyKey}";
@@ -48,8 +48,11 @@ public sealed class OperationalNavigatorHandler(
                 var saved = await receipts.TryCompleteAsync(job.TenantScope, job.IdempotencyKey,
                     receipt, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
                 if (!saved)
-                    receipt = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken)
-                        .ConfigureAwait(false) ?? receipt;
+                {
+                    var stored = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken)
+                        .ConfigureAwait(false);
+                    receipt = stored is null ? receipt : stored with { IsReplay = true };
+                }
             }
             if (receipt.Status != OperationalRunStatus.Completed)
                 RemoveReservation(idempotencyId, selected);

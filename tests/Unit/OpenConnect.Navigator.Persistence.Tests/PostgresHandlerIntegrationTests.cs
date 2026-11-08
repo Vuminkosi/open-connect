@@ -52,11 +52,16 @@ public sealed class PostgresHandlerIntegrationTests(ITestOutputHelper output)
         Assert.Equal(1, first.CompletedSteps);
         Assert.True(first.FencingToken >= 1);
         Assert.Equal(1, executor.Reads);
+        Assert.False(first.IsReplay);
 
         OperationalReceipt replay;
         await using (var scope = provider.CreateAsyncScope())
             replay = await scope.ServiceProvider.GetRequiredService<IOperationalHandler>().HandleAsync(job);
-        Assert.Equal(first, replay);
+        Assert.False(first.IsReplay);
+        Assert.True(replay.IsReplay);
+        Assert.Equal(first with { IsReplay = true }, replay);
+        Assert.Equal(first.FencingToken, replay.FencingToken);
+        Assert.Equal(first.ExecutionId, replay.ExecutionId);
         Assert.Equal(1, executor.Reads);
         Assert.Equal(1, identities.Reads);
         Assert.Equal(1, plans.Reads);

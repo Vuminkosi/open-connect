@@ -16,19 +16,27 @@ public sealed class DurableHandlerReplayTests
         var first = await Create(store, executor).HandleAsync(job);
         var replay = await Create(store, executor).HandleAsync(job);
         Assert.Equal(OperationalRunStatus.Completed, replay.Status);
-        Assert.Equal(first, replay);
+        Assert.False(first.IsReplay);
+        Assert.True(replay.IsReplay);
+        Assert.Equal(first with { IsReplay = true }, replay);
         Assert.Equal(1, executor.Calls);
     }
 
     [Fact]
-    public async Task UncertainResultIsNeverPersisted()
+    public async Task UncertainResultIsNeverPersistedAndIdenticalJobExecutesAgain()
     {
         var store = new InMemoryDurableOperationalStore();
         var executor = new Executor { Result = new(false, true, null) };
         var job = Job();
         var result = await Create(store, executor).HandleAsync(job);
         Assert.Equal(OperationalRunStatus.Uncertain, result.Status);
+        Assert.False(result.IsReplay);
         Assert.Null(await store.GetReceiptAsync(job.TenantScope, job.IdempotencyKey, default));
+        var retryExecutor = new Executor();
+        var retry = await Create(store, retryExecutor).HandleAsync(job);
+        Assert.Equal(OperationalRunStatus.Completed, retry.Status);
+        Assert.False(retry.IsReplay);
+        Assert.Equal(1, retryExecutor.Calls);
     }
 
     [Fact]
