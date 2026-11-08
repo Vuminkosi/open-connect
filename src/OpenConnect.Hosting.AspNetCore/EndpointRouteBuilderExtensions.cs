@@ -124,11 +124,44 @@ public static class EndpointRouteBuilderExtensions
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
     {
-        if (!UlidTryParse(id, out var value) || after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
-        var session = store.Get(value);
-        if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
-        return Results.Ok(store.GetEvents(value, after ?? 0));
+        if (after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (UlidTryParse(id, out var value))
+        {
+            if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+            var session = store.Get(value);
+            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
+            return Results.Ok(store.GetEvents(value, after ?? 0));
+        }
+
+        // UUID public identity path (contract EVENT-V1-PUBLIC): the route UUID is the
+        // genuine public session id. It resolves to a runtime ULID for storage lookup
+        // only and is never derived from a ULID. Unmapped UUIDs answer 404 so session
+        // existence stays concealed, exactly like the legacy ownership check.
+        if (!Guid.TryParseExact(id, "D", out var sessionUuid) || sessionUuid == Guid.Empty)
+            return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal)) return IdentityError();
+        var resolver = context.RequestServices.GetService<ISessionUuidResolver>();
+        if (resolver is null || !resolver.TryResolve(sessionUuid, out var mapped))
+            return Results.Problem(statusCode: 404, title: "Session not found.");
+        var mappedSession = store.Get(mapped);
+        if (mappedSession is null || mappedSession.TenantId.Value != uuidTenant || mappedSession.PrincipalId.Value != uuidPrincipal)
+            return Results.Problem(statusCode: 404, title: "Session not found.");
+
+        var records = store.GetEvents(mapped, after ?? 0);
+        var canonical = new List<CanonicalAgentEvent>(records.Count);
+        foreach (var record in records)
+        {
+            // Records without genuine stored event UUID/time cannot be projected;
+            // answer 422 rather than fabricate metadata (contract EVENT-V1-PUBLIC).
+            if (!CanonicalEventEndpointAdapter.TryToCanonical(record, sessionUuid, out var envelope) || envelope is null)
+                return Results.Problem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    title: "A stored event lacks genuine canonical identity and cannot be projected.",
+                    type: "https://openconnect.dev/problems/legacy-event-without-canonical-identity");
+            canonical.Add(envelope);
+        }
+
+        return Results.Json(canonical, CanonicalJsonOptions);
     }
 
     internal static IResult HandleGetSessionEventsFromRequest(string id, HttpContext context, InMemorySessionStore store)
@@ -155,6 +188,32 @@ public static class EndpointRouteBuilderExtensions
 
         cursor = parsed;
         return parsed >= 0;
+    }
+
+    // Canonical public envelope serialization (contract EVENT-V1-PUBLIC only):
+    // emits occurredAt as Zulu UTC ("...Z"), preserving the genuine instant.
+    // Legacy EventRecord responses above intentionally keep Results.Ok untouched.
+    private static readonly JsonSerializerOptions CanonicalJsonOptions = CreateCanonicalJsonOptions();
+
+    private static JsonSerializerOptions CreateCanonicalJsonOptions()
+    {
+        var options = OpenConnectHttpJson.CreateOptions();
+        options.Converters.Add(new ZuluDateTimeOffsetConverter());
+        return options;
+    }
+
+    private sealed class ZuluDateTimeOffsetConverter : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    {
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetDateTimeOffset();
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
+        {
+            var text = value.UtcDateTime.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            if (text.EndsWith("Z", StringComparison.Ordinal) && text.Contains('.'))
+                text = text.TrimEnd('Z').TrimEnd('0').TrimEnd('.') + "Z";
+            writer.WriteStringValue(text);
+        }
     }
 
     private static bool TryIdentity(HttpContext context, out Ulid tenant, out Ulid principal)
