@@ -79,6 +79,22 @@ public sealed class ContextProjectionTests
             ["internal"], [Item("large") with { TokenEstimate = 101 }], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5)));
     }
 
+    [Fact]
+    public void Build_RejectsNegativeTokenEstimateWithoutReturningProjection()
+    {
+        AgentContextProjection? projection = null;
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var result = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+                ["internal"], [Item("negative") with { TokenEstimate = -1 }], Child, [], ["principal"],
+                100, TimeSpan.FromMinutes(5));
+            projection = result.Projection;
+        });
+
+        Assert.Null(projection);
+    }
+
     [Theory]
     [InlineData(-1, 5)]
     [InlineData(100, 0)]
@@ -219,6 +235,29 @@ public sealed class ContextProjectionTests
         Assert.Throws<ArgumentException>(() => Builder().RequestAdditional(initial, Child,
             [Item("extra") with { SummaryOrRef = "   " }]));
 
+        Assert.Equal(originalVersion, initial.Version);
+        Assert.Equal(originalItems, initial.Items);
+        Assert.Equal(originalBudget, initial.TokenBudget);
+    }
+
+    [Fact]
+    public void RequestAdditional_RejectsNegativeTokenEstimateAndLeavesOriginalUnchanged()
+    {
+        var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [Item("first")], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+        var originalVersion = initial.Version;
+        var originalItems = initial.Items;
+        var originalBudget = initial.TokenBudget;
+        AgentContextProjection? next = null;
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var result = Builder().RequestAdditional(initial, Child,
+                [Item("negative") with { TokenEstimate = -1 }]);
+            next = result.Projection;
+        });
+
+        Assert.Null(next);
         Assert.Equal(originalVersion, initial.Version);
         Assert.Equal(originalItems, initial.Items);
         Assert.Equal(originalBudget, initial.TokenBudget);
