@@ -1225,7 +1225,7 @@ Each identifier here was found in an uploaded document and is retained by verbat
 - [ ] **EF-AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
 - [ ] **EF-AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
 
-### Navigator — 24 tests: 16 PASS with executed evidence below (full-slice sweep @ faf9331: 231 .NET + 59 TS passed, 0 failed, incl live disposable PG16 + NATS, no skips), 8 NOT VERIFIED (explicitly out of the client+server slice or missing harness)
+### Navigator — 24 tests: 16 PASS with executed evidence below (full-slice sweep @ 6f6d85a: 231 .NET + 59 TS passed, 0 failed, incl live disposable PG16 + NATS, no skips), 8 NOT VERIFIED (explicitly out of the client+server slice or missing harness)
 
 - [x] **NAV-AT-001** — PASS (unit). Existing core lead + MCP run without Navigator/TTS/Playwright registration. Evidence: At001CoreWithoutNavigatorTests (Core.Tests 17/17, Release, hermetic).
 - [x] **NAV-AT-002** — PASS (unit). Navigator static text tour with bridge, no model workers/browser. Evidence: navigator acceptance.test.ts 9/9 + navigator.test.ts (packages/navigator 34/34, vitest).
