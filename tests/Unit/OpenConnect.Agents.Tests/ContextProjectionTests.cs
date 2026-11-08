@@ -74,6 +74,28 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void RequestAdditional_RejectsCombinedBudgetAndLeavesOriginalUnchanged()
+    {
+        const int budget = 10;
+        var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [Item("first") with { TokenEstimate = 6 }], Child, [], ["principal"],
+            budget, TimeSpan.FromMinutes(5));
+        var originalVersion = initial.Version;
+        var originalItems = initial.Items;
+        var originalBudget = initial.TokenBudget;
+        var extra = Item("second") with { TokenEstimate = 6 };
+
+        Assert.True(extra.TokenEstimate <= budget);
+        Assert.True(initial.Items.Sum(item => item.TokenEstimate) <= budget);
+        Assert.Throws<InvalidOperationException>(() =>
+            Builder().RequestAdditional(initial, Child, [extra]));
+
+        Assert.Equal(originalVersion, initial.Version);
+        Assert.Equal(originalItems, initial.Items);
+        Assert.Equal(originalBudget, initial.TokenBudget);
+    }
+
+    [Fact]
     public void RequestAdditional_AllowsAnyClassInProjectionAllowlist()
     {
         var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
