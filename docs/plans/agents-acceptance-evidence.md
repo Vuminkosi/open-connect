@@ -329,3 +329,36 @@ and endurance verification stays NOT VERIFIED.
 - No CLI flags, endpoints, release numbers, screenshots, deployment behavior, or support promises are introduced.
 - No prior PASS/NOT VERIFIED labels are altered.
 
+---
+
+## Appendix D — DATA EF strict-provider PASS (transcribed SUPPLIED-VERIFIED-BY-LANE)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute; all commands, counts, commits, hashes, and session IDs below are transcribed verbatim as supplied, not re-observed)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections (lines 1–331 incl Appendices A/B/C) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. No VERIFIED / COMMITTED / RELEASED claim is made by this writer; those labels below are transcribed lane evidence only.
+
+**Supplied source baseline (SUPPLIED, not re-resolved by this writer):** Canonical root `C:\DevOps\open-connect\worktrees\agents-1`, branch `agents-1`, supplied HEAD `474c49f76443a9e09d3651be026e619753e43cbb`.
+
+### Exact executed evidence (SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+- Commands (SUPPLIED-VERIFIED-BY-LANE):
+  - `dotnet test ...Persistence.EFCore.Tests... -c Release --no-restore --filter "FullyQualifiedName~MigratedTopologyTests"` → exit 0, 5/5.
+  - `dotnet test ...Persistence.EFCore.Tests... -c Release --no-restore --filter "FullyQualifiedName~PostgresSmokeTests|FullyQualifiedName~SqlServerSmokeTests"` → exit 0, 6/6 (strict true, live PG 127.0.0.1:27781 + MSSQL 127.0.0.1:27782, env redacted, save/restore verified).
+- Executor sessions (SUPPLIED-VERIFIED-BY-LANE): `ses_e437af65` (MigratedTopology 5/5) + `ses_e437373b` / `ses_e4370ca7` (Smoke 6/6). Any rerun ID is transcribed exactly as supplied in truncated form (e.g. `ses_e435...`) where that is what was supplied — NOT expanded and no full IDs invented by this writer.
+- Commits (SUPPLIED-VERIFIED-BY-LANE): `44153bb` (store+migrations), `c1289e3` (claim fix), `eb2900d` (smoke counts 12-table).
+- Reviews (SUPPLIED-VERIFIED-BY-LANE, not re-executed): migration review PASS S3-only; store review PASS S2/S3 nonblocking; smoke review `ses_e43728e2` PASS S3; wiring pins review `ses_e4343d87` PASS; pinning review `ses_e4349f6d` PASS (string race gap closed by 27/27 `ses_e43616967`); requestId migration/store reviews `ses_e43880ba` PASS (second ID transcribed exactly as supplied — no suffix invented; anything beyond `ses_e43880ba` is NOT VERIFIED by this writer).
+- Scope (SUPPLIED-VERIFIED-BY-LANE): MigratedTopology (migrate + round-trip + concurrent + quarantine, PG+MSSQL live); Smoke (12-table, dispatcher sequential-replay, round-trips); stores (NativeAgentSession 4/4, PublicSessionMapping 7/7+1/1, ApprovalNonce 8/8→27/27, Durable 10/10).
+
+### Explicit limits (no inflation)
+
+- Provider-specific PASS only; no global production-readiness claim is made.
+- S2/S3 follow-ups are nonblocking (SUPPLIED-VERIFIED-BY-LANE): true-collision closed, reverse closed, wiring pins closed; production migration path is the Manual-mode decision per Appendix C.
+- No secrets, no invented CLI flags/endpoints/release numbers/screenshots/support promises are introduced.
+- All counts/hashes/sessions above are labeled SUPPLIED-VERIFIED-BY-LANE, not EXECUTED by this writer.
+
+### Scoped status (this appendix only)
+
+- DATA EF family: PASS (per the SUPPLIED-VERIFIED-BY-LANE evidence above; verification lane owns VERIFIED/COMMITTED/RELEASED promotion).
+- All other families keep prior status (NOT VERIFIED unless previously promoted in Appendix A/B) — no other row is altered by this appendix.
+- Anything absent from the supplied evidence is NOT VERIFIED.
+
