@@ -12,7 +12,8 @@ internal static class EfRuntimeModelValidator
         (typeof(EventEntity), "Events"), (typeof(OutboxEntity), "Outbox"), (typeof(LeaseEntity), "Leases"),
         (typeof(ApprovalEntity), "Approvals"), (typeof(PrivacyTokenEntity), "PrivacyTokens"),
         (typeof(OperationalRunEntity), "OperationalRuns"), (typeof(NativeAgentSessionEntity), "NativeAgentSessions"),
-        (typeof(PublicSessionMappingEntity), "PublicSessionMappings")
+        (typeof(PublicSessionMappingEntity), "PublicSessionMappings"),
+        (typeof(ApprovalNonceEntity), "ApprovalNonces")
     ];
 
     public static void Validate(DbContext context)

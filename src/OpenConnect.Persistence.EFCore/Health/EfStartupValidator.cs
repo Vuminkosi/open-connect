@@ -33,7 +33,8 @@ internal sealed class EfStartupValidator<TContext>(IServiceProvider services) : 
                 typeof(SessionEntity), typeof(TaskEntity), typeof(TurnEntity), typeof(EventEntity),
                 typeof(OutboxEntity), typeof(LeaseEntity), typeof(ApprovalEntity),
                 typeof(PrivacyTokenEntity), typeof(OperationalRunEntity), typeof(NativeAgentSessionEntity),
-                typeof(PublicSessionMappingEntity)
+                typeof(PublicSessionMappingEntity),
+                typeof(ApprovalNonceEntity)
             ];
             var missingTypes = expectedTypes.Where(type => db.Model.FindEntityType(type) is null).ToArray();
             if (missingTypes.Length > 0)

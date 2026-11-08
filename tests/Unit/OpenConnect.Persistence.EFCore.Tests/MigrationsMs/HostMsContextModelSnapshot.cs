@@ -69,6 +69,37 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                     b.ToTable("Approvals", "openconnect");
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.ApprovalNonceEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("Nonce")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("ApprovalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.HasKey("TenantId", "Nonce");
+
+                    b.HasIndex("ApprovalId");
+
+                    b.ToTable("ApprovalNonces", "openconnect");
+                });
+
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.EventEntity", b =>
                 {
                     b.Property<Guid>("EventId")

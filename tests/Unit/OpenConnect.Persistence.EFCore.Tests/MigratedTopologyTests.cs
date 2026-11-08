@@ -48,9 +48,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var historyCount = await ScalarAsync<long>(PgMigrated, "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"");
         Assert.True(historyCount > 0, $"Expected migration history row; found {historyCount}.");
         var owned = await ReadPostgresTablesAsync(PgMigrated, "openconnect");
-        Assert.Equal(11, owned.Count);
+        Assert.Equal(12, owned.Count);
         Assert.Contains("NativeAgentSessions", owned);
         Assert.Contains("PublicSessionMappings", owned);
+        Assert.Contains("ApprovalNonces", owned);
         var publicTables = await ReadPostgresTablesAsync(PgMigrated, "public");
         Assert.Contains("Customers", publicTables);
         Assert.Contains("Orders", publicTables);
@@ -134,7 +135,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var historyCount = await ScalarSqlServerAsync<long>(MsMigrated, "SELECT COUNT(*) FROM [dbo].[__EFMigrationsHistory]");
         Assert.True(historyCount > 0, $"Expected migration history row; found {historyCount}.");
         var ownedCount = await ScalarSqlServerAsync<int>(MsMigrated, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'openconnect'");
-        Assert.Equal(11, ownedCount);
+        Assert.Equal(12, ownedCount);
 
         await using var db = MsStoreContext(MsMigrated);
         await ExerciseSessionTaskOutboxAsync(db, "migrated-ms");

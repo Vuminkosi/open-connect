@@ -21,6 +21,7 @@ public static class OpenConnectModelBuilderExtensions
         modelBuilder.ApplyConfiguration(new OperationalRunEntityConfiguration(mapping));
         modelBuilder.ApplyConfiguration(new NativeAgentSessionEntityConfiguration(mapping));
         modelBuilder.ApplyConfiguration(new PublicSessionMappingEntityConfiguration(mapping));
+        modelBuilder.ApplyConfiguration(new ApprovalNonceEntityConfiguration(mapping));
         return modelBuilder;
     }
 }
