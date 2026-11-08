@@ -17,6 +17,11 @@ public static class ConversationCheckpointCodec
     /// <summary>Current checkpoint wire-format version.</summary>
     public const string CurrentVersion = "oc-checkpoint/v1";
 
+    // Run budgets and delegation policy have no single positive default child count (the budget default
+    // is zero and the gate's limits vary by execution). Keep opaque checkpoint metadata independently bounded.
+    /// <summary>Maximum number of opaque child-session references accepted in a checkpoint.</summary>
+    public const int MaxCheckpointChildren = 64;
+
     /// <summary>Creates an immutable checkpoint. No MAF transcript content is included.</summary>
     public static ConversationCheckpoint Export(string leadAgentId, string sessionKey, long turnSequence,
         IEnumerable<ChildSessionCheckpoint> childSessions)
@@ -27,6 +32,7 @@ public static class ConversationCheckpointCodec
             throw new ArgumentOutOfRangeException(nameof(turnSequence), "Turn sequence must allow a next monotonic value.");
         ArgumentNullException.ThrowIfNull(childSessions);
         var children = childSessions.ToArray();
+        ValidateChildCount(children.Length, nameof(childSessions));
         if (children.Any(child => child is null || string.IsNullOrWhiteSpace(child.AgentId) ||
                 string.IsNullOrWhiteSpace(child.SessionKey) || child.HistoryCount < 0))
             throw new ArgumentException("Child session checkpoint metadata is invalid.", nameof(childSessions));
@@ -50,12 +56,23 @@ public static class ConversationCheckpointCodec
         if (!StringComparer.Ordinal.Equals(checkpoint.LeadAgentId, expectedLeadAgentId) ||
             !StringComparer.Ordinal.Equals(checkpoint.SessionKey, expectedSessionKey))
             throw new InvalidOperationException("Checkpoint belongs to a different lead agent or conversation session.");
-        if (checkpoint.TurnSequence < 0 || checkpoint.TurnSequence == long.MaxValue || checkpoint.ChildSessions is null ||
-            checkpoint.ChildSessions.Any(child => child is null || string.IsNullOrWhiteSpace(child.AgentId) ||
+        if (checkpoint.TurnSequence < 0 || checkpoint.TurnSequence == long.MaxValue)
+            throw new ArgumentException("Checkpoint metadata is invalid.", nameof(checkpoint));
+        ArgumentNullException.ThrowIfNull(checkpoint.ChildSessions);
+        ValidateChildCount(checkpoint.ChildSessions.Count, nameof(checkpoint));
+        if (checkpoint.ChildSessions.Any(child => child is null || string.IsNullOrWhiteSpace(child.AgentId) ||
                 string.IsNullOrWhiteSpace(child.SessionKey) || child.HistoryCount < 0) ||
             checkpoint.ChildSessions.Select(child => (child.AgentId, child.SessionKey)).Distinct().Count() != checkpoint.ChildSessions.Count)
             throw new ArgumentException("Checkpoint metadata is invalid.", nameof(checkpoint));
 
         return checkpoint;
+    }
+
+    private static void ValidateChildCount(int actualCount, string parameterName)
+    {
+        if (actualCount > MaxCheckpointChildren)
+            throw new ArgumentException(
+                $"Checkpoint child count exceeds the maximum of {MaxCheckpointChildren}; actual count is {actualCount}.",
+                parameterName);
     }
 }

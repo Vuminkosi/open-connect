@@ -80,6 +80,54 @@ public sealed class ConversationCheckpointTests
     }
 
     [Fact]
+    public void Export_and_import_accept_checkpoint_at_child_limit()
+    {
+        var children = Enumerable.Range(0, ConversationCheckpointCodec.MaxCheckpointChildren)
+            .Select(index => new ChildSessionCheckpoint($"child-{index}", $"session-{index}", 0)).ToArray();
+
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, children);
+
+        Assert.Equal(ConversationCheckpointCodec.MaxCheckpointChildren,
+            ConversationCheckpointCodec.Import(checkpoint, "lead", "session").ChildSessions.Count);
+    }
+
+    [Fact]
+    public void Export_and_import_reject_children_over_limit_with_count_details()
+    {
+        var children = Enumerable.Range(0, ConversationCheckpointCodec.MaxCheckpointChildren + 1)
+            .Select(index => new ChildSessionCheckpoint($"child-{index}", $"session-{index}", 0)).ToArray();
+        var exportException = Assert.Throws<ArgumentException>(() =>
+            ConversationCheckpointCodec.Export("lead", "session", 1, children));
+        Assert.Contains(ConversationCheckpointCodec.MaxCheckpointChildren.ToString(), exportException.Message);
+        Assert.Contains(children.Length.ToString(), exportException.Message);
+
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, []) with
+        {
+            ChildSessions = children
+        };
+        var importException = Assert.Throws<ArgumentException>(() =>
+            ConversationCheckpointCodec.Import(checkpoint, "lead", "session"));
+        Assert.Contains(ConversationCheckpointCodec.MaxCheckpointChildren.ToString(), importException.Message);
+        Assert.Contains(children.Length.ToString(), importException.Message);
+    }
+
+    [Fact]
+    public void Import_rejects_over_limit_without_mutating_runner()
+    {
+        var runner = CreateRunner();
+        var children = Enumerable.Range(0, ConversationCheckpointCodec.MaxCheckpointChildren + 1)
+            .Select(index => new ChildSessionCheckpoint($"child-{index}", $"session-{index}", 0)).ToArray();
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, []) with
+        {
+            ChildSessions = children
+        };
+
+        Assert.Throws<ArgumentException>(() => runner.ImportCheckpoint(checkpoint, "session"));
+
+        Assert.Equal(0, runner.ExportCheckpoint("session").TurnSequence);
+    }
+
+    [Fact]
     public void Export_and_import_reject_duplicate_child_agent_and_key_pair()
     {
         ChildSessionCheckpoint[] children =
