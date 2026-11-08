@@ -7,6 +7,17 @@ namespace OpenConnect.Agents.Tests;
 
 public sealed class ConversationCheckpointTests
 {
+    [Theory]
+    [InlineData("", "session", 0)]
+    [InlineData("lead", "   ", 0)]
+    [InlineData("lead", "session", -1)]
+    [InlineData("lead", "session", long.MaxValue)]
+    public void Export_rejects_invalid_identity_or_turn_sequence(string lead, string session, long turnSequence)
+    {
+        Assert.ThrowsAny<ArgumentException>(() =>
+            ConversationCheckpointCodec.Export(lead, session, turnSequence, []));
+    }
+
     [Fact]
     public async Task Import_into_new_runner_continues_sequence_without_copying_history()
     {
