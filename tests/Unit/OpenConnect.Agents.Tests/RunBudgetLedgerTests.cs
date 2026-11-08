@@ -125,6 +125,23 @@ public sealed class RunBudgetLedgerTests
         Assert.Equal(25, remaining.MaxTokens);
     }
 
+    [Theory]
+    [InlineData(300L, 200L, 200L)]
+    [InlineData(null, 200L, 200L)]
+    [InlineData(100L, null, 100L)]
+    [InlineData(null, null, null)]
+    public void RemainingRuntime_IsTheMinimumRunAndParentLimitWithoutMutatingLedger(
+        long? runSeconds, long? parentSeconds, long? expectedSeconds)
+    {
+        var run = Budget() with { MaxRuntime = runSeconds is null ? null : TimeSpan.FromSeconds(runSeconds.Value) };
+        var parent = Budget() with { MaxRuntime = parentSeconds is null ? null : TimeSpan.FromSeconds(parentSeconds.Value) };
+        var ledger = new RunBudgetLedger(run, parent);
+
+        var before = ledger.Remaining;
+        Assert.Equal(expectedSeconds is null ? null : TimeSpan.FromSeconds(expectedSeconds.Value), before.MaxRuntime);
+        Assert.Equal(before, ledger.Remaining);
+    }
+
     [Fact]
     public void ReservationsNeverAllowNegativeBudgets()
     {

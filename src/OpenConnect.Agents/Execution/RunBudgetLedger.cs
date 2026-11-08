@@ -147,7 +147,7 @@ public sealed class RunBudgetLedger
 
     private static bool IsValid(AgentBudget budget) => budget.MaxToolCalls >= 0 && budget.MaxModelCalls >= 0 &&
         budget.MaxTokens >= 0 && budget.MaxConcurrentAgents >= 0 && budget.MaxQueuedAgents >= 0 &&
-        budget.MaxTotalAgents >= 0 && budget.MaxRuntime >= TimeSpan.Zero;
+        budget.MaxTotalAgents >= 0 && (budget.MaxRuntime is null || budget.MaxRuntime >= TimeSpan.Zero);
 
     private static AgentBudget Intersect(AgentBudget left, AgentBudget right) => new(
         Math.Min(left.MaxToolCalls, right.MaxToolCalls), Math.Min(left.MaxModelCalls, right.MaxModelCalls),
