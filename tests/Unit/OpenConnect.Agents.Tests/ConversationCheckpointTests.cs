@@ -127,6 +127,26 @@ public sealed class ConversationCheckpointTests
         Assert.Equal(0, runner.ExportCheckpoint("session").TurnSequence);
     }
 
+    [Theory]
+    [InlineData("", "child-session", 1)]
+    [InlineData("child", "   ", 1)]
+    [InlineData("child", "child-session", -1)]
+    public void Import_rejects_invalid_child_metadata_without_mutating_runner(
+        string agentId, string childSessionKey, int historyCount)
+    {
+        var runner = CreateRunner();
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 3, []) with
+        {
+            ChildSessions = [new ChildSessionCheckpoint(agentId, childSessionKey, historyCount)]
+        };
+
+        Assert.Throws<ArgumentException>(() => runner.ImportCheckpoint(checkpoint, "session"));
+
+        Assert.Equal(0, runner.ExportCheckpoint("session").TurnSequence);
+        Assert.Empty(runner.History);
+        Assert.Empty(runner.GetTrace());
+    }
+
     [Fact]
     public void Export_and_import_reject_duplicate_child_agent_and_key_pair()
     {
