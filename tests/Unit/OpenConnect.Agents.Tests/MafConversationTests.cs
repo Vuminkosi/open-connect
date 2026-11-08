@@ -97,6 +97,25 @@ public sealed class MafConversationTests
         Assert.Equal(1, client.Calls);
     }
 
+    [Fact]
+    public async Task TurnAsync_overflow_leaves_history_trace_and_sequence_unchanged()
+    {
+        var client = new TestChatClient();
+        var runner = CreateRunner(client);
+        var checkpoint = ConversationCheckpointCodec.Export("echo", "session", long.MaxValue - 1, []);
+        runner.ImportCheckpoint(checkpoint, "session");
+        await runner.TurnAsync("last representable turn");
+        var historyBefore = runner.History;
+        var traceBefore = runner.GetTrace();
+
+        await Assert.ThrowsAsync<OverflowException>(() => runner.TurnAsync("overflow"));
+
+        Assert.Equal(historyBefore, runner.History);
+        Assert.Equal(traceBefore, runner.GetTrace());
+        Assert.Throws<ArgumentOutOfRangeException>(() => runner.ExportCheckpoint("session"));
+        Assert.Equal(1, client.Calls);
+    }
+
     private static MafConversationRunner CreateRunner(TestChatClient client) =>
         new(new MafRealAgentFactory(new TestRegistry(new AgentDefinition(new AgentId("echo"), "Echo")), client), new AgentId("echo"));
 

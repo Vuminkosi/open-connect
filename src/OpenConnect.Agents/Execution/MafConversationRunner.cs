@@ -65,6 +65,8 @@ public sealed class MafConversationRunner
         Guid executionId = Guid.Empty;
         try
         {
+            // Fail before invoking MAF or recording trace/history when no monotonic sequence remains.
+            lock (_sync) _ = checked(_turnSequence + 1);
             ReserveModelCall(prompt);
             var agent = _factory.CreateAgent(_leadAgentId);
             executionId = Guid.NewGuid();
