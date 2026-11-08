@@ -34,9 +34,10 @@ public sealed record NativeWorkflowApprovalDecision(
 /// immediately before the native run continues. Deny, expiry, revocation, grant withdrawal, argument or
 /// revision mismatch, stale binding, and duplicate or replayed nonces never continue the workflow;
 /// at most one logical continuation is accepted per pending request.</para>
-/// <para>Nonce replay protection here is process-local and per-bridge-instance. A durable approval store
-/// is explicitly out of scope for this slice and is tracked as future work (WF-04); do not treat this
-/// bridge as a cross-process exactly-once mechanism.</para>
+/// <para>Nonce replay protection here is process-local and per-bridge-instance by default. A durable approval store
+/// is explicitly out of scope for the default path and is tracked as future work (WF-04); do not treat the default
+/// bridge as a cross-process exactly-once mechanism. Pass a durable <c>IApprovalNonceStore</c>-backed consume
+/// delegate to the overload below for cross-instance single-use protection with identical check ordering.</para>
 /// </remarks>
 public sealed class NativeWorkflowApprovalBridge(
     NativeWorkflowInteraction interaction,
@@ -59,6 +60,30 @@ public sealed class NativeWorkflowApprovalBridge(
     private readonly Func<CancellationToken, ValueTask<bool>>? _isGrantValidAsync = isGrantValidAsync;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<string, byte> _consumedNonces = new(StringComparer.Ordinal);
+    private Func<string, string, CancellationToken, ValueTask<bool>>? _durableTryConsumeNonceAsync;
+
+    /// <summary>Creates a bridge whose single-use nonces are consumed through a durable store.</summary>
+    /// <remarks>
+    /// The delegate binds <c>(nonce, requestId, cancellationToken)</c> and must return <c>true</c> only
+    /// when the nonce was newly bound. Back it with <c>IApprovalNonceStore.TryConsumeAsync</c> using the
+    /// expected scope tenant/principal, storing the native request id verbatim (never coerced): return
+    /// <c>true</c> only on <c>Consumed</c>; <c>AlreadyConsumed</c> and <c>Conflict</c> deny the replay.
+    /// Check ordering is identical to the default path, and the in-memory map is retained as a local
+    /// mirror/fallback. A denied attempt consumes nothing in either map.
+    /// </remarks>
+    public NativeWorkflowApprovalBridge(
+        NativeWorkflowInteraction interaction,
+        NativeWorkflowApprovalScope expectedScope,
+        string expectedArgumentsHash,
+        string expectedToolRevision,
+        Func<CancellationToken, ValueTask<bool>>? isExecutionRevokedAsync,
+        Func<CancellationToken, ValueTask<bool>>? isGrantValidAsync,
+        TimeProvider? timeProvider,
+        Func<string, string, CancellationToken, ValueTask<bool>> tryConsumeNonceAsync)
+        : this(interaction, expectedScope, expectedArgumentsHash, expectedToolRevision, isExecutionRevokedAsync, isGrantValidAsync, timeProvider)
+    {
+        _durableTryConsumeNonceAsync = tryConsumeNonceAsync ?? throw new ArgumentNullException(nameof(tryConsumeNonceAsync));
+    }
 
     /// <summary>Gets the current pending native request, if any.</summary>
     public ExternalRequest? PendingRequest => _interaction.PendingExternalRequest;
@@ -116,8 +141,19 @@ public sealed class NativeWorkflowApprovalBridge(
 
             // Single-use nonce consumed only after every other check passes, immediately
             // before SendResponse. A denied attempt burns no fresh nonce; a replay loses the race here.
-            if (!_consumedNonces.TryAdd(decision.Nonce, 0))
+            // Durable delegate (when present) is consulted at this same gate so cross-instance
+            // replays deny even though this process-local map cannot see them; the local map is
+            // then mirrored as a fast path and retained as the fallback when no delegate exists.
+            if (_durableTryConsumeNonceAsync is not null)
+            {
+                if (!await _durableTryConsumeNonceAsync(decision.Nonce, claimed.RequestId, authorizeCancellationToken).ConfigureAwait(false))
+                    return false;
+                _consumedNonces.TryAdd(decision.Nonce, 0);
+            }
+            else if (!_consumedNonces.TryAdd(decision.Nonce, 0))
+            {
                 return false;
+            }
 
             return decision.Approved;
         }
