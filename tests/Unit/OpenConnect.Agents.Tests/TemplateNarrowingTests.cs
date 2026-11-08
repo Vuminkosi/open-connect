@@ -66,6 +66,54 @@ public sealed class TemplateNarrowingTests
             parentBudget with { MaxToolCalls = 9, MaxTokens = 99 }));
     }
 
+    [Fact]
+    public void Register_RejectsUnboundedRuntimeWhenParentIsBounded()
+    {
+        var registry = new TemplateRegistry();
+        var parentBudget = new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(5));
+        registry.Register(Template("runtime-base", new HashSet<ToolId>(), budget: parentBudget));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => registry.Register(
+            Template("runtime-child", new HashSet<ToolId>(), "runtime-base", parentBudget with { MaxRuntime = null })));
+
+        Assert.Contains("runtime-child", exception.Message);
+        Assert.Contains("runtime-base", exception.Message);
+        Assert.Contains("MaxRuntime", exception.Message);
+        Assert.Contains("unlimited", exception.Message);
+        Assert.Contains("00:05:00", exception.Message);
+    }
+
+    [Fact]
+    public void Register_AcceptsEqualRuntime()
+    {
+        var registry = new TemplateRegistry();
+        var parentBudget = new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(5));
+        registry.Register(Template("runtime-base", new HashSet<ToolId>(), budget: parentBudget));
+
+        registry.Register(Template("runtime-equal", new HashSet<ToolId>(), "runtime-base", parentBudget));
+    }
+
+    [Fact]
+    public void Register_AcceptsShorterRuntime()
+    {
+        var registry = new TemplateRegistry();
+        var parentBudget = new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(5));
+        registry.Register(Template("runtime-base", new HashSet<ToolId>(), budget: parentBudget));
+
+        registry.Register(Template("runtime-shorter", new HashSet<ToolId>(), "runtime-base",
+            parentBudget with { MaxRuntime = TimeSpan.FromMinutes(4) }));
+    }
+
+    [Fact]
+    public void Register_AcceptsUnboundedRuntimeWhenParentIsUnbounded()
+    {
+        var registry = new TemplateRegistry();
+        var unboundedBudget = new AgentBudget(10, 10, 10, null);
+        registry.Register(Template("runtime-base", new HashSet<ToolId>(), budget: unboundedBudget));
+
+        registry.Register(Template("runtime-child", new HashSet<ToolId>(), "runtime-base", unboundedBudget));
+    }
+
     [Theory]
     [InlineData("../outside.md")]
     [InlineData("C:\\outside.md")]
