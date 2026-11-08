@@ -48,7 +48,7 @@ public sealed class ContextProjectionBuilder
             throw new UnauthorizedAccessException("A child context cannot widen the parent's authority scope.");
 
         var included = requested.Where(item => !item.ContainsSecret && !item.ToolControl).ToImmutableArray();
-        if (included.Any(item => item.TokenEstimate < 0 || string.IsNullOrWhiteSpace(item.Id) || item.SummaryOrRef is null))
+        if (included.Any(item => item.TokenEstimate < 0 || string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.SummaryOrRef)))
             throw new ArgumentException("Context items must have an identifier, safe content, and a non-negative token estimate.", nameof(requestedItems));
         if (included.Sum(item => (long)item.TokenEstimate) > tokenBudget)
             throw new InvalidOperationException("Requested context exceeds the token budget.");

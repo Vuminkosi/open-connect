@@ -60,6 +60,27 @@ public sealed class ContextProjectionTests
             ["internal"], [Item("large") with { TokenEstimate = 101 }], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5)));
     }
 
+    [Theory]
+    [InlineData("", "safe summary")]
+    [InlineData("   ", "safe summary")]
+    [InlineData("safe", null)]
+    [InlineData("safe", "")]
+    [InlineData("safe", "   ")]
+    public void Build_RejectsMalformedItemsWithoutReturningProjection(string id, string? summary)
+    {
+        AgentContextProjection? projection = null;
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var result = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+                ["internal"], [Item(id) with { SummaryOrRef = summary! }], Child, [], ["principal"],
+                100, TimeSpan.FromMinutes(5));
+            projection = result.Projection;
+        });
+
+        Assert.Null(projection);
+    }
+
     [Fact]
     public void RequestAdditional_AppendsImmutableRevision()
     {
