@@ -383,6 +383,67 @@ public sealed class NativeWorkflowApprovalBridgeTests
         await interaction.CancelAsync().WaitAsync(Timeout);
     }
 
+    [Fact]
+    public async Task RequestIdMismatch_Rejected()
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope);
+        var decision = CreateDecision(scope, request, "n-req-mismatch") with { RequestId = "request-id-wrong" };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            bridge.ApproveAsync(request, decision, "approved")
+                .WaitAsync(Timeout));
+
+        Assert.Same(request, interaction.PendingExternalRequest);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task EmptyNonce_Rejected(string nonce)
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            bridge.ApproveAsync(request, CreateDecision(scope, request, nonce), "approved")
+                .WaitAsync(Timeout));
+
+        Assert.Same(request, interaction.PendingExternalRequest);
+    }
+
+    [Fact]
+    public async Task DeniedDoesNotBurnNonce_RetrySucceeds()
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope);
+        const string nonce = "n-denied-retry";
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            bridge.ApproveAsync(request, CreateDecision(scope, request, nonce, args: "tampered-hash"), "approved")
+                .WaitAsync(Timeout));
+
+        Assert.Same(request, interaction.PendingExternalRequest);
+
+        // The denied attempt burned no nonce: the same nonce succeeds with corrected args.
+        await bridge.ApproveAsync(request, CreateDecision(scope, request, nonce), "approved")
+            .WaitAsync(Timeout);
+
+        var second = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.NotSame(request, second);
+
+        await interaction.CancelAsync().WaitAsync(Timeout);
+    }
+
     private static NativeWorkflowApprovalScope NewScope() => new(
         new TenantId(Ulid.NewUlid()),
         new PrincipalId(Ulid.NewUlid()),
