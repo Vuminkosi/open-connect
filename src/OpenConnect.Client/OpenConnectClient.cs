@@ -48,6 +48,55 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
             ?? throw new InvalidDataException("The OpenConnect service returned an empty response.");
         foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
     }
+
+    /// <summary>
+    /// Replays canonical event envelopes for a public session UUID after the specified sequence.
+    /// This method performs one finite request; to resume, call it again with the last received
+    /// event's sequence as the cursor. The cursor is exclusive: the server returns only events
+    /// with a greater sequence, in ascending order.
+    /// </summary>
+    /// <param name="sessionId">The public session UUID from the canonical route (never derived from a ULID).</param>
+    /// <param name="afterSequence">The exclusive sequence cursor; defaults to zero.</param>
+    /// <param name="cancellationToken">A token used to cancel the request or enumeration.</param>
+    /// <returns>The canonical envelopes available after the cursor at the time of the request.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="sessionId"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="afterSequence"/> is negative.</exception>
+    /// <exception cref="OpenConnectClientException">
+    /// Thrown when the service answers with a failure status. Status 422 with error code
+    /// <c>legacy_event_without_identity</c> means a stored event lacks genuine canonical
+    /// identity and cannot be projected; the caller must not silently skip it.
+    /// </exception>
+    public async IAsyncEnumerable<CanonicalAgentEvent> ReplayEventsAsync(Guid sessionId, long afterSequence = 0, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (sessionId == Guid.Empty) throw new ArgumentException("A non-empty session id is required.", nameof(sessionId));
+        if (afterSequence < 0) throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        using var activity = ActivitySource.StartActivity("openconnect.events.replay", ActivityKind.Client);
+        using var response = await _httpClient.GetAsync($"sessions/{sessionId:D}/events?afterSequence={afterSequence.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+        if ((int)response.StatusCode == 422)
+        {
+            var code = await ReadUnprocessableCodeAsync(response, cancellationToken).ConfigureAwait(false);
+            throw new OpenConnectClientException(422, code, "A stored session event lacks genuine canonical identity and cannot be projected as a canonical envelope.");
+        }
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        var events = await response.Content.ReadFromJsonAsync<List<CanonicalAgentEvent>>(EventJsonOptions, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidDataException("The OpenConnect service returned an empty response.");
+        foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
+    }
+    private static async Task<string> ReadUnprocessableCodeAsync(HttpResponseMessage response, CancellationToken token)
+    {
+        const string legacyCode = "legacy_event_without_identity";
+        try
+        {
+            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false), cancellationToken: token).ConfigureAwait(false);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("type", out var value) &&
+                value.ValueKind == JsonValueKind.String &&
+                (value.GetString() ?? string.Empty).Contains("legacy-event-without-canonical-identity", StringComparison.Ordinal))
+                return legacyCode;
+        }
+        catch (JsonException) { }
+        return "unprocessable_entity";
+    }
     private async Task<T> SendAsync<T>(HttpMethod method, string path, CancellationToken cancellationToken)
     {
         using var activity = ActivitySource.StartActivity("openconnect.http", ActivityKind.Client);
