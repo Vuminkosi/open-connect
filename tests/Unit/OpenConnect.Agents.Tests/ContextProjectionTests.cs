@@ -61,6 +61,25 @@ public sealed class ContextProjectionTests
     }
 
     [Theory]
+    [InlineData(-1, 5)]
+    [InlineData(100, 0)]
+    [InlineData(100, -1)]
+    public void Build_RejectsInvalidBudgetOrTtlWithoutReturningProjection(int tokenBudget, int ttlMinutes)
+    {
+        AgentContextProjection? projection = null;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            var result = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+                ["internal"], [Item("safe")], Child, [], ["principal"], tokenBudget,
+                TimeSpan.FromMinutes(ttlMinutes));
+            projection = result.Projection;
+        });
+
+        Assert.Null(projection);
+    }
+
+    [Theory]
     [InlineData("", "safe summary")]
     [InlineData("   ", "safe summary")]
     [InlineData("safe", null)]
