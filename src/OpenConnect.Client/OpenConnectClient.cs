@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Net.Http.Json;
+using System.Globalization;
 using OpenConnect.Abstractions;
 namespace OpenConnect.Client;
 public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClient
@@ -39,7 +40,7 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
     {
         if (afterSequence < 0) throw new ArgumentOutOfRangeException(nameof(afterSequence));
         using var activity = ActivitySource.StartActivity("openconnect.events.subscribe", ActivityKind.Client);
-        using var response = await _httpClient.GetAsync($"sessions/{sessionId.Value}/events?after={afterSequence}", cancellationToken).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync($"sessions/{sessionId.Value}/events?after={afterSequence.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         var events = await ReadAsync<List<EventRecord>>(response, cancellationToken).ConfigureAwait(false);
         foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
@@ -57,12 +58,18 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
     {
         if (response.IsSuccessStatusCode) return;
         string? code = null;
-        var message = "The OpenConnect service could not complete the request.";
+        const string message = "The OpenConnect service could not complete the request.";
         try
         {
             using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false), cancellationToken: token).ConfigureAwait(false);
-            if (doc.RootElement.TryGetProperty("code", out var value) || doc.RootElement.TryGetProperty("type", out value)) code = value.GetString();
-            if (doc.RootElement.TryGetProperty("title", out value) || doc.RootElement.TryGetProperty("detail", out value)) message = value.GetString() ?? message;
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                (doc.RootElement.TryGetProperty("code", out var value) || doc.RootElement.TryGetProperty("type", out value)) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                var candidate = value.GetString();
+                if (candidate is { Length: > 0 and <= 64 } && candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-'))
+                    code = candidate;
+            }
         }
         catch (JsonException) { }
         throw new OpenConnectClientException((int)response.StatusCode, code, message);
