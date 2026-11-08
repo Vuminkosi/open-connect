@@ -15,6 +15,7 @@ public static class NavigatorPostgresServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddScoped<IDurableNavigatorStore, PostgresDurableNavigatorStore>();
+        services.AddScoped<PostgresExpiredLeaseSweeper>();
         services.AddScoped<IOutboxRelaySource, NavigatorPostgresOutboxRelaySource>();
         services.TryAddScoped<INavigatorOutboxRelay, NavigatorOutboxRelayAdapter>();
         services.AddScoped<IDurableOperationalStore>(provider => provider.GetRequiredService<PostgresDurableNavigatorStore>());
