@@ -97,6 +97,26 @@ public sealed class ConversationCheckpointTests
     }
 
     [Fact]
+    public void Import_snapshots_caller_owned_child_sessions_and_exposes_them_read_only()
+    {
+        var original = new ChildSessionCheckpoint("child-a", "child-session", 2);
+        var callerOwnedChildren = new List<ChildSessionCheckpoint> { original };
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, []) with
+        {
+            ChildSessions = callerOwnedChildren
+        };
+
+        var imported = ConversationCheckpointCodec.Import(checkpoint, "lead", "session");
+
+        callerOwnedChildren[0] = new ChildSessionCheckpoint("child-b", "replacement", 9);
+        Assert.Equal([original], imported.ChildSessions);
+        var importedView = Assert.IsAssignableFrom<IList<ChildSessionCheckpoint>>(imported.ChildSessions);
+        Assert.Throws<NotSupportedException>(() => importedView.Add(
+            new ChildSessionCheckpoint("child-c", "another-session", 0)));
+        Assert.Equal([original], imported.ChildSessions);
+    }
+
+    [Fact]
     public void Export_and_import_accept_checkpoint_at_child_limit()
     {
         var children = Enumerable.Range(0, ConversationCheckpointCodec.MaxCheckpointChildren)

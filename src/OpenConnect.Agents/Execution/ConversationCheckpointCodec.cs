@@ -59,13 +59,14 @@ public static class ConversationCheckpointCodec
         if (checkpoint.TurnSequence < 0 || checkpoint.TurnSequence == long.MaxValue)
             throw new ArgumentException("Checkpoint metadata is invalid.", nameof(checkpoint));
         ArgumentNullException.ThrowIfNull(checkpoint.ChildSessions);
-        ValidateChildCount(checkpoint.ChildSessions.Count, nameof(checkpoint));
-        if (checkpoint.ChildSessions.Any(child => child is null || string.IsNullOrWhiteSpace(child.AgentId) ||
+        var children = checkpoint.ChildSessions.ToArray();
+        ValidateChildCount(children.Length, nameof(checkpoint));
+        if (children.Any(child => child is null || string.IsNullOrWhiteSpace(child.AgentId) ||
                 string.IsNullOrWhiteSpace(child.SessionKey) || child.HistoryCount < 0) ||
-            checkpoint.ChildSessions.Select(child => (child.AgentId, child.SessionKey)).Distinct().Count() != checkpoint.ChildSessions.Count)
+            children.Select(child => (child.AgentId, child.SessionKey)).Distinct().Count() != children.Length)
             throw new ArgumentException("Checkpoint metadata is invalid.", nameof(checkpoint));
 
-        return checkpoint;
+        return checkpoint with { ChildSessions = Array.AsReadOnly(children) };
     }
 
     private static void ValidateChildCount(int actualCount, string parameterName)
