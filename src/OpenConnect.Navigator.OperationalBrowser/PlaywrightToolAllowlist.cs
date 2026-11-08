@@ -124,3 +124,5 @@ public static class PlaywrightToolAllowlist
         return false;
     }
 }
+
+// This type retains its historical namespace after consolidation into the surviving OperationalBrowser project.
