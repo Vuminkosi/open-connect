@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>OpenConnect.Navigator.Blazor</AssemblyName>
+    <RootNamespace>OpenConnect.Navigator.Blazor</RootNamespace>
+    <RazorLangVersion>8.0</RazorLangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Framework-only. No MudBlazor, no JS interop, no extra packages:
+         the adapter composes with the host's existing providers. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

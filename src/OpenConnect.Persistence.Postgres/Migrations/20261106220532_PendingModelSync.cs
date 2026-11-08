@@ -66,7 +66,6 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                 table: "oc_outbox",
                 type: "jsonb",
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "jsonb",
                 oldNullable: true);
@@ -86,7 +85,6 @@ namespace OpenConnect.Persistence.Postgres.Migrations
                 table: "oc_events",
                 type: "jsonb",
                 nullable: false,
-                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "jsonb",
                 oldNullable: true);

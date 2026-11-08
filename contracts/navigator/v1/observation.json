@@ -1,0 +1,76 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/observation.json",
+    "title":  "Navigator observation",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "schemaVersion",
+                     "routeId",
+                     "nodes"
+                 ],
+    "properties":  {
+                       "schemaVersion":  {
+                                             "const":  "openconnect.navigator.observation/v1"
+                                         },
+                       "routeId":  {
+                                       "minLength":  1,
+                                       "type":  "string"
+                                   },
+                       "nodes":  {
+                                     "items":  {
+                                                   "additionalProperties":  false,
+                                                   "properties":  {
+                                                                      "label":  {
+                                                                                    "type":  "string"
+                                                                                },
+                                                                      "targetId":  {
+                                                                                       "minLength":  1,
+                                                                                       "type":  "string"
+                                                                                   },
+                                                                      "description":  {
+                                                                                          "type":  "string"
+                                                                                      },
+                                                                      "actions":  {
+                                                                                      "uniqueItems":  true,
+                                                                                      "items":  {
+                                                                                                    "type":  "string",
+                                                                                                    "enum":  [
+                                                                                                                 "observe",
+                                                                                                                 "explain",
+                                                                                                                 "highlight",
+                                                                                                                 "focus",
+                                                                                                                 "scroll",
+                                                                                                                 "navigate",
+                                                                                                                 "click",
+                                                                                                                 "fill",
+                                                                                                                 "select",
+                                                                                                                 "toggle",
+                                                                                                                 "invoke-registered-action",
+                                                                                                                 "capture",
+                                                                                                                 "speak"
+                                                                                                             ]
+                                                                                                },
+                                                                                      "type":  "array"
+                                                                                  },
+                                                                      "role":  {
+                                                                                   "minLength":  1,
+                                                                                   "type":  "string"
+                                                                               },
+                                                                      "sensitive":  {
+                                                                                        "type":  "boolean"
+                                                                                    }
+                                                                  },
+                                                   "type":  "object",
+                                                   "required":  [
+                                                                    "targetId",
+                                                                    "role",
+                                                                    "label"
+                                                                ]
+                                               },
+                                     "type":  "array",
+                                     "maxItems":  500
+                                 }
+                   },
+    "x-maxBytes":  65536
+}

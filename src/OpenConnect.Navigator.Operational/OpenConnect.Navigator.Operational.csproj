@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><AssemblyName>OpenConnect.Navigator.Operational</AssemblyName><RootNamespace>OpenConnect.Navigator.Operational</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+</Project>

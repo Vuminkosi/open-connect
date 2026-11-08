@@ -1,0 +1,15 @@
+@* NavigatorProvider: composes (never replaces) the existing OpenConnect
+   provider and MiniComposer. Cascades the shared NavigatorTourService and
+   the active route scope, then renders registered tour overlays as siblings
+   of the app and the composer. SSR-safe: no JS interop; overlays render as
+   static text-first markup during prerendering. *@
+<CascadingValue Value="Tour" IsFixed="true">
+    <CascadingValue Value="RouteId" Name="NavigatorRouteId" IsFixed="false">
+        @ChildContent
+        @if (Tour.CurrentStep is not null)
+        {
+            <NavigatorHighlighter TargetId="@Tour.CurrentStep.TargetId" RouteId="@RouteId" />
+            <NavigatorTourOverlay RouteId="@RouteId" />
+        }
+    </CascadingValue>
+</CascadingValue>

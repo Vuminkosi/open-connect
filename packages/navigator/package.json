@@ -1,0 +1,41 @@
+{
+  "name": "@openconnect/navigator",
+  "version": "0.1.0",
+  "description": "Framework-neutral SSR-safe Navigator bridge: read-only app tour (explain/locate/highlight/scroll/focus/internal navigate) with text-only fallback.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "files": ["dist", "src/styles.css", "README.md"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@openconnect/client": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@openconnect/client": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@openconnect/client": "file:../client-ts",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

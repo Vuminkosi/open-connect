@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/workers/v1/speech-chunk.json",
+  "title": "Speech chunk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text", "sequence", "isFinal"],
+  "properties": {
+    "text": { "type": "string", "maxLength": 1500 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "isFinal": { "type": "boolean" },
+    "audio": { "type": "string", "contentEncoding": "base64", "contentMediaType": "audio/wav" },
+    "voice": { "type": "string", "minLength": 1 },
+    "language": { "type": "string", "minLength": 2 }
+  }
+}

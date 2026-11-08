@@ -1,0 +1,45 @@
+@* Anchor hook for a tour target. Registers the target while mounted and
+   unregisters on removal; renders a plain span carrying the
+   data-navigator-target convention so future JS positioning (progressive
+   enhancement) can anchor to it. Without JS the tour still works: the
+   overlay card plus the text tour carry the same content. *@
+@implements IDisposable
+<span data-navigator-target="@TargetId">@ChildContent</span>
+
+@code {
+    [Inject] private NavigatorTourService Tour { get; set; } = default!;
+
+    /// <summary>Stable identifier referenced by tour steps. Required.</summary>
+    [Parameter, EditorRequired] public string TargetId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Route/screen owning this target. Falls back to the
+    /// <c>NavigatorRouteId</c> cascade from <see cref="NavigatorProvider"/>.
+    /// </summary>
+    [Parameter] public string? RouteId { get; set; }
+
+    [CascadingParameter(Name = "NavigatorRouteId")] private string? CascadedRouteId { get; set; }
+
+    /// <summary>Short human label shown in text tours and captions.</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>Optional plain-language description (human language only).</summary>
+    [Parameter] public string? Description { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string EffectiveRoute => RouteId ?? CascadedRouteId ?? string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Tour.Register(TargetId, EffectiveRoute, Label, Description);
+    }
+
+    public void Dispose()
+    {
+        // NAV-REM-BLZ-02: scoped disposal — remove only this route's entry so
+        // another route reusing the same bare target id is untouched.
+        Tour.Unregister(TargetId, EffectiveRoute);
+        GC.SuppressFinalize(this);
+    }
+}

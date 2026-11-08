@@ -1,0 +1,65 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://openconnect.dev/contracts/navigator/v1/command.json",
+    "title":  "Navigator command grant",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "commandId",
+                     "sessionId",
+                     "principalId",
+                     "tenantId",
+                     "targetId",
+                     "action",
+                     "argumentsHash",
+                     "expiresAt"
+                 ],
+    "properties":  {
+                       "commandId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "sessionId":  {
+                                         "minLength":  1,
+                                         "type":  "string"
+                                     },
+                       "principalId":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "tenantId":  {
+                                        "minLength":  1,
+                                        "type":  "string"
+                                    },
+                       "targetId":  {
+                                        "minLength":  1,
+                                        "type":  "string"
+                                    },
+                       "action":  {
+                                      "type":  "string",
+                                      "enum":  [
+                                                   "observe",
+                                                   "explain",
+                                                   "highlight",
+                                                   "focus",
+                                                   "scroll",
+                                                   "navigate",
+                                                   "click",
+                                                   "fill",
+                                                   "select",
+                                                   "toggle",
+                                                   "invoke-registered-action",
+                                                   "capture",
+                                                   "speak"
+                                               ]
+                                  },
+                       "argumentsHash":  {
+                                             "type":  "string",
+                                             "pattern":  "^[A-Fa-f0-9]{64}$"
+                                         },
+                       "expiresAt":  {
+                                         "type":  "string",
+                                         "format":  "date-time"
+                                     }
+                   }
+}

@@ -1,0 +1,102 @@
+@* Guided-tour overlay card: step copy plus Back / Next / Pause / Skip.
+   SSR-safe: no JS interop. Escape pauses (keeps progress at the current
+   step) — it never ends the tour; use the Skip control or Tour.Stop() to end
+   early. Focus moves into the card when a new step arrives and is restored
+   on finish/skip/stop via the service focus seam (best effort during
+   prerendering). All styling is scoped (no global CSS). *@
+@implements IDisposable
+<section @ref="_panel"
+         class="ocnav-blazor-overlay"
+         role="dialog"
+         aria-modal="false"
+         aria-label="Guided tour: @Step?.Title"
+         tabindex="-1"
+         dir="@Dir"
+         @onkeydown="HandleKeyDown">
+    <p class="ocnav-blazor-position">@PositionLabel</p>
+    <h2 class="ocnav-blazor-title">@Step?.Title</h2>
+    <p class="ocnav-blazor-body">@Step?.Body</p>
+    <div class="ocnav-blazor-controls">
+        <button type="button"
+                class="ocnav-blazor-btn ocnav-blazor-btn-secondary"
+                disabled="@IsFirst"
+                aria-label="Go back one step"
+                @onclick="() => Tour.Back()">
+            Back
+        </button>
+        <button type="button"
+                class="ocnav-blazor-btn ocnav-blazor-btn-primary"
+                aria-label="@(IsLast ? "Finish the tour" : "Go to the next step")"
+                @onclick="() => Tour.Next()">
+            @(IsLast ? "Finish" : "Next")
+        </button>
+        <button type="button"
+                class="ocnav-blazor-btn ocnav-blazor-btn-secondary"
+                aria-label="@(IsPaused ? "Resume the tour" : "Pause the tour")"
+                @onclick="TogglePause">
+            @(IsPaused ? "Resume" : "Pause")
+        </button>
+        <button type="button"
+                class="ocnav-blazor-btn ocnav-blazor-btn-ghost"
+                aria-label="Skip the rest of the tour"
+                @onclick="() => Tour.Stop()">
+            Skip tour
+        </button>
+    </div>
+    <span class="ocnav-blazor-visually-hidden" role="status" aria-live="polite">@Announcement</span>
+</section>
+
+@code {
+    [Inject] private NavigatorTourService Tour { get; set; } = default!;
+
+    /// <summary>Active route scope (informational only).</summary>
+    [Parameter] public string? RouteId { get; set; }
+
+    /// <summary>Text direction passthrough: ltr, rtl, or auto (default).</summary>
+    [Parameter] public string Dir { get; set; } = "auto";
+
+    private ElementReference _panel;
+    private int _renderedIndex = -1;
+
+    private NavigatorTourStep? Step => Tour.CurrentStep;
+    private bool IsPaused => Tour.Status == NavigatorTourStatus.Paused;
+    private bool IsFirst => Tour.Index <= 0;
+    private bool IsLast => Tour.Index >= Tour.Steps.Count - 1;
+    private string PositionLabel =>
+        Tour.Steps.Count == 0 ? "Guided tour"
+        : IsPaused ? $"{NavigatorTourService.ProgressText(Tour.Index, Tour.Steps.Count)} · Paused"
+        : NavigatorTourService.ProgressText(Tour.Index, Tour.Steps.Count);
+    private string Announcement =>
+        Step is null ? "Tour closed." : $"{PositionLabel}: {Step.Title}";
+
+    protected override void OnInitialized() => Tour.Changed += OnTourChanged;
+
+    private void OnTourChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Step is not null && _renderedIndex != Tour.Index)
+        {
+            _renderedIndex = Tour.Index;
+            try { await _panel.FocusAsync(); } catch { /* Best effort: no-op during static prerendering. */ }
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        // Escape = Pause (keep progress). Separate Stop() ends the tour.
+        if (e.Key == "Escape")
+            Tour.Pause();
+    }
+
+    private void TogglePause()
+    {
+        if (IsPaused) Tour.Resume(); else Tour.Pause();
+    }
+
+    public void Dispose()
+    {
+        Tour.Changed -= OnTourChanged;
+        GC.SuppressFinalize(this);
+    }
+}

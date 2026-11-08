@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OpenConnect.Navigator.Persistence.Postgres</AssemblyName>
+    <RootNamespace>OpenConnect.Navigator.Persistence.Postgres</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Persistence.Postgres/OpenConnect.Persistence.Postgres.csproj" />
+    <ProjectReference Include="../OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
+    <ProjectReference Include="../OpenConnect.Navigator.DurableStore/OpenConnect.Navigator.DurableStore.csproj" />
+    <ProjectReference Include="../OpenConnect.Transport.Nats/OpenConnect.Transport.Nats.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+</Project>

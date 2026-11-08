@@ -25,13 +25,13 @@ internal sealed class KebabCaseNamingPolicy : JsonNamingPolicy
     }
 }
 
-[JsonConverter(typeof(KebabCaseStringEnumConverter<TransportMode>))]
+[JsonConverter(typeof(KebabCaseStringEnumConverter<OpenConnectTransportMode>))]
 public enum OpenConnectTransportMode { JetStream, InMemoryDevelopment }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentExecutionMode>))]
 public enum AgentExecutionMode { Interactive, Operational }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<ActivationMode>))]
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentActivationMode>))]
 public enum AgentActivationMode { OnDemand, Scheduled, Continuous, EventTriggered }
-[JsonConverter(typeof(KebabCaseStringEnumConverter<RunState>))]
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentRunState>))]
 public enum AgentRunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentIdentityMode>))]
 public enum AgentIdentityMode { ActiveUser, WorkloadIdentity }
