@@ -1225,32 +1225,32 @@ Each identifier here was found in an uploaded document and is retained by verbat
 - [ ] **EF-AT-029** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
 - [ ] **EF-AT-030** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
 
-### Navigator — 24 tests, all NOT RUN until evidenced
+### Navigator — 24 tests: 16 PASS (executed unit/integration evidence below), 8 NOT VERIFIED (explicitly out of the client+server slice or missing harness)
 
-- [ ] **NAV-AT-001** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-002** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-003** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-004** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-005** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-006** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-007** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-008** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-009** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-010** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-011** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-012** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-013** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-014** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-015** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-016** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-017** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-018** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-019** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-020** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-021** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-022** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-023** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
-- [ ] **NAV-AT-024** — NOT RUN. Ground test in its preserved specification/requirements; add CI evidence and real capability status.
+- [x] **NAV-AT-001** — PASS (unit). Existing core lead + MCP run without Navigator/TTS/Playwright registration. Evidence: At001CoreWithoutNavigatorTests (Core.Tests 17/17, Release, hermetic).
+- [x] **NAV-AT-002** — PASS (unit). Navigator static text tour with bridge, no model workers/browser. Evidence: navigator acceptance.test.ts 9/9 + navigator.test.ts (packages/navigator 34/34, vitest).
+- [x] **NAV-AT-003** — PASS (unit). Interactive navigator action cannot exceed authenticated user's grants. Evidence: GrantTests + digest/binding tests.
+- [x] **NAV-AT-004** — PASS (unit + live single-host PG). Operational job uses isolated workload identity and background lease/recovery. Evidence: OperationalNavigatorHandlerTests, DurableStore replay/expiry/fence tests, PostgresIsolationTests + PostgresHandlerIntegrationTests incl live Testcontainers PG16. Residual: cross-process multi-host, production DB.
+- [x] **NAV-AT-005** — PASS (unit). Unregistered/ambiguous/stale target never causes a mutating click. Evidence: ApprovalFlowTests revision gating + target registry scoping.
+- [x] **NAV-AT-006** — PASS (unit). Approval hash mismatch, expired grant, reconnect and revocation deny execution. Evidence: ApprovalFlowTests + grant validation tests.
+- [x] **NAV-AT-007** — PASS (unit; no live browser). React SSR-safe import; host MiniComposer + Navigator provider coexist. Evidence: ssr.test.tsx, NavigatorProvider coexistence + acceptance tests (react 25/25).
+- [x] **NAV-AT-008** — PASS (unit; live WS transport NOT VERIFIED). Only committed, safe Navigator events become visible on existing WS; duplicates deduped. Evidence: projector/hook/commit/relay/schema tests incl live PG relay tests.
+- [x] **NAV-AT-009** — PASS (unit; live browser NOT VERIFIED). Optional Playwright absent: live tour still works; arbitrary MCP browser tools refused. Evidence: allowlist deny tests + isolated-browser origin/SSRF/profile tests.
+- [x] **NAV-AT-010** — PASS (unit). Capture denied or pixel-redacted under sensitive/ambiguous field scenarios. Evidence: observation redaction tests + acceptance tests + CaptureGateTests.
+- [ ] **NAV-AT-011** — NOT VERIFIED (out of slice). Kokoro-only first start provisions pinned `af_heart`, checks SHA, returns correct audio metadata. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [ ] **NAV-AT-012** — NOT VERIFIED (out of slice). Kokoro restart with network denied uses persisted cache; no download attempted. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [ ] **NAV-AT-013** — NOT VERIFIED (out of slice). MMS-only provisions exactly opted-in licensed language checkpoint; no full catalog fetch. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [ ] **NAV-AT-014** — NOT VERIFIED (out of slice). MMS commercial/unapproved license scenario blocked; core text tours still work. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [ ] **NAV-AT-015** — NOT VERIFIED (out of slice). Interrupted download cannot corrupt active validated cache; retry recovers. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [ ] **NAV-AT-016** — NOT VERIFIED (out of slice). Concurrent initializer instances cannot expose partial model files. Kokoro/MMS workers, first-start provisioning, and GHCR images do not exist by design in the client+server slice.
+- [x] **NAV-AT-017** — PASS (unit). Missing/failed both TTS workers: interactive, MCP, Navigator complete text-only. Evidence: SpeechRouterTests disabled/missing/unhealthy.
+- [x] **NAV-AT-018** — PASS (unit). Speech stop/barge-in rejects stale chunks and maintains tour checkpoint. Evidence: speech epoch tests.
+- [x] **NAV-AT-019** — PASS (unit). Client/worker options enum validation and capability handshakes reject invalid combinations. Evidence: SchemaValidationTests + options validators.
+- [ ] **NAV-AT-020** — NOT VERIFIED (out of slice). End-to-end GHCR image install + persistent volume + NuGet/npm consumer smoke. No GHCR images published; no clean-consumer smoke run.
+- [x] **NAV-AT-021** — PASS (unit, Navigator surfaces). Observability/log/NATS/capture artifacts contain no seeded sensitive canaries. Evidence: NavigatorTelemetryTests + redaction tests. Residual: full-artifact sweep across all surfaces unmapped.
+- [ ] **NAV-AT-022** — NOT VERIFIED. Model provenance, artifact notices, code migration ledger and release security scan complete. Release-gate artifact (provenance/SBOM/ledger/security scan): no release run.
+- [x] **NAV-AT-023** — PASS (unit; live browser NOT VERIFIED). Operational Playwright worker SSRF, profile reuse and tool-allowlist adversarial tests pass. Evidence: BrowserBoundaryTests + Playwright allowlist tests.
+- [x] **NAV-AT-024** — PASS (unit). Event consumer optional QdrantVactor absent causes no Navigator failure or requirement. Evidence: subscriber-failure tolerance + DI absent-relay tests.
 
 ### Composer — 24 tests, all NOT RUN until evidenced
 
