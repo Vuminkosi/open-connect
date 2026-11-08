@@ -1,10 +1,10 @@
 # Agents acceptance evidence (point-in-time)
 
-Scope: AG-AT-001–040 for the Agents slice ONLY (`src/OpenConnect.Agents` + Abstractions agent enums/DTOs + Core options/validation/binder and their tests). Out of scope: Tools/Sessions/Persistence/Hosting/Transport/Privacy/Observability/Clients/workers/packages/infra/pipelines/live services. Status date: 2026-11-08 (UTC). Baseline: `4758adcb91e5d9ac5938519c9fe63b9942c07e1` (observed HEAD). Method: per-project Release test commands: `dotnet test tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj -c Release` and `dotnet test tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj -c Release`. SDK line: `8.0.427` (`dotnet --version`; `dotnet --sdk-version` is not a supported command in this SDK and failed). Target: `net8.0`.
+Scope: AG-AT-001–040 for the Agents slice ONLY (`src/OpenConnect.Agents` + Abstractions agent enums/DTOs + Core options/validation/binder and their tests). Out of scope: Tools/Sessions/Persistence/Hosting/Transport/Privacy/Observability/Clients/workers/packages/infra/pipelines/live services. Status date: 2026-11-08 (UTC). Baseline: `5739dfa7076b87880d2eb1e3d1f6a43085f4dcc6` (observed HEAD). Method: per-project Release test commands: `dotnet test tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj -c Release` and `dotnet test tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj -c Release`. SDK line: `8.0.427` (recorded by prior map; not re-probed in this refresh). Target: `net8.0`.
 
 ## Suite totals (observed this task)
 
-Agents: 342/342 passed, 0 failed. Core: 32/32 passed, 0 failed. This matches the expected totals supplied for this task.
+Agents: 343/343 passed, 0 failed, 0 skipped. Core: 35/35 passed, 0 failed, 0 skipped. Compared with the previous map: Agents +1; Core +3.
 
 ## Acceptance rows (ID | Spec title (verbatim below) | Verdict | Evidence)
 
@@ -17,12 +17,12 @@ Agents: 342/342 passed, 0 failed. Core: 32/32 passed, 0 failed. This matches the
 | AG-AT-005 | Malicious agent-runtime.md/path traversal cannot alter security or paths | PASS | `InstructionLoaderAdapterTests`, `TemplateNarrowingTests`, Core `InstructionLoaderTests` (both suites passed). |
 | AG-AT-006 | lead depth0 -> child depth1 -> grandchild depth2 permitted | PASS | `AgentCatalogDepthTests`, `DelegationDepthReductionTests`, `DelegationChainTests` (Agents suite passed). |
 | AG-AT-007 | depth3, cycles, self-delegation and excessive fan-out rejected before run | PASS | `DelegationGateTests`, reduced-cap tests, and registry immutability tests (Agents suite passed). |
-| AG-AT-008 | nested tool/model/time/token budgets enforced, no double counting | PASS | `RunBudgetLedgerTests` (including concurrent case), `ModelBudgetEdgeTests`, `ExecutionContextBudgetTests` (Agents suite passed). |
+| AG-AT-008 | nested tool/model/time/token budgets enforced, no double counting | PASS | Core `AgentOptionsMappingTests.ToRunBudget_CopiesEveryConfiguredCapAndPreservesRestrictiveValues` and `ToRunBudget_MapsDefaultsToExpectedBudget` verify configured/default option mapping; Agents `OptionsToEnforcementTests.Mapped_total_subagent_limit_is_enforced_by_sequential_runner` verifies mapped `MaxTotalSubagentsPerRun` enforcement (one child completes; second is rejected; ledger total is exhausted). `RunBudgetLedgerTests` (including concurrent case), `ModelBudgetEdgeTests`, and `ExecutionContextBudgetTests` also passed in the Agents suite. |
 | AG-AT-009 | Real MAF sequential/parallel execution and authorized merge | PASS | Runners, `ResultMergerTests`, lead synthesis/merge composition, and `DelegationChainTests` (Agents suite passed). |
-| AG-AT-010 | Real MAF handoff multi-turn, actor-specific session consistency | PARTIAL | In-memory handoff isolation, history/serialization, and per-actor multi-turn continuity supplied as evidence. Service-managed and cross-restart behavior not proven (no provider/credentials). |
+| AG-AT-010 | Real MAF handoff multi-turn, actor-specific session consistency | PARTIAL | `ChildSessionContinuityTests` ran in-memory: `Same_key_continues_child_history`, `Different_keys_keep_histories_isolated`, and `Different_children_keep_histories_isolated` establish per-child key/history continuity and isolation; `Null_key_preserves_prompt_only_legacy_behavior` covers legacy no-key behavior. `Whitespace_key_rejected_before_any_trace` and `Exhausted_budget_leaves_no_child_trace` verify rejection ordering before trace creation. Service-managed and cross-restart behavior not proven (no provider/credentials). |
 | AG-AT-011 | Child failure/partial result/cancellation propagates with authentic tree | PASS | `ParallelCancellationTests`, `PartialFailureTraceTests`, `RevocationTests`, and denial paths in `ModelBudgetEdgeTests` (Agents suite passed). |
 | AG-AT-012 | Interactive identity is current authenticated user and tenant | PARTIAL | `ExecutionContextSnapshotTests` covers context snapshot shape and credential-free guard; host derivation is Hosting-owned. |
-| AG-AT-013 | Subagent cannot expand inherited permission; auth revocation denies next effect | PASS | Scope/budget narrowing, grant fields/reason/revision, revocation/expiry/denial tests (Agents suite passed). |
+| AG-AT-013 | Subagent cannot expand inherited permission; auth revocation denies next effect | PASS | Scope/budget narrowing, grant fields/reason/revision, revocation/expiry/denial tests (Agents suite passed). `ExecutionContextBudgetTests.Request_capped_at_parent_remaining` verifies requested child budget is capped; `Parent_record_immutable_after_child_creation` confirms parent budget state is unchanged; unknown and negative requests are rejected without changing parent state. |
 | AG-AT-014 | Operational mode uses workload identity, no ambient user auth | PARTIAL | Operational definitions, boundary predicates, same-adapter proof, and no-ASP.NET-Core-reference guard; supervisor/scheduler are Hosting-owned. |
 | AG-AT-015 | Tool registration typed schema, DI and MCP adapters | NOT VERIFIED | Tools-owned; outside this slice. |
 | AG-AT-016 | Agent-scoped discovery returns only permitted tools/capabilities | NOT VERIFIED | Tools-owned; Agents-side capability-router allowlist is separately validated. |
@@ -50,6 +50,12 @@ Agents: 342/342 passed, 0 failed. Core: 32/32 passed, 0 failed. This matches the
 | AG-AT-038 | OTel spans/cost ledger exact billable attempts; no raw content | NOT VERIFIED | Observability/Metering-owned. |
 | AG-AT-039 | SQL Server/PG/SQLite outbox fault/concurrency; InMemory non-durable rejected | NOT VERIFIED | Persistence/CI-owned. |
 | AG-AT-040 | Clean NuGet/npm package consumers, example compilation, pinned CI and release checks | NOT VERIFIED | Pipeline-owned. |
+
+## Slice commits observed in history
+
+- `5739dfa7076b87880d2eb1e3d1f6a43085f4dcc6` — `feat(agents): configured options to run-budget mapping with enforcement proof (AG-AT-008)`
+- `4758adcb91e5d9ac5938519c9fe63b9942c07e1f` — `test(agents): child budget capping and parent immutability (AG-REQ-022)`
+- `f7afa529bc731467dd522e1d21145dc01800ed84` — `feat(agents): per-actor child session continuity with trace-safe ordering`
 
 ## Gaps register (with exact evidence pointers)
 
