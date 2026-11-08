@@ -174,6 +174,27 @@ public sealed class SessionEventCanonicalTests
         Assert.DoesNotContain("eventId", response.Body);
     }
 
+    [Fact]
+    public async Task Uuid_non_string_correlationId_stays_in_payload_envelope_absent()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var sessionUuid = Guid.Parse("123e4567-e89b-42d3-a456-426614174001");
+        var eventId = Guid.Parse("123e4567-e89b-42d3-a456-426614174010");
+        var data = $"{{\"eventId\":\"{eventId:D}\",\"occurredAt\":\"2026-01-01T00:00:00Z\",\"correlationId\":7,\"taskId\":\"task-1\"}}";
+        await store.AppendEventAsync(session.Id.Value, "task.accepted", data);
+
+        var response = await Invoke(store, sessionUuid.ToString("D"), string.Empty, Map(sessionUuid, session.Id.Value));
+
+        Assert.Equal(200, response.Status);
+        using var json = JsonDocument.Parse(response.Body);
+        Assert.Equal(1, json.RootElement.GetArrayLength());
+        var envelope = json.RootElement[0];
+        Assert.Equal(7, envelope.GetProperty("payload").GetProperty("correlationId").GetInt32());
+        if (envelope.TryGetProperty("correlationId", out var envelopeCorrelation))
+            Assert.Equal(JsonValueKind.Null, envelopeCorrelation.ValueKind);
+    }
+
     private static string CanonicalData(Guid eventId, string occurredAt, string payloadJson, string? correlationId = null)
     {
         using var payload = JsonDocument.Parse(payloadJson);

@@ -116,6 +116,7 @@ public static class CanonicalEventEndpointAdapter
             return false;
 
         string? correlationId = null;
+        var correlationPromoted = false;
         if (data.TryGetPropertyValue("correlationId", out var correlationNode)
             && correlationNode is not null
             && correlationNode.GetValueKind() == JsonValueKind.String)
@@ -123,6 +124,7 @@ public static class CanonicalEventEndpointAdapter
             try
             {
                 correlationId = correlationNode.GetValue<string>();
+                correlationPromoted = true;
             }
             catch (InvalidOperationException)
             {
@@ -133,7 +135,11 @@ public static class CanonicalEventEndpointAdapter
         var payload = new JsonObject();
         foreach (var property in data)
         {
-            if (property.Key is "eventId" or "occurredAt" or "correlationId")
+            if (property.Key is "eventId" or "occurredAt")
+                continue;
+            // Only a string correlationId is promoted to the envelope. A
+            // non-string value is left in the payload instead of dropped.
+            if (property.Key is "correlationId" && correlationPromoted)
                 continue;
             payload[property.Key] = property.Value?.DeepClone();
         }
