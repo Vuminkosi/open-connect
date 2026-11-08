@@ -29,6 +29,7 @@ public sealed class ContextProjectionBuilder
         int tokenBudget, TimeSpan ttl)
     {
         ArgumentNullException.ThrowIfNull(parentContext);
+        parentContext.CancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(dataClassAllowlist);
         ArgumentNullException.ThrowIfNull(requestedItems);
         ArgumentNullException.ThrowIfNull(childAllowedToolIds);

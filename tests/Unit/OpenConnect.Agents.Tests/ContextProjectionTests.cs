@@ -27,6 +27,25 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void Build_CancelledParentThrowsBeforeReturningProjection()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var parent = Parent() with { CancellationToken = cancellation.Token };
+        AgentContextProjection? projection = null;
+
+        Assert.Throws<OperationCanceledException>(() =>
+        {
+            var result = Builder().Build(parent, AgentContextSharingMode.TaskSummary,
+                ["internal"], [Item("secret") with { ContainsSecret = true }], Child, [], ["principal"],
+                100, TimeSpan.FromMinutes(5));
+            projection = result.Projection;
+        });
+
+        Assert.Null(projection);
+    }
+
+    [Fact]
     public void RequestAdditional_NoneDenied()
     {
         var (projection, _) = Builder().Build(Parent(), AgentContextSharingMode.None,
