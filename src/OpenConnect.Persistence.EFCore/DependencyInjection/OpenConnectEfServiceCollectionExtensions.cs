@@ -31,7 +31,9 @@ public static class OpenConnectEfServiceCollectionExtensions
         // second, different context because named stores are not supported.
         services.AddSingleton<IValidateOptions<OpenConnectEfOptions>, OpenConnectEfOptionsValidator>();
         services.AddOptions<OpenConnectEfOptions>().Configure(configure ?? (_ => { })).ValidateOnStart();
-        services.TryAddScoped<OpenConnect.Abstractions.ITaskStore, EfTaskStore<TContext>>();
+        services.TryAddScoped<EfTaskStore<TContext>>();
+        services.TryAddScoped<OpenConnect.Abstractions.ITaskStore>(provider => provider.GetRequiredService<EfTaskStore<TContext>>());
+        services.TryAddScoped<ITaskLifecycleStore>(provider => provider.GetRequiredService<EfTaskStore<TContext>>());
         services.TryAddScoped<OpenConnect.Abstractions.IEventJournal, EfEventJournal<TContext>>();
         services.TryAddScoped<OpenConnect.Abstractions.IOutboxStore, EfOutboxStore<TContext>>();
         services.TryAddScoped<ISessionStore, EfSessionStore<TContext>>();
