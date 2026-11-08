@@ -258,3 +258,53 @@ and endurance verification stays NOT VERIFIED.
 - Supplied session IDs are labeled SUPPLIED, not presented as re-executed.
 - No relative links introduced; no existing links altered.
 
+---
+
+## Appendix B — Supplied-Verified-By-Lane Per-Family PASS Matrix (transcribed, not re-executed)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute, evidence transcribed from verification lane handoffs)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections above are preserved byte-identical; this appendix is append-only. All commands, counts, commits, and session IDs below are transcribed verbatim AS SUPPLIED — truncated IDs are NOT expanded, no full session IDs/commands/hashes invented, no re-execution performed, no builds/tests/Git operations run. VERIFIED/COMMITTED/RELEASED labels below are transcribed lane evidence only, not writer-observed.
+
+| Family | Exact command + filter | Counts/exit | Commit | Review session IDs | Status label |
+|---|---|---|---|---|---|
+| Agents 19/19 | dotnet test OpenConnect.Agents.Tests -c Release --no-restore --filter "NativeWorkflowRunnerTests\|NativeWorkflowCheckpointTests\|NativeWorkflowInteractionTests\|MafConversationTests" | exit 0 | f278bf6 | ses_e437af88 | SUPPLIED-VERIFIED-BY-LANE |
+| Agents interaction guard | (interaction guard, as supplied) | 10/10+1 skipped | 0fb1df5 | ses_e435b6574 | SUPPLIED-VERIFIED-BY-LANE |
+| Hosting 55+14/14 | dotnet test OpenConnect.Hosting.Tests -c Release --no-restore --filter "SessionEventCanonicalTests\|SessionEventCursorTests\|NativeWorkflowApprovalBridgeTests\|DurableBridgeIntegrationTests" | exit 0 (Hosting 55 at f278bf6 via ses_e437af88, DurableBridge 14/14 via ses_e437d9a1) | f278bf6 | ses_e437af88 / ses_e437d9a1 | SUPPLIED-VERIFIED-BY-LANE |
+| Abstractions 28/28 | CanonicalAgentEventTests | exit 0 | 32d16be/c5d07c7 | ses_e438... | SUPPLIED-VERIFIED-BY-LANE |
+| Client .NET 23/23 | OpenConnect.Client.Tests | exit 0 | 95a308f | ses_e43d... | SUPPLIED-VERIFIED-BY-LANE |
+| Client TS 18/18 | npm test vitest | exit 0 | 95a308f | ses_e43da... | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence strict live PG :27781 MSSQL :27782 | MigratedTopology + Smoke (strict true) | MigratedTopology 5/5 + Smoke 6/6 exit 0 strict true | eb2900d/f278bf6 | ses_e437af65/ses_e437373b/ses_e4370ca7 | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence stores | (as supplied) | stores 34/34 | (as supplied) | ses_e43616967 | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence mapping | (as supplied) | mapping 8/8+1/1 | (as supplied) | ses_e439.../ses_e43a435e | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence nonce | (as supplied) | nonce 8/8→27/27 | (as supplied) | ses_e43616967; ses_e439e62c | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence wiring | (as supplied) | wiring 12/12 | (as supplied) | ses_e4399... | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence string | (as supplied) | string 20/20 | (as supplied) | ses_e43885968 | SUPPLIED-VERIFIED-BY-LANE |
+| Persistence durable | (as supplied) | durable 10/10 | (as supplied) | ses_e438d9... | SUPPLIED-VERIFIED-BY-LANE |
+
+### Reviews PASS (supplied IDs, transcribed verbatim, not re-executed)
+
+- cursor: ses_e448dc4c PASS.
+- runner: ses_e445f570 (no findings, as supplied).
+- WF03: ses_e4411df8 / ses_e440c5c4 / ses_e440253d / ses_e435b14a PASS (S2/S3 OPEN nonblocking, as supplied).
+- event adapter: ses_e43efe14 PASS + contract ses_e43efe14 PASS.
+- endpoint: ses_e43e515c PASS + sec (as supplied).
+- clients: ses_e43d93b6 PASS + fixes (FAIL→fixed→PASS, as supplied).
+- bridge: ses_e43d2f9a PASS + sec (as supplied).
+- mapping: ses_e439... / ses_e43a435e PASS.
+- nonce: ses_e439e62c PASS; wiring ses_e4399... PASS; string ses_e43885968 PASS; migration ses_e43880ba PASS.
+- durable wiring: ses_e438d9... PASS.
+- requestId migration: ses_e43880ba PASS / store (as supplied).
+- smoke: ses_e43728e2 PASS.
+- guard: ses_e435b14a PASS.
+- pinning: implicit 27/27 (as supplied).
+
+### Explicit scope limits (no inflation)
+
+- All other rows remain NOT VERIFIED.
+- Optional E2E NOT VERIFIED.
+- S2/S3 OPEN list with session IDs as supplied (see Appendix A S2/S3 OPEN list; WF03 ses_e4411df8 S2/S3 OPEN, smoke ses_e43728e2 S3 OPEN, clients ses_e43d93b6 FAIL→fixed→PASS residual tracking — all nonblocking follow-ups owned by the verification lane).
+- No global production claim. No secrets.
+- No per-criterion row is marked PASS beyond the per-family transcription above.
+- Truncated IDs (ellipsis forms such as ses_e438..., ses_e43d..., ses_e439...) are transcribed as-supplied and NOT expanded.
+
