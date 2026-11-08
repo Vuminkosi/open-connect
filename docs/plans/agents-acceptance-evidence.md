@@ -362,3 +362,24 @@ and endurance verification stays NOT VERIFIED.
 - All other families keep prior status (NOT VERIFIED unless previously promoted in Appendix A/B) — no other row is altered by this appendix.
 - Anything absent from the supplied evidence is NOT VERIFIED.
 
+---
+
+## Appendix E — Production EFCore Migration Path (SUPPLIED-VERIFIED-BY-LANE)
+
+`SUPPLIED-VERIFIED-BY-LANE (read-only verified in prior lane turn, transcribed here — not re-observed by this writer)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections (lines 1–364 incl Appendices A/B/C/D) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. No VERIFIED / COMMITTED / RELEASED claim is made by this writer; those labels below are transcribed lane evidence only.
+
+### Production migration path (SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+- (1) `OpenConnectEfOptions.Migrations` default is `Manual` — refs `OpenConnectEfOptions.cs:4,14` — SUPPLIED-VERIFIED-BY-LANE.
+- (2) Validator forbids `ApplyOnStartup` with `ExistingDbContext` → `ef_migration_not_allowed` — refs `OpenConnectEfOptionsValidator.cs:28-30` — SUPPLIED-VERIFIED-BY-LANE.
+- (3) Production Postgres migrations (`InitialCreate`, `PendingModelSync`, `NavigatorDurability`) contain no `ApprovalNonces`/`PublicSessionMappings`; generic EFCore has no `Migrations` folder — test-harness `MigrationsPg`/`Ms` are DDL proof only — SUPPLIED-VERIFIED-BY-LANE.
+- (4) Decision: hosts apply equivalent DDL via own pipeline under `Manual`; forward-fix preferred; no auto-migration to add — SUPPLIED-VERIFIED-BY-LANE.
+
+### Explicit scope limits (no inflation)
+
+- No global claim is made; no production-readiness, delivery, shipped, deployed, or production-ready claim.
+- S2/S3 production-linkage follow-up CLOSED as documented operator responsibility (not code defect) — SUPPLIED-VERIFIED-BY-LANE.
+- No secrets, no invented CLI flags/endpoints/release numbers/screenshots/support promises are introduced.
+- Anything absent from the supplied evidence is NOT VERIFIED.
