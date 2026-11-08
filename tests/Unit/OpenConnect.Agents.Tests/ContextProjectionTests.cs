@@ -114,6 +114,29 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void RequestAdditional_RevisionOverflowThrowsAndLeavesOriginalUnchanged()
+    {
+        var (built, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [Item("first")], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+        var initial = built with { Version = int.MaxValue };
+        var originalVersion = initial.Version;
+        var originalItems = initial.Items;
+        var originalBudget = initial.TokenBudget;
+        AgentContextProjection? next = null;
+
+        Assert.Throws<OverflowException>(() =>
+        {
+            var result = Builder().RequestAdditional(initial, Child, [Item("second")]);
+            next = result.Projection;
+        });
+
+        Assert.Null(next);
+        Assert.Equal(originalVersion, initial.Version);
+        Assert.Equal(originalItems, initial.Items);
+        Assert.Equal(originalBudget, initial.TokenBudget);
+    }
+
+    [Fact]
     public void Build_PreservesItemsWithDuplicateIdsInInputOrder()
     {
         var first = Item("duplicate") with { SummaryOrRef = "first summary" };
