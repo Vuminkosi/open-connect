@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Navigator.Operational.Durable;
 
-namespace OpenConnect.Navigator.DurableStore;
+namespace OpenConnect.Navigator.AspNetCore.Outbox;
 
 /// <summary>Registers commit-hook forwarding for the host's durable Navigator store.</summary>
 public static class CommittingDurableNavigatorStoreExtensions

@@ -1,9 +1,8 @@
 using OpenConnect.Navigator;
-using OpenConnect.Navigator.AspNetCore;
 using OpenConnect.Navigator.Operational.Durable;
 using OpenConnect.Navigator.Operational;
 
-namespace OpenConnect.Navigator.DurableStore;
+namespace OpenConnect.Navigator.Operational.Durable;
 
 /// <summary>Process-local adapter for tests and development; operational leases are process-local and non-namespaced, so use only as a development adapter.</summary>
 public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore

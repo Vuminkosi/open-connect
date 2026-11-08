@@ -2,7 +2,7 @@ using OpenConnect.Navigator;
 using OpenConnect.Navigator.AspNetCore.Outbox;
 using OpenConnect.Navigator.Operational.Durable;
 
-namespace OpenConnect.Navigator.DurableStore;
+namespace OpenConnect.Navigator.AspNetCore.Outbox;
 
 /// <summary>Forwards each successfully committed event to the commit hook.</summary>
 /// <remarks>Hook failures propagate after the durable commit has succeeded; callers must treat that as a delivery failure, not a rolled-back commit.</remarks>
@@ -26,7 +26,7 @@ public sealed class CommittingDurableNavigatorStore(IServiceProvider services, I
         }
     }
 
-    public ValueTask<NavigatorSession?> GetSessionAsync(string id, string tenant, string principal, CancellationToken cancellationToken = default) => Inner.GetSessionAsync(id, tenant, principal, cancellationToken);
+    public ValueTask<global::OpenConnect.Navigator.NavigatorSession?> GetSessionAsync(string id, string tenant, string principal, CancellationToken cancellationToken = default) => Inner.GetSessionAsync(id, tenant, principal, cancellationToken);
     public ValueTask<NavigatorStoreOutcome> UpdateSessionSnapshotAsync(string id, string tenant, string principal, NavigatorSessionSnapshot snapshot, long expectedRevision, CancellationToken cancellationToken = default) => Inner.UpdateSessionSnapshotAsync(id, tenant, principal, snapshot, expectedRevision, cancellationToken);
     public ValueTask<string> CreateSessionAsync(string tenant, string principal, string clientInstance, string routeId, CancellationToken cancellationToken = default) => Inner.CreateSessionAsync(tenant, principal, clientInstance, routeId, cancellationToken);
     public ValueTask<NavigatorStoreOutcome> CreatePendingApprovalAsync(string id, string tenant, string principal, NavigatorApprovalRecord approval, CancellationToken cancellationToken = default) => Inner.CreatePendingApprovalAsync(id, tenant, principal, approval, cancellationToken);

@@ -1,12 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.AspNetCore.Outbox;
-using OpenConnect.Navigator.DurableStore;
 using OpenConnect.Navigator.Operational;
 using OpenConnect.Navigator.Operational.Durable;
 using Xunit;
 
-namespace OpenConnect.Navigator.DurableStore.Tests;
+namespace OpenConnect.Navigator.AspNetCore.Tests.Outbox;
 
 public sealed class CommittingStoreRegistrationTests
 {

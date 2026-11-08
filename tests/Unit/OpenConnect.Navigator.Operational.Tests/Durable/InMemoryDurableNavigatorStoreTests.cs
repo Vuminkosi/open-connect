@@ -1,8 +1,7 @@
-using OpenConnect.Navigator.DurableStore;
 using OpenConnect.Navigator.Operational.Durable;
 using Xunit;
 
-namespace OpenConnect.Navigator.DurableStore.Tests;
+namespace OpenConnect.Navigator.Operational.Tests;
 
 public sealed class InMemoryDurableNavigatorStoreTests
 {

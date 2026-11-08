@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.AspNetCore.Outbox;
-using OpenConnect.Navigator.DurableStore;
 using OpenConnect.Navigator.Operational.Durable;
 using OpenConnect.Transport.Nats;
 using Xunit;

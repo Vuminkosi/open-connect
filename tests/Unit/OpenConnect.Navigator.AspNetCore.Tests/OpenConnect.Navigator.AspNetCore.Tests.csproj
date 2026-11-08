@@ -12,7 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Navigator.AspNetCore/OpenConnect.Navigator.AspNetCore.csproj" />
-    <ProjectReference Include="../../../src/OpenConnect.Navigator.DurableStore/OpenConnect.Navigator.DurableStore.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.Transport.Nats/OpenConnect.Transport.Nats.csproj" />
   </ItemGroup>
