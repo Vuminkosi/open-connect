@@ -51,7 +51,6 @@ public sealed class ToolAuthorizationService(IToolAccessPolicy policy, TimeProvi
 
     public ToolApproval CreateApproval(ToolAccessRequest request, JsonElement arguments, TimeSpan lifetime)
     {
-        ArgumentNullException.ThrowIfNull(arguments);
         if (lifetime <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(lifetime));
         return new ToolApproval(Guid.NewGuid().ToString("N"), request.AgentId, request.ToolId,
             request.PrincipalId, request.TenantId, request.TaskId, HashArguments(arguments), _timeProvider.GetUtcNow() + lifetime);
