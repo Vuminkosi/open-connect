@@ -4,7 +4,7 @@ Scope: AG-AT-001–040 for the Agents slice ONLY (`src/OpenConnect.Agents` + Abs
 
 ## Suite totals (observed this task)
 
-Agents: 343/343 passed, 0 failed, 0 skipped. Core: 35/35 passed, 0 failed, 0 skipped. Compared with the previous map: Agents +1; Core +3.
+Agents: 345/345 passed, 0 failed, 0 skipped. Core: 35/35 passed, 0 failed, 0 skipped. Compared with the previous map: Agents +2; Core +0.
 
 ## Acceptance rows (ID | Spec title (verbatim below) | Verdict | Evidence)
 
@@ -17,7 +17,7 @@ Agents: 343/343 passed, 0 failed, 0 skipped. Core: 35/35 passed, 0 failed, 0 ski
 | AG-AT-005 | Malicious agent-runtime.md/path traversal cannot alter security or paths | PASS | `InstructionLoaderAdapterTests`, `TemplateNarrowingTests`, Core `InstructionLoaderTests` (both suites passed). |
 | AG-AT-006 | lead depth0 -> child depth1 -> grandchild depth2 permitted | PASS | `AgentCatalogDepthTests`, `DelegationDepthReductionTests`, `DelegationChainTests` (Agents suite passed). |
 | AG-AT-007 | depth3, cycles, self-delegation and excessive fan-out rejected before run | PASS | `DelegationGateTests`, reduced-cap tests, and registry immutability tests (Agents suite passed). |
-| AG-AT-008 | nested tool/model/time/token budgets enforced, no double counting | PASS | Core `AgentOptionsMappingTests.ToRunBudget_CopiesEveryConfiguredCapAndPreservesRestrictiveValues` and `ToRunBudget_MapsDefaultsToExpectedBudget` verify configured/default option mapping; Agents `OptionsToEnforcementTests.Mapped_total_subagent_limit_is_enforced_by_sequential_runner` verifies mapped `MaxTotalSubagentsPerRun` enforcement (one child completes; second is rejected; ledger total is exhausted). `RunBudgetLedgerTests` (including concurrent case), `ModelBudgetEdgeTests`, and `ExecutionContextBudgetTests` also passed in the Agents suite. |
+| AG-AT-008 | nested tool/model/time/token budgets enforced, no double counting | PASS | Core `AgentOptionsMappingTests.ToRunBudget_CopiesEveryConfiguredCapAndPreservesRestrictiveValues` and `ToRunBudget_MapsDefaultsToExpectedBudget` verify configured/default option mapping; Agents `OptionsToEnforcementTests.Mapped_total_subagent_limit_is_enforced_by_sequential_runner` verifies mapped `MaxTotalSubagentsPerRun` enforcement (one child completes; second is rejected; ledger total is exhausted). `RunBudgetLedgerTests` (including concurrent case), `ModelBudgetEdgeTests`, and `ExecutionContextBudgetTests` also passed in the Agents suite. `CoverageBackfillTests.SubagentReservation_RejectsQueueAtLimitAndNegativeCountsWithoutDebiting` and `SubagentReservation_RejectsImmediateActiveCountOverConcurrentLimit` verify queue-limit and active-count rejection boundaries without debiting the remaining total-agent budget (Agents Release suite passed). |
 | AG-AT-009 | Real MAF sequential/parallel execution and authorized merge | PASS | Runners, `ResultMergerTests`, lead synthesis/merge composition, and `DelegationChainTests` (Agents suite passed). |
 | AG-AT-010 | Real MAF handoff multi-turn, actor-specific session consistency | PARTIAL | `ChildSessionContinuityTests` ran in-memory: `Same_key_continues_child_history`, `Different_keys_keep_histories_isolated`, and `Different_children_keep_histories_isolated` establish per-child key/history continuity and isolation; `Null_key_preserves_prompt_only_legacy_behavior` covers legacy no-key behavior. `Whitespace_key_rejected_before_any_trace` and `Exhausted_budget_leaves_no_child_trace` verify rejection ordering before trace creation. Service-managed and cross-restart behavior not proven (no provider/credentials). |
 | AG-AT-011 | Child failure/partial result/cancellation propagates with authentic tree | PASS | `ParallelCancellationTests`, `PartialFailureTraceTests`, `RevocationTests`, and denial paths in `ModelBudgetEdgeTests` (Agents suite passed). |
@@ -56,6 +56,10 @@ Agents: 343/343 passed, 0 failed, 0 skipped. Core: 35/35 passed, 0 failed, 0 ski
 - `5739dfa7076b87880d2eb1e3d1f6a43085f4dcc6` — `feat(agents): configured options to run-budget mapping with enforcement proof (AG-AT-008)`
 - `4758adcb91e5d9ac5938519c9fe63b9942c07e1f` — `test(agents): child budget capping and parent immutability (AG-REQ-022)`
 - `f7afa529bc731467dd522e1d21145dc01800ed84` — `feat(agents): per-actor child session continuity with trace-safe ordering`
+
+## Refresh log
+
+- 2026-11-08 (UTC), HEAD `f36fc0fc0881ec9b8391933af1a855e2f4eeb5ea`: refreshed suite totals and AG-AT-008 evidence after `97b758da1777def02c92f598a9bdaa9c91aa182e` (`docs(agents): refresh acceptance map to HEAD with verified evidence (AG-AT-001-040)`) and `f36fc0fc0881ec9b8391933af1a855e2f4eeb5ea` (`test(agents): ledger queued/active/negative boundary coverage (AG-REQ-004)`). Both Release suites passed; new boundary evidence is from the two `CoverageBackfillTests.SubagentReservation_*` tests named in AG-AT-008.
 
 ## Gaps register (with exact evidence pointers)
 
