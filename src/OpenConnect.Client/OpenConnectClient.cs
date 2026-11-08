@@ -3,11 +3,13 @@ using System.Text.Json;
 using System.Net.Http.Json;
 using System.Globalization;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 namespace OpenConnect.Client;
 public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClient
 {
     private static readonly ActivitySource ActivitySource = new("OpenConnect.Client");
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
+    private static readonly JsonSerializerOptions EventJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
     public async Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
@@ -42,7 +44,8 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
         using var activity = ActivitySource.StartActivity("openconnect.events.subscribe", ActivityKind.Client);
         using var response = await _httpClient.GetAsync($"sessions/{sessionId.Value}/events?after={afterSequence.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
-        var events = await ReadAsync<List<EventRecord>>(response, cancellationToken).ConfigureAwait(false);
+        var events = await response.Content.ReadFromJsonAsync<List<EventRecord>>(EventJsonOptions, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidDataException("The OpenConnect service returned an empty response.");
         foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
     }
     private async Task<T> SendAsync<T>(HttpMethod method, string path, CancellationToken cancellationToken)

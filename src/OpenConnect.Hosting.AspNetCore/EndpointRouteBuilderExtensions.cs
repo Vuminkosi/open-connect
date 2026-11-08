@@ -2,12 +2,16 @@ using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
+using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Hosting.AspNetCore.Execution;
 
 [assembly: InternalsVisibleTo("OpenConnect.Hosting.Tests")]
 
@@ -22,7 +26,13 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         var group = endpoints.MapGroup("/openconnect/v1");
 
-        group.MapPost("/tasks", HandleCreateTaskAsync).RequireAuthorization();
+        group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+        {
+            var store = context.RequestServices.GetService<InMemoryTaskStore>();
+            return store is null
+                ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
+                : await HandleCreateTaskAsync(context, request, store, cancellationToken);
+        }).RequireAuthorization();
         group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
         group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
         group.MapPost("/sessions", HandleCreateSession).RequireAuthorization();
@@ -54,11 +64,21 @@ public static class EndpointRouteBuilderExtensions
         if (request.SessionId is not null && !UlidTryParse(request.SessionId, out _))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["sessionId"] = ["A valid session ID is required."] });
 
+        var services = context.RequestServices;
+        if (services.GetService<IHostTaskExecutionDispatcher>() is not { } dispatcher ||
+            services.GetService<IHostTaskExecutionAuthorizer>() is null || services.GetService<IHostTaskExecutor>() is null)
+            return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register an executor and authorizer to enable task submission.");
+        if (request.SessionId is not null && (!UlidTryParse(request.SessionId, out var sessionId) ||
+            services.GetService<InMemorySessionStore>()?.Get(sessionId) is not { } session || session.TenantId.Value != tenant || session.PrincipalId.Value != principal))
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
-        var result = await store.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
-        return result.Conflict
-            ? Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict")
-            : Results.Accepted($"/openconnect/v1/tasks/{result.Task!.Id.Value}", result.Task);
+        var result = await dispatcher.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
+        return result.Status switch
+        {
+            ExecutionAdmissionStatus.Conflict => Results.Problem(statusCode: 409, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict"),
+            ExecutionAdmissionStatus.Unavailable => Results.Problem(statusCode: 503, title: "Task execution is at capacity. Try again shortly."),
+            _ => IdentifierJson(result.Task!, StatusCodes.Status202Accepted, $"/openconnect/v1/tasks/{result.Task!.Id.Value}")
+        };
     }
 
     internal static async Task<IResult> HandleGetTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
@@ -70,7 +90,7 @@ public static class EndpointRouteBuilderExtensions
         var task = await store.GetAsync(value, cancellationToken);
         return task is null || task.TenantId.Value != tenant || task.PrincipalId.Value != principal
             ? Results.Problem(statusCode: 404, title: "Task not found.")
-            : Results.Ok(task);
+            : IdentifierJson(task, StatusCodes.Status200OK);
     }
 
     internal static async Task<IResult> HandleCancelTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
@@ -80,14 +100,17 @@ public static class EndpointRouteBuilderExtensions
         var existing = await store.GetAsync(value, cancellationToken);
         if (existing is null || existing.TenantId.Value != tenant || existing.PrincipalId.Value != principal)
             return Results.Problem(statusCode: 404, title: "Task not found.");
-        return Results.Ok(await store.CancelAsync(value, cancellationToken));
+        var dispatcher = context.RequestServices.GetService<IHostTaskExecutionDispatcher>();
+        if (dispatcher is null) return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
+        var cancelled = await dispatcher.CancelAsync(value, cancellationToken);
+        return cancelled is null ? Results.Json(null, options: OpenConnectHttpJson.CreateOptions()) : IdentifierJson(cancelled, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleCreateSession(HttpContext context, SessionRequest? request, InMemorySessionStore store)
     {
         if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
         var session = store.Create(new TenantId(tenant), new PrincipalId(principal));
-        return Results.Created($"/openconnect/v1/sessions/{session.Id.Value}", session);
+        return IdentifierJson(session, StatusCodes.Status201Created, $"/openconnect/v1/sessions/{session.Id.Value}");
     }
 
     internal static IResult HandleGetSession(string id, HttpContext context, InMemorySessionStore store)
@@ -96,7 +119,7 @@ public static class EndpointRouteBuilderExtensions
         if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
         var session = store.Get(value);
         return session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal
-            ? Results.Problem(statusCode: 404, title: "Session not found.") : Results.Ok(session);
+            ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
@@ -117,6 +140,9 @@ public static class EndpointRouteBuilderExtensions
 
     private static IResult IdentityError() => Results.Problem(statusCode: 403, title: "The authenticated identity is missing required tenant or subject claims.");
 
+    private static IResult IdentifierJson(object value, int statusCode, string? location = null) =>
+        new IdentifierJsonResult(value, statusCode, location);
+
     internal static IResult HandleCapabilities(IServiceProvider services) => Results.Ok(services.GetService<ICapabilityRegistry>()?.GetReady(CapabilityKind.Model) ?? Array.Empty<CapabilityDescriptor>());
 
     internal static IResult HandleComponents(IServiceProvider services) => Results.Ok(services.GetService<IAgentDefinitionRegistry>()?.GetAll() ?? Array.Empty<AgentDefinition>());
@@ -126,8 +152,33 @@ public static class EndpointRouteBuilderExtensions
 
     private static bool UlidTryParse(string? text, out Ulid value)
     {
-        try { value = Ulid.Parse(text ?? string.Empty); return true; }
+        try
+        {
+            var parsed = Ulid.Parse(text ?? string.Empty);
+            if (parsed == default || !string.Equals(parsed.ToString(), text, StringComparison.Ordinal))
+            {
+                value = default;
+                return false;
+            }
+
+            value = parsed;
+            return true;
+        }
         catch (FormatException) { value = default; return false; }
+    }
+
+    private sealed class IdentifierJsonResult(object value, int statusCode, string? location) : IResult
+    {
+        private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
+
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            httpContext.Response.StatusCode = statusCode;
+            httpContext.Response.ContentType = "application/json; charset=utf-8";
+            if (location is not null)
+                httpContext.Response.Headers["Location"] = location;
+            await JsonSerializer.SerializeAsync(httpContext.Response.Body, value, value.GetType(), JsonOptions, httpContext.RequestAborted);
+        }
     }
 }
 
@@ -137,33 +188,34 @@ public sealed record SessionRequest(string? Name = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);
 
 /// <summary>Process-local task/idempotency store, replaceable by durable persistence.</summary>
-public sealed class InMemoryTaskStore
+public sealed class InMemoryTaskStore : ITaskLifecycleStore
 {
-    private readonly ConcurrentDictionary<string, StoredTask> _byKey = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Ulid, TaskRecord> _byId = new();
-
-    internal Task<(TaskRecord? Task, bool Conflict)> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var storeKey = $"{tenant.Value}:{principal.Value}:{key}";
-        while (true)
-        {
-            if (_byKey.TryGetValue(storeKey, out var existing))
-                return Task.FromResult((existing.Fingerprint == fingerprint ? existing.Record : null, existing.Fingerprint != fingerprint));
-
-            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Accepted);
-            var stored = new StoredTask(fingerprint, record);
-            if (!_byKey.TryAdd(storeKey, stored)) continue;
-            _byId[record.Id.Value] = record;
-            return Task.FromResult<(TaskRecord?, bool)>((record, false));
-        }
-    }
 
     internal Task<TaskRecord?> GetAsync(Ulid id, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         _byId.TryGetValue(id, out var task);
         return Task.FromResult(task);
+    }
+
+    internal TaskRecord? Find(Ulid id) => _byId.GetValueOrDefault(id);
+    internal IReadOnlyCollection<TaskRecord> All() => _byId.Values.ToArray();
+    internal void Put(TaskRecord record) => _byId[record.Id.Value] = record;
+    internal bool TryRemove(Ulid id) => _byId.TryRemove(id, out _);
+
+    /// <inheritdoc />
+    public Task<TaskRecord?> TransitionAsync(TaskId taskId, TenantId tenantId, PrincipalId principalId, AgentRunState expectedState, AgentRunState newState, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        while (_byId.TryGetValue(taskId.Value, out var current))
+        {
+            if (current.TenantId != tenantId || current.PrincipalId != principalId || current.State != expectedState)
+                return Task.FromResult<TaskRecord?>(null);
+            var updated = current with { State = newState };
+            if (_byId.TryUpdate(taskId.Value, updated, current)) return Task.FromResult<TaskRecord?>(updated);
+        }
+        return Task.FromResult<TaskRecord?>(null);
     }
 
     internal Task<TaskRecord?> CancelAsync(Ulid id, CancellationToken cancellationToken)
@@ -178,7 +230,6 @@ public sealed class InMemoryTaskStore
         return Task.FromResult<TaskRecord?>(null);
     }
 
-    private sealed record StoredTask(string Fingerprint, TaskRecord Record);
 }
 
 /// <summary>Process-local session and bounded event store.</summary>
@@ -198,6 +249,8 @@ public sealed class InMemorySessionStore
         return session;
     }
     public SessionRecord? Get(Ulid id) => _sessions.GetValueOrDefault(id);
+    internal int Count => _sessions.Count;
+    internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
 
     public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)
