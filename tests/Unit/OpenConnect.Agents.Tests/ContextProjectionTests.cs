@@ -136,6 +136,24 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void RequestAdditional_RejectsMismatchedChildIdentityAndLeavesOriginalUnchanged()
+    {
+        var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [Item("first")], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+        var originalVersion = initial.Version;
+        var originalItems = initial.Items;
+        var originalBudget = initial.TokenBudget;
+        var otherChild = new AgentId("other-child");
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            Builder().RequestAdditional(initial, otherChild, [Item("second")]));
+
+        Assert.Equal(originalVersion, initial.Version);
+        Assert.Equal(originalItems, initial.Items);
+        Assert.Equal(originalBudget, initial.TokenBudget);
+    }
+
+    [Fact]
     public void RequestAdditional_AllowsAnyClassInProjectionAllowlist()
     {
         var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
