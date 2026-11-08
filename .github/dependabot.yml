@@ -1,0 +1,78 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: npm
+    directory: "/packages/client-ts"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: npm
+    directory: "/packages/composer"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: npm
+    directory: "/packages/navigator"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: npm
+    directory: "/packages/navigator-react"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
+
+  - package-ecosystem: uv
+    directory: "/workers/security"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - automated
+    reviewers:
+      - openconnect/maintainers
