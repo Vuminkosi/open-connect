@@ -17,6 +17,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Yaml" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Agents.AI" Version="1.27.0" />
     <PackageVersion Include="NATS.Net" Version="3.3.2" />
+    <PackageVersion Include="NATS.Client" Version="1.1.8" />
 
     <!-- ASP.NET Core -->
     <PackageVersion Include="Microsoft.AspNetCore.App" Version="8.0.11" />
