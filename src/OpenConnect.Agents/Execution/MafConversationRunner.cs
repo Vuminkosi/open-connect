@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
@@ -13,6 +14,8 @@ public sealed class MafConversationRunner
     private readonly SessionTurnConcurrency _concurrency;
     private readonly RunBudgetLedger? _runLedger;
     private readonly List<ChatMessage> _history = [];
+    private AIAgent? _leadAgent;
+    private AgentSession? _leadSession;
     private readonly List<ExecutionTraceRecord> _trace = [];
     private readonly Dictionary<(AgentId Child, string Key), AgentSession> _childSessions = [];
     private readonly Dictionary<(string AgentId, string Key), int> _childHistoryCounts = [];
@@ -68,7 +71,21 @@ public sealed class MafConversationRunner
             // Fail before invoking MAF or recording trace/history when no monotonic sequence remains.
             lock (_sync) _ = checked(_turnSequence + 1);
             ReserveModelCall(prompt);
-            var agent = _factory.CreateAgent(_leadAgentId);
+            var agent = _leadAgent ?? _factory.CreateAgent(_leadAgentId);
+            AgentSession candidateSession;
+            if (_leadSession is null)
+            {
+                candidateSession = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                // The serialized element is an ephemeral in-memory snapshot. Clone it so
+                // its lifetime is independent of any provider-owned JsonDocument.
+                var serializedSession = await agent.SerializeSessionAsync(
+                    _leadSession, cancellationToken: cancellationToken).ConfigureAwait(false);
+                candidateSession = await agent.DeserializeSessionAsync(
+                    serializedSession.Clone(), cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
             executionId = Guid.NewGuid();
             AddTrace(new ExecutionTraceRecord(executionId, null, _leadAgentId.Value, "lead", DateTimeOffset.UtcNow, null));
             lock (_sync)
@@ -76,11 +93,16 @@ public sealed class MafConversationRunner
                 promptIndex = _history.Count;
                 _history.Add(new ChatMessage(ChatRole.User, prompt));
             }
-            ChatMessage[] messages;
-            lock (_sync) messages = _history.ToArray();
-            var response = await agent.RunAsync(messages, cancellationToken: cancellationToken).ConfigureAwait(false);
-            lock (_sync) _history.AddRange(response.Messages);
-            lock (_sync) _turnSequence = checked(_turnSequence + 1);
+            var response = await agent.RunAsync(prompt, candidateSession, cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (_sync)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                _history.AddRange(response.Messages);
+                _turnSequence = checked(_turnSequence + 1);
+                _leadAgent = agent;
+                _leadSession = candidateSession;
+            }
             CompleteTrace(executionId);
             return response;
         }
