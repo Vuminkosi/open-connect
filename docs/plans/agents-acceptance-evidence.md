@@ -383,3 +383,99 @@ and endurance verification stays NOT VERIFIED.
 - S2/S3 production-linkage follow-up CLOSED as documented operator responsibility (not code defect) — SUPPLIED-VERIFIED-BY-LANE.
 - No secrets, no invented CLI flags/endpoints/release numbers/screenshots/support promises are introduced.
 - Anything absent from the supplied evidence is NOT VERIFIED.
+
+---
+
+## Appendix F — Requirement ID → Family → Status Map (SUPPLIED-VERIFIED-BY-LANE)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute; all commands, counts, commits, hashes, and session IDs below are transcribed verbatim as supplied, not re-observed)`
+
+**Amendment status:** IMPLEMENTED (transcription and triage only, not independently verified by this writer). Prior sections (lines 1–385 incl Appendices A/B/C/D/E) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. No VERIFIED / COMMITTED / RELEASED claim is made by this writer; those words below appear only inside the SUPPLIED-VERIFIED-BY-LANE label. Baseline HEAD observed read-only via `git rev-parse`: `ab7dcf27fe9eb47ce8a58e4d390cd3d903d0ba67`, branch `agents-1`.
+
+**Source inventory (all six read fully by this writer):** `docs/plans/agents-requirements.md` (387 lines), `docs/plans/agents-spec.md` (1675 lines), `docs/plans/implementation.md` (2252 lines), `docs/checklist.md` (841 lines), `docs/plans/spec.md` (1937 lines), `docs/plans/requirements.md` (714 lines). Every ID range below was observed in at least one of these docs; no IDs were invented. Truncated IDs stay truncated.
+
+### Scoped PASS families (only rows promoted; every other row stays NOT VERIFIED)
+
+| Requirement ID range | Family | Status | Exact evidence |
+|---|---|---|---|
+| DATA EF strict-provider (covers OC2-D-DATA / AG2X-REQ-DATA / OC2-REQ-DATA provider behavior only) | DATA EF strict-provider | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: `dotnet test ...Persistence.EFCore.Tests... -c Release --no-restore --filter "FullyQualifiedName~MigratedTopologyTests"` exit 0, 5/5; `... --filter "FullyQualifiedName~PostgresSmokeTests\|FullyQualifiedName~SqlServerSmokeTests"` exit 0, 6/6, strict true, live PG 127.0.0.1:27781 + MSSQL 127.0.0.1:27782; commits `44153bb`, `c1289e3`, `eb2900d`; sessions `ses_e437af65` / `ses_e437373b` / `ses_e4370ca7`; reviews migration PASS S3-only, store PASS S2/S3 nonblocking, smoke `ses_e43728e2` PASS S3, wiring `ses_e4343d87` PASS, pinning `ses_e4349f6d` PASS, string 27/27 `ses_e43616967`, requestId `ses_e43880ba` — per Appendix D, not re-executed |
+| Agents scoped units (test family) | Agents | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: full scoped 751/752 — Agents 479 (+1 skip); strict 11/11 live PG/SQL; `dotnet test OpenConnect.Agents.Tests -c Release --no-restore --filter "NativeWorkflowRunnerTests\|NativeWorkflowCheckpointTests\|NativeWorkflowInteractionTests\|MafConversationTests"` exit 0 at `f278bf6` via `ses_e437af88`; interaction guard 10/10+1 skipped at `0fb1df5` via `ses_e435b6574` — per Appendices A/B, not re-executed |
+| Hosting scoped units (test family) | Hosting | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: full scoped 751/752 — Hosting 121; `dotnet test OpenConnect.Hosting.Tests -c Release --no-restore --filter "SessionEventCanonicalTests\|SessionEventCursorTests\|NativeWorkflowApprovalBridgeTests\|DurableBridgeIntegrationTests"` exit 0 (Hosting 55 at `f278bf6` via `ses_e437af88`, DurableBridge 14/14 via `ses_e437d9a1`) — per Appendices A/B, not re-executed |
+| Abstractions scoped units (test family) | Abstractions | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: full scoped 751/752 — Abstractions 56; CanonicalAgentEventTests exit 0 at `32d16be`/`c5d07c7` via `ses_e438...` — per Appendix B, not re-executed |
+| Client scoped units (test family) | Client | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: full scoped 751/752 — Client 23; OpenConnect.Client.Tests 23/23 exit 0 at `95a308f` via `ses_e43d...`; Client TS 18/18 via `npm test vitest` exit 0 at `95a308f` via `ses_e43da...` — per Appendix B, not re-executed |
+| Persistence scoped units (test family) | Persistence | PASS (scoped to this family only) | SUPPLIED-VERIFIED-BY-LANE: full scoped 751/752 — Persistence 72; mapping/wiring/nonce/durable (8+1+8+3+20/20) via `ses_e437af88` at `f278bf6`; stores 34/34 via `ses_e43616967`; mapping 8/8+1/1 via `ses_e439...`/`ses_e43a435e`; nonce 8/8→27/27; wiring 12/12 via `ses_e4399...`; string 20/20 via `ses_e43885968`; durable 10/10 via `ses_e438d9...` — per Appendices A/B, not re-executed |
+
+### Requirement ID ranges — triage (all NOT VERIFIED unless a scoped PASS above applies)
+
+Missing-gate note (applies to every row below): no per-criterion executed command+count+hash re-observed by this writer; aggregate SUPPLIED counts alone do not promote; optional E2E/browser/endurance absent.
+
+| Requirement ID range | Family | Status | Exact evidence |
+|---|---|---|---|
+| AG2-001–007 | AG2 core profiles | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-CFG-001–006 | AG2 config | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-ORCH-001–008 | AG2 orchestration | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-HAR-001–007 | AG2 harness | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-SEC-001–008 | AG2 security | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-LONG-001–008 | AG2 long-running | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-STATE-001–007 | AG2 state | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-DUR-001–006 | AG2 durability | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-UX-001–003 | AG2 UX | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote; optional browser verification absent |
+| AG2-EVAL-001–002 | AG2 evaluation | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2-REL-001–003 | AG2 release | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote; no release assertion made |
+| AG2X-REQ-MAF-001–022 / OC2-D-MAF-001–022 | MAF native ownership | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-CONFIG-001–021 / OC2-D-CONFIG-001–021 | Config/templates | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-AUTH-001–016 / OC2-D-AUTH-001–016 | Auth/tenancy | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-TOOLS-001–025 / OC2-D-TOOLS-001–025 | Tools/MCP/skills | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-SESSION-001–018 / OC2-D-SESSION-001–018 | Session/memory | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-DURABLE-001–017 / OC2-D-DURABLE-001–017 | Durable backend | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-ACK-001–019 / OC2-D-ACK-001–019 | ACK/progress | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-EVENTS-001–016 / OC2-D-EVENTS-001–016 | Events/NATS | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-DATA-001–028 / OC2-D-DATA-001–028 | DATA (non-provider criteria) | NOT VERIFIED | Scoped provider PASS above covers strict-provider behavior only; all other per-criterion DATA claims lack executed command+count+hash and stay NOT VERIFIED |
+| AG2X-REQ-PRIVACY-001–023 / OC2-D-PRIVACY-001–023 | Privacy/firewall | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-CLIENT-001–021 / OC2-D-CLIENT-001–021 | Client/TS | NOT VERIFIED | Scoped Client unit PASS above covers unit families only; per-criterion claims stay NOT VERIFIED; optional browser/E2E absent |
+| AG2X-REQ-OBS-001–017 / OC2-D-OBS-001–017 | Observability | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-TFM-001–013 / OC2-D-TFM-001–013 | Target frameworks | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-EXT-001–011 / OC2-D-EXT-001–011 | External integrations | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| AG2X-REQ-VOICE-001–014 / OC2-D-VOICE-001–014 | Voice | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| OC2-REQ-SYS-001–015 | Framework system | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| OC2-REQ-GOV-001–016 / OC2-D-GOV-001–016 | Governance | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| OC2-REQ-BROWSER-001–014 / OC2-D-BROWSER-001–014 | Browser | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; optional browser verification absent |
+| OC2-REQ-REL-001–027 / OC2-D-REL-001–027 | Release | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; no release assertion made |
+| OC2-REQ-WORKERS-001–018 / OC2-D-WORKERS-001–018 | Workers | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote |
+| OC2-REQ-CODE-012 (single example token, not a range) | Code mapping example | NOT VERIFIED | Cited in requirements.md as a mapping example only; no CODE task family observed in implementation/checklist |
+| OC2-D-AREA-001 (checklist only) | Traceability | NOT VERIFIED | Single item observed in checklist; no per-criterion executed evidence re-observed |
+| OC2-AT-001–071 | Acceptance tests | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; aggregate SUPPLIED counts alone do not promote; optional E2E/browser/endurance absent |
+| OC2-IMP-001, 003, 007–020 (observed IDs; 002/004/005/006 not observed as IDs) | Implementation pkgs | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; ownership refs cite 001–003 as range text only |
+| OC-MSTR-001–008 (observed 001, 002, 003, 005, 006, 007, 008; 004 not observed) | Master requirements | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; ownership refs cite 001–015 as range text only |
+| OC-EF-001–096 (range text in checklist; single OC-EF-001 token) | EF requirements | NOT VERIFIED | Range text preserved as observed; per-criterion EF claims beyond the scoped DATA EF PASS stay NOT VERIFIED |
+| OC-ARC-*, OC-CFG-*, OC-AGT-*, OC-CAP-*, OC-PRV-*, OC-EVT-*, OC-API-*, OC-CLI-*, OC-REL-* (§5.8 wildcards) | Legacy framework fams | NOT VERIFIED | Wildcard family refs observed in checklist §5.8; map-to-current-families work has no per-criterion executed evidence re-observed |
+| EF-IMP-001–016, OC-FW-001–064, IMP-001–006, IMP-080–089 (§5.8 range text) | Legacy impl/fw/test | NOT VERIFIED | Range text preserved as observed; no per-criterion executed evidence re-observed |
+| AG-REQ-001–116, AG-IMP-001–020, AG-AT-001–040 (scope-map range text, agents-requirements) | Legacy agent scope | NOT VERIFIED | Range text preserved as observed; scope-mapped into agents-spec/checklist; unverified items not marked passed |
+| AG-REQ-001–030 (starter-list range text) | Legacy agent reqs | NOT VERIFIED | Range text preserved as observed; observed tokens: AG-REQ-001 (agents docs), AG-REQ-050 (spec), AG-REQ-001/009/020/037/049/067/083 (checklist headers) |
+| AG-IMP-001 (single token, agents docs + checklist) | Legacy agent impl | NOT VERIFIED | No per-criterion executed evidence re-observed |
+| AG-AT-001–040 (requirements.md + checklist) | Legacy agent accept | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; AG-AT-001/020 tokens also observed in spec |
+| AG2-IMP-001–011 (agents-spec) | Agent impl pkgs | NOT VERIFIED | No per-criterion executed command+count+hash re-observed |
+| AG2-AT-001–030 (agents-spec) | Agent acceptance | NOT VERIFIED | No per-criterion executed command+count+hash re-observed; AG2-REL-003 starts NOT RUN until evidence recorded |
+
+### Supplied aggregate counts recorded as-supplied (mapping unstated → rows stay NOT VERIFIED)
+
+- 751/752 full scoped: Agents 479 (+1 skip), Hosting 121, Abstractions 56, Client 23, Persistence 72; strict 11/11 live PG/SQL — SUPPLIED-VERIFIED-BY-LANE (scoped family PASS above; no per-requirement mapping stated, so no ID row is promoted by these totals).
+- 27/27, 25/25, 20/20, 10/10, 23/23, 18/18 — SUPPLIED-VERIFIED-BY-LANE as supplied aggregate counts; per-family mapping not stated, so all related ID rows stay NOT VERIFIED.
+
+### Explicit scope limits (no inflation)
+
+- Scoped PASS applies to the six named families only; every requirement-ID-range row above is NOT VERIFIED.
+- No global production-readiness claim is made; no secure, fully tested, accessible, or production-ready assertion.
+- Optional live end-to-end, browser, and endurance verification: NOT VERIFIED.
+- S2/S3 OPEN follow-ups remain as recorded in Appendices A/B/D; verification lane owns disposition.
+- No secrets, no invented CLI flags/endpoints/release numbers/screenshots/support promises/session IDs/commits/counts/requirement IDs.
+- No relative links introduced; no existing links altered.
+- Truncated IDs transcribed as-supplied and NOT expanded.
+- Anything absent from the supplied evidence is NOT VERIFIED.
+
+### Amendment guardrails
+
+- This appendix is append-only; prior lines and Appendices A–E are preserved byte-identical.
+- Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix F or earlier content.
+- PASS promotion beyond the six scoped families requires executed command+count+hash evidence observed by the verification lane, not aggregate SUPPLIED counts.
+- The verification lane owns VERIFIED/COMMITTED/RELEASED promotion; this writer claims none.
