@@ -36,10 +36,12 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
             if (File.Exists(scriptPath)) File.Delete(scriptPath);
         }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
-        Assert.Equal(10, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
-        Assert.Equal(10, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
-        Assert.Equal(10, db.Model.GetEntityTypes().Count());
+        Assert.Equal(12, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
+        Assert.Equal(12, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
+        Assert.Equal(12, db.Model.GetEntityTypes().Count());
         Assert.Contains("NativeAgentSessions", script);
+        Assert.Contains("PublicSessionMappings", script);
+        Assert.Contains("ApprovalNonces", script);
     }
 
     [Fact]

@@ -41,10 +41,10 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             if (File.Exists(scriptPath)) File.Delete(scriptPath);
         }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
-        Assert.Equal(10, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
-        // PgContext defines no business entities; 10 = all OpenConnect tables, zero coupling
-        Assert.Equal(10, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
-        Assert.Equal(10, db.Model.GetEntityTypes().Count());
+        Assert.Equal(12, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
+        // PgContext defines no business entities; 12 = all OpenConnect tables, zero coupling
+        Assert.Equal(12, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
+        Assert.Equal(12, db.Model.GetEntityTypes().Count());
         Assert.Contains("NativeAgentSessions", script);
     }
 
@@ -54,9 +54,9 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         if (!await ServiceAvailableAsync()) return;
         using var pgContext = CreateContext();
         var sql = pgContext.Database.GenerateCreateScript();
-        var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns", "NativeAgentSessions" };
+        var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns", "NativeAgentSessions", "PublicSessionMappings", "ApprovalNonces" };
         Assert.All(expectedTables, table => Assert.Contains($"openconnect.\"{table}\"", sql));
-        Assert.Equal(10, System.Text.RegularExpressions.Regex.Matches(sql, "CREATE TABLE").Count);
+        Assert.Equal(12, System.Text.RegularExpressions.Regex.Matches(sql, "CREATE TABLE").Count);
         Assert.DoesNotContain("Customers", sql);
         Assert.DoesNotContain("Orders", sql);
     }
