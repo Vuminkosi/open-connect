@@ -1,6 +1,6 @@
 # Agents acceptance evidence (point-in-time)
 
-Scope: AG-AT-001–040 for the Agents slice ONLY (`src/OpenConnect.Agents` + Abstractions agent enums/DTOs + Core options/validation/binder and their tests). Out of scope: Tools/Sessions/Persistence/Hosting/Transport/Privacy/Observability/Clients/workers/packages/infra/pipelines/live services. Status date: 2026-11-08 (UTC). Baseline: `5739dfa7076b87880d2eb1e3d1f6a43085f4dcc6` (observed HEAD). Method: per-project Release test commands: `dotnet test tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj -c Release` and `dotnet test tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj -c Release`. SDK line: `8.0.427` (recorded by prior map; not re-probed in this refresh). Target: `net8.0`.
+Scope: AG-AT-001–040 for the Agents slice ONLY (`src/OpenConnect.Agents` + Abstractions agent enums/DTOs + Core options/validation/binder and their tests). Out of scope: Tools/Sessions/Persistence/Hosting/Transport/Privacy/Observability/Clients/workers/packages/infra/pipelines/live services. Status date: 2026-11-08 (UTC). Baseline (evidence observed at): `f36fc0fc0881ec9b8391933af1a855e2f4eeb5ea`. Method: per-project Release test commands: `dotnet test tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj -c Release` and `dotnet test tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj -c Release`. SDK line: `8.0.427` (recorded by prior map; not re-probed in this refresh). Target: `net8.0`.
 
 ## Suite totals (observed this task)
 
