@@ -118,12 +118,13 @@ public sealed class RunBudgetLedgerTests
     public async Task AdaptersSharingLedger_EnforceConcurrentLimitAndReleaseAfterCompletion()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var enteredCount = 0;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var registry = new Registry(new AgentDefinition(new AgentId("child"), "child"));
         var client = new Client(async (_, token) =>
         {
-            entered.TrySetResult();
+            if (Interlocked.Increment(ref enteredCount) == 3) entered.TrySetResult();
             await finish.Task.WaitAsync(token);
             return "done";
         });
@@ -140,13 +141,13 @@ public sealed class RunBudgetLedgerTests
                 .Add("MaxTokens", 100).Add("MaxConcurrent", 1).Add("MaxQueued", 2).Add("MaxTotal", 10)
                 .Add("MaxRuntimeTicks", long.MaxValue), CancellationToken = timeout.Token
         };
-        var ledger = new RunBudgetLedger(new AgentBudget(20, 20, 1000, TimeSpan.FromMinutes(1), 1, 2, 10));
+        var ledger = new RunBudgetLedger(new AgentBudget(20, 20, 1000, TimeSpan.FromMinutes(1), 3, 2, 10));
         OrchestrationAdapters MakeAdapter() => new(factory, runner, (_, _, _) => ValueTask.FromResult<DelegationGrant?>(null),
             (_, _) => ValueTask.FromResult(false), 2, ledger);
         var parent = ToTraceId(execution);
         var grant = new DelegationGrant(new AgentId("lead"), new AgentId("child"), 1, new HashSet<ToolId>(),
             new HashSet<string> { "scope" }, new AgentBudget(1, 1, 100, TimeSpan.FromMinutes(1), 1, 2, 10), parent, "policy");
-        var first = MakeAdapter().SequentialRunner(execution, [grant], "run", context);
+        var first = Task.WhenAll(Enumerable.Range(0, 3).Select(_ => MakeAdapter().SequentialRunner(execution, [grant], "run", context)));
         await entered.Task.WaitAsync(timeout.Token);
         await Assert.ThrowsAsync<InvalidOperationException>(() => MakeAdapter().SequentialRunner(execution, [grant], "run", context));
         finish.TrySetResult();

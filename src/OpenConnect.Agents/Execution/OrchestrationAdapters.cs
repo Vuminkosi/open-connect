@@ -205,18 +205,15 @@ public sealed class OrchestrationAdapters
             throw new UnauthorizedAccessException("The execution is expired or authorization has been revoked.");
     }
 
-    /// <summary>Reserves one run-wide child allowance when a ledger was configured.</summary>
+    /// <summary>Atomically reserves one run-wide child allowance and active-child slot when a ledger was configured.</summary>
     /// <exception cref="InvalidOperationException">The run-wide child budget is exhausted.</exception>
     private void AcquireSubagentBudget()
     {
         if (_budgetLedger is null) return;
-        if (!_budgetLedger.TryAcquireActiveChild())
-            throw new InvalidOperationException("The run-wide concurrent subagent limit is exhausted.");
-        if (!_budgetLedger.TryReserveSubagent(1, 0))
-        {
-            _budgetLedger.ReleaseActiveChild();
-            throw new InvalidOperationException("The run-wide subagent budget is exhausted.");
-        }
+        // The ledger checks its own limits and reserves both resources under one lock.
+        if (!_budgetLedger.TryReserveSubagentWithSlot())
+            throw new InvalidOperationException("The run-wide subagent budget or concurrent subagent limit is exhausted.");
+        // The caller must release the slot in its finally block after child completion.
     }
 
     private static AgentExecutionContext CreateChild(AgentExecutionContext parent, OpenConnect.Abstractions.DelegationGrant grant,
