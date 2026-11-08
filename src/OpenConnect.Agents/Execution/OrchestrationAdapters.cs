@@ -5,6 +5,30 @@ using System.Text;
 
 namespace OpenConnect.Agents.Execution;
 
+/// <summary>Describes the settled outcomes of a parallel child run that did not complete successfully.</summary>
+public sealed class ParallelPartialFailureException : Exception
+{
+    /// <summary>Creates a failure carrying the outcomes of every settled child.</summary>
+    public ParallelPartialFailureException(string failedChildId, Exception error,
+        IReadOnlyList<string> completedIds, IReadOnlyList<string> cancelledIds)
+        : base($"Parallel child '{failedChildId}' failed.", error)
+    {
+        FailedChildId = failedChildId;
+        Error = error;
+        CompletedIds = completedIds;
+        CancelledIds = cancelledIds;
+    }
+
+    /// <summary>Gets the identifier of the failed child.</summary>
+    public string FailedChildId { get; }
+    /// <summary>Gets the original failure.</summary>
+    public Exception Error { get; }
+    /// <summary>Gets the identifiers of children that completed successfully.</summary>
+    public IReadOnlyList<string> CompletedIds { get; }
+    /// <summary>Gets the identifiers of children cancelled before completion.</summary>
+    public IReadOnlyList<string> CancelledIds { get; }
+}
+
 /// <summary>Checks current authorization immediately before an execution effect.</summary>
 /// <param name="context">Execution context to verify.</param>
 /// <param name="cancellationToken">Cancellation token for the check.</param>
@@ -91,7 +115,8 @@ public sealed class OrchestrationAdapters
         using var limiter = new SemaphoreSlim(_maxConcurrentSubagents);
         var tasks = grants.Select(async (grant, index) =>
         {
-            await limiter.WaitAsync(scopeCancellation.Token).ConfigureAwait(false);
+            try { await limiter.WaitAsync(scopeCancellation.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return ChildOutcome.Cancelled(grant.ChildAgentId.Value); }
             try
             {
                 try
@@ -102,7 +127,7 @@ public sealed class OrchestrationAdapters
                         using var child = CreateChild(context, grant, scopeCancellation.Token);
                         // Every child gets its own AIAgent instance; no mutable conversation history is shared.
                         var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-                        return ToChildResult(grant, child, response, index);
+                        return ChildOutcome.Completed(grant.ChildAgentId.Value, ToChildResult(grant, child, response, index));
                     }
                     finally { _budgetLedger?.ReleaseActiveChild(); }
                 }
@@ -112,20 +137,29 @@ public sealed class OrchestrationAdapters
                     throw;
                 }
             }
+            catch (OperationCanceledException) when (scopeCancellation.IsCancellationRequested)
+            {
+                return ChildOutcome.Cancelled(grant.ChildAgentId.Value);
+            }
+            catch (Exception exception)
+            {
+                scopeCancellation.Cancel();
+                return ChildOutcome.Failed(grant.ChildAgentId.Value, exception);
+            }
             finally { limiter.Release(); }
         }).ToArray();
-        try
+        var outcomes = await Task.WhenAll(tasks).ConfigureAwait(false);
+        var failures = outcomes.Where(outcome => outcome.Error is not null).ToArray();
+        if (failures.Length > 0)
         {
-            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-            return ResultMerger.Merge(results, ToTraceId(parent), context.TenantScope, mergeMode);
+            var failure = failures[0];
+            throw new ParallelPartialFailureException(failure.ChildId, failure.Error!,
+                outcomes.Where(outcome => outcome.Result is not null).Select(outcome => outcome.ChildId).ToArray(),
+                outcomes.Where(outcome => outcome.IsCancelled).Select(outcome => outcome.ChildId).ToArray());
         }
-        catch
-        {
-            scopeCancellation.Cancel();
-            try { await Task.WhenAll(tasks).ConfigureAwait(false); }
-            catch { /* Observe every sibling failure; each child context is disposed by its owner. */ }
-            throw;
-        }
+        context.CancellationToken.ThrowIfCancellationRequested();
+        return ResultMerger.Merge(outcomes.Where(outcome => outcome.Result is not null).Select(outcome => outcome.Result!).ToArray(),
+            ToTraceId(parent), context.TenantScope, mergeMode);
     }
 
     /// <summary>Handoff transfers only the caller-supplied projection; shared conversation history is not passed to the child.</summary>
@@ -238,6 +272,13 @@ public sealed class OrchestrationAdapters
     private static ChildResult ToChildResult(OpenConnect.Abstractions.DelegationGrant grant, AgentExecutionContext child,
         AgentResponse response, int order) => new(grant.ChildAgentId, child.AgentExecutionId, response, order,
         grant.ParentExecutionId, order, child.TenantScope, grant.EffectiveScopes);
+
+    private sealed record ChildOutcome(string ChildId, ChildResult? Result, Exception? Error, bool IsCancelled)
+    {
+        public static ChildOutcome Completed(string id, ChildResult result) => new(id, result, null, false);
+        public static ChildOutcome Failed(string id, Exception error) => new(id, null, error, false);
+        public static ChildOutcome Cancelled(string id) => new(id, null, null, true);
+    }
 
     private static void ValidateMergeMode(AgentResultMergeMode mode)
     {

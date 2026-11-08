@@ -33,7 +33,11 @@ public sealed class RevocationTests
         var completed = await Task.WhenAny(run, Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token));
 
         Assert.Same(run, completed);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => run);
+        var failure = await Assert.ThrowsAsync<ParallelPartialFailureException>(() => run);
+        Assert.IsType<UnauthorizedAccessException>(failure.Error);
+        Assert.Same(failure.Error, failure.InnerException);
+        Assert.Empty(failure.CompletedIds);
+        Assert.Empty(failure.CancelledIds);
         Assert.Equal(0, client.CallCount);
         Assert.Empty(conversation.GetTrace());
     }

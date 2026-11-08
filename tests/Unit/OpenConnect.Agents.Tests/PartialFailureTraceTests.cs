@@ -9,6 +9,20 @@ namespace OpenConnect.Agents.Tests;
 public sealed class PartialFailureTraceTests
 {
     [Fact]
+    public void Parallel_partial_failure_exposes_original_error_and_settled_child_provenance()
+    {
+        var originalError = new InvalidOperationException("child failed");
+        var failure = new ParallelPartialFailureException("child-failed", originalError,
+            ["child-completed"], ["child-cancelled"]);
+
+        Assert.Same(originalError, failure.Error);
+        Assert.Same(originalError, failure.InnerException);
+        Assert.Equal("child-failed", failure.FailedChildId);
+        Assert.Equal(new[] { "child-completed" }, failure.CompletedIds);
+        Assert.Equal(new[] { "child-cancelled" }, failure.CancelledIds);
+    }
+
+    [Fact]
     public async Task Parallel_partial_failure_preserves_both_child_traces()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
@@ -27,9 +41,14 @@ public sealed class PartialFailureTraceTests
         });
         var (runner, adapters, context, execution) = Create(client, "child-a", "child-b");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => adapters.ParallelRunner(execution,
+        var failure = await Assert.ThrowsAsync<ParallelPartialFailureException>(() => adapters.ParallelRunner(execution,
             Grants(execution, "child-a", "child-b"), "run", context, AgentResultMergeMode.OrderedTypedResults)
             .WaitAsync(timeout.Token));
+        Assert.IsType<InvalidOperationException>(failure.Error);
+        Assert.Same(failure.Error, failure.InnerException);
+        Assert.Equal("child-b", failure.FailedChildId);
+        Assert.Equal(new[] { "child-a" }, failure.CompletedIds);
+        Assert.Empty(failure.CancelledIds);
 
         var children = runner.GetTrace().Where(trace => trace.Kind == "agent").ToArray();
         Assert.Equal(new[] { "child-a", "child-b" }, children.Select(trace => trace.AgentId).Order().ToArray());
@@ -40,6 +59,7 @@ public sealed class PartialFailureTraceTests
         });
         Assert.Equal(2, children.Select(trace => trace.Id).Distinct().Count());
         Assert.Empty(runner.History);
+        Assert.DoesNotContain(runner.GetTrace(), trace => trace.Kind == "success");
     }
 
     [Fact]

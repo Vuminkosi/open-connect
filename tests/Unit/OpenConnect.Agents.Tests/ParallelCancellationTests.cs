@@ -15,10 +15,12 @@ public sealed class ParallelCancellationTests
         var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var siblingCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var siblingStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completedChild = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var callCount = 0;
         var registry = new TestRegistry(
             new AgentDefinition(new AgentId("fail"), "fail"),
-            new AgentDefinition(new AgentId("wait"), "wait"));
+            new AgentDefinition(new AgentId("wait"), "wait"),
+            new AgentDefinition(new AgentId("done"), "done"));
         var client = new TestChatClient(async (_, cancellationToken) =>
         {
             if (Interlocked.Increment(ref callCount) == 1)
@@ -28,18 +30,15 @@ public sealed class ParallelCancellationTests
                 throw new InvalidOperationException("expected child failure");
             }
 
-            siblingStarted.TrySetResult();
-            await failed.Task.WaitAsync(cancellationToken);
-            try
+            if (callCount == 2)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-                return "unreachable";
+                siblingStarted.TrySetResult();
+                await failed.Task.WaitAsync(cancellationToken);
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); return "unreachable"; }
+                catch (OperationCanceledException) { siblingCancelled.TrySetResult(); throw; }
             }
-            catch (OperationCanceledException)
-            {
-                siblingCancelled.TrySetResult();
-                throw;
-            }
+            completedChild.TrySetResult();
+            return "completed";
         });
         var factory = new MafRealAgentFactory(registry, client);
         var lead = new AgentId("lead");
@@ -53,23 +52,29 @@ public sealed class ParallelCancellationTests
             Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
             RemainingBudgets = ImmutableDictionary<string, long>.Empty
                 .Add("MaxToolCalls", 1).Add("MaxModelCalls", 1).Add("MaxTokens", 100)
-                .Add("MaxConcurrent", 2).Add("MaxQueued", 2).Add("MaxTotal", 2).Add("MaxRuntimeTicks", long.MaxValue),
+                .Add("MaxConcurrent", 3).Add("MaxQueued", 3).Add("MaxTotal", 3).Add("MaxRuntimeTicks", long.MaxValue),
             CancellationToken = timeout.Token
         };
         var adapters = new OrchestrationAdapters(factory, runner,
-            (_, _, _) => ValueTask.FromResult<DelegationGrant?>(null), (_, _) => ValueTask.FromResult(false), 2);
+            (_, _, _) => ValueTask.FromResult<DelegationGrant?>(null), (_, _) => ValueTask.FromResult(false), 3);
         var parentTraceId = ToTraceId(executionId);
         var grants = new[]
         {
-            Grant("fail", parentTraceId), Grant("wait", parentTraceId)
+            Grant("fail", parentTraceId), Grant("wait", parentTraceId), Grant("done", parentTraceId)
         };
 
         var execution = adapters.ParallelRunner(executionId, grants, "run", context, AgentResultMergeMode.OrderedTypedResults);
         var completed = await Task.WhenAny(execution, Task.Delay(Timeout.InfiniteTimeSpan, timeout.Token));
         Assert.Same(execution, completed);
-        await Assert.ThrowsAnyAsync<Exception>(() => execution);
+        var exception = await Assert.ThrowsAsync<ParallelPartialFailureException>(() => execution);
+        Assert.Equal("fail", exception.FailedChildId);
+        Assert.IsType<InvalidOperationException>(exception.Error);
+        Assert.Equal(new[] { "done" }, exception.CompletedIds);
+        Assert.Equal(new[] { "wait" }, exception.CancelledIds);
         Assert.True(siblingCancelled.Task.IsCompletedSuccessfully, "The sibling should observe scope cancellation.");
-        Assert.All(runner.GetTrace(), trace => Assert.NotNull(trace.CompletedAt));
+        Assert.True(completedChild.Task.IsCompletedSuccessfully);
+        Assert.Contains(runner.GetTrace(), trace => trace.AgentId == "done" && trace.CompletedAt is not null);
+        Assert.Contains(runner.GetTrace(), trace => trace.AgentId == "wait" && trace.CompletedAt is not null);
     }
 
     private static DelegationGrant Grant(string child, Guid parent) => new(
