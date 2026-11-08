@@ -207,10 +207,26 @@ public sealed class TemplateRegistry
 
     private static void EnsureNarrows(AgentTemplate child, AgentTemplate parent)
     {
+        var budgetViolation = GetBudgetViolation(child.Budget, parent.Budget);
+        if (budgetViolation is not null)
+            throw new InvalidOperationException($"Template '{child.Id}' widens budget field '{budgetViolation.Value.Field}' from {budgetViolation.Value.ChildValue} to {budgetViolation.Value.ParentValue} relative to base '{parent.Id}'.");
+
         if (!child.AllowedToolIds.IsSubsetOf(parent.AllowedToolIds) ||
-            !(child.AllowedScopes ?? new HashSet<string>(StringComparer.Ordinal)).IsSubsetOf(parent.AllowedScopes ?? new HashSet<string>(StringComparer.Ordinal)) ||
-            !BudgetNarrows(child.Budget, parent.Budget))
-            throw new InvalidOperationException($"Template '{child.Id}' widens the capabilities or budget of base '{parent.Id}'.");
+            !(child.AllowedScopes ?? new HashSet<string>(StringComparer.Ordinal)).IsSubsetOf(parent.AllowedScopes ?? new HashSet<string>(StringComparer.Ordinal)))
+            throw new InvalidOperationException($"Template '{child.Id}' widens the capabilities of base '{parent.Id}'.");
+    }
+
+    private static (string Field, object ChildValue, object ParentValue)? GetBudgetViolation(AgentBudget child, AgentBudget parent)
+    {
+        if (child.MaxToolCalls > parent.MaxToolCalls) return (nameof(child.MaxToolCalls), child.MaxToolCalls, parent.MaxToolCalls);
+        if (child.MaxModelCalls > parent.MaxModelCalls) return (nameof(child.MaxModelCalls), child.MaxModelCalls, parent.MaxModelCalls);
+        if (child.MaxTokens > parent.MaxTokens) return (nameof(child.MaxTokens), child.MaxTokens, parent.MaxTokens);
+        if (child.MaxConcurrentAgents > parent.MaxConcurrentAgents) return (nameof(child.MaxConcurrentAgents), child.MaxConcurrentAgents, parent.MaxConcurrentAgents);
+        if (child.MaxQueuedAgents > parent.MaxQueuedAgents) return (nameof(child.MaxQueuedAgents), child.MaxQueuedAgents, parent.MaxQueuedAgents);
+        if (child.MaxTotalAgents > parent.MaxTotalAgents) return (nameof(child.MaxTotalAgents), child.MaxTotalAgents, parent.MaxTotalAgents);
+        if (parent.MaxRuntime is not null && (child.MaxRuntime is null || child.MaxRuntime > parent.MaxRuntime))
+            return (nameof(child.MaxRuntime), child.MaxRuntime?.ToString() ?? "unlimited", parent.MaxRuntime.Value.ToString());
+        return null;
     }
 
     private static bool BudgetNarrows(AgentBudget child, AgentBudget parent) =>
