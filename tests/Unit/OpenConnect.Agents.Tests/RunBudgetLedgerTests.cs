@@ -32,6 +32,35 @@ public sealed class RunBudgetLedgerTests
     }
 
     [Fact]
+    public async Task CombinedReservations_NeverExceedConcurrencyAndDebitOnlySuccessfulChildren()
+    {
+        var ledger = new RunBudgetLedger(Budget(subagents: 8));
+        using var barrier = new Barrier(8);
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() =>
+        {
+            barrier.SignalAndWait();
+            return ledger.TryReserveSubagentWithSlot();
+        })));
+
+        Assert.Equal(3, results.Count(x => x));
+        Assert.Equal(5, ledger.Remaining.MaxTotalAgents);
+        Assert.False(ledger.TryReserveSubagentWithSlot());
+        Assert.Equal(5, ledger.Remaining.MaxTotalAgents);
+        for (var i = 0; i < 3; i++) Assert.True(ledger.ReleaseActiveChild());
+        Assert.False(ledger.ReleaseActiveChild());
+    }
+
+    [Fact]
+    public void CombinedReservation_WhenTotalBudgetExhausted_DoesNotAcquireSlot()
+    {
+        var ledger = new RunBudgetLedger(Budget(subagents: 0));
+
+        Assert.False(ledger.TryReserveSubagentWithSlot());
+        Assert.Equal(0, ledger.Remaining.MaxTotalAgents);
+        Assert.False(ledger.ReleaseActiveChild());
+    }
+
+    [Fact]
     public void ToolAndModelCalls_RespectIndependentCaps()
     {
         var ledger = new RunBudgetLedger(Budget());

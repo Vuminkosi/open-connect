@@ -42,7 +42,10 @@ public sealed class RunBudgetLedger
         }
     }
 
-    /// <summary>Atomically reserves one child, subject to total, concurrent and queued run limits.</summary>
+    /// <summary>
+    /// Legacy budget-only reservation. Caller counts are advisory and are not ledger-owned; this method
+    /// must not be used to admit an active child. Use <see cref="TryReserveSubagentWithSlot"/> instead.
+    /// </summary>
     /// <param name="activeCount">Number of currently active children, including the proposed child if it starts immediately.</param>
     /// <param name="queuedCount">Number of children currently queued before this reservation.</param>
     /// <returns>True when reserved; false when any applicable limit is exhausted.</returns>
@@ -59,7 +62,25 @@ public sealed class RunBudgetLedger
         }
     }
 
-    /// <summary>Acquires one active-child slot shared by all adapters using this run ledger.</summary>
+    /// <summary>Atomically reserves one child allowance and one active slot using ledger-owned counters.</summary>
+    /// <returns>True when both resources are reserved; false with no partial reservation otherwise.</returns>
+    public bool TryReserveSubagentWithSlot()
+    {
+        lock (_sync)
+        {
+            if (_subagents >= _limit.MaxTotalAgents || _activeChildren >= _limit.MaxConcurrentAgents)
+                return false;
+
+            _subagents++;
+            _activeChildren++;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Acquires an active-child slot without reserving child budget. For admission, use
+    /// <see cref="TryReserveSubagentWithSlot"/> to avoid partial reservations and caller-count races.
+    /// </summary>
     /// <returns>True when a slot is available; false when the concurrent-child limit is exhausted.</returns>
     public bool TryAcquireActiveChild()
     {
