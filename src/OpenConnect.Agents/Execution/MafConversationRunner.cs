@@ -15,6 +15,8 @@ public sealed class MafConversationRunner
     private readonly List<ChatMessage> _history = [];
     private readonly List<ExecutionTraceRecord> _trace = [];
     private readonly Dictionary<(AgentId Child, string Key), AgentSession> _childSessions = [];
+    private readonly Dictionary<(string AgentId, string Key), int> _childHistoryCounts = [];
+    private long _turnSequence;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _turnGate = new(1, 1);
 
@@ -76,6 +78,7 @@ public sealed class MafConversationRunner
             lock (_sync) messages = _history.ToArray();
             var response = await agent.RunAsync(messages, cancellationToken: cancellationToken).ConfigureAwait(false);
             lock (_sync) _history.AddRange(response.Messages);
+            lock (_sync) _turnSequence = checked(_turnSequence + 1);
             CompleteTrace(executionId);
             return response;
         }
@@ -141,11 +144,43 @@ public sealed class MafConversationRunner
         AddTrace(new ExecutionTraceRecord(keyedExecutionId, parentExecutionId, childAgentId.Value, "agent", DateTimeOffset.UtcNow, null));
         try
         {
-            return await agent.RunAsync(prompt, session).ConfigureAwait(false);
+            var response = await agent.RunAsync(prompt, session).ConfigureAwait(false);
+            lock (_sync)
+            {
+                var countKey = (childAgentId.Value, childSessionKey);
+                _childHistoryCounts.TryGetValue(countKey, out var count);
+                _childHistoryCounts[countKey] = checked(count + 1);
+            }
+            return response;
         }
         finally
         {
             CompleteTrace(keyedExecutionId);
+        }
+    }
+
+    /// <summary>Exports opaque checkpoint metadata without copying MAF transcript contents.</summary>
+    public ConversationCheckpoint ExportCheckpoint(string sessionKey)
+    {
+        lock (_sync)
+        {
+            var children = _childHistoryCounts.Select(item =>
+                new ChildSessionCheckpoint(item.Key.AgentId, item.Key.Key, item.Value));
+            return ConversationCheckpointCodec.Export(_leadAgentId.Value, sessionKey, _turnSequence, children);
+        }
+    }
+
+    /// <summary>Imports compatible counters into an empty runner; it does not reconstruct MAF-owned sessions.</summary>
+    public void ImportCheckpoint(ConversationCheckpoint checkpoint, string sessionKey)
+    {
+        var validated = ConversationCheckpointCodec.Import(checkpoint, _leadAgentId.Value, sessionKey);
+        lock (_sync)
+        {
+            if (_history.Count != 0 || _trace.Count != 0 || _turnSequence != 0 || _childSessions.Count != 0)
+                throw new InvalidOperationException("A checkpoint can only be imported into a new conversation runner.");
+            _turnSequence = validated.TurnSequence;
+            foreach (var child in validated.ChildSessions)
+                _childHistoryCounts.Add((child.AgentId, child.SessionKey), child.HistoryCount);
         }
     }
 

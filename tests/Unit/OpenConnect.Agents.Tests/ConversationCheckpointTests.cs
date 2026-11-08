@@ -1,0 +1,113 @@
+using Microsoft.Extensions.AI;
+using OpenConnect.Abstractions;
+using OpenConnect.Agents.Execution;
+using Xunit;
+
+namespace OpenConnect.Agents.Tests;
+
+public sealed class ConversationCheckpointTests
+{
+    [Fact]
+    public async Task Import_into_new_runner_continues_sequence_without_copying_history()
+    {
+        var first = CreateRunner();
+        await first.TurnAsync("private transcript");
+        var checkpoint = first.ExportCheckpoint("conversation-1");
+
+        var resumed = CreateRunner();
+        resumed.ImportCheckpoint(checkpoint, "conversation-1");
+        Assert.Empty(resumed.History);
+        await resumed.TurnAsync("next");
+
+        Assert.Equal(2, resumed.ExportCheckpoint("conversation-1").TurnSequence);
+        Assert.DoesNotContain(checkpoint.ToString(), "private transcript", StringComparison.Ordinal);
+        Assert.DoesNotContain(resumed.History, message => message.Text == "private transcript");
+    }
+
+    [Fact]
+    public void Import_rejects_incompatible_version()
+    {
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 3, []) with { Version = "oc-checkpoint/v99" };
+        Assert.Throws<NotSupportedException>(() => ConversationCheckpointCodec.Import(checkpoint, "lead", "session"));
+    }
+
+    [Theory]
+    [InlineData("another-lead", "session")]
+    [InlineData("lead", "another-session")]
+    public void Import_rejects_cross_lead_or_session_mixing(string lead, string session)
+    {
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, []);
+        Assert.Throws<InvalidOperationException>(() => ConversationCheckpointCodec.Import(checkpoint, lead, session));
+    }
+
+    [Fact]
+    public void Export_and_import_allow_same_key_for_distinct_child_agents()
+    {
+        ChildSessionCheckpoint[] children =
+        [
+            new("child-a", "shared-key", 2),
+            new("child-b", "shared-key", 4)
+        ];
+
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 1, children);
+        var imported = ConversationCheckpointCodec.Import(checkpoint, "lead", "session");
+
+        Assert.Equal(children, imported.ChildSessions);
+    }
+
+    [Fact]
+    public void Export_and_import_reject_duplicate_child_agent_and_key_pair()
+    {
+        ChildSessionCheckpoint[] children =
+        [
+            new("child-a", "same-key", 2),
+            new("child-a", "same-key", 4)
+        ];
+
+        Assert.Throws<ArgumentException>(() =>
+            ConversationCheckpointCodec.Export("lead", "session", 1, children));
+
+        var invalidCheckpoint = ConversationCheckpointCodec.Export("lead", "session", 1, []) with
+        {
+            ChildSessions = children
+        };
+        Assert.Throws<ArgumentException>(() =>
+            ConversationCheckpointCodec.Import(invalidCheckpoint, "lead", "session"));
+    }
+
+    [Fact]
+    public async Task Import_rejects_nonempty_runner()
+    {
+        var runner = CreateRunner();
+        await runner.TurnAsync("existing");
+        var checkpoint = ConversationCheckpointCodec.Export("lead", "session", 2, []);
+        Assert.Throws<InvalidOperationException>(() => runner.ImportCheckpoint(checkpoint, "session"));
+    }
+
+    private static MafConversationRunner CreateRunner() => new(
+        new MafRealAgentFactory(new TestRegistry(), new TestChatClient()), new AgentId("lead"));
+
+    private sealed class TestRegistry : IAgentDefinitionRegistry
+    {
+        private readonly AgentDefinition _definition = new(new AgentId("lead"), "Lead");
+        public AgentDefinition? Get(AgentId id) => id == _definition.Id ? _definition : null;
+        public IReadOnlyList<AgentDefinition> GetAll() => [_definition];
+        public void Register(AgentDefinition value) => throw new NotSupportedException();
+    }
+
+    private sealed class TestChatClient : IChatClient
+    {
+        public ChatClientMetadata Metadata { get; } = new("checkpoint-test");
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(new ChatResponse(
+                new ChatMessage(ChatRole.Assistant, "response")));
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "response");
+            await Task.CompletedTask;
+        }
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+}
