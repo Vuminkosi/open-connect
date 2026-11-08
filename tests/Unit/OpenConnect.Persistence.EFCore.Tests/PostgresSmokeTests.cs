@@ -64,8 +64,27 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     public async Task PostgresSmoke_RoundTrip_persists_openconnect_workflows()
     {
         if (!await ServiceAvailableAsync()) return;
-        await using var db = CreateContext();
-        await db.Database.EnsureCreatedAsync();
+        if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
+        {
+            output.WriteLine("SKIP Postgres round-trip smoke test: an explicitly configured disposable PostgreSQL fixture is required for isolated database creation.");
+            return;
+        }
+
+        var database = $"oc_smoke_roundtrip_{Guid.NewGuid():N}";
+        var connectionString = new NpgsqlConnectionStringBuilder(ConfiguredConnectionString)
+        {
+            Database = database,
+            Pooling = false,
+            Timeout = 15
+        }.ConnectionString;
+        var databaseCreated = false;
+        Exception? testFailure = null;
+        try
+        {
+            await CreateIsolatedDatabaseAsync(database);
+            databaseCreated = true;
+            await using var db = CreateContext(connectionString);
+            await db.Database.EnsureCreatedAsync();
         var scope = new TenantId(Ulid.NewUlid());
         var principal = new PrincipalId(Ulid.NewUlid());
         var sessionId = new SessionId(Ulid.NewUlid());
@@ -95,6 +114,23 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         var encrypted = new byte[] { 1, 2, 3 };
         await vault.StoreAsync(new("pg-token", scope, "principal", sessionId, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
         Assert.Equal(encrypted, (await vault.GetAsync("pg-token", scope))!.EncryptedValue);
+        }
+        catch (Exception exception)
+        {
+            testFailure = exception;
+            throw;
+        }
+        finally
+        {
+            if (databaseCreated)
+            {
+                try { await DropIsolatedDatabaseAsync(database); }
+                catch (Exception exception) when (testFailure is not null)
+                {
+                    output.WriteLine($"Postgres isolated smoke database cleanup failed ({exception.GetType().Name}); the original test failure is preserved.");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -212,8 +248,14 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
 
     private static void ValidateIsolatedDatabaseName(string database)
     {
-        const string prefix = "oc_smoke_dispatch_";
-        if (!database.StartsWith(prefix, StringComparison.Ordinal) ||
+        const string dispatchPrefix = "oc_smoke_dispatch_";
+        const string roundTripPrefix = "oc_smoke_roundtrip_";
+        var prefix = database.StartsWith(dispatchPrefix, StringComparison.Ordinal)
+            ? dispatchPrefix
+            : database.StartsWith(roundTripPrefix, StringComparison.Ordinal)
+                ? roundTripPrefix
+                : null;
+        if (prefix is null ||
             database.Length != prefix.Length + 32 ||
             !Guid.TryParseExact(database[prefix.Length..], "N", out _))
             throw new InvalidOperationException("Refusing to operate on a database outside the generated smoke-test name scope.");
