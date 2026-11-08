@@ -20,6 +20,7 @@ public static class OpenConnectModelBuilderExtensions
         modelBuilder.ApplyConfiguration(new PrivacyTokenEntityConfiguration(mapping));
         modelBuilder.ApplyConfiguration(new OperationalRunEntityConfiguration(mapping));
         modelBuilder.ApplyConfiguration(new NativeAgentSessionEntityConfiguration(mapping));
+        modelBuilder.ApplyConfiguration(new PublicSessionMappingEntityConfiguration(mapping));
         return modelBuilder;
     }
 }

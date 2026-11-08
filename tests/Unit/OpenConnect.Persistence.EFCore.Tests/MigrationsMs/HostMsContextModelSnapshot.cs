@@ -145,6 +145,63 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                     b.ToTable("Leases", "openconnect");
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.NativeAgentSessionEntity", b =>
+                {
+                    b.Property<string>("BindingKey")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("Ciphertext")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("DefinitionRevision")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MafVersion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("ProviderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("BindingKey");
+
+                    b.ToTable("NativeAgentSessions", "openconnect");
+                });
+
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.OperationalRunEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -334,6 +391,43 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                     b.ToTable("PrivacyTokens", "openconnect");
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.PublicSessionMappingEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InternalSessionId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(26)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId", "PublicId");
+
+                    b.HasIndex("InternalSessionId")
+                        .IsUnique();
+
+                    b.ToTable("PublicSessionMappings", "openconnect");
+                });
+
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.SessionEntity", b =>
                 {
                     b.Property<Guid>("SessionId")
@@ -481,45 +575,6 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                         .IsUnique();
 
                     b.ToTable("Turns", "openconnect");
-                });
-
-            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.NativeAgentSessionEntity", b =>
-                {
-                    b.Property<string>("BindingKey")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<string>("SessionId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(26)");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(26)");
-
-                    b.Property<string>("PrincipalId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(26)");
-
-                    b.Property<string>("AgentId").IsRequired().HasColumnType("nvarchar(max)");
-                    b.Property<string>("DefinitionRevision").IsRequired().HasColumnType("nvarchar(max)");
-                    b.Property<string>("MafVersion").IsRequired().HasColumnType("nvarchar(max)");
-                    b.Property<string>("SchemaVersion").IsRequired().HasColumnType("nvarchar(max)");
-                    b.Property<string>("ProviderId").IsRequired().HasColumnType("nvarchar(max)");
-                    b.Property<long>("Version").IsRequired().HasColumnType("bigint");
-                    b.Property<byte[]>("Ciphertext").IsRequired().HasColumnType("varbinary(max)");
-
-                    b.HasKey("BindingKey");
-
-                    b.ToTable("NativeAgentSessions", "openconnect");
                 });
 
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Tests.Customer", b =>
