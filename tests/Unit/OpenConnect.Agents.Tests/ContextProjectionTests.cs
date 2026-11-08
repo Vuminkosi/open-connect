@@ -136,6 +136,23 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void RequestAdditional_RejectsMalformedExtraItemsAndLeavesOriginalUnchanged()
+    {
+        var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [Item("first")], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+        var originalVersion = initial.Version;
+        var originalItems = initial.Items;
+        var originalBudget = initial.TokenBudget;
+
+        Assert.Throws<ArgumentException>(() => Builder().RequestAdditional(initial, Child,
+            [Item("extra") with { SummaryOrRef = "   " }]));
+
+        Assert.Equal(originalVersion, initial.Version);
+        Assert.Equal(originalItems, initial.Items);
+        Assert.Equal(originalBudget, initial.TokenBudget);
+    }
+
+    [Fact]
     public void RequestAdditional_RejectsMismatchedChildIdentityAndLeavesOriginalUnchanged()
     {
         var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,

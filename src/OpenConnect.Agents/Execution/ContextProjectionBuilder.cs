@@ -86,7 +86,7 @@ public sealed class ContextProjectionBuilder
         if (candidates.Any(item => !allowedClasses.Contains(item.DataClass)))
             throw new UnauthorizedAccessException("Additional context exceeds the authorized data classification.");
         var safe = candidates.Where(item => !item.ContainsSecret && !item.ToolControl).ToImmutableArray();
-        if (safe.Any(item => item.TokenEstimate < 0 || string.IsNullOrWhiteSpace(item.Id) || item.SummaryOrRef is null))
+        if (safe.Any(item => item.TokenEstimate < 0 || string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.SummaryOrRef)))
             throw new ArgumentException("Context items must have an identifier, safe content, and a non-negative token estimate.", nameof(extraItems));
         var combined = existing.Items.AddRange(safe);
         if (combined.Sum(item => (long)item.TokenEstimate) > existing.TokenBudget)
