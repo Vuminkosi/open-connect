@@ -23,6 +23,29 @@
           "System.Threading.Channels": "10.0.12"
         }
       },
+      "Microsoft.Agents.AI.Workflows": {
+        "type": "Direct",
+        "requested": "[1.27.0, )",
+        "resolved": "1.27.0",
+        "contentHash": "K2YDHHtDFPySenOvPfowpj1vs7TtlQwJJXv9HhbwEva+fSSWmeGTVfJSoUL4YxDnk2DkU99LOPYmfLHZYb215w==",
+        "dependencies": {
+          "Microsoft.Agents.AI": "1.27.0",
+          "Microsoft.Agents.AI.Abstractions": "1.27.0",
+          "Microsoft.Extensions.AI": "10.10.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
+          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
+          "Microsoft.ML.Tokenizers": "2.0.0",
+          "OpenTelemetry.Api": "1.18.0",
+          "System.Diagnostics.DiagnosticSource": "10.0.12",
+          "System.Text.Json": "10.0.12",
+          "System.Threading.Channels": "10.0.12"
+        }
+      },
       "Google.Protobuf": {
         "type": "Transitive",
         "resolved": "3.30.2",
@@ -123,6 +146,14 @@
         "contentHash": "+b8lT4cLLO/sBR2hjvE/qG6qrZG15h7/PBvnIrzTh4xDaAxdHUY6449rC+1pHzQUsBiCHZVbj+VMn+xS0sL7TA==",
         "dependencies": {
           "Google.Protobuf": "3.30.2"
+        }
+      },
+      "OpenTelemetry.Api": {
+        "type": "Transitive",
+        "resolved": "1.18.0",
+        "contentHash": "Dhzm5oughIY9EWckt2J1yXcEbXpki5WCL2q7prJoYxzH6C7jdkfGtPMTkUVZZ4AhjJKzQnlC+kLSIlmIVwC4Vw==",
+        "dependencies": {
+          "System.Diagnostics.DiagnosticSource": "10.0.0"
         }
       },
       "System.Diagnostics.DiagnosticSource": {
