@@ -239,6 +239,33 @@ public sealed class NativeWorkflowApprovalBridgeTests
     }
 
     [Fact]
+    public async Task ConcurrentSameNonce_AcceptsAtMostOneContinuation()
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var scope = NewScope();
+        var request = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        var bridge = CreateBridge(interaction, scope);
+
+        var outcomes = await Task.WhenAll(
+                CaptureAsync(() => bridge.ApproveAsync(request, CreateDecision(scope, request, "n-same"), "first")),
+                CaptureAsync(() => bridge.ApproveAsync(request, CreateDecision(scope, request, "n-same"), "second")))
+            .WaitAsync(Timeout);
+
+        Assert.Equal(2, outcomes.Length);
+        Assert.Single(outcomes, o => o is null);
+        var loser = Assert.Single(outcomes, o => o is not null);
+        Assert.True(
+            loser is InvalidOperationException || loser is UnauthorizedAccessException,
+            $"Loser must fail closed, observed: {loser?.GetType().FullName}");
+
+        var advanced = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.NotSame(request, advanced);
+
+        await interaction.CancelAsync().WaitAsync(Timeout);
+    }
+
+    [Fact]
     public async Task CancelledInteraction_ApproveFailsClosed()
     {
         await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
