@@ -8,14 +8,40 @@ namespace OpenConnect.Agents.Tests;
 
 public sealed class ProfileIdentityTests
 {
+    [Fact]
+    public void Resolve_MapsDirectProfileWithoutWorkflowRuntime() =>
+        Assert.Equal(OrchestrationRunnerKey.DirectRunner,
+            OrchestrationProfileRouter.Resolve(AgentOrchestrationMode.Direct, true, false, false, false, false));
+
     [Theory]
-    [InlineData(AgentOrchestrationMode.Direct, OrchestrationRunnerKey.DirectRunner)]
-    [InlineData(AgentOrchestrationMode.Sequential, OrchestrationRunnerKey.SequentialRunner)]
-    [InlineData(AgentOrchestrationMode.Parallel, OrchestrationRunnerKey.ParallelRunner)]
-    [InlineData(AgentOrchestrationMode.Handoff, OrchestrationRunnerKey.HandoffRunner)]
-    [InlineData(AgentOrchestrationMode.SupervisorDelegation, OrchestrationRunnerKey.SupervisorRunner)]
-    public void Resolve_MapsProfileToItsSingleRunner(AgentOrchestrationMode mode, OrchestrationRunnerKey expected) =>
-        Assert.Equal(expected, OrchestrationProfileRouter.Resolve(mode, true, true, true, true, true));
+    [InlineData(AgentOrchestrationMode.Sequential)]
+    [InlineData(AgentOrchestrationMode.Parallel)]
+    [InlineData(AgentOrchestrationMode.Handoff)]
+    [InlineData(AgentOrchestrationMode.SupervisorDelegation)]
+    public void Resolve_RejectsWorkflowModesWhenWorkflowRuntimeIsUnavailable(AgentOrchestrationMode mode)
+    {
+        var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
+            OrchestrationProfileRouter.Resolve(mode, true, true, true, true, true));
+
+        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
+    }
+
+    [Theory]
+    [InlineData(AgentOrchestrationMode.Sequential)]
+    [InlineData(AgentOrchestrationMode.Parallel)]
+    [InlineData(AgentOrchestrationMode.Handoff)]
+    [InlineData(AgentOrchestrationMode.SupervisorDelegation)]
+    public void AdapterValidation_RejectsWorkflowModesBeforeHostSupportCheck(AgentOrchestrationMode mode)
+    {
+        var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
+            OrchestrationAdapters.ValidateProfile(mode, true));
+
+        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
+    }
+
+    [Fact]
+    public void AdapterValidation_AllowsDirectWithoutWorkflowRuntime() =>
+        OrchestrationAdapters.ValidateProfile(AgentOrchestrationMode.Direct, true);
 
     [Fact]
     public void Resolve_RejectsUnsupportedPrimitiveWithModeAndPrimitive() =>

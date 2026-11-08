@@ -61,6 +61,10 @@ public static class OrchestrationProfileRouter
 
         if (!supported)
             throw new InvalidOperationException($"Orchestration mode '{mode}' requires unsupported MAF primitive '{primitive}'.");
+
+        if (mode != AgentOrchestrationMode.Direct)
+            ValidateRuntimeProfile("Workflow");
+
         return runner;
     }
 

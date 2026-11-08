@@ -176,6 +176,9 @@ public sealed class OrchestrationAdapters
     /// <param name="profileSupported">Whether the configured host supports that profile.</param>
     public static void ValidateProfile(AgentOrchestrationMode mode, bool profileSupported)
     {
+        if (profileSupported && mode != AgentOrchestrationMode.Direct)
+            OrchestrationProfileRouter.ValidateRuntimeProfile("Workflow");
+
         if (!profileSupported) throw new InvalidOperationException($"The {mode} orchestration profile is not supported by the configured host.");
     }
 
