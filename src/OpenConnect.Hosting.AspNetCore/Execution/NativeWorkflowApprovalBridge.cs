@@ -89,8 +89,8 @@ public sealed class NativeWorkflowApprovalBridge(
     public ExternalRequest? PendingRequest => _interaction.PendingExternalRequest;
 
     /// <summary>Approves one pending native request after revalidating the host decision immediately before continuation.</summary>
-    /// <exception cref="UnauthorizedAccessException">The host decision denies, expired, revoked, lost its grant, or mismatched scope, arguments, or tool revision.</exception>
-    /// <exception cref="InvalidOperationException">The request is stale, already answered, duplicated, or the workflow no longer accepts responses.</exception>
+    /// <exception cref="UnauthorizedAccessException">The host decision denies, expired, revoked, lost its grant, or mismatched scope, arguments, or tool revision; also surfaces for a duplicate nonce whose race is lost inside AuthorizeAsync (RespondAsync converts the false authorization).</exception>
+    /// <exception cref="InvalidOperationException">The request is stale, already answered, or the workflow no longer accepts responses; also thrown for a duplicate nonce caught by the fast pre-check before RespondAsync runs.</exception>
     public Task ApproveAsync(
         ExternalRequest request,
         NativeWorkflowApprovalDecision decision,
