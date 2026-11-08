@@ -114,6 +114,36 @@ public sealed class ContextProjectionTests
     }
 
     [Fact]
+    public void Build_PreservesItemsWithDuplicateIdsInInputOrder()
+    {
+        var first = Item("duplicate") with { SummaryOrRef = "first summary" };
+        var second = Item("duplicate") with { SummaryOrRef = "second summary" };
+
+        var (projection, quarantined) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [first, second], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+
+        Assert.Equal(0, quarantined);
+        Assert.Equal(["first summary", "second summary"], projection.Items.Select(item => item.SummaryOrRef));
+    }
+
+    [Fact]
+    public void RequestAdditional_PreservesDuplicateIdsAcrossExistingAndAdditionalItems()
+    {
+        var originalItem = Item("duplicate") with { SummaryOrRef = "original" };
+        var additionalItem = Item("duplicate") with { SummaryOrRef = "additional" };
+        var (initial, _) = Builder().Build(Parent(), AgentContextSharingMode.TaskSummary,
+            ["internal"], [originalItem], Child, [], ["principal"], 100, TimeSpan.FromMinutes(5));
+
+        var (next, quarantined) = Builder().RequestAdditional(initial, Child, [additionalItem]);
+
+        Assert.Equal(0, quarantined);
+        Assert.Equal("original", Assert.Single(initial.Items).SummaryOrRef);
+        Assert.Equal(["original", "additional"], next.Items.Select(item => item.SummaryOrRef));
+        Assert.Equal(1, initial.Version);
+        Assert.Equal(2, next.Version);
+    }
+
+    [Fact]
     public void RequestAdditional_RejectsCombinedBudgetAndLeavesOriginalUnchanged()
     {
         const int budget = 10;
