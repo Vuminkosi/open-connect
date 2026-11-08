@@ -168,6 +168,61 @@ public sealed class NativeWorkflowInteractionTests
         Assert.NotSame(request, next);
     }
 
+    [Fact]
+    public async Task OutputPlusPending_StaysPending()
+    {
+        await using var interaction = await NativeWorkflowInteraction.StartAsync(CreateOutputThenHaltWorkflow(), "start")
+            .WaitAsync(Timeout);
+
+        // The intermediate output from "output-source" must not be mistaken
+        // for terminal completion: the run halts on the native external request.
+        var pending = Assert.IsType<ExternalRequest>(interaction.PendingExternalRequest);
+        Assert.True(pending.TryGetDataAs<ApprovalRequest>(out var payload));
+        Assert.Equal("start", payload!.Text);
+
+        // The interaction is still live: an authorized response advances the
+        // run to terminal completion instead of being rejected as stale/completed.
+        await interaction.RespondAsync(pending, "approved", (_, _) => ValueTask.FromResult(true))
+            .WaitAsync(Timeout);
+        Assert.Null(interaction.PendingExternalRequest);
+    }
+
+    [Fact(Skip = "NOT VERIFIED: no public-SDK workflow construct ends the stream with no output, no pending request, and a non-terminal status; see comment.")]
+    public async Task StallWithoutOutputOrPending_Throws()
+    {
+        // NOT VERIFIED by execution: NativeWorkflowInteraction throws
+        // InvalidOperationException("Native workflow stream halted without a pending
+        // request or successful completion.") only when the stream ends with no
+        // pending request, no WorkflowOutputEvent, and a non-terminal RunStatus
+        // (neither Ended nor Idle, and not output-covered). That state is not
+        // reachable through the verified public surface (WorkflowBuilder,
+        // FunctionExecutor, AddEdge, AddExternalCall, WithOutputFrom,
+        // WithIntermediateOutputFrom): runs that finish without external calls end
+        // Ended (or Idle), both treated as successful completion, and every
+        // PendingRequests halt is accompanied by a RequestInfoEvent that arms
+        // PendingExternalRequest. Forcing a construct here would require inventing
+        // or reflecting over non-public runtime state, so no executable assertion
+        // is provided instead of a brittle one.
+        await Task.CompletedTask;
+    }
+
+    private static Workflow CreateOutputThenHaltWorkflow()
+    {
+        var source = new FunctionExecutor<string, string>(
+            "output-source",
+            (input, _, _) => ValueTask.FromResult(input));
+        var gate = new FunctionExecutor<string, object>(
+            "request-gate",
+            (input, _, _) => ValueTask.FromResult<object>(
+                input == "start" ? (object)new ApprovalRequest(input) : (object)("done:" + input)));
+        return new WorkflowBuilder(source)
+            .AddEdge(source, gate)
+            .AddExternalCall<ApprovalRequest, string>(gate, "approval")
+            .WithIntermediateOutputFrom([source])
+            .WithOutputFrom(gate)
+            .Build();
+    }
+
     private static Workflow CreateWorkflow()
     {
         var source = new FunctionExecutor<string, ApprovalRequest>(
