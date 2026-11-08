@@ -26,6 +26,25 @@ public sealed class ProfileIdentityTests
     public void Resolve_RejectsUndefinedMode() =>
         Assert.Throws<InvalidOperationException>(() => OrchestrationProfileRouter.Resolve((AgentOrchestrationMode)99, true, true, true, true, true));
 
+    [Theory]
+    [InlineData("Workflow")]
+    [InlineData("DurableWorkflow")]
+    public void ValidateRuntimeProfile_RejectsUnavailableWorkflowProfilesWithMissingType(string profile)
+    {
+        var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
+            OrchestrationProfileRouter.ValidateRuntimeProfile(profile));
+
+        Assert.Equal(profile, error.Profile);
+        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
+        Assert.Contains(error.MissingTypeName, error.Message);
+    }
+
+    [Fact]
+    public void ValidateRuntimeProfile_AllowsDirectProfile()
+    {
+        OrchestrationProfileRouter.ValidateRuntimeProfile("Direct");
+    }
+
     [Fact]
     public void ValidateAgentProfile_RejectsDepthBeyondFrameworkLimit() =>
         Assert.Throws<InvalidOperationException>(() => OrchestrationProfileRouter.ValidateAgentProfile(

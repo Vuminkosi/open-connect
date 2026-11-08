@@ -21,6 +21,23 @@ public enum OrchestrationRunnerKey
 /// <summary>Maps declared orchestration profiles to supported framework runners and validates profiles.</summary>
 public static class OrchestrationProfileRouter
 {
+    /// <summary>Rejects workflow profiles when the loaded MAF runtime lacks their required workflow primitive.</summary>
+    /// <param name="profile">The requested runtime profile name.</param>
+    /// <exception cref="MafCapabilityUnavailableException">A workflow profile requires a missing MAF type.</exception>
+    public static void ValidateRuntimeProfile(string profile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile);
+
+        if (profile is not ("Workflow" or "DurableWorkflow"))
+            return;
+
+        var workflowCapability = MafRuntimeProbe.GetWorkflowCapabilityMatrix()
+            .FirstOrDefault(capability => capability.Capability == "Workflow");
+
+        if (workflowCapability is { Status: MafCapabilityStatus.Unavailable })
+            throw new MafCapabilityUnavailableException(profile, workflowCapability.RequiredTypeName);
+    }
+
     /// <summary>Selects the one runner corresponding to a profile, failing when its MAF primitive is unavailable.</summary>
     /// <param name="mode">Configured orchestration mode.</param>
     /// <param name="mafDirect">Whether direct execution is supported.</param>
@@ -64,4 +81,22 @@ public static class OrchestrationProfileRouter
         if (!Enum.IsDefined(definition.Orchestration.ResultMergeMode))
             throw new AgentCatalogException($"Undefined result merge mode '{definition.Orchestration.ResultMergeMode}'.");
     }
+}
+
+/// <summary>Indicates that an orchestration profile requires a MAF capability absent from the loaded runtime.</summary>
+public sealed class MafCapabilityUnavailableException : InvalidOperationException
+{
+    /// <summary>Creates a typed unavailable diagnostic containing the missing MAF type.</summary>
+    public MafCapabilityUnavailableException(string profile, string missingTypeName)
+        : base($"Orchestration profile '{profile}' is unavailable: missing MAF type '{missingTypeName}'.")
+    {
+        Profile = profile;
+        MissingTypeName = missingTypeName;
+    }
+
+    /// <summary>The requested orchestration profile.</summary>
+    public string Profile { get; }
+
+    /// <summary>The fully-qualified MAF type required by the profile.</summary>
+    public string MissingTypeName { get; }
 }
