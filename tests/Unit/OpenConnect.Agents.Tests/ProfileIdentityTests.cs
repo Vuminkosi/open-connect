@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using OpenConnect.Abstractions;
+using OpenConnect.Agents.Catalog;
 using OpenConnect.Agents.Execution;
 using Xunit;
 
@@ -29,6 +30,14 @@ public sealed class ProfileIdentityTests
     public void ValidateAgentProfile_RejectsDepthBeyondFrameworkLimit() =>
         Assert.Throws<InvalidOperationException>(() => OrchestrationProfileRouter.ValidateAgentProfile(
             new AgentDefinition(new AgentId("test"), "test") { Orchestration = new(MaxDepth: 3) }, true, true, true, true, true));
+
+    [Fact]
+    public void ValidateAgentProfile_RejectsUndefinedResultMergeMode() =>
+        Assert.Throws<AgentCatalogException>(() => OrchestrationProfileRouter.ValidateAgentProfile(
+            new AgentDefinition(new AgentId("test"), "test")
+            {
+                Orchestration = new(ResultMergeMode: (AgentResultMergeMode)99)
+            }, true, true, true, true, true));
 
     [Fact]
     public void InteractiveIdentity_RequiresActiveUserAndScope()
