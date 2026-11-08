@@ -14,6 +14,7 @@ public sealed class MafConversationRunner
     private readonly RunBudgetLedger? _runLedger;
     private readonly List<ChatMessage> _history = [];
     private readonly List<ExecutionTraceRecord> _trace = [];
+    private readonly Dictionary<(AgentId Child, string Key), AgentSession> _childSessions = [];
     private readonly object _sync = new();
     private readonly SemaphoreSlim _turnGate = new(1, 1);
 
@@ -100,19 +101,52 @@ public sealed class MafConversationRunner
     /// <param name="childAgentId">Child agent identifier.</param>
     /// <param name="prompt">Prompt supplied to the child; UTF-8 byte count is used as a conservative input-token estimate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="childSessionKey">Optional host-assigned key for continuing this child agent's session.</param>
+    /// <remarks>The host owns key assignment. A key must not be shared across concurrent branches. The map is bounded by this runner's lifetime and is not durable across restarts; durable session ownership belongs to OpenConnect.Sessions. No trace record exists for work that never began: session creation failure creates no record, and every recorded trace is completed by its owning finally.</remarks>
     /// <returns>The child agent response.</returns>
     /// <exception cref="InvalidOperationException">The configured run budget is exhausted.</exception>
-    public Task<AgentResponse> DelegateAsync(Guid parentExecutionId, AgentId childAgentId, string prompt,
-        CancellationToken cancellationToken = default)
+    public async Task<AgentResponse> DelegateAsync(Guid parentExecutionId, AgentId childAgentId, string prompt,
+        CancellationToken cancellationToken = default, string? childSessionKey = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentException.ThrowIfNullOrEmpty(childAgentId.Value);
+        if (!string.IsNullOrEmpty(childSessionKey) && string.IsNullOrWhiteSpace(childSessionKey))
+            throw new ArgumentException("Session key cannot be whitespace.", nameof(childSessionKey));
         ReserveModelCall(prompt);
         var agent = _factory.CreateAgent(childAgentId);
-        var executionId = Guid.NewGuid();
-        AddTrace(new ExecutionTraceRecord(executionId, parentExecutionId, childAgentId.Value, "agent", DateTimeOffset.UtcNow, null));
-        return RunChildAsync(agent, executionId, prompt, cancellationToken);
+        if (string.IsNullOrEmpty(childSessionKey))
+        {
+            var executionId = Guid.NewGuid();
+            AddTrace(new ExecutionTraceRecord(executionId, parentExecutionId, childAgentId.Value, "agent", DateTimeOffset.UtcNow, null));
+            return await RunChildAsync(agent, executionId, prompt, cancellationToken).ConfigureAwait(false);
+        }
+
+        AgentSession? session;
+        lock (_sync) _childSessions.TryGetValue((childAgentId, childSessionKey), out session);
+        if (session is null)
+        {
+            var createdSession = await agent.CreateSessionAsync().ConfigureAwait(false);
+            lock (_sync)
+            {
+                if (!_childSessions.TryGetValue((childAgentId, childSessionKey), out session))
+                {
+                    session = createdSession;
+                    _childSessions.Add((childAgentId, childSessionKey), session);
+                }
+            }
+        }
+
+        var keyedExecutionId = Guid.NewGuid();
+        AddTrace(new ExecutionTraceRecord(keyedExecutionId, parentExecutionId, childAgentId.Value, "agent", DateTimeOffset.UtcNow, null));
+        try
+        {
+            return await agent.RunAsync(prompt, session).ConfigureAwait(false);
+        }
+        finally
+        {
+            CompleteTrace(keyedExecutionId);
+        }
     }
 
     private void ReserveModelCall(string prompt)
