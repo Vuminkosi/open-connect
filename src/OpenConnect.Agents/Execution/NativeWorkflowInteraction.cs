@@ -93,6 +93,7 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 await _run.CancelRunAsync().ConfigureAwait(false);
+                Volatile.Write(ref _pendingRequest, null);
                 _completed = true;
                 throw;
             }
@@ -145,6 +146,10 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
 
     private async Task ObserveUntilHaltAsync(CancellationToken cancellationToken)
     {
+        // A no-pending run that yields output ends its stream exactly like a
+        // pending-request halt does under blockOnPendingRequest: false, so an
+        // observed output event distinguishes terminal completion from a stall.
+        var sawOutput = false;
         await foreach (var workflowEvent in _run.WatchStreamAsync(
             blockOnPendingRequest: false, cancellationToken).ConfigureAwait(false))
         {
@@ -152,6 +157,11 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
             if (workflowEvent is WorkflowErrorEvent errorEvent)
             {
                 throw errorEvent.Exception ?? new InvalidOperationException("Native workflow execution failed.");
+            }
+
+            if (workflowEvent is WorkflowOutputEvent)
+            {
+                sawOutput = true;
             }
 
             if (workflowEvent is RequestInfoEvent requestInfo)
@@ -176,9 +186,16 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
         }
 
         var status = await _run.GetStatusAsync(cancellationToken).ConfigureAwait(false);
-        if (status == RunStatus.Ended)
+        // Ended is the explicit terminal state; Idle is halted with no outstanding
+        // requests, which this host cannot advance (it answers pending requests
+        // only). Observed output additionally covers a status that has not yet
+        // flipped from a transient value at stream end. A PendingRequests status
+        // with no observed request stays fail-closed below, as does any other
+        // non-terminal status without output (genuinely stalled runs).
+        if (_pendingRequest is null &&
+            (status == RunStatus.Ended || status == RunStatus.Idle ||
+             (sawOutput && status != RunStatus.PendingRequests)))
         {
-            Volatile.Write(ref _pendingRequest, null);
             _completed = true;
         }
 

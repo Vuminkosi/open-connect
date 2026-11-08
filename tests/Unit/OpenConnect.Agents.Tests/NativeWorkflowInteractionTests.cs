@@ -103,6 +103,22 @@ public sealed class NativeWorkflowInteractionTests
         Assert.Null(interaction.PendingExternalRequest);
     }
 
+    [Fact]
+    public async Task Ended_workflow_has_no_pending_request_and_rejects_responses()
+    {
+        await using var completed = await NativeWorkflowInteraction.StartAsync(CreatePassthroughWorkflow(), "start")
+            .WaitAsync(Timeout);
+        Assert.Null(completed.PendingExternalRequest);
+
+        await using var other = await NativeWorkflowInteraction.StartAsync(CreateWorkflow(), "start")
+            .WaitAsync(Timeout);
+        var foreign = Assert.IsType<ExternalRequest>(other.PendingExternalRequest);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => completed.RespondAsync(
+            foreign, "approved", (_, _) => ValueTask.FromResult(true)));
+        Assert.Null(completed.PendingExternalRequest);
+    }
+
     private static Workflow CreateWorkflow()
     {
         var source = new FunctionExecutor<string, ApprovalRequest>(
@@ -110,6 +126,16 @@ public sealed class NativeWorkflowInteractionTests
             (input, _, _) => ValueTask.FromResult(new ApprovalRequest(input)));
         return new WorkflowBuilder(source)
             .AddExternalCall<ApprovalRequest, string>(source, "approval")
+            .WithOutputFrom(source)
+            .Build();
+    }
+
+    private static Workflow CreatePassthroughWorkflow()
+    {
+        var source = new FunctionExecutor<string, string>(
+            "passthrough",
+            (input, _, _) => ValueTask.FromResult(input));
+        return new WorkflowBuilder(source)
             .WithOutputFrom(source)
             .Build();
     }
