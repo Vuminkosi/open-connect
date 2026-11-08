@@ -14,23 +14,31 @@ public static class MemoryCompaction
     /// <param name="approvedMemories">Approved session memories.</param>
     /// <param name="tokenBudget">Maximum estimated tokens.</param>
     /// <param name="mustRetain">Unresolved approvals, commitments, authorization restrictions, and failed outcomes.</param>
+    /// <param name="approvalRefs">Approval and pending-HITL references that must survive compaction.</param>
     /// <returns>Compacted content and source lineage.</returns>
     /// <exception cref="InvalidOperationException">Required content exceeds the budget.</exception>
     public static CompactedMemory Compact(IReadOnlyList<string> recentTurns, IReadOnlyList<string> prioritizedDecisions,
-        string handoffSummary, IReadOnlyList<string> approvedMemories, int tokenBudget, IReadOnlyList<string> mustRetain)
+        string handoffSummary, IReadOnlyList<string> approvedMemories, int tokenBudget, IReadOnlyList<string> mustRetain,
+        IReadOnlyList<string>? approvalRefs = null)
     {
         ArgumentNullException.ThrowIfNull(recentTurns);
         ArgumentNullException.ThrowIfNull(prioritizedDecisions);
         ArgumentNullException.ThrowIfNull(approvedMemories);
         ArgumentNullException.ThrowIfNull(mustRetain);
+        approvalRefs ??= [];
         ArgumentException.ThrowIfNullOrWhiteSpace(handoffSummary);
         if (tokenBudget < 0) throw new ArgumentOutOfRangeException(nameof(tokenBudget));
         var required = mustRetain.Select((text, i) => NewItem(text, $"must-retain:{i}", true)).ToList();
-        var optional = new List<Item>();
-        optional.AddRange(prioritizedDecisions.Select((text, i) => NewItem(text, $"decision:{i}")));
-        optional.Add(NewItem(handoffSummary, "handoff"));
-        optional.AddRange(approvedMemories.Select((text, i) => NewItem(text, $"approved-memory:{i}")));
-        optional.AddRange(recentTurns.Select((text, i) => NewItem(text, $"recent-turn:{i}")));
+        required.AddRange(approvalRefs.Select((text, i) => NewItem(text, $"approval:{i}", true)));
+        var candidates = new List<Item>();
+        candidates.AddRange(prioritizedDecisions.Select((text, i) => NewItem(text, $"decision:{i}")));
+        candidates.Add(NewItem(handoffSummary, "handoff"));
+        candidates.AddRange(approvedMemories.Select((text, i) => NewItem(text, $"approved-memory:{i}")));
+        candidates.AddRange(recentTurns.Select((text, i) => NewItem(text, $"recent-turn:{i}")));
+        // Workflow references remain mandatory even when supplied inside an otherwise optional section.
+        required.AddRange(candidates.Where(item => IsApprovalReference(item.Text))
+            .Select(item => item with { Required = true }));
+        var optional = candidates.Where(item => !IsApprovalReference(item.Text)).ToList();
 
         if (Estimate(required) > tokenBudget)
             throw new InvalidOperationException($"Required memory items exceed token budget {tokenBudget}.");
@@ -54,5 +62,9 @@ public static class MemoryCompaction
     }
 
     private static int Estimate(IEnumerable<Item> items) => (int)Math.Ceiling(items.Sum(item => item.Text.Length) / 4d);
+    private static bool IsApprovalReference(string text) =>
+        text.Contains("approval", StringComparison.OrdinalIgnoreCase) ||
+        text.Contains("pending-hitl", StringComparison.OrdinalIgnoreCase) ||
+        text.Contains("pending hitl", StringComparison.OrdinalIgnoreCase);
     private sealed record Item(string Text, string Lineage, bool Required = false);
 }

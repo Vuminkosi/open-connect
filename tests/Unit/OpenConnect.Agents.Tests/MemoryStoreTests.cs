@@ -76,6 +76,35 @@ public sealed class MemoryStoreTests
         Assert.Contains("budget 1", error.Message);
     }
 
+    [Fact]
+    public void Compaction_PreservesApprovalReferencesAndTheirLineageUnderBudgetPressure()
+    {
+        var result = MemoryCompaction.Compact(["optional recent turn"], [], "handoff", [], 10, [],
+            ["pending-HITL: approval-42"]);
+
+        Assert.Contains("pending-HITL: approval-42", result.Text);
+        Assert.Contains("approval:0", result.SourceLineage);
+        Assert.Contains("recent-turn:0", result.TruncatedItems);
+    }
+
+    [Fact]
+    public void Compaction_ThrowsWhenApprovalReferencesExceedBudget()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            MemoryCompaction.Compact([], [], "handoff", [], 1, [], ["pending-HITL: approval-42"]));
+
+        Assert.Contains("Required memory items exceed token budget 1", error.Message);
+    }
+
+    [Fact]
+    public void Compaction_OptionalNonApprovalItemsRemainTruncatable()
+    {
+        var result = MemoryCompaction.Compact(["optional context"], [], "handoff", [], 2, []);
+
+        Assert.DoesNotContain("optional context", result.Text);
+        Assert.Contains("recent-turn:0", result.TruncatedItems);
+    }
+
     private static MemoryWriteRequest Write() => new("tenant-a", "memory", "summary", "session", "turn:4", null);
 
     private sealed class TestTimeProvider : TimeProvider
