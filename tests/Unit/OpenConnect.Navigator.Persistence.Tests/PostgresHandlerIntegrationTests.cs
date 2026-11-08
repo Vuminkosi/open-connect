@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.Operational;
 using OpenConnect.Navigator.Operational.Durable;
@@ -15,6 +16,52 @@ namespace OpenConnect.Navigator.Persistence.Tests;
 [Trait("Category", "PostgresDocker")]
 public sealed class PostgresHandlerIntegrationTests(ITestOutputHelper output)
 {
+    [Fact]
+    public async Task DI_resolved_handler_replays_completed_receipt_across_scopes()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("openconnect_handler_di_test").WithUsername("test").WithPassword("test").Build();
+        try { await postgres.StartAsync(); }
+        catch (Exception e)
+        {
+            output.WriteLine($"SKIP PostgresDocker: Docker/Testcontainers could not start postgres:16-alpine: {e.Message}");
+            return;
+        }
+
+        var connectionString = postgres.GetConnectionString();
+        Assert.Contains("openconnect_handler_di_test", connectionString, StringComparison.OrdinalIgnoreCase);
+        await using (var migrationDb = CreateDb(connectionString))
+            await migrationDb.GetService<IMigrator>().MigrateAsync();
+
+        var tenant = Guid.NewGuid().ToString("D");
+        var job = new OperationalJob(tenant, "service-principal", "plan-1", new HashSet<string> { "app" },
+            $"{tenant}:handler-di-{Guid.NewGuid():N}", DateTimeOffset.UtcNow.AddMinutes(2), "idem", "policy-1");
+        var identities = new FakeIdentityProvider(tenant);
+        var plans = new FakePlanProvider();
+        var executor = new ReadOnlyExecutor();
+        var services = new ServiceCollection();
+        services.AddDbContext<OpenConnectDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddNavigatorPostgresStore();
+        services.AddNavigatorOperationalHandler(identities, plans, executor);
+        await using var provider = services.BuildServiceProvider();
+
+        OperationalReceipt first;
+        await using (var scope = provider.CreateAsyncScope())
+            first = await scope.ServiceProvider.GetRequiredService<IOperationalHandler>().HandleAsync(job);
+        Assert.Equal(OperationalRunStatus.Completed, first.Status);
+        Assert.Equal(1, first.CompletedSteps);
+        Assert.True(first.FencingToken >= 1);
+        Assert.Equal(1, executor.Reads);
+
+        OperationalReceipt replay;
+        await using (var scope = provider.CreateAsyncScope())
+            replay = await scope.ServiceProvider.GetRequiredService<IOperationalHandler>().HandleAsync(job);
+        Assert.Equal(first, replay);
+        Assert.Equal(1, executor.Reads);
+        Assert.Equal(1, identities.Reads);
+        Assert.Equal(1, plans.Reads);
+    }
+
     [Fact]
     public async Task Operational_handler_completes_and_fencing_advances_between_instances()
     {
