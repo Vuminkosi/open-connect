@@ -46,14 +46,61 @@ public sealed class TemplateRenderingTests
         Assert.Matches("^[0-9a-f]{64}$", first.Revision);
     }
 
-    private static Task<RenderedTemplateInstructions> Render(TemplateVariables variables, string content)
+    [Fact]
+    public async Task RenderAsync_ForwardsCancellationTokenAndPropagatesCancellation()
+    {
+        var registry = CreateRegistry();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var loaderCalled = false;
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => registry.RenderAsync(
+            "render-test",
+            new TemplateVariables(),
+            (_, token) =>
+            {
+                loaderCalled = true;
+                Assert.Equal(cancellation.Token, token);
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult("must not render");
+            },
+            cancellation.Token));
+
+        Assert.True(loaderCalled);
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
+    }
+
+    [Fact]
+    public async Task RenderAsync_WithUncancelledTokenStillRenders()
+    {
+        var registry = CreateRegistry();
+        using var cancellation = new CancellationTokenSource();
+
+        var result = await registry.RenderAsync(
+            "render-test",
+            new TemplateVariables { Locale = "en-GB" },
+            (_, token) =>
+            {
+                Assert.Equal(cancellation.Token, token);
+                return Task.FromResult("Locale: {{locale}}");
+            },
+            cancellation.Token);
+
+        Assert.Equal("Locale: en-GB", result.Content);
+    }
+
+    private static TemplateRegistry CreateRegistry()
     {
         var registry = new TemplateRegistry();
         registry.Register(new AgentTemplate("render-test", "1", "test", "instructions/test.md", null,
             new HashSet<ToolId>(), null, new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(1)),
             new AgentMemoryPolicy(), AgentContextSharingMode.TaskSummary, ToolAcknowledgementMode.Automatic,
             "standard", AllowedScopes: new HashSet<string>(["read"], StringComparer.Ordinal)));
+        return registry;
+    }
 
-        return registry.RenderAsync("render-test", variables, (_, _) => Task.FromResult(content));
+    private static Task<RenderedTemplateInstructions> Render(TemplateVariables variables, string content)
+    {
+        return CreateRegistry().RenderAsync("render-test", variables, (_, _) => Task.FromResult(content));
     }
 }
