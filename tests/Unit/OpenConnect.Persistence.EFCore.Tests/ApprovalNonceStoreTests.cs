@@ -522,6 +522,472 @@ public sealed class ApprovalNonceStoreTests
             await secondStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-race-other"));
     }
 
+    [Fact]
+    public async Task Overlapping_insert_race_identical_binding_loser_resolves_already_consumed()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var setup = Context(connection);
+        await setup.Database.EnsureCreatedAsync();
+
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var approvalId = Guid.NewGuid();
+        var tenantText = tenant.Value.ToString();
+        var principalText = principal.Value.ToString();
+        const string nonce = "wf04-nonce-race-010";
+
+        // True overlap: two independent contexts share one connection. Both
+        // pre-reads are issued before either is awaited, both observe absent,
+        // and both stage an insert before either saves.
+        await using var first = Context(connection);
+        await using var second = Context(connection);
+        var probeFirst = first.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        var probeSecond = second.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        Assert.Null(await probeFirst);
+        Assert.Null(await probeSecond);
+
+        first.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            ApprovalId = approvalId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        var loserEntity = new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            ApprovalId = approvalId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+        second.Set<ApprovalNonceEntity>().Add(loserEntity);
+
+        Assert.Equal(1, await first.SaveChangesAsync());
+
+        // Loser hits the (TenantId, Nonce) primary-key backstop: an authentic
+        // SQLite unique violation (extended code 1555/2067).
+        var race = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        Assert.True(IsSqliteUniqueViolation(race), "Expected a SQLite unique-constraint violation (1555/2067).");
+        second.Entry(loserEntity).State = EntityState.Detached;
+
+        // Winner classification mirrors the store catch-re-read comparison.
+        await using var reader = Context(connection);
+        var readerStore = new EfApprovalNonceStore<NonceContext>(reader);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await readerStore.TryConsumeAsync(tenant, principal, nonce, approvalId));
+
+        // Drive the store's actual catch-re-read path: pre-check observes absent
+        // on a fresh key, SaveChangesAsync throws the authentic violation after
+        // the winner lands, and the re-read classifies identically.
+        const string faultNonce = "wf04-nonce-race-011";
+        await using var faulted = FaultContext(connection);
+        faulted.Fault = race;
+        faulted.BeforeSaveAsync = async () =>
+        {
+            await using var seeder = Context(connection);
+            seeder.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+            {
+                TenantId = tenantText,
+                Nonce = faultNonce,
+                ApprovalId = approvalId,
+                PrincipalId = principalText,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await seeder.SaveChangesAsync();
+        };
+        var faultedStore = new EfApprovalNonceStore<RaceFaultContext>(faulted);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await faultedStore.TryConsumeAsync(tenant, principal, faultNonce, approvalId));
+    }
+
+    [Fact]
+    public async Task Overlapping_insert_race_divergent_binding_loser_conflicts()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var setup = Context(connection);
+        await setup.Database.EnsureCreatedAsync();
+
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var winnerApproval = Guid.NewGuid();
+        var loserApproval = Guid.NewGuid();
+        var tenantText = tenant.Value.ToString();
+        var principalText = principal.Value.ToString();
+        const string nonce = "wf04-nonce-race-012";
+
+        // True overlap with divergent bindings: same key, different approval.
+        await using var first = Context(connection);
+        await using var second = Context(connection);
+        var probeFirst = first.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        var probeSecond = second.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        Assert.Null(await probeFirst);
+        Assert.Null(await probeSecond);
+
+        first.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            ApprovalId = winnerApproval,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        var loserEntity = new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            ApprovalId = loserApproval,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+        second.Set<ApprovalNonceEntity>().Add(loserEntity);
+
+        Assert.Equal(1, await first.SaveChangesAsync());
+
+        var race = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        Assert.True(IsSqliteUniqueViolation(race), "Expected a SQLite unique-constraint violation (1555/2067).");
+        second.Entry(loserEntity).State = EntityState.Detached;
+
+        await using var reader = Context(connection);
+        var readerStore = new EfApprovalNonceStore<NonceContext>(reader);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await readerStore.TryConsumeAsync(tenant, principal, nonce, loserApproval));
+
+        // Drive the store's actual catch-re-read path with a divergent winner.
+        const string faultNonce = "wf04-nonce-race-013";
+        await using var faulted = FaultContext(connection);
+        faulted.Fault = race;
+        faulted.BeforeSaveAsync = async () =>
+        {
+            await using var seeder = Context(connection);
+            seeder.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+            {
+                TenantId = tenantText,
+                Nonce = faultNonce,
+                ApprovalId = winnerApproval,
+                PrincipalId = principalText,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await seeder.SaveChangesAsync();
+        };
+        var faultedStore = new EfApprovalNonceStore<RaceFaultContext>(faulted);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await faultedStore.TryConsumeAsync(tenant, principal, faultNonce, loserApproval));
+    }
+
+    [Fact]
+    public async Task String_binding_reverse_cross_path_guid_view_resolves_absent_and_conflicts()
+    {
+        // Mirror of String_binding_legacy_guid_row_conflicts_and_reads_as_absent:
+        // a string-bound row is invisible to the Guid view and blocks Guid binding.
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        const string nonce = "wf04-nonce-req-009";
+
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, nonce, "REQ-reverse-1"));
+
+        // Fail closed: no Guid receipt is surfaced for the string-bound row.
+        Assert.Null(await store.GetAsync(tenant, principal, nonce));
+        // And the occupied key cannot be re-bound to a Guid approval.
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await store.TryConsumeAsync(tenant, principal, nonce, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task Validation_parity_gaps_throw_before_storage()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+
+        // TryConsumeAsync gaps: empty and null nonce (whitespace/overlong/defaults pinned elsewhere).
+        await Assert.ThrowsAsync<ArgumentException>(() => store.TryConsumeAsync(tenant, principal, string.Empty, Guid.NewGuid()));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.TryConsumeAsync(tenant, principal, null!, Guid.NewGuid()));
+        // GetAsync gap: null nonce (empty/whitespace/overlong/defaults pinned elsewhere).
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetAsync(tenant, principal, null!));
+        // String-binding gaps: null request id; GetWithRequestIdAsync key parity.
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-val-001", null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetWithRequestIdAsync(tenant, principal, "   "));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetWithRequestIdAsync(tenant, principal, new string('n', 65)));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetWithRequestIdAsync(tenant, principal, null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetWithRequestIdAsync(default, principal, "wf04-nonce-val-001"));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.GetWithRequestIdAsync(tenant, default, "wf04-nonce-val-001"));
+
+        Assert.Null(await store.GetAsync(tenant, principal, "wf04-absent-nonce"));
+        Assert.Null(await store.GetWithRequestIdAsync(tenant, principal, "wf04-absent-nonce"));
+    }
+
+    [Fact]
+    public async Task String_binding_fence_post_limits_are_accepted()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var store = new EfApprovalNonceStore<NonceContext>(db);
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+
+        // 256-char request id is the documented maximum: accepted, not rejected.
+        var maxRequestId = new string('r', 256);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-req-010", maxRequestId));
+        Assert.Equal(
+            maxRequestId,
+            (await store.GetWithRequestIdAsync(tenant, principal, "wf04-nonce-req-010"))?.RequestId);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await store.TryConsumeWithRequestIdAsync(tenant, principal, "wf04-nonce-req-010", maxRequestId));
+
+        // 64-char nonce is the documented maximum: accepted, not rejected.
+        var maxNonce = new string('n', 64);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Consumed,
+            await store.TryConsumeAsync(tenant, principal, maxNonce, Guid.NewGuid()));
+        Assert.NotNull(await store.GetAsync(tenant, principal, maxNonce));
+    }
+
+    [Fact]
+    public async Task Overlapping_insert_race_string_binding_identical_loser_resolves_already_consumed()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var setup = Context(connection);
+        await setup.Database.EnsureCreatedAsync();
+
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var tenantText = tenant.Value.ToString();
+        var principalText = principal.Value.ToString();
+        const string nonce = "wf04-nonce-req-race-020";
+        const string requestId = "REQ-race-identical";
+
+        // True overlap on the RequestId path: two independent contexts share one
+        // connection. Both pre-reads are issued before either is awaited, both
+        // observe absent, and both stage an insert before either saves.
+        await using var first = Context(connection);
+        await using var second = Context(connection);
+        var probeFirst = first.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        var probeSecond = second.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        Assert.Null(await probeFirst);
+        Assert.Null(await probeSecond);
+
+        first.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            RequestId = requestId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        var loserEntity = new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            RequestId = requestId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+        second.Set<ApprovalNonceEntity>().Add(loserEntity);
+
+        Assert.Equal(1, await first.SaveChangesAsync());
+
+        // Loser hits the (TenantId, Nonce) primary-key backstop: an authentic
+        // SQLite unique violation (extended code 1555/2067).
+        var race = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        Assert.True(IsSqliteUniqueViolation(race), "Expected a SQLite unique-constraint violation (1555/2067).");
+        second.Entry(loserEntity).State = EntityState.Detached;
+
+        // Winner classification mirrors the store catch-re-read comparison.
+        await using var reader = Context(connection);
+        var readerStore = new EfApprovalNonceStore<NonceContext>(reader);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await readerStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, requestId));
+
+        // Drive the store's actual catch-re-read path: pre-check observes absent
+        // on a fresh key, SaveChangesAsync throws the authentic violation after
+        // the winner lands, and the re-read classifies identically.
+        const string faultNonce = "wf04-nonce-req-race-021";
+        await using var faulted = FaultContext(connection);
+        faulted.Fault = race;
+        faulted.BeforeSaveAsync = async () =>
+        {
+            await using var seeder = Context(connection);
+            seeder.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+            {
+                TenantId = tenantText,
+                Nonce = faultNonce,
+                RequestId = requestId,
+                PrincipalId = principalText,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await seeder.SaveChangesAsync();
+        };
+        var faultedStore = new EfApprovalNonceStore<RaceFaultContext>(faulted);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.AlreadyConsumed,
+            await faultedStore.TryConsumeWithRequestIdAsync(tenant, principal, faultNonce, requestId));
+    }
+
+    [Fact]
+    public async Task Overlapping_insert_race_string_binding_divergent_loser_conflicts()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var setup = Context(connection);
+        await setup.Database.EnsureCreatedAsync();
+
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var tenantText = tenant.Value.ToString();
+        var principalText = principal.Value.ToString();
+        const string nonce = "wf04-nonce-req-race-022";
+        const string winnerRequestId = "REQ-race-winner";
+        const string loserRequestId = "REQ-race-loser";
+
+        // True overlap with divergent bindings: same key, different request id.
+        await using var first = Context(connection);
+        await using var second = Context(connection);
+        var probeFirst = first.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        var probeSecond = second.Set<ApprovalNonceEntity>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == tenantText && x.Nonce == nonce);
+        Assert.Null(await probeFirst);
+        Assert.Null(await probeSecond);
+
+        first.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            RequestId = winnerRequestId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        var loserEntity = new ApprovalNonceEntity
+        {
+            TenantId = tenantText,
+            Nonce = nonce,
+            RequestId = loserRequestId,
+            PrincipalId = principalText,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+        second.Set<ApprovalNonceEntity>().Add(loserEntity);
+
+        Assert.Equal(1, await first.SaveChangesAsync());
+
+        var race = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        Assert.True(IsSqliteUniqueViolation(race), "Expected a SQLite unique-constraint violation (1555/2067).");
+        second.Entry(loserEntity).State = EntityState.Detached;
+
+        await using var reader = Context(connection);
+        var readerStore = new EfApprovalNonceStore<NonceContext>(reader);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await readerStore.TryConsumeWithRequestIdAsync(tenant, principal, nonce, loserRequestId));
+
+        // Drive the store's actual catch-re-read path with a divergent winner.
+        const string faultNonce = "wf04-nonce-req-race-023";
+        await using var faulted = FaultContext(connection);
+        faulted.Fault = race;
+        faulted.BeforeSaveAsync = async () =>
+        {
+            await using var seeder = Context(connection);
+            seeder.Set<ApprovalNonceEntity>().Add(new ApprovalNonceEntity
+            {
+                TenantId = tenantText,
+                Nonce = faultNonce,
+                RequestId = winnerRequestId,
+                PrincipalId = principalText,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await seeder.SaveChangesAsync();
+        };
+        var faultedStore = new EfApprovalNonceStore<RaceFaultContext>(faulted);
+        Assert.Equal(
+            ApprovalNonceConsumeOutcome.Conflict,
+            await faultedStore.TryConsumeWithRequestIdAsync(tenant, principal, faultNonce, loserRequestId));
+    }
+
+    private static bool IsSqliteUniqueViolation(DbUpdateException exception)
+    {
+        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is SqliteException sqlite &&
+                (sqlite.SqliteExtendedErrorCode == 1555 || sqlite.SqliteExtendedErrorCode == 2067))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static RaceFaultContext FaultContext(SqliteConnection connection) => new(
+        new DbContextOptionsBuilder<RaceFaultContext>().UseSqlite(connection).Options);
+
+    /// <summary>
+    /// Fault-injecting context: throws the supplied authentic unique-violation
+    /// on the first <c>SaveChangesAsync</c> (after running the seeder), then behaves
+    /// normally. Forces the store through its catch-re-read path deterministically.
+    /// </summary>
+    private sealed class RaceFaultContext(DbContextOptions<RaceFaultContext> options) : DbContext(options)
+    {
+        public DbUpdateException? Fault { get; set; }
+
+        public Func<Task>? BeforeSaveAsync { get; set; }
+
+        private bool _armed = true;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.ApplyConfiguration(
+                new ApprovalNonceEntityConfiguration(OpenConnectModelOptions.Default));
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (_armed)
+            {
+                _armed = false;
+                if (BeforeSaveAsync is not null)
+                    await BeforeSaveAsync().ConfigureAwait(false);
+                throw Fault ?? new DbUpdateException("No fault configured.");
+            }
+
+            return await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private static NonceContext Context(SqliteConnection connection) => new(
         new DbContextOptionsBuilder<NonceContext>().UseSqlite(connection).Options);
 
