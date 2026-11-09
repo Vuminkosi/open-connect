@@ -1,7 +1,7 @@
 {
   "schemaVersion": "openconnect.compatibility/v1",
-  "generatedAtUtc": "2026-11-09T19:29:37Z",
-  "commit": "9155c71",
+  "generatedAtUtc": "2026-11-09T19:40:12Z",
+  "commit": "f3d66f7",
   "packages": [
     {
       "id": "OpenConnect.Abstractions",
@@ -36,7 +36,17 @@
           "total": 56
         }
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 56 passed, 0 failed per TFM."
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 56 passed, 0 failed per TFM.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Abstractions.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Abstractions.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Abstractions.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [],
+        "net8.0": [],
+        "net9.0": []
+      }
     },
     {
       "id": "OpenConnect.Core",
@@ -71,7 +81,56 @@
           "total": 36
         }
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 36 passed, 0 failed per TFM."
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 36 passed, 0 failed per TFM.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Core.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Core.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Core.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "10.0.14"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "10.0.14"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "8.0.2"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "8.0.2"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "9.0.22"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "9.0.22"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Client",
@@ -106,7 +165,32 @@
           "total": 23
         }
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 23 passed, 0 failed per TFM."
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 23 passed, 0 failed per TFM.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Client.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Client.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Client.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Agents",
@@ -141,7 +225,56 @@
           "total": 480
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 479 passed + 1 skipped = 480 total, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 479 passed + 1 skipped = 480 total, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Agents.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Agents.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Agents.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI",
+            "version": "1.27.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI.Workflows",
+            "version": "1.27.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI",
+            "version": "1.27.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI.Workflows",
+            "version": "1.27.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI",
+            "version": "1.27.0"
+          },
+          {
+            "id": "Microsoft.Agents.AI.Workflows",
+            "version": "1.27.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Persistence.EFCore",
@@ -176,7 +309,68 @@
           "total": 105
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 105 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 105 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Persistence.EFCore.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Persistence.EFCore.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Persistence.EFCore.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "10.0.14"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore.Relational",
+            "version": "10.0.14"
+          },
+          {
+            "id": "Microsoft.Extensions.Hosting",
+            "version": "10.0.14"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "8.0.11"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore.Relational",
+            "version": "8.0.11"
+          },
+          {
+            "id": "Microsoft.Extensions.Hosting",
+            "version": "8.0.1"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "9.0.22"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore.Relational",
+            "version": "9.0.22"
+          },
+          {
+            "id": "Microsoft.Extensions.Hosting",
+            "version": "9.0.22"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Transport.Nats",
@@ -211,7 +405,44 @@
           "total": 9
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 9 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 9 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Transport.Nats.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Transport.Nats.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Transport.Nats.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "NATS.Net",
+            "version": "3.3.2"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "NATS.Net",
+            "version": "3.3.2"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "NATS.Net",
+            "version": "3.3.2"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Hosting.AspNetCore",
@@ -246,7 +477,44 @@
           "total": 121
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 121 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 121 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Hosting.AspNetCore.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Hosting.AspNetCore.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Hosting.AspNetCore.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Agents",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Agents",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Agents",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Tools",
@@ -281,7 +549,32 @@
           "total": 4
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 4 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 4 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Tools.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Tools.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Tools.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Privacy",
@@ -316,7 +609,44 @@
           "total": 3
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 3 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 3 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Privacy.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Privacy.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Privacy.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "10.0.14"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "8.0.2"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "9.0.22"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Metering",
@@ -351,7 +681,32 @@
           "total": 12
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 12 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 12 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Metering.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Metering.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Metering.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Observability",
@@ -386,7 +741,17 @@
           "total": 46
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 46 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 46 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Observability.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Observability.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Observability.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [],
+        "net8.0": [],
+        "net9.0": []
+      }
     },
     {
       "id": "OpenConnect.QdrantVactor",
@@ -421,7 +786,44 @@
           "total": 24
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 24 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 24 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.QdrantVactor.dll",
+        "net9.0": "lib/net9.0/OpenConnect.QdrantVactor.dll",
+        "net10.0": "lib/net10.0/OpenConnect.QdrantVactor.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Observability",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Observability",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Observability",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Navigator",
@@ -456,7 +858,68 @@
           "total": 44
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 44 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 44 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Navigator.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Navigator.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Navigator.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "10.0.14"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "10.0.14"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "8.0.2"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "8.0.2"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Core",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "9.0.22"
+          },
+          {
+            "id": "Microsoft.Extensions.Options",
+            "version": "9.0.22"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Navigator.AspNetCore",
@@ -491,7 +954,56 @@
           "total": 68
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 68 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 68 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Navigator.AspNetCore.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Navigator.AspNetCore.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Navigator.AspNetCore.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator.Operational",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator.Operational",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator.Operational",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Navigator.Blazor",
@@ -526,7 +1038,17 @@
           "total": 38
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 38 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 38 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Navigator.Blazor.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Navigator.Blazor.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Navigator.Blazor.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [],
+        "net8.0": [],
+        "net9.0": []
+      }
     },
     {
       "id": "OpenConnect.Navigator.Operational",
@@ -561,7 +1083,68 @@
           "total": 23
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 23 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 23 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Navigator.Operational.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Navigator.Operational.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Navigator.Operational.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Persistence.EFCore",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "10.0.14"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "10.0.14"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Persistence.EFCore",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "8.0.11"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "8.0.2"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Persistence.EFCore",
+            "version": "1.0.0"
+          },
+          {
+            "id": "Microsoft.EntityFrameworkCore",
+            "version": "9.0.22"
+          },
+          {
+            "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "version": "9.0.22"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Navigator.OperationalBrowser",
@@ -596,7 +1179,32 @@
           "total": 26
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 26 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 26 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Navigator.OperationalBrowser.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Navigator.OperationalBrowser.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Navigator.OperationalBrowser.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Navigator",
+            "version": "1.0.0"
+          }
+        ]
+      }
     },
     {
       "id": "OpenConnect.Components.Blazor",
@@ -631,7 +1239,68 @@
           "total": 14
         }
       },
-      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 14 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 14 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Components.Blazor.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Components.Blazor.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Components.Blazor.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Client",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Components.Contracts",
+            "version": "1.0.0"
+          },
+          {
+            "id": "MudBlazor",
+            "version": "8.15.0"
+          }
+        ],
+        "net8.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Client",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Components.Contracts",
+            "version": "1.0.0"
+          },
+          {
+            "id": "MudBlazor",
+            "version": "8.15.0"
+          }
+        ],
+        "net9.0": [
+          {
+            "id": "OpenConnect.Abstractions",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Client",
+            "version": "1.0.0"
+          },
+          {
+            "id": "OpenConnect.Components.Contracts",
+            "version": "1.0.0"
+          },
+          {
+            "id": "MudBlazor",
+            "version": "8.15.0"
+          }
+        ]
+      }
     }
   ],
   "crossTfm": {
