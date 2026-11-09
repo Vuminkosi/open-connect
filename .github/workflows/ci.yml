@@ -50,3 +50,77 @@ jobs:
       - name: Contract parity (pending contract test project)
         shell: pwsh
         run: ./scripts/verify.ps1 -ContractParity
+
+  # EXPERIMENTAL-OBSERVATIONAL ONLY (orchestrator D-01): SDK 10 builds the
+  # unchanged net8 TFMs. Informational; never required, never gates.
+  # Zero TFM changes, zero version bumps (D-01/D-02).
+  verify-sdk10-adversity:
+    name: Verify SDK 10 builds net8 (experimental-observational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK 10
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: 10.0.403
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Build Release
+        run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
+
+      # Full suite. Container-gated tests self-skip without Docker (D-03:
+      # no image pulls, no live containers, no Testcontainers execution in CI).
+      - name: Run tests
+        run: dotnet test OpenConnect.slnx -c Release --no-build
+
+  # Per-sample E2E matrix, windows-latest ONLY (orchestrator D-06 hardcodes
+  # powershell.exe). Informational; never required, never gates.
+  # D-03/D-04/D-05: no image pulls, no live containers, no test secrets, no
+  # fixture provisioning. E2E-13 (PostgreSql) takes its exit-3 NOT VERIFIED
+  # path; E2E-14 (SqlServer) exits 3 by design (no invocation, no pull).
+  e2e-per-sample:
+    name: E2E per-sample (${{ matrix.case }})
+    runs-on: windows-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [Minimal, Sqlite, InMemory, Blazor, Navigator, PostgreSql, SqlServer]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: 9.0.320
+
+      # D-04: PG-related env vars are ABSENT. This guard fails the step (not
+      # the branch) if a fixture-like variable ever appears, so the
+      # PostgreSql leg deterministically takes its exit-3 NOT VERIFIED path.
+      - name: Assert no PG fixture env (PostgreSql leg must exit 3 NOT VERIFIED)
+        if: matrix.case == 'PostgreSql'
+        shell: powershell
+        run: |
+          $leaked = @('OPENCONNECT_E2E_POSTGRES_HOST', 'OPENCONNECT_POSTGRESQL_CONNECTION') | Where-Object { -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+          if ($leaked) { Write-Error ("PG fixture env must be absent in CI; found: " + ($leaked -join ', ')); exit 1 }
+          Write-Host 'PG fixture env absent: OPENCONNECT_E2E_POSTGRES_HOST and OPENCONNECT_POSTGRESQL_CONNECTION are unset.'
+
+      - name: Run E2E case ${{ matrix.case }}
+        shell: powershell
+        run: |
+          $case = "${{ matrix.case }}"
+          $work = Join-Path $env:TEMP ("e2e-" + $case.ToLowerInvariant())
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $logDir = Join-Path $work 'logs'
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $dbFile = Join-Path $work ($case.ToLowerInvariant() + '.db')
+          & (Join-Path 'samples/EndToEnd/cases' ("Run-" + $case + ".ps1")) -RepoRoot . -DbFile $dbFile -LogDir $logDir
+          exit $LASTEXITCODE
