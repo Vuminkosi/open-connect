@@ -166,6 +166,7 @@ function Get-HarnessClientSource {
 // events read at cursor 0, events replay at last cursor (expect empty).
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
