@@ -37,7 +37,7 @@ dotnet run --project samples/Minimal/OpenConnect.Samples.Minimal.csproj -- verif
 ## Ownership
 
 - Own DbContext: `MinimalDbContext` (`MinimalDbContext.cs`).
-- Own migrations: `Migrations/20261109000000_Initial.cs` (+ future `dotnet ef` output here).
+- Own migrations: `Migrations/20261109052735_Initial.cs` (+ `dotnet ef` Designer/snapshot here).
 - Own history: `__MinimalMigrationsHistory` in this sample's database file only.
 - Design-time factory: `MinimalDbContextFactory` (supports `dotnet ef migrations add`).
 - Receipt/command linkage (PERSIST gap G4): this sample exercises no receipt flows;

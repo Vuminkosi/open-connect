@@ -39,7 +39,7 @@ dotnet run --project samples/Sqlite/OpenConnect.Samples.Sqlite.csproj -- verify
 ## Ownership
 
 - Own DbContext: `SqliteSampleDbContext` (`SqliteSampleDbContext.cs`).
-- Own migrations: `Migrations/20261109000001_Initial.cs` (+ future `dotnet ef` output here).
+- Own migrations: `Migrations/20261109052808_Initial.cs` (+ `dotnet ef` Designer/snapshot here).
 - Own history: `__SqliteMigrationsHistory` in this sample's database file only.
 - Design-time factory: `SqliteSampleDbContextFactory` (supports `dotnet ef migrations add`).
 - Receipt/command linkage (PERSIST gap G4): this sample exercises no receipt flows;
