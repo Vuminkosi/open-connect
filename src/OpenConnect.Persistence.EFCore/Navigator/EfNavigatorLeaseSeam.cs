@@ -28,6 +28,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using OpenConnect.Persistence.EFCore.Entities;
+using OpenConnect.Persistence.EFCore.Providers;
 
 namespace OpenConnect.Persistence.EFCore.Navigator;
 
@@ -52,6 +53,17 @@ public sealed class EfNavigatorLeaseSeam<TContext>(TContext context) : INavigato
             || executionId.Length > MaxExecutionIdLength
             || !TrySplitExecution(executionId, out var tenantScope, out _))
             return null;
+
+        // Postgres single-statement atomic fence (S0-2): delegate behind the frozen seam
+        // contract. Non-Postgres providers fall through to the read-modify-write path
+        // below, unchanged. A dialect null is authoritative (conflict/fail-closed), never
+        // a signal to retry via the fallback path.
+        var fencing = EfLeaseFencingDialectSelector.Select(context);
+        if (fencing is not null)
+        {
+            var fencedExpiry = TruncateToMicroseconds(now + duration);
+            return await fencing.TryAcquireAsync(context, tenantScope, executionId, owner, fencedExpiry, now, cancellationToken).ConfigureAwait(false);
+        }
 
         var set = context.Set<LeaseEntity>();
         var row = await set.SingleOrDefaultAsync(
