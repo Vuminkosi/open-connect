@@ -28,14 +28,74 @@ public static class OrchestrationProfileRouter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profile);
 
-        if (profile is not ("Workflow" or "DurableWorkflow"))
+        if (profile is "Workflow")
+        {
+            var workflowCapability = MafRuntimeProbe.GetWorkflowCapabilityMatrix()
+                .FirstOrDefault(capability => capability.Capability == "Workflow");
+
+            if (workflowCapability is null)
+                throw new MafCapabilityUnavailableException(profile, "Microsoft.Agents.AI.Workflows.WorkflowBuilder");
+
+            if (workflowCapability is { Status: MafCapabilityStatus.Unavailable })
+                throw new MafCapabilityUnavailableException(profile, workflowCapability.RequiredTypeName);
+
+            return;
+        }
+
+        if (profile is "DurableWorkflow")
+        {
+            var durableCapability = MafRuntimeProbe.GetWorkflowCapabilityMatrix()
+                .FirstOrDefault(capability => capability.Capability == "Durable execution");
+
+            if (durableCapability is null)
+                throw new MafCapabilityUnavailableException(profile, "Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor");
+
+            if (durableCapability.Status == MafCapabilityStatus.Unavailable)
+                throw new MafCapabilityUnavailableException(profile, durableCapability.RequiredTypeName);
+
+            return;
+        }
+
+        if (profile is "Direct")
             return;
 
-        var workflowCapability = MafRuntimeProbe.GetWorkflowCapabilityMatrix()
-            .FirstOrDefault(capability => capability.Capability == "Workflow");
+        throw new InvalidOperationException($"Unknown runtime profile '{profile}'. No execution is attempted for unrecognized profiles.");
+    }
 
-        if (workflowCapability is { Status: MafCapabilityStatus.Unavailable })
-            throw new MafCapabilityUnavailableException(profile, workflowCapability.RequiredTypeName);
+    /// <summary>Rejects unsupported execution profiles before any execution is attempted (fail closed, no fallback).</summary>
+    /// <param name="profile">The requested execution profile name.</param>
+    /// <exception cref="MafCapabilityUnavailableException">The profile requires a MAF type absent from the loaded runtime.</exception>
+    /// <exception cref="InvalidOperationException">The profile name is not a recognized execution profile.</exception>
+    public static void ValidateExecutionProfile(string profile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile);
+
+        if (profile is "Direct")
+            return;
+
+        if (profile is "Workflow")
+        {
+            ValidateRuntimeProfile(profile);
+            return;
+        }
+
+        var capabilityName = profile switch
+        {
+            "DurableWorkflow" => "Durable execution",
+            "Harness" => "Harness",
+            "MCP" => "MCP integration",
+            "A2A" => "A2A integration",
+            _ => throw new InvalidOperationException($"Unknown execution profile '{profile}'. No execution is attempted for unrecognized profiles.")
+        };
+
+        var capability = MafRuntimeProbe.GetWorkflowCapabilityMatrix()
+            .FirstOrDefault(candidate => candidate.Capability == capabilityName);
+
+        if (capability is null)
+            throw new InvalidOperationException($"Execution profile '{profile}' has no mapped MAF capability probe. No execution is attempted.");
+
+        if (capability.Status == MafCapabilityStatus.Unavailable)
+            throw new MafCapabilityUnavailableException(profile, capability.RequiredTypeName);
     }
 
     /// <summary>Selects the one runner corresponding to a profile, failing when its MAF primitive is unavailable.</summary>

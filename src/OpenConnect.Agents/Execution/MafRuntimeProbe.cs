@@ -11,7 +11,23 @@ public static class MafRuntimeProbe
         ("Workflow execution", "Microsoft.Agents.AI.Workflows.Workflow"),
         ("Checkpoint", "Microsoft.Agents.AI.Workflows.Checkpoint"),
         ("Human-in-the-loop", "Microsoft.Agents.AI.Workflows.HumanInTheLoopRequest"),
-        ("Conflict handling", "Microsoft.Agents.AI.Workflows.WorkflowConflictException")
+        ("Conflict handling", "Microsoft.Agents.AI.Workflows.WorkflowConflictException"),
+        // Unsupported execution paths below (agents-spec §0 Rule 2: mark Unsupported, never fabricate).
+        // Verified absent in MAF 1.27.0 by full exported-type + public-method enumeration of the
+        // Microsoft.Agents.AI / .Abstractions / .Workflows assemblies on 2026-11-09:
+        // no HarnessAgent type and no AsHarnessAgent member exist. The only harness-like type present,
+        // Magentic.ExecutorAgentHarness, is a Magentic-specialized executor harness, not the general
+        // Harness execution profile, so it is deliberately not used as this gate's probe type.
+        ("Harness", "Microsoft.Agents.AI.HarnessAgent"),
+        // No "Durable"-named type or member exists in MAF 1.27.0; there is no durable backend package
+        // referenced. The name below is the expected durable workflow host type; absent means the
+        // DurableWorkflow profile must fail closed until a durable backend is selected.
+        ("Durable execution", "Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor"),
+        // MCP/A2A integration lives in external SDK packages (not referenced, never auto-loaded).
+        // The names below are the documented client types of those SDKs; absent means those profiles
+        // must fail closed.
+        ("MCP integration", "ModelContextProtocol.Client.McpClient"),
+        ("A2A integration", "A2A.A2AClient")
     ];
 
     /// <summary>Reports workflow-related types present in the actual loaded MAF assemblies.</summary>
@@ -52,10 +68,18 @@ public static class MafRuntimeProbe
 
     private static Assembly[] LoadMafAssemblies()
     {
-        _ = Assembly.Load("Microsoft.Agents.AI");
-        _ = Assembly.Load("Microsoft.Agents.AI.Abstractions");
+        // Best-effort load of the three MAF assemblies so workflow-namespace
+        // types (Microsoft.Agents.AI.Workflows.*) resolve when the
+        // Microsoft.Agents.AI.Workflows package is referenced. A missing
+        // assembly is ignored so the capability matrix reports Unavailable
+        // (fail closed) instead of throwing here.
+        foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows" })
+        {
+            try { _ = Assembly.Load(name); }
+            catch (Exception exception) when (exception is FileNotFoundException or FileLoadException or BadImageFormatException) { }
+        }
         return AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions")
+            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions" or "Microsoft.Agents.AI.Workflows")
             .ToArray();
     }
 
