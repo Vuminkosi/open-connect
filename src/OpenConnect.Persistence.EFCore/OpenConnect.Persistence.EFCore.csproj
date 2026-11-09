@@ -4,8 +4,14 @@
     <AssemblyName>OpenConnect.Persistence.EFCore</AssemblyName>
     <RootNamespace>OpenConnect.Persistence.EFCore</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Public-API tracking (CF-IMP-005e-C): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />

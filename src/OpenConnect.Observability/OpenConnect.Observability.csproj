@@ -1,3 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks><NoWarn>$(NoWarn);CS1591</NoWarn></PropertyGroup>
+  <PropertyGroup><TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks><NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Public-API tracking (CF-IMP-005e-B): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"><PrivateAssets>all</PrivateAssets><IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets></PackageReference></ItemGroup>
 </Project>

@@ -1,0 +1,92 @@
+#nullable enable
+OpenConnect.Navigator.AspNetCore.ApprovalRequest
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.ApprovalRequest(string! CommandId, string! ArgsHash) -> void
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.ArgsHash.get -> string!
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.ArgsHash.init -> void
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.CommandId.get -> string!
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.CommandId.init -> void
+OpenConnect.Navigator.AspNetCore.CommandRequest
+OpenConnect.Navigator.AspNetCore.CommandRequest.Command.get -> OpenConnect.Navigator.NavigatorCommand!
+OpenConnect.Navigator.AspNetCore.CommandRequest.Command.init -> void
+OpenConnect.Navigator.AspNetCore.CommandRequest.CommandRequest(OpenConnect.Navigator.NavigatorCommand! Command) -> void
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.ClientInstance.get -> string!
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.ClientInstance.init -> void
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.CreateSessionRequest(string! ClientInstance, string! RouteId) -> void
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.RouteId.get -> string!
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.RouteId.init -> void
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.AddPending(string! id, OpenConnect.Navigator.NavigatorCommand! command, string! tenant, string! principal, System.DateTimeOffset expiresAt) -> bool
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.ApprovePending(string! id, string! commandId, string! digest, string! tenant, string! principal, System.DateTimeOffset now) -> bool
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.ConsumeApproved(string! id, string! commandId, string! tenant, string! principal, System.DateTimeOffset now) -> OpenConnect.Navigator.NavigatorCommand?
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.Create(string! tenant, string! principal, string! clientInstance, string! routeId) -> OpenConnect.Navigator.AspNetCore.NavigatorSession!
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.Events(string! id, long after) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>!
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.Execute(string! id, OpenConnect.Navigator.NavigatorCommand! command, OpenConnect.Navigator.CommandGrant! grant, System.DateTimeOffset now) -> bool
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.Get(string! id, string! tenant, string! principal) -> OpenConnect.Navigator.AspNetCore.NavigatorSession?
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.IsDurable.get -> bool
+OpenConnect.Navigator.AspNetCore.INavigatorSessionStore.IssueGrant(string! id, OpenConnect.Navigator.NavigatorCommand! command, string! tenant, string! principal, OpenConnect.Navigator.NavigatorRegisteredTarget! target, System.DateTimeOffset now) -> OpenConnect.Navigator.CommandGrant?
+OpenConnect.Navigator.AspNetCore.NavigatorEndpoints
+OpenConnect.Navigator.AspNetCore.NavigatorMemoryStore
+OpenConnect.Navigator.AspNetCore.NavigatorMemoryStore.IsDurable.get -> bool
+OpenConnect.Navigator.AspNetCore.NavigatorMemoryStore.NavigatorMemoryStore() -> void
+OpenConnect.Navigator.AspNetCore.NavigatorServiceCollectionExtensions
+OpenConnect.Navigator.AspNetCore.NavigatorSession
+OpenConnect.Navigator.AspNetCore.NavigatorSession.ClientInstance.get -> string!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.ClientInstance.init -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Id.get -> string!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Id.init -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.NavigatorSession(string! Id, string! Tenant, string! Principal, string! ClientInstance, string! RouteId) -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Principal.get -> string!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Principal.init -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.RouteId.get -> string!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.RouteId.init -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Tenant.get -> string!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Tenant.init -> void
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.AppendEventAsync(string! id, string! tenant, string! principal, long expectedSequence, OpenConnect.Navigator.NavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.CommittingDurableNavigatorStore(System.IServiceProvider! services, OpenConnect.Navigator.AspNetCore.Outbox.INavigatorCommitHook! hook) -> void
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.ConsumeApprovalAndSaveReceiptAsync(string! id, string! tenant, string! principal, string! commandId, string! digest, System.DateTimeOffset now, OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.CreatePendingApprovalAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.CreateSessionAsync(string! tenant, string! principal, string! clientInstance, string! routeId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.GetEventsAsync(string! id, string! tenant, string! principal, long afterSequence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>!>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord?>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.GetSessionAsync(string! id, string! tenant, string! principal, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.NavigatorSession?>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.IsFenceCurrentAsync(string! tenant, string! executionId, long fencingToken, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStore.UpdateSessionSnapshotAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot, long expectedRevision, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStoreExtensions
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorCommitHook
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorCommitHook.AfterCommitAsync(string! sessionId, System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>! committedEvents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorOutboxRelay
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorOutboxRelay.RelayOnceAsync(int limit, System.Guid leaseId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<int>!
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorOutboxWriter
+OpenConnect.Navigator.AspNetCore.Outbox.INavigatorOutboxWriter.WriteAsync(string! topic, string! messageId, string! payload, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook.AfterCommitAsync(string! sessionId, System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>! committedEvents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook.DedupSkippedEventIds.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook.NavigatorCommitHook(OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxWriter! writer) -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook.QuarantinedEventIds.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorCommitHook.TryDequeueQuarantined(out string? eventId) -> bool
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxRelayWorker
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxRelayWorker.NavigatorOutboxRelayWorker(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory! scopeFactory, Microsoft.Extensions.Logging.ILogger<OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxRelayWorker!>! logger) -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxServiceCollectionExtensions
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxWriter
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxWriter.NavigatorOutboxWriter(OpenConnect.Navigator.AspNetCore.Outbox.INavigatorOutboxWriter! writer) -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxWriter.WriteAsync(OpenConnect.Navigator.Events.CommittedNavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.NavigatorServerAuthContext() -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.PrincipalId.get -> string!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.SessionId.get -> string!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.TenantId.get -> string!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsDeliveryAdapter
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsDeliveryAdapter.NavigatorWsDeliveryAdapter(OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector! projector) -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsDeliveryAdapter.ProjectAsync(OpenConnect.Navigator.NavigatorEvent! value, OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext serverContext, string! consumerId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Events.CommittedNavigatorEvent?>!
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector.NavigatorWsProjector() -> void
+OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector.ProjectAsync(OpenConnect.Navigator.NavigatorEvent! value, OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext authorization, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string? consumerId = null) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Events.CommittedNavigatorEvent?>!
+static OpenConnect.Navigator.AspNetCore.NavigatorEndpoints.MapOpenConnectNavigator(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static OpenConnect.Navigator.AspNetCore.NavigatorServiceCollectionExtensions.AddOpenConnectNavigator(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Navigator.NavigatorOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Navigator.AspNetCore.Outbox.CommittingDurableNavigatorStoreExtensions.AddCommittingNavigatorStore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxServiceCollectionExtensions.AddNavigatorOutboxRelay(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.FromServerPrincipal(System.Security.Claims.ClaimsPrincipal! principal, string! sessionId) -> OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext
+static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsDeliveryAdapter.ProjectProgress(string! sessionId, long sequence, string! type, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! metadata) -> object!
+static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector.ProjectProgress(string! sessionId, long sequence, string! type, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! metadata) -> object!

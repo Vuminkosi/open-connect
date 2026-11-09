@@ -1,0 +1,163 @@
+#nullable enable
+OpenConnect.Components.Contracts.ComponentProposal
+OpenConnect.Components.Contracts.ComponentProposal.ComponentProposal(string! Name, string? ParametersJson = null) -> void
+OpenConnect.Components.Contracts.ComponentProposal.Name.get -> string!
+OpenConnect.Components.Contracts.ComponentProposal.Name.init -> void
+OpenConnect.Components.Contracts.ComponentProposal.ParametersJson.get -> string?
+OpenConnect.Components.Contracts.ComponentProposal.ParametersJson.init -> void
+OpenConnect.Components.Contracts.ComponentProposal.Validate(System.Func<string!, bool>! isRegistered) -> string?
+OpenConnect.Components.Contracts.ComposerAppearanceOptions
+OpenConnect.Components.Contracts.ComposerCloseBehavior
+OpenConnect.Components.Contracts.ComposerCloseBehavior.CancelActiveTask = 1 -> OpenConnect.Components.Contracts.ComposerCloseBehavior
+OpenConnect.Components.Contracts.ComposerCloseBehavior.EndSession = 2 -> OpenConnect.Components.Contracts.ComposerCloseBehavior
+OpenConnect.Components.Contracts.ComposerCloseBehavior.MinimizeOnly = 0 -> OpenConnect.Components.Contracts.ComposerCloseBehavior
+OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerConnectionState.Connecting = 1 -> OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerConnectionState.Error = 4 -> OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerConnectionState.Idle = 0 -> OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerConnectionState.Reconnecting = 3 -> OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerConnectionState.Streaming = 2 -> OpenConnect.Components.Contracts.ComposerConnectionState
+OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Closed = 1 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Closing = 5 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Dragging = 4 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Hidden = 0 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Open = 3 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerDisplayState.Opening = 2 -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerHistoryPresentation
+OpenConnect.Components.Contracts.ComposerHistoryPresentation.LatestOnly = 0 -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
+OpenConnect.Components.Contracts.ComposerHistoryPresentation.OnDemandHistory = 1 -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
+OpenConnect.Components.Contracts.ComposerInputAction
+OpenConnect.Components.Contracts.ComposerInputAction.LiveVoiceOrSend = 0 -> OpenConnect.Components.Contracts.ComposerInputAction
+OpenConnect.Components.Contracts.ComposerInputAction.RecordedVoiceOrSend = 2 -> OpenConnect.Components.Contracts.ComposerInputAction
+OpenConnect.Components.Contracts.ComposerInputAction.SendOnly = 1 -> OpenConnect.Components.Contracts.ComposerInputAction
+OpenConnect.Components.Contracts.ComposerInputOptions
+OpenConnect.Components.Contracts.ComposerInputOptions.Action.get -> OpenConnect.Components.Contracts.ComposerInputAction
+OpenConnect.Components.Contracts.ComposerInputOptions.Action.init -> void
+OpenConnect.Components.Contracts.ComposerInputOptions.MaxCharacters.get -> int
+OpenConnect.Components.Contracts.ComposerInputOptions.MaxCharacters.init -> void
+OpenConnect.Components.Contracts.ComposerInputOptions.MaxLines.get -> int
+OpenConnect.Components.Contracts.ComposerInputOptions.MaxLines.init -> void
+OpenConnect.Components.Contracts.ComposerMessage
+OpenConnect.Components.Contracts.ComposerMessage.ComposerMessage(string! Role, string! Text, long Sequence = 0, OpenConnect.Components.Contracts.ComposerMessageState State = OpenConnect.Components.Contracts.ComposerMessageState.Received) -> void
+OpenConnect.Components.Contracts.ComposerMessage.Role.get -> string!
+OpenConnect.Components.Contracts.ComposerMessage.Role.init -> void
+OpenConnect.Components.Contracts.ComposerMessage.Sequence.get -> long
+OpenConnect.Components.Contracts.ComposerMessage.Sequence.init -> void
+OpenConnect.Components.Contracts.ComposerMessage.State.get -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessage.State.init -> void
+OpenConnect.Components.Contracts.ComposerMessage.Text.get -> string!
+OpenConnect.Components.Contracts.ComposerMessage.Text.init -> void
+OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessageState.Cancelled = 3 -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessageState.Failed = 4 -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessageState.Received = 2 -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessageState.Sending = 0 -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMessageState.Streaming = 1 -> OpenConnect.Components.Contracts.ComposerMessageState
+OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Failed = 7 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.ListeningLive = 4 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Off = 1 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.PermissionRequested = 2 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Recording = 3 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Stopping = 6 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Transcribing = 5 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerMicrophoneState.Unavailable = 0 -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.Attached = 6 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.BottomLeft = 1 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.BottomRight = 0 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.Custom = 4 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.LegacyViewport20Vh = 5 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.TopLeft = 3 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerPlacement.TopRight = 2 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Buffering = 3 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Failed = 6 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Off = 1 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.On = 2 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Paused = 5 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Playing = 4 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerSpeechState.Unavailable = 0 -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.AwaitingApproval = 5 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Cancelled = 10 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Cancelling = 9 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Completed = 8 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Connecting = 1 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Failed = 11 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Ready = 0 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Reconnecting = 7 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Sending = 2 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Streaming = 6 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.Thinking = 3 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerTaskPhase.ToolExecuting = 4 -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerUiIntegration
+OpenConnect.Components.Contracts.ComposerUiIntegration.Attached = 1 -> OpenConnect.Components.Contracts.ComposerUiIntegration
+OpenConnect.Components.Contracts.ComposerUiIntegration.Floating = 0 -> OpenConnect.Components.Contracts.ComposerUiIntegration
+OpenConnect.Components.Contracts.ComposerVoiceOptions
+OpenConnect.Components.Contracts.ComposerVoiceOptions.AllowLive.get -> bool
+OpenConnect.Components.Contracts.ComposerVoiceOptions.AllowLive.init -> void
+OpenConnect.Components.Contracts.ComposerVoiceOptions.AllowRecorded.get -> bool
+OpenConnect.Components.Contracts.ComposerVoiceOptions.AllowRecorded.init -> void
+OpenConnect.Components.Contracts.ComposerVoiceOptions.EnableAutoplayAfterGesture.get -> bool
+OpenConnect.Components.Contracts.ComposerVoiceOptions.EnableAutoplayAfterGesture.init -> void
+OpenConnect.Components.Contracts.ComposerVoiceOptions.ShowWhenAvailable.get -> bool
+OpenConnect.Components.Contracts.ComposerVoiceOptions.ShowWhenAvailable.init -> void
+OpenConnect.Components.Contracts.ComposerWireState
+OpenConnect.Components.Contracts.ComposerWireState.DisplayState.get -> OpenConnect.Components.Contracts.ComposerDisplayState
+OpenConnect.Components.Contracts.ComposerWireState.DisplayState.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.HistoryPresentation.get -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
+OpenConnect.Components.Contracts.ComposerWireState.HistoryPresentation.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.MicrophoneState.get -> OpenConnect.Components.Contracts.ComposerMicrophoneState
+OpenConnect.Components.Contracts.ComposerWireState.MicrophoneState.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.Placement.get -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerWireState.Placement.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.Schema.get -> string!
+OpenConnect.Components.Contracts.ComposerWireState.Schema.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.SpeechState.get -> OpenConnect.Components.Contracts.ComposerSpeechState
+OpenConnect.Components.Contracts.ComposerWireState.SpeechState.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.TaskPhase.get -> OpenConnect.Components.Contracts.ComposerTaskPhase
+OpenConnect.Components.Contracts.ComposerWireState.TaskPhase.init -> void
+OpenConnect.Components.Contracts.ComposerWireState.UiIntegration.get -> OpenConnect.Components.Contracts.ComposerUiIntegration
+OpenConnect.Components.Contracts.ComposerWireState.UiIntegration.init -> void
+OpenConnect.Components.Contracts.ComposerWireValues
+OpenConnect.Components.Contracts.IOpenConnectComponent
+OpenConnect.Components.Contracts.IOpenConnectComponent.Descriptor.get -> OpenConnect.Components.Contracts.OpenConnectComponentDescriptor!
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Category.get -> string?
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Category.init -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Description.get -> string!
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Description.init -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.IsValid.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Name.get -> string!
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Name.init -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.OpenConnectComponentDescriptor(string! Name, string! Title, string! Description, string? Category = null, System.Collections.Generic.IReadOnlyList<string!>? Tags = null) -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Tags.get -> System.Collections.Generic.IReadOnlyList<string!>?
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Tags.init -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Title.get -> string!
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Title.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Appearance.get -> OpenConnect.Components.Contracts.ComposerAppearanceOptions!
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Appearance.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.AssistantName.get -> string!
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.AssistantName.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.get -> OpenConnect.Components.Contracts.ComposerCloseBehavior
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.get -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.InitiallyOpen.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.InitiallyOpen.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Input.get -> OpenConnect.Components.Contracts.ComposerInputOptions!
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Input.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.PersistPosition.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.PersistPosition.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Placement.get -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Placement.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Voice.get -> OpenConnect.Components.Contracts.ComposerVoiceOptions!
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Voice.init -> void
+static OpenConnect.Components.Contracts.ComposerWireValues.CreateJsonOptions() -> System.Text.Json.JsonSerializerOptions!
+static OpenConnect.Components.Contracts.ComposerWireValues.FromWireValue<TEnum>(string! value) -> TEnum
+static OpenConnect.Components.Contracts.ComposerWireValues.ToWireValue<TEnum>(TEnum value) -> string!
+static OpenConnect.Components.Contracts.ComposerWireValues.ValidateJson<T>(string! json) -> T
+static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.IsValidName(string! name) -> bool

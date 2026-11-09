@@ -4,8 +4,14 @@
     <AssemblyName>OpenConnect.Navigator.AspNetCore</AssemblyName>
     <RootNamespace>OpenConnect.Navigator.AspNetCore</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Public-API tracking (CF-IMP-005e-C): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />

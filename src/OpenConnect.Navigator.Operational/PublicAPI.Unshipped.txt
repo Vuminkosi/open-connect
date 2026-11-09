@@ -1,0 +1,181 @@
+#nullable enable
+OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore
+OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore.DurableIdempotencyStore(OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore! store) -> void
+OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore.GetAsync(string! tenantScope, string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalReceipt?>
+OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore.TryCompleteAsync(string! tenantScope, string! key, OpenConnect.Navigator.Operational.OperationalReceipt! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.DurableOperationalLeaseStore(OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore! store, string! owner) -> void
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.IsCurrentAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.IsDurable.get -> bool
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.ReleaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.RenewAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.DurableOperationalLeaseStore.TryAcquireAsync(string! executionId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.AppendEventAsync(string! id, string! tenant, string! principal, long expectedSequence, OpenConnect.Navigator.NavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.ConsumeApprovalAndSaveReceiptAsync(string! id, string! tenant, string! principal, string! commandId, string! digest, System.DateTimeOffset now, OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.CreatePendingApprovalAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.CreateSessionAsync(string! tenant, string! principal, string! clientInstance, string! routeId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.EfNavigatorReceiptAdapter(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext!>! receipts, OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore! inner) -> void
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.GetEventsAsync(string! id, string! tenant, string! principal, long afterSequence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>!>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord?>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.GetSessionAsync(string! id, string! tenant, string! principal, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.NavigatorSession?>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.IsFenceCurrentAsync(string! tenant, string! executionId, long fencingToken, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.EfNavigatorReceiptAdapter<TContext>.UpdateSessionSnapshotAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot, long expectedRevision, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.AppendEventAsync(string! id, string! tenant, string! principal, long expectedSequence, OpenConnect.Navigator.NavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.ConsumeApprovalAndSaveReceiptAsync(string! id, string! tenant, string! principal, string! commandId, string! digest, System.DateTimeOffset now, OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.CreatePendingApprovalAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.CreateSessionAsync(string! tenant, string! principal, string! clientInstance, string! routeId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.GetEventsAsync(string! id, string! tenant, string! principal, long afterSequence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>!>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord?>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.GetSessionAsync(string! id, string! tenant, string! principal, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.NavigatorSession?>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.IsFenceCurrentAsync(string! tenant, string! executionId, long fencingToken, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.IDurableNavigatorStore.UpdateSessionSnapshotAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot, long expectedRevision, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.GetReceiptAsync(string! tenantScope, string! idempotencyKey, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalReceipt?>
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.IsDurable.get -> bool
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.IsLeaseCurrentAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.ReleaseLeaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.RenewLeaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.TryAcquireLeaseAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore.TrySaveReceiptAsync(string! tenantScope, string! idempotencyKey, OpenConnect.Navigator.Operational.OperationalReceipt! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.AppendEventAsync(string! id, string! tenant, string! principal, long expectedSequence, OpenConnect.Navigator.NavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.ConsumeApprovalAndSaveReceiptAsync(string! id, string! tenant, string! principal, string! commandId, string! digest, System.DateTimeOffset now, OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.CreatePendingApprovalAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.CreateSessionAsync(string! tenant, string! principal, string! clientInstance, string! routeId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.GetEventsAsync(string! id, string! tenant, string! principal, long afterSequence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorEvent!>!>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord?>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.GetSessionAsync(string! id, string! tenant, string! principal, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.NavigatorSession?>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.InMemoryDurableNavigatorStore(OpenConnect.Navigator.Operational.Durable.IDurableOperationalStore! operationalStore) -> void
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.IsFenceCurrentAsync(string! tenant, string! executionId, long fencingToken, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableNavigatorStore.UpdateSessionSnapshotAsync(string! id, string! tenant, string! principal, OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot, long expectedRevision, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.GetReceiptAsync(string! tenantScope, string! idempotencyKey, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalReceipt?>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.InMemoryDurableOperationalStore() -> void
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.IsDurable.get -> bool
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.IsLeaseCurrentAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.ReleaseLeaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.RenewLeaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.TryAcquireLeaseAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.TrySaveReceiptAsync(string! tenantScope, string! idempotencyKey, OpenConnect.Navigator.Operational.OperationalReceipt! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.CommandId.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.CommandId.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Digest.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Digest.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.ExpiresAt.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.NavigatorApprovalRecord(string! SessionId, string! CommandId, string! Digest, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.SessionId.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.SessionId.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.CommandId.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.CommandId.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Digest.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Digest.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.ExpiresAt.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.FencingToken.get -> long
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.FencingToken.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.IdempotencyKey.get -> string!
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.IdempotencyKey.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.NavigatorReceiptRecord(string! CommandId, string! IdempotencyKey, string! Digest, object? Result, System.DateTimeOffset ExpiresAt, long FencingToken) -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Result.get -> object?
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Result.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.AlreadyConsumed = 4 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.Conflict = 2 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.Expired = 3 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.NotFound = 1 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.StaleFence = 5 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.Succeeded = 0 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.IsReplay.get -> bool
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.IsReplay.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.NavigatorStoreResult(OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome Outcome, bool IsReplay = false) -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Outcome.get -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Outcome.init -> void
+OpenConnect.Navigator.Operational.IOperationalHandler
+OpenConnect.Navigator.Operational.IOperationalHandler.HandleAsync(OpenConnect.Navigator.Operational.OperationalJob! job, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Operational.OperationalReceipt!>!
+OpenConnect.Navigator.Operational.IOperationalLeaseStore
+OpenConnect.Navigator.Operational.IOperationalLeaseStore.IsCurrentAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.IOperationalLeaseStore.IsDurable.get -> bool
+OpenConnect.Navigator.Operational.IOperationalLeaseStore.ReleaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.Operational.IOperationalLeaseStore.RenewAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.IOperationalLeaseStore.TryAcquireAsync(string! executionId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.IOperationalPlanProvider
+OpenConnect.Navigator.Operational.IOperationalPlanProvider.GetPlanAsync(string! planId, string! tenantScope, string! policyRevision, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.NavigatorTourPlan?>
+OpenConnect.Navigator.Operational.IOperationalStepExecutor
+OpenConnect.Navigator.Operational.IOperationalStepExecutor.ExecuteReadOnlyAsync(OpenConnect.Navigator.NavigatorTourStep! step, OpenConnect.Navigator.Operational.IOperationalWorkloadIdentity! identity, System.Collections.Generic.IReadOnlySet<string!>! applicationAllowlist, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalStepResult!>
+OpenConnect.Navigator.Operational.IOperationalWorkloadIdentity
+OpenConnect.Navigator.Operational.IOperationalWorkloadIdentity.TenantScope.get -> string!
+OpenConnect.Navigator.Operational.IOperationalWorkloadIdentityProvider
+OpenConnect.Navigator.Operational.IOperationalWorkloadIdentityProvider.ResolveAsync(string! servicePrincipalRef, string! tenantScope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.IOperationalWorkloadIdentity?>
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.InMemoryOperationalLeaseStore() -> void
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.IsCurrentAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.IsDurable.get -> bool
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.ReleaseAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.RenewAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.TryAcquireAsync(string! executionId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
+OpenConnect.Navigator.Operational.OperationalJob
+OpenConnect.Navigator.Operational.OperationalJob.ApplicationAllowlist.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Navigator.Operational.OperationalJob.ApplicationAllowlist.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.Deadline.get -> System.DateTimeOffset
+OpenConnect.Navigator.Operational.OperationalJob.Deadline.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.ExecutionId.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.ExecutionId.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.IdempotencyKey.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.IdempotencyKey.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.OperationalJob(string! TenantScope, string! ServicePrincipalRef, string! PlanId, System.Collections.Generic.IReadOnlySet<string!>! ApplicationAllowlist, string! ExecutionId, System.DateTimeOffset Deadline, string! IdempotencyKey, string! PolicyRevision) -> void
+OpenConnect.Navigator.Operational.OperationalJob.PlanId.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.PlanId.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.PolicyRevision.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.PolicyRevision.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.ServicePrincipalRef.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.ServicePrincipalRef.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.TenantScope.get -> string!
+OpenConnect.Navigator.Operational.OperationalJob.TenantScope.init -> void
+OpenConnect.Navigator.Operational.OperationalLease
+OpenConnect.Navigator.Operational.OperationalLease.ExecutionId.get -> string!
+OpenConnect.Navigator.Operational.OperationalLease.ExecutionId.init -> void
+OpenConnect.Navigator.Operational.OperationalLease.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.Operational.OperationalLease.ExpiresAt.init -> void
+OpenConnect.Navigator.Operational.OperationalLease.FencingToken.get -> long
+OpenConnect.Navigator.Operational.OperationalLease.FencingToken.init -> void
+OpenConnect.Navigator.Operational.OperationalLease.LeaseId.get -> string!
+OpenConnect.Navigator.Operational.OperationalLease.LeaseId.init -> void
+OpenConnect.Navigator.Operational.OperationalLease.OperationalLease(string! LeaseId, string! ExecutionId, long FencingToken, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Navigator.Operational.OperationalNavigatorHandler
+OpenConnect.Navigator.Operational.OperationalNavigatorHandler.HandleAsync(OpenConnect.Navigator.Operational.OperationalJob! job, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Operational.OperationalReceipt!>!
+OpenConnect.Navigator.Operational.OperationalNavigatorHandler.OperationalNavigatorHandler(OpenConnect.Navigator.Operational.IOperationalLeaseStore! leases, OpenConnect.Navigator.Operational.IOperationalWorkloadIdentityProvider! identities, OpenConnect.Navigator.Operational.IOperationalPlanProvider! plans, OpenConnect.Navigator.Operational.IOperationalStepExecutor! executor, OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore? receipts = null) -> void
+OpenConnect.Navigator.Operational.OperationalReceipt
+OpenConnect.Navigator.Operational.OperationalReceipt.CompletedSteps.get -> int
+OpenConnect.Navigator.Operational.OperationalReceipt.CompletedSteps.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.ExecutionId.get -> string!
+OpenConnect.Navigator.Operational.OperationalReceipt.ExecutionId.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.FencingToken.get -> long
+OpenConnect.Navigator.Operational.OperationalReceipt.FencingToken.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.IsReplay.get -> bool
+OpenConnect.Navigator.Operational.OperationalReceipt.IsReplay.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.OperationalReceipt(string! ExecutionId, OpenConnect.Navigator.Operational.OperationalRunStatus Status, int CompletedSteps, string? SafeSummary, long FencingToken, bool IsReplay = false) -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.SafeSummary.get -> string?
+OpenConnect.Navigator.Operational.OperationalReceipt.SafeSummary.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.Status.get -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalReceipt.Status.init -> void
+OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.Cancelled = 1 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.Completed = 0 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.Failed = 2 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.LeaseLost = 4 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.Rejected = 5 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalRunStatus.Uncertain = 3 -> OpenConnect.Navigator.Operational.OperationalRunStatus
+OpenConnect.Navigator.Operational.OperationalStepResult
+OpenConnect.Navigator.Operational.OperationalStepResult.OperationalStepResult(bool Succeeded, bool Uncertain, string? SafeSummary) -> void
+OpenConnect.Navigator.Operational.OperationalStepResult.SafeSummary.get -> string?
+OpenConnect.Navigator.Operational.OperationalStepResult.SafeSummary.init -> void
+OpenConnect.Navigator.Operational.OperationalStepResult.Succeeded.get -> bool
+OpenConnect.Navigator.Operational.OperationalStepResult.Succeeded.init -> void
+OpenConnect.Navigator.Operational.OperationalStepResult.Uncertain.get -> bool
+OpenConnect.Navigator.Operational.OperationalStepResult.Uncertain.init -> void

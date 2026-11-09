@@ -1,0 +1,179 @@
+#nullable enable
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode.DedicatedDbContext = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode.ExistingDbContext = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Consistency.get -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Consistency.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.IntegrationMode.get -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.IntegrationMode.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.MaxOutboxDispatchers.get -> int
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.MaxOutboxDispatchers.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Migrations.get -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Migrations.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OpenConnectEfOptions() -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxBatchSize.get -> int
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxBatchSize.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxClaimStrategy.get -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxClaimStrategy.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxLeaseDuration.get -> System.TimeSpan
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxLeaseDuration.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxMaxAttempts.get -> int
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxMaxAttempts.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxPollingInterval.get -> System.TimeSpan
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.OutboxPollingInterval.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.RequireExistingContextModelRegistration.get -> bool
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.RequireExistingContextModelRegistration.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Schema.get -> string!
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.Schema.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.SqliteTablePrefix.get -> string!
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.SqliteTablePrefix.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.ValidateSchema.get -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions.ValidateSchema.set -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptionsValidator
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptionsValidator.OpenConnectEfOptionsValidator() -> void
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptionsValidator.Validate(string? name, OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode.ApplyOnStartup = 2 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode.Manual = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode.None = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectMigrationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy.Auto = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy.OptimisticConcurrency = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy.ProviderOptimized = 2 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectOutboxClaimStrategy
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency.DevelopmentOnly = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency.DurableSingleDatabase = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectPersistenceConsistency
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.None = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.ValidateModel = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
+OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.ValidateSchemaAndVersion = 2 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.OpenConnectDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext!>! options) -> void
+OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory
+OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.Create(Microsoft.EntityFrameworkCore.DbContext! context, bool designTime) -> object!
+OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.OpenConnectModelCacheKeyFactory() -> void
+OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions
+OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider
+OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider.ModelOptions.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Schema.get -> string!
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Schema.init -> void
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.SqliteTablePrefix.get -> string!
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.SqliteTablePrefix.init -> void
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.UseSqlitePrefix.get -> bool
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.UseSqlitePrefix.init -> void
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>.EfNavigatorLeaseSeam(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>.IsCurrentAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>.ReleaseAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>.RenewAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
+OpenConnect.Persistence.EFCore.Navigator.EfNavigatorLeaseSeam<TContext>.TryAcquireAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
+OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam
+OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.IsCurrentAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.ReleaseAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.RenewAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
+OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.TryAcquireAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExecutionId.get -> string!
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExecutionId.init -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExpiresAt.init -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.FencingToken.get -> long
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.FencingToken.init -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.LeaseId.get -> string!
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.LeaseId.init -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.NavigatorLease(string! LeaseId, string! ExecutionId, long FencingToken, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping
+OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher
+OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher.PublishAsync(string! subject, string! eventId, string! payload, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.CommandId.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.CommandId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Digest.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Digest.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.EfNavigatorReceiptInput(string! CommandId, string! IdempotencyKey, string! Digest, System.Text.Json.JsonElement Result, System.DateTimeOffset ExpiresAt, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.ExpiresAt.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.FencingToken.get -> long
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.FencingToken.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.IdempotencyKey.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.IdempotencyKey.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Result.get -> System.Text.Json.JsonElement
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Result.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.AlreadyConsumed = 4 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.Conflict = 2 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.Expired = 3 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.NotFound = 1 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.Succeeded = 0 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.EfNavigatorReceiptResult(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome Outcome, bool IsReplay = false) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.IsReplay.get -> bool
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.IsReplay.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Outcome.get -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Outcome.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.ConsumeApprovalAndSaveReceiptAsync(string! id, string! tenant, string! principal, string! commandId, string! digest, System.DateTimeOffset now, OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult!>
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.EfNavigatorReceiptStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.GetOperationalReceiptAsync(string! tenantScope, string! idempotencyKey, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView?>
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView?>
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.TrySaveOperationalReceiptAsync(string! tenantScope, string! idempotencyKey, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.CommandId.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.CommandId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Digest.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Digest.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.EfNavigatorReceiptView(string! CommandId, string! IdempotencyKey, string! Digest, System.Text.Json.JsonElement Result, System.DateTimeOffset ExpiresAt, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.ExpiresAt.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.FencingToken.get -> long
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.FencingToken.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.IdempotencyKey.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.IdempotencyKey.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Result.get -> System.Text.Json.JsonElement
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Result.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.CompletedSteps.get -> int
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.CompletedSteps.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.EfOperationalReceiptInput(string! ExecutionId, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, int CompletedSteps, string? SafeSummary, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.ExecutionId.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.ExecutionId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.FencingToken.get -> long
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.FencingToken.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.SafeSummary.get -> string?
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.SafeSummary.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Status.get -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Status.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Cancelled = 1 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Completed = 0 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Failed = 2 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.LeaseLost = 4 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Rejected = 5 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Uncertain = 3 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.CompletedSteps.get -> int
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.CompletedSteps.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.EfOperationalReceiptView(string! ExecutionId, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, int CompletedSteps, string? SafeSummary, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ExecutionId.get -> string!
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ExecutionId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.FencingToken.get -> long
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.FencingToken.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.SafeSummary.get -> string?
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.SafeSummary.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Status.get -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Status.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.EfSessionUuidMappingStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.ResolveAsync(System.Guid publicId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.SessionId?>!
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.TryAddAsync(System.Guid publicId, OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Persistence.SessionUuidMappingSaveOutcome>!
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.EfSessionUuidResolver(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.ResolveAsync(System.Guid publicId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.SessionId?>!
+static OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions.AddOpenConnectEntityFramework<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
+static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Default.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
+static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptClientTaskId(string! idempotencyKey) -> string!
+static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptTaskId(System.Guid tenant, System.Guid principal, string! idempotencyKey) -> System.Guid

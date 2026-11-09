@@ -40,6 +40,12 @@
           "OpenTelemetry.Api": "1.18.0"
         }
       },
+      "Microsoft.CodeAnalysis.PublicApiAnalyzers": {
+        "type": "Direct",
+        "requested": "[3.3.4, )",
+        "resolved": "3.3.4",
+        "contentHash": "kNLTfXtXUWDHVt5iaPkkiPuyHYlMgLI6SOFT4w88bfeI2vqSeGgHunFkdvlaCM8RDfcY0t2+jnesQtidRJJ/DA=="
+      },
       "Google.Protobuf": {
         "type": "Transitive",
         "resolved": "3.30.2",
@@ -198,6 +204,12 @@
           "System.Text.Json": "10.0.12",
           "System.Threading.Channels": "10.0.12"
         }
+      },
+      "Microsoft.CodeAnalysis.PublicApiAnalyzers": {
+        "type": "Direct",
+        "requested": "[3.3.4, )",
+        "resolved": "3.3.4",
+        "contentHash": "kNLTfXtXUWDHVt5iaPkkiPuyHYlMgLI6SOFT4w88bfeI2vqSeGgHunFkdvlaCM8RDfcY0t2+jnesQtidRJJ/DA=="
       },
       "Google.Protobuf": {
         "type": "Transitive",
@@ -397,6 +409,12 @@
           "System.Text.Json": "10.0.12",
           "System.Threading.Channels": "10.0.12"
         }
+      },
+      "Microsoft.CodeAnalysis.PublicApiAnalyzers": {
+        "type": "Direct",
+        "requested": "[3.3.4, )",
+        "resolved": "3.3.4",
+        "contentHash": "kNLTfXtXUWDHVt5iaPkkiPuyHYlMgLI6SOFT4w88bfeI2vqSeGgHunFkdvlaCM8RDfcY0t2+jnesQtidRJJ/DA=="
       },
       "Google.Protobuf": {
         "type": "Transitive",

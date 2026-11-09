@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using OpenConnect.Abstractions;
 using Xunit;
 
 namespace OpenConnect.Contracts.Tests;
@@ -12,11 +13,10 @@ namespace OpenConnect.Contracts.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uses <see cref="JsonObject"/> construction with fixed insertion order because
-/// the Contracts test project has no reference to OpenConnect.Abstractions
-/// (adding one is out of scope here). Typed-converter coverage of
-/// <c>CanonicalAgentEvent</c>/<c>KebabCaseStringEnumConverter</c> is deferred to
-/// CF-IMP-005d, which can add that ProjectReference.
+/// Uses <see cref="JsonObject"/> construction with fixed insertion order for the
+/// golden/mirror assertions below. Typed-converter coverage of the real
+/// <c>CanonicalAgentEvent</c>/<c>KebabCaseStringEnumConverter</c> Abstractions code
+/// (CF-IMP-005d) lives in the partial typed block at the end of this file.
 /// </para>
 /// <para>
 /// The contract schema version asserted here is <c>openconnect.v1</c>, taken
@@ -24,7 +24,7 @@ namespace OpenConnect.Contracts.Tests;
 /// <c>CanonicalAgentEvent.CurrentSchemaVersion</c>.
 /// </para>
 /// </remarks>
-public sealed class WireStabilityTests
+public sealed partial class WireStabilityTests
 {
     private static readonly JsonSerializerOptions FixedOptions = new()
     {
@@ -328,6 +328,170 @@ public sealed class WireStabilityTests
             }
 
             return value;
+        }
+    }
+    public static TheoryData<object, string> StableEnumWireCases => new()
+    {
+        { AgentExecutionMode.Interactive, "interactive" },
+        { AgentExecutionMode.Operational, "operational" },
+        { AgentActivationMode.OnDemand, "on-demand" },
+        { AgentActivationMode.Scheduled, "scheduled" },
+        { AgentActivationMode.EventTriggered, "event-triggered" },
+        { AgentActivationMode.Continuous, "continuous" },
+        { AgentRunState.Accepted, "accepted" },
+        { AgentRunState.AwaitingApproval, "awaiting-approval" },
+        { AgentRunState.CancelRequested, "cancel-requested" },
+        { AgentRunState.OutcomeUnknown, "outcome-unknown" },
+        { RunState.Registered, "registered" },
+        { RunState.Queued, "queued" },
+        { AgentIdentityMode.ActiveUser, "active-user" },
+        { AgentIdentityMode.WorkloadIdentity, "workload-identity" },
+        { ToolImpact.ReadOnly, "read-only" },
+        { ToolImpact.Write, "write" },
+        { ToolImpact.ExternalSideEffect, "external-side-effect" },
+        { ModelExecutionLocation.LocalOnly, "local-only" },
+        { ModelExecutionLocation.SelfHosted, "self-hosted" },
+        { ModelExecutionLocation.RemoteAllowed, "remote-allowed" },
+        { FirewallMode.StrictLocal, "strict-local" },
+        { FirewallMode.LocalOnly, "local-only" },
+        { FirewallMode.PolicyControlled, "policy-controlled" },
+        { FirewallMode.Disabled, "disabled" },
+        { FirewallFailureAction.Deny, "deny" },
+        { FirewallFailureAction.LocalOnlyIfVerified, "local-only-if-verified" },
+        { SecurityDetectorKind.Rules, "rules" },
+        { SecurityDetectorKind.GlinerPii, "gliner-pii" },
+        { SecurityDetectorKind.DebertaInjection, "deberta-injection" },
+        { SecurityDetectorKind.Qwen3Guard, "qwen3-guard" },
+        { SecurityDetectorKind.PaddleOcr, "paddle-ocr" },
+        { SecurityDetectorKind.YuNet, "yu-net" },
+        { DetectorLoadPolicy.Startup, "startup" },
+        { DetectorLoadPolicy.LazyOnFirstUse, "lazy-on-first-use" },
+        { DetectorDevice.Auto, "auto" },
+        { DetectorDevice.Cpu, "cpu" },
+        { DetectorDevice.Cuda, "cuda" },
+        { DetectorState.Disabled, "disabled" },
+        { DetectorState.Degraded, "degraded" },
+        { SecurityCoverage.StructuredPii, "structured-pii" },
+        { SecurityCoverage.SemanticPii, "semantic-pii" },
+        { SecurityPolicyAction.Allow, "allow" },
+        { SecurityPolicyAction.Block, "block" },
+        { SecurityPolicyAction.Review, "review" },
+        { SecurityCoverageUnavailableAction.Block, "block" },
+        { SecurityCoverageUnavailableAction.LocalOnlyIfVerified, "local-only-if-verified" },
+        { SchedulingMisfirePolicy.Skip, "skip" },
+        { SchedulingMisfirePolicy.RunOnce, "run-once" },
+        { OperationalConcurrencyPolicy.Forbid, "forbid" },
+        { OperationalConcurrencyPolicy.ReplaceAfterFence, "replace-after-fence" },
+        { OperationalRecoveryPolicy.RetryWithBackoff, "retry-with-backoff" },
+        { OperationalRecoveryPolicy.PauseForReview, "pause-for-review" },
+        { AgentOrchestrationMode.SupervisorDelegation, "supervisor-delegation" },
+        { AgentContextSharingMode.ScopedMemory, "scoped-memory" },
+        { AgentMemoryMode.DurableScoped, "durable-scoped" },
+        { SessionTurnConcurrency.RejectConflict, "reject-conflict" },
+        { AgentResultMergeMode.OrderedTypedResults, "ordered-typed-results" },
+        { ToolIdempotency.IdempotencyKeyRequired, "idempotency-key-required" },
+        { ToolExecutionMode.Inline, "inline" },
+        { ToolExecutionMode.BackgroundDurable, "background-durable" },
+        { ToolAcknowledgementMode.NeverForShortTools, "never-for-short-tools" },
+        { ToolProgressMode.ReportedAndHeartbeat, "reported-and-heartbeat" },
+        { ToolApprovalMode.PerInvocationOnSideEffect, "per-invocation-on-side-effect" },
+        { ToolExecutionState.AwaitingApproval, "awaiting-approval" },
+        { ToolProgressKind.MeasuredProgress, "measured-progress" },
+        { AgentHistoryPolicy.FullWithinBudget, "full-within-budget" },
+        { AgentMemoryWritePolicy.ExplicitApproved, "explicit-approved" },
+        { OpenConnectTransportMode.JetStream, "jet-stream" },
+        { OpenConnectTransportMode.InMemoryDevelopment, "in-memory-development" },
+    };
+    [Theory]
+    [MemberData(nameof(StableEnumWireCases))]
+    public void TypedEnum_SerializesToPinnedKebabString(object value, string expected)
+    {
+        var json = JsonSerializer.Serialize(value, value.GetType());
+        Assert.Equal("\"" + expected + "\"", json);
+    }
+    [Fact]
+    public void TypedEnum_EveryMemberRoundTrips()
+    {
+        foreach (var (enumType, member) in EnumerateStableEnumValues())
+        {
+            var json = JsonSerializer.Serialize(member, enumType);
+            var roundTripped = JsonSerializer.Deserialize(json, enumType);
+            Assert.Equal(member, roundTripped);
+        }
+    }
+    [Fact]
+    public void TypedEnum_NumericValue_IsRejected_MirroringNumericEnumFixture()
+    {
+        var fixturePath = Path.Combine(FindRepositoryRoot(), "contracts", "fixtures", "composer", "invalid", "numeric-enum.json");
+        using var fixture = JsonDocument.Parse(File.ReadAllText(fixturePath));
+        Assert.Equal(JsonValueKind.Number, fixture.RootElement.GetProperty("placement").ValueKind);
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<FirewallMode>("0"));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<AgentRunState>("1"));
+    }
+    [Fact]
+    public void TypedEnum_UnknownString_IsRejected()
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<FirewallMode>("\"sideways\""));
+    }
+    [Fact]
+    public void CanonicalAgentEvent_TypedRoundTrip_PreservesEnvelope()
+    {
+        var original = new CanonicalAgentEvent(
+            CanonicalAgentEvent.CurrentSchemaVersion,
+            Guid.Parse("123e4567-e89b-42d3-a456-426614174000"),
+            "task.accepted",
+            Guid.Parse("123e4567-e89b-42d3-a456-426614174001"),
+            1,
+            new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            new JsonObject { ["taskId"] = "task-1" });
+        var json = JsonSerializer.Serialize(original);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.Equal("openconnect.v1", root.GetProperty("schemaVersion").GetString());
+        Assert.Equal("task.accepted", root.GetProperty("eventType").GetString());
+        Assert.Equal(1, root.GetProperty("sequence").GetInt64());
+        Assert.Equal("task-1", root.GetProperty("payload").GetProperty("taskId").GetString());
+        var roundTripped = JsonSerializer.Deserialize<CanonicalAgentEvent>(json);
+        Assert.NotNull(roundTripped);
+        Assert.Equal(original.SchemaVersion, roundTripped.SchemaVersion);
+        Assert.Equal(original.EventId, roundTripped.EventId);
+        Assert.Equal(original.EventType, roundTripped.EventType);
+        Assert.Equal(original.SessionId, roundTripped.SessionId);
+        Assert.Equal(original.Sequence, roundTripped.Sequence);
+        Assert.Equal(original.OccurredAt, roundTripped.OccurredAt);
+        Assert.Equal(original.CorrelationId, roundTripped.CorrelationId);
+        Assert.Equal(original.Payload.ToJsonString(), roundTripped.Payload.ToJsonString());
+    }
+    [Fact]
+    public void CanonicalAgentEvent_CorrelationId_OmittedWhenNull_EmittedWhenSet()
+    {
+        // Null correlationId is omitted (WhenWritingNull); the golden explicit null is a JsonObject artifact.
+        var withoutCorrelation = new CanonicalAgentEvent(
+            CanonicalAgentEvent.CurrentSchemaVersion,
+            Guid.Parse("123e4567-e89b-42d3-a456-426614174000"),
+            "task.accepted",
+            Guid.Parse("123e4567-e89b-42d3-a456-426614174001"),
+            1,
+            new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            new JsonObject { ["taskId"] = "task-1" });
+        var jsonWithout = JsonSerializer.Serialize(withoutCorrelation);
+        Assert.DoesNotContain("correlationId", jsonWithout, StringComparison.Ordinal);
+        var withCorrelation = withoutCorrelation with { CorrelationId = "corr-1" };
+        var jsonWith = JsonSerializer.Serialize(withCorrelation);
+        var roundTripped = JsonSerializer.Deserialize<CanonicalAgentEvent>(jsonWith);
+        Assert.NotNull(roundTripped);
+        Assert.Equal("corr-1", roundTripped.CorrelationId);
+        Assert.Contains("\"correlationId\":\"corr-1\"", jsonWith, StringComparison.Ordinal);
+    }
+    private static IEnumerable<(Type EnumType, object Value)> EnumerateStableEnumValues()
+    {
+        var assembly = typeof(CanonicalAgentEvent).Assembly;
+        foreach (var type in assembly.GetTypes().Where(t => t.IsEnum).OrderBy(t => t.Name, StringComparer.Ordinal))
+        {
+            foreach (var value in Enum.GetValues(type))
+            {
+                yield return (type, value);
+            }
         }
     }
 }

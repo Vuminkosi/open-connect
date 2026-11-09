@@ -9,4 +9,7 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
+  </ItemGroup>
 </Project>

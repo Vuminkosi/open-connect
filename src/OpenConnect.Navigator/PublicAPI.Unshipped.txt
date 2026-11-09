@@ -1,0 +1,497 @@
+#nullable enable
+OpenConnect.Navigator.Capture.CaptureGate
+OpenConnect.Navigator.Capture.CaptureGate.CaptureGate() -> void
+OpenConnect.Navigator.Capture.CaptureGate.Evaluate(OpenConnect.Navigator.NavigatorOptions! options, OpenConnect.Navigator.NavigatorCaptureMode mode, string! scope, string! artifactId, string! purpose, OpenConnect.Navigator.Capture.NavigatorCaptureConsent? consent, string! sensitivity, bool fieldsAreAmbiguous, OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? redactionProof, System.DateTimeOffset utcNow) -> OpenConnect.Navigator.Capture.NavigatorCaptureDecision!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.ArtifactId.get -> string!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.ArtifactId.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.ExpiresAt.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.NavigatorCaptureConsent(string! Scope, string! ArtifactId, string! Purpose, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Purpose.get -> string!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Purpose.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Scope.get -> string!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Scope.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Allowed.get -> bool
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Allowed.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.ExpiresAt.get -> System.DateTimeOffset?
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.ExpiresAt.init -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.NavigatorCaptureDecision(bool Allowed, System.DateTimeOffset? ExpiresAt, string! Reason) -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Reason.get -> string!
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Reason.init -> void
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.NavigatorPixelRedactionProof(bool PixelsRedacted, bool ServerReinspectionPassed) -> void
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.PixelsRedacted.get -> bool
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.PixelsRedacted.init -> void
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.ServerReinspectionPassed.get -> bool
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.ServerReinspectionPassed.init -> void
+OpenConnect.Navigator.CommandGrant
+OpenConnect.Navigator.CommandGrant.Action.get -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.CommandGrant.Action.init -> void
+OpenConnect.Navigator.CommandGrant.ArgsHash.get -> string!
+OpenConnect.Navigator.CommandGrant.ArgsHash.init -> void
+OpenConnect.Navigator.CommandGrant.ClientInstance.get -> string!
+OpenConnect.Navigator.CommandGrant.ClientInstance.init -> void
+OpenConnect.Navigator.CommandGrant.CommandGrant(string! CommandId, string! NavigatorSessionId, long Sequence, OpenConnect.Navigator.NavigatorActionType Action, string! TargetId, long TargetRevision, string! ArgsHash, string! Tenant, string! Principal, string! ClientInstance, long PolicyRevision, System.DateTimeOffset ExpiresAt, string! Nonce) -> void
+OpenConnect.Navigator.CommandGrant.CommandId.get -> string!
+OpenConnect.Navigator.CommandGrant.CommandId.init -> void
+OpenConnect.Navigator.CommandGrant.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.CommandGrant.ExpiresAt.init -> void
+OpenConnect.Navigator.CommandGrant.IsValidFor(string! sessionId, string! tenant, string! principal, string! clientInstance, string! commandId, long sequence, OpenConnect.Navigator.NavigatorActionType action, string! targetId, long targetRevision, long policyRevision, object? args, System.DateTimeOffset now) -> bool
+OpenConnect.Navigator.CommandGrant.NavigatorSessionId.get -> string!
+OpenConnect.Navigator.CommandGrant.NavigatorSessionId.init -> void
+OpenConnect.Navigator.CommandGrant.Nonce.get -> string!
+OpenConnect.Navigator.CommandGrant.Nonce.init -> void
+OpenConnect.Navigator.CommandGrant.PolicyRevision.get -> long
+OpenConnect.Navigator.CommandGrant.PolicyRevision.init -> void
+OpenConnect.Navigator.CommandGrant.Principal.get -> string!
+OpenConnect.Navigator.CommandGrant.Principal.init -> void
+OpenConnect.Navigator.CommandGrant.Sequence.get -> long
+OpenConnect.Navigator.CommandGrant.Sequence.init -> void
+OpenConnect.Navigator.CommandGrant.TargetId.get -> string!
+OpenConnect.Navigator.CommandGrant.TargetId.init -> void
+OpenConnect.Navigator.CommandGrant.TargetRevision.get -> long
+OpenConnect.Navigator.CommandGrant.TargetRevision.init -> void
+OpenConnect.Navigator.CommandGrant.Tenant.get -> string!
+OpenConnect.Navigator.CommandGrant.Tenant.init -> void
+OpenConnect.Navigator.Diagnostics.NavigatorActivitySource
+OpenConnect.Navigator.Diagnostics.RedactionCheck
+OpenConnect.Navigator.Events.CommittedEventProjector
+OpenConnect.Navigator.Events.CommittedEventProjector.CommittedEventProjector(OpenConnect.Navigator.Events.IQdrantProjectionSubscriber? subscriber = null) -> void
+OpenConnect.Navigator.Events.CommittedEventProjector.ProjectAsync(OpenConnect.Navigator.NavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Events.CommittedNavigatorEvent?>!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.CommittedNavigatorEvent(string! EventId, string! SessionId, string? TaskId, long Sequence, string? CorrelationId, string! Type, System.DateTimeOffset OccurredAt, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Metadata) -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.CorrelationId.get -> string?
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.CorrelationId.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.EventId.get -> string!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.EventId.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Metadata.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.OccurredAt.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Sequence.get -> long
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Sequence.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.SessionId.get -> string!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.SessionId.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.TaskId.get -> string?
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.TaskId.init -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Type.get -> string!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Type.init -> void
+OpenConnect.Navigator.Events.IQdrantProjectionSubscriber
+OpenConnect.Navigator.Events.IQdrantProjectionSubscriber.OnCommittedAsync(OpenConnect.Navigator.Events.CommittedNavigatorEvent! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.Forbidden = 5 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.Interaction = 2 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.Mutation = 3 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.Navigation = 1 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.ReadOnly = 0 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionRisk.Sensitive = 4 -> OpenConnect.Navigator.NavigatorActionRisk
+OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Capture = 11 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Click = 6 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Explain = 1 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Fill = 7 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Focus = 3 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Highlight = 2 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.InvokeRegisteredAction = 10 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Navigate = 5 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Observe = 0 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Scroll = 4 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Select = 8 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Speak = 12 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorActionType.Toggle = 9 -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorApproval
+OpenConnect.Navigator.NavigatorApproval.NavigatorApproval(string! digest, System.DateTimeOffset expiresAt) -> void
+OpenConnect.Navigator.NavigatorApproval.TryConsume(string! requestedDigest, System.DateTimeOffset now) -> bool
+OpenConnect.Navigator.NavigatorBrowserOptions
+OpenConnect.Navigator.NavigatorBrowserOptions.AllowedOrigins.get -> string![]!
+OpenConnect.Navigator.NavigatorBrowserOptions.AllowedOrigins.set -> void
+OpenConnect.Navigator.NavigatorBrowserOptions.MaxConcurrentBrowsers.get -> int
+OpenConnect.Navigator.NavigatorBrowserOptions.MaxConcurrentBrowsers.set -> void
+OpenConnect.Navigator.NavigatorBrowserOptions.NavigatorBrowserOptions() -> void
+OpenConnect.Navigator.NavigatorBrowserOptions.Provider.get -> OpenConnect.Navigator.NavigatorBrowserProvider
+OpenConnect.Navigator.NavigatorBrowserOptions.Provider.set -> void
+OpenConnect.Navigator.NavigatorBrowserOptions.WorkerEndpoint.get -> System.Uri?
+OpenConnect.Navigator.NavigatorBrowserOptions.WorkerEndpoint.set -> void
+OpenConnect.Navigator.NavigatorBrowserProvider
+OpenConnect.Navigator.NavigatorBrowserProvider.Custom = 2 -> OpenConnect.Navigator.NavigatorBrowserProvider
+OpenConnect.Navigator.NavigatorBrowserProvider.Disabled = 0 -> OpenConnect.Navigator.NavigatorBrowserProvider
+OpenConnect.Navigator.NavigatorBrowserProvider.PlaywrightMcp = 1 -> OpenConnect.Navigator.NavigatorBrowserProvider
+OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureMode.Element = 2 -> OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureMode.MaskedScreenshot = 3 -> OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureMode.None = 0 -> OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureMode.Semantic = 1 -> OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureMode.WorkflowEvents = 4 -> OpenConnect.Navigator.NavigatorCaptureMode
+OpenConnect.Navigator.NavigatorCaptureOptions
+OpenConnect.Navigator.NavigatorCaptureOptions.AllowedModes.get -> OpenConnect.Navigator.NavigatorCaptureMode[]!
+OpenConnect.Navigator.NavigatorCaptureOptions.AllowedModes.set -> void
+OpenConnect.Navigator.NavigatorCaptureOptions.ArtifactTtl.get -> System.TimeSpan
+OpenConnect.Navigator.NavigatorCaptureOptions.ArtifactTtl.set -> void
+OpenConnect.Navigator.NavigatorCaptureOptions.Enabled.get -> bool
+OpenConnect.Navigator.NavigatorCaptureOptions.Enabled.set -> void
+OpenConnect.Navigator.NavigatorCaptureOptions.NavigatorCaptureOptions() -> void
+OpenConnect.Navigator.NavigatorCommand
+OpenConnect.Navigator.NavigatorCommand.Action.get -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorCommand.Action.init -> void
+OpenConnect.Navigator.NavigatorCommand.Args.get -> object?
+OpenConnect.Navigator.NavigatorCommand.Args.init -> void
+OpenConnect.Navigator.NavigatorCommand.CommandId.get -> string!
+OpenConnect.Navigator.NavigatorCommand.CommandId.init -> void
+OpenConnect.Navigator.NavigatorCommand.ExpectedVersion.get -> long
+OpenConnect.Navigator.NavigatorCommand.ExpectedVersion.init -> void
+OpenConnect.Navigator.NavigatorCommand.IdempotencyKey.get -> string!
+OpenConnect.Navigator.NavigatorCommand.IdempotencyKey.init -> void
+OpenConnect.Navigator.NavigatorCommand.NavigatorCommand(string! CommandId, string! NavigatorSessionId, long Sequence, string! IdempotencyKey, long ExpectedVersion, OpenConnect.Navigator.NavigatorActionType Action, string! TargetId, long TargetRevision, object? Args) -> void
+OpenConnect.Navigator.NavigatorCommand.NavigatorSessionId.get -> string!
+OpenConnect.Navigator.NavigatorCommand.NavigatorSessionId.init -> void
+OpenConnect.Navigator.NavigatorCommand.Sequence.get -> long
+OpenConnect.Navigator.NavigatorCommand.Sequence.init -> void
+OpenConnect.Navigator.NavigatorCommand.TargetId.get -> string!
+OpenConnect.Navigator.NavigatorCommand.TargetId.init -> void
+OpenConnect.Navigator.NavigatorCommand.TargetRevision.get -> long
+OpenConnect.Navigator.NavigatorCommand.TargetRevision.init -> void
+OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorCommandOutcome.Completed = 0 -> OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorCommandOutcome.Denied = 1 -> OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorCommandOutcome.Failed = 3 -> OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorCommandOutcome.Uncertain = 2 -> OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorEvent
+OpenConnect.Navigator.NavigatorEvent.CorrelationId.get -> string?
+OpenConnect.Navigator.NavigatorEvent.CorrelationId.init -> void
+OpenConnect.Navigator.NavigatorEvent.EventId.get -> string!
+OpenConnect.Navigator.NavigatorEvent.EventId.init -> void
+OpenConnect.Navigator.NavigatorEvent.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+OpenConnect.Navigator.NavigatorEvent.Metadata.init -> void
+OpenConnect.Navigator.NavigatorEvent.NavigatorEvent(string! EventId, string! Type, string! SessionId, string? TaskId, long Sequence, string? CorrelationId, System.DateTimeOffset OccurredAt, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Metadata = null) -> void
+OpenConnect.Navigator.NavigatorEvent.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Navigator.NavigatorEvent.OccurredAt.init -> void
+OpenConnect.Navigator.NavigatorEvent.Sequence.get -> long
+OpenConnect.Navigator.NavigatorEvent.Sequence.init -> void
+OpenConnect.Navigator.NavigatorEvent.SessionId.get -> string!
+OpenConnect.Navigator.NavigatorEvent.SessionId.init -> void
+OpenConnect.Navigator.NavigatorEvent.TaskId.get -> string?
+OpenConnect.Navigator.NavigatorEvent.TaskId.init -> void
+OpenConnect.Navigator.NavigatorEvent.Type.get -> string!
+OpenConnect.Navigator.NavigatorEvent.Type.init -> void
+OpenConnect.Navigator.NavigatorEventTypes
+OpenConnect.Navigator.NavigatorHighlightProvider
+OpenConnect.Navigator.NavigatorHighlightProvider.Custom = 1 -> OpenConnect.Navigator.NavigatorHighlightProvider
+OpenConnect.Navigator.NavigatorHighlightProvider.Native = 0 -> OpenConnect.Navigator.NavigatorHighlightProvider
+OpenConnect.Navigator.NavigatorLimitsOptions
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxConcurrentMutationsPerSession.get -> int
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxConcurrentMutationsPerSession.set -> void
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxObservationBytes.get -> int
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxObservationBytes.set -> void
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxObservationNodes.get -> int
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxObservationNodes.set -> void
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxPlanSteps.get -> int
+OpenConnect.Navigator.NavigatorLimitsOptions.MaxPlanSteps.set -> void
+OpenConnect.Navigator.NavigatorLimitsOptions.NavigatorLimitsOptions() -> void
+OpenConnect.Navigator.NavigatorMode
+OpenConnect.Navigator.NavigatorMode.Interactive = 0 -> OpenConnect.Navigator.NavigatorMode
+OpenConnect.Navigator.NavigatorMode.InteractiveAndOperational = 2 -> OpenConnect.Navigator.NavigatorMode
+OpenConnect.Navigator.NavigatorMode.Operational = 1 -> OpenConnect.Navigator.NavigatorMode
+OpenConnect.Navigator.NavigatorOnboardingOptions
+OpenConnect.Navigator.NavigatorOnboardingOptions.AllowDynamicTours.get -> bool
+OpenConnect.Navigator.NavigatorOnboardingOptions.AllowDynamicTours.set -> void
+OpenConnect.Navigator.NavigatorOnboardingOptions.Enabled.get -> bool
+OpenConnect.Navigator.NavigatorOnboardingOptions.Enabled.set -> void
+OpenConnect.Navigator.NavigatorOnboardingOptions.Highlighter.get -> OpenConnect.Navigator.NavigatorHighlightProvider
+OpenConnect.Navigator.NavigatorOnboardingOptions.Highlighter.set -> void
+OpenConnect.Navigator.NavigatorOnboardingOptions.MaxSteps.get -> int
+OpenConnect.Navigator.NavigatorOnboardingOptions.MaxSteps.set -> void
+OpenConnect.Navigator.NavigatorOnboardingOptions.NavigatorOnboardingOptions() -> void
+OpenConnect.Navigator.NavigatorOptions
+OpenConnect.Navigator.NavigatorOptions.Browser.get -> OpenConnect.Navigator.NavigatorBrowserOptions!
+OpenConnect.Navigator.NavigatorOptions.Browser.set -> void
+OpenConnect.Navigator.NavigatorOptions.Capture.get -> OpenConnect.Navigator.NavigatorCaptureOptions!
+OpenConnect.Navigator.NavigatorOptions.Capture.set -> void
+OpenConnect.Navigator.NavigatorOptions.Enabled.get -> bool
+OpenConnect.Navigator.NavigatorOptions.Enabled.set -> void
+OpenConnect.Navigator.NavigatorOptions.Limits.get -> OpenConnect.Navigator.NavigatorLimitsOptions!
+OpenConnect.Navigator.NavigatorOptions.Limits.set -> void
+OpenConnect.Navigator.NavigatorOptions.Mode.get -> OpenConnect.Navigator.NavigatorMode
+OpenConnect.Navigator.NavigatorOptions.Mode.set -> void
+OpenConnect.Navigator.NavigatorOptions.NavigatorOptions() -> void
+OpenConnect.Navigator.NavigatorOptions.Onboarding.get -> OpenConnect.Navigator.NavigatorOnboardingOptions!
+OpenConnect.Navigator.NavigatorOptions.Onboarding.set -> void
+OpenConnect.Navigator.NavigatorOptions.Speech.get -> OpenConnect.Navigator.NavigatorSpeechOptions!
+OpenConnect.Navigator.NavigatorOptions.Speech.set -> void
+OpenConnect.Navigator.NavigatorOptionsValidator
+OpenConnect.Navigator.NavigatorOptionsValidator.NavigatorOptionsValidator() -> void
+OpenConnect.Navigator.NavigatorOptionsValidator.Validate(string? name, OpenConnect.Navigator.NavigatorOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+OpenConnect.Navigator.NavigatorReceipt
+OpenConnect.Navigator.NavigatorReceipt.Action.get -> OpenConnect.Navigator.NavigatorActionType
+OpenConnect.Navigator.NavigatorReceipt.Action.init -> void
+OpenConnect.Navigator.NavigatorReceipt.Intent.get -> string!
+OpenConnect.Navigator.NavigatorReceipt.Intent.init -> void
+OpenConnect.Navigator.NavigatorReceipt.NavigatorReceipt(string! Intent, OpenConnect.Navigator.NavigatorActionType Action, OpenConnect.Navigator.NavigatorCommandOutcome Outcome, string? Postcondition) -> void
+OpenConnect.Navigator.NavigatorReceipt.Outcome.get -> OpenConnect.Navigator.NavigatorCommandOutcome
+OpenConnect.Navigator.NavigatorReceipt.Outcome.init -> void
+OpenConnect.Navigator.NavigatorReceipt.Postcondition.get -> string?
+OpenConnect.Navigator.NavigatorReceipt.Postcondition.init -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget
+OpenConnect.Navigator.NavigatorRegisteredTarget.Descriptor.get -> OpenConnect.Navigator.NavigatorTargetDescriptor!
+OpenConnect.Navigator.NavigatorRegisteredTarget.Descriptor.init -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget.NavigatorRegisteredTarget(OpenConnect.Navigator.NavigatorTargetDescriptor! Descriptor, string! TenantId, string! PrincipalId, long Revision) -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget.PrincipalId.get -> string!
+OpenConnect.Navigator.NavigatorRegisteredTarget.PrincipalId.init -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget.Revision.get -> long
+OpenConnect.Navigator.NavigatorRegisteredTarget.Revision.init -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget.TenantId.get -> string!
+OpenConnect.Navigator.NavigatorRegisteredTarget.TenantId.init -> void
+OpenConnect.Navigator.NavigatorRiskClassifier
+OpenConnect.Navigator.NavigatorServiceCollectionExtensions
+OpenConnect.Navigator.NavigatorSession
+OpenConnect.Navigator.NavigatorSession.ClientInstance.get -> string?
+OpenConnect.Navigator.NavigatorSession.NavigatorSession(string! tenantId, string! principalId) -> void
+OpenConnect.Navigator.NavigatorSession.PrincipalId.get -> string!
+OpenConnect.Navigator.NavigatorSession.Revision.get -> long
+OpenConnect.Navigator.NavigatorSession.RouteId.get -> string?
+OpenConnect.Navigator.NavigatorSession.SessionId.get -> string?
+OpenConnect.Navigator.NavigatorSession.State.get -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSession.TenantId.get -> string!
+OpenConnect.Navigator.NavigatorSession.TransitionTo(OpenConnect.Navigator.NavigatorSessionState next) -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot
+OpenConnect.Navigator.NavigatorSessionSnapshot.ClientInstance.get -> string!
+OpenConnect.Navigator.NavigatorSessionSnapshot.ClientInstance.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.NavigatorSessionSnapshot(string! SessionId, string! TenantId, string! PrincipalId, OpenConnect.Navigator.NavigatorSessionState State, string! ClientInstance, string! RouteId, long Revision) -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.PrincipalId.get -> string!
+OpenConnect.Navigator.NavigatorSessionSnapshot.PrincipalId.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.Revision.get -> long
+OpenConnect.Navigator.NavigatorSessionSnapshot.Revision.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.RouteId.get -> string!
+OpenConnect.Navigator.NavigatorSessionSnapshot.RouteId.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.SessionId.get -> string!
+OpenConnect.Navigator.NavigatorSessionSnapshot.SessionId.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.State.get -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionSnapshot.State.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.TenantId.get -> string!
+OpenConnect.Navigator.NavigatorSessionSnapshot.TenantId.init -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.Validate() -> void
+OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.AwaitingApproval = 4 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Cancelled = 9 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Completed = 7 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Completing = 6 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Created = 0 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Expired = 10 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Failed = 8 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Pairing = 1 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Paused = 5 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Ready = 2 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSessionState.Running = 3 -> OpenConnect.Navigator.NavigatorSessionState
+OpenConnect.Navigator.NavigatorSpeechFallback
+OpenConnect.Navigator.NavigatorSpeechFallback.ExplicitAlternative = 1 -> OpenConnect.Navigator.NavigatorSpeechFallback
+OpenConnect.Navigator.NavigatorSpeechFallback.TextOnly = 0 -> OpenConnect.Navigator.NavigatorSpeechFallback
+OpenConnect.Navigator.NavigatorSpeechOptions
+OpenConnect.Navigator.NavigatorSpeechOptions.CacheFailurePolicy.get -> OpenConnect.Navigator.SpeechCacheFailurePolicy
+OpenConnect.Navigator.NavigatorSpeechOptions.CacheFailurePolicy.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.DefaultLanguage.get -> string!
+OpenConnect.Navigator.NavigatorSpeechOptions.DefaultLanguage.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.DefaultVoice.get -> string!
+OpenConnect.Navigator.NavigatorSpeechOptions.DefaultVoice.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.Enabled.get -> bool
+OpenConnect.Navigator.NavigatorSpeechOptions.Enabled.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.Fallback.get -> OpenConnect.Navigator.NavigatorSpeechFallback
+OpenConnect.Navigator.NavigatorSpeechOptions.Fallback.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.MaxCharacters.get -> int
+OpenConnect.Navigator.NavigatorSpeechOptions.MaxCharacters.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.ModelProvisioning.get -> OpenConnect.Navigator.SpeechModelProvisioning
+OpenConnect.Navigator.NavigatorSpeechOptions.ModelProvisioning.set -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.NavigatorSpeechOptions() -> void
+OpenConnect.Navigator.NavigatorSpeechOptions.PreferredProvider.get -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSpeechOptions.PreferredProvider.set -> void
+OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSpeechProvider.Custom = 3 -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSpeechProvider.Disabled = 0 -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSpeechProvider.Kokoro = 1 -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSpeechProvider.MmsTts = 2 -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.NavigatorSuggestion
+OpenConnect.Navigator.NavigatorSuggestion.Id.get -> string!
+OpenConnect.Navigator.NavigatorSuggestion.Id.init -> void
+OpenConnect.Navigator.NavigatorSuggestion.NavigatorSuggestion(string! Id, string! Text) -> void
+OpenConnect.Navigator.NavigatorSuggestion.Text.get -> string!
+OpenConnect.Navigator.NavigatorSuggestion.Text.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor
+OpenConnect.Navigator.NavigatorTargetDescriptor.AllowedActions.get -> System.Collections.Generic.IReadOnlySet<OpenConnect.Navigator.NavigatorActionType>!
+OpenConnect.Navigator.NavigatorTargetDescriptor.AllowedActions.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.ComponentId.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.ComponentId.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.ComponentVersion.get -> int
+OpenConnect.Navigator.NavigatorTargetDescriptor.ComponentVersion.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.Description.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.Description.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.Label.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.Label.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.NavigatorTargetDescriptor(string! SchemaVersion, string! TargetId, string! ComponentId, int ComponentVersion, string! Label, string! Description, string! RouteId, System.Collections.Generic.IReadOnlySet<OpenConnect.Navigator.NavigatorActionType>! AllowedActions, System.Collections.Generic.IReadOnlySet<string!>! RequiredCapabilities, string! Sensitivity, System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorSuggestion!>? Suggestions = null) -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.RequiredCapabilities.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Navigator.NavigatorTargetDescriptor.RequiredCapabilities.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.RouteId.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.RouteId.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.SchemaVersion.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.SchemaVersion.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.Sensitivity.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.Sensitivity.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.Suggestions.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorSuggestion!>?
+OpenConnect.Navigator.NavigatorTargetDescriptor.Suggestions.init -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.TargetId.get -> string!
+OpenConnect.Navigator.NavigatorTargetDescriptor.TargetId.init -> void
+OpenConnect.Navigator.NavigatorTargetRegistry
+OpenConnect.Navigator.NavigatorTargetRegistry.IsCurrent(string! targetId, long revision, OpenConnect.Navigator.NavigatorTargetScope! scope) -> bool
+OpenConnect.Navigator.NavigatorTargetRegistry.ListByRoute(string! routeId, OpenConnect.Navigator.NavigatorTargetScope! scope) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorRegisteredTarget!>!
+OpenConnect.Navigator.NavigatorTargetRegistry.NavigatorTargetRegistry() -> void
+OpenConnect.Navigator.NavigatorTargetRegistry.Register(OpenConnect.Navigator.NavigatorTargetDescriptor! descriptor, string! tenantId, string! principalId, long revision) -> void
+OpenConnect.Navigator.NavigatorTargetRegistry.Resolve(string! targetId, OpenConnect.Navigator.NavigatorTargetScope! scope) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorRegisteredTarget!>!
+OpenConnect.Navigator.NavigatorTargetRegistry.TryValidate(OpenConnect.Navigator.CommandGrant! grant, string! normalizedArgsJson, string! expectedTenant, string! expectedPrincipal, string! sessionId, long policyRevision, System.DateTimeOffset utcNow, out string! reason) -> bool
+OpenConnect.Navigator.NavigatorTargetScope
+OpenConnect.Navigator.NavigatorTargetScope.Capabilities.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Navigator.NavigatorTargetScope.Capabilities.init -> void
+OpenConnect.Navigator.NavigatorTargetScope.NavigatorTargetScope(string! TenantId, string! PrincipalId, string! RouteId, System.Collections.Generic.IReadOnlySet<string!>! Capabilities) -> void
+OpenConnect.Navigator.NavigatorTargetScope.PrincipalId.get -> string!
+OpenConnect.Navigator.NavigatorTargetScope.PrincipalId.init -> void
+OpenConnect.Navigator.NavigatorTargetScope.RouteId.get -> string!
+OpenConnect.Navigator.NavigatorTargetScope.RouteId.init -> void
+OpenConnect.Navigator.NavigatorTargetScope.TenantId.get -> string!
+OpenConnect.Navigator.NavigatorTargetScope.TenantId.init -> void
+OpenConnect.Navigator.NavigatorToolFacade
+OpenConnect.Navigator.NavigatorTourPlan
+OpenConnect.Navigator.NavigatorTourPlan.IsDynamic.get -> bool
+OpenConnect.Navigator.NavigatorTourPlan.IsDynamic.init -> void
+OpenConnect.Navigator.NavigatorTourPlan.NavigatorTourPlan(string! TourId, int Version, System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorTourStep!>! Steps, string! RouteId, bool IsDynamic = false) -> void
+OpenConnect.Navigator.NavigatorTourPlan.RouteId.get -> string!
+OpenConnect.Navigator.NavigatorTourPlan.RouteId.init -> void
+OpenConnect.Navigator.NavigatorTourPlan.Steps.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorTourStep!>!
+OpenConnect.Navigator.NavigatorTourPlan.Steps.init -> void
+OpenConnect.Navigator.NavigatorTourPlan.TourId.get -> string!
+OpenConnect.Navigator.NavigatorTourPlan.TourId.init -> void
+OpenConnect.Navigator.NavigatorTourPlan.Version.get -> int
+OpenConnect.Navigator.NavigatorTourPlan.Version.init -> void
+OpenConnect.Navigator.NavigatorTourStep
+OpenConnect.Navigator.NavigatorTourStep.Action.get -> OpenConnect.Navigator.NavigatorActionType?
+OpenConnect.Navigator.NavigatorTourStep.Action.init -> void
+OpenConnect.Navigator.NavigatorTourStep.NavigatorTourStep(OpenConnect.Navigator.NavigatorTourStepType Type, string? TargetId = null, string? Text = null, OpenConnect.Navigator.NavigatorActionType? Action = null, System.TimeSpan? Timeout = null) -> void
+OpenConnect.Navigator.NavigatorTourStep.TargetId.get -> string?
+OpenConnect.Navigator.NavigatorTourStep.TargetId.init -> void
+OpenConnect.Navigator.NavigatorTourStep.Text.get -> string?
+OpenConnect.Navigator.NavigatorTourStep.Text.init -> void
+OpenConnect.Navigator.NavigatorTourStep.Timeout.get -> System.TimeSpan?
+OpenConnect.Navigator.NavigatorTourStep.Timeout.init -> void
+OpenConnect.Navigator.NavigatorTourStep.Type.get -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStep.Type.init -> void
+OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Capture = 9 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Complete = 10 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Execute = 7 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Explain = 0 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Focus = 4 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Highlight = 3 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Locate = 2 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Narrate = 8 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.Navigate = 1 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.RequestApproval = 6 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourStepType.WaitFor = 5 -> OpenConnect.Navigator.NavigatorTourStepType
+OpenConnect.Navigator.NavigatorTourValidator
+OpenConnect.Navigator.NavigatorTourValidator.NavigatorTourValidator(int maxSteps = 25) -> void
+OpenConnect.Navigator.NavigatorTourValidator.Validate(OpenConnect.Navigator.NavigatorTourPlan! plan) -> void
+OpenConnect.Navigator.SpeechCacheFailurePolicy
+OpenConnect.Navigator.SpeechCacheFailurePolicy.FailWorker = 0 -> OpenConnect.Navigator.SpeechCacheFailurePolicy
+OpenConnect.Navigator.SpeechCacheFailurePolicy.ReprovisionApprovedManifest = 1 -> OpenConnect.Navigator.SpeechCacheFailurePolicy
+OpenConnect.Navigator.SpeechCapability
+OpenConnect.Navigator.SpeechCapability.Available.get -> bool
+OpenConnect.Navigator.SpeechCapability.Available.init -> void
+OpenConnect.Navigator.SpeechCapability.Healthy.get -> bool
+OpenConnect.Navigator.SpeechCapability.Healthy.init -> void
+OpenConnect.Navigator.SpeechCapability.Provider.get -> OpenConnect.Navigator.NavigatorSpeechProvider
+OpenConnect.Navigator.SpeechCapability.Provider.init -> void
+OpenConnect.Navigator.SpeechCapability.ProviderId.get -> string!
+OpenConnect.Navigator.SpeechCapability.ProviderId.init -> void
+OpenConnect.Navigator.SpeechCapability.SpeechCapability(string! ProviderId, OpenConnect.Navigator.NavigatorSpeechProvider Provider, bool Available, bool Healthy) -> void
+OpenConnect.Navigator.SpeechError
+OpenConnect.Navigator.SpeechError.Code.get -> OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechError.Code.init -> void
+OpenConnect.Navigator.SpeechError.SpeechError(OpenConnect.Navigator.SpeechErrorCode Code) -> void
+OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechErrorCode.Cancelled = 3 -> OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechErrorCode.Capacity = 2 -> OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechErrorCode.License = 1 -> OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechErrorCode.SpeechModelUnavailable = 0 -> OpenConnect.Navigator.SpeechErrorCode
+OpenConnect.Navigator.SpeechModelProvisioning
+OpenConnect.Navigator.SpeechModelProvisioning.Disabled = 0 -> OpenConnect.Navigator.SpeechModelProvisioning
+OpenConnect.Navigator.SpeechModelProvisioning.FirstStartIfMissing = 1 -> OpenConnect.Navigator.SpeechModelProvisioning
+OpenConnect.Navigator.SpeechModelProvisioning.VerifyExistingOnly = 2 -> OpenConnect.Navigator.SpeechModelProvisioning
+OpenConnect.Navigator.SpeechProviderResolution
+OpenConnect.Navigator.SpeechProviderResolution.IsAvailable.get -> bool
+OpenConnect.Navigator.SpeechProviderResolution.ProviderId.get -> string?
+OpenConnect.Navigator.SpeechProviderResolution.ProviderId.init -> void
+OpenConnect.Navigator.SpeechProviderResolution.SpeechProviderResolution(string? ProviderId, OpenConnect.Navigator.SpeechUnavailableReason? UnavailableReason) -> void
+OpenConnect.Navigator.SpeechProviderResolution.UnavailableReason.get -> OpenConnect.Navigator.SpeechUnavailableReason?
+OpenConnect.Navigator.SpeechProviderResolution.UnavailableReason.init -> void
+OpenConnect.Navigator.SpeechRouter
+OpenConnect.Navigator.SpeechRouter.CreateRequest(string! requestId, string! textReference, string? locale = null, string? voiceId = null, string! format = "audio/wav", System.DateTimeOffset? deadline = null) -> OpenConnect.Navigator.SpeechSynthesisRequest!
+OpenConnect.Navigator.SpeechRouter.CurrentEpoch.get -> long
+OpenConnect.Navigator.SpeechRouter.Interrupt() -> long
+OpenConnect.Navigator.SpeechRouter.IsCurrent(OpenConnect.Navigator.SpeechSynthesisEvent! value) -> bool
+OpenConnect.Navigator.SpeechRouter.ResolveProvider(System.Collections.Generic.IEnumerable<OpenConnect.Navigator.SpeechCapability!>! capabilities) -> OpenConnect.Navigator.SpeechProviderResolution!
+OpenConnect.Navigator.SpeechRouter.SpeechRouter(OpenConnect.Navigator.NavigatorSpeechOptions! options) -> void
+OpenConnect.Navigator.SpeechSynthesisEvent
+OpenConnect.Navigator.SpeechSynthesisEvent.ChunkIndex.get -> int?
+OpenConnect.Navigator.SpeechSynthesisEvent.ChunkIndex.init -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.Error.get -> OpenConnect.Navigator.SpeechError?
+OpenConnect.Navigator.SpeechSynthesisEvent.Error.init -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.Kind.get -> OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisEvent.Kind.init -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.RequestId.get -> string!
+OpenConnect.Navigator.SpeechSynthesisEvent.RequestId.init -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.SpeechEpoch.get -> long
+OpenConnect.Navigator.SpeechSynthesisEvent.SpeechEpoch.init -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.SpeechSynthesisEvent(OpenConnect.Navigator.SpeechSynthesisEventKind Kind, string! RequestId, long SpeechEpoch, int? ChunkIndex = null, OpenConnect.Navigator.SpeechError? Error = null) -> void
+OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisEventKind.AudioChunk = 1 -> OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisEventKind.Completed = 2 -> OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisEventKind.Error = 3 -> OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisEventKind.Started = 0 -> OpenConnect.Navigator.SpeechSynthesisEventKind
+OpenConnect.Navigator.SpeechSynthesisRequest
+OpenConnect.Navigator.SpeechSynthesisRequest.Deadline.get -> System.DateTimeOffset
+OpenConnect.Navigator.SpeechSynthesisRequest.Deadline.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.Format.get -> string!
+OpenConnect.Navigator.SpeechSynthesisRequest.Format.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.Locale.get -> string!
+OpenConnect.Navigator.SpeechSynthesisRequest.Locale.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.RequestId.get -> string!
+OpenConnect.Navigator.SpeechSynthesisRequest.RequestId.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.SpeechEpoch.get -> long
+OpenConnect.Navigator.SpeechSynthesisRequest.SpeechEpoch.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.SpeechSynthesisRequest(string! RequestId, string! TextReference, string! Locale, string! VoiceId, string! Format, long SpeechEpoch, System.DateTimeOffset Deadline) -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.TextReference.get -> string!
+OpenConnect.Navigator.SpeechSynthesisRequest.TextReference.init -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.VoiceId.get -> string!
+OpenConnect.Navigator.SpeechSynthesisRequest.VoiceId.init -> void
+OpenConnect.Navigator.SpeechUnavailableReason
+OpenConnect.Navigator.SpeechUnavailableReason.Disabled = 0 -> OpenConnect.Navigator.SpeechUnavailableReason
+OpenConnect.Navigator.SpeechUnavailableReason.ProviderNotConfigured = 1 -> OpenConnect.Navigator.SpeechUnavailableReason
+OpenConnect.Navigator.SpeechUnavailableReason.ProviderUnhealthy = 2 -> OpenConnect.Navigator.SpeechUnavailableReason
+const OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Name = "OpenConnect.Navigator" -> string!
+const OpenConnect.Navigator.NavigatorTargetRegistry.CurrentSchemaVersion = "openconnect.navigator.target/v1" -> string!
+const OpenConnect.Navigator.NavigatorTourValidator.AbsoluteMaxSteps = 25 -> int
+static OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Deny(string! reason) -> OpenConnect.Navigator.Capture.NavigatorCaptureDecision!
+static OpenConnect.Navigator.CommandGrant.ComputeArgsHash(object? args) -> string!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Activities.get -> System.Diagnostics.ActivitySource!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.ApprovalWaits.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Denials.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Meter.get -> System.Diagnostics.Metrics.Meter!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Reconnects.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.SafeMetricTags(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.SafeTags(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Sessions.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.SpeechFallbacks.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.StartActivity(string! operation, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags = null) -> System.Diagnostics.Activity?
+static OpenConnect.Navigator.Diagnostics.NavigatorActivitySource.Steps.get -> System.Diagnostics.Metrics.Counter<long>!
+static OpenConnect.Navigator.Diagnostics.RedactionCheck.ContainsSensitiveContent(string? value) -> bool
+static OpenConnect.Navigator.NavigatorEventTypes.IsSafe(OpenConnect.Navigator.NavigatorEvent! value) -> bool
+static OpenConnect.Navigator.NavigatorRiskClassifier.Classify(OpenConnect.Navigator.NavigatorActionType action, bool registered, bool freshAuthorization, bool sensitive = false) -> OpenConnect.Navigator.NavigatorActionRisk
+static OpenConnect.Navigator.NavigatorServiceCollectionExtensions.AddOpenConnectNavigator(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Navigator.NavigatorOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Navigator.NavigatorSession.Restore(OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot) -> OpenConnect.Navigator.NavigatorSession!
+static OpenConnect.Navigator.NavigatorToolFacade.GetTools(System.Collections.Generic.IReadOnlySet<string!>! grants, bool captureEnabled, bool speechEnabled) -> System.Collections.Generic.IReadOnlyList<string!>!
