@@ -1,0 +1,56 @@
+# Standalone runnable stack for the outbox relay host.
+# Uses the same EF provider/schema as the gateway (Postgres, schema "openconnect")
+# and no model volume: this host relays envelopes, it loads no detectors.
+services:
+  outbox-host:
+    build:
+      context: ../..
+      dockerfile: src/OpenConnect.WorkerHosts.Outbox/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    environment:
+      WorkerHosts__Outbox__Mode: Standalone
+      WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
+      WorkerHosts__Outbox__TenantUlid: ${OC_OUTBOX_TENANT_ULID:?Set OC_OUTBOX_TENANT_ULID to the tenant ULID}
+      WorkerHosts__Outbox__DatabaseProvider: npgsql
+      WorkerHosts__Outbox__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      WorkerHosts__Outbox__NatsUrl: nats://nats:4222
+      WorkerHosts__Outbox__Subject: ${NATS_NOTIFICATION_SUBJECT:-oc.v1.notifications.inapp}
+      WorkerHosts__Outbox__BatchSize: ${OC_OUTBOX_BATCH_SIZE:-50}
+      WorkerHosts__Outbox__PollingInterval: ${OC_OUTBOX_POLL_INTERVAL:-00:00:02}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
+  postgres:
+    image: postgis/postgis:17-3.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-openconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.15.1-alpine3.22
+    restart: unless-stopped
+    command: ["-js"]
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pgdata:
+  natsdata:
