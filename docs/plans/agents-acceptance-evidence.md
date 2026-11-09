@@ -479,3 +479,56 @@ Missing-gate note (applies to every row below): no per-criterion executed comman
 - Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix F or earlier content.
 - PASS promotion beyond the six scoped families requires executed command+count+hash evidence observed by the verification lane, not aggregate SUPPLIED counts.
 - The verification lane owns VERIFIED/COMMITTED/RELEASED promotion; this writer claims none.
+
+---
+
+## Appendix G — E2E matrix final disposition (SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute; all per-cell results below are transcribed verbatim as supplied, not re-observed)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections (lines 1–481 incl Appendices A/B/C/D/E/F) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. No VERIFIED / COMMITTED / RELEASED claim is made by this writer; those words below appear only inside the SUPPLIED-VERIFIED-BY-LANE label. Labels transcribed only.
+
+**Source baseline:** Canonical root `C:\DevOps\open-connect\worktrees\agents-1`, branch `agents-1`, observed HEAD `172c7328b7cf5b1bf6e529a8ceb0b4cb33095c66` (read-only `git rev-parse` by coordinator, 2026-11-09). Expected-vs-actual note: the assignment packet named expected HEAD `57acf942452c...`; the coordinator-observed actual HEAD `172c7328...` DIFFERS from that expectation. This appendix records the ACTUAL observed head `172c7328...`; the stale `57acf94` value is NOT recorded as observed HEAD.
+
+**Date:** 2026-11-09.
+
+### Per-cell results (transcribed verbatim as SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+- Minimal provider: migrate → run → verify → migrate → verify reproduce PASS.
+- Sqlite provider: same migrate → run → verify → migrate → verify reproduce PASS.
+- InMemory provider: run → verify + migrate-exit-2 PASS.
+- Blazor: migrate → run → verify HTTP smoke PASS (no browser).
+- PostgreSql parity: offline PASS + live migrate → verify → migrate → verify → unreachable-negative PASS on disposable PG (5/5).
+- Navigator: lease-demo / outbox-relay-demo / verify incl. rerun PASS + ServiceA/B migrate → verify + seed-demo → check-isolation PASS (no leak).
+- SqlServer: live migrate → verify reproduce + negative unreachable PASS on disposable MSSQL.
+- PG Testcontainers matrix: NOT VERIFIED (no pulls executed).
+- Navigator cross-process fencing: NOT VERIFIED (single-process only).
+- Full-repo suite: NOT VERIFIED (scoped lanes only).
+
+### Explicitly deferred decisions with rationale (orchestrator-owned, recorded here)
+
+- (a) Receipt-carrier (OperationalRuns vs reintroduced task columns) DEFERRED — no current slice implements Navigator receipts; the seam + outbox relay are done and do not depend on it.
+- (b) Cross-process fencing proof DEFERRED — single-process in-process + live single-instance coverage is the verified envelope; multi-process atomicity remains a documented limitation with fail-closed unit coverage.
+- (c) Testcontainers PG matrix DEFERRED — live single-instance PG gate passed; containerized matrix is a follow-up.
+- (d) Production host DDL DEFERRED to host owners under Manual mode (Appendix C/E) — test-harness migrations are DDL proof only.
+
+### Decom readiness
+
+- Decommissioning is NOT AUTHORIZED in this appendix — Codex requires E2E PASS for decommissioning `OpenConnect.Persistence.Postgres` + `OpenConnect.Navigator.Persistence.Postgres`; the matrix above has explicitly NOT VERIFIED cells, so the decom gate stays CLOSED pending (a) Testcontainers PG matrix, (b) cross-process fencing proof, (c) receipt-carrier decision. No global production claim. No secrets.
+
+### Scope limits + guardrails (no inflation)
+
+- No global production-readiness claim is made; no secure, fully tested, accessible, or production-ready assertion.
+- Anything absent from the supplied evidence is NOT VERIFIED.
+- No secrets, no invented session IDs, hashes, commands, counts, CLI flags, endpoints, release numbers, or screenshots.
+- No VERIFIED / COMMITTED / RELEASED claim is made by this writer; E2E PASS is not claimed globally.
+- Testcontainers PG matrix, cross-process fencing, and full-repo suite are NOT marked PASS.
+- Decom is NOT authorized by this appendix.
+- No relative links introduced; no existing links altered.
+
+### Amendment guardrails
+
+- This appendix is append-only; prior lines and Appendices A–F are preserved byte-identical.
+- Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix G or earlier content.
+- PASS promotion beyond the scoped evidence above requires executed command+count+hash evidence observed by the verification lane, not transcribed SUPPLIED labels.
+- The verification lane owns VERIFIED/COMMITTED/RELEASED promotion; this writer claims none.
