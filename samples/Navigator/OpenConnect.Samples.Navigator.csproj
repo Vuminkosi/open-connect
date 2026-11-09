@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>OpenConnect.Samples.Navigator</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Navigator</RootNamespace>
+    <!-- No Design package by design: this sample owns no migrations (see README). -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.Navigator.Operational\OpenConnect.Navigator.Operational.csproj" />
+    <ProjectReference Include="..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+</Project>
