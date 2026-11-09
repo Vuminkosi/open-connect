@@ -80,9 +80,12 @@ function Get-HarnessHostSource {
   $template = @'
 // CF-IMP-020c harness host (embedded): serves the OpenConnect HTTP API over real Kestrel.
 // Mirrors OpenConnect.Hosting.Tests HttpFixture (AuthenticatedTaskHttpTests) with a fixed loopback port.
+using System;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -160,8 +163,12 @@ function Get-HarnessClientSource {
 // against the harness host over HTTP. Steps: health, session create (raw HTTP;
 // IOpenConnectClient has no CreateSession), task create, task read/poll,
 // events read at cursor 0, events replay at last cursor (expect empty).
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Threading.Tasks;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Client;
