@@ -1,3 +1,5 @@
+using Microsoft.Agents.AI.Workflows.Declarative;
+using Microsoft.Agents.AI.Workflows.Declarative.Mcp;
 using OpenConnect.Agents.Execution;
 using Xunit;
 
@@ -27,7 +29,6 @@ public sealed class MafCapabilityMatrixTests
     }
 
     [Theory]
-    [InlineData("MCP", "ModelContextProtocol.Client.McpClient")]
     [InlineData("A2A", "A2A.A2AClient")]
     public void Remote_agent_profile_requests_throw_unavailable_with_missing_type(string profile, string expectedMissingType)
     {
@@ -40,7 +41,6 @@ public sealed class MafCapabilityMatrixTests
 
     [Theory]
     [InlineData("Durable execution", "Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor")]
-    [InlineData("MCP integration", "ModelContextProtocol.Client.McpClient")]
     [InlineData("A2A integration", "A2A.A2AClient")]
     public void Unsupported_capabilities_report_unavailable_with_exact_missing_type(string capability, string expectedTypeName)
     {
@@ -52,6 +52,44 @@ public sealed class MafCapabilityMatrixTests
         Assert.Equal(expectedTypeName, probe.RequiredTypeName);
         Assert.Equal($"Missing type: {expectedTypeName}", probe.UnavailableReason);
         Assert.Null(probe.AssemblyName);
+    }
+
+    [Fact]
+    public void Mcp_profile_request_passes_through_when_declarative_mcp_type_present()
+    {
+        // Microsoft.Agents.AI.Workflows.Declarative.Mcp 1.27.0 is referenced, so the MCP
+        // gate resolves Available and ValidateExecutionProfile must not throw.
+        var exception = Record.Exception(
+            () => OrchestrationProfileRouter.ValidateExecutionProfile("MCP"));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Mcp_capability_reports_available_with_declarative_mcp_assembly()
+    {
+        // The Declarative.Mcp package is referenced, so the probe must resolve
+        // the MCP integration entry as Available with the real adapter type and
+        // its owning assembly.
+        var matrix = MafRuntimeProbe.GetWorkflowCapabilityMatrix();
+
+        var mcp = Assert.Single(matrix, item => item.Capability == "MCP integration");
+
+        Assert.Equal("Microsoft.Agents.AI.Workflows.Declarative.Mcp.DefaultMcpToolHandler", mcp.RequiredTypeName);
+        Assert.Equal(MafCapabilityStatus.Available, mcp.Status);
+        Assert.Null(mcp.UnavailableReason);
+        Assert.Equal("Microsoft.Agents.AI.Workflows.Declarative.Mcp", mcp.AssemblyName);
+    }
+
+    [Fact]
+    public void Declarative_mcp_adapter_implements_tool_handler_with_async_dispose()
+    {
+        // Minimal local evidence that the native MAF adapter is resolvable: no
+        // server, no network, no instantiation. The adapter exposes DisposeAsync
+        // (IAsyncDisposable), not the synchronous IDisposable pattern.
+        Assert.True(typeof(IMcpToolHandler).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
+        Assert.True(typeof(IAsyncDisposable).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
+        Assert.NotNull(typeof(DefaultMcpToolHandler).GetMethod("DisposeAsync", Type.EmptyTypes));
     }
 
     [Fact]
@@ -75,7 +113,7 @@ public sealed class MafCapabilityMatrixTests
     {
         // The Microsoft.Agents.AI.Workflows package is referenced, so the
         // probe must resolve the Workflow entry as Available (fail closed
-        // applies only to the unsupported Durable/MCP/A2A entries).
+        // applies only to the unsupported Durable/A2A entries).
         var matrix = MafRuntimeProbe.GetWorkflowCapabilityMatrix();
 
         var workflow = Assert.Single(matrix, item => item.Capability == "Workflow");

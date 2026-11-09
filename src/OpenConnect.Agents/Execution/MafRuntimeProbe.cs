@@ -22,10 +22,16 @@ public static class MafRuntimeProbe
         // referenced. The name below is the expected durable workflow host type; absent means the
         // DurableWorkflow profile must fail closed until a durable backend is selected.
         ("Durable execution", "Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor"),
-        // MCP/A2A integration lives in external SDK packages (not referenced, never auto-loaded).
-        // The names below are the documented client types of those SDKs; absent means those profiles
+        // MCP integration is provided by the referenced
+        // Microsoft.Agents.AI.Workflows.Declarative.Mcp 1.27.0 package.
+        // Verified present on 2026-11-09 by reflection over the loaded
+        // assembly: the canonical adapter type below
+        // (DefaultMcpToolHandler : IMcpToolHandler). ModelContextProtocol is
+        // accepted transitively (no explicit pin).
+        ("MCP integration", "Microsoft.Agents.AI.Workflows.Declarative.Mcp.DefaultMcpToolHandler"),
+        // A2A integration lives in an external SDK package (not referenced, never auto-loaded).
+        // The name below is the documented client type of that SDK; absent means that profile
         // must fail closed.
-        ("MCP integration", "ModelContextProtocol.Client.McpClient"),
         ("A2A integration", "A2A.A2AClient")
     ];
 
@@ -72,13 +78,13 @@ public static class MafRuntimeProbe
         // types resolve when the corresponding packages are referenced. A missing
         // assembly is ignored so the capability matrix reports Unavailable
         // (fail closed) instead of throwing here.
-        foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows", "Microsoft.Agents.AI.Harness" })
+        foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows", "Microsoft.Agents.AI.Harness", "Microsoft.Agents.AI.Workflows.Declarative.Mcp" })
         {
             try { _ = Assembly.Load(name); }
             catch (Exception exception) when (exception is FileNotFoundException or FileLoadException or BadImageFormatException) { }
         }
         return AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions" or "Microsoft.Agents.AI.Workflows" or "Microsoft.Agents.AI.Harness")
+            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions" or "Microsoft.Agents.AI.Workflows" or "Microsoft.Agents.AI.Harness" or "Microsoft.Agents.AI.Workflows.Declarative.Mcp")
             .ToArray();
     }
 
