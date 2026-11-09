@@ -1,7 +1,7 @@
 {
   "schemaVersion": "openconnect.compatibility/v1",
-  "generatedAtUtc": "2026-11-09T19:40:12Z",
-  "commit": "f3d66f7",
+  "generatedAtUtc": "2026-11-09T19:51:10Z",
+  "commit": "27a88ce",
   "packages": [
     {
       "id": "OpenConnect.Abstractions",
@@ -1301,6 +1301,31 @@
           }
         ]
       }
+    },
+    {
+      "id": "OpenConnect.Components.Contracts",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "notes": "Pack evidence CF-IMP-019c at HEAD 27a88ce: `dotnet pack src/OpenConnect.Components.Contracts -c Release` produced OpenConnect.Components.Contracts.1.0.0.nupkg containing lib/net8.0, lib/net9.0 and lib/net10.0 assets (dll + xml docs each); nuspec dependency groups empty per TFM (zero dependencies). No dedicated test suite by design — testSuites omitted, consumerSmoke pending.",
+      "assets": {
+        "net8.0": "lib/net8.0/OpenConnect.Components.Contracts.dll",
+        "net9.0": "lib/net9.0/OpenConnect.Components.Contracts.dll",
+        "net10.0": "lib/net10.0/OpenConnect.Components.Contracts.dll"
+      },
+      "dependencyGroups": {
+        "net10.0": [],
+        "net8.0": [],
+        "net9.0": []
+      }
     }
   ],
   "crossTfm": {
@@ -1322,7 +1347,7 @@
       "result": "SMOKE_PASS"
     }
   },
-  "notes": "Contracts.Tests: 143 tests net8.0-by-design (test project targets net8.0 only); recorded as note-only, not a package support row. Cross-TFM harness build/scripts/run-cross-tfm-smoke.ps1 at commit 9155c71 reported SMOKE_PASS (CF-POSTVERIFY-024 exit 0, CLIENT_PASS x2).",
+  "notes": "Contracts.Tests: 143 tests net8.0-by-design (test project targets net8.0 only); recorded as note-only, not a package support row. Cross-TFM harness build/scripts/run-cross-tfm-smoke.ps1 at commit 9155c71 reported SMOKE_PASS (CF-POSTVERIFY-024 exit 0, CLIENT_PASS x2). SBOM NOT VERIFIED (CF-IMP-019c): CycloneDX absent — `dotnet tool list -g` shows only dotnet-ef, dotnet-ildasm, dotnet-script, ilspycmd, vpk; `dotnet tool list --local` empty; `dotnet CycloneDX --help` fails with 'dotnet-CycloneDX does not exist'. No SBOM generated; no tool installed (no network per task).",
   "policy": {
     "recommendedTfm": "net10.0",
     "compatibilityOnly": [

@@ -1,6 +1,6 @@
 # Framework Compatibility Matrix
 
-_Generated 2026-11-09 19:30 UTC by `build/scripts/render-compatibility-matrix.py` (schema `openconnect.compatibility/v1`). Do not hand-edit cells; re-run the script. Cells marked `pending` are evidence placeholders, not results._
+_Generated 2026-11-09 19:52 UTC by `build/scripts/render-compatibility-matrix.py` (schema `openconnect.compatibility/v1`). Do not hand-edit cells; re-run the script. Cells marked `pending` are evidence placeholders, not results._
 
 Repo default TFM(s) (Directory.Build.props): `net8.0`.
 See `docs/compatibility/runtime-support-policy.md` for the support policy.
@@ -42,7 +42,7 @@ See `docs/compatibility/runtime-support-policy.md` for the support policy.
 
 ## Notes
 
-Contracts.Tests: 143 tests net8.0-by-design (test project targets net8.0 only); recorded as note-only, not a package support row. Cross-TFM harness build/scripts/run-cross-tfm-smoke.ps1 at commit 9155c71 reported SMOKE_PASS (CF-POSTVERIFY-024 exit 0, CLIENT_PASS x2).
+Contracts.Tests: 143 tests net8.0-by-design (test project targets net8.0 only); recorded as note-only, not a package support row. Cross-TFM harness build/scripts/run-cross-tfm-smoke.ps1 at commit 9155c71 reported SMOKE_PASS (CF-POSTVERIFY-024 exit 0, CLIENT_PASS x2). SBOM NOT VERIFIED (CF-IMP-019c): CycloneDX absent — `dotnet tool list -g` shows only dotnet-ef, dotnet-ildasm, dotnet-script, ilspycmd, vpk; `dotnet tool list --local` empty; `dotnet CycloneDX --help` fails with 'dotnet-CycloneDX does not exist'. No SBOM generated; no tool installed (no network per task).
 
 ## Open questions
 
