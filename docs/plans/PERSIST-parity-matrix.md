@@ -122,13 +122,13 @@ Exact DDL (text `""` defaults, `pending` default on outbox state, index names) i
 
 ### G2. `NativeAgentSessions` — disposition: RETAIN (new capability, no legacy to migrate within inspected legacy sources (3 migrations + snapshot + files listed in §Source inventory))
 
-- Rationale: opaque encrypted MAF binding (`BindingKey PK(64, ascii)`, `SessionId/TenantId/PrincipalId ULID strings(26, ascii)`, `AgentId/DefinitionRevision/MafVersion/SchemaVersion/ProviderId` req, `Version req`, `Ciphertext req`); `EfNativeAgentSessionStore` verifies `ProviderId` ordinal match and binding-tuple match.
+- Rationale: opaque encrypted MAF binding (`BindingKey PK(64, ascii)`, `SessionId/TenantId/PrincipalId ULID strings(26, ascii)`, `AgentId/DefinitionRevision/MafVersion/SchemaVersion/ProviderId` req, `Version req`, `Ciphertext req`); `EfNativeAgentSessionStore` verifies `ProviderId` ordinal match and binding-tuple match; no legacy counterpart within inspected legacy sources (3 migrations + snapshot + files listed in §Source inventory).
 - Evidence preservation: REQUIRED (not observed in this slice): binding-key uniqueness tests; cross-tenant/cross-principal negative reads; provider-mismatch rejection tests; ciphertext-opaque (no plaintext log) tests; `Version` overwrite/rollback tests.
 - Open items (**NOT VERIFIED**): key-management/rotation story; `Ciphertext` size limits; index needs on `(TenantId, SessionId)`.
 
 ### G3. `PublicSessionMappings` — disposition: RETAIN (new capability, contract `SESSION-UUID-MAPPING`)
 
-- Rationale: immutable public-UUID→runtime-ULID map; PK `(TenantId, PublicId)`; `InternalSessionId(26, ascii)` globally unique; `PrincipalId` + `CreatedAtUtc` + `Version` concurrency token; fail-closed tenant/principal mismatch → null.
+- Rationale: immutable public-UUID→runtime-ULID map; PK `(TenantId, PublicId)`; `InternalSessionId(26, ascii)` globally unique; `PrincipalId` + `CreatedAtUtc` + `Version` concurrency token; fail-closed tenant/principal mismatch → null; no legacy counterpart within inspected legacy sources (3 migrations + snapshot + files listed in §Source inventory).
 - Evidence preservation: REQUIRED (not observed in this slice): immutability (no update/delete path) tests; `(TenantId, PublicId)` uniqueness tests; `InternalSessionId` global-unique tests; cross-tenant mismatch→not-found tests; genuine-UUID (no ULID→UUID derivation) tests.
 - Open items (**NOT VERIFIED**): resolver dual-ownership checks live with caller (per remarks) — caller enforcement tests needed; no legacy migration required within inspected legacy sources (3 migrations + snapshot + files listed in §Source inventory).
 
