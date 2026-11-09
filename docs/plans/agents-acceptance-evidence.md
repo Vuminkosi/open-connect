@@ -532,3 +532,32 @@ Missing-gate note (applies to every row below): no per-criterion executed comman
 - Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix G or earlier content.
 - PASS promotion beyond the scoped evidence above requires executed command+count+hash evidence observed by the verification lane, not transcribed SUPPLIED labels.
 - The verification lane owns VERIFIED/COMMITTED/RELEASED promotion; this writer claims none.
+
+## Appendix H — E2E live-matrix final disposition (SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+**Canonical root:** `C:\DevOps\open-connect\worktrees\agents-1`
+**Branch:** `agents-1`
+**HEAD:** `faab0813362b28ae7fa5612edab5ed4d02287ce1` (verified read-only by coordinator, no drift from expected prefix `faab0813`)
+**Date:** 2026-11-09
+**Document status:** APPROVED CONTRACT / SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute)
+
+> Scope note: all counts, ports, and PASS claims below are transcribed as SUPPLIED-VERIFIED-BY-LANE. This writer did NOT re-execute any test or build, did NOT independently verify any count or port, and makes no VERIFIED / COMMITTED / RELEASED claim. Prior sections (lines 1–534 incl Appendices A–G) are preserved byte-identical; this appendix is append-only.
+
+### 1. Live gates now PASS (transcribed as supplied)
+
+- PostgreSql sample migrate → verify → migrate → verify reproduce + negative unreachable-verify: 5/5 PASS on disposable PG `127.0.0.1:40043/3978` range (port recorded as supplied; exact value NOT VERIFIED by this writer).
+- SqlServer sample same shape: 5/5 PASS on disposable MSSQL `127.0.0.1:18521/38950` range (port recorded as supplied; exact value NOT VERIFIED by this writer).
+- Testcontainers matrix 9/9 PASS: PostgresCrossProcessFencingTests 5 + PostgresOutboxAtomicityTests 2 + PostgresIsolationTests 2, with `postgres:16-alpine` + `nats:2-alpine` already local, no pulls.
+
+### 2. Explicitly deferred with rationale (orchestrator-owned, recorded here)
+
+- (a) Receipt-carrier decision UNDECIDED — Navigator receipt paths (`ConsumeApprovalAndSaveReceipt` / `GetReceipt` / `TrySaveReceipt`) have no EFCore implementation and no sample coverage; deleting the legacy package now would drop working functionality, so DECOM IS NOT AUTHORIZED until the carrier is decided + implemented + verified.
+- (b) Navigator cross-process fencing for the EFCore seam NOT VERIFIED — legacy-suite 5/5 proves the legacy implementation only; the seam has single-process tests; multi-process Testcontainers proof is future work.
+- (c) SqlServer second-process idempotence confidence NOT VERIFIED.
+- (d) Production host DDL stays a Manual-mode host-owner responsibility (Appendices C/E).
+
+### 3. Decom readiness
+
+- PERSIST-14 (Postgres lib) NOT AUTHORIZED — blocked on (a) Testcontainers PG matrix for the EFCore seam paths (done: 9/9 per supplied evidence — recorded as satisfied) AND (b) receipt-carrier decision + implementation.
+- PERSIST-15 (Navigator Postgres lib) NOT AUTHORIZED — blocked on the same (b) plus cross-process fencing proof.
+- No global production claim. No secrets.
