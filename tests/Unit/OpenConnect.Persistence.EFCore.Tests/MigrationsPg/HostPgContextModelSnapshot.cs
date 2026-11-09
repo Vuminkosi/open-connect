@@ -32,6 +32,17 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsPg
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -65,6 +76,8 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsPg
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("Approvals", "openconnect");
                 });
@@ -537,6 +550,13 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsPg
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ResultRef")
                         .HasColumnType("text");
