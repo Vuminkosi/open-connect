@@ -142,6 +142,6 @@ internal static class EfLeaseFencingDialectSelector
         ArgumentNullException.ThrowIfNull(context);
         if (context.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
             return PostgresLeaseFencingDialect.Instance;
-        return null;
+        return SqlServerLeaseFencingDialect.TrySelect(context);
     }
 }
