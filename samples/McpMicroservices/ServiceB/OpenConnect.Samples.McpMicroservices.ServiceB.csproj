@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>OpenConnect.Samples.McpMicroservices.ServiceB</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.McpMicroservices.ServiceB</RootNamespace>
+    <!-- Design package supports `dotnet ef migrations add` from this service's own pipeline. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+  </ItemGroup>
+</Project>

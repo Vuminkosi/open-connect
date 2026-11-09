@@ -13,6 +13,8 @@ internal sealed class TaskEntity
     public string CanonicalHash { get; set; } = null!;
     public string? InputRef { get; set; }
     public string? ResultRef { get; set; }
+    public string? ReceiptPayload { get; set; }
+    public string? ReceiptStatus { get; set; }
     public DateTime CreatedUtc { get; set; }
     public DateTime? CompletedUtc { get; set; }
 }

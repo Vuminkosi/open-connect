@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AssemblyName>OpenConnect.Samples.Blazor</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Blazor</RootNamespace>
+    <!-- Design package supports `dotnet ef migrations add` from this sample's own pipeline. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+  </ItemGroup>
+</Project>

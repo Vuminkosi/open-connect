@@ -21,7 +21,9 @@ export type OpenConnectErrorCode =
   | "privacy_blocked"
   | "invalid_request"
   | "conflict"
-  | "rate_limited";
+  | "rate_limited"
+  | "legacy_event_without_identity"
+  | "unprocessable_entity";
 
 /** Task lifecycle states per POST /tasks 202 response. */
 export type TaskState =

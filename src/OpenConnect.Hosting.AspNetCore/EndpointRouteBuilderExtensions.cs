@@ -2,12 +2,16 @@ using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
+using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Hosting.AspNetCore.Execution;
 
 [assembly: InternalsVisibleTo("OpenConnect.Hosting.Tests")]
 
@@ -22,12 +26,18 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         var group = endpoints.MapGroup("/openconnect/v1");
 
-        group.MapPost("/tasks", HandleCreateTaskAsync).RequireAuthorization();
+        group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+        {
+            var store = context.RequestServices.GetService<InMemoryTaskStore>();
+            return store is null
+                ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
+                : await HandleCreateTaskAsync(context, request, store, cancellationToken);
+        }).RequireAuthorization();
         group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
         group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
-        group.MapPost("/sessions", HandleCreateSession).RequireAuthorization();
+        group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
         group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
-        group.MapGet("/sessions/{id}/events", HandleGetSessionEvents).RequireAuthorization();
+        group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
         group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
         group.MapGet("/components", HandleComponents).RequireAuthorization();
         group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
@@ -54,11 +64,21 @@ public static class EndpointRouteBuilderExtensions
         if (request.SessionId is not null && !UlidTryParse(request.SessionId, out _))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["sessionId"] = ["A valid session ID is required."] });
 
+        var services = context.RequestServices;
+        if (services.GetService<IHostTaskExecutionDispatcher>() is not { } dispatcher ||
+            services.GetService<IHostTaskExecutionAuthorizer>() is null || services.GetService<IHostTaskExecutor>() is null)
+            return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register an executor and authorizer to enable task submission.");
+        if (request.SessionId is not null && (!UlidTryParse(request.SessionId, out var sessionId) ||
+            services.GetService<InMemorySessionStore>()?.Get(sessionId) is not { } session || session.TenantId.Value != tenant || session.PrincipalId.Value != principal))
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
-        var result = await store.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
-        return result.Conflict
-            ? Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict")
-            : Results.Accepted($"/openconnect/v1/tasks/{result.Task!.Id.Value}", result.Task);
+        var result = await dispatcher.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
+        return result.Status switch
+        {
+            ExecutionAdmissionStatus.Conflict => Results.Problem(statusCode: 409, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict"),
+            ExecutionAdmissionStatus.Unavailable => Results.Problem(statusCode: 503, title: "Task execution is at capacity. Try again shortly."),
+            _ => IdentifierJson(result.Task!, StatusCodes.Status202Accepted, $"/openconnect/v1/tasks/{result.Task!.Id.Value}")
+        };
     }
 
     internal static async Task<IResult> HandleGetTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
@@ -70,7 +90,7 @@ public static class EndpointRouteBuilderExtensions
         var task = await store.GetAsync(value, cancellationToken);
         return task is null || task.TenantId.Value != tenant || task.PrincipalId.Value != principal
             ? Results.Problem(statusCode: 404, title: "Task not found.")
-            : Results.Ok(task);
+            : IdentifierJson(task, StatusCodes.Status200OK);
     }
 
     internal static async Task<IResult> HandleCancelTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
@@ -80,14 +100,60 @@ public static class EndpointRouteBuilderExtensions
         var existing = await store.GetAsync(value, cancellationToken);
         if (existing is null || existing.TenantId.Value != tenant || existing.PrincipalId.Value != principal)
             return Results.Problem(statusCode: 404, title: "Task not found.");
-        return Results.Ok(await store.CancelAsync(value, cancellationToken));
+        var dispatcher = context.RequestServices.GetService<IHostTaskExecutionDispatcher>();
+        if (dispatcher is null) return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
+        var cancelled = await dispatcher.CancelAsync(value, cancellationToken);
+        return cancelled is null ? Results.Json(null, options: OpenConnectHttpJson.CreateOptions()) : IdentifierJson(cancelled, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleCreateSession(HttpContext context, SessionRequest? request, InMemorySessionStore store)
     {
         if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
         var session = store.Create(new TenantId(tenant), new PrincipalId(principal));
-        return Results.Created($"/openconnect/v1/sessions/{session.Id.Value}", session);
+        return IdentifierJson(session, StatusCodes.Status201Created, $"/openconnect/v1/sessions/{session.Id.Value}");
+    }
+
+    /// <summary>Creates a session and registers its genuine public UUID in the durable mapping when available.</summary>
+    /// <remarks>
+    /// Wire-identical to <see cref="HandleCreateSession"/> (same 201 body/location): the added
+    /// <c>ISessionUuidMappingStore.TryAddAsync</c> side-effect only links a freshly generated UUID
+    /// (never derived from the ULID) to the new runtime session. A mapping <c>Conflict</c> fails
+    /// closed with 409 and the half-created session is removed; an absent store keeps legacy behavior.
+    /// </remarks>
+    internal static async Task<IResult> HandleCreateSessionAsync(HttpContext context, SessionRequest? request, InMemorySessionStore store, CancellationToken cancellationToken = default)
+    {
+        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        var session = store.Create(new TenantId(tenant), new PrincipalId(principal));
+
+        var mapping = context.RequestServices.GetService<ISessionUuidMappingStore>();
+        if (mapping is not null)
+        {
+            var publicId = Guid.NewGuid();
+            SessionUuidMappingSaveOutcome outcome;
+            try
+            {
+                outcome = await mapping.TryAddAsync(publicId, session.Id, new TenantId(tenant), new PrincipalId(principal), cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                store.Remove(session.Id.Value);
+                throw;
+            }
+
+            if (outcome == SessionUuidMappingSaveOutcome.Conflict)
+            {
+                store.Remove(session.Id.Value);
+                return Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Session could not be created due to a mapping conflict.",
+                    type: "https://openconnect.dev/problems/session-mapping-conflict");
+            }
+
+            if (context.RequestServices.GetService<ISessionUuidResolver>() is InMemorySessionUuidResolver memory)
+                memory.Register(publicId, session.Id.Value);
+        }
+
+        return IdentifierJson(session, StatusCodes.Status201Created, $"/openconnect/v1/sessions/{session.Id.Value}");
     }
 
     internal static IResult HandleGetSession(string id, HttpContext context, InMemorySessionStore store)
@@ -96,16 +162,178 @@ public static class EndpointRouteBuilderExtensions
         if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
         var session = store.Get(value);
         return session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal
-            ? Results.Problem(statusCode: 404, title: "Session not found.") : Results.Ok(session);
+            ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
     {
-        if (!UlidTryParse(id, out var value) || after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
-        var session = store.Get(value);
-        if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
-        return Results.Ok(store.GetEvents(value, after ?? 0));
+        if (after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (UlidTryParse(id, out var value))
+        {
+            if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+            var session = store.Get(value);
+            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
+            return Results.Ok(store.GetEvents(value, after ?? 0));
+        }
+
+        // UUID public identity path (contract EVENT-V1-PUBLIC): the route UUID is the
+        // genuine public session id. It resolves to a runtime ULID for storage lookup
+        // only and is never derived from a ULID. Unmapped UUIDs answer 404 so session
+        // existence stays concealed, exactly like the legacy ownership check.
+        if (!Guid.TryParseExact(id, "D", out var sessionUuid) || sessionUuid == Guid.Empty)
+            return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal)) return IdentityError();
+        var resolver = context.RequestServices.GetService<ISessionUuidResolver>();
+        if (resolver is null || !resolver.TryResolve(sessionUuid, out var mapped))
+            return Results.Problem(statusCode: 404, title: "Session not found.");
+        var mappedSession = store.Get(mapped);
+        if (mappedSession is null || mappedSession.TenantId.Value != uuidTenant || mappedSession.PrincipalId.Value != uuidPrincipal)
+            return Results.Problem(statusCode: 404, title: "Session not found.");
+
+        var records = store.GetEvents(mapped, after ?? 0);
+        var canonical = new List<CanonicalAgentEvent>(records.Count);
+        foreach (var record in records)
+        {
+            // Records without genuine stored event UUID/time cannot be projected;
+            // answer 422 rather than fabricate metadata (contract EVENT-V1-PUBLIC).
+            if (!CanonicalEventEndpointAdapter.TryToCanonical(record, sessionUuid, out var envelope) || envelope is null)
+                return Results.Problem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    title: "A stored event lacks genuine canonical identity and cannot be projected.",
+                    type: "https://openconnect.dev/problems/legacy-event-without-canonical-identity");
+            canonical.Add(envelope);
+        }
+
+        return Results.Json(canonical, CanonicalJsonOptions);
+    }
+
+    internal static IResult HandleGetSessionEventsFromRequest(string id, HttpContext context, InMemorySessionStore store)
+    {
+        var query = context.Request.Query;
+        var hasAfterSequence = query.ContainsKey("afterSequence");
+        var hasAfter = query.ContainsKey("after");
+        if (hasAfterSequence && hasAfter ||
+            !TryReadCursor(query, hasAfterSequence ? "afterSequence" : "after", out var cursor))
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The event position is invalid.", type: "https://openconnect.dev/problems/invalid_request");
+
+        return HandleGetSessionEvents(id, cursor, context, store);
+    }
+
+    /// <summary>Durable-first UUID resolve for the canonical event route (bridge read side).</summary>
+    /// <remarks>
+    /// ULID legacy, cursor handling, 404 concealment, 422 projection, and post-resolve dual
+    /// ownership checks are identical to <see cref="HandleGetSessionEvents"/>. The only difference
+    /// is resolve order: <c>IDurableSessionUuidResolver</c> first (fail-closed null on absent or
+    /// foreign), then the process-local <c>ISessionUuidResolver</c> fallback.
+    /// </remarks>
+    internal static async Task<IResult> HandleGetSessionEventsAsync(string id, long? after, HttpContext context, InMemorySessionStore store, CancellationToken cancellationToken = default)
+    {
+        if (after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (UlidTryParse(id, out var value))
+        {
+            if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+            var session = store.Get(value);
+            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
+            return Results.Ok(store.GetEvents(value, after ?? 0));
+        }
+
+        // UUID public identity path (contract EVENT-V1-PUBLIC): the route UUID is the
+        // genuine public session id. It resolves to a runtime ULID for storage lookup
+        // only and is never derived from a ULID. Unmapped UUIDs answer 404 so session
+        // existence stays concealed, exactly like the legacy ownership check.
+        if (!Guid.TryParseExact(id, "D", out var sessionUuid) || sessionUuid == Guid.Empty)
+            return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal)) return IdentityError();
+        var tenantId = new TenantId(uuidTenant);
+        var principalId = new PrincipalId(uuidPrincipal);
+
+        Ulid? mapped = null;
+        var durable = context.RequestServices.GetService<IDurableSessionUuidResolver>();
+        if (durable is not null)
+        {
+            var resolved = await durable.ResolveAsync(sessionUuid, tenantId, principalId, cancellationToken).ConfigureAwait(false);
+            if (resolved is not null) mapped = resolved.Value.Value;
+        }
+
+        if (mapped is null)
+        {
+            var sync = context.RequestServices.GetService<ISessionUuidResolver>();
+            if (sync is null || !sync.TryResolve(sessionUuid, out var fallback))
+                return Results.Problem(statusCode: 404, title: "Session not found.");
+            mapped = fallback;
+        }
+
+        var mappedSession = store.Get(mapped.Value);
+        if (mappedSession is null || mappedSession.TenantId.Value != uuidTenant || mappedSession.PrincipalId.Value != uuidPrincipal)
+            return Results.Problem(statusCode: 404, title: "Session not found.");
+
+        var records = store.GetEvents(mapped.Value, after ?? 0);
+        var canonical = new List<CanonicalAgentEvent>(records.Count);
+        foreach (var record in records)
+        {
+            // Records without genuine stored event UUID/time cannot be projected;
+            // answer 422 rather than fabricate metadata (contract EVENT-V1-PUBLIC).
+            if (!CanonicalEventEndpointAdapter.TryToCanonical(record, sessionUuid, out var envelope) || envelope is null)
+                return Results.Problem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    title: "A stored event lacks genuine canonical identity and cannot be projected.",
+                    type: "https://openconnect.dev/problems/legacy-event-without-canonical-identity");
+            canonical.Add(envelope);
+        }
+
+        return Results.Json(canonical, CanonicalJsonOptions);
+    }
+
+    internal static async Task<IResult> HandleGetSessionEventsFromRequestAsync(string id, HttpContext context, InMemorySessionStore store, CancellationToken cancellationToken = default)
+    {
+        var query = context.Request.Query;
+        var hasAfterSequence = query.ContainsKey("afterSequence");
+        var hasAfter = query.ContainsKey("after");
+        if (hasAfterSequence && hasAfter ||
+            !TryReadCursor(query, hasAfterSequence ? "afterSequence" : "after", out var cursor))
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The event position is invalid.", type: "https://openconnect.dev/problems/invalid_request");
+
+        return await HandleGetSessionEventsAsync(id, cursor, context, store, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool TryReadCursor(IQueryCollection query, string name, out long? cursor)
+    {
+        cursor = 0;
+        if (!query.ContainsKey(name)) return true;
+
+        var values = query[name];
+        if (values.Count != 1 || !long.TryParse(values[0], System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return false;
+
+        cursor = parsed;
+        return parsed >= 0;
+    }
+
+    // Canonical public envelope serialization (contract EVENT-V1-PUBLIC only):
+    // emits occurredAt as Zulu UTC ("...Z"), preserving the genuine instant.
+    // Legacy EventRecord responses above intentionally keep Results.Ok untouched.
+    private static readonly JsonSerializerOptions CanonicalJsonOptions = CreateCanonicalJsonOptions();
+
+    private static JsonSerializerOptions CreateCanonicalJsonOptions()
+    {
+        var options = OpenConnectHttpJson.CreateOptions();
+        options.Converters.Add(new ZuluDateTimeOffsetConverter());
+        return options;
+    }
+
+    private sealed class ZuluDateTimeOffsetConverter : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    {
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetDateTimeOffset();
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
+        {
+            var text = value.UtcDateTime.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            if (text.EndsWith("Z", StringComparison.Ordinal) && text.Contains('.'))
+                text = text.TrimEnd('Z').TrimEnd('0').TrimEnd('.') + "Z";
+            writer.WriteStringValue(text);
+        }
     }
 
     private static bool TryIdentity(HttpContext context, out Ulid tenant, out Ulid principal)
@@ -117,6 +345,9 @@ public static class EndpointRouteBuilderExtensions
 
     private static IResult IdentityError() => Results.Problem(statusCode: 403, title: "The authenticated identity is missing required tenant or subject claims.");
 
+    private static IResult IdentifierJson(object value, int statusCode, string? location = null) =>
+        new IdentifierJsonResult(value, statusCode, location);
+
     internal static IResult HandleCapabilities(IServiceProvider services) => Results.Ok(services.GetService<ICapabilityRegistry>()?.GetReady(CapabilityKind.Model) ?? Array.Empty<CapabilityDescriptor>());
 
     internal static IResult HandleComponents(IServiceProvider services) => Results.Ok(services.GetService<IAgentDefinitionRegistry>()?.GetAll() ?? Array.Empty<AgentDefinition>());
@@ -126,8 +357,33 @@ public static class EndpointRouteBuilderExtensions
 
     private static bool UlidTryParse(string? text, out Ulid value)
     {
-        try { value = Ulid.Parse(text ?? string.Empty); return true; }
+        try
+        {
+            var parsed = Ulid.Parse(text ?? string.Empty);
+            if (parsed == default || !string.Equals(parsed.ToString(), text, StringComparison.Ordinal))
+            {
+                value = default;
+                return false;
+            }
+
+            value = parsed;
+            return true;
+        }
         catch (FormatException) { value = default; return false; }
+    }
+
+    private sealed class IdentifierJsonResult(object value, int statusCode, string? location) : IResult
+    {
+        private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
+
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            httpContext.Response.StatusCode = statusCode;
+            httpContext.Response.ContentType = "application/json; charset=utf-8";
+            if (location is not null)
+                httpContext.Response.Headers["Location"] = location;
+            await JsonSerializer.SerializeAsync(httpContext.Response.Body, value, value.GetType(), JsonOptions, httpContext.RequestAborted);
+        }
     }
 }
 
@@ -137,33 +393,34 @@ public sealed record SessionRequest(string? Name = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);
 
 /// <summary>Process-local task/idempotency store, replaceable by durable persistence.</summary>
-public sealed class InMemoryTaskStore
+public sealed class InMemoryTaskStore : ITaskLifecycleStore
 {
-    private readonly ConcurrentDictionary<string, StoredTask> _byKey = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Ulid, TaskRecord> _byId = new();
-
-    internal Task<(TaskRecord? Task, bool Conflict)> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var storeKey = $"{tenant.Value}:{principal.Value}:{key}";
-        while (true)
-        {
-            if (_byKey.TryGetValue(storeKey, out var existing))
-                return Task.FromResult((existing.Fingerprint == fingerprint ? existing.Record : null, existing.Fingerprint != fingerprint));
-
-            var record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Queued);
-            var stored = new StoredTask(fingerprint, record);
-            if (!_byKey.TryAdd(storeKey, stored)) continue;
-            _byId[record.Id.Value] = record;
-            return Task.FromResult<(TaskRecord?, bool)>((record, false));
-        }
-    }
 
     internal Task<TaskRecord?> GetAsync(Ulid id, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         _byId.TryGetValue(id, out var task);
         return Task.FromResult(task);
+    }
+
+    internal TaskRecord? Find(Ulid id) => _byId.GetValueOrDefault(id);
+    internal IReadOnlyCollection<TaskRecord> All() => _byId.Values.ToArray();
+    internal void Put(TaskRecord record) => _byId[record.Id.Value] = record;
+    internal bool TryRemove(Ulid id) => _byId.TryRemove(id, out _);
+
+    /// <inheritdoc />
+    public Task<TaskRecord?> TransitionAsync(TaskId taskId, TenantId tenantId, PrincipalId principalId, AgentRunState expectedState, AgentRunState newState, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        while (_byId.TryGetValue(taskId.Value, out var current))
+        {
+            if (current.TenantId != tenantId || current.PrincipalId != principalId || current.State != expectedState)
+                return Task.FromResult<TaskRecord?>(null);
+            var updated = current with { State = newState };
+            if (_byId.TryUpdate(taskId.Value, updated, current)) return Task.FromResult<TaskRecord?>(updated);
+        }
+        return Task.FromResult<TaskRecord?>(null);
     }
 
     internal Task<TaskRecord?> CancelAsync(Ulid id, CancellationToken cancellationToken)
@@ -178,7 +435,6 @@ public sealed class InMemoryTaskStore
         return Task.FromResult<TaskRecord?>(null);
     }
 
-    private sealed record StoredTask(string Fingerprint, TaskRecord Record);
 }
 
 /// <summary>Process-local session and bounded event store.</summary>
@@ -198,6 +454,8 @@ public sealed class InMemorySessionStore
         return session;
     }
     public SessionRecord? Get(Ulid id) => _sessions.GetValueOrDefault(id);
+    internal int Count => _sessions.Count;
+    internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
 
     public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)

@@ -68,7 +68,17 @@ export interface CreateTaskInput {
 
 const IDEMPOTENCY_HEADER = "Idempotency-Key";
 
-function statusToCode(status: number, bodyCode?: string): OpenConnectErrorCode {
+/** Problem-type slug for stored events lacking genuine canonical identity. */
+const LEGACY_PROBLEM_SLUG = "legacy-event-without-canonical-identity";
+
+/** All-zeros UUID-D: the string equivalent of an empty session id. */
+const EMPTY_UUID_D = "00000000-0000-0000-0000-000000000000";
+
+function statusToCode(
+  status: number,
+  bodyCode?: string,
+  options?: { path?: string; bodyType?: string },
+): OpenConnectErrorCode {
   if (bodyCode !== undefined) {
     const known: OpenConnectErrorCode[] = [
       "task_not_found",
@@ -81,20 +91,46 @@ function statusToCode(status: number, bodyCode?: string): OpenConnectErrorCode {
       "invalid_request",
       "conflict",
       "rate_limited",
+      "legacy_event_without_identity",
+      "unprocessable_entity",
     ];
     if ((known as string[]).includes(bodyCode)) return bodyCode as OpenConnectErrorCode;
+  }
+  if (options?.bodyType?.includes(LEGACY_PROBLEM_SLUG) === true) {
+    return "legacy_event_without_identity";
   }
   switch (status) {
     case 401:
       return "unauthorized";
     case 404:
-      return "task_not_found";
+      return options?.path?.startsWith("/sessions/") === true
+        ? "session_not_found"
+        : "task_not_found";
     case 409:
       return "conflict";
+    case 422:
+      return "unprocessable_entity";
     case 429:
       return "rate_limited";
     default:
       return "invalid_request";
+  }
+}
+
+/** Pre-fetch guard for event replay/subscribe: non-empty session id, non-negative integer cursor. */
+function assertEventCursor(sessionId: string, afterSequence: number): void {
+  const trimmed = sessionId.trim();
+  if (trimmed.length === 0 || trimmed === EMPTY_UUID_D) {
+    throw new OpenConnectError("invalid_request", "sessionId must be a non-empty session id.", {
+      retryable: false,
+    });
+  }
+  if (!Number.isInteger(afterSequence) || afterSequence < 0) {
+    throw new OpenConnectError(
+      "invalid_request",
+      "afterSequence must be a non-negative integer.",
+      { retryable: false },
+    );
   }
 }
 
@@ -168,6 +204,7 @@ export class OpenConnectClient {
 
   /** GET /sessions/{sessionId}/events?afterSequence=n — replay events. */
   async replayEvents(sessionId: string, afterSequence = 0): Promise<SessionEvent[]> {
+    assertEventCursor(sessionId, afterSequence);
     const path =
       `/sessions/${encodeURIComponent(sessionId)}/events` +
       `?afterSequence=${encodeURIComponent(String(afterSequence))}`;
@@ -186,13 +223,14 @@ export class OpenConnectClient {
       afterSequence?: number;
     },
   ): () => void {
+    const after = handlers.afterSequence ?? 0;
+    assertEventCursor(sessionId, after);
     if (this.websocketImpl === undefined) {
       throw new OpenConnectError(
         "invalid_request",
         "No WebSocket implementation available. Provide options.websocketImpl.",
       );
     }
-    const after = handlers.afterSequence ?? 0;
     const wsBase = this.baseUrl.replace(/^http/, "ws");
     const url =
       `${wsBase}/sessions/${encodeURIComponent(sessionId)}/events` +
@@ -239,29 +277,37 @@ export class OpenConnectClient {
       });
     }
     if (!response.ok) {
-      throw await this.toError(response);
+      throw await this.toError(response, path);
     }
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }
 
-  private async toError(response: Response): Promise<OpenConnectError> {
+  private async toError(response: Response, path?: string): Promise<OpenConnectError> {
     let code: string | undefined;
+    let bodyType: string | undefined;
     let message = `Request failed with status ${String(response.status)}.`;
     let correlationId: string | undefined;
     try {
       const body = (await response.json()) as Partial<{
         code: string;
+        type: string;
         message: string;
+        title: string;
         correlationId: string;
       }>;
       if (typeof body.code === "string") code = body.code;
-      if (typeof body.message === "string" && body.message.length > 0) message = body.message;
+      if (typeof body.type === "string") bodyType = body.type;
+      if (typeof body.message === "string" && body.message.length > 0) {
+        message = body.message;
+      } else if (typeof body.title === "string" && body.title.length > 0) {
+        message = body.title;
+      }
       if (typeof body.correlationId === "string") correlationId = body.correlationId;
     } catch {
       // Non-JSON error body: fall back to status-based mapping.
     }
-    return new OpenConnectError(statusToCode(response.status, code), message, {
+    return new OpenConnectError(statusToCode(response.status, code, { path, bodyType }), message, {
       status: response.status,
       ...(correlationId === undefined ? {} : { correlationId }),
       retryable: response.status === 429 || response.status >= 500,

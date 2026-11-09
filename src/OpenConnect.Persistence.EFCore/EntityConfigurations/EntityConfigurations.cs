@@ -20,7 +20,11 @@ internal sealed class SessionEntityConfiguration(OpenConnectModelOptions m) : Op
 }
 internal sealed class TaskEntityConfiguration(OpenConnectModelOptions m) : OpenConnectEntityConfiguration<TaskEntity>(m, "Tasks")
 {
-    public override void Configure(EntityTypeBuilder<TaskEntity> b) { Map(b); b.HasKey(x => x.TaskId); b.Property(x => x.TenantScope).HasMaxLength(128).IsRequired(); b.Property(x => x.PrincipalScope).HasMaxLength(256).IsRequired(); b.Property(x => x.WorkloadScope).HasMaxLength(256).IsRequired(); b.Property(x => x.ClientTaskId).HasMaxLength(256).IsRequired(); b.Property(x => x.Version).IsConcurrencyToken(); b.HasIndex(x => new { x.TenantScope, x.PrincipalScope, x.ClientTaskId }).IsUnique(); b.HasIndex(x => x.SessionId); }
+    // S0-1 receipt columns (OC-PERSIST-001 provider-neutral, additive nullable only).
+    // Effective relational types via conventions (no explicit HasColumnType so one model serves all providers):
+    //   ReceiptPayload (unbounded): Postgres text (jsonb opt-in reserved to Postgres-owned config), SqlServer nvarchar(max), Sqlite TEXT.
+    //   ReceiptStatus (max 32): Postgres character varying(32), SqlServer nvarchar(32), Sqlite TEXT.
+    public override void Configure(EntityTypeBuilder<TaskEntity> b) { Map(b); b.HasKey(x => x.TaskId); b.Property(x => x.TenantScope).HasMaxLength(128).IsRequired(); b.Property(x => x.PrincipalScope).HasMaxLength(256).IsRequired(); b.Property(x => x.WorkloadScope).HasMaxLength(256).IsRequired(); b.Property(x => x.ClientTaskId).HasMaxLength(256).IsRequired(); b.Property(x => x.ReceiptPayload).IsRequired(false); b.Property(x => x.ReceiptStatus).HasMaxLength(32).IsRequired(false); b.Property(x => x.Version).IsConcurrencyToken(); b.HasIndex(x => new { x.TenantScope, x.PrincipalScope, x.ClientTaskId }).IsUnique(); b.HasIndex(x => x.SessionId); }
 }
 internal sealed class TurnEntityConfiguration(OpenConnectModelOptions m) : OpenConnectEntityConfiguration<TurnEntity>(m, "Turns")
 {
@@ -40,7 +44,7 @@ internal sealed class LeaseEntityConfiguration(OpenConnectModelOptions m) : Open
 }
 internal sealed class ApprovalEntityConfiguration(OpenConnectModelOptions m) : OpenConnectEntityConfiguration<ApprovalEntity>(m, "Approvals")
 {
-    public override void Configure(EntityTypeBuilder<ApprovalEntity> b) { Map(b); b.HasKey(x => x.ApprovalId); b.Property(x => x.TenantScope).HasMaxLength(128).IsRequired(); b.Property(x => x.PrincipalScope).HasMaxLength(256).IsRequired(); b.Property(x => x.State).HasMaxLength(32).IsRequired(); b.Property(x => x.BoundArgumentsHash).HasMaxLength(128); b.HasIndex(x => new { x.TenantScope, x.TaskId }); }
+    public override void Configure(EntityTypeBuilder<ApprovalEntity> b) { Map(b); b.HasKey(x => x.ApprovalId); b.Property(x => x.TenantScope).HasMaxLength(128).IsRequired(); b.Property(x => x.PrincipalScope).HasMaxLength(256).IsRequired(); b.Property(x => x.State).HasMaxLength(32).IsRequired(); b.Property(x => x.BoundArgumentsHash).HasMaxLength(128); b.Property(x => x.CommandId).HasMaxLength(256).IsRequired(false); b.Property(x => x.CommandDigest).HasMaxLength(128).IsRequired(false); b.Property(x => x.ConsumedAtUtc).IsRequired(false); b.HasIndex(x => new { x.TenantScope, x.TaskId }); b.HasIndex(x => new { x.TenantScope, x.PrincipalScope, x.TaskId, x.CommandId }); }
 }
 internal sealed class PrivacyTokenEntityConfiguration(OpenConnectModelOptions m) : OpenConnectEntityConfiguration<PrivacyTokenEntity>(m, "PrivacyTokens")
 {

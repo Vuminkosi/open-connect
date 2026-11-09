@@ -30,9 +30,12 @@ public enum OpenConnectTransportMode { JetStream, InMemoryDevelopment }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentExecutionMode>))]
 public enum AgentExecutionMode { Interactive, Operational }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentActivationMode>))]
-public enum AgentActivationMode { OnDemand, Scheduled, Continuous, EventTriggered }
+public enum AgentActivationMode { OnDemand, Scheduled, EventTriggered, Continuous }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentRunState>))]
-public enum AgentRunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
+public enum AgentRunState { Accepted, Preparing, Running, AwaitingUser, AwaitingApproval, Paused, Completed, Failed, CancelRequested, Cancelled, OutcomeUnknown }
+// Legacy task-store state retained for existing persistence and hosting callers.
+[JsonConverter(typeof(KebabCaseStringEnumConverter<RunState>))]
+public enum RunState { Registered, Queued, Starting, Running, Waiting, Paused, Completed, Failed, Cancelled, Stale }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentIdentityMode>))]
 public enum AgentIdentityMode { ActiveUser, WorkloadIdentity }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<ToolImpact>))]
@@ -63,3 +66,32 @@ public enum SchedulingMisfirePolicy { Skip, RunOnce }
 public enum OperationalConcurrencyPolicy { Forbid, Queue, ReplaceAfterFence }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<OperationalRecoveryPolicy>))]
 public enum OperationalRecoveryPolicy { RetryWithBackoff, PauseForReview, Disable }
+
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentOrchestrationMode>))]
+public enum AgentOrchestrationMode { Direct, Sequential, Parallel, Handoff, SupervisorDelegation }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentContextSharingMode>))]
+public enum AgentContextSharingMode { None, TaskSummary, RelevantHistory, ApprovedArtifacts, ScopedMemory }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentMemoryMode>))]
+public enum AgentMemoryMode { Disabled, SessionOnly, DurableScoped, SemanticOptional }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<SessionTurnConcurrency>))]
+public enum SessionTurnConcurrency { Serialize, Queue, RejectConflict }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentResultMergeMode>))]
+public enum AgentResultMergeMode { LeadSynthesizes, OrderedTypedResults, ExplicitReducer }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolIdempotency>))]
+public enum ToolIdempotency { SafeToRetry, IdempotencyKeyRequired, NonIdempotent }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolExecutionMode>))]
+public enum ToolExecutionMode { Inline, BackgroundDurable }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolAcknowledgementMode>))]
+public enum ToolAcknowledgementMode { Automatic, Always, NeverForShortTools }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolProgressMode>))]
+public enum ToolProgressMode { None, Reported, HeartbeatOnly, ReportedAndHeartbeat }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolApprovalMode>))]
+public enum ToolApprovalMode { None, PerInvocation, PerInvocationOnSideEffect }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolExecutionState>))]
+public enum ToolExecutionState { Proposed, AwaitingApproval, Accepted, Queued, Starting, Running, Finalizing, Completed, Failed, CancelRequested, Cancelled, OutcomeUnknown }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<ToolProgressKind>))]
+public enum ToolProgressKind { Phase, MeasuredProgress, Heartbeat, DiagnosticSummary }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentHistoryPolicy>))]
+public enum AgentHistoryPolicy { RecentTurns, BoundedSummary, FullWithinBudget, ProviderManaged }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentMemoryWritePolicy>))]
+public enum AgentMemoryWritePolicy { DenyByDefault, ExplicitApproved, ApplicationPolicy }

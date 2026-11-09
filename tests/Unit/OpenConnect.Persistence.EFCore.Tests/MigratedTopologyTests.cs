@@ -18,12 +18,15 @@ namespace OpenConnect.Persistence.EFCore.Tests;
 
 public sealed class MigratedTopologyTests(ITestOutputHelper output)
 {
-    private const string PgAdmin = "Host=localhost;Port=55432;Database=postgres;Username=postgres;Password=postgres;Timeout=2;";
-    private const string MsAdmin = "Server=127.0.0.1,51434;Database=master;User Id=sa;Password=Str0ng!Passw0rd!;TrustServerCertificate=True;Connect Timeout=2";
     private static readonly string Run = Guid.NewGuid().ToString("N");
-    private static readonly string PgMigrated = $"Host=localhost;Port=55432;Database=oc_migrated_pg_{Run};Username=postgres;Password=postgres;Timeout=2;";
-    private static readonly string PgRoundTrip = $"Host=localhost;Port=55432;Database=oc_rt_pg_{Run};Username=postgres;Password=postgres;Timeout=2;";
-    private static readonly string MsMigrated = $"Server=127.0.0.1,51434;Database=oc_migrated_ms_{Run};User Id=sa;Password=Str0ng!Passw0rd!;TrustServerCertificate=True;Connect Timeout=2";
+    private static readonly string PgBase = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_POSTGRES_CONNECTION_STRING") ?? "Host=localhost;Port=55432;Database=postgres;Username=postgres;Password=postgres;Timeout=2;";
+    private static readonly string MsBase = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_SQLSERVER_CONNECTION_STRING") ?? "Server=127.0.0.1,51434;Database=master;User Id=sa;Password=Str0ng!Passw0rd!;TrustServerCertificate=True;Connect Timeout=2";
+    private static readonly bool RequireProviders = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_REQUIRE_PROVIDER_TESTS"), "true", StringComparison.OrdinalIgnoreCase);
+    private static string PgConnection(string database) { var builder = new NpgsqlConnectionStringBuilder(PgBase) { Database = database }; return builder.ConnectionString; }
+    private static string MsConnection(string database) { var builder = new SqlConnectionStringBuilder(MsBase) { InitialCatalog = database }; return builder.ConnectionString; }
+    private static string PgMigrated => PgConnection($"oc_migrated_pg_{Run}");
+    private static string PgRoundTrip => PgConnection($"oc_rt_pg_{Run}");
+    private static string MsMigrated => MsConnection($"oc_migrated_ms_{Run}");
 
     private static DbContextOptions<HostPgContext> PgOptions(string connectionString) =>
         new DbContextOptionsBuilder<HostPgContext>().UseNpgsql(connectionString).Options;
@@ -37,7 +40,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_MigrateAppliesOnlyOwnedPlusBusinessTables()
     {
-        if (!await ServiceAvailableAsync("localhost", 55432, "Postgres", "localhost:55432")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
         await CreatePostgresDatabaseAsync($"oc_migrated_pg_{Run}");
         await using var db = new HostPgContext(PgOptions(PgMigrated));
         await db.GetService<IMigrator>().MigrateAsync();
@@ -45,7 +48,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var historyCount = await ScalarAsync<long>(PgMigrated, "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"");
         Assert.True(historyCount > 0, $"Expected migration history row; found {historyCount}.");
         var owned = await ReadPostgresTablesAsync(PgMigrated, "openconnect");
-        Assert.Equal(9, owned.Count);
+        Assert.Equal(12, owned.Count);
+        Assert.Contains("NativeAgentSessions", owned);
+        Assert.Contains("PublicSessionMappings", owned);
+        Assert.Contains("ApprovalNonces", owned);
         var publicTables = await ReadPostgresTablesAsync(PgMigrated, "public");
         Assert.Contains("Customers", publicTables);
         Assert.Contains("Orders", publicTables);
@@ -56,7 +62,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_MigratedRoundTrip()
     {
-        if (!await ServiceAvailableAsync("localhost", 55432, "Postgres", "localhost:55432")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
         await CreatePostgresDatabaseAsync($"oc_rt_pg_{Run}");
         await using (var migrationDb = new HostPgContext(PgOptions(PgRoundTrip)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
@@ -67,10 +73,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_ConcurrentClaimBatchesDeliverExactlyOnce()
     {
-        if (!await ServiceAvailableAsync("localhost", 55432, "Postgres", "localhost:55432")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
         var database = $"oc_cc_pg_{Run}";
         await CreatePostgresDatabaseAsync(database);
-        var connectionString = $"Host=localhost;Port=55432;Database={database};Username=postgres;Password=postgres";
+        var connectionString = PgConnection(database);
         await using (var migrationDb = new HostPgContext(PgOptions(connectionString)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
         await using var db = PgStoreContext(connectionString);
@@ -92,10 +98,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_PublishFailureRetriesThenQuarantines()
     {
-        if (!await ServiceAvailableAsync("localhost", 55432, "Postgres", "localhost:55432")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
         var database = $"oc_q_pg_{Run}";
         await CreatePostgresDatabaseAsync(database);
-        var connectionString = $"Host=localhost;Port=55432;Database={database};Username=postgres;Password=postgres";
+        var connectionString = PgConnection(database);
         await using (var migrationDb = new HostPgContext(PgOptions(connectionString)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
         await using var db = PgStoreContext(connectionString);
@@ -121,7 +127,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task SqlServer_MigrateAndRoundTrip()
     {
-        if (!await ServiceAvailableAsync("127.0.0.1", 51434, "SQL Server", "127.0.0.1:51434")) return;
+        if (!await ServiceAvailableAsync(MsConnection("master"), "SQL Server")) return;
         await CreateSqlServerDatabaseAsync($"oc_migrated_ms_{Run}");
         await using (var migrationDb = new HostMsContext(MsOptions(MsMigrated)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
@@ -129,10 +135,11 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var historyCount = await ScalarSqlServerAsync<long>(MsMigrated, "SELECT COUNT(*) FROM [dbo].[__EFMigrationsHistory]");
         Assert.True(historyCount > 0, $"Expected migration history row; found {historyCount}.");
         var ownedCount = await ScalarSqlServerAsync<int>(MsMigrated, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'openconnect'");
-        Assert.Equal(9, ownedCount);
+        Assert.Equal(12, ownedCount);
 
         await using var db = MsStoreContext(MsMigrated);
         await ExerciseSessionTaskOutboxAsync(db, "migrated-ms");
+        await ExerciseNativeAgentSessionStoreAsync(db);
         var publisher = new RecordingPublisher();
         var delivered = await new EfOutboxDispatcher().ExecuteBatchAsync(db, OpenConnectOutboxClaimStrategy.OptimisticConcurrency,
             new OutboxClaimRequest(25, DateTime.UtcNow.AddMinutes(1), "sql-worker", TimeSpan.FromMinutes(5)), publisher, 5, CancellationToken.None);
@@ -164,6 +171,20 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var ciphertext = new byte[] { 3, 1, 4 };
         await vault.StoreAsync(new($"token-{suffix}", _tenant!.Value, "principal", _sessionId!.Value, "email", ciphertext, DateTimeOffset.UtcNow.AddHours(1)));
         Assert.Equal(ciphertext, (await vault.GetAsync($"token-{suffix}", _tenant!.Value))!.EncryptedValue);
+        await ExerciseNativeAgentSessionStoreAsync(db);
+    }
+
+    private static async Task ExerciseNativeAgentSessionStoreAsync(OpenConnectDbContext db)
+    {
+        var binding = new NativeAgentSessionBinding(_sessionId!.Value, _tenant!.Value, _principal!.Value,
+            "fixture-agent", "revision-1", "maf-1", "schema-1", "provider-1");
+        var store = new EfNativeAgentSessionStore<OpenConnectDbContext>(db);
+        var record = new NativeAgentSessionRecord(binding, 1, [9, 8, 7]);
+        Assert.Equal(NativeAgentSessionSaveOutcome.Saved, await store.SaveAsync(record, 0));
+        var restored = await store.GetAsync(binding);
+        Assert.NotNull(restored);
+        Assert.Equal(1, restored.Version);
+        Assert.Equal(new byte[] { 9, 8, 7 }, restored.GetCiphertextCopy());
     }
 
     private static TenantId? _tenant;
@@ -185,24 +206,30 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
 
     private static async Task CreatePostgresDatabaseAsync(string database)
     {
-        await using var connection = new NpgsqlConnection(PgAdmin); await connection.OpenAsync();
+        await using var connection = new NpgsqlConnection(PgConnection("postgres")); await connection.OpenAsync();
         await using var command = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection); await command.ExecuteNonQueryAsync();
     }
 
-    private async Task<bool> ServiceAvailableAsync(string host, int port, string service, string endpoint)
+    private async Task<bool> ServiceAvailableAsync(string connectionString, string service)
     {
-        using var client = new System.Net.Sockets.TcpClient();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        try { await client.ConnectAsync(host, port, timeout.Token); return true; }
-        catch (Exception exception) when (exception is System.Net.Sockets.SocketException or OperationCanceledException)
+        try
         {
-            output.WriteLine($"SKIP {service}: unavailable at {endpoint} ({exception.GetType().Name}).");
+            if (service == "Postgres")
+            { await using var connection = new NpgsqlConnection(connectionString); await connection.OpenAsync(); }
+            else
+            { await using var connection = new SqlConnection(connectionString); await connection.OpenAsync(); }
+            return true;
+        }
+        catch (Exception exception) when (exception is NpgsqlException or SqlException or System.Net.Sockets.SocketException or OperationCanceledException)
+        {
+            if (RequireProviders) throw new Xunit.Sdk.XunitException($"{service} provider is required but unavailable ({exception.GetType().Name}).");
+            output.WriteLine($"SKIP {service}: unavailable ({exception.GetType().Name}).");
             return false;
         }
     }
     private static async Task CreateSqlServerDatabaseAsync(string database)
     {
-        await using var connection = new SqlConnection(MsAdmin); await connection.OpenAsync();
+        await using var connection = new SqlConnection(MsConnection("master")); await connection.OpenAsync();
         await using var command = new SqlCommand($"CREATE DATABASE [{database}]", connection); await command.ExecuteNonQueryAsync();
     }
     private static async Task<List<string>> ReadPostgresTablesAsync(string connectionString, string schema)

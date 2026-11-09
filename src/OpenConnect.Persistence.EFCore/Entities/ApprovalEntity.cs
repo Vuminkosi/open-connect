@@ -5,6 +5,9 @@ internal sealed class ApprovalEntity
     public string TenantScope { get; set; } = null!;
     public string PrincipalScope { get; set; } = null!;
     public Guid TaskId { get; set; }
+    public string? CommandId { get; set; }
+    public string? CommandDigest { get; set; }
+    public DateTime? ConsumedAtUtc { get; set; }
     public string State { get; set; } = "pending";
     public string? Decision { get; set; }
     public string? BoundArgumentsHash { get; set; }

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OpenConnect.Samples.Shared</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Shared</RootNamespace>
+    <!-- No provider packages here by design (OC-PERSIST-001 rule 2): provider-neutral helpers only. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+  </ItemGroup>
+</Project>

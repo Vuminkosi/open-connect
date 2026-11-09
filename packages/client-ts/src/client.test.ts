@@ -111,4 +111,121 @@ describe("replayEvents", () => {
     const error = await client.replayEvents(SESSION_ID).catch((e: unknown) => e);
     expect((error as OpenConnectError).code).toBe("unauthorized");
   });
+
+  it("maps 422 legacy problem type to legacy_event_without_identity", async () => {
+    const client = clientWith(
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              type: "https://openconnect.dev/problems/legacy-event-without-canonical-identity",
+              title: "A stored event lacks genuine canonical identity and cannot be projected.",
+              status: 422,
+              correlationId: "corr-9",
+            }),
+            { status: 422, headers: { "Content-Type": "application/problem+json" } },
+          ),
+      ),
+    );
+    const error = (await client.replayEvents(SESSION_ID).catch((e: unknown) => e)) as OpenConnectError;
+    expect(error).toBeInstanceOf(OpenConnectError);
+    expect(error.code).toBe("legacy_event_without_identity");
+    expect(error.status).toBe(422);
+    expect(error.retryable).toBe(false);
+    expect(error.correlationId).toBe("corr-9");
+  });
+
+  it("maps 422 without a problem body to unprocessable_entity", async () => {
+    const client = clientWith(
+      vi.fn(async () => new Response("{not-json", { status: 422 })),
+    );
+    const error = (await client.replayEvents(SESSION_ID).catch((e: unknown) => e)) as OpenConnectError;
+    expect(error.code).toBe("unprocessable_entity");
+    expect(error.status).toBe(422);
+    expect(error.retryable).toBe(false);
+  });
+
+  it("maps 404 without a code on the events path to session_not_found", async () => {
+    const client = clientWith(
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              type: "https://openconnect.dev/problems/session-not-found",
+              title: "No such session.",
+              status: 404,
+            }),
+            { status: 404, headers: { "Content-Type": "application/problem+json" } },
+          ),
+      ),
+    );
+    const error = (await client.replayEvents(SESSION_ID).catch((e: unknown) => e)) as OpenConnectError;
+    expect(error.code).toBe("session_not_found");
+    expect(error.status).toBe(404);
+    expect(error.retryable).toBe(false);
+  });
+
+  it.each([-1, 1.5, Number.NaN])(
+    "rejects invalid afterSequence %s before fetch",
+    async (afterSequence) => {
+      const fetchImpl = vi.fn(async () => jsonResponse(200, []));
+      const client = clientWith(fetchImpl);
+      const error = (await client
+        .replayEvents(SESSION_ID, afterSequence)
+        .catch((e: unknown) => e)) as OpenConnectError;
+      expect(error).toBeInstanceOf(OpenConnectError);
+      expect(error.code).toBe("invalid_request");
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["", "   ", "00000000-0000-0000-0000-000000000000"])(
+    "rejects empty session id %s before fetch",
+    async (sessionId) => {
+      const fetchImpl = vi.fn(async () => jsonResponse(200, []));
+      const client = clientWith(fetchImpl);
+      const error = (await client.replayEvents(sessionId).catch((e: unknown) => e)) as OpenConnectError;
+      expect(error).toBeInstanceOf(OpenConnectError);
+      expect(error.code).toBe("invalid_request");
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("subscribeEvents validation", () => {
+  it("rejects negative cursor before opening a socket", () => {
+    const openSocket = vi.fn();
+    const client = new OpenConnectClient({
+      baseUrl: "https://api.example.test/openconnect/v1",
+      fetchImpl: async () => jsonResponse(200, []),
+      websocketImpl: openSocket,
+    });
+    let error: unknown;
+    try {
+      client.subscribeEvents(SESSION_ID, { onEvent: () => {}, afterSequence: -1 });
+    } catch (e: unknown) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(OpenConnectError);
+    expect((error as OpenConnectError).code).toBe("invalid_request");
+    expect(openSocket).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty session id before opening a socket", () => {
+    const openSocket = vi.fn();
+    const client = new OpenConnectClient({
+      baseUrl: "https://api.example.test/openconnect/v1",
+      fetchImpl: async () => jsonResponse(200, []),
+      websocketImpl: openSocket,
+    });
+    let error: unknown;
+    try {
+      client.subscribeEvents("", { onEvent: () => {} });
+    } catch (e: unknown) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(OpenConnectError);
+    expect((error as OpenConnectError).code).toBe("invalid_request");
+    expect(openSocket).not.toHaveBeenCalled();
+  });
 });

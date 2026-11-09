@@ -2,6 +2,8 @@
   <PropertyGroup><TargetFramework>net8.0</TargetFramework><AssemblyName>OpenConnect.Navigator.Operational</AssemblyName><RootNamespace>OpenConnect.Navigator.Operational</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
+    <ProjectReference Include="../OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 </Project>
