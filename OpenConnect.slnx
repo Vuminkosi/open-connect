@@ -8,6 +8,12 @@
     <Project Path="src/OpenConnect.Core/OpenConnect.Core.csproj" />
     <Project Path="src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
     <Project Path="src/OpenConnect.Metering/OpenConnect.Metering.csproj" />
+    <Project Path="src/OpenConnect.Navigator/OpenConnect.Navigator.csproj" />
+    <Project Path="src/OpenConnect.Navigator.AspNetCore/OpenConnect.Navigator.AspNetCore.csproj" />
+    <Project Path="src/OpenConnect.Navigator.Blazor/OpenConnect.Navigator.Blazor.csproj" />
+    <Project Path="src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
+    <Project Path="src/OpenConnect.Navigator.OperationalBrowser/OpenConnect.Navigator.OperationalBrowser.csproj" />
+    <Project Path="src/OpenConnect.Navigator.Persistence.Postgres/OpenConnect.Navigator.Persistence.Postgres.csproj" />
     <Project Path="src/OpenConnect.Observability/OpenConnect.Observability.csproj" />
     <Project Path="src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
     <Project Path="src/OpenConnect.Persistence.Postgres/OpenConnect.Persistence.Postgres.csproj" />
