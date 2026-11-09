@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
     <AssemblyName>OpenConnect.Privacy</AssemblyName>
     <RootNamespace>OpenConnect.Privacy</RootNamespace>
   </PropertyGroup>

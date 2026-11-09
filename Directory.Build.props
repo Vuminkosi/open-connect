@@ -1,6 +1,18 @@
 <Project>
+  <!-- Anchored import: shared TFM list for multi-targeted libraries (CF-IMP-003). -->
+  <Import Project="$(MSBuildThisFileDirectory)build/supported-frameworks.props" />
+
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      Default single TFM for executables, samples, and tests that do not opt in.
+      It is intentionally NOT set for projects under src/: shippable libraries
+      MUST use the plural form instead, and a non-empty singular TargetFramework
+      would suppress plural dispatch (only the singular TFM would build).
+      Libraries opt in with:
+        <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
+      Never set a global plural TargetFrameworks here: executables stay single-target.
+    -->
+    <TargetFramework Condition="'$(TargetFramework)' == '' and !$(MSBuildProjectDirectory.Contains('\src\')) and !$(MSBuildProjectDirectory.Contains('/src/'))">net8.0</TargetFramework>
     <LangVersion>12</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

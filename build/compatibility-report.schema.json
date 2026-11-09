@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/schemas/compatibility-report/v1",
+  "title": "OpenConnect cross-framework compatibility report",
+  "description": "Machine-readable evidence for the net8.0/net9.0/net10.0 support matrix (CF-IMP-017). Produced by CI package-inspect + consumer-smoke jobs and consumed by build/scripts/render-compatibility-matrix.py. Cells without evidence stay pending; absence of evidence is never rendered as support.",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAtUtc", "packages"],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.compatibility/v1",
+      "description": "Schema identifier. Must equal openconnect.compatibility/v1."
+    },
+    "generatedAtUtc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of report generation."
+    },
+    "commit": {
+      "type": "string",
+      "description": "Source commit SHA the evidence was collected from."
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "targetFrameworks"],
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "string" },
+          "targetFrameworks": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "minItems": 1
+          },
+          "assets": {
+            "type": "object",
+            "description": "Observed lib/<tfm>/ entries per TFM in the packed nupkg.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          },
+          "dependencyGroups": {
+            "type": "object",
+            "description": "Dependency IDs observed per TFM group in the nuspec.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          },
+          "consumerSmoke": {
+            "type": "object",
+            "description": "Per-TFM external consumer restore/build/run outcome.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "string", "enum": ["pass", "fail", "pending"] }
+          },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "recommendedTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+        "compatibilityOnly": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "eosDates": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "format": "date" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

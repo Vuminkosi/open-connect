@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
     <AssemblyName>OpenConnect.Abstractions</AssemblyName>
     <RootNamespace>OpenConnect.Abstractions</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>

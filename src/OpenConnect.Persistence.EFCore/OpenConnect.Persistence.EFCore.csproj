@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
     <AssemblyName>OpenConnect.Persistence.EFCore</AssemblyName>
     <RootNamespace>OpenConnect.Persistence.EFCore</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>

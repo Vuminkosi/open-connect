@@ -1,0 +1,432 @@
+name: Cross-Framework CI
+
+# PR CI proving restore / build / test per TFM on matching runtimes, plus
+# package-inspect and consumer smoke (CF-REQ-095/096/100, spec section 10).
+#
+# Design notes (read before editing):
+# - Matrix TFMs: net8.0, net9.0, net10.0. The primary SDK is resolved from
+#   global.json (`dotnet-version-file: global.json`, 10.0.403 stable at time
+#   of writing) so the workflows track the CF-IMP-003 SDK pin without edits.
+#   Per-leg .NET 8 / .NET 9 SDK installs exist ONLY to provide those
+#   runtimes for test execution; global.json pinning guarantees the CLI
+#   never builds with them, so no preview/stable leakage is possible.
+# - Every `dotnet test -f <tfm>` invocation is guarded by the
+#   Test-TfmSupported probe (checks the test csproj TargetFramework(s),
+#   expanding MSBuild properties via build/supported-frameworks.props and
+#   falling back to Directory.Build.props). A TFM that a test project does
+#   not target is SKIPPED for that project, never executed. A leg with zero
+#   applicable projects reports NOT APPLICABLE in the step summary (the
+#   runtime is still proven by build + package-inspect + consumer-smoke).
+# - Test partition lists below are written against the multi-target layout
+#   owned by CF-IMP-003 (INFORMATIONAL dependency). Observed in-worktree
+#   state (2026-11-09, uncommitted): libraries opt into
+#   $(OpenConnectLibraryTargetFrameworks)=net8.0;net9.0;net10.0 via
+#   build/supported-frameworks.props, while TESTS remain single-target
+#   net8.0 (Directory.Build.props default). Consequence, encoded in the
+#   probe below: net9.0/net10.0 unit legs find no applicable test projects
+#   and report NOT APPLICABLE (visible in the step summary) instead of
+#   executing `dotnet test -f` against an unsupported TFM. Each runtime is
+#   still proven by build + package-inspect + consumer-smoke. If tests later
+#   opt into multi-targeting, the probe picks them up with no workflow edit.
+# - MUST NOT publish on PR: no `dotnet pack --push`, `nuget push`, or
+#   trusted-publishing steps exist in this workflow by design. Release
+#   publishing lives in the release workflow only.
+# - Action pins: actions/checkout and actions/setup-dotnet are pinned to the
+#   immutable SHAs already established in .github/workflows/ci.yml
+#   (v4.2.2 / v4.3.1). No other third-party actions are used, so there are
+#   no unpinned actions to resolve before merge.
+# - Nightly OS/RID matrix is OUT OF SCOPE (orchestrator decision); this
+#   workflow covers ubuntu-latest for the full gate plus windows-latest for
+#   build+unit. Document any future nightly expansion in the release plan.
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  # Space-separated test project paths, partitioned by TFM applicability.
+  # The probe in the unit job resolves each project's real TargetFramework(s)
+  # (MSBuild properties expanded), so this list is safe to keep broad: only
+  # projects that actually target the leg TFM are executed. Observed
+  # in-worktree state: tests are single-target net8.0; net9/net10 legs
+  # report NOT APPLICABLE until tests opt into multi-targeting.
+  UNIVERSAL_TEST_PROJECTS: >-
+    tests/Unit/OpenConnect.Abstractions.Tests/OpenConnect.Abstractions.Tests.csproj
+    tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj
+    tests/Unit/OpenConnect.Client.Tests/OpenConnect.Client.Tests.csproj
+    tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj
+    tests/Unit/OpenConnect.Tools.Tests/OpenConnect.Tools.Tests.csproj
+    tests/Unit/OpenConnect.Privacy.Tests/OpenConnect.Privacy.Tests.csproj
+    tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj
+    tests/Unit/OpenConnect.Hosting.Tests/OpenConnect.Hosting.Tests.csproj
+    tests/Unit/OpenConnect.Metering.Tests/OpenConnect.Metering.Tests.csproj
+    tests/Unit/OpenConnect.Observability.Tests/OpenConnect.Observability.Tests.csproj
+    tests/Unit/OpenConnect.QdrantVactor.Tests/OpenConnect.QdrantVactor.Tests.csproj
+    tests/Unit/OpenConnect.Blazor.Tests/OpenConnect.Blazor.Tests.csproj
+    tests/Unit/OpenConnect.Navigator.Tests/OpenConnect.Navigator.Tests.csproj
+    tests/Unit/OpenConnect.Navigator.Blazor.Tests/OpenConnect.Navigator.Blazor.Tests.csproj
+    tests/Unit/OpenConnect.Navigator.AspNetCore.Tests/OpenConnect.Navigator.AspNetCore.Tests.csproj
+    tests/Unit/OpenConnect.Navigator.Operational.Tests/OpenConnect.Navigator.Operational.Tests.csproj
+    tests/Unit/OpenConnect.Navigator.OperationalBrowser.Tests/OpenConnect.Navigator.OperationalBrowser.Tests.csproj
+    tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+  # Contract tests run once (net8.0 leg) to avoid triple-running parity checks.
+  CONTRACT_TEST_PROJECT: tests/Contracts/OpenConnect.Contracts.Tests/OpenConnect.Contracts.Tests.csproj
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }}, all TFMs)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Full-solution build (NOT `dotnet build -f`): the solution mixes
+      # multi-target libraries (net8.0;net9.0;net10.0) and single-target
+      # net8.0 tests, so `-f <tfm>` would falsely fail on inapplicable
+      # projects. Building without `-f` compiles every TFM each project
+      # targets. Per-TFM runtime proof lives in unit/consumer-smoke legs.
+      # Primary SDK comes from global.json (tracks the CF-IMP-003 pin).
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      # Older runtimes so net8.0/net9.0 assets and tests execute on matching
+      # runtimes. Runtime-only installs: global.json keeps the CLI on the
+      # primary SDK, so these can never become the build SDK.
+      - name: Set up .NET 8 and 9 runtimes (execution only)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: |
+            8.0.404
+            9.0.320
+
+      - name: Diagnose SDKs, runtimes, CLR version
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          $fsx = Join-Path $env:RUNNER_TEMP 'print-env-version.fsx'
+          Set-Content -Path $fsx -Value 'printfn "Environment.Version = %O" System.Environment.Version'
+          dotnet fsi --noninteractive $fsx
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Build Release (every TFM each project targets)
+        run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
+
+  unit:
+    name: Unit tests (${{ matrix.tfm }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        tfm: [net8.0, net9.0, net10.0]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      # Older runtimes so net8.0/net9.0 tests execute on matching runtimes.
+      # Runtime-only installs: global.json keeps the CLI on the primary SDK.
+      - name: Set up .NET 8 and 9 runtimes (execution only)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: |
+            8.0.404
+            9.0.320
+
+      - name: Diagnose SDKs, runtimes, CLR version
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          $fsx = Join-Path $env:RUNNER_TEMP 'print-env-version.fsx'
+          Set-Content -Path $fsx -Value 'printfn "Environment.Version = %O" System.Environment.Version'
+          dotnet fsi --noninteractive $fsx
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      # Probe-gated: only test projects that actually target this TFM run.
+      # `dotnet test -f` is NEVER invoked against an unsupported TFM. Legs
+      # with no applicable projects report NOT APPLICABLE and succeed; the
+      # runtime is still proven by build + package-inspect + consumer-smoke.
+      - name: Run unit tests applicable to ${{ matrix.tfm }}
+        shell: pwsh
+        run: |
+          function Resolve-Tfms {
+            param([string]$Raw)
+            $resolved = $Raw
+            if ($resolved -match '\$\(([^)]+)\)') {
+              $name = $Matches[1]
+              $val = ''
+              foreach ($f in @('build/supported-frameworks.props', 'Directory.Build.props')) {
+                $x = [xml](Get-Content $f -Raw)
+                $node = $x.SelectSingleNode("//*[local-name()='$name']")
+                if ($node -ne $null) { $val = $node.InnerText; break }
+              }
+              if ($val -ne '') { $resolved = $resolved -replace ('\$\(' + $name + '\)'), $val }
+            }
+            return @($resolved -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          }
+          function Test-TfmSupported {
+            param([string]$Csproj, [string]$Tfm)
+            $xml = Get-Content $Csproj -Raw
+            if ($xml -match '<TargetFrameworks?>([^<]+)</TargetFrameworks?>') {
+              return (Resolve-Tfms $Matches[1]) -contains $Tfm
+            }
+            $props = Get-Content 'Directory.Build.props' -Raw
+            if ($props -match '<TargetFrameworks?>([^<]+)</TargetFrameworks?>') {
+              return (Resolve-Tfms $Matches[1]) -contains $Tfm
+            }
+            return $false
+          }
+          $tfm = '${{ matrix.tfm }}'
+          $projects = $env:UNIVERSAL_TEST_PROJECTS -split '\s+' | Where-Object { $_ -ne '' }
+          $applicable = @($projects | Where-Object { (Test-Path $_) -and (Test-TfmSupported $_ $tfm) })
+          $skipped = @($projects | Where-Object { -not ((Test-Path $_) -and (Test-TfmSupported $_ $tfm)) })
+          foreach ($s in $skipped) { Write-Host "SKIP (TFM not targeted): $s" }
+          if ($applicable.Count -eq 0) {
+            Write-Host "NOT APPLICABLE: no test projects target $tfm yet (tests are single-target net8.0; see CF-IMP-017 handoff). Runtime proven by build + package-inspect + consumer-smoke."
+            "## Unit tests (${{ matrix.tfm }})`n`nNOT APPLICABLE: no test projects target this TFM in-tree. Pending test multi-targeting decision." >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+          foreach ($p in $applicable) {
+            Write-Host "TEST: $p -f $tfm"
+            dotnet test $p -c Release -f $tfm --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+  contract:
+    name: Contract + public API checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      # .NET 8 runtime so the net8.0 contract tests execute on it.
+      - name: Set up .NET 8 runtime (execution only)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: 8.0.404
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Run contract parity tests (net8.0)
+        shell: pwsh
+        run: |
+          if (Test-Path $env:CONTRACT_TEST_PROJECT) {
+            dotnet test $env:CONTRACT_TEST_PROJECT -c Release -f net8.0 --no-restore
+          } else {
+            Write-Host 'NOT APPLICABLE: contract test project not present yet.'
+          }
+
+      - name: Verify public API surface files
+        shell: pwsh
+        run: |
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 build/scripts/verify-public-api.py }
+          else { python build/scripts/verify-public-api.py }
+
+  format:
+    name: Formatting gate (dotnet format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+
+      - name: Restore for format
+        run: dotnet restore OpenConnect.slnx
+
+      - name: Verify formatting (no changes allowed)
+        run: dotnet format OpenConnect.slnx --verify-no-changes --no-restore
+
+  locks:
+    name: Lockfile consistency gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+
+      # Fails when packages.lock.json files are stale relative to the
+      # central versions in Directory.Packages.props.
+      - name: Restore in locked mode (fails on stale locks)
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Confirm no lockfile drift
+        shell: pwsh
+        run: |
+          $drift = git status --short -- '**/packages.lock.json'
+          if ($drift) {
+            Write-Error "Lockfile drift detected after locked restore:`n$drift"
+            exit 1
+          }
+          Write-Host 'Lockfiles consistent.'
+
+  package-inspect:
+    name: Package inspect (TFM assets + dependency groups)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Pack Release (no push; PR builds must not publish)
+        run: dotnet pack OpenConnect.slnx -c Release --no-restore -o ./artifacts/packages
+
+      - name: Verify every eligible nupkg carries net8.0+net9.0+net10.0 lib assets
+        shell: pwsh
+        run: ./build/scripts/verify-tfm-assets.ps1 -PackageDir ./artifacts/packages
+
+      - name: Verify per-TFM NuGet dependency groups
+        shell: pwsh
+        run: |
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 build/scripts/verify-nuget-dependency-groups.py ./artifacts/packages }
+          else { python build/scripts/verify-nuget-dependency-groups.py ./artifacts/packages }
+
+  consumer-smoke:
+    name: Package consumer smoke (${{ matrix.tfm }})
+    strategy:
+      fail-fast: false
+      matrix:
+        tfm: [net8.0, net9.0, net10.0]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      # Older runtimes so net8.0/net9.0 tests execute on matching runtimes.
+      # Runtime-only installs: global.json keeps the CLI on the primary SDK.
+      - name: Set up .NET 8 and 9 runtimes (execution only)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: |
+            8.0.404
+            9.0.320
+
+      - name: Diagnose SDKs, runtimes, CLR version
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          $fsx = Join-Path $env:RUNNER_TEMP 'print-env-version.fsx'
+          Set-Content -Path $fsx -Value 'printfn "Environment.Version = %O" System.Environment.Version'
+          dotnet fsi --noninteractive $fsx
+
+      - name: Pack libraries (local feed only; no push)
+        run: dotnet pack OpenConnect.slnx -c Release -o ./artifacts/packages
+
+      # Minimal external consumer: a fresh console app per TFM that restores
+      # OpenConnect.Abstractions from the locally packed feed and runs.
+      - name: Consumer smoke test on ${{ matrix.tfm }}
+        shell: pwsh
+        run: |
+          $tfm = '${{ matrix.tfm }}'
+          $work = Join-Path $env:RUNNER_TEMP "consumer-$($tfm.Replace('.', ''))"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          dotnet new console -o $work -f $tfm --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $feed = (Resolve-Path './artifacts/packages').Path
+          $nupkg = Get-ChildItem $feed -Filter 'OpenConnect.Abstractions.*.nupkg' | Where-Object { $_.Name -notmatch '\.symbols\.' } | Select-Object -First 1
+          if (-not $nupkg) { Write-Error 'OpenConnect.Abstractions nupkg not found in local feed.'; exit 1 }
+          if ($nupkg.Name -match 'OpenConnect\.Abstractions\.(.+)\.nupkg$') { $version = $Matches[1] } else { Write-Error 'Cannot parse package version.'; exit 1 }
+          $nugetConfig = @"
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$feed" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          "@
+          Set-Content -Path (Join-Path $work 'NuGet.Config') -Value $nugetConfig
+          dotnet add $work package OpenConnect.Abstractions --version $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Set-Content -Path (Join-Path $work 'Program.cs') -Value 'Console.WriteLine($"consumer-ok:{typeof(global::OpenConnect.Abstractions.IOpenConnectClient).FullName}:{System.Environment.Version}");'
+          dotnet run --project $work -c Release --no-restore

@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><AssemblyName>OpenConnect.Client</AssemblyName><RootNamespace>OpenConnect.Client</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
+  <PropertyGroup><TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks><AssemblyName>OpenConnect.Client</AssemblyName><RootNamespace>OpenConnect.Client</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
   <ItemGroup><ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" /><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
 </Project>
