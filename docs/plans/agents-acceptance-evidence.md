@@ -561,3 +561,45 @@ Missing-gate note (applies to every row below): no per-criterion executed comman
 - PERSIST-14 (Postgres lib) NOT AUTHORIZED — blocked on (a) Testcontainers PG matrix for the EFCore seam paths (done: 9/9 per supplied evidence — recorded as satisfied) AND (b) receipt-carrier decision + implementation.
 - PERSIST-15 (Navigator Postgres lib) NOT AUTHORIZED — blocked on the same (b) plus cross-process fencing proof.
 - No global production claim. No secrets.
+
+## Appendix I — EFCore seam fencing + security disposition (SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute; all counts, hashes, sessions below transcribed as supplied, not re-observed)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently attested by this writer). Prior sections (lines 1–563 incl Appendices A–H) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. This writer makes no lane-promotion claim; labels below are transcribed lane evidence only.
+
+**Source baseline:** Canonical root `C:\DevOps\open-connect\worktrees\agents-1`, branch `agents-1`, HEAD `9cd128cd4fa01c5415bb1f19ef8fc1b9d80c67b5` (coordinator read-only via git rev-parse; this ACTUAL head recorded with no drift). **Date:** 2026-11-09.
+
+**Document status:** APPROVED CONTRACT / SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute).
+
+### 1. Fencing 3/3 PASS (VERIFY-SEAM-FENCING-02) — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- Race single-holder holds token 1 — SUPPLIED-VERIFIED-BY-LANE.
+- Takeover increments by 1 with stale-holder denial — SUPPLIED-VERIFIED-BY-LANE.
+- Release-retains sequence 1→2→3 — SUPPLIED-VERIFIED-BY-LANE.
+- Live image `postgres:16-alpine` already local, no pulls — SUPPLIED-VERIFIED-BY-LANE.
+- Commit `9cd128c` — SUPPLIED-VERIFIED-BY-LANE.
+
+### 2. Caller-scope trace downgrades — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- F1 DOWNGRADED: `EfTaskStore` zero callers; guarded InMemory path lines 91-93 / 101-102 — SUPPLIED-VERIFIED-BY-LANE.
+- F2 DOWNGRADED: `EfEventJournal` zero callers; canonical events dual-ownership lines 234-236 / 266-268 — SUPPLIED-VERIFIED-BY-LANE.
+- F3/F5 design-CONFIRMED / instance-DOWNGRADED: shared-subject zero tenant fencing, but `EfOutboxStore` zero callers and relay unwired — SUPPLIED-VERIFIED-BY-LANE.
+
+### 3. Decom readiness update — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- PERSIST-14 NOT AUTHORIZED; PERSIST-15 NOT AUTHORIZED — fencing for the seam is now recorded as satisfied per supplied evidence — SUPPLIED-VERIFIED-BY-LANE.
+- Remaining blockers: (a) receipt-carrier UNDECIDED, (b) Testcontainers PG matrix for seam outbox/isolation paths, (c) SqlServer second-process idempotence — SUPPLIED-VERIFIED-BY-LANE.
+- No global production claim. No secrets — SUPPLIED-VERIFIED-BY-LANE.
+
+### Scope limits + Amendment guardrails
+
+- No global production claim is made.
+- Anything absent from the supplied evidence remains outside the attested scope.
+- No secrets, no invented IDs, flags, endpoints, release numbers, or screenshots.
+- All counts, hashes, and sessions above are labeled SUPPLIED-VERIFIED-BY-LANE, not writer-observed.
+- Testcontainers PG matrix for seam outbox/isolation paths and SqlServer second-process idempotence are NOT marked PASS.
+- PERSIST-14/15 are NOT authorized by this appendix.
+- Prior lines 1–563 preserved byte-identical; nothing else touched.
+- No relative links introduced; no existing links altered.
+- Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix I or earlier content.
