@@ -72,5 +72,7 @@
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <!-- CF-SEC-NU001 F1: unconditioned pin; evidence: net9/net10 closures already resolve 2.1.13 clean. Nearest-wins over EF transitive. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 </Project>
