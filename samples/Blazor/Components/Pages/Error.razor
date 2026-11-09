@@ -1,0 +1,27 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Something went wrong</PageTitle>
+
+<h1 class="page-heading">Something went wrong</h1>
+<p class="page-lede">
+    The sample hit an unexpected problem. Your local store is untouched — try again, or restart the sample.
+    @if (ShowRequestId)
+    {
+        <span>Reference: <code>@RequestId</code>.</span>
+    }
+</p>
+<p><a href="/">Back to the work overview</a></p>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    /// <inheritdoc />
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}
