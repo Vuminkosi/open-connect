@@ -368,3 +368,5 @@ build/*
 !docs/
 docs/*
 !docs/compatibility/
+!docs/architecture/
+!docs/architecture/adr/
