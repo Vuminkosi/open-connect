@@ -13,5 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Agents/OpenConnect.Agents.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
   </ItemGroup>
 </Project>

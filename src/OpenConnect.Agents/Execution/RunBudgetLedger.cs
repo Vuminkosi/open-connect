@@ -104,6 +104,19 @@ public sealed class RunBudgetLedger
         }
     }
 
+    /// <summary>Refunds one previously reserved child allowance without touching the active-child slot.</summary>
+    /// <remarks>Only for pre-execution denials (rate-limit, authorization, or budget refusal) where the child never started: no model call was made and no MAF invocation occurred. The caller must still release the active slot via <see cref="ReleaseActiveChild"/>.</remarks>
+    /// <returns>True when an allowance was refunded; false when none was held.</returns>
+    public bool ReleaseSubagentReservation()
+    {
+        lock (_sync)
+        {
+            if (_subagents == 0) return false;
+            _subagents--;
+            return true;
+        }
+    }
+
     /// <summary>Atomically reserves one tool-call attempt.</summary>
     /// <returns>True when reserved; false when the run tool-call limit is exhausted.</returns>
     public bool TryReserveToolCall()
