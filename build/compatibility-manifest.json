@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "openconnect.compatibility/v1",
+  "generatedAtUtc": "2026-11-09T17:00:48Z",
+  "commit": "7dae81a",
+  "packages": [
+    {
+      "id": "OpenConnect.Abstractions",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pass",
+        "net9.0": "pass",
+        "net10.0": "pass"
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+    },
+    {
+      "id": "OpenConnect.Core",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pass",
+        "net9.0": "pass",
+        "net10.0": "pass"
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+    },
+    {
+      "id": "OpenConnect.Client",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pass",
+        "net9.0": "pass",
+        "net10.0": "pass"
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+    }
+  ],
+  "policy": {
+    "recommendedTfm": "net10.0",
+    "compatibilityOnly": [
+      "net8.0",
+      "net9.0"
+    ],
+    "eosDates": {
+      "net8.0": "2026-11-10",
+      "net9.0": "2026-05-12"
+    }
+  }
+}

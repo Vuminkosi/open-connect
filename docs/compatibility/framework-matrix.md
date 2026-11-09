@@ -1,18 +1,18 @@
 # Framework Compatibility Matrix
 
-_Generated 2026-11-09 12:16 UTC by `build/scripts/render-compatibility-matrix.py` (schema `openconnect.compatibility/v1`). Do not hand-edit cells; re-run the script. Cells marked `pending` are evidence placeholders, not results._
+_Generated 2026-11-09 17:01 UTC by `build/scripts/render-compatibility-matrix.py` (schema `openconnect.compatibility/v1`). Do not hand-edit cells; re-run the script. Cells marked `pending` are evidence placeholders, not results._
 
 Repo default TFM(s) (Directory.Build.props): `net8.0`.
 See `docs/compatibility/runtime-support-policy.md` for the support policy.
 
 | Package | net8.0 | net9.0 | net10.0 | Notes |
 |---|---|---|---|---|
-| `OpenConnect.Abstractions` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
+| `OpenConnect.Abstractions` | supported (consumer smoke: pass) | supported (consumer smoke: pass) | supported (consumer smoke: pass) |  |
 | `OpenConnect.Agents` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
-| `OpenConnect.Client` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
+| `OpenConnect.Client` | supported (consumer smoke: pass) | supported (consumer smoke: pass) | supported (consumer smoke: pass) |  |
 | `OpenConnect.Components.Blazor` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
 | `OpenConnect.Components.Contracts` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
-| `OpenConnect.Core` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
+| `OpenConnect.Core` | supported (consumer smoke: pass) | supported (consumer smoke: pass) | supported (consumer smoke: pass) |  |
 | `OpenConnect.Hosting.AspNetCore` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
 | `OpenConnect.Metering` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |
 | `OpenConnect.Navigator` | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) | targeted — evidence: pending (CF-IMP-003) |  |

@@ -365,6 +365,7 @@ build/*
 !build/supported-frameworks.props
 !build/scripts/
 !build/compatibility-report.schema.json
+!build/compatibility-manifest.json
 !docs/
 docs/*
 !docs/compatibility/
