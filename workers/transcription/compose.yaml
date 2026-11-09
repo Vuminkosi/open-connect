@@ -1,0 +1,52 @@
+# OpenConnect transcription worker compose profile.
+#
+# Model weights are NEVER downloaded by the serving container. The
+# `model-init` step provisions only a signed manifest placeholder into the
+# named volume; `serve` mounts that volume read-only and runs fully offline
+# (HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1).
+name: openconnect-transcription
+
+services:
+  model-init:
+    image: busybox:1.36
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /models
+        printf '{"modelId":"none","revision":"none","license":"none","provisionedBy":"model-init","note":"fake-bounded engine requires no weights"}' > /models/model-manifest.json
+        chmod 0444 /models/model-manifest.json
+    volumes:
+      - oc_transcription_models:/models
+
+  serve:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openconnect-transcription:0.1.0
+    ports:
+      - "8080:8080"
+    environment:
+      OPENCONNECT_TRANSCRIPTION_TOKEN: ${OPENCONNECT_TRANSCRIPTION_TOKEN:-}
+      TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-local-fake}
+      TRANSCRIPTION_PRIVACY_MODE: ${TRANSCRIPTION_PRIVACY_MODE:-strict-local}
+      TRANSCRIPTION_MODEL_ID: ${TRANSCRIPTION_MODEL_ID:-}
+      TRANSCRIPTION_MODEL_REVISION: ${TRANSCRIPTION_MODEL_REVISION:-}
+      TRANSCRIPTION_ENDPOINT_URL: ${TRANSCRIPTION_ENDPOINT_URL:-}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      MODEL_DIR: /models
+    volumes:
+      - oc_transcription_models:/models:ro
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+volumes:
+  oc_transcription_models:
+    name: oc_transcription_models
