@@ -108,6 +108,40 @@ def package_id(csproj: Path) -> str:
     return csproj.stem
 
 
+def tests_supported_label(manifest_pkg: dict) -> str | None:
+    """Return `supported (tests: Nx3)` iff all 3 TFMs show passed+skipped==total, failed==0."""
+    suites = manifest_pkg.get("testSuites")
+    if not isinstance(suites, dict):
+        return None
+    totals: list[int] = []
+    for tfm in TFMS:
+        entry = suites.get(tfm)
+        if not isinstance(entry, dict):
+            return None
+        try:
+            passed = int(entry.get("passed"))
+            total = int(entry.get("total"))
+        except (TypeError, ValueError):
+            return None
+        failed = entry.get("failed", 0)
+        skipped = entry.get("skipped", 0)
+        try:
+            failed = int(failed)
+            skipped = int(skipped)
+        except (TypeError, ValueError):
+            return None
+        if total <= 0 or passed <= 0 or failed != 0:
+            return None
+        if passed + skipped != total:
+            return None
+        totals.append(total)
+    if len(totals) != 3:
+        return None
+    if totals[0] == totals[1] == totals[2]:
+        return f"supported (tests: {totals[0]}x3)"
+    return f"supported (tests: {totals[0]}/{totals[1]}/{totals[2]})"
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Render the framework compatibility matrix."
@@ -146,11 +180,14 @@ def main(argv: list[str] | None = None) -> int:
         cells: dict[str, str] = {}
         note = ""
         manifest_pkg = manifest_pkgs.get(pid, {})
+        suite_label = tests_supported_label(manifest_pkg)
         for tfm in TFMS:
             if tfm in tfms:
                 smoke = (manifest_pkg.get("consumerSmoke") or {}).get(tfm)
                 if smoke == "pass":
                     cells[tfm] = "supported (consumer smoke: pass)"
+                elif suite_label is not None:
+                    cells[tfm] = suite_label
                 else:
                     cells[tfm] = "targeted — evidence: pending (CF-IMP-003)"
             else:
@@ -184,9 +221,33 @@ def main(argv: list[str] | None = None) -> int:
         "## Legend",
         "",
         "- `supported (consumer smoke: pass)` — manifest evidence (pack + per-TFM consumer run) recorded.",
+        "- `supported (tests: Nx3)` — manifest `testSuites` evidence: per-TFM suite passed+skipped==total with 0 failed on all 3 TFMs (N per TFM). Consumer smoke keeps precedence where present.",
         "- `targeted — evidence: pending (CF-IMP-003)` — csproj targets the TFM but no CI evidence recorded yet.",
         "- `not targeted` — csproj does not list the TFM.",
         "",
+    ]
+    cross = manifest.get("crossTfm") if isinstance(manifest, dict) else None
+    if isinstance(cross, dict):
+        fwd = cross.get("forward", {})
+        rev = cross.get("reverse", {})
+        har = cross.get("harness", {})
+        lines += [
+            "## Cross-TFM client/host smoke",
+            "",
+            f"- forward: client `{fwd.get('clientTfm', '?')}` against host `{fwd.get('hostTfm', '?')}` → `{fwd.get('result', '?')}` (commit `{fwd.get('commit', '?')}`).",
+            f"- reverse: client `{rev.get('clientTfm', '?')}` against host `{rev.get('hostTfm', '?')}` → `{rev.get('result', '?')}` (commit `{rev.get('commit', '?')}`).",
+            f"- harness: `{har.get('script', '?')}` @ `{har.get('commit', '?')}` → `{har.get('result', '?')}`.",
+            "",
+        ]
+    top_notes = manifest.get("notes") if isinstance(manifest, dict) else None
+    if isinstance(top_notes, str) and top_notes.strip():
+        lines += [
+            "## Notes",
+            "",
+            top_notes.strip(),
+            "",
+        ]
+    lines += [
         "## Open questions",
         "",
         "- Test-project partition per TFM is reconciled once CF-IMP-003 lands (see CF-IMP-017 handoff).",

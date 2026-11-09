@@ -1,7 +1,7 @@
 {
   "schemaVersion": "openconnect.compatibility/v1",
-  "generatedAtUtc": "2026-11-09T17:00:48Z",
-  "commit": "7dae81a",
+  "generatedAtUtc": "2026-11-09T19:29:37Z",
+  "commit": "9155c71",
   "packages": [
     {
       "id": "OpenConnect.Abstractions",
@@ -16,7 +16,27 @@
         "net9.0": "pass",
         "net10.0": "pass"
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+      "testSuites": {
+        "net8.0": {
+          "passed": 56,
+          "failed": 0,
+          "skipped": 0,
+          "total": 56
+        },
+        "net9.0": {
+          "passed": 56,
+          "failed": 0,
+          "skipped": 0,
+          "total": 56
+        },
+        "net10.0": {
+          "passed": 56,
+          "failed": 0,
+          "skipped": 0,
+          "total": 56
+        }
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 56 passed, 0 failed per TFM."
     },
     {
       "id": "OpenConnect.Core",
@@ -31,7 +51,27 @@
         "net9.0": "pass",
         "net10.0": "pass"
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+      "testSuites": {
+        "net8.0": {
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "total": 36
+        },
+        "net9.0": {
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "total": 36
+        },
+        "net10.0": {
+          "passed": 36,
+          "failed": 0,
+          "skipped": 0,
+          "total": 36
+        }
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 36 passed, 0 failed per TFM."
     },
     {
       "id": "OpenConnect.Client",
@@ -46,9 +86,574 @@
         "net9.0": "pass",
         "net10.0": "pass"
       },
-      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019a): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead)."
+      "testSuites": {
+        "net8.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        },
+        "net9.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        },
+        "net10.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        }
+      },
+      "notes": "Evidence recorded from CF-IMP-018a handoff, executed at HEAD 7dae81a (not re-executed in CF-IMP-019b): packed nupkg contains lib/net8.0, lib/net9.0 and lib/net10.0 assets; fresh external console app restored and ran per TFM against real APIs (AddOpenConnect registry Count=1, LeadAgent=Lead). Per-TFM suite evidence from canonical history: 23 passed, 0 failed per TFM."
+    },
+    {
+      "id": "OpenConnect.Agents",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 479,
+          "failed": 0,
+          "skipped": 1,
+          "total": 480
+        },
+        "net9.0": {
+          "passed": 479,
+          "failed": 0,
+          "skipped": 1,
+          "total": 480
+        },
+        "net10.0": {
+          "passed": 479,
+          "failed": 0,
+          "skipped": 1,
+          "total": 480
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 479 passed + 1 skipped = 480 total, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Persistence.EFCore",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 105,
+          "failed": 0,
+          "skipped": 0,
+          "total": 105
+        },
+        "net9.0": {
+          "passed": 105,
+          "failed": 0,
+          "skipped": 0,
+          "total": 105
+        },
+        "net10.0": {
+          "passed": 105,
+          "failed": 0,
+          "skipped": 0,
+          "total": 105
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 105 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Transport.Nats",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "total": 9
+        },
+        "net9.0": {
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "total": 9
+        },
+        "net10.0": {
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "total": 9
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 9 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Hosting.AspNetCore",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 121,
+          "failed": 0,
+          "skipped": 0,
+          "total": 121
+        },
+        "net9.0": {
+          "passed": 121,
+          "failed": 0,
+          "skipped": 0,
+          "total": 121
+        },
+        "net10.0": {
+          "passed": 121,
+          "failed": 0,
+          "skipped": 0,
+          "total": 121
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 121 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Tools",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "total": 4
+        },
+        "net9.0": {
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "total": 4
+        },
+        "net10.0": {
+          "passed": 4,
+          "failed": 0,
+          "skipped": 0,
+          "total": 4
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 4 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Privacy",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "total": 3
+        },
+        "net9.0": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "total": 3
+        },
+        "net10.0": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 3 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Metering",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "total": 12
+        },
+        "net9.0": {
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "total": 12
+        },
+        "net10.0": {
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0,
+          "total": 12
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 12 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Observability",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "total": 46
+        },
+        "net9.0": {
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "total": 46
+        },
+        "net10.0": {
+          "passed": 46,
+          "failed": 0,
+          "skipped": 0,
+          "total": 46
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 46 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.QdrantVactor",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 24,
+          "failed": 0,
+          "skipped": 0,
+          "total": 24
+        },
+        "net9.0": {
+          "passed": 24,
+          "failed": 0,
+          "skipped": 0,
+          "total": 24
+        },
+        "net10.0": {
+          "passed": 24,
+          "failed": 0,
+          "skipped": 0,
+          "total": 24
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 24 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Navigator",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 44,
+          "failed": 0,
+          "skipped": 0,
+          "total": 44
+        },
+        "net9.0": {
+          "passed": 44,
+          "failed": 0,
+          "skipped": 0,
+          "total": 44
+        },
+        "net10.0": {
+          "passed": 44,
+          "failed": 0,
+          "skipped": 0,
+          "total": 44
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 44 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Navigator.AspNetCore",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 68,
+          "failed": 0,
+          "skipped": 0,
+          "total": 68
+        },
+        "net9.0": {
+          "passed": 68,
+          "failed": 0,
+          "skipped": 0,
+          "total": 68
+        },
+        "net10.0": {
+          "passed": 68,
+          "failed": 0,
+          "skipped": 0,
+          "total": 68
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 68 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Navigator.Blazor",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 38,
+          "failed": 0,
+          "skipped": 0,
+          "total": 38
+        },
+        "net9.0": {
+          "passed": 38,
+          "failed": 0,
+          "skipped": 0,
+          "total": 38
+        },
+        "net10.0": {
+          "passed": 38,
+          "failed": 0,
+          "skipped": 0,
+          "total": 38
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 38 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Navigator.Operational",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        },
+        "net9.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        },
+        "net10.0": {
+          "passed": 23,
+          "failed": 0,
+          "skipped": 0,
+          "total": 23
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 23 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Navigator.OperationalBrowser",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "total": 26
+        },
+        "net9.0": {
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "total": 26
+        },
+        "net10.0": {
+          "passed": 26,
+          "failed": 0,
+          "skipped": 0,
+          "total": 26
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 26 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
+    },
+    {
+      "id": "OpenConnect.Components.Blazor",
+      "version": "1.0.0",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "consumerSmoke": {
+        "net8.0": "pending",
+        "net9.0": "pending",
+        "net10.0": "pending"
+      },
+      "testSuites": {
+        "net8.0": {
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "total": 14
+        },
+        "net9.0": {
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "total": 14
+        },
+        "net10.0": {
+          "passed": 14,
+          "failed": 0,
+          "skipped": 0,
+          "total": 14
+        }
+      },
+      "notes": "Per-TFM suite evidence recorded from canonical history (commits d4224f2, 06b688e, b5da852, fbff26e, 5c256fd, 6da5145, fecc0a6, c61b33a, e50a20a, f51a670; not re-executed in CF-IMP-019b): 14 passed, 0 failed per TFM. consumerSmoke pending — no per-TFM consumer run recorded yet."
     }
   ],
+  "crossTfm": {
+    "forward": {
+      "clientTfm": "net8.0",
+      "hostTfm": "net10.0",
+      "result": "pass",
+      "commit": "9155c71"
+    },
+    "reverse": {
+      "clientTfm": "net10.0",
+      "hostTfm": "net8.0",
+      "result": "pass",
+      "commit": "9155c71"
+    },
+    "harness": {
+      "script": "build/scripts/run-cross-tfm-smoke.ps1",
+      "commit": "9155c71",
+      "result": "SMOKE_PASS"
+    }
+  },
+  "notes": "Contracts.Tests: 143 tests net8.0-by-design (test project targets net8.0 only); recorded as note-only, not a package support row. Cross-TFM harness build/scripts/run-cross-tfm-smoke.ps1 at commit 9155c71 reported SMOKE_PASS (CF-POSTVERIFY-024 exit 0, CLIENT_PASS x2).",
   "policy": {
     "recommendedTfm": "net10.0",
     "compatibilityOnly": [
