@@ -603,3 +603,48 @@ Missing-gate note (applies to every row below): no per-criterion executed comman
 - Prior lines 1–563 preserved byte-identical; nothing else touched.
 - No relative links introduced; no existing links altered.
 - Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix I or earlier content.
+
+---
+
+## Appendix J — Deletion with S0 transfer (SUPPLIED-VERIFIED-BY-LANE)
+
+`SUPPLIED-VERIFIED-BY-LANE (writer did not re-execute; all commits, counts, and risk dispositions below transcribed as supplied, not re-observed)`
+
+**Amendment status:** IMPLEMENTED (transcription only, not independently verified by this writer). Prior sections (lines 1–605 incl Appendices A–I) are preserved byte-identical; this appendix is append-only. No builds, tests, or Git operations were performed by this writer. No VERIFIED / COMMITTED / RELEASED claim is made by this writer for this appendix text; those labels below are transcribed lane evidence only for the prior commits recorded.
+
+**Source baseline:** Canonical root `C:\DevOps\open-connect\worktrees\agents-1`, branch `agents-1`, HEAD `2b51b58701c06fcdd9e21cbe2e68dfbeae3842ff` (read-only `git rev-parse` by this writer; matches expected prefix `2b51b58`, no drift). **Date:** 2026-11-09.
+
+**Document status:** COMMITTED (records prior commits `638864e`, `05d384c`, `5a66910`, `2b51b58`); new Appendix J text itself is IMPLEMENTED (uncommitted doc change) until master commits. This appendix does not claim RELEASED or VERIFIED beyond the supplied evidence.
+
+### 1. S0 transfer — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- Commit `638864e` (model + fencing + store + adapter) — SUPPLIED-VERIFIED-BY-LANE.
+- Commit `05d384c` (selector) — SUPPLIED-VERIFIED-BY-LANE.
+- Commit `5a66910` (receipt suite 5/5) — SUPPLIED-VERIFIED-BY-LANE.
+- Fencing 3/3 live — SUPPLIED-VERIFIED-BY-LANE.
+- Receipt 5/5 live — SUPPLIED-VERIFIED-BY-LANE.
+- Builds exit 0 — SUPPLIED-VERIFIED-BY-LANE.
+
+### 2. Deletion — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- Commit `2b51b58`: 37 paths, 4871 deletions — SUPPLIED-VERIFIED-BY-LANE.
+- Restore + build exit 0 post-fix — SUPPLIED-VERIFIED-BY-LANE.
+- Zero code refs — SUPPLIED-VERIFIED-BY-LANE.
+
+### 3. Owner ACCEPTED RISK 2026-11-09 — SUPPLIED-VERIFIED-BY-LANE, writer did not re-execute
+
+- (a) Outbox/isolation matrix NOT VERIFIED.
+- (b) SqlServer second-process NOT VERIFIED.
+- (c) `oc_*` data orphan with no backfill (backfill sketch only).
+- (d) Sweeper / relay-lease deferred.
+- (e) 12 stale doc/comment mentions (3 EFCore comments + docs/prose) as follow-up polish.
+
+### Scope limits + Amendment guardrails
+
+- No global production claim is made.
+- No secrets, no invented CLI flags, endpoints, release numbers, screenshots, deployment behavior, or support promises.
+- Outbox/isolation verified, SqlServer second-process verified, backfill done, sweeper/relay-lease done, and global production readiness are NOT claimed; those items are NOT VERIFIED / ACCEPTED RISK per §3 above.
+- All commits, counts, and risk dispositions above are labeled SUPPLIED-VERIFIED-BY-LANE, not writer-observed.
+- Prior lines 1–605 preserved byte-identical; nothing else touched.
+- No relative links introduced; no existing links altered.
+- Future amendments append a new appendix; they do not rewrite, delete, or re-label Appendix J or earlier content.
