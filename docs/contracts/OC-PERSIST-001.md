@@ -1,6 +1,6 @@
 # OC-PERSIST-001 — Single Provider-Neutral EF Core Adapter
 
-> Status: PROPOSED contract. No implementation, test, migration, or provider-support claim is made. All behavior NOT VERIFIED until Codex EF-AT evidence exists.
+> Status: APPROVED by orchestrator 2026-11-09 (substance; experimental caveats in §5 stand). No implementation, test, migration, or provider-support claim is made. All behavior NOT VERIFIED until Codex EF-AT evidence exists.
 
 ## 1. Invariant (Codex §1 / §4 / §8)
 
