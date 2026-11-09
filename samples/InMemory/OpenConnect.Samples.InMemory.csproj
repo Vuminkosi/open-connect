@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>OpenConnect.Samples.InMemory</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.InMemory</RootNamespace>
+    <!-- No Design package, no Migrations: the InMemory provider has no migration pipeline. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+</Project>
