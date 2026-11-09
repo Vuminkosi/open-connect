@@ -12,12 +12,11 @@ public static class MafRuntimeProbe
         ("Checkpoint", "Microsoft.Agents.AI.Workflows.Checkpoint"),
         ("Human-in-the-loop", "Microsoft.Agents.AI.Workflows.HumanInTheLoopRequest"),
         ("Conflict handling", "Microsoft.Agents.AI.Workflows.WorkflowConflictException"),
-        // Unsupported execution paths below (agents-spec §0 Rule 2: mark Unsupported, never fabricate).
-        // Verified absent in MAF 1.27.0 by full exported-type + public-method enumeration of the
-        // Microsoft.Agents.AI / .Abstractions / .Workflows assemblies on 2026-11-09:
-        // no HarnessAgent type and no AsHarnessAgent member exist. The only harness-like type present,
-        // Magentic.ExecutorAgentHarness, is a Magentic-specialized executor harness, not the general
-        // Harness execution profile, so it is deliberately not used as this gate's probe type.
+        // Harness execution is provided by the referenced Microsoft.Agents.AI.Harness
+        // 1.27.0 package. Verified present on 2026-11-09 by reflection over the loaded
+        // assembly (3 exported types): the canonical agent type below
+        // (Microsoft.Agents.AI.HarnessAgent : DelegatingAIAgent), HarnessAgentOptions,
+        // and the ChatClientHarnessExtensions.AsHarnessAgent factory.
         ("Harness", "Microsoft.Agents.AI.HarnessAgent"),
         // No "Durable"-named type or member exists in MAF 1.27.0; there is no durable backend package
         // referenced. The name below is the expected durable workflow host type; absent means the
@@ -68,18 +67,18 @@ public static class MafRuntimeProbe
 
     private static Assembly[] LoadMafAssemblies()
     {
-        // Best-effort load of the three MAF assemblies so workflow-namespace
-        // types (Microsoft.Agents.AI.Workflows.*) resolve when the
-        // Microsoft.Agents.AI.Workflows package is referenced. A missing
+        // Best-effort load of the MAF assemblies so workflow-namespace
+        // types (Microsoft.Agents.AI.Workflows.*) and harness-namespace
+        // types resolve when the corresponding packages are referenced. A missing
         // assembly is ignored so the capability matrix reports Unavailable
         // (fail closed) instead of throwing here.
-        foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows" })
+        foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows", "Microsoft.Agents.AI.Harness" })
         {
             try { _ = Assembly.Load(name); }
             catch (Exception exception) when (exception is FileNotFoundException or FileLoadException or BadImageFormatException) { }
         }
         return AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions" or "Microsoft.Agents.AI.Workflows")
+            .Where(assembly => assembly.GetName().Name is "Microsoft.Agents.AI" or "Microsoft.Agents.AI.Abstractions" or "Microsoft.Agents.AI.Workflows" or "Microsoft.Agents.AI.Harness")
             .ToArray();
     }
 

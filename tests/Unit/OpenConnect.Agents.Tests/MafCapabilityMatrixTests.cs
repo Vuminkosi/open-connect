@@ -6,13 +6,14 @@ namespace OpenConnect.Agents.Tests;
 public sealed class MafCapabilityMatrixTests
 {
     [Fact]
-    public void Harness_profile_request_throws_unavailable_with_missing_type()
+    public void Harness_profile_request_passes_through_when_harness_type_present()
     {
-        var exception = Assert.Throws<MafCapabilityUnavailableException>(
+        // Microsoft.Agents.AI.Harness 1.27.0 is referenced, so the Harness
+        // gate resolves Available and ValidateExecutionProfile must not throw.
+        var exception = Record.Exception(
             () => OrchestrationProfileRouter.ValidateExecutionProfile("Harness"));
 
-        Assert.Equal("Harness", exception.Profile);
-        Assert.Equal("Microsoft.Agents.AI.HarnessAgent", exception.MissingTypeName);
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -38,7 +39,6 @@ public sealed class MafCapabilityMatrixTests
     }
 
     [Theory]
-    [InlineData("Harness", "Microsoft.Agents.AI.HarnessAgent")]
     [InlineData("Durable execution", "Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor")]
     [InlineData("MCP integration", "ModelContextProtocol.Client.McpClient")]
     [InlineData("A2A integration", "A2A.A2AClient")]
@@ -55,11 +55,27 @@ public sealed class MafCapabilityMatrixTests
     }
 
     [Fact]
+    public void Harness_capability_reports_available_with_harness_assembly()
+    {
+        // The Microsoft.Agents.AI.Harness package is referenced, so the
+        // probe must resolve the Harness entry as Available with the real
+        // fully-qualified agent type and its owning assembly.
+        var matrix = MafRuntimeProbe.GetWorkflowCapabilityMatrix();
+
+        var harness = Assert.Single(matrix, item => item.Capability == "Harness");
+
+        Assert.Equal("Microsoft.Agents.AI.HarnessAgent", harness.RequiredTypeName);
+        Assert.Equal(MafCapabilityStatus.Available, harness.Status);
+        Assert.Null(harness.UnavailableReason);
+        Assert.Equal("Microsoft.Agents.AI.Harness", harness.AssemblyName);
+    }
+
+    [Fact]
     public void Workflow_capability_reports_available_with_assembly()
     {
         // The Microsoft.Agents.AI.Workflows package is referenced, so the
         // probe must resolve the Workflow entry as Available (fail closed
-        // applies only to the unsupported Harness/Durable/MCP/A2A entries).
+        // applies only to the unsupported Durable/MCP/A2A entries).
         var matrix = MafRuntimeProbe.GetWorkflowCapabilityMatrix();
 
         var workflow = Assert.Single(matrix, item => item.Capability == "Workflow");
@@ -71,7 +87,7 @@ public sealed class MafCapabilityMatrixTests
     }
 
     [Fact]
-    public async Task Unsupported_profile_throws_before_any_execution_occurs()
+    public async Task Unsupported_durable_profile_throws_before_any_execution_occurs()
     {
         var runInvoked = false;
         Task RunAsync()
@@ -81,9 +97,9 @@ public sealed class MafCapabilityMatrixTests
         }
 
         var exception = await Assert.ThrowsAsync<MafCapabilityUnavailableException>(
-            () => ExecuteProfileAsync("Harness", RunAsync));
+            () => ExecuteProfileAsync("DurableWorkflow", RunAsync));
 
-        Assert.Equal("Harness", exception.Profile);
+        Assert.Equal("DurableWorkflow", exception.Profile);
         Assert.False(runInvoked);
     }
 

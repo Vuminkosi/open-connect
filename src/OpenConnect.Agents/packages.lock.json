@@ -23,6 +23,27 @@
           "System.Threading.Channels": "10.0.12"
         }
       },
+      "Microsoft.Agents.AI.Harness": {
+        "type": "Direct",
+        "requested": "[1.27.0, )",
+        "resolved": "1.27.0",
+        "contentHash": "Xqz4MevbK7LNetK379N25N2LLJp1TRIIMp5M9EIS3iAAln3DfkTAYsfDcYph724oFj3j2Jp/GKwdr2s39bslKA==",
+        "dependencies": {
+          "Microsoft.Agents.AI": "1.27.0",
+          "Microsoft.Extensions.AI": "10.10.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
+          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
+          "Microsoft.ML.Tokenizers": "2.0.0",
+          "System.Diagnostics.DiagnosticSource": "10.0.12",
+          "System.Text.Json": "10.0.12",
+          "System.Threading.Channels": "10.0.12"
+        }
+      },
       "Microsoft.Agents.AI.Workflows": {
         "type": "Direct",
         "requested": "[1.27.0, )",
