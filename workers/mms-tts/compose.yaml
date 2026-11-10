@@ -1,0 +1,35 @@
+name: oc-mms-tts
+
+services:
+  init-models:
+    build: .
+    # Init records only the opted-in language manifest; the ~1107-language
+    # MMS catalogue is never pulled and checkpoints are never fetched here.
+    command: ["python", "-m", "openconnect_mms_tts.init_models"]
+    environment:
+      MODEL_DIR: /models
+      MMS_LANGUAGES: "${MMS_LANGUAGES:-eng}"
+    volumes:
+      - oc_mms_models:/models
+
+  serve:
+    build: .
+    ports:
+      - "${OC_MMS_TTS_PORT:-8080}:8080"
+    environment:
+      MODEL_DIR: /models
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      MMS_LANGUAGES: "${MMS_LANGUAGES:-eng}"
+      MMS_COMMERCIAL_USE: "${MMS_COMMERCIAL_USE:-0}"
+      MMS_CACHE_SIZE: "${MMS_CACHE_SIZE:-2}"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
+    volumes:
+      - oc_mms_models:/models:ro
+    depends_on:
+      init-models:
+        condition: service_completed_successfully
+
+volumes:
+  oc_mms_models:

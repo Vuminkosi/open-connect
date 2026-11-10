@@ -1,0 +1,35 @@
+name: oc-kokoro
+
+services:
+  init-models:
+    build: .
+    # Init stages only the configured voice inventory marker; the image and
+    # this worker never download model weights (no download on synthesize).
+    command: ["python", "-m", "openconnect_kokoro.init_models"]
+    environment:
+      MODEL_DIR: /models
+      KOKORO_VOICES: "${KOKORO_VOICES:-af_heart}"
+    volumes:
+      - oc_kokoro_models:/models
+
+  serve:
+    build: .
+    ports:
+      - "${OC_KOKORO_PORT:-8080}:8080"
+    environment:
+      MODEL_DIR: /models
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      KOKORO_VOICES: "${KOKORO_VOICES:-af_heart}"
+      KOKORO_DEFAULT_VOICE: "${KOKORO_DEFAULT_VOICE:-af_heart}"
+      KOKORO_REQUIRE_MODEL: "${KOKORO_REQUIRE_MODEL:-0}"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
+    volumes:
+      - oc_kokoro_models:/models:ro
+    depends_on:
+      init-models:
+        condition: service_completed_successfully
+
+volumes:
+  oc_kokoro_models:

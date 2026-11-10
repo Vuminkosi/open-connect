@@ -1,0 +1,51 @@
+# Classification worker compose bundle.
+#
+# The model volume is populated OUT OF BAND (pinned checkpoint copied by an
+# operator or baked into a versioned image). `model-init` never downloads:
+# it only verifies that /models holds a manifest.json + weights, and exits
+# non-zero with instructions when the volume is empty. No request-time
+# download is permitted: HF_HUB_OFFLINE=1 is set on the worker service.
+name: openconnect-classification
+
+services:
+  model-init:
+    image: python:3.12-slim
+    volumes:
+      - oc_classification_models:/models:ro
+    command:
+      - python
+      - -c
+      - >-
+        import pathlib, sys;
+        need = ["manifest.json"];
+        missing = [n for n in need if not (pathlib.Path("/models") / n).exists()];
+        weights = list(pathlib.Path("/models").glob("*.bin")) + list(pathlib.Path("/models").glob("*.safetensors"));
+        print("model-init: checking /models volume (no downloads permitted)");
+        sys.exit("model-init: REFUSING to download. Mount a pinned checkpoint: /models/manifest.json + weights (*.bin/*.safetensors). See workers/classification/README-model.md") if (missing or not weights) else print("model-init: manifest + weights present")
+    restart: "no"
+
+  classification:
+    build:
+      context: .
+    image: openconnect-classification:0.1.0
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker bearer token}
+      LABEL_SET_VERSION: ${LABEL_SET_VERSION:-v1}
+      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+    volumes:
+      - oc_classification_models:/models:ro
+    ports:
+      - "${CLASSIFICATION_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  oc_classification_models:
+    name: oc_classification_models
