@@ -13,7 +13,17 @@ services:
     ports:
       - "${PORT_TRANSCRIPTION:-8084}:8080"
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      # T3 E2E (explicitly fake-labeled, local-only): use the app's canonical
+      # token var (OPENCONNECT_TRANSCRIPTION_TOKEN, which the app reads;
+      # OPENCONNECT_WORKER_TOKEN is the fallback), run the explicitly labeled
+      # fake engine, and opt OUT of the cloud leg (empty
+      # OC_TRANSCRIPTION_FILE_URL => cloud_url None => no key required;
+      # production fail-closed CloudConfigError when URL set without key is
+      # unchanged in the app). Fixture model is a synthetic E2E-only id.
+      OPENCONNECT_TRANSCRIPTION_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: fake
+      OC_TRANSCRIPTION_FILE_URL: ""
+      OC_TRANSCRIPTION_MODEL: e2e-fixture-stt-tiny
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s

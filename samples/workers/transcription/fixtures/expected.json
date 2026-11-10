@@ -1,1 +1,1 @@
-{"expectedStatus":200,"requiredResponseFields":["schemaVersion","requestId","text"]}
+{"expectedStatus":200,"requiredResponseFields":["schemaVersion","requestId","transcript"]}
