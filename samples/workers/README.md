@@ -27,8 +27,8 @@ T4 model-live is **BLOCKED / NOT_RUN** everywhere: no approved model assets.
 | `kokoro/` | `workers/kokoro/Dockerfile` | BLOCKED — pending worker delivery |
 | `mms-tts/` | `workers/mms-tts/Dockerfile` | BLOCKED — pending worker delivery |
 | `navigator-playwright/` | `workers/navigator-playwright/Dockerfile` | BLOCKED — pending worker delivery |
-| `operational-agents/` | `workers/operational-agents/Dockerfile` (or `src/OpenConnect.WorkerHosts.*/Dockerfile`) | BLOCKED — pending worker delivery |
-| `outbox/` | `workers/outbox/Dockerfile` (or `src/OpenConnect.WorkerHosts.*/Dockerfile`) | BLOCKED — pending worker delivery |
+| `operational-agents/` | `workers/operational-agents/Dockerfile` | BLOCKED — pending worker delivery |
+| `outbox/` | `workers/outbox/Dockerfile` | BLOCKED — pending worker delivery |
 | `voice-vad-client-server/` | reuses `transcription` image — **no 12th image** | BLOCKED — pending transcription worker |
 | `all-workers/` | aggregate compose of all 11 | T0-runnable (config only) |
 | `shared/` | harness scripts, deps compose, env example, fixtures, CI sketch | READY |

@@ -47,7 +47,7 @@ host only relays envelopes.
 $env:WorkerHosts__Outbox__TenantUlid="<26-char ULID>"
 $env:WorkerHosts__Outbox__ConnectionString="Host=localhost;Port=5874;Database=openconnect;Username=openconnect;Password=..."
 $env:WorkerHosts__Outbox__NatsUrl="nats://localhost:4332"
-dotnet run --project src/OpenConnect.WorkerHosts.Outbox
+dotnet run --project workers/outbox
 ```
 
-Or `docker compose -f src/OpenConnect.WorkerHosts.Outbox/compose.yaml up --build`.
+Or `docker compose -f workers/outbox/compose.yaml up --build`.

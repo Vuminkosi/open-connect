@@ -7,8 +7,8 @@ COPY src/OpenConnect.Abstractions/ src/OpenConnect.Abstractions/
 COPY src/OpenConnect.Core/ src/OpenConnect.Core/
 COPY src/OpenConnect.Persistence.EFCore/ src/OpenConnect.Persistence.EFCore/
 COPY src/OpenConnect.Transport.Nats/ src/OpenConnect.Transport.Nats/
-COPY src/OpenConnect.WorkerHosts.Outbox/ src/OpenConnect.WorkerHosts.Outbox/
-RUN dotnet publish src/OpenConnect.WorkerHosts.Outbox/OpenConnect.WorkerHosts.Outbox.csproj \
+COPY workers/outbox/ workers/outbox/
+RUN dotnet publish workers/outbox/OpenConnect.WorkerHosts.Outbox.csproj \
     -c Release -o /app/publish /p:ContinuousIntegrationBuild=true
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0
