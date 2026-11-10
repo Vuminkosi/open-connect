@@ -1,22 +1,70 @@
-# E2E sample for the Outbox relay (.NET host) worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
+# E2E sample for the Outbox relay (.NET host) worker — T3 live relay proof.
 # Canonical image source (never a toy worker image):
 #   workers/outbox/Dockerfile
 # Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
+# Project name is injected via COMPOSE_PROJECT_NAME (see tests/t3_runtime.sh)
 # so parallel runs never share networks or volumes.
+#
+# Decision REG-S07-DNDESIGN-B: the worker exposes NO ports and has NO
+# healthcheck (it is a background dispatcher host; the former :8080
+# healthcheck/ports were fictional). Liveness is proven via container uptime
+# + the `Outbox dispatcher started … subject oc.v1.notifications.inapp` log
+# marker + the PUBACK-then-marked-delivered relay assert.
+#
+# Migrations are MANUAL: the worker never runs DDL
+# (OpenConnectMigrationMode.Manual in Program.cs). The T3 harness applies the
+# existing sample-owned EF migrations
+# (samples/PostgreSql, history __PostgreSqlMigrationsHistory) against this
+# disposable compose postgres BEFORE the worker starts.
 services:
   outbox:
     build:
-      context: ../../../workers/outbox
-      dockerfile: Dockerfile
+      # Repo-root context: the Dockerfile COPYs src/* + workers/* per its header.
+      context: ../../..
+      dockerfile: workers/outbox/Dockerfile
     image: openconnect/outbox:e2e-local
-    ports:
-      - "${PORT_OUTBOX:-8090}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      WorkerHosts__Outbox__Mode: Standalone
+      WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
+      WorkerHosts__Outbox__TenantUlid: ${OC_OUTBOX_TENANT_ULID:?Set OC_OUTBOX_TENANT_ULID to the synthetic tenant ULID}
+      WorkerHosts__Outbox__DatabaseProvider: npgsql
+      WorkerHosts__Outbox__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+      WorkerHosts__Outbox__NatsUrl: nats://nats:4222
+      WorkerHosts__Outbox__Subject: ${NATS_NOTIFICATION_SUBJECT:-oc.v1.notifications.inapp}
+      WorkerHosts__Outbox__PollingInterval: ${OC_OUTBOX_POLL_INTERVAL:-00:00:02}
+
+  postgres:
+    image: postgis/postgis:17-3.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-openconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+    ports:
+      # Host-mapped for the sample-side `dotnet ef migrations script` apply +
+      # psql seed/probe only. The worker itself reaches postgres over compose DNS.
+      - "127.0.0.1:${POSTGRES_PORT:-55434}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
-      timeout: 3s
-      retries: 24
-      start_period: 10s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.15.1-alpine3.22
+    # -js enables JetStream; -m explicitly enables the HTTP monitoring
+    # endpoint (recent nats-server builds no longer listen on :8222 by
+    # default), which the healthcheck probes.
+    command: ["-js", "-m", "8222"]
+    ports:
+      # Host-mapped for the JetStream receipt probe only.
+      - "127.0.0.1:${NATS_HTTP_PORT:-8222}:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
