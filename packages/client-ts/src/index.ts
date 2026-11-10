@@ -14,6 +14,7 @@ export type {
 export {
   OpenConnectClient,
   OpenConnectError,
+  createOpenConnectClient,
 } from "./client.js";
 export type {
   CreateTaskInput,
@@ -22,3 +23,14 @@ export type {
   OpenConnectClientOptions,
   WebSocketFactory,
 } from "./client.js";
+export {
+  createClientVad,
+} from "./vad.js";
+export type {
+  BargeInMode,
+  ClientVadOptions,
+  ClientVadSession,
+  VadEngine,
+  VadFallbackMode,
+  VadFrameResult,
+} from "./vad.js";

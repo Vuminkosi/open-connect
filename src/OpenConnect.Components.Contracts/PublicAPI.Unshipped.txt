@@ -139,23 +139,35 @@ OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Title.get -> str
 OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Title.init -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Appearance.get -> OpenConnect.Components.Contracts.ComposerAppearanceOptions!
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Appearance.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Appearance.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.AssistantName.get -> string!
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.AssistantName.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.AssistantName.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.get -> OpenConnect.Components.Contracts.ComposerCloseBehavior
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.get -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.InitiallyOpen.get -> bool
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.InitiallyOpen.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.InitiallyOpen.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Input.get -> OpenConnect.Components.Contracts.ComposerInputOptions!
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Input.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Input.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.PersistPosition.get -> bool
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.PersistPosition.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.PersistPosition.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Placement.get -> OpenConnect.Components.Contracts.ComposerPlacement
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Placement.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Placement.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Position.get -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Position.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Voice.get -> OpenConnect.Components.Contracts.ComposerVoiceOptions!
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Voice.init -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Voice.set -> void
 static OpenConnect.Components.Contracts.ComposerWireValues.CreateJsonOptions() -> System.Text.Json.JsonSerializerOptions!
 static OpenConnect.Components.Contracts.ComposerWireValues.FromWireValue<TEnum>(string! value) -> TEnum
 static OpenConnect.Components.Contracts.ComposerWireValues.ToWireValue<TEnum>(TEnum value) -> string!

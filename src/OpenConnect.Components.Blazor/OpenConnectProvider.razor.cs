@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
 
@@ -7,7 +8,8 @@ namespace OpenConnect.Components.Blazor;
 /// <summary>
 /// Cascades the shared <see cref="ComposerSession"/> (client state, session id,
 /// event stream cursor) and the <see cref="OpenConnectComponentRegistry"/>
-/// (component catalogue) to descendant components such as <see cref="MiniComposer"/>.
+/// (component catalogue) to descendant components such as <see cref="MiniComposer"/>
+/// and <see cref="OpenConnectNavigatorProvider"/>.
 /// Consumes <see cref="IOpenConnectClient"/> over HTTP; never uses NATS in the browser.
 /// </summary>
 public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
@@ -22,8 +24,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     [Inject] private ComposerSession Session { get; set; } = default!;
 
+    [Inject] private IServiceProvider ServiceProvider { get; set; } = default!;
+
     [Inject] private IEnumerable<IConfigureOpenConnectComponent> ComponentConfigurations { get; set; }
         = Enumerable.Empty<IConfigureOpenConnectComponent>();
+
+    [CascadingParameter(Name = "OpenConnectProvider")]
+    private OpenConnectProvider? ParentProvider { get; set; }
 
     /// <summary>Gateway session whose events are streamed. Required.</summary>
     [Parameter] public string? SessionId { get; set; }
@@ -38,6 +45,11 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
+        if (ParentProvider is not null && !ReferenceEquals(ParentProvider, this))
+        {
+            throw new InvalidOperationException("Nested OpenConnectProvider instances are not permitted. Use a single root OpenConnectProvider.");
+        }
+
         foreach (var configuration in ComponentConfigurations)
         {
             configuration.Apply(Registry);
@@ -70,13 +82,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         var sessionId = Session.SessionId;
         if (!string.IsNullOrEmpty(sessionId))
         {
-            RestartLoop(sessionId!);
+            RestartLoop(sessionId!, force: true);
         }
     }
 
-    private void RestartLoop(string sessionId)
+    private void RestartLoop(string sessionId, bool force = false)
     {
-        if (string.Equals(_subscribedSessionId, sessionId, StringComparison.Ordinal) && _loopCts is not null)
+        if (!force && string.Equals(_subscribedSessionId, sessionId, StringComparison.Ordinal) && _loopCts is not null)
         {
             return;
         }
@@ -112,6 +124,11 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
             Session.MarkError("The session reference is not valid.");
             return;
         }
+
+        var clientOptions = ServiceProvider.GetService<OpenConnectClientOptions>();
+        var reconnectEnabled = clientOptions?.Reconnect.Enabled ?? true;
+        var resumeFromLastCursor = clientOptions?.Reconnect.ResumeFromLastCursor ?? true;
+
         Session.MarkConnecting();
         var failures = 0;
         try
@@ -120,7 +137,8 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
             {
                 try
                 {
-                    await foreach (var record in Client.SubscribeEventsAsync(sessionId, Session.LastSequence, token).ConfigureAwait(false))
+                    var cursor = resumeFromLastCursor ? Session.LastSequence : 0;
+                    await foreach (var record in Client.SubscribeEventsAsync(sessionId, cursor, token).ConfigureAwait(false))
                     {
                         Session.ApplyEvent(record);
                     }
@@ -136,6 +154,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                 catch (Exception ex) when (!token.IsCancellationRequested)
                 {
                     failures++;
+                    if (!reconnectEnabled)
+                    {
+                        Session.MarkError("Connection interrupted and automatic reconnect is disabled.");
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                    }
+
                     Session.MarkReconnecting(failures == 1
                         ? "Connection interrupted. Retrying…"
                         : $"Connection interrupted (attempt {failures}). Retrying…");
@@ -171,6 +196,8 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         _disposed = true;
         Session.Changed -= OnSessionChanged;
         StopLoop();
+        Session.DisposeVoiceState();
+        ServiceProvider.GetService<IVoiceClientService>()?.InvalidateAllEpochs();
         await Task.CompletedTask;
         GC.SuppressFinalize(this);
     }

@@ -3,15 +3,26 @@ namespace OpenConnect.Components.Contracts;
 /// <summary>Options configuring composer behavior and presentation.</summary>
 public sealed record OpenConnectComposerOptions
 {
-    public string AssistantName { get; init; } = "Assistant";
-    public ComposerPlacement Placement { get; init; } = ComposerPlacement.BottomRight;
-    public ComposerCloseBehavior CloseBehavior { get; init; } = ComposerCloseBehavior.MinimizeOnly;
-    public ComposerHistoryPresentation History { get; init; } = ComposerHistoryPresentation.LatestOnly;
-    public ComposerInputOptions Input { get; init; } = new();
-    public ComposerVoiceOptions Voice { get; init; } = new();
-    public bool InitiallyOpen { get; init; }
-    public bool PersistPosition { get; init; }
-    public ComposerAppearanceOptions Appearance { get; init; } = new();
+    public bool Enabled { get; set; } = true;
+    public string AssistantName { get; set; } = "Assistant";
+    public ComposerPlacement Placement { get; set; } = ComposerPlacement.BottomRight;
+    public ComposerPlacement Position
+    {
+        get => Placement;
+        set => Placement = value;
+    }
+
+    public bool EnableTaskProgress { get; set; } = true;
+    public bool EnableComponentDiscovery { get; set; } = true;
+    public bool EnableVoiceInput { get; set; }
+    public bool EnableVoiceOutput { get; set; }
+    public ComposerCloseBehavior CloseBehavior { get; set; } = ComposerCloseBehavior.MinimizeOnly;
+    public ComposerHistoryPresentation History { get; set; } = ComposerHistoryPresentation.LatestOnly;
+    public ComposerInputOptions Input { get; set; } = new();
+    public ComposerVoiceOptions Voice { get; set; } = new();
+    public bool InitiallyOpen { get; set; }
+    public bool PersistPosition { get; set; }
+    public ComposerAppearanceOptions Appearance { get; set; } = new();
 }
 
 /// <summary>Text input settings.</summary>
