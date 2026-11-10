@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenConnect.Samples.Navigator</AssemblyName>
+    <!-- Samples are never shippable NuGet packages (OC-G5-FIX01). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.Navigator</RootNamespace>
     <!-- No Design package by design: this sample owns no migrations (see README). -->
   </PropertyGroup>

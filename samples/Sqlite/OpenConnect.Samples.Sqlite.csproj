@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenConnect.Samples.Sqlite</AssemblyName>
+    <!-- Samples are never shippable NuGet packages (OC-G5-FIX01). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.Sqlite</RootNamespace>
     <!-- Design package supports `dotnet ef migrations add` from this sample's own pipeline. -->
   </PropertyGroup>

@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenConnect.Samples.McpMicroservices.ServiceA</AssemblyName>
+    <!-- Samples are never shippable NuGet packages (OC-G5-FIX01). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.McpMicroservices.ServiceA</RootNamespace>
     <!-- Design package supports `dotnet ef migrations add` from this service's own pipeline. -->
   </PropertyGroup>

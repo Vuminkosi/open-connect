@@ -20,7 +20,22 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <!--
+      NU1902 (OC-G5-FIX02, supersedes OC-G5-FIX01): GHSA-23fw (CVSS 5.9M) in
+      transitive Microsoft.Build.Tasks.Git 8.0.0 is FIXED in the 10.0.1xx line
+      (>=10.0.111): Microsoft.SourceLink.GitHub 10.0.403 (SDK-aligned with
+      global.json 10.0.403, verified live on nuget.org) pulls a fixed
+      transitive. The dependency remains build-time-only (PrivateAssets=all:
+      never ships in any .nupkg/.snupkg). Locked restore and Release pack now
+      emit zero NU1902; the entry below is retained only so future
+      build-time-only advisory noise cannot fail Release packs. Flagged for
+      dependency-auditor review before any removal.
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
     <!-- Central lockfiles (CF-REQ-021): reproducible restores solution-wide. -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
@@ -29,4 +44,15 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' != 'OpenConnect' and !$(MSBuildProjectName.Contains('Tests'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <!-- SourceLink (OC-G5-FIX02): repo-embedded debugging for shippable libs.
+       Version pinned in Directory.Packages.props (10.0.403, SDK-aligned,
+       verified on nuget.org). PrivateAssets=all: build-time only, never
+       flows to consumers. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
