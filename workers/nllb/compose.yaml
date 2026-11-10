@@ -33,9 +33,15 @@ services:
     environment:
       MODEL_DIR: /models
       HF_HUB_OFFLINE: "1"
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract). Secrets
+      # stay placeholders -- never real values.
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker bearer token}
       LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
     volumes:

@@ -2,12 +2,16 @@
 
 Normative behavior (identical in every Python worker):
 
-1. Real execution is the DEFAULT. The fake engine is used ONLY when explicitly
-   enabled via ``OPENCONNECT_FAKE_ENGINE=1`` (exact variable name; accepted
-   values ``1``/``true``/``yes``, case-insensitive, surrounding whitespace
-   ignored). Anything else -- including an absent variable -- selects real
-   mode. NOTE: unlike some generic boolean helpers, ``on`` does NOT enable
-   fake mode; the accepted set is exactly ``1``/``true``/``yes``.
+1. Real execution is the DEFAULT. The canonical switch is
+   ``OC_WORKER_ENGINE=real|fake`` (exact variable name; accepted values
+   ``real``/``fake``, case-insensitive, surrounding whitespace ignored).
+   ``OPENCONNECT_FAKE_ENGINE=1|true|yes`` remains a deprecated alias that
+   still works and logs a one-time deprecation warning; when both are set,
+   ``OC_WORKER_ENGINE`` wins. An unknown ``OC_WORKER_ENGINE`` value fails
+   closed at startup (``EngineModeConfigError``). Anything else -- including
+   an absent variable -- selects real mode. NOTE: unlike some generic boolean
+   helpers, ``on`` does NOT enable fake mode; the legacy accepted set is
+   exactly ``1``/``true``/``yes``.
 2. Production rejects fake. When ``OPENCONNECT_ENV=production`` (exact variable
    name and exact, case-sensitive value) AND fake is requested, the worker
    fails closed twice: at startup (``Settings.from_environment`` raises
@@ -31,22 +35,46 @@ Normative behavior (identical in every Python worker):
    ``torch.cuda.is_available()`` (absent torch means no GPU) and honours an
    empty or ``-1`` ``CUDA_VISIBLE_DEVICES`` as "no GPU" without importing
    torch. The detector is injectable for unit tests.
+5. Model provisioning via ``OC_MODEL_PROVISIONING`` (exact name):
+   ``disabled`` | ``verify-existing-only`` | ``first-start-if-missing``
+   (default; unknown values fail closed at startup). No worker downloads
+   model weights today -- provisioning is informational until a provisioner
+   lands -- so ``disabled`` and ``first-start-if-missing`` behave identically:
+   missing assets make the worker unready, and nothing is ever fetched.
+   The effective value is exposed in ``/health/ready``.
+6. Model cache via ``OC_MODEL_CACHE_DIR`` (exact name; default ``/models``).
+   ``MODEL_DIR`` remains a deprecated alias that still works (with a one-time
+   warning); ``OC_MODEL_CACHE_DIR`` wins when set. Informational until the
+   provisioner lands: exposed in ``/health/ready``, never triggers downloads.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
+logger = logging.getLogger(__name__)
+
 DeviceKind = Literal["cpu", "cuda", "auto"]
 EffectiveDevice = Literal["cpu", "cuda"]
 
+ENGINE_ENV_VAR = "OC_WORKER_ENGINE"
+ENGINE_REAL = "real"
+ENGINE_FAKE = "fake"
 FAKE_ENV_VAR = "OPENCONNECT_FAKE_ENGINE"
 ENV_ENV_VAR = "OPENCONNECT_ENV"
 DEVICE_ENV_VAR = "OC_MODEL_DEVICE"
 GPU_ALLOWED_ENV_VAR = "OC_GPU_ALLOWED"
+PROVISIONING_ENV_VAR = "OC_MODEL_PROVISIONING"
+CACHE_DIR_ENV_VAR = "OC_MODEL_CACHE_DIR"
+LEGACY_MODEL_DIR_ENV_VAR = "MODEL_DIR"
+
+DEFAULT_PROVISIONING = "first-start-if-missing"
+DEFAULT_CACHE_DIR = "/models"
+PROVISIONING_MODES = ("disabled", "verify-existing-only", "first-start-if-missing")
 
 PRODUCTION_VALUE = "production"
 
@@ -62,16 +90,50 @@ class FakeNotAllowedInProductionError(ValueError):
     """Startup refusal: fake engine requested while OPENCONNECT_ENV=production."""
 
 
+class EngineModeConfigError(ValueError):
+    """Startup refusal: OC_WORKER_ENGINE or OC_MODEL_PROVISIONING is invalid."""
+
+
+_legacy_warned: set[str] = set()
+
+
+def warn_deprecated_alias(name: str, replacement: str) -> None:
+    """Log a one-time deprecation warning for a legacy env var name."""
+    if name not in _legacy_warned:
+        _legacy_warned.add(name)
+        logger.warning("%s is deprecated; use %s instead", name, replacement)
+
+
 def _get(env: Mapping[str, str] | None, name: str) -> str | None:
     if env is not None:
         return env.get(name)
     return os.environ.get(name)
 
 
+def resolve_engine_mode(env: Mapping[str, str] | None = None) -> str:
+    """Canonical engine mode: ``real`` (default) or ``fake``.
+
+    ``OC_WORKER_ENGINE`` is primary; the legacy ``OPENCONNECT_FAKE_ENGINE``
+    1/true/yes flag still works as a deprecated alias (one-time warning) and
+    is ignored whenever ``OC_WORKER_ENGINE`` is set. Unknown ``OC_`` values
+    raise ``EngineModeConfigError`` (fail closed at startup).
+    """
+    raw = _get(env, ENGINE_ENV_VAR)
+    if raw is not None and raw.strip() != "":
+        value = raw.strip().lower()
+        if value not in (ENGINE_REAL, ENGINE_FAKE):
+            raise EngineModeConfigError(f"{ENGINE_ENV_VAR} must be 'real' or 'fake', got {raw!r}")
+        return value
+    legacy = _get(env, FAKE_ENV_VAR)
+    if legacy is not None and legacy.strip() != "":
+        warn_deprecated_alias(FAKE_ENV_VAR, ENGINE_ENV_VAR)
+        return ENGINE_FAKE if legacy.strip().lower() in _ON_VALUES else ENGINE_REAL
+    return ENGINE_REAL
+
+
 def fake_requested(env: Mapping[str, str] | None = None) -> bool:
-    """True only when OPENCONNECT_FAKE_ENGINE is 1/true/yes (case-insensitive)."""
-    raw = _get(env, FAKE_ENV_VAR)
-    return raw is not None and raw.strip().lower() in _ON_VALUES
+    """True only when the canonical engine mode resolves to ``fake``."""
+    return resolve_engine_mode(env) == ENGINE_FAKE
 
 
 def is_production(env: Mapping[str, str] | None = None) -> bool:
@@ -97,6 +159,29 @@ def parse_device(raw: str | None) -> DeviceKind:
     if raw is not None and raw.strip().lower() in ("cpu", "cuda", "auto"):
         return raw.strip().lower()  # type: ignore[return-value]
     return "auto"
+
+
+def parse_provisioning(raw: str | None) -> str:
+    """Normalize OC_MODEL_PROVISIONING; unknown values fail closed at startup."""
+    if raw is None or raw.strip() == "":
+        return DEFAULT_PROVISIONING
+    value = raw.strip().lower()
+    if value not in PROVISIONING_MODES:
+        raise EngineModeConfigError(
+            f"{PROVISIONING_ENV_VAR} must be one of {', '.join(PROVISIONING_MODES)}, got {raw!r}"
+        )
+    return value
+
+
+def resolve_cache_dir(primary_raw: str | None, legacy_raw: str | None = None) -> str:
+    """Resolve the model cache dir: OC_MODEL_CACHE_DIR wins, MODEL_DIR is the
+    deprecated alias (one-time warning), default ``/models``."""
+    if primary_raw is not None and primary_raw.strip() != "":
+        return primary_raw.strip()
+    if legacy_raw is not None and legacy_raw.strip() != "":
+        warn_deprecated_alias(LEGACY_MODEL_DIR_ENV_VAR, CACHE_DIR_ENV_VAR)
+        return legacy_raw.strip()
+    return DEFAULT_CACHE_DIR
 
 
 def gpu_allowed(env: Mapping[str, str] | None = None) -> bool:

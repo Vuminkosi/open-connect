@@ -11,7 +11,12 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
-from openconnect_inference.config import Settings
+from openconnect_inference.config import (
+    CONTRIBUTOR_CODE,
+    Settings,
+    contributor_approved,
+    contributor_gate_blocks,
+)
 from openconnect_inference import cloud as cloud_module
 from openconnect_inference import engine_mode
 from openconnect_inference.engine import FakeInferenceEngine, advertised_capabilities
@@ -110,6 +115,12 @@ def ready() -> dict[str, object]:
     if code is not None:
         raise HTTPException(status_code=status_code or 503, detail=code)
     assert info is not None
+    if contributor_gate_blocks(cfg.model_id):
+        # Contributor data-use tier without explicit operator approval:
+        # fail closed (startup refuses too; see ContributorApprovalError).
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=CONTRIBUTOR_CODE
+        )
     if cfg.fake_engine:
         return {
             "status": "ready",
@@ -118,6 +129,11 @@ def ready() -> dict[str, object]:
             "capabilities": _capabilities(cfg),
             "device": info.effective,
             "deviceRequested": info.requested,
+            "provisioning": cfg.provisioning,
+            "modelCacheDir": cfg.model_dir,
+            "inferenceProvider": cfg.inference_provider,
+            "inferenceModel": cfg.model_id,
+            "contributorApproved": contributor_approved(),
             **_routing_status(cfg),
         }
     # Real mode: this build ships no local LLM backend, so readiness depends
@@ -134,6 +150,11 @@ def ready() -> dict[str, object]:
         "capabilities": _capabilities(cfg),
         "device": info.effective,
         "deviceRequested": info.requested,
+        "provisioning": cfg.provisioning,
+        "modelCacheDir": cfg.model_dir,
+        "inferenceProvider": cfg.inference_provider,
+        "inferenceModel": cfg.model_id,
+        "contributorApproved": contributor_approved(),
         **_routing_status(cfg),
     }
 
@@ -262,6 +283,12 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
     _, status_code, code = engine_mode.rejection(cfg.fake_engine, cfg.model_device)
     if code is not None:
         raise HTTPException(status_code=status_code or 503, detail=code)
+    if contributor_gate_blocks(cfg.model_id):
+        # Contributor data-use tier without explicit operator approval:
+        # fail closed on execute as well as at startup/readiness.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=CONTRIBUTOR_CODE
+        )
     if not cfg.fake_engine:
         return _execute_real_request(cfg, request)
     advertised = _capabilities(cfg)

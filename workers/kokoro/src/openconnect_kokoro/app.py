@@ -68,6 +68,8 @@ def ready() -> dict[str, object]:
         "capabilities": ["speech.synthesize"] if advertised else [],
         "device": info.effective,
         "deviceRequested": info.requested,
+        "provisioning": settings.provisioning,
+        "modelCacheDir": settings.model_dir,
     }
 
 

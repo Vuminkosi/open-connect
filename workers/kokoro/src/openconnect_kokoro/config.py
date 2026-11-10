@@ -10,6 +10,8 @@ from openconnect_kokoro.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_provisioning,
+    resolve_cache_dir,
     validate_startup,
 )
 
@@ -34,12 +36,13 @@ class Settings:
     require_model: bool
     voices: tuple[str, ...]
     default_voice: str
+    provisioning: str = "first-start-if-missing"
 
     @classmethod
     def from_environment(cls) -> "Settings":
         token = os.environ.get("OPENCONNECT_WORKER_TOKEN")
-        # Fake is env-gated on the exact OPENCONNECT_FAKE_ENGINE name with the
-        # strict 1/true/yes set ("on" does NOT enable fake mode).
+        # Canonical engine switch is OC_WORKER_ENGINE (real|fake, default
+        # real); OPENCONNECT_FAKE_ENGINE is the deprecated alias (OC_ wins).
         fake = fake_requested()
         # Fail closed at startup: fake requested in production never serves.
         validate_startup(fake=fake)
@@ -55,13 +58,19 @@ class Settings:
             default = verified[0] if verified else "af_heart"
         return cls(
             worker_token=token if token else None,
-            model_dir=os.environ.get("MODEL_DIR", "/models"),
+            # Canonical cache dir is OC_MODEL_CACHE_DIR (default /models);
+            # MODEL_DIR is the deprecated alias (OC_ wins). Informational
+            # until a provisioner lands: never triggers downloads.
+            model_dir=resolve_cache_dir(
+                os.environ.get("OC_MODEL_CACHE_DIR"), os.environ.get("MODEL_DIR")
+            ),
             fake_engine=fake,
             is_production=is_production(),
             model_device=parse_device(os.environ.get("OC_MODEL_DEVICE")),
             require_model=_as_bool(os.environ.get("KOKORO_REQUIRE_MODEL"), False),
             voices=verified,
             default_voice=default,
+            provisioning=parse_provisioning(os.environ.get("OC_MODEL_PROVISIONING")),
         )
 
     def model_marker_present(self) -> bool:

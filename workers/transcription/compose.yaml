@@ -28,12 +28,27 @@ services:
       - "8080:8080"
     environment:
       OPENCONNECT_TRANSCRIPTION_TOKEN: ${OPENCONNECT_TRANSCRIPTION_TOKEN:-}
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
-      # Cloud is opt-in only (empty = local-only). A shared URL can be wired
-      # per deploy via TRANSCRIPTION_CLOUD_URL: ${WORKER_CLOUD_URL:-}. The API
-      # key must come from a secret mount, never baked into images or logs.
+      # Canonical OC_* defaults (workers-model-defaults contract). Either
+      # OC_TRANSCRIPTION_FILE_URL or TRANSCRIPTION_CLOUD_URL set means the
+      # cloud leg is configured; OC_ wins. Set OC_TRANSCRIPTION_FILE_URL
+      # empty to opt out of the default endpoint (local-only). The API
+      # key comes from a secret mount, never baked into images or logs.
+      # The cloud leg additionally requires OC_TRANSCRIPTION_MODEL (never
+      # guessed): without it the cloud path stays unready until the operator
+      # sets an exact provider model ID.
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_TRANSCRIPTION_PROVIDER: ${OC_TRANSCRIPTION_PROVIDER:-meta-model-api}
+      OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
+      OC_TRANSCRIPTION_REALTIME_URL: ${OC_TRANSCRIPTION_REALTIME_URL:-wss://api.meta.ai/v1/asr/realtime}
+      OC_TRANSCRIPTION_FILE_URL: ${OC_TRANSCRIPTION_FILE_URL:-https://api.meta.ai/v1/asr/transcribe}
+      OC_TRANSCRIPTION_MODEL: ${OC_TRANSCRIPTION_MODEL:-}
+      # Deprecated alias for the cloud file endpoint; OC_TRANSCRIPTION_FILE_URL wins.
       TRANSCRIPTION_CLOUD_URL: ${TRANSCRIPTION_CLOUD_URL:-}
       TRANSCRIPTION_CLOUD_API_KEY: ${TRANSCRIPTION_CLOUD_API_KEY:-}
       TRANSCRIPTION_ROUTE_ORDER: ${TRANSCRIPTION_ROUTE_ORDER:-cloud-first}

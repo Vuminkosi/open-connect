@@ -82,6 +82,8 @@ def _cloud_settings(**overrides):
         "cloud_url": CLOUD_URL,
         "cloud_api_key": "secret-mounted-key",
         "route_order": "cloud-first",
+        # The cloud leg requires an exact provider model ID (never guessed).
+        "model_id": "e2e-test-transcriber",
     }
     params.update(overrides)
     return _settings(**params)
@@ -115,17 +117,30 @@ def _ok_cloud(monkeypatch, transcript="cloud transcript"):
 # --- defaults ----------------------------------------------------------------
 
 
-def test_cloud_disabled_by_default(monkeypatch) -> None:
+def test_cloud_unconfigured_when_urls_empty(monkeypatch) -> None:
+    # Renamed contract: OC_TRANSCRIPTION_FILE_URL is primary,
+    # TRANSCRIPTION_CLOUD_URL is the deprecated alias; either set (non-empty)
+    # configures the cloud leg. Explicitly empty both for local-only.
     for var in (
         "TRANSCRIPTION_CLOUD_URL",
         "TRANSCRIPTION_CLOUD_API_KEY",
         "TRANSCRIPTION_ROUTE_ORDER",
+        "OC_TRANSCRIPTION_FILE_URL",
+        "OC_TRANSCRIPTION_MODEL",
+        "OC_TRANSCRIPTION_PROVIDER",
+        "OC_TRANSCRIPTION_MODE",
+        "OC_MODEL_CACHE_DIR",
+        "MODEL_DIR",
+        "OC_MODEL_PROVISIONING",
     ):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("OC_TRANSCRIPTION_FILE_URL", "")
     settings = Settings.from_environment()
     assert settings.cloud_url is None
     assert settings.cloud_api_key is None
     assert settings.route_order == "local-first"
+    assert settings.model_id is None
+    assert settings.transcription_mode == "ENDPOINTING"
     monkeypatch.setattr(app_module, "settings", _settings())
     ready = client.get("/health/ready")
     assert ready.status_code == 503

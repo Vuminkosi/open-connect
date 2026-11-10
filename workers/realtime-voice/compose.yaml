@@ -18,9 +18,15 @@ services:
       - "${OC_REALTIME_VOICE_PORT:-8080}:8080"
     environment:
       MODEL_DIR: /models
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract).
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
       OC_REALTIME_ORCHESTRATION_ONLY: "${OC_REALTIME_ORCHESTRATION_ONLY:-1}"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
     volumes:

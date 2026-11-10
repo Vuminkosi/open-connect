@@ -18,9 +18,14 @@ services:
       - "${OC_MMS_TTS_PORT:-8080}:8080"
     environment:
       MODEL_DIR: /models
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract).
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
       MMS_LANGUAGES: "${MMS_LANGUAGES:-eng}"
       MMS_COMMERCIAL_USE: "${MMS_COMMERCIAL_USE:-0}"
       MMS_CACHE_SIZE: "${MMS_CACHE_SIZE:-2}"

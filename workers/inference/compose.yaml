@@ -28,12 +28,24 @@ services:
       - "8080:8080"
     environment:
       OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_INFERENCE_TOKEN:-}
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
-      # Cloud is opt-in only (empty = local-only). A shared URL can be wired
-      # per deploy via INFERENCE_CLOUD_URL: ${WORKER_CLOUD_URL:-}. The API key
-      # must come from a secret mount, never baked into images or logs.
+      # Canonical OC_* defaults (workers-model-defaults contract). Either
+      # OC_INFERENCE_API_BASE_URL or INFERENCE_CLOUD_URL set means the cloud
+      # leg is configured; OC_ wins. Set OC_INFERENCE_API_BASE_URL empty to
+      # opt out of the default endpoint (local-only). The API key comes from
+      # a secret mount, never baked into images or logs. Contributor-tier
+      # models additionally require OC_CONTRIBUTOR_DATA_USE_APPROVED=1.
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_INFERENCE_PROVIDER: ${OC_INFERENCE_PROVIDER:-meta-model-api}
+      OC_INFERENCE_MODEL: ${OC_INFERENCE_MODEL:-muse-spark-1.3-contributor}
+      OC_INFERENCE_API_BASE_URL: ${OC_INFERENCE_API_BASE_URL:-https://api.meta.ai/v1}
+      OC_CONTRIBUTOR_DATA_USE_APPROVED: ${OC_CONTRIBUTOR_DATA_USE_APPROVED:-0}
+      # Deprecated alias for the cloud endpoint; OC_INFERENCE_API_BASE_URL wins.
       INFERENCE_CLOUD_URL: ${INFERENCE_CLOUD_URL:-}
       INFERENCE_CLOUD_API_KEY: ${INFERENCE_CLOUD_API_KEY:-}
       INFERENCE_ROUTE_ORDER: ${INFERENCE_ROUTE_ORDER:-cloud-first}

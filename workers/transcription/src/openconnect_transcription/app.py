@@ -114,9 +114,14 @@ def _routing_status(cfg: Settings) -> dict[str, object]:
 
 
 def _cloud_leg_available(cfg: Settings) -> bool:
+    # The cloud leg needs an exact provider model ID: OC_TRANSCRIPTION_MODEL
+    # defaults to empty (never guessed), so the cloud path stays unready
+    # until the operator sets it -- even with URL + key configured.
     return (
         cfg.cloud_url is not None
         and cfg.cloud_api_key is not None
+        and cfg.model_id is not None
+        and cfg.model_id != ""
         and not cloud_module.privacy_zone_strict()
     )
 
@@ -231,6 +236,11 @@ def ready() -> dict[str, object]:
             "capabilities": advertised_capabilities(backend=cfg.backend),
             "device": info.effective,
             "deviceRequested": info.requested,
+            "provisioning": cfg.provisioning,
+            "modelCacheDir": cfg.model_dir,
+            "transcriptionProvider": cfg.transcription_provider,
+            "transcriptionMode": cfg.transcription_mode,
+            "transcriptionModel": cfg.model_id,
             **_routing_status(cfg),
         }
     # Real mode: ready iff a serving leg exists (opt-in cloud, or a
@@ -248,6 +258,11 @@ def ready() -> dict[str, object]:
         "capabilities": advertised_capabilities(backend=cfg.backend),
         "device": info.effective,
         "deviceRequested": info.requested,
+        "provisioning": cfg.provisioning,
+        "modelCacheDir": cfg.model_dir,
+        "transcriptionProvider": cfg.transcription_provider,
+        "transcriptionMode": cfg.transcription_mode,
+        "transcriptionModel": cfg.model_id,
         **_routing_status(cfg),
     }
 

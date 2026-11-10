@@ -74,6 +74,8 @@ def ready() -> dict[str, object]:
             "engineWarning": FAKE_WARNING,
             "modelRevision": "fake-0.1.0",
             "labelSetVersion": DEFAULT_LABEL_SET_VERSION,
+            "provisioning": settings.provisioning,
+            "modelCacheDir": settings.model_dir.as_posix(),
             **device,
         }
     result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
@@ -83,6 +85,8 @@ def ready() -> dict[str, object]:
             "ready": True,
             "engine": "real",
             "modelRevision": result.manifest.revision,
+            "provisioning": settings.provisioning,
+            "modelCacheDir": settings.model_dir.as_posix(),
             **device,
         }
     return {"status": "unready", "ready": False, "reason": result.reason}

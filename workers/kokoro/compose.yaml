@@ -18,9 +18,14 @@ services:
       - "${OC_KOKORO_PORT:-8080}:8080"
     environment:
       MODEL_DIR: /models
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract).
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
       KOKORO_VOICES: "${KOKORO_VOICES:-af_heart}"
       KOKORO_DEFAULT_VOICE: "${KOKORO_DEFAULT_VOICE:-af_heart}"
       KOKORO_REQUIRE_MODEL: "${KOKORO_REQUIRE_MODEL:-0}"
