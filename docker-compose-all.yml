@@ -22,7 +22,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
-      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
+      GATEWAY_URL: http://gateway-host:8080/
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
@@ -119,7 +120,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       OC_TEST_MODE: "true"
-      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
@@ -225,8 +226,8 @@ services:
     image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-kokoro
     environment:
-      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-fake}
+      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OC_MODEL_DEVICE: auto
       OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
@@ -237,6 +238,12 @@ services:
       - oc_kokoro_models:/models
     networks:
       - oc-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
 
   worker-playwright:
     build:
@@ -254,10 +261,12 @@ services:
     image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-outbox
     environment:
-      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
-      Nats__Url: ${NATS_URL:-nats://nats:4222}
       WorkerHosts__Outbox__Mode: Standalone
       WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
+      WorkerHosts__Outbox__TenantUlid: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      WorkerHosts__Outbox__DatabaseProvider: npgsql
+      WorkerHosts__Outbox__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      WorkerHosts__Outbox__NatsUrl: nats://nats:4222
     networks:
       - oc-network
     depends_on:
@@ -273,9 +282,12 @@ services:
     image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-operational
     environment:
-      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
       WorkerHosts__Operational__Mode: Standalone
       WorkerHosts__Operational__EmbeddedEnabled: "false"
+      WorkerHosts__Operational__TenantUlid: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      WorkerHosts__Operational__DatabaseProvider: npgsql
+      WorkerHosts__Operational__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      WorkerHosts__Operational__NatsUrl: nats://nats:4222
     networks:
       - oc-network
     depends_on:

@@ -20,6 +20,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // OpenConnect Client, Composer, and Component Discovery
+var gatewayUrl = builder.Configuration["GATEWAY_URL"]
+    ?? builder.Configuration["OpenConnect:Gateway:Url"]
+    ?? "http://gateway-host:8080/";
+builder.Services.AddOpenConnectClient(new Uri(gatewayUrl));
 builder.Services.AddOpenConnectComponents();
 builder.Services.AddOpenConnectComposer(options =>
 {

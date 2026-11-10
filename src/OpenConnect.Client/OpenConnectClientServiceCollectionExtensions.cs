@@ -13,11 +13,11 @@ public static class OpenConnectClientServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(baseAddress);
         if (!baseAddress.IsAbsoluteUri
-            || baseAddress.Scheme != Uri.UriSchemeHttps
+            || (baseAddress.Scheme != Uri.UriSchemeHttps && baseAddress.Scheme != Uri.UriSchemeHttp)
             || !string.IsNullOrEmpty(baseAddress.Query)
             || !string.IsNullOrEmpty(baseAddress.Fragment))
         {
-            throw new ArgumentException("The base address must be an absolute HTTPS URL without a query or fragment.", nameof(baseAddress));
+            throw new ArgumentException("The base address must be an absolute HTTP or HTTPS URL without a query or fragment.", nameof(baseAddress));
         }
 
         var normalizedBaseAddress = new Uri(baseAddress.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
