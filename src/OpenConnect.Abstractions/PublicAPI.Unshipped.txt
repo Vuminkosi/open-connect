@@ -1,4 +1,8 @@
 #nullable enable
+const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.VoiceEgressDenied = "voice_egress_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hosting_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
 OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.Continuous = 3 -> OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.EventTriggered = 2 -> OpenConnect.Abstractions.AgentActivationMode
@@ -42,12 +46,22 @@ OpenConnect.Abstractions.AgentDefinition.Budget.get -> OpenConnect.Abstractions.
 OpenConnect.Abstractions.AgentDefinition.Budget.init -> void
 OpenConnect.Abstractions.AgentDefinition.ContextPolicy.get -> OpenConnect.Abstractions.AgentContextPolicy!
 OpenConnect.Abstractions.AgentDefinition.ContextPolicy.init -> void
+OpenConnect.Abstractions.AgentDefinition.EnableContextCompaction.get -> bool
+OpenConnect.Abstractions.AgentDefinition.EnableContextCompaction.init -> void
+OpenConnect.Abstractions.AgentDefinition.EnablePlanning.get -> bool
+OpenConnect.Abstractions.AgentDefinition.EnablePlanning.init -> void
+OpenConnect.Abstractions.AgentDefinition.EnableTodoTracking.get -> bool
+OpenConnect.Abstractions.AgentDefinition.EnableTodoTracking.init -> void
 OpenConnect.Abstractions.AgentDefinition.ExecutionMode.get -> OpenConnect.Abstractions.AgentExecutionMode
 OpenConnect.Abstractions.AgentDefinition.ExecutionMode.init -> void
+OpenConnect.Abstractions.AgentDefinition.ExecutionProfile.get -> OpenConnect.Abstractions.AgentExecutionProfile
+OpenConnect.Abstractions.AgentDefinition.ExecutionProfile.init -> void
 OpenConnect.Abstractions.AgentDefinition.Id.get -> OpenConnect.Abstractions.AgentId
 OpenConnect.Abstractions.AgentDefinition.Id.init -> void
 OpenConnect.Abstractions.AgentDefinition.IdentityMode.get -> OpenConnect.Abstractions.AgentIdentityMode
 OpenConnect.Abstractions.AgentDefinition.IdentityMode.init -> void
+OpenConnect.Abstractions.AgentDefinition.InstructionsPath.get -> string?
+OpenConnect.Abstractions.AgentDefinition.InstructionsPath.init -> void
 OpenConnect.Abstractions.AgentDefinition.InstructionsRevision.get -> string!
 OpenConnect.Abstractions.AgentDefinition.InstructionsRevision.init -> void
 OpenConnect.Abstractions.AgentDefinition.MemoryPolicy.get -> OpenConnect.Abstractions.AgentMemoryPolicy!
@@ -75,6 +89,11 @@ OpenConnect.Abstractions.AgentEventSubscriptionOptions.EventTypes.init -> void
 OpenConnect.Abstractions.AgentExecutionMode
 OpenConnect.Abstractions.AgentExecutionMode.Interactive = 0 -> OpenConnect.Abstractions.AgentExecutionMode
 OpenConnect.Abstractions.AgentExecutionMode.Operational = 1 -> OpenConnect.Abstractions.AgentExecutionMode
+OpenConnect.Abstractions.AgentExecutionProfile
+OpenConnect.Abstractions.AgentExecutionProfile.Direct = 0 -> OpenConnect.Abstractions.AgentExecutionProfile
+OpenConnect.Abstractions.AgentExecutionProfile.DurableWorkflow = 3 -> OpenConnect.Abstractions.AgentExecutionProfile
+OpenConnect.Abstractions.AgentExecutionProfile.Harness = 1 -> OpenConnect.Abstractions.AgentExecutionProfile
+OpenConnect.Abstractions.AgentExecutionProfile.Workflow = 2 -> OpenConnect.Abstractions.AgentExecutionProfile
 OpenConnect.Abstractions.AgentHistoryPolicy
 OpenConnect.Abstractions.AgentHistoryPolicy.BoundedSummary = 1 -> OpenConnect.Abstractions.AgentHistoryPolicy
 OpenConnect.Abstractions.AgentHistoryPolicy.FullWithinBudget = 2 -> OpenConnect.Abstractions.AgentHistoryPolicy
@@ -168,6 +187,10 @@ OpenConnect.Abstractions.CapabilityKind.Model = 1 -> OpenConnect.Abstractions.Ca
 OpenConnect.Abstractions.CapabilityKind.Security = 0 -> OpenConnect.Abstractions.CapabilityKind
 OpenConnect.Abstractions.CapabilityKind.Tool = 2 -> OpenConnect.Abstractions.CapabilityKind
 OpenConnect.Abstractions.CapabilityKind.Transport = 3 -> OpenConnect.Abstractions.CapabilityKind
+OpenConnect.Abstractions.CloudTranscriptionMode
+OpenConnect.Abstractions.CloudTranscriptionMode.Batch = 2 -> OpenConnect.Abstractions.CloudTranscriptionMode
+OpenConnect.Abstractions.CloudTranscriptionMode.Disabled = 0 -> OpenConnect.Abstractions.CloudTranscriptionMode
+OpenConnect.Abstractions.CloudTranscriptionMode.Endpointing = 1 -> OpenConnect.Abstractions.CloudTranscriptionMode
 OpenConnect.Abstractions.CommittedAgentEvent
 OpenConnect.Abstractions.CommittedAgentEvent.AgentId.get -> string!
 OpenConnect.Abstractions.CommittedAgentEvent.AgentId.init -> void
@@ -302,8 +325,19 @@ OpenConnect.Abstractions.IToolCatalog
 OpenConnect.Abstractions.IToolCatalog.Get(OpenConnect.Abstractions.ToolId toolId) -> OpenConnect.Abstractions.ToolDescriptor?
 OpenConnect.Abstractions.IToolCatalog.GetAuthorized(OpenConnect.Abstractions.AgentId agentId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
 OpenConnect.Abstractions.IToolCatalog.GetForAgent(OpenConnect.Abstractions.AgentId agentId) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Abstractions.IWorkerCapabilityRegistry
+OpenConnect.Abstractions.IWorkerCapabilityRegistry.Get(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> OpenConnect.Abstractions.WorkerCapabilityDescriptor?
+OpenConnect.Abstractions.IWorkerCapabilityRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
+OpenConnect.Abstractions.IWorkerCapabilityRegistry.GetReady() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
+OpenConnect.Abstractions.IWorkerCapabilityRegistry.Register(OpenConnect.Abstractions.WorkerCapabilityDescriptor! descriptor) -> void
 OpenConnect.Abstractions.KebabCaseStringEnumConverter<TEnum>
 OpenConnect.Abstractions.KebabCaseStringEnumConverter<TEnum>.KebabCaseStringEnumConverter() -> void
+OpenConnect.Abstractions.McpAuthorizationMode
+OpenConnect.Abstractions.McpAuthorizationMode.PerInvocation = 0 -> OpenConnect.Abstractions.McpAuthorizationMode
+OpenConnect.Abstractions.McpAuthorizationMode.SessionScoped = 1 -> OpenConnect.Abstractions.McpAuthorizationMode
+OpenConnect.Abstractions.McpToolAccess
+OpenConnect.Abstractions.McpToolAccess.AllowListed = 1 -> OpenConnect.Abstractions.McpToolAccess
+OpenConnect.Abstractions.McpToolAccess.Deny = 0 -> OpenConnect.Abstractions.McpToolAccess
 OpenConnect.Abstractions.MemoryDeletionRequest
 OpenConnect.Abstractions.MemoryDeletionRequest.AgentId.get -> string!
 OpenConnect.Abstractions.MemoryDeletionRequest.AgentId.init -> void
@@ -355,6 +389,18 @@ OpenConnect.Abstractions.ModelRequirement.ModelRequirement(string? ModelId = nul
 OpenConnect.Abstractions.OpenConnectTransportMode
 OpenConnect.Abstractions.OpenConnectTransportMode.InMemoryDevelopment = 1 -> OpenConnect.Abstractions.OpenConnectTransportMode
 OpenConnect.Abstractions.OpenConnectTransportMode.JetStream = 0 -> OpenConnect.Abstractions.OpenConnectTransportMode
+OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Classification = 1 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Inference = 3 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Kokoro = 6 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.MmsTts = 7 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.NavigatorPlaywright = 8 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Nllb = 2 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.OperationalAgents = 9 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Outbox = 10 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.RealtimeVoice = 5 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Security = 0 -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.OpenConnectWorkerKind.Transcription = 4 -> OpenConnect.Abstractions.OpenConnectWorkerKind
 OpenConnect.Abstractions.OperationalConcurrencyPolicy
 OpenConnect.Abstractions.OperationalConcurrencyPolicy.Forbid = 0 -> OpenConnect.Abstractions.OperationalConcurrencyPolicy
 OpenConnect.Abstractions.OperationalConcurrencyPolicy.Queue = 1 -> OpenConnect.Abstractions.OperationalConcurrencyPolicy
@@ -576,6 +622,44 @@ OpenConnect.Abstractions.RateLimitKey.Tenant.get -> string!
 OpenConnect.Abstractions.RateLimitKeyComparer
 OpenConnect.Abstractions.RateLimitKeyComparer.Equals(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
 OpenConnect.Abstractions.RateLimitKeyComparer.GetHashCode(OpenConnect.Abstractions.RateLimitKey! key) -> int
+OpenConnect.Abstractions.WorkerCapabilityDescriptor
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.CapabilityIds.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.CapabilityIds.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ContractVersion.get -> string!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ContractVersion.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.EndpointOrHostId.get -> string!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.EndpointOrHostId.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ExecutionLocation.get -> string!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ExecutionLocation.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ExpiresAt.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Kind.get -> OpenConnect.Abstractions.OpenConnectWorkerKind
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Kind.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Languages.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Languages.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Modalities.get -> System.Collections.Generic.IReadOnlySet<string!>!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Modalities.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ModelId.get -> string?
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ModelId.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ModelRevision.get -> string?
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.ModelRevision.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Readiness.get -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Readiness.init -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.WorkerCapabilityDescriptor(OpenConnect.Abstractions.OpenConnectWorkerKind Kind, string! ContractVersion, string! ExecutionLocation, string! EndpointOrHostId, OpenConnect.Abstractions.WorkerReadiness Readiness, System.Collections.Generic.IReadOnlySet<string!>! CapabilityIds, System.Collections.Generic.IReadOnlySet<string!>! Modalities, System.Collections.Generic.IReadOnlySet<string!>! Languages, string? ModelId, string? ModelRevision, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Abstractions.WorkerEngine.Fake = 1 -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Abstractions.WorkerEngine.Real = 0 -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Abstractions.WorkerHostingMode.Disabled = 0 -> OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Abstractions.WorkerHostingMode.Embedded = 1 -> OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Abstractions.WorkerHostingMode.Standalone = 2 -> OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Degraded = 4 -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Disabled = 0 -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Loading = 2 -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Provisioning = 1 -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Ready = 3 -> OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Unavailable = 5 -> OpenConnect.Abstractions.WorkerReadiness
 static OpenConnect.Abstractions.RateLimitKeyComparer.Instance.get -> OpenConnect.Abstractions.RateLimitKeyComparer!
 OpenConnect.Abstractions.RateLimitModes
 const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!

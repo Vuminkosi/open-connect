@@ -1,4 +1,7 @@
 #nullable enable
+const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
+const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
+const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 OpenConnect.Core.AgentDefinitionRegistry
 OpenConnect.Core.AgentDefinitionRegistry.AgentDefinitionRegistry() -> void
 OpenConnect.Core.AgentDefinitionRegistry.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -10,6 +13,25 @@ OpenConnect.Core.Capabilities.CapabilityRegistry.Get(OpenConnect.Abstractions.Ca
 OpenConnect.Core.Capabilities.CapabilityRegistry.GetReady(OpenConnect.Abstractions.CapabilityKind kind) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!
 OpenConnect.Core.Capabilities.CapabilityRegistry.MarkStale(OpenConnect.Abstractions.CapabilityId capabilityId) -> void
 OpenConnect.Core.Capabilities.CapabilityRegistry.Register(OpenConnect.Abstractions.CapabilityDescriptor! descriptor) -> void
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.Get(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> OpenConnect.Abstractions.WorkerCapabilityDescriptor?
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetReady() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetVisibleCapabilities(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, bool allowExternalEgress = false) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.Register(OpenConnect.Abstractions.WorkerCapabilityDescriptor! descriptor) -> void
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.UpdateReadiness(OpenConnect.Abstractions.OpenConnectWorkerKind kind, OpenConnect.Abstractions.WorkerReadiness readiness, string? modelId = null, string? modelRevision = null) -> void
+OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.WorkerCapabilityRegistry(System.TimeProvider? timeProvider = null, OpenConnect.Abstractions.ICapabilityRegistry? capabilityRegistry = null) -> void
+OpenConnect.Core.CloudTranscriptionPolicyEvaluator
+OpenConnect.Core.CloudTranscriptionPolicyEvaluator.CloudTranscriptionPolicyEvaluator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.CloudTranscriptionOptions!>! options, Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectOptions!>! coreOptions) -> void
+OpenConnect.Core.CloudTranscriptionPolicyEvaluator.EvaluateAudioEgress() -> OpenConnect.Core.CloudTranscriptionRouteDecision!
+OpenConnect.Core.CloudTranscriptionRouteDecision
+OpenConnect.Core.CloudTranscriptionRouteDecision.Allowed.get -> bool
+OpenConnect.Core.CloudTranscriptionRouteDecision.Allowed.init -> void
+OpenConnect.Core.CloudTranscriptionRouteDecision.CloudTranscriptionRouteDecision(bool Allowed, string? ErrorCode, string! Reason) -> void
+OpenConnect.Core.CloudTranscriptionRouteDecision.ErrorCode.get -> string?
+OpenConnect.Core.CloudTranscriptionRouteDecision.ErrorCode.init -> void
+OpenConnect.Core.CloudTranscriptionRouteDecision.Reason.get -> string!
+OpenConnect.Core.CloudTranscriptionRouteDecision.Reason.init -> void
 OpenConnect.Core.Configuration.AgentOptionsMapping
 OpenConnect.Core.Configuration.AgentRegistryOptions
 OpenConnect.Core.Configuration.AgentRegistryOptions.AgentRegistryOptions() -> void
@@ -57,6 +79,34 @@ OpenConnect.Core.Configuration.AgentRegistryOptions.RegisterLeadAgent.get -> boo
 OpenConnect.Core.Configuration.AgentRegistryOptions.RegisterLeadAgent.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.SessionHistory.get -> OpenConnect.Abstractions.AgentHistoryPolicy
 OpenConnect.Core.Configuration.AgentRegistryOptions.SessionHistory.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.ClassificationWorkerOptions() -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.ClassificationWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.ApprovedAudioEgressPolicy.get -> bool
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.ApprovedAudioEgressPolicy.set -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.CloudTranscriptionOptions() -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.Mode.get -> OpenConnect.Abstractions.CloudTranscriptionMode
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.Mode.set -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.Provider.get -> string!
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.Provider.set -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.ProviderCapabilitiesVerified.get -> bool
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.ProviderCapabilitiesVerified.set -> void
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.RequireApprovedAudioEgress.get -> bool
+OpenConnect.Core.Configuration.CloudTranscriptionOptions.RequireApprovedAudioEgress.set -> void
 OpenConnect.Core.Configuration.DetectorOptions
 OpenConnect.Core.Configuration.DetectorOptions.DetectorOptions() -> void
 OpenConnect.Core.Configuration.DetectorOptions.Device.get -> OpenConnect.Abstractions.DetectorDevice
@@ -77,17 +127,178 @@ OpenConnect.Core.Configuration.DetectorOptions.Revision.get -> string?
 OpenConnect.Core.Configuration.DetectorOptions.Revision.set -> void
 OpenConnect.Core.Configuration.DetectorOptions.Threshold.get -> double?
 OpenConnect.Core.Configuration.DetectorOptions.Threshold.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.InferenceWorkerOptions() -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.InferenceWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.InferenceWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.InferenceWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.InferenceWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.InferenceWorkerOptions.UseAsDefaultModelProvider.get -> bool
+OpenConnect.Core.Configuration.InferenceWorkerOptions.UseAsDefaultModelProvider.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions
+OpenConnect.Core.Configuration.KokoroWorkerOptions.DefaultModel.get -> string!
+OpenConnect.Core.Configuration.KokoroWorkerOptions.DefaultModel.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.DefaultVoice.get -> string!
+OpenConnect.Core.Configuration.KokoroWorkerOptions.DefaultVoice.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.KokoroWorkerOptions() -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.KokoroWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.KokoroWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.KokoroWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Languages.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.LicenseApproved.get -> bool
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.LicenseApproved.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.MmsTtsWorkerOptions() -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.MmsTtsWorkerOptions.Required.set -> void
 OpenConnect.Core.Configuration.OpenConnectConfigurationBinder
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableDirectAgent.get -> bool
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableDirectAgent.set -> void
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableDurableWorkflow.get -> bool
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableDurableWorkflow.set -> void
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableHarnessAgent.get -> bool
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableHarnessAgent.set -> void
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableWorkflow.get -> bool
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.EnableWorkflow.set -> void
+OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions.OpenConnectExecutionProfileOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectMcpOptions
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.Authorization.get -> OpenConnect.Abstractions.McpAuthorizationMode
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.Authorization.set -> void
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.DefaultToolAccess.get -> OpenConnect.Abstractions.McpToolAccess
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.DefaultToolAccess.set -> void
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.OpenConnectMcpOptions.OpenConnectMcpOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.AllowedTools.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.Name.get -> string!
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.Name.set -> void
+OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions.OpenConnectMcpServiceOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.AllowUnapprovedFallback.get -> bool
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.AllowUnapprovedFallback.set -> void
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.DefaultModel.get -> string!
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.DefaultModel.set -> void
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.DefaultProvider.get -> string!
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.DefaultProvider.set -> void
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.OpenConnectModelProviderOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.RequireVerifiedCapabilities.get -> bool
+OpenConnect.Core.Configuration.OpenConnectModelProviderOptions.RequireVerifiedCapabilities.set -> void
+OpenConnect.Core.Configuration.OpenConnectNatsOptions
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.EnableJetStream.get -> bool
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.EnableJetStream.set -> void
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.EnableOutboxIntegration.get -> bool
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.EnableOutboxIntegration.set -> void
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.MaxMessageBytes.get -> int
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.MaxMessageBytes.set -> void
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.OpenConnectNatsOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.Url.get -> string!
+OpenConnect.Core.Configuration.OpenConnectNatsOptions.Url.set -> void
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableMetrics.get -> bool
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableMetrics.set -> void
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableModelUsageMetering.get -> bool
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableModelUsageMetering.set -> void
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableTracing.get -> bool
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.EnableTracing.set -> void
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.OpenConnectObservabilityOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.RecordSensitiveContent.get -> bool
+OpenConnect.Core.Configuration.OpenConnectObservabilityOptions.RecordSensitiveContent.set -> void
 OpenConnect.Core.Configuration.OpenConnectOptions
 OpenConnect.Core.Configuration.OpenConnectOptions.Agents.get -> OpenConnect.Core.Configuration.AgentRegistryOptions!
 OpenConnect.Core.Configuration.OpenConnectOptions.OpenConnectOptions() -> void
 OpenConnect.Core.Configuration.OpenConnectOptions.Privacy.get -> OpenConnect.Core.Configuration.PrivacyOptions!
 OpenConnect.Core.Configuration.OpenConnectOptions.Runtime.get -> OpenConnect.Core.Configuration.RuntimeOptions!
 OpenConnect.Core.Configuration.OpenConnectOptions.Transport.get -> OpenConnect.Core.Configuration.TransportOptions!
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.EnableFencedClaims.get -> bool
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.EnableFencedClaims.set -> void
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.EnableJetStreamPublishing.get -> bool
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.EnableJetStreamPublishing.set -> void
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.HostId.get -> string!
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.HostId.set -> void
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.HostingMode.get -> OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.HostingMode.set -> void
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.OpenConnectOutboxOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.StandaloneDeployed.get -> bool
+OpenConnect.Core.Configuration.OpenConnectOutboxOptions.StandaloneDeployed.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableLiveTranscription.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableLiveTranscription.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableRecordedTranscription.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableRecordedTranscription.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSpeechOutput.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSpeechOutput.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.OpenConnectVoiceOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.Vad.get -> OpenConnect.Core.Configuration.VoiceVadOptions!
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.EnableDurableRecovery.get -> bool
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.EnableDurableRecovery.set -> void
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.EnableScheduling.get -> bool
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.EnableScheduling.set -> void
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.HostId.get -> string!
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.HostId.set -> void
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.HostingMode.get -> OpenConnect.Abstractions.WorkerHostingMode
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.HostingMode.set -> void
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.OperationalAgentsWorkerOptions() -> void
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.StandaloneDeployed.get -> bool
+OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.StandaloneDeployed.set -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.PlaywrightWorkerOptions() -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.RequireApprovedActions.get -> bool
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.RequireApprovedActions.set -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Required.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions
+OpenConnect.Core.Configuration.PrivacyOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
 OpenConnect.Core.Configuration.PrivacyOptions.Mode.set -> void
@@ -97,8 +308,26 @@ OpenConnect.Core.Configuration.PrivacyOptions.PaddleOcr.get -> OpenConnect.Core.
 OpenConnect.Core.Configuration.PrivacyOptions.Policies.get -> OpenConnect.Core.Configuration.SecurityPolicyOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.PrivacyOptions() -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.RealtimeVoiceWorkerOptions() -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions.Required.set -> void
 OpenConnect.Core.Configuration.RuntimeOptions
 OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.get -> string?
 OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.set -> void
@@ -119,14 +348,113 @@ OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.get -> OpenCo
 OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.get -> OpenConnect.Abstractions.SecurityCoverageUnavailableAction
 OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.PaddleOcr.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.SecurityWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.SecurityWorkerOptions() -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.ServerVadSileroOptions
+OpenConnect.Core.Configuration.ServerVadSileroOptions.ExpectedSha256.get -> string?
+OpenConnect.Core.Configuration.ServerVadSileroOptions.ExpectedSha256.set -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.FrameSamples.get -> int
+OpenConnect.Core.Configuration.ServerVadSileroOptions.FrameSamples.set -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.ModelPath.get -> string!
+OpenConnect.Core.Configuration.ServerVadSileroOptions.ModelPath.set -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.SampleRate.get -> int
+OpenConnect.Core.Configuration.ServerVadSileroOptions.SampleRate.set -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.ServerVadSileroOptions() -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.SpeechThreshold.get -> float
+OpenConnect.Core.Configuration.ServerVadSileroOptions.SpeechThreshold.set -> void
+OpenConnect.Core.Configuration.ServerVadSileroOptions.VerifyModelChecksum.get -> bool
+OpenConnect.Core.Configuration.ServerVadSileroOptions.VerifyModelChecksum.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.TranscriptionWorkerOptions() -> void
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.UseAsDefaultTranscriber.get -> bool
+OpenConnect.Core.Configuration.TranscriptionWorkerOptions.UseAsDefaultTranscriber.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions
+OpenConnect.Core.Configuration.TranslationWorkerOptions.AllowedLanguages.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Endpoint.get -> System.Uri?
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Endpoint.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Engine.get -> OpenConnect.Abstractions.WorkerEngine
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Engine.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Environment.get -> string!
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Environment.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.LicenseApproved.get -> bool
+OpenConnect.Core.Configuration.TranslationWorkerOptions.LicenseApproved.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.TranslationWorkerOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.ModelRevision.get -> string?
+OpenConnect.Core.Configuration.TranslationWorkerOptions.ModelRevision.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Core.Configuration.TranslationWorkerOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Required.get -> bool
+OpenConnect.Core.Configuration.TranslationWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.TranslationWorkerOptions.TranslationWorkerOptions() -> void
 OpenConnect.Core.Configuration.TransportOptions
 OpenConnect.Core.Configuration.TransportOptions.Mode.get -> OpenConnect.Abstractions.OpenConnectTransportMode
 OpenConnect.Core.Configuration.TransportOptions.Mode.set -> void
 OpenConnect.Core.Configuration.TransportOptions.TransportOptions() -> void
+OpenConnect.Core.Configuration.VoiceVadOptions
+OpenConnect.Core.Configuration.VoiceVadOptions.Location.get -> OpenConnect.Core.VadLocation
+OpenConnect.Core.Configuration.VoiceVadOptions.Location.set -> void
+OpenConnect.Core.Configuration.VoiceVadOptions.ServerEngine.get -> OpenConnect.Core.VadEngine
+OpenConnect.Core.Configuration.VoiceVadOptions.ServerEngine.set -> void
+OpenConnect.Core.Configuration.VoiceVadOptions.VoiceVadOptions() -> void
+OpenConnect.Core.CoreToolRegistry
+OpenConnect.Core.CoreToolRegistry.CoreToolRegistry() -> void
+OpenConnect.Core.CoreToolRegistry.Get(OpenConnect.Abstractions.ToolId toolId) -> OpenConnect.Abstractions.ToolDescriptor?
+OpenConnect.Core.CoreToolRegistry.GetAuthorized(OpenConnect.Abstractions.AgentId agentId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Core.CoreToolRegistry.GetForAgent(OpenConnect.Abstractions.AgentId agentId) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Core.CoreToolRegistry.RegisterDescriptor(OpenConnect.Abstractions.ToolDescriptor! descriptor) -> void
+OpenConnect.Core.McpServiceRegistry
+OpenConnect.Core.McpServiceRegistry.Get(string! name) -> OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions?
+OpenConnect.Core.McpServiceRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions!>!
+OpenConnect.Core.McpServiceRegistry.IsToolAllowed(string! serviceName, string! toolId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> bool
+OpenConnect.Core.McpServiceRegistry.McpServiceRegistry() -> void
+OpenConnect.Core.McpServiceRegistry.Register(OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions! service) -> void
 OpenConnect.Core.OpenConnectLeadAgent
 OpenConnect.Core.OpenConnectOptionsValidator
 OpenConnect.Core.OpenConnectOptionsValidator.OpenConnectOptionsValidator() -> void
 OpenConnect.Core.OpenConnectOptionsValidator.Validate(string? name, OpenConnect.Core.Configuration.OpenConnectOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+OpenConnect.Core.RecordedAudioUpload
+OpenConnect.Core.RecordedAudioUpload.ByteLength.get -> int
+OpenConnect.Core.RecordedAudioUpload.ByteLength.init -> void
+OpenConnect.Core.RecordedAudioUpload.ConfirmedByUser.get -> bool
+OpenConnect.Core.RecordedAudioUpload.ConfirmedByUser.init -> void
+OpenConnect.Core.RecordedAudioUpload.MimeType.get -> string!
+OpenConnect.Core.RecordedAudioUpload.MimeType.init -> void
+OpenConnect.Core.RecordedAudioUpload.RecordedAudioUpload(string! MimeType, int ByteLength, string! Sha256Hex, bool ConfirmedByUser) -> void
+OpenConnect.Core.RecordedAudioUpload.Sha256Hex.get -> string!
+OpenConnect.Core.RecordedAudioUpload.Sha256Hex.init -> void
 OpenConnect.Core.Runtime.InstructionLoader
 OpenConnect.Core.Runtime.InstructionLoader.InstructionLoader(string! contentRoot, int maximumBytes = 65536) -> void
 OpenConnect.Core.Runtime.InstructionLoader.LoadAsync(string! relativePath = "agent-runtime.md", System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Core.Runtime.LoadedInstructions!>!
@@ -136,11 +464,87 @@ OpenConnect.Core.Runtime.LoadedInstructions.Content.init -> void
 OpenConnect.Core.Runtime.LoadedInstructions.LoadedInstructions(string! Content, string! Revision) -> void
 OpenConnect.Core.Runtime.LoadedInstructions.Revision.get -> string!
 OpenConnect.Core.Runtime.LoadedInstructions.Revision.init -> void
+OpenConnect.Core.ServerSileroVadEngine
+OpenConnect.Core.ServerSileroVadEngine.ActiveCaptureCount.get -> int
+OpenConnect.Core.ServerSileroVadEngine.DisposeCapture(string! captureId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal) -> bool
+OpenConnect.Core.ServerSileroVadEngine.ProcessPcmFrame(string! captureId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, long sequence, int sourceSampleRate, long sourceSampleOffset, System.ReadOnlySpan<float> pcmSamples) -> OpenConnect.Core.ServerVadFrameResult!
+OpenConnect.Core.ServerSileroVadEngine.ServerSileroVadEngine(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.ServerVadSileroOptions!>! options) -> void
+OpenConnect.Core.ServerSileroVadEngine.TryGetRecurrentStateSnapshot(string! captureId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, out float[]! recurrentState, out float[]! context) -> bool
+OpenConnect.Core.ServerVadFrameResult
+OpenConnect.Core.ServerVadFrameResult.CaptureId.get -> string!
+OpenConnect.Core.ServerVadFrameResult.CaptureId.init -> void
+OpenConnect.Core.ServerVadFrameResult.IsSpeech.get -> bool
+OpenConnect.Core.ServerVadFrameResult.IsSpeech.init -> void
+OpenConnect.Core.ServerVadFrameResult.ProcessedFrames16k.get -> int
+OpenConnect.Core.ServerVadFrameResult.ProcessedFrames16k.init -> void
+OpenConnect.Core.ServerVadFrameResult.ResetCount.get -> int
+OpenConnect.Core.ServerVadFrameResult.ResetCount.init -> void
+OpenConnect.Core.ServerVadFrameResult.Sequence.get -> long
+OpenConnect.Core.ServerVadFrameResult.Sequence.init -> void
+OpenConnect.Core.ServerVadFrameResult.ServerVadFrameResult(string! CaptureId, long Sequence, long SourceSampleOffset, int ProcessedFrames16k, float SpeechProbability, bool IsSpeech, bool StateWasReset, int ResetCount) -> void
+OpenConnect.Core.ServerVadFrameResult.SourceSampleOffset.get -> long
+OpenConnect.Core.ServerVadFrameResult.SourceSampleOffset.init -> void
+OpenConnect.Core.ServerVadFrameResult.SpeechProbability.get -> float
+OpenConnect.Core.ServerVadFrameResult.SpeechProbability.init -> void
+OpenConnect.Core.ServerVadFrameResult.StateWasReset.get -> bool
+OpenConnect.Core.ServerVadFrameResult.StateWasReset.init -> void
 OpenConnect.Core.ServiceCollectionExtensions
 const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
 const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
+OpenConnect.Core.VadEngine
+OpenConnect.Core.VadEngine.None = 0 -> OpenConnect.Core.VadEngine
+OpenConnect.Core.VadEngine.SileroOnnx = 1 -> OpenConnect.Core.VadEngine
+OpenConnect.Core.VadEngine.WebRtc = 2 -> OpenConnect.Core.VadEngine
+OpenConnect.Core.VadLocation
+OpenConnect.Core.VadLocation.Client = 1 -> OpenConnect.Core.VadLocation
+OpenConnect.Core.VadLocation.Disabled = 0 -> OpenConnect.Core.VadLocation
+OpenConnect.Core.VadLocation.Hybrid = 3 -> OpenConnect.Core.VadLocation
+OpenConnect.Core.VadLocation.Server = 2 -> OpenConnect.Core.VadLocation
+OpenConnect.Core.VoiceTurnCommitResult
+OpenConnect.Core.VoiceTurnCommitResult.Committed.get -> bool
+OpenConnect.Core.VoiceTurnCommitResult.Committed.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.RejectionReason.get -> string?
+OpenConnect.Core.VoiceTurnCommitResult.RejectionReason.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.SpeechEpoch.get -> long
+OpenConnect.Core.VoiceTurnCommitResult.SpeechEpoch.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.Transcript.get -> string?
+OpenConnect.Core.VoiceTurnCommitResult.Transcript.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.TurnId.get -> string?
+OpenConnect.Core.VoiceTurnCommitResult.TurnId.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.VoiceTurnCommitResult(bool Committed, string? TurnId, long SpeechEpoch, string? Transcript, string? RejectionReason) -> void
+OpenConnect.Core.VoiceTurnCoordinator
+OpenConnect.Core.VoiceTurnCoordinator.CommitFinalTranscript(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, long speechEpoch, string! finalTranscript) -> OpenConnect.Core.VoiceTurnCommitResult!
+OpenConnect.Core.VoiceTurnCoordinator.GetCurrentEpoch(OpenConnect.Abstractions.SessionId sessionId) -> long
+OpenConnect.Core.VoiceTurnCoordinator.HandlePartialHypothesis(OpenConnect.Abstractions.SessionId sessionId, long speechEpoch, string! partialText) -> OpenConnect.Core.VoiceTurnCommitResult!
+OpenConnect.Core.VoiceTurnCoordinator.InterruptBargeIn(OpenConnect.Abstractions.SessionId sessionId) -> long
+OpenConnect.Core.VoiceTurnCoordinator.ValidateRecordedUpload(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Core.RecordedAudioUpload! upload) -> OpenConnect.Core.VoiceTurnCommitResult!
+OpenConnect.Core.VoiceTurnCoordinator.VoiceTurnCoordinator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>! options) -> void
+static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.CanonicalDockerImages.get -> System.Collections.Generic.IReadOnlyDictionary<OpenConnect.Abstractions.OpenConnectWorkerKind, string!>!
+static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetCanonicalDockerImage(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> string!
 static OpenConnect.Core.Configuration.AgentOptionsMapping.ToRunBudget(OpenConnect.Core.Configuration.AgentRegistryOptions! options) -> OpenConnect.Abstractions.AgentBudget!
 static OpenConnect.Core.Configuration.OpenConnectConfigurationBinder.Bind(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! configurationValues, string! sectionPrefix = "OpenConnect") -> OpenConnect.Core.Configuration.OpenConnectOptions!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnect(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectClassificationWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.ClassificationWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectCloudTranscription(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.CloudTranscriptionOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectExecutionProfiles(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectExecutionProfileOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectInferenceWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.InferenceWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectKokoroWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.KokoroWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectMcp(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectMcpOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectMcpService(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! name, System.Action<OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectMmsTtsWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.MmsTtsWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectModelProvider(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectModelProviderOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectNats(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectNatsOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectObservability(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectObservabilityOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectOperationalAgents(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectOutbox(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectOutboxOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectPlaywrightWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.PlaywrightWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectPrivacy(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectRealtimeVoiceWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectSecurityWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.SecurityWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectServerVadSilero(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.ServerVadSileroOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTool<TTool>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! toolId, OpenConnect.Abstractions.AgentId? agentId = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranscriptionWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranscriptionWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranslationWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranslationWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectVoice(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
 virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!

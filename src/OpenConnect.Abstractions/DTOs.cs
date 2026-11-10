@@ -8,8 +8,13 @@ public sealed record AgentDefinition(AgentId Id, string Name)
 {
     public string Version { get; init; } = "1";
     public AgentExecutionMode ExecutionMode { get; init; } = AgentExecutionMode.Interactive;
+    public AgentExecutionProfile ExecutionProfile { get; init; } = AgentExecutionProfile.Direct;
     public AgentIdentityMode IdentityMode { get; init; } = AgentIdentityMode.ActiveUser;
     public string InstructionsRevision { get; init; } = "1";
+    public string? InstructionsPath { get; init; }
+    public bool EnablePlanning { get; init; }
+    public bool EnableTodoTracking { get; init; }
+    public bool EnableContextCompaction { get; init; }
     public ModelRequirement? ModelRequirement { get; init; }
     public OrchestrationPolicy Orchestration { get; init; } = new();
     public AgentToolPolicy ToolPolicy { get; init; } = new();
@@ -113,3 +118,17 @@ public sealed record OutboxEntry(Guid Id, string Type, string Payload);
 public sealed record ToolPolicy(ToolId ToolId, ToolImpact Impact, ToolIdempotency Idempotency,
     ToolExecutionMode ExecutionMode, ToolAcknowledgementMode AcknowledgementMode,
     ToolProgressMode ProgressMode, ToolApprovalMode ApprovalMode);
+
+/// <summary>Canonical capability descriptor for one of the 11 OpenConnect worker kinds.</summary>
+public sealed record WorkerCapabilityDescriptor(
+    OpenConnectWorkerKind Kind,
+    string ContractVersion,
+    string ExecutionLocation,
+    string EndpointOrHostId,
+    WorkerReadiness Readiness,
+    IReadOnlySet<string> CapabilityIds,
+    IReadOnlySet<string> Modalities,
+    IReadOnlySet<string> Languages,
+    string? ModelId,
+    string? ModelRevision,
+    DateTimeOffset ExpiresAt);

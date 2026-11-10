@@ -63,9 +63,14 @@ public sealed class PrivacyOptions
     public bool Enabled { get; set; } = true;
     public FirewallMode Mode { get; set; } = FirewallMode.StrictLocal;
     public FirewallFailureAction OnFailure { get; set; } = FirewallFailureAction.Deny;
+    public bool RequireEgressValidation { get; set; } = true;
+    public bool EnableTokenization { get; set; } = true;
+    public bool EnableOutputInspection { get; set; } = true;
     public DetectorOptions Rules { get; } = new() { Enabled = true };
     public DetectorOptions GlinerPii { get; } = new();
+    public DetectorOptions Gliner => GlinerPii;
     public DetectorOptions DebertaInjection { get; } = new();
+    public DetectorOptions Deberta => DebertaInjection;
     public DetectorOptions Qwen3Guard { get; } = new();
     public DetectorOptions PaddleOcr { get; } = new();
     public DetectorOptions YuNet { get; } = new();
@@ -103,4 +108,211 @@ public sealed class DetectorOptions
     public int MaxConcurrentRequests { get; set; } = 1;
     public int? MemoryBudgetMb { get; set; }
     public double? Threshold { get; set; }
+}
+
+public sealed class OpenConnectObservabilityOptions
+{
+    public bool EnableTracing { get; set; } = true;
+    public bool EnableMetrics { get; set; } = true;
+    public bool EnableModelUsageMetering { get; set; } = true;
+    public bool RecordSensitiveContent { get; set; } = false;
+}
+
+public sealed class OpenConnectModelProviderOptions
+{
+    public string DefaultProvider { get; set; } = string.Empty;
+    public string DefaultModel { get; set; } = string.Empty;
+    public bool RequireVerifiedCapabilities { get; set; } = true;
+    public bool AllowUnapprovedFallback { get; set; } = false;
+}
+
+public sealed class OpenConnectExecutionProfileOptions
+{
+    public bool EnableDirectAgent { get; set; } = true;
+    public bool EnableHarnessAgent { get; set; } = true;
+    public bool EnableWorkflow { get; set; } = true;
+    public bool EnableDurableWorkflow { get; set; } = false;
+}
+
+public sealed class OpenConnectNatsOptions
+{
+    public string Url { get; set; } = string.Empty;
+    public bool EnableJetStream { get; set; } = true;
+    public bool EnableOutboxIntegration { get; set; } = true;
+    public int MaxMessageBytes { get; set; } = 64 * 1024;
+}
+
+public sealed class OpenConnectMcpOptions
+{
+    public bool Enabled { get; set; } = true;
+    public McpToolAccess DefaultToolAccess { get; set; } = McpToolAccess.Deny;
+    public McpAuthorizationMode Authorization { get; set; } = McpAuthorizationMode.PerInvocation;
+}
+
+public sealed class OpenConnectMcpServiceOptions
+{
+    public string Name { get; set; } = string.Empty;
+    public Uri? Endpoint { get; set; }
+    public ISet<string> AllowedTools { get; } = new HashSet<string>(StringComparer.Ordinal);
+}
+
+public sealed class VoiceVadOptions
+{
+    public OpenConnect.Core.VadLocation Location { get; set; } = OpenConnect.Core.VadLocation.Hybrid;
+    public OpenConnect.Core.VadEngine ServerEngine { get; set; } = OpenConnect.Core.VadEngine.SileroOnnx;
+}
+
+public sealed class OpenConnectVoiceOptions
+{
+    public bool EnableLiveTranscription { get; set; } = true;
+    public bool EnableRecordedTranscription { get; set; } = true;
+    public bool EnableSpeechOutput { get; set; } = true;
+    public VoiceVadOptions Vad { get; } = new();
+}
+
+public sealed class ServerVadSileroOptions
+{
+    public string ModelPath { get; set; } = "/models/silero/silero_vad_16k_op15.onnx";
+    public bool VerifyModelChecksum { get; set; } = true;
+    public string? ExpectedSha256 { get; set; }
+    public int SampleRate { get; set; } = 16_000;
+    public int FrameSamples { get; set; } = 512;
+    public float SpeechThreshold { get; set; } = 0.5f;
+}
+
+public sealed class CloudTranscriptionOptions
+{
+    public string Provider { get; set; } = string.Empty;
+    public CloudTranscriptionMode Mode { get; set; } = CloudTranscriptionMode.Endpointing;
+    public bool RequireApprovedAudioEgress { get; set; } = true;
+    public bool ApprovedAudioEgressPolicy { get; set; } = false;
+    public bool ProviderCapabilitiesVerified { get; set; } = false;
+}
+
+public sealed class SecurityWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = true;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public DetectorOptions Rules { get; } = new() { Enabled = true };
+    public DetectorOptions Gliner { get; } = new();
+    public DetectorOptions GlinerPii => Gliner;
+    public DetectorOptions Deberta { get; } = new();
+    public DetectorOptions DebertaInjection => Deberta;
+    public DetectorOptions Qwen3Guard { get; } = new();
+    public DetectorOptions PaddleOcr { get; } = new();
+    public DetectorOptions YuNet { get; } = new();
+}
+
+public sealed class ClassificationWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+}
+
+public sealed class TranslationWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+    public bool LicenseApproved { get; set; } = true;
+    public ISet<string> AllowedLanguages { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class InferenceWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool UseAsDefaultModelProvider { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+}
+
+public sealed class TranscriptionWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool UseAsDefaultTranscriber { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+}
+
+public sealed class RealtimeVoiceWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+}
+
+public sealed class KokoroWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public string DefaultVoice { get; set; } = "af_heart";
+    public string DefaultModel { get; set; } = "hexgrad/Kokoro-82M";
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelRevision { get; set; }
+}
+
+public sealed class MmsTtsWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+    public bool LicenseApproved { get; set; } = true;
+    public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
+    public string Environment { get; set; } = "Production";
+    public string? ModelId { get; set; }
+    public string? ModelRevision { get; set; }
+    public ISet<string> Languages { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class PlaywrightWorkerOptions
+{
+    public Uri? Endpoint { get; set; }
+    public bool Enabled { get; set; } = true;
+    public bool RequireApprovedActions { get; set; } = true;
+    public bool Required { get; set; } = false;
+    public bool RequireAuthenticatedTransport { get; set; } = true;
+}
+
+public sealed class OperationalAgentsWorkerOptions
+{
+    public WorkerHostingMode HostingMode { get; set; } = WorkerHostingMode.Embedded;
+    public bool EnableScheduling { get; set; } = true;
+    public bool EnableDurableRecovery { get; set; } = true;
+    public bool StandaloneDeployed { get; set; } = false;
+    public string HostId { get; set; } = "operational-agents";
+}
+
+public sealed class OpenConnectOutboxOptions
+{
+    public WorkerHostingMode HostingMode { get; set; } = WorkerHostingMode.Embedded;
+    public bool EnableJetStreamPublishing { get; set; } = true;
+    public bool EnableFencedClaims { get; set; } = true;
+    public bool StandaloneDeployed { get; set; } = false;
+    public string HostId { get; set; } = "outbox";
 }

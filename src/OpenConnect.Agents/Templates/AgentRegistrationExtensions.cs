@@ -109,6 +109,18 @@ public static class AgentRegistrationExtensions
         public AgentMemoryPolicy MemoryPolicy { get; set; } = new();
         /// <summary>Gets or sets the execution budget.</summary>
         public AgentBudget Budget { get; set; } = new();
+        /// <summary>Gets or sets the execution profile.</summary>
+        public AgentExecutionProfile ExecutionProfile { get; set; } = AgentExecutionProfile.Direct;
+        /// <summary>Gets or sets the execution mode.</summary>
+        public AgentExecutionMode ExecutionMode { get; set; } = AgentExecutionMode.Interactive;
+        /// <summary>Gets or sets the relative instruction file path.</summary>
+        public string InstructionsPath { get; set; } = string.Empty;
+        /// <summary>Gets or sets whether planning is enabled.</summary>
+        public bool EnablePlanning { get; set; }
+        /// <summary>Gets or sets whether todo tracking is enabled.</summary>
+        public bool EnableTodoTracking { get; set; }
+        /// <summary>Gets or sets whether context compaction is enabled.</summary>
+        public bool EnableContextCompaction { get; set; }
 
         internal AgentDefinition Build() => new(new AgentId(_id), string.IsNullOrWhiteSpace(Name) ? _id : Name)
         {
@@ -117,7 +129,13 @@ public static class AgentRegistrationExtensions
             ToolPolicy = ToolPolicy,
             ContextPolicy = ContextPolicy,
             MemoryPolicy = MemoryPolicy,
-            Budget = Budget
+            Budget = Budget,
+            ExecutionProfile = ExecutionProfile,
+            ExecutionMode = ExecutionMode,
+            InstructionsPath = InstructionsPath,
+            EnablePlanning = EnablePlanning,
+            EnableTodoTracking = EnableTodoTracking,
+            EnableContextCompaction = EnableContextCompaction
         };
     }
 
