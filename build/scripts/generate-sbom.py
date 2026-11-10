@@ -121,24 +121,27 @@ def build_bom(
     components: list[dict] = []
     seen: set[tuple[str, str, str]] = set()
     for tfm, deps in sorted(dep_groups.items()):
-        if tfm.startswith("*"):
-            continue
+        # FIND-01 (CF-REV-029): ungrouped nuspec dependencies (no
+        # targetFramework) apply to every TFM per verifier semantics, so
+        # emit each once per REQUIRED_TFM instead of dropping them.
+        tfms = list(REQUIRED_TFMS) if tfm.startswith("*") else [tfm]
         for dep_id, dep_ver in sorted(deps, key=lambda d: d[0].lower()):
             if not dep_id:
                 continue
-            key = (dep_id, dep_ver or "", tfm)
-            if key in seen:
-                continue
-            seen.add(key)
-            comp: dict = {
-                "type": "library",
-                "name": dep_id,
-                "scope": "required",
-                "properties": [{"name": "tfm", "value": tfm}],
-            }
-            if dep_ver:
-                comp["version"] = dep_ver
-            components.append(comp)
+            for target_tfm in tfms:
+                key = (dep_id, dep_ver or "", target_tfm)
+                if key in seen:
+                    continue
+                seen.add(key)
+                comp: dict = {
+                    "type": "library",
+                    "name": dep_id,
+                    "scope": "required",
+                    "properties": [{"name": "tfm", "value": target_tfm}],
+                }
+                if dep_ver:
+                    comp["version"] = dep_ver
+                components.append(comp)
 
     return {
         "bomFormat": "CycloneDX",
