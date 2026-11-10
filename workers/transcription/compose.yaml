@@ -1,0 +1,77 @@
+# OpenConnect transcription worker compose profile.
+#
+# Model weights are NEVER downloaded by the serving container. The
+# `model-init` step provisions only a signed manifest placeholder into the
+# named volume; `serve` mounts that volume read-only and runs fully offline
+# (HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1).
+name: openconnect-transcription
+
+services:
+  model-init:
+    image: busybox:1.36
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /models
+        printf '{"modelId":"none","revision":"none","license":"none","provisionedBy":"model-init","note":"fake-bounded engine requires no weights"}' > /models/model-manifest.json
+        chmod 0444 /models/model-manifest.json
+    volumes:
+      - oc_transcription_models:/models
+
+  serve:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openconnect-transcription:0.1.0
+    ports:
+      - "8080:8080"
+    environment:
+      OPENCONNECT_TRANSCRIPTION_TOKEN: ${OPENCONNECT_TRANSCRIPTION_TOKEN:-}
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract). Either
+      # OC_TRANSCRIPTION_FILE_URL or TRANSCRIPTION_CLOUD_URL set means the
+      # cloud leg is configured; OC_ wins. Set OC_TRANSCRIPTION_FILE_URL
+      # empty to opt out of the default endpoint (local-only). The API
+      # key comes from a secret mount, never baked into images or logs.
+      # The cloud leg additionally requires OC_TRANSCRIPTION_MODEL (never
+      # guessed): without it the cloud path stays unready until the operator
+      # sets an exact provider model ID.
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_TRANSCRIPTION_PROVIDER: ${OC_TRANSCRIPTION_PROVIDER:-meta-model-api}
+      OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
+      OC_TRANSCRIPTION_REALTIME_URL: ${OC_TRANSCRIPTION_REALTIME_URL:-wss://api.meta.ai/v1/asr/realtime}
+      OC_TRANSCRIPTION_FILE_URL: ${OC_TRANSCRIPTION_FILE_URL:-https://api.meta.ai/v1/asr/transcribe}
+      OC_TRANSCRIPTION_MODEL: ${OC_TRANSCRIPTION_MODEL:-}
+      # Deprecated alias for the cloud file endpoint; OC_TRANSCRIPTION_FILE_URL wins.
+      TRANSCRIPTION_CLOUD_URL: ${TRANSCRIPTION_CLOUD_URL:-}
+      TRANSCRIPTION_CLOUD_API_KEY: ${TRANSCRIPTION_CLOUD_API_KEY:-}
+      TRANSCRIPTION_ROUTE_ORDER: ${TRANSCRIPTION_ROUTE_ORDER:-cloud-first}
+      TRANSCRIPTION_CLOUD_TIMEOUT_MS: ${TRANSCRIPTION_CLOUD_TIMEOUT_MS:-5000}
+      TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-local-fake}
+      TRANSCRIPTION_PRIVACY_MODE: ${TRANSCRIPTION_PRIVACY_MODE:-strict-local}
+      TRANSCRIPTION_MODEL_ID: ${TRANSCRIPTION_MODEL_ID:-}
+      TRANSCRIPTION_MODEL_REVISION: ${TRANSCRIPTION_MODEL_REVISION:-}
+      TRANSCRIPTION_ENDPOINT_URL: ${TRANSCRIPTION_ENDPOINT_URL:-}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      MODEL_DIR: /models
+    volumes:
+      - oc_transcription_models:/models:ro
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+volumes:
+  oc_transcription_models:
+    name: oc_transcription_models

@@ -14,6 +14,7 @@ public sealed class MafConversationRunner
     private readonly AgentId _leadAgentId;
     private readonly SessionTurnConcurrency _concurrency;
     private readonly RunBudgetLedger? _runLedger;
+    private readonly IRateLimitGate? _rateLimitGate;
     private readonly List<ChatMessage> _history = [];
     private AIAgent? _leadAgent;
     private AgentSession? _leadSession;
@@ -32,14 +33,17 @@ public sealed class MafConversationRunner
     /// <param name="leadAgentId">Identifier of the lead agent.</param>
     /// <param name="concurrency">Policy for overlapping turns. Queue currently has the same FIFO gate-wait behavior as Serialize; bounded-queue semantics are not specified.</param>
     /// <param name="runLedger">Optional shared run-wide budget ledger. Each invocation reserves once; tokens are estimated from prompt UTF-8 bytes, not response tokens.</param>
+    /// <param name="rateLimitGate">Optional tenant/application rate gate; when absent, rate limiting is skipped. When present, turns and delegated children are each gated exactly once with the attributed tenant before any reservation; unattributed calls deny fail-closed.</param>
     public MafConversationRunner(MafRealAgentFactory factory, AgentId leadAgentId,
-        SessionTurnConcurrency concurrency = SessionTurnConcurrency.Serialize, RunBudgetLedger? runLedger = null)
+        SessionTurnConcurrency concurrency = SessionTurnConcurrency.Serialize, RunBudgetLedger? runLedger = null,
+        IRateLimitGate? rateLimitGate = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _leadAgentId = leadAgentId;
         if (!Enum.IsDefined(concurrency)) throw new ArgumentOutOfRangeException(nameof(concurrency));
         _concurrency = concurrency;
         _runLedger = runLedger;
+        _rateLimitGate = rateLimitGate;
     }
 
     /// <summary>Returns a snapshot of the conversation's user and assistant messages.</summary>
@@ -56,7 +60,10 @@ public sealed class MafConversationRunner
 
     /// <summary>Runs a budgeted turn using conversation history and appends the actual response.</summary>
     /// <remarks>When configured, the runner reserves once before invocation using prompt UTF-8 bytes as an input-token estimate; response tokens are unknown upfront.</remarks>
-    public async Task<AgentResponse> TurnAsync(string prompt, CancellationToken cancellationToken = default)
+    /// <param name="prompt">Prompt supplied for this turn; UTF-8 byte count is used as a conservative input-token estimate.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="tenant">Tenant authority scope the turn is attributed to. When a rate gate is configured, the gate is evaluated exactly once for this turn before any budget reservation or MAF invocation; a missing tenant denies fail-closed.</param>
+    public async Task<AgentResponse> TurnAsync(string prompt, CancellationToken cancellationToken = default, string? tenant = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         cancellationToken.ThrowIfCancellationRequested();
@@ -75,6 +82,7 @@ public sealed class MafConversationRunner
         {
             // Fail before invoking MAF or recording trace/history when no monotonic sequence remains.
             lock (_sync) _ = checked(_turnSequence + 1);
+            ThrowIfRateLimited(tenant, _leadAgentId.Value, Guid.NewGuid().ToString("N"), cancellationToken);
             ReserveModelCall(prompt);
             var agent = _leadAgent ?? _factory.CreateAgent(_leadAgentId);
             AgentSession candidateSession;
@@ -134,11 +142,12 @@ public sealed class MafConversationRunner
     /// <param name="prompt">Prompt supplied to the child; UTF-8 byte count is used as a conservative input-token estimate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="childSessionKey">Optional host-assigned key for continuing this child agent's session.</param>
+    /// <param name="tenant">Tenant authority scope the delegation is attributed to. When a rate gate is configured, the gate is evaluated exactly once for this delegation before any budget reservation or MAF invocation; a missing tenant denies fail-closed.</param>
     /// <remarks>The host owns key assignment. A key must not be shared across concurrent branches. The map is bounded by this runner's lifetime and is not durable across restarts; durable session ownership belongs to OpenConnect.Sessions. No trace record exists for work that never began: session creation failure creates no record, and every recorded trace is completed by its owning finally.</remarks>
     /// <returns>The child agent response.</returns>
     /// <exception cref="InvalidOperationException">The configured run budget is exhausted.</exception>
     public async Task<AgentResponse> DelegateAsync(Guid parentExecutionId, AgentId childAgentId, string prompt,
-        CancellationToken cancellationToken = default, string? childSessionKey = null)
+        CancellationToken cancellationToken = default, string? childSessionKey = null, string? tenant = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         cancellationToken.ThrowIfCancellationRequested();
@@ -150,6 +159,7 @@ public sealed class MafConversationRunner
             if (_unusable)
                 throw new InvalidOperationException("This conversation runner is unusable after native session ownership cleanup failed.");
         }
+        ThrowIfRateLimited(tenant, childAgentId.Value, Guid.NewGuid().ToString("N"), cancellationToken);
         ReserveModelCall(prompt);
         var agent = _factory.CreateAgent(childAgentId);
         if (string.IsNullOrEmpty(childSessionKey))
@@ -163,7 +173,7 @@ public sealed class MafConversationRunner
         lock (_sync) _childSessions.TryGetValue((childAgentId, childSessionKey), out session);
         if (session is null)
         {
-            var createdSession = await agent.CreateSessionAsync().ConfigureAwait(false);
+            var createdSession = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
             lock (_sync)
             {
                 if (!_childSessions.TryGetValue((childAgentId, childSessionKey), out session))
@@ -178,7 +188,7 @@ public sealed class MafConversationRunner
         AddTrace(new ExecutionTraceRecord(keyedExecutionId, parentExecutionId, childAgentId.Value, "agent", DateTimeOffset.UtcNow, null));
         try
         {
-            var response = await agent.RunAsync(prompt, session).ConfigureAwait(false);
+            var response = await agent.RunAsync(prompt, session, cancellationToken: cancellationToken).ConfigureAwait(false);
             lock (_sync)
             {
                 var countKey = (childAgentId.Value, childSessionKey);
@@ -238,6 +248,7 @@ public sealed class MafConversationRunner
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
                 var candidateSession = loaded?.Session ?? await agent.CreateSessionAsync(ct).ConfigureAwait(false);
                 var expectedVersion = loaded?.Version ?? 0;
+                ThrowIfRateLimited(executionContext.TenantScope, _leadAgentId.Value, executionContext.AgentExecutionId.Value.ToString(), ct);
                 ReserveModelCall(prompt);
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
                 executionId = Guid.NewGuid();
@@ -355,6 +366,25 @@ public sealed class MafConversationRunner
             foreach (var child in validated.ChildSessions)
                 _childHistoryCounts.Add((child.AgentId, child.SessionKey), child.HistoryCount);
         }
+    }
+
+    /// <summary>Enforces the tenant/application rate gate exactly once per turn or delegation, after validation and before any budget reservation or MAF invocation.</summary>
+    /// <remarks>Truly unattributed calls (missing tenant) deny fail-closed with no audit. Cancellation propagates as <see cref="OperationCanceledException"/>; other gate failures deny fail-closed.</remarks>
+    private void ThrowIfRateLimited(string? tenant, string application, string executionId, CancellationToken cancellationToken)
+    {
+        if (_rateLimitGate is null) return;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(tenant))
+                throw new InvalidOperationException("Interactive rate limit exceeded (unattributed).");
+            var decision = _rateLimitGate.TryAcquire(new RateLimitKey(tenant, application, RateLimitModes.Interactive),
+                executionId, cancellationToken);
+            if (!decision.Allowed)
+                throw new InvalidOperationException($"Interactive rate limit exceeded ({decision.LimitName}).");
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException) { throw; }
+        catch (Exception) { throw new InvalidOperationException("Interactive rate limit exceeded."); }
     }
 
     private void ReserveModelCall(string prompt)

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OpenConnect.WorkerHosts.Operational</AssemblyName>
+    <RootNamespace>OpenConnect.WorkerHosts.Operational</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,76 @@
+# OpenConnect inference worker compose profile.
+#
+# Model weights are NEVER downloaded by the serving container. The
+# `model-init` step provisions only a signed manifest placeholder into the
+# named volume; `serve` mounts that volume read-only and runs fully offline
+# (HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1).
+name: openconnect-inference
+
+services:
+  model-init:
+    image: busybox:1.36
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /models
+        printf '{"modelId":"none","revision":"none","license":"none","provisionedBy":"model-init","note":"fake-bounded engine requires no weights"}' > /models/model-manifest.json
+        chmod 0444 /models/model-manifest.json
+    volumes:
+      - oc_inference_models:/models
+
+  serve:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openconnect-inference:0.1.0
+    ports:
+      - "8080:8080"
+    environment:
+      OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_INFERENCE_TOKEN:-}
+      # Deprecated alias; OC_WORKER_ENGINE wins when set.
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Canonical OC_* defaults (workers-model-defaults contract). Either
+      # OC_INFERENCE_API_BASE_URL or INFERENCE_CLOUD_URL set means the cloud
+      # leg is configured; OC_ wins. Set OC_INFERENCE_API_BASE_URL empty to
+      # opt out of the default endpoint (local-only). The API key comes from
+      # a secret mount, never baked into images or logs. Contributor-tier
+      # models additionally require OC_CONTRIBUTOR_DATA_USE_APPROVED=1.
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_INFERENCE_PROVIDER: ${OC_INFERENCE_PROVIDER:-meta-model-api}
+      OC_INFERENCE_MODEL: ${OC_INFERENCE_MODEL:-muse-spark-1.3-contributor}
+      OC_INFERENCE_API_BASE_URL: ${OC_INFERENCE_API_BASE_URL:-https://api.meta.ai/v1}
+      OC_CONTRIBUTOR_DATA_USE_APPROVED: ${OC_CONTRIBUTOR_DATA_USE_APPROVED:-0}
+      # Deprecated alias for the cloud endpoint; OC_INFERENCE_API_BASE_URL wins.
+      INFERENCE_CLOUD_URL: ${INFERENCE_CLOUD_URL:-}
+      INFERENCE_CLOUD_API_KEY: ${INFERENCE_CLOUD_API_KEY:-}
+      INFERENCE_ROUTE_ORDER: ${INFERENCE_ROUTE_ORDER:-cloud-first}
+      INFERENCE_CLOUD_TIMEOUT_MS: ${INFERENCE_CLOUD_TIMEOUT_MS:-5000}
+      INFERENCE_BACKEND: ${INFERENCE_BACKEND:-python-transformers}
+      INFERENCE_MODEL_ID: ${INFERENCE_MODEL_ID:-}
+      INFERENCE_MODEL_REVISION: ${INFERENCE_MODEL_REVISION:-}
+      INFERENCE_ENDPOINT_URL: ${INFERENCE_ENDPOINT_URL:-}
+      INFERENCE_ENABLE_TOOLS: ${INFERENCE_ENABLE_TOOLS:-0}
+      INFERENCE_ENABLE_STRUCTURED_OUTPUT: ${INFERENCE_ENABLE_STRUCTURED_OUTPUT:-0}
+      INFERENCE_ENABLE_EMBEDDINGS: ${INFERENCE_ENABLE_EMBEDDINGS:-0}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      MODEL_DIR: /models
+    volumes:
+      - oc_inference_models:/models:ro
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+volumes:
+  oc_inference_models:
+    name: oc_inference_models

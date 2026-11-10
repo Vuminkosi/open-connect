@@ -1,3 +1,4 @@
+using OpenConnect.Abstractions;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.Operational.Durable;
 using System.Collections.Concurrent;
@@ -10,7 +11,8 @@ public sealed class OperationalNavigatorHandler(
     IOperationalWorkloadIdentityProvider identities,
     IOperationalPlanProvider plans,
     IOperationalStepExecutor executor,
-    DurableIdempotencyStore? receipts = null) : IOperationalHandler
+    DurableIdempotencyStore? receipts = null,
+    IRateLimitGate? rateLimitGate = null) : IOperationalHandler
 {
     // The durable completed-receipt lookup is authoritative across processes; this reservation
     // remains a fast path for concurrent duplicate requests within this process.
@@ -26,6 +28,9 @@ public sealed class OperationalNavigatorHandler(
             || string.IsNullOrWhiteSpace(job.IdempotencyKey) || string.IsNullOrWhiteSpace(job.PolicyRevision)
                 || job.ApplicationAllowlist is null || job.ApplicationAllowlist.Count == 0 || job.Deadline <= DateTimeOffset.UtcNow)
             return new(job.ExecutionId ?? string.Empty, OperationalRunStatus.Rejected, 0, "Invalid or expired operational job.", 0);
+
+        if (IsRateLimited(job, cancellationToken))
+            return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Operational rate limit exceeded.", 0);
 
         if (receipts is not null)
         {
@@ -68,6 +73,32 @@ public sealed class OperationalNavigatorHandler(
     private void RemoveReservation(string key, Lazy<Task<OperationalReceipt>> reservation) =>
         ((ICollection<KeyValuePair<string, Lazy<Task<OperationalReceipt>>>>)_results)
             .Remove(new(key, reservation));
+
+    /// <summary>Enforces the tenant/application rate gate after validation and before durable-receipt lookup.</summary>
+    /// <remarks>Gate exceptions deny (fail closed) using the existing Rejected shape. Cancellation is never
+    /// misclassified as a rate-limit denial: <see cref="OperationCanceledException"/> propagates to the caller,
+    /// matching MafConversationRunner.ThrowIfRateLimited and the pre-work state (no lease, executor, or durable
+    /// effects exist yet, so no Cancelled receipt is fabricated).</remarks>
+    private bool IsRateLimited(OperationalJob job, CancellationToken cancellationToken)
+    {
+        if (rateLimitGate is null) return false;
+        try
+        {
+            var application = job.ApplicationAllowlist.OrderBy(name => name, StringComparer.Ordinal).FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(application)) return true;
+            var decision = rateLimitGate.TryAcquire(new RateLimitKey(job.TenantScope, application, RateLimitModes.Operational),
+                job.ExecutionId, cancellationToken);
+            return !decision.Allowed;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 
     private async Task<OperationalReceipt> ExecuteAsync(OperationalJob job, CancellationToken cancellationToken)
     {

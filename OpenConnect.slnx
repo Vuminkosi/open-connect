@@ -36,6 +36,9 @@
     <Project Path="tests/Unit/OpenConnect.Tools.Tests/OpenConnect.Tools.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/ArchitectureAtlas/OpenConnect.Samples.ArchitectureAtlas.csproj" />
+  </Folder>
   <Folder Name="/packages/" />
   <Folder Name="/workers/" />
   <Folder Name="/contracts/" />

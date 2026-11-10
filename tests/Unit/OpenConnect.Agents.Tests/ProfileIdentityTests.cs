@@ -14,16 +14,14 @@ public sealed class ProfileIdentityTests
             OrchestrationProfileRouter.Resolve(AgentOrchestrationMode.Direct, true, false, false, false, false));
 
     [Theory]
-    [InlineData(AgentOrchestrationMode.Sequential)]
-    [InlineData(AgentOrchestrationMode.Parallel)]
-    [InlineData(AgentOrchestrationMode.Handoff)]
-    [InlineData(AgentOrchestrationMode.SupervisorDelegation)]
-    public void Resolve_RejectsWorkflowModesWhenWorkflowRuntimeIsUnavailable(AgentOrchestrationMode mode)
+    [InlineData(AgentOrchestrationMode.Sequential, OrchestrationRunnerKey.SequentialRunner)]
+    [InlineData(AgentOrchestrationMode.Parallel, OrchestrationRunnerKey.ParallelRunner)]
+    [InlineData(AgentOrchestrationMode.Handoff, OrchestrationRunnerKey.HandoffRunner)]
+    [InlineData(AgentOrchestrationMode.SupervisorDelegation, OrchestrationRunnerKey.SupervisorRunner)]
+    public void Resolve_MapsWorkflowModesWhenRuntimeAvailable(AgentOrchestrationMode mode, OrchestrationRunnerKey expected)
     {
-        var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
+        Assert.Equal(expected,
             OrchestrationProfileRouter.Resolve(mode, true, true, true, true, true));
-
-        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
     }
 
     [Theory]
@@ -31,12 +29,12 @@ public sealed class ProfileIdentityTests
     [InlineData(AgentOrchestrationMode.Parallel)]
     [InlineData(AgentOrchestrationMode.Handoff)]
     [InlineData(AgentOrchestrationMode.SupervisorDelegation)]
-    public void AdapterValidation_RejectsWorkflowModesBeforeHostSupportCheck(AgentOrchestrationMode mode)
+    public void AdapterValidation_AllowsWorkflowModesWhenRuntimeAvailable(AgentOrchestrationMode mode)
     {
-        var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
+        var exception = Record.Exception(() =>
             OrchestrationAdapters.ValidateProfile(mode, true));
 
-        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -52,16 +50,23 @@ public sealed class ProfileIdentityTests
     public void Resolve_RejectsUndefinedMode() =>
         Assert.Throws<InvalidOperationException>(() => OrchestrationProfileRouter.Resolve((AgentOrchestrationMode)99, true, true, true, true, true));
 
-    [Theory]
-    [InlineData("Workflow")]
-    [InlineData("DurableWorkflow")]
-    public void ValidateRuntimeProfile_RejectsUnavailableWorkflowProfilesWithMissingType(string profile)
+    [Fact]
+    public void ValidateRuntimeProfile_AllowsWorkflowWhenRuntimeAvailable()
+    {
+        var exception = Record.Exception(() =>
+            OrchestrationProfileRouter.ValidateRuntimeProfile("Workflow"));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void ValidateRuntimeProfile_RejectsDurableWorkflowWithDurableMissingType()
     {
         var error = Assert.Throws<MafCapabilityUnavailableException>(() =>
-            OrchestrationProfileRouter.ValidateRuntimeProfile(profile));
+            OrchestrationProfileRouter.ValidateRuntimeProfile("DurableWorkflow"));
 
-        Assert.Equal(profile, error.Profile);
-        Assert.Equal("Microsoft.Agents.AI.Workflows.WorkflowBuilder", error.MissingTypeName);
+        Assert.Equal("DurableWorkflow", error.Profile);
+        Assert.Equal("Microsoft.Agents.AI.Workflows.DurableWorkflowExecutor", error.MissingTypeName);
         Assert.Contains(error.MissingTypeName, error.Message);
     }
 
