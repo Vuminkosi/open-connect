@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-excessive-text",
+  "maxChars": 4096,
+  "oversizedInput": {
+    "repeatUnit": "Excessive length speech synthesis sentence test payload. ",
+    "repeatCount": 100,
+    "expectedStatus": 422,
+    "expectedDetail": "input_too_long"
+  }
+}

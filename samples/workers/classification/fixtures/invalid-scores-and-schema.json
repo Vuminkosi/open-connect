@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "classification-invalid-scores-and-schema-v1",
+  "description": "Invalid score bounds (<0 or >1), unnormalized probabilities, and malformed JSON contracts rejected by schema validation.",
+  "invalidRequests": [
+    {
+      "id": "threshold-above-one",
+      "payload": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174130",
+        "input": {
+          "text": "Sample text",
+          "labelSetVersion": "v1",
+          "threshold": 1.5
+        }
+      },
+      "expectedHttpStatus": 422
+    },
+    {
+      "id": "negative-max-labels",
+      "payload": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174131",
+        "input": {
+          "text": "Sample text",
+          "labelSetVersion": "v1",
+          "maxLabels": 0
+        }
+      },
+      "expectedHttpStatus": 422
+    }
+  ],
+  "invalidWorkerOutputs": [
+    {
+      "id": "score-out-of-unit-interval",
+      "result": {
+        "labels": ["billing-question"],
+        "scores": {"billing-question": 1.42},
+        "abstained": false,
+        "modelRevision": "rev-1",
+        "labelSetVersion": "v1",
+        "grantsTools": false
+      }
+    },
+    {
+      "id": "negative-score",
+      "result": {
+        "labels": ["technical-support"],
+        "scores": {"technical-support": -0.15},
+        "abstained": false,
+        "modelRevision": "rev-1",
+        "labelSetVersion": "v1",
+        "grantsTools": false
+      }
+    }
+  ]
+}

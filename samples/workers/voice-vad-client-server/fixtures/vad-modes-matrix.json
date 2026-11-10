@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "vad-modes-matrix",
+  "modes": [
+    {
+      "mode": "Disabled",
+      "description": "No VAD gating applied; audio streams continuously",
+      "clientGating": false,
+      "serverVad": false
+    },
+    {
+      "mode": "Client",
+      "description": "Client-side Silero ONNX/WebRTC VAD gating to conserve upload bandwidth",
+      "clientGating": true,
+      "serverVad": false
+    },
+    {
+      "mode": "Server",
+      "description": "Server-side Silero ONNX VAD adapter active on host gateway",
+      "clientGating": false,
+      "serverVad": true
+    },
+    {
+      "mode": "Hybrid",
+      "description": "Client-side coarse speech gating + server-side authoritative endpointing",
+      "clientGating": true,
+      "serverVad": true
+    }
+  ],
+  "invariants": {
+    "clientGatingIsPerformanceOptimizationOnly": true,
+    "serverVadUsableWithoutRealtimeWorker": true,
+    "noModelDownloadWhenDisabled": true
+  }
+}

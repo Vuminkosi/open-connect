@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "security-overlap-priority-v1",
+  "description": "Overlapping span resolution matrix: host policy resolves overlapping spans by strictest action (block > redact > mask > review > allow), then longest span, then highest confidence.",
+  "actionPriorityOrder": ["block", "redact", "mask", "review", "allow"],
+  "cases": [
+    {
+      "id": "secret-overlapping-email",
+      "text": "Header api_key=admin@example.org-do-not-use-in-prod trailing text",
+      "rawDetectorSpans": [
+        {
+          "entityType": "EMAIL",
+          "start": 15,
+          "end": 32,
+          "confidence": 0.99,
+          "decision": "mask"
+        },
+        {
+          "entityType": "SECRET",
+          "start": 7,
+          "end": 51,
+          "confidence": 0.95,
+          "decision": "redact"
+        }
+      ],
+      "expectedResolvedSpan": {
+        "entityType": "SECRET",
+        "start": 7,
+        "end": 51,
+        "decision": "redact"
+      }
+    },
+    {
+      "id": "phone-overlapping-custom-id",
+      "text": "Order +1-800-555-0100 logged.",
+      "rawDetectorSpans": [
+        {
+          "entityType": "PHONE",
+          "start": 6,
+          "end": 21,
+          "confidence": 0.90,
+          "decision": "mask"
+        },
+        {
+          "entityType": "GOVERNMENT_ID",
+          "start": 9,
+          "end": 21,
+          "confidence": 0.92,
+          "decision": "block"
+        }
+      ],
+      "expectedResolvedSpan": {
+        "entityType": "GOVERNMENT_ID",
+        "start": 6,
+        "end": 21,
+        "decision": "block"
+      }
+    }
+  ]
+}

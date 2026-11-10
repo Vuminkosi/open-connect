@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-cancellation-race",
+  "taskId": "123e4567-e89b-42d3-a456-426614174006",
+  "leaseMs": 30000,
+  "scenarios": [
+    {
+      "step": "claim",
+      "expectedStatus": 200,
+      "expectedState": "claimed"
+    },
+    {
+      "step": "heartbeat",
+      "expectedStatus": 200,
+      "expectedRenewed": true
+    },
+    {
+      "step": "complete",
+      "expectedStatus": 200,
+      "expectedState": "completed"
+    },
+    {
+      "step": "expired-or-conflict",
+      "expectedStatus": 409,
+      "expectedDetail": "conflict"
+    }
+  ]
+}

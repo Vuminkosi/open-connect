@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-unsupported-codec",
+  "taskId": "123e4567-e89b-42d3-a456-426614174010",
+  "mimeType": "audio/ogg;codecs=opus",
+  "sampleRateHz": 16000,
+  "channels": 1,
+  "bitsPerSample": 16,
+  "expectedBehavior": {
+    "expectedStatus": 422,
+    "expectedReason": "unsupported_mime_type"
+  }
+}

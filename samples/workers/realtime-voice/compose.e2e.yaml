@@ -1,27 +1,79 @@
-# E2E sample for the Realtime voice worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
-# Canonical image source (never a toy worker image):
-#   workers/realtime-voice/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
-# so parallel runs never share networks or volumes.
+name: oc-e2e-realtime-voice
+
+# Standalone E2E stack for the Python Realtime-voice worker (workers/realtime-voice).
+# Runtime model cache lives in the named volume oc_realtime_voice_models; NO weights are baked into the image.
+
 services:
   realtime-voice:
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_E2E_TAG:-e2e-local}
     build:
-      context: ../../../workers/realtime-voice
-      dockerfile: Dockerfile
-    image: openconnect/realtime-voice:e2e-local
-    ports:
-      - "${PORT_REALTIME_VOICE:-8085}:8080"
+      context: ../../..
+      dockerfile: workers/realtime-voice/Dockerfile
     environment:
-      # T3 E2E (orchestration-only, explicitly fake-labeled, local-only): use
-      # the app's canonical token var (OPENCONNECT_WORKER_TOKEN, which the app
-      # reads) and the canonical engine switch (OC_WORKER_ENGINE=fake).
-      # Fixture session id is synthetic E2E-only (see fixtures/request.json).
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
-      OC_WORKER_ENGINE: fake
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-fake}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-disabled}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Development}
+    volumes:
+      - oc_realtime_voice_models:/models:ro
+    ports:
+      - "127.0.0.1:${PORT_REALTIME_VOICE:-8085}:8080"
+    networks:
+      - oc-test-private
+      - oc-test-host-bridge
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health/live',timeout=2).status==200 else 1)"
       interval: 5s
       timeout: 3s
-      retries: 24
-      start_period: 10s
+      retries: 12
+      start_period: 5s
+
+  test-host:
+    profiles: ["harness", "integration"]
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_E2E_TAG:-e2e-local}
+    depends_on:
+      realtime-voice:
+        condition: service_healthy
+    environment:
+      WORKER_BASE_URL: http://realtime-voice:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+    networks:
+      - oc-test-private
+    command: ["python", "-c", "import urllib.request; print(urllib.request.urlopen('http://realtime-voice:8080/health/ready', timeout=5).read().decode())"]
+
+  e2e-test:
+    profiles: ["harness", "integration"]
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_E2E_TAG:-e2e-local}
+    depends_on:
+      realtime-voice:
+        condition: service_healthy
+    environment:
+      WORKER_BASE_URL: http://realtime-voice:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+    volumes:
+      - ./:/sample:ro
+    networks:
+      - oc-test-private
+    command: ["python", "/sample/tests/test_e2e_acceptance.py"]
+
+volumes:
+  oc_realtime_voice_models:
+    name: oc_realtime_voice_models
+
+networks:
+  oc-test-private:
+    internal: true
+  oc-test-host-bridge:
+    driver: bridge

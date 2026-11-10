@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "classification-conflicting-labels-v1",
+  "description": "Multi-intent utterances where both billing-question and technical-support cues appear, testing maxLabels and score normalization.",
+  "cases": [
+    {
+      "id": "billing-and-technical-combined",
+      "request": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174110",
+        "input": {
+          "text": "My payment invoice failed because the checkout page threw a 500 server bug.",
+          "labelSetVersion": "v1",
+          "threshold": 0.25,
+          "maxLabels": 2,
+          "localeHint": "en"
+        }
+      },
+      "expectedCandidateLabels": ["billing-question", "technical-support"],
+      "maxReturnedLabels": 2
+    }
+  ]
+}

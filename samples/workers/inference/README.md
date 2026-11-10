@@ -1,27 +1,74 @@
-# Inference worker â€” e2e sample (T0â€“T3)
+# OpenConnect E2E Sample — `inference` (`workers/inference`)
 
-Status: T0+T1 green, T3 green fake-labeled (engine fake; synthetic fixtures; no real-model claims).
+Standalone end-to-end sample and acceptance test suite for the Python Inference worker (`workers/inference`), covering `WSE2E-AT-021` through `WSE2E-AT-028` and the 12-scenario runtime model cache protocol.
 
-Canonical image source: `workers/inference/Dockerfile` (built as `openconnect/inference:e2e-local`).
-T4 model-live: **BLOCKED / NOT_RUN** â€” no approved model assets.
+## 1. Exact Image Build Command
 
-## Tiers
+```sh
+docker build -f workers/inference/Dockerfile \
+  -t vuminkosimatibe/openconnect-worker-inference:e2e-local .
+```
 
-| Tier | What | Command |
-|------|------|---------|
-| T0 | `docker compose config` static check | `sh ../shared/scripts/run-one.sh --worker inference --tier t0` |
-| T1 | Contract fixture validation (offline) | `sh ../shared/scripts/run-one.sh --worker inference --tier t1` |
-| T2 | Build + bounded `/health/ready` wait | `sh ../shared/scripts/run-one.sh --worker inference --tier t2` |
-| T3 | Fixture-driven request/response | `sh ../shared/scripts/run-one.sh --worker inference --tier t3` |
-| T4 | Model-live | BLOCKED â€” skipped, no approved assets |
+Zero model weights are downloaded or copied during `docker build`.
 
-Teardown is `docker compose down --remove-orphans` (never `down -v`).
-Logs are sanitized (Bearer tokens / keys redacted) before display or capture.
-Copy `../shared/env.example` to `.env` beside the compose file to override ports/tokens (test-only values).
+## 2. Exact `docker compose` Command
 
-## Contract (worker's real routes, fake-labeled engine)
+```sh
+docker compose -f samples/workers/inference/compose.e2e.yaml up -d
+sh samples/workers/inference/scripts/smoke.sh
+sh samples/workers/inference/tests/t1_contract.sh
+```
 
-Contract is the worker's real routes (e.g. `POST /internal/v1/execute` + Bearer auth) with fake-labeled engine and synthetic fixtures; T3 runtime green. No real-model output is claimed.
-The single source of truth will be the worker Dockerfile + its docs.
-If the worker changes an endpoint, update `scripts/smoke.sh`,
-`fixtures/request.json`, and `fixtures/expected.json` in this directory only.
+## 3. Environment Variables & Secrets Configuration
+
+| Variable | Default in `compose.e2e.yaml` | Purpose |
+|---|---|---|
+| `OPENCONNECT_INFERENCE_TOKEN` | `e2e-test-token-do-not-use-in-prod` | Primary bearer token (`Authorization: Bearer ...`) |
+| `OPENCONNECT_WORKER_TOKEN` | `e2e-test-token-do-not-use-in-prod` | Fallback bearer token |
+| `OC_WORKER_ENGINE` | `fake` | `fake` for CI/offline contract tests, `real` for production |
+| `OC_INFERENCE_MODEL` | `muse-spark-1.3` | Model identity for capability discovery |
+| `OC_INFERENCE_API_BASE_URL` | `""` | Optional external cloud API URL (opt-in only) |
+| `OC_PRIVACY_ZONE` | `strict-local` | When `strict-local`, external provider egress is blocked |
+| `OC_MODEL_PROVISIONING` | `disabled` | `disabled`, `first-start-if-missing`, or `preprovisioned-only` |
+| `OC_MODEL_OFFLINE` | `true` | Prevents remote weights downloads |
+| `PORT_INFERENCE` | `8083` | Host loopback port mapped to container `:8080` |
+
+## 4. Expected Capabilities & Model Manifest / Licensing Status
+
+- **Capabilities (`/internal/v1/capabilities`)**: Truthfully reports `baseCapabilities` (`chat`, `stream`). Optional capabilities (`tools`, `structured-output`, `embeddings`) are advertised only when both enabled and a model identity is configured (`WSE2E-AT-021`).
+- **Streaming Contract (`WSE2E-AT-024`)**: Chunks have contiguous `seq` starting at 0, content deltas carry `done: false`, and exactly one final terminal chunk carries `done: true` with an empty delta.
+- **Privacy Firewall Gate (`WSE2E-AT-028`)**: Strict-local privacy zone terminates cloud egress with HTTP 503 `privacy_blocked`.
+- **Production Guardrail (`WSE2E-AT-027`)**: Fake engine requests in `OPENCONNECT_ENV=production` are rejected with HTTP 503 `fake_not_allowed_in_production`.
+
+## 5. Offline Test Procedure
+
+```sh
+sh samples/workers/inference/tests/t1_contract.sh
+sh samples/workers/inference/scripts/run-cache-matrix.sh
+```
+
+## 6. Failure-Injection Commands
+
+- **Context overflow (`WSE2E-AT-022`)**: POST request with >64 messages or >4096 tokens -> HTTP `422`.
+- **Unsupported embeddings (`WSE2E-AT-026`)**: Request `embeddings` when disabled -> HTTP `422` (`capability_unavailable`).
+- **Fake engine in production (`WSE2E-AT-027`)**: Set `OPENCONNECT_ENV=production` + `OC_WORKER_ENGINE=fake` -> HTTP `503` (`fake_not_allowed_in_production`).
+- **Privacy block (`WSE2E-AT-028`)**: Set `OC_PRIVACY_ZONE=strict-local` with cloud URL -> HTTP `503` (`privacy_blocked`).
+
+## 7. Evidence Artifact Filenames
+
+Written under `artifacts/workers-e2e/<run-id>/inference/`:
+- `build.log`, `compose-config.yaml`, `container-inspect.json`, `health-ready.json`, `capabilities.json`, `test-junit.xml`, `test-summary.json`, `cache-before.json`, `cache-after.json`, `network-isolation.txt`, `worker.log`.
+
+## 8. Safe Teardown vs Destructive Reset
+
+```sh
+# Safe teardown (preserves oc_inference_models volume):
+docker compose -f samples/workers/inference/compose.e2e.yaml down --remove-orphans
+
+# Destructive cache reset (ONLY when explicitly purging cached models):
+docker volume rm oc_inference_models
+```
+
+## 9. Production Differences
+
+Production runs with `OC_ENVIRONMENT=Production`, `OC_WORKER_ENGINE=real`, `OC_MODEL_PROVISIONING=preprovisioned-only`, configured provider endpoints with privacy gates enforced host-side, and no mock tokens.

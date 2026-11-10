@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "security-forged-token-v1",
+  "description": "Forged, tampered, and cross-tenant vault pseudonym tokens testing AES-GCM token vault isolation and restoration rules.",
+  "vaultEncryptionAlgorithm": "AES-256-GCM",
+  "tenantAPrincipal": {
+    "tenantId": "tenant-alpha",
+    "userId": "user-alice",
+    "workloadIdentity": false
+  },
+  "tenantBPrincipal": {
+    "tenantId": "tenant-bravo",
+    "userId": "user-mallory",
+    "workloadIdentity": false
+  },
+  "operationalWorkloadPrincipal": {
+    "tenantId": "tenant-alpha",
+    "workloadId": "ops-nightly-job",
+    "workloadIdentity": true
+  },
+  "cases": [
+    {
+      "id": "forged-nonexistent-token",
+      "token": "[[OC_TOKEN:EMAIL:f0rged0000000000]]",
+      "caller": "tenant-alpha",
+      "targetField": "customerEmail",
+      "fieldApprovedForRestoration": true,
+      "expectedOutcome": "deny_restoration",
+      "expectedErrorCode": "unauthorized"
+    },
+    {
+      "id": "cross-tenant-token-replay",
+      "tokenOwnerTenant": "tenant-alpha",
+      "callerTenant": "tenant-bravo",
+      "token": "[[OC_TOKEN:EMAIL:a1b2c3d4e5f60001]]",
+      "targetField": "customerEmail",
+      "fieldApprovedForRestoration": true,
+      "expectedOutcome": "deny_restoration",
+      "expectedErrorCode": "unauthorized"
+    },
+    {
+      "id": "operational-workload-cannot-restore-interactive-user-token",
+      "tokenOwnerTenant": "tenant-alpha",
+      "caller": "operationalWorkloadPrincipal",
+      "token": "[[OC_TOKEN:EMAIL:a1b2c3d4e5f60001]]",
+      "targetField": "customerEmail",
+      "fieldApprovedForRestoration": true,
+      "expectedOutcome": "deny_restoration",
+      "expectedErrorCode": "unauthorized"
+    },
+    {
+      "id": "unapproved-schema-field-restoration-blocked",
+      "tokenOwnerTenant": "tenant-alpha",
+      "caller": "tenant-alpha",
+      "token": "[[OC_TOKEN:EMAIL:a1b2c3d4e5f60001]]",
+      "targetField": "untrustedFreeformLogNote",
+      "fieldApprovedForRestoration": false,
+      "expectedOutcome": "keep_pseudonymized"
+    }
+  ]
+}

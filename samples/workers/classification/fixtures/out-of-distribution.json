@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "classification-out-of-distribution-v1",
+  "description": "Out-of-domain messages and unsupported locales testing calibrated abstention (abstained=true) and unknown labelSetVersion rejection.",
+  "cases": [
+    {
+      "id": "unsupported-locale-high-threshold-abstain",
+      "request": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174120",
+        "input": {
+          "text": "tlhIngan maH taHjaj",
+          "labelSetVersion": "v1",
+          "threshold": 0.95,
+          "maxLabels": 3,
+          "localeHint": "tlh"
+        }
+      },
+      "expectedAbstained": true,
+      "expectedFallbackLabel": "safe"
+    },
+    {
+      "id": "high-threshold-ambiguous-noise",
+      "request": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174121",
+        "input": {
+          "text": "xyzzy plugh 12345",
+          "labelSetVersion": "v1",
+          "threshold": 0.99,
+          "maxLabels": 1,
+          "localeHint": "en"
+        }
+      },
+      "expectedAbstained": true,
+      "expectedFallbackLabel": "safe"
+    },
+    {
+      "id": "unknown-label-set-revision",
+      "request": {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "123e4567-e89b-42d3-a456-426614174122",
+        "input": {
+          "text": "Normal support question",
+          "labelSetVersion": "v999-nonexistent",
+          "threshold": 0.5,
+          "maxLabels": 2,
+          "localeHint": "en"
+        }
+      },
+      "expectedHttpStatus": 422,
+      "expectedErrorCode": "label_set_unknown"
+    }
+  ]
+}
