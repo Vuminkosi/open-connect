@@ -156,6 +156,24 @@ public sealed class TemplateNarrowingTests
             "lead", new TemplateVariables(), (_, token) => Task.FromCanceled<string>(token), cancellation.Token));
     }
 
+    [Fact]
+    public void Register_RejectsChildCostAboveParent()
+    {
+        var registry = new TemplateRegistry();
+        var parentBudget = new AgentBudget(MaxToolCalls: 10, MaxTokens: 100, MaxCostMicrocents: 1000);
+        registry.Register(Template("cost-base", new HashSet<ToolId>(), budget: parentBudget));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => registry.Register(
+            Template("cost-child", new HashSet<ToolId>(), "cost-base",
+                parentBudget with { MaxCostMicrocents = 1001 })));
+
+        Assert.Contains("cost-child", exception.Message);
+        Assert.Contains("cost-base", exception.Message);
+        Assert.Contains("MaxCostMicrocents", exception.Message);
+        Assert.Contains("1001", exception.Message);
+        Assert.Contains("1000", exception.Message);
+    }
+
     private static AgentTemplate Template(string id, IReadOnlySet<ToolId> tools, string? baseId = null, AgentBudget? budget = null) =>
         new(id, "1", "test", "instructions/lead.md", null, tools, null, budget ?? new AgentBudget(10, 10, 10, TimeSpan.FromMinutes(1)),
             new AgentMemoryPolicy(), AgentContextSharingMode.TaskSummary, ToolAcknowledgementMode.Automatic, "standard", baseId,

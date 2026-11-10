@@ -38,6 +38,10 @@ public sealed class AgentRegistryOptions
     public int MaxTotalSubagentsPerRun { get; set; } = 8;
     public int MaxTotalToolCalls { get; set; } = 20;
     public int MaxModelCalls { get; set; } = 12;
+    /// <summary>Gets or sets the maximum token usage per run, measured as the ledger UTF-8 byte-count estimate. <see cref="long.MaxValue"/> means unlimited.</summary>
+    public long MaxTokens { get; set; } = long.MaxValue;
+    public int MaxQueuedAgents { get; set; } = int.MaxValue;
+    public long MaxCostMicrocents { get; set; } = long.MaxValue;
     public TimeSpan MaxTurnDuration { get; set; } = TimeSpan.FromSeconds(120);
     public TimeSpan MaxToolDuration { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan LongRunningThreshold { get; set; } = TimeSpan.FromSeconds(3);

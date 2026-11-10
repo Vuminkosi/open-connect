@@ -75,7 +75,8 @@ public sealed record AgentBudget(
     TimeSpan? MaxRuntime = null,
     int MaxConcurrentAgents = 0,
     int MaxQueuedAgents = 0,
-    int MaxTotalAgents = 0);
+    int MaxTotalAgents = 0,
+    long MaxCostMicrocents = 0);
 
 /// <summary>Authority and residual run budget for one parent-to-child delegation.</summary>
 /// <remarks>The child's typed <c>ChildResult</c> is the delegation return contract.</remarks>

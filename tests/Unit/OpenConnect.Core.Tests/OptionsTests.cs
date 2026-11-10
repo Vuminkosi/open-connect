@@ -53,4 +53,30 @@ public sealed class OptionsTests
         var result = new OpenConnectOptionsValidator().Validate(Options.DefaultName, options);
         Assert.Contains("Privacy:Rules:MaxConcurrentRequests", string.Join(" ", result.Failures ?? []));
     }
+
+    [Theory]
+    [InlineData(nameof(AgentRegistryOptions.MaxTokens), "Agents:MaxTokens cannot be negative.")]
+    [InlineData(nameof(AgentRegistryOptions.MaxQueuedAgents), "Agents:MaxQueuedAgents cannot be negative.")]
+    [InlineData(nameof(AgentRegistryOptions.MaxCostMicrocents), "Agents:MaxCostMicrocents cannot be negative.")]
+    public void NegativeCapValuesAreRejected(string field, string expectedMessage)
+    {
+        var options = new OpenConnectOptions();
+        switch (field)
+        {
+            case nameof(AgentRegistryOptions.MaxTokens):
+                options.Agents.MaxTokens = -1;
+                break;
+            case nameof(AgentRegistryOptions.MaxQueuedAgents):
+                options.Agents.MaxQueuedAgents = -1;
+                break;
+            default:
+                options.Agents.MaxCostMicrocents = -1;
+                break;
+        }
+
+        var result = new OpenConnectOptionsValidator().Validate(Options.DefaultName, options);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(expectedMessage, string.Join(" ", result.Failures ?? []));
+    }
 }

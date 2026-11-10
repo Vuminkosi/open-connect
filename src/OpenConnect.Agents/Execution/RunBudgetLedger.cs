@@ -38,7 +38,8 @@ public sealed class RunBudgetLedger
                     _limit.MaxRuntime,
                     _limit.MaxConcurrentAgents,
                     _limit.MaxQueuedAgents,
-                    Math.Max(0, _limit.MaxTotalAgents - _subagents));
+                    Math.Max(0, _limit.MaxTotalAgents - _subagents),
+                    _limit.MaxCostMicrocents);
         }
     }
 
@@ -160,13 +161,13 @@ public sealed class RunBudgetLedger
 
     private static bool IsValid(AgentBudget budget) => budget.MaxToolCalls >= 0 && budget.MaxModelCalls >= 0 &&
         budget.MaxTokens >= 0 && budget.MaxConcurrentAgents >= 0 && budget.MaxQueuedAgents >= 0 &&
-        budget.MaxTotalAgents >= 0 && (budget.MaxRuntime is null || budget.MaxRuntime >= TimeSpan.Zero);
+        budget.MaxTotalAgents >= 0 && budget.MaxCostMicrocents >= 0 && (budget.MaxRuntime is null || budget.MaxRuntime >= TimeSpan.Zero);
 
     private static AgentBudget Intersect(AgentBudget left, AgentBudget right) => new(
         Math.Min(left.MaxToolCalls, right.MaxToolCalls), Math.Min(left.MaxModelCalls, right.MaxModelCalls),
         Math.Min(left.MaxTokens, right.MaxTokens), Min(left.MaxRuntime, right.MaxRuntime),
         Math.Min(left.MaxConcurrentAgents, right.MaxConcurrentAgents), Math.Min(left.MaxQueuedAgents, right.MaxQueuedAgents),
-        Math.Min(left.MaxTotalAgents, right.MaxTotalAgents));
+        Math.Min(left.MaxTotalAgents, right.MaxTotalAgents), Math.Min(left.MaxCostMicrocents, right.MaxCostMicrocents));
 
     private static TimeSpan? Min(TimeSpan? left, TimeSpan? right) => (left, right) switch
     {
