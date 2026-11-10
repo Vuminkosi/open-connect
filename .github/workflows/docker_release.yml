@@ -158,6 +158,7 @@ jobs:
           context: ${{ steps.resolve-context.outputs.context }}
           file: workers/${{ matrix.worker }}/Dockerfile
           push: ${{ inputs.publish == true }}
+          no-cache: true
           tags: ${{ steps.resolve-tags.outputs.tags }}
 
       - name: Dry-run summary (no push)
