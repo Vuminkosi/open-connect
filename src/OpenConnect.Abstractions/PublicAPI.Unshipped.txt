@@ -5,9 +5,11 @@ OpenConnect.Abstractions.AgentActivationMode.EventTriggered = 2 -> OpenConnect.A
 OpenConnect.Abstractions.AgentActivationMode.OnDemand = 0 -> OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.Scheduled = 1 -> OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentBudget
-OpenConnect.Abstractions.AgentBudget.AgentBudget(int MaxToolCalls = 0, int MaxModelCalls = 0, long MaxTokens = 0, System.TimeSpan? MaxRuntime = null, int MaxConcurrentAgents = 0, int MaxQueuedAgents = 0, int MaxTotalAgents = 0) -> void
+OpenConnect.Abstractions.AgentBudget.AgentBudget(int MaxToolCalls = 0, int MaxModelCalls = 0, long MaxTokens = 0, System.TimeSpan? MaxRuntime = null, int MaxConcurrentAgents = 0, int MaxQueuedAgents = 0, int MaxTotalAgents = 0, long MaxCostMicrocents = 0) -> void
 OpenConnect.Abstractions.AgentBudget.MaxConcurrentAgents.get -> int
 OpenConnect.Abstractions.AgentBudget.MaxConcurrentAgents.init -> void
+OpenConnect.Abstractions.AgentBudget.MaxCostMicrocents.get -> long
+OpenConnect.Abstractions.AgentBudget.MaxCostMicrocents.init -> void
 OpenConnect.Abstractions.AgentBudget.MaxModelCalls.get -> int
 OpenConnect.Abstractions.AgentBudget.MaxModelCalls.init -> void
 OpenConnect.Abstractions.AgentBudget.MaxQueuedAgents.get -> int
@@ -286,6 +288,12 @@ OpenConnect.Abstractions.IOutboxStore
 OpenConnect.Abstractions.IOutboxStore.EnqueueAsync(OpenConnect.Abstractions.OutboxEntry! entry, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.OutboxEntry!>!
 OpenConnect.Abstractions.IOutboxStore.GetPendingAsync(int limit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.OutboxEntry!>!>!
 OpenConnect.Abstractions.IOutboxStore.MarkDeliveredAsync(System.Guid entryId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Abstractions.IRateLimitAuditKeyProvider
+OpenConnect.Abstractions.IRateLimitAuditKeyProvider.GetKey(string! tenant) -> System.ReadOnlyMemory<byte>
+OpenConnect.Abstractions.IRateLimitAuditKeyProvider.KeyId.get -> string!
+OpenConnect.Abstractions.IRateLimitGate
+OpenConnect.Abstractions.IRateLimitGate.TryAcquire(OpenConnect.Abstractions.RateLimitKey! key, string! executionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> OpenConnect.Abstractions.RateLimitDecision!
+OpenConnect.Abstractions.IRateLimitGate.Verify(OpenConnect.Abstractions.RateLimitAuditRecord! record) -> bool
 OpenConnect.Abstractions.ITaskStore
 OpenConnect.Abstractions.ITaskStore.AcceptAsync(OpenConnect.Abstractions.TaskAcceptance! acceptance, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Abstractions.ITaskStore.GetAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
@@ -528,6 +536,50 @@ OpenConnect.Abstractions.PrincipalId.PrincipalId() -> void
 OpenConnect.Abstractions.PrincipalId.PrincipalId(OpenConnect.Abstractions.Ulid Value) -> void
 OpenConnect.Abstractions.PrincipalId.Value.get -> OpenConnect.Abstractions.Ulid
 OpenConnect.Abstractions.PrincipalId.Value.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord
+OpenConnect.Abstractions.RateLimitAuditRecord.RateLimitAuditRecord(string! Tenant, string! Application, string! Mode, string! Decision, string! LimitName, long ObservedCount, long Limit, System.DateTimeOffset Timestamp, string! ExecutionId, string! KeyId, string! Signature) -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Application.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.Application.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Decision.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.Decision.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.ExecutionId.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.ExecutionId.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.KeyId.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.KeyId.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Limit.get -> long
+OpenConnect.Abstractions.RateLimitAuditRecord.Limit.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.LimitName.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.LimitName.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Mode.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.Mode.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.ObservedCount.get -> long
+OpenConnect.Abstractions.RateLimitAuditRecord.ObservedCount.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Signature.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.Signature.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Tenant.get -> string!
+OpenConnect.Abstractions.RateLimitAuditRecord.Tenant.init -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Timestamp.get -> System.DateTimeOffset
+OpenConnect.Abstractions.RateLimitAuditRecord.Timestamp.init -> void
+OpenConnect.Abstractions.RateLimitDecision
+OpenConnect.Abstractions.RateLimitDecision.RateLimitDecision(bool Allowed, string? LimitName, OpenConnect.Abstractions.RateLimitAuditRecord? Audit) -> void
+OpenConnect.Abstractions.RateLimitDecision.Allowed.get -> bool
+OpenConnect.Abstractions.RateLimitDecision.Allowed.init -> void
+OpenConnect.Abstractions.RateLimitDecision.Audit.get -> OpenConnect.Abstractions.RateLimitAuditRecord?
+OpenConnect.Abstractions.RateLimitDecision.Audit.init -> void
+OpenConnect.Abstractions.RateLimitDecision.LimitName.get -> string?
+OpenConnect.Abstractions.RateLimitDecision.LimitName.init -> void
+OpenConnect.Abstractions.RateLimitKey
+OpenConnect.Abstractions.RateLimitKey.RateLimitKey(string! tenant, string! application, string! mode) -> void
+OpenConnect.Abstractions.RateLimitKey.Application.get -> string!
+OpenConnect.Abstractions.RateLimitKey.Mode.get -> string!
+OpenConnect.Abstractions.RateLimitKey.Tenant.get -> string!
+OpenConnect.Abstractions.RateLimitKeyComparer
+OpenConnect.Abstractions.RateLimitKeyComparer.Equals(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
+OpenConnect.Abstractions.RateLimitKeyComparer.GetHashCode(OpenConnect.Abstractions.RateLimitKey! key) -> int
+static OpenConnect.Abstractions.RateLimitKeyComparer.Instance.get -> OpenConnect.Abstractions.RateLimitKeyComparer!
+OpenConnect.Abstractions.RateLimitModes
+const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
+const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
 OpenConnect.Abstractions.RunState
 OpenConnect.Abstractions.RunState.Cancelled = 8 -> OpenConnect.Abstractions.RunState
 OpenConnect.Abstractions.RunState.Completed = 6 -> OpenConnect.Abstractions.RunState

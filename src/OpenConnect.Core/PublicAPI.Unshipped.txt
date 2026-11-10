@@ -27,10 +27,16 @@ OpenConnect.Core.Configuration.AgentRegistryOptions.LongRunningThreshold.get -> 
 OpenConnect.Core.Configuration.AgentRegistryOptions.LongRunningThreshold.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxConcurrentSubagents.get -> int
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxConcurrentSubagents.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxCostMicrocents.get -> long
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxCostMicrocents.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxDelegationDepth.get -> int
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxDelegationDepth.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxModelCalls.get -> int
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxModelCalls.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxQueuedAgents.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxQueuedAgents.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTokens.get -> long
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTokens.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxToolDuration.get -> System.TimeSpan
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxToolDuration.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTotalSubagentsPerRun.get -> int
@@ -41,6 +47,8 @@ OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTurnDuration.get -> Syste
 OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTurnDuration.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.MemoryMode.get -> OpenConnect.Abstractions.AgentMemoryMode
 OpenConnect.Core.Configuration.AgentRegistryOptions.MemoryMode.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MicrocentsPerThousandTokens.get -> long
+OpenConnect.Core.Configuration.AgentRegistryOptions.MicrocentsPerThousandTokens.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.OrchestrationMode.get -> OpenConnect.Abstractions.AgentOrchestrationMode
 OpenConnect.Core.Configuration.AgentRegistryOptions.OrchestrationMode.set -> void
 OpenConnect.Core.Configuration.AgentRegistryOptions.ProgressCoalescingInterval.get -> System.TimeSpan
