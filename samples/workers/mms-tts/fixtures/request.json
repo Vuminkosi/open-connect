@@ -1,1 +1,1 @@
-{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174006","text":"Bonjour le monde.","voice":"e2e-test-voice","language":"fr"}
+{"kind":"mms.synthesize","payload":{"language":"eng","schemaVersion":"openconnect.v1","text":"Synthetic e2e speech check."},"schemaVersion":"openconnect.v1","taskId":"t-e2e-synth"}
