@@ -272,11 +272,15 @@ jobs:
         run: |
           'SQL Server provider tests: NOT APPLICABLE on this runner (Docker unavailable).' >> $env:GITHUB_STEP_SUMMARY
 
+      # S08: live-broker tests never gate required legs; unit/fake tests gate.
+      # Live NATS opt-in only: set OPENCONNECT_TEST_NATS_URL and run
+      #   dotnet test --filter "Category=NatsLive"
+      # with a disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: NATS transport tests (service container)
         if: steps.probe.outputs.has_any == 'true'
         shell: pwsh
         run: |
-          dotnet test $env:TRANSPORT_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Nats"
+          dotnet test $env:TRANSPORT_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Nats&Category!=NatsLive"
 
       - name: MAF workflow smoke tests
         if: steps.probe.outputs.has_any == 'true'
