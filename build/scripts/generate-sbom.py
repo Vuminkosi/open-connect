@@ -222,14 +222,16 @@ def main(argv: list[str] | None = None) -> int:
     for nupkg in nupkgs:
         try:
             pkg_id, bom = process_package(nupkg)
-        except (zipfile.BadZipFile, ValueError, ET.ParseError) as ex:
+            dest = out / f"{pkg_id}.cdx.json"
+            dest.write_text(json.dumps(bom, indent=2) + "\n", encoding="utf-8")
+            print(f"OK: {nupkg.name} -> {dest.name}")
+            emitted += 1
+        # FIND-02 (CF-REV-029): local I/O failures (sha256 re-read,
+        # per-package write) must be per-package FAIL + continue, not abort.
+        except (zipfile.BadZipFile, ValueError, ET.ParseError, OSError) as ex:
             print(f"FAIL: {nupkg.name}: {ex}", file=sys.stderr)
             failures += 1
             continue
-        dest = out / f"{pkg_id}.cdx.json"
-        dest.write_text(json.dumps(bom, indent=2) + "\n", encoding="utf-8")
-        print(f"OK: {nupkg.name} -> {dest.name}")
-        emitted += 1
 
     print(f"Emitted: {emitted} SBOM(s) to {out}")
     if failures:
