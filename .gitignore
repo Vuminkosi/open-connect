@@ -371,3 +371,4 @@ docs/*
 !docs/compatibility/
 !docs/architecture/
 !docs/architecture/adr/
+!docs/evidence/
