@@ -1,0 +1,30 @@
+name: oc-realtime-voice
+
+services:
+  init-models:
+    build: .
+    # Init prepares the model volume only; never downloads weights. In
+    # orchestration-only mode no local weights are required at all.
+    command: ["python", "-m", "openconnect_realtime_voice.init_models"]
+    environment:
+      MODEL_DIR: /models
+      OC_REALTIME_ORCHESTRATION_ONLY: "${OC_REALTIME_ORCHESTRATION_ONLY:-1}"
+    volumes:
+      - oc_realtime_voice_models:/models
+
+  serve:
+    build: .
+    ports:
+      - "${OC_REALTIME_VOICE_PORT:-8080}:8080"
+    environment:
+      MODEL_DIR: /models
+      OC_REALTIME_ORCHESTRATION_ONLY: "${OC_REALTIME_ORCHESTRATION_ONLY:-1}"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
+    volumes:
+      - oc_realtime_voice_models:/models:ro
+    depends_on:
+      init-models:
+        condition: service_completed_successfully
+
+volumes:
+  oc_realtime_voice_models:
