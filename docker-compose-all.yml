@@ -5,14 +5,7 @@
 # 3. Message Broker (NATS JetStream)
 # 4. Canonical OpenConnect Worker Services (Security, Inference, Transcription, Kokoro, Playwright, Operational Agents, Outbox)
 #
-# Usage:
-#   docker compose -f docker-compose-all.yml up -d
-#
-# Access:
-#   Blazor Web App: http://localhost:5000
-#   Gateway / Health: http://localhost:8080/health (Host) or http://localhost:5000/
-#   Postgres: localhost:5432
-#   NATS: localhost:4222
+# Environment variables from .env in the root folder are automatically loaded and forwarded.
 
 services:
   # =========================================================================
@@ -27,15 +20,36 @@ services:
     ports:
       - "5000:5000"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
-      Nats__Url: nats://nats:4222
+      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
+      Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
       Workers__Transcription__Endpoint: http://worker-transcription:8080
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
       Workers__Playwright__Endpoint: http://worker-playwright:8080
+      # Pass through Cloud Inference / Model configuration from .env
+      OpenConnect__ApiKey: ${OpenConnect__ApiKey:-}
+      OpenConnect__ApiUrl: ${OpenConnect__ApiUrl:-}
+      OpenConnect__ReasoningModel: ${OpenConnect__ReasoningModel:-}
+      OpenConnect__ReasoningBackend: ${OpenConnect__ReasoningBackend:-}
+      OpenConnect__Reasoning__Serverless__Endpoint: ${OpenConnect__Reasoning__Serverless__Endpoint:-}
+      OpenConnect__Reasoning__Serverless__Model: ${OpenConnect__Reasoning__Serverless__Model:-}
+      OpenConnect__Reasoning__Serverless__ApiKey: ${OpenConnect__Reasoning__Serverless__ApiKey:-}
+      OpenConnect__MetaApiKey: ${OpenConnect__MetaApiKey:-}
+      OpenConnect__MetaApiUrl: ${OpenConnect__MetaApiUrl:-}
+      OpenConnect__MetaModel: ${OpenConnect__MetaModel:-}
+      OpenConnect__ClaudeApiKey: ${OpenConnect__ClaudeApiKey:-}
+      OpenConnect__ClaudeApiUrl: ${OpenConnect__ClaudeApiUrl:-}
+      OpenConnect__ClaudeModel: ${OpenConnect__ClaudeModel:-}
+      # Cloud Speech / Transcription
+      OpenConnect__ASR_MODEL: ${OpenConnect__ASR_MODEL:-}
+      OpenConnect__ASR_WSS: ${OpenConnect__ASR_WSS:-}
+      OpenConnect__ASR_Transcription__URL: ${OpenConnect__ASR_Transcription__URL:-}
+      OpenConnect__TranscriptionModel: ${OpenConnect__TranscriptionModel:-}
+      OpenConnect__TranscriptionApiUrl: ${OpenConnect__TranscriptionApiUrl:-}
+      OPENCONNECT_TTS_INTERNAL_KEY: ${OPENCONNECT_TTS_INTERNAL_KEY:-}
     volumes:
       - oc_todo_app_data:/data
     networks:
@@ -53,17 +67,17 @@ services:
     image: postgres:16-alpine
     container_name: oc-postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
-      POSTGRES_DB: openconnect
-      POSTGRES_USER: openconnect
-      POSTGRES_PASSWORD: openconnect_dev_password
+      POSTGRES_DB: ${POSTGRES_DB:-openconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-openconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openconnect_dev_password}
     volumes:
       - oc_postgres_data:/var/lib/postgresql/data
     networks:
       - oc-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openconnect -d openconnect"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openconnect} -d ${POSTGRES_DB:-openconnect}"]
       interval: 3s
       timeout: 3s
       retries: 10
@@ -77,8 +91,11 @@ services:
     container_name: oc-nats
     command: ["-js", "-m", "8222"]
     ports:
-      - "4222:4222"
-      - "8222:8222"
+      - "${NATS_CLIENT_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+    environment:
+      NATS_APP_USER: ${NATS_APP_USER:-}
+      NATS_APP_PASSWORD: ${NATS_APP_PASSWORD:-}
     networks:
       - oc-network
     healthcheck:
@@ -102,13 +119,28 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       OC_TEST_MODE: "true"
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
-      Nats__Url: nats://nats:4222
+      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
+      Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
       Workers__Transcription__Endpoint: http://worker-transcription:8080
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
       Workers__Playwright__Endpoint: http://worker-playwright:8080
+      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      # Forward cloud model settings to gateway
+      OpenConnect__ApiKey: ${OpenConnect__ApiKey:-}
+      OpenConnect__ApiUrl: ${OpenConnect__ApiUrl:-}
+      OpenConnect__ReasoningModel: ${OpenConnect__ReasoningModel:-}
+      OpenConnect__ReasoningBackend: ${OpenConnect__ReasoningBackend:-}
+      OpenConnect__Reasoning__Serverless__Endpoint: ${OpenConnect__Reasoning__Serverless__Endpoint:-}
+      OpenConnect__Reasoning__Serverless__Model: ${OpenConnect__Reasoning__Serverless__Model:-}
+      OpenConnect__Reasoning__Serverless__ApiKey: ${OpenConnect__Reasoning__Serverless__ApiKey:-}
+      OpenConnect__MetaApiKey: ${OpenConnect__MetaApiKey:-}
+      OpenConnect__MetaApiUrl: ${OpenConnect__MetaApiUrl:-}
+      OpenConnect__MetaModel: ${OpenConnect__MetaModel:-}
+      OpenConnect__ClaudeApiKey: ${OpenConnect__ClaudeApiKey:-}
+      OpenConnect__ClaudeApiUrl: ${OpenConnect__ClaudeApiUrl:-}
+      OpenConnect__ClaudeModel: ${OpenConnect__ClaudeModel:-}
     networks:
       - oc-network
     depends_on:
@@ -128,12 +160,13 @@ services:
     container_name: oc-worker-security
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_ENVIRONMENT: Production
+      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
       OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
       OC_MODEL_OFFLINE: "false"
       OC_SECURITY_RULES_ENABLED: "true"
+      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
     volumes:
       - oc_security_models:/models
     networks:
@@ -147,10 +180,16 @@ services:
     container_name: oc-worker-inference
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_ENVIRONMENT: Production
+      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
       OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
+      # Forward Cloud Inference credentials from .env to the Python inference worker
+      OC_INFERENCE_PROVIDER: ${OpenConnect__ReasoningBackend:-meta-model-api}
+      OC_INFERENCE_MODEL: ${OpenConnect__ReasoningModel:-${OpenConnect__MetaModel:-muse-spark-1.3-contributor}}
+      OC_INFERENCE_API_BASE_URL: ${OpenConnect__ApiUrl:-${OpenConnect__MetaApiUrl:-https://api.meta.ai/v1}}
+      INFERENCE_CLOUD_API_KEY: ${OpenConnect__ApiKey:-${OpenConnect__MetaApiKey:-${OpenConnect__ClaudeApiKey:-}}}
+      OC_CONTRIBUTOR_DATA_USE_APPROVED: "1"
     volumes:
       - oc_inference_models:/models
     networks:
@@ -164,10 +203,16 @@ services:
     container_name: oc-worker-transcription
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_ENVIRONMENT: Production
+      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
       OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
+      # Forward Cloud STT credentials from .env
+      OC_TRANSCRIPTION_PROVIDER: ${OpenConnect__TranscriptionModel:-meta-model-api}
+      OC_TRANSCRIPTION_MODEL: ${OpenConnect__ASR_MODEL:-${OpenConnect__TranscriptionModel:-}}
+      OC_TRANSCRIPTION_FILE_URL: ${OpenConnect__ASR_Transcription__URL:-${OpenConnect__TranscriptionApiUrl:-https://api.meta.ai/v1/asr/transcribe}}
+      OC_TRANSCRIPTION_REALTIME_URL: ${OpenConnect__ASR_WSS:-wss://api.meta.ai/v1/asr/realtime}
+      TRANSCRIPTION_CLOUD_API_KEY: ${OpenConnect__ApiKey:-${OpenConnect__MetaApiKey:-}}
     volumes:
       - oc_transcription_models:/models
     networks:
@@ -181,12 +226,13 @@ services:
     container_name: oc-worker-kokoro
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_ENVIRONMENT: Production
+      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
       OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
       OC_KOKORO_MODEL: hexgrad/Kokoro-82M
       OC_KOKORO_VOICE: af_heart
+      OPENCONNECT_TTS_INTERNAL_KEY: ${OPENCONNECT_TTS_INTERNAL_KEY:-}
     volumes:
       - oc_kokoro_models:/models
     networks:
@@ -208,8 +254,8 @@ services:
     image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-outbox
     environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
-      Nats__Url: nats://nats:4222
+      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
+      Nats__Url: ${NATS_URL:-nats://nats:4222}
       WorkerHosts__Outbox__Mode: Standalone
       WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
     networks:
@@ -227,7 +273,7 @@ services:
     image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-operational
     environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
+      ConnectionStrings__Default: ${ConnectionStrings__OpenConnect:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password}
       WorkerHosts__Operational__Mode: Standalone
       WorkerHosts__Operational__EmbeddedEnabled: "false"
     networks:
@@ -241,6 +287,7 @@ services:
 # =============================================================================
 networks:
   oc-network:
+    name: open-connect_oc-network
     driver: bridge
 
 volumes:
