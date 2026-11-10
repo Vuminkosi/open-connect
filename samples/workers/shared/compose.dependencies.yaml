@@ -1,0 +1,20 @@
+# Shared dependency services for samples/workers e2e (T2/T3).
+# Included by per-worker compose files via `include:` or started standalone.
+# Everything here is local-only: no external pulls beyond base images already
+# used by the repo, no volumes wiped by the harness (never `down -v`).
+#
+# Usage from a worker sample:
+#   docker compose -f shared/compose.dependencies.yaml -f compose.e2e.yaml up -d
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/varz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s

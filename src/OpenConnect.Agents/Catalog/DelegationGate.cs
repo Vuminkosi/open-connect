@@ -1,4 +1,5 @@
 using OpenConnect.Abstractions;
+using OpenConnect.Agents.Execution;
 
 namespace OpenConnect.Agents.Catalog;
 
@@ -32,11 +33,13 @@ public sealed record DelegationParentContext(
 /// <param name="Scopes">Requested authorization scopes.</param>
 /// <param name="EnqueueCrossMode">Whether cross-mode delegation is explicitly enqueued.</param>
 /// <param name="Reason">Optional short purpose or category, not a prompt or secret.</param>
+/// <param name="CrossModeFreshTaskToken">Fresh authenticated user task review token for operational-to-interactive delegation.</param>
 public sealed record DelegationRequest(
     IReadOnlySet<ToolId> ToolIds,
     IReadOnlySet<string> Scopes,
     bool EnqueueCrossMode = false,
-    string? Reason = null);
+    string? Reason = null,
+    string? CrossModeFreshTaskToken = null);
 
 /// <summary>Creates a capability- and budget-restricted grant for an authorized child.</summary>
 public sealed class DelegationGate
@@ -86,6 +89,9 @@ public sealed class DelegationGate
             throw new AgentCatalogException("The remaining run budget does not allow another child agent.");
         if (parentCtx.ExecutionMode != child.ExecutionMode && !request.EnqueueCrossMode)
             throw new AgentCatalogException("Cross-mode delegation requires an explicit enqueue request.");
+        var transition = OperationalBoundary.AssertCrossModeTransition(parentCtx.ExecutionMode, child.ExecutionMode, request.EnqueueCrossMode);
+        if (transition.RequiresFreshUserTask && (string.IsNullOrWhiteSpace(request.CrossModeFreshTaskToken) || request.CrossModeFreshTaskToken.Length < 16))
+            throw new AgentCatalogException("Operational-to-interactive delegation requires a fresh authenticated user task review token.");
 
         var parentTools = Intersect(parentCtx.EffectiveToolIds, parent.ToolPolicy.AllowedToolIds);
         var childTools = Intersect(parentTools, child.ToolPolicy.AllowedToolIds);

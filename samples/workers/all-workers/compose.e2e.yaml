@@ -1,0 +1,53 @@
+# Aggregate T0 (and optional T2) compose for all 11 worker e2e samples.
+# Each service builds from its canonical worker Dockerfile with a local
+# :e2e-local tag only. No pushes, no model downloads, no shared volumes.
+# T4 model-live: BLOCKED/NOT_RUN.
+#
+# T0:  docker compose -f compose.e2e.yaml config
+# T2:  COMPOSE_PROJECT_NAME=ocw-e2e-all docker compose -f compose.e2e.yaml up --build -d
+# Down: docker compose -f compose.e2e.yaml down --remove-orphans  (never -v)
+services:
+  security:
+    build: { context: ../../workers/security, dockerfile: Dockerfile }
+    image: openconnect/security:e2e-local
+    ports: ["${PORT_SECURITY:-8080}:8080"]
+  classification:
+    build: { context: ../../workers/classification, dockerfile: Dockerfile }
+    image: openconnect/classification:e2e-local
+    ports: ["${PORT_CLASSIFICATION:-8081}:8080"]
+  nllb:
+    build: { context: ../../workers/nllb, dockerfile: Dockerfile }
+    image: openconnect/nllb:e2e-local
+    ports: ["${PORT_NLLB:-8082}:8080"]
+  inference:
+    build: { context: ../../workers/inference, dockerfile: Dockerfile }
+    image: openconnect/inference:e2e-local
+    ports: ["${PORT_INFERENCE:-8083}:8080"]
+  transcription:
+    build: { context: ../../workers/transcription, dockerfile: Dockerfile }
+    image: openconnect/transcription:e2e-local
+    ports: ["${PORT_TRANSCRIPTION:-8084}:8080"]
+  realtime-voice:
+    build: { context: ../../workers/realtime-voice, dockerfile: Dockerfile }
+    image: openconnect/realtime-voice:e2e-local
+    ports: ["${PORT_REALTIME_VOICE:-8085}:8080"]
+  kokoro:
+    build: { context: ../../workers/kokoro, dockerfile: Dockerfile }
+    image: openconnect/kokoro:e2e-local
+    ports: ["${PORT_KOKORO:-8086}:8080"]
+  mms-tts:
+    build: { context: ../../workers/mms-tts, dockerfile: Dockerfile }
+    image: openconnect/mms-tts:e2e-local
+    ports: ["${PORT_MMS_TTS:-8087}:8080"]
+  navigator-playwright:
+    build: { context: ../../workers/navigator-playwright, dockerfile: Dockerfile }
+    image: openconnect/navigator-playwright:e2e-local
+    ports: ["${PORT_NAVIGATOR_PLAYWRIGHT:-8088}:8080"]
+  operational-agents:
+    build: { context: ../../workers/operational-agents, dockerfile: Dockerfile }
+    image: openconnect/operational-agents:e2e-local
+    ports: ["${PORT_OPERATIONAL_AGENTS:-8089}:8080"]
+  outbox:
+    build: { context: ../../workers/outbox, dockerfile: Dockerfile }
+    image: openconnect/outbox:e2e-local
+    ports: ["${PORT_OUTBOX:-8090}:8080"]

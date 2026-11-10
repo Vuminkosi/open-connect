@@ -44,6 +44,7 @@ public sealed class OrchestrationAdapters
     private readonly IsExecutionRevoked _isRevoked;
     private readonly int _maxConcurrentSubagents;
     private readonly RunBudgetLedger? _budgetLedger;
+    private readonly IRateLimitGate? _rateLimitGate;
 
     /// <summary>Creates adapters that execute agents and enforce host authorization.</summary>
     /// <param name="factory">Factory for creating agent instances.</param>
@@ -52,9 +53,11 @@ public sealed class OrchestrationAdapters
     /// <param name="isRevoked">Callback that checks current authorization state.</param>
     /// <param name="maxConcurrentSubagents">Maximum simultaneous child executions.</param>
     /// <param name="budgetLedger">Optional run-wide ledger shared by all orchestration adapters in this run.</param>
+    /// <param name="rateLimitGate">Optional tenant/application rate gate for direct execution. Child delegations are gated exactly once inside the conversation runner with the forwarded tenant; hosts must configure the runner gate to enforce child limits.</param>
     public OrchestrationAdapters(MafRealAgentFactory factory, MafConversationRunner conversation,
         Func<AgentExecutionContext, string, CancellationToken, ValueTask<OpenConnect.Abstractions.DelegationGrant?>> gate,
-        IsExecutionRevoked isRevoked, int maxConcurrentSubagents, RunBudgetLedger? budgetLedger = null)
+        IsExecutionRevoked isRevoked, int maxConcurrentSubagents, RunBudgetLedger? budgetLedger = null,
+        IRateLimitGate? rateLimitGate = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _conversation = conversation ?? throw new ArgumentNullException(nameof(conversation));
@@ -63,6 +66,7 @@ public sealed class OrchestrationAdapters
         if (maxConcurrentSubagents < 1) throw new ArgumentOutOfRangeException(nameof(maxConcurrentSubagents));
         _maxConcurrentSubagents = maxConcurrentSubagents;
         _budgetLedger = budgetLedger;
+        _rateLimitGate = rateLimitGate;
     }
 
     /// <summary>Runs an agent directly.</summary>
@@ -87,14 +91,9 @@ public sealed class OrchestrationAdapters
         for (var i = 0; i < grants.Count; i++)
         {
             var grant = grants[i];
-            AcquireSubagentBudget();
-            try
-            {
-                using var child = CreateChild(context, grant);
-                var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-                results.Add(ToChildResult(grant, child, response, i));
-            }
-            finally { _budgetLedger?.ReleaseActiveChild(); }
+            using var child = CreateChild(context, grant);
+            var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+            results.Add(ToChildResult(grant, child, response, i));
         }
         return ResultMerger.Merge(results, ToTraceId(parent), context.TenantScope, AgentResultMergeMode.OrderedTypedResults);
     }
@@ -121,15 +120,10 @@ public sealed class OrchestrationAdapters
             {
                 try
                 {
-                    AcquireSubagentBudget();
-                    try
-                    {
-                        using var child = CreateChild(context, grant, scopeCancellation.Token);
-                        // Every child gets its own AIAgent instance; no mutable conversation history is shared.
-                        var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-                        return ChildOutcome.Completed(grant.ChildAgentId.Value, ToChildResult(grant, child, response, index));
-                    }
-                    finally { _budgetLedger?.ReleaseActiveChild(); }
+                    using var child = CreateChild(context, grant, scopeCancellation.Token);
+                    // Every child gets its own AIAgent instance; no mutable conversation history is shared.
+                    var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+                    return ChildOutcome.Completed(grant.ChildAgentId.Value, ToChildResult(grant, child, response, index));
                 }
                 catch
                 {
@@ -173,13 +167,8 @@ public sealed class OrchestrationAdapters
     {
         ArgumentNullException.ThrowIfNull(grant);
         ArgumentNullException.ThrowIfNull(explicitProjection);
-        AcquireSubagentBudget();
-        try
-        {
-            using var child = CreateChild(context, grant);
-            return await RunChildAsync(parent, grant.ChildAgentId, explicitProjection, child).ConfigureAwait(false);
-        }
-        finally { _budgetLedger?.ReleaseActiveChild(); }
+        using var child = CreateChild(context, grant);
+        return await RunChildAsync(parent, grant.ChildAgentId, explicitProjection, child).ConfigureAwait(false);
     }
 
     /// <summary>Authorizes and runs one child selected for a capability.</summary>
@@ -195,14 +184,9 @@ public sealed class OrchestrationAdapters
         ArgumentException.ThrowIfNullOrWhiteSpace(capability);
         var grant = await _gate(context, capability, context.CancellationToken).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException("No authorized child agent is available for this capability.");
-        AcquireSubagentBudget();
-        try
-        {
-            using var child = CreateChild(context, grant);
-            var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
-            return ToChildResult(grant, child, response, order);
-        }
-        finally { _budgetLedger?.ReleaseActiveChild(); }
+        using var child = CreateChild(context, grant);
+        var response = await RunChildAsync(parent, grant.ChildAgentId, prompt, child).ConfigureAwait(false);
+        return ToChildResult(grant, child, response, order);
     }
 
     /// <summary>Rejects profiles that require an orchestration primitive this host adapter does not implement.</summary>
@@ -219,6 +203,7 @@ public sealed class OrchestrationAdapters
     private async Task<AgentResponse> RunAgentAsync(AgentId agentId, string prompt, AgentExecutionContext context)
     {
         await EnsureAuthorizedAsync(context).ConfigureAwait(false);
+        ThrowIfRateLimited(context, agentId.Value);
         if (_budgetLedger is not null && !_budgetLedger.TryReserveModelCall(Encoding.UTF8.GetByteCount(prompt)))
             throw new InvalidOperationException("run-wide model budget exhausted");
         return await _factory.CreateAgent(agentId).RunAsync(prompt, cancellationToken: context.CancellationToken).ConfigureAwait(false);
@@ -227,10 +212,29 @@ public sealed class OrchestrationAdapters
     private async Task<AgentResponse> RunChildAsync(ExecutionId parent, AgentId agentId, string prompt, AgentExecutionContext child)
     {
         await EnsureAuthorizedAsync(child).ConfigureAwait(false);
-        // MafConversationRunner records the actual parent/child execution and invokes the MAF AIAgent.
-        // It owns the single model-call reservation; do not reserve here as well.
-        return await _conversation.DelegateAsync(ToTraceId(parent), agentId, prompt, child.CancellationToken).ConfigureAwait(false);
+        AcquireSubagentBudget();
+        try
+        {
+            // MafConversationRunner records the actual parent/child execution and invokes the MAF AIAgent.
+            // It owns the single tenant-attributed gate evaluation and the single model-call reservation;
+            // do not gate or reserve here as well. The child tenant is forwarded so legitimate gated
+            // traffic is attributable instead of universally denied; truly unattributed calls still deny.
+            return await _conversation.DelegateAsync(ToTraceId(parent), agentId, prompt, child.CancellationToken,
+                childSessionKey: null, tenant: child.TenantScope).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException exception) when (IsRateLimitDenial(exception))
+        {
+            // The gate denied before any model reservation or MAF invocation: refund the child
+            // allowance so a denied delegation leaves ledger.Remaining unchanged and makes zero MAF calls.
+            _budgetLedger?.ReleaseSubagentReservation();
+            throw;
+        }
+        finally { _budgetLedger?.ReleaseActiveChild(); }
     }
+
+    /// <summary>Identifies a tenant/application rate-gate denial by its stable fail-closed message.</summary>
+    private static bool IsRateLimitDenial(InvalidOperationException exception) =>
+        exception.Message.Contains("rate limit exceeded", StringComparison.Ordinal);
 
     private async ValueTask EnsureAuthorizedAsync(AgentExecutionContext context)
     {
@@ -248,6 +252,25 @@ public sealed class OrchestrationAdapters
         if (!_budgetLedger.TryReserveSubagentWithSlot())
             throw new InvalidOperationException("The run-wide subagent budget or concurrent subagent limit is exhausted.");
         // The caller must release the slot in its finally block after child completion.
+    }
+
+    /// <summary>Enforces the tenant/application rate gate for direct execution after authorization and before budget reservation.</summary>
+    /// <remarks>Child delegations are not gated here: the conversation runner evaluates the gate exactly once per delegation with the forwarded tenant. Cancellation propagates as <see cref="OperationCanceledException"/>; other gate failures deny fail-closed.</remarks>
+    /// <exception cref="InvalidOperationException">The gate denied the attempt or failed closed.</exception>
+    private void ThrowIfRateLimited(AgentExecutionContext context, string application)
+    {
+        if (_rateLimitGate is null) return;
+        try
+        {
+            var decision = _rateLimitGate.TryAcquire(
+                new RateLimitKey(context.TenantScope, application, RateLimitModes.Interactive),
+                context.AgentExecutionId.Value.ToString(), context.CancellationToken);
+            if (!decision.Allowed)
+                throw new InvalidOperationException($"Interactive rate limit exceeded ({decision.LimitName}).");
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException) { throw; }
+        catch (Exception) { throw new InvalidOperationException("Interactive rate limit exceeded."); }
     }
 
     private static AgentExecutionContext CreateChild(AgentExecutionContext parent, OpenConnect.Abstractions.DelegationGrant grant,
