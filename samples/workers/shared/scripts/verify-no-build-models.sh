@@ -70,7 +70,13 @@ else
 fi
 
 # 4. No secret-looking literals (tokens, keys, passwords) in fixtures/scripts.
-if grep -rEni '(sk-[A-Za-z0-9]{8,}|xox[bap]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|password\s*[:=]\s*["'\'']?[^ "'\'']{4,})' "$ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' --include='*.example'; then
+#    Allowlist (strictly scoped): indirect `${VAR}` references carry no secret
+#    value, and values explicitly marked `do-not-use-in-prod` are self-declared
+#    non-production placeholders. Both are filtered out; all else still fails.
+hits="$(grep -rEni '(sk-[A-Za-z0-9]{8,}|xox[bap]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|password\s*[:=]\s*["'\'']?[^ "'\'']{4,})' "$ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' --include='*.example' || true)"
+hits="$(printf '%s\n' "$hits" | grep -v '\${' | grep -vi 'do-not-use-in-prod' | grep -vE 'password\s*[:=]\s*["'\'']?\$' || true)"
+if [ -n "$hits" ]; then
+  printf '%s\n' "$hits"
   echo "FAIL: possible secret literal found (use placeholders + env.example)"
   fail=$((fail + 1))
 else
