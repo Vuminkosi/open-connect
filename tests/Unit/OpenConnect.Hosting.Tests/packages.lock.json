@@ -472,7 +472,8 @@
           "Microsoft.Agents.AI.Harness": "[1.27.0, )",
           "Microsoft.Agents.AI.Workflows": "[1.27.0, )",
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
-          "OpenConnect.Abstractions": "[1.0.0, )"
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
       "openconnect.core": {
@@ -488,6 +489,13 @@
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Options": "[8.0.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
       "Microsoft.Agents.AI": {

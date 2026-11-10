@@ -466,6 +466,13 @@
       "openconnect.abstractions": {
         "type": "Project"
       },
+      "openconnect.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Options": "[8.0.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
       "Microsoft.Extensions.Configuration": {
         "type": "CentralTransitive",
         "requested": "[8.0.0, )",

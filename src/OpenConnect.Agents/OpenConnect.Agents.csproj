@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.Agents.AI.Workflows" />
     <PackageReference Include="Microsoft.Agents.AI.Workflows.Declarative.Mcp" />
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="../OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
     <PackageReference Include="Microsoft.Agents.AI" />
   </ItemGroup>
 </Project>

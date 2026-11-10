@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
+using OpenConnect.Privacy;
 
 namespace OpenConnect.Agents.Execution;
 
@@ -13,10 +14,14 @@ public sealed class MafRealAgentFactory
     private readonly List<ExecutionTraceRecord> _traces = [];
 
     /// <summary>Creates the factory with registered agent definitions and a chat client.</summary>
-    public MafRealAgentFactory(IAgentDefinitionRegistry registry, IChatClient chatClient)
+    /// <remarks>When both an egress gate and context provider are supplied, the chat client is
+    /// wrapped once in a <see cref="FirewallGuardedChatClient"/> at construction time; an
+    /// already-guarded client is never wrapped twice.</remarks>
+    public MafRealAgentFactory(IAgentDefinitionRegistry registry, IChatClient chatClient, IEgressGate? egressGate = null, IEgressContextProvider? egressContext = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+        ArgumentNullException.ThrowIfNull(chatClient);
+        _chatClient = Guard(chatClient, egressGate, egressContext);
     }
 
     /// <summary>Creates an MAF agent with host-authorized tools and resolved instructions.</summary>
@@ -57,6 +62,13 @@ public sealed class MafRealAgentFactory
     public IReadOnlyList<ExecutionTraceRecord> GetTrace()
     {
         lock (_sync) return _traces.ToArray();
+    }
+
+    private static IChatClient Guard(IChatClient chatClient, IEgressGate? egressGate, IEgressContextProvider? egressContext)
+    {
+        if (egressGate is null || egressContext is null) return chatClient;
+        if (chatClient is FirewallGuardedChatClient) return chatClient;
+        return new FirewallGuardedChatClient(chatClient, egressGate, egressContext);
     }
 
     private void AddTrace(ExecutionTraceRecord trace)
