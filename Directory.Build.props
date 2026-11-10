@@ -12,7 +12,7 @@
         <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
       Never set a global plural TargetFrameworks here: executables stay single-target.
     -->
-    <TargetFramework Condition="'$(TargetFramework)' == '' and !$(MSBuildProjectDirectory.Contains('\src\')) and !$(MSBuildProjectDirectory.Contains('/src/'))">net8.0</TargetFramework>
+    <TargetFramework Condition="'$(TargetFramework)' == '' and !$(MSBuildProjectDirectory.Contains('\src\')) and !$(MSBuildProjectDirectory.Contains('/src/'))">net10.0</TargetFramework>
     <LangVersion>12</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
