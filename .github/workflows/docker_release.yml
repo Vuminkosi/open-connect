@@ -1,7 +1,7 @@
 # Docker release — build all worker images, push to Docker Hub only when armed.
 #
 # Namespace: docker.io/vuminkosimatibe.
-# Images: vuminkosimatibe/openconnect-worker-<name>:<version> (version-only; no floating tag published by this workflow).
+# Images: vuminkosimatibe/openconnect-worker-<name>:<version> + :latest (both tags published on armed runs).
 #
 # Auth model: Docker Hub username/password from the `production` environment
 # secrets DOCKERHUB_USERNAME / DOCKERHUB_TOKEN (names only; values never appear
@@ -116,7 +116,7 @@ jobs:
         run: |
           $worker = '${{ matrix.worker }}'
           $version = '${{ steps.resolve-version.outputs.version }}'
-          $tagList = @("vuminkosimatibe/openconnect-worker-${worker}:${version}")
+          $tagList = @("vuminkosimatibe/openconnect-worker-${worker}:${version}", "vuminkosimatibe/openconnect-worker-${worker}:latest")
           $delimiter = 'IMAGETAGS_EOF'
           "tags<<$delimiter" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           $tagList | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
