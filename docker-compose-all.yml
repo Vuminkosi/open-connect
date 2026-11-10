@@ -1,0 +1,252 @@
+# Complete End-to-End Todo Sample Compose Stack
+# Combines:
+# 1. OpenConnect Blazor Web & Gateway Application (Port 5000)
+# 2. Database (PostgreSQL 16)
+# 3. Message Broker (NATS JetStream)
+# 4. Canonical OpenConnect Worker Services (Security, Inference, Transcription, Kokoro, Playwright, Operational Agents, Outbox)
+#
+# Usage:
+#   docker compose -f docker-compose-all.yml up -d
+#
+# Access:
+#   Blazor Web App: http://localhost:5000
+#   Gateway / Health: http://localhost:8080/health (Host) or http://localhost:5000/
+#   Postgres: localhost:5432
+#   NATS: localhost:4222
+
+services:
+  # =========================================================================
+  # 1. OpenConnect Blazor Web UI & Interactive Gateway Application
+  # =========================================================================
+  todo-web-app:
+    build:
+      context: .
+      dockerfile: samples/Blazor/Dockerfile
+    image: vuminkosimatibe/openconnect-sample-todo:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-todo-web-app
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
+      Nats__Url: nats://nats:4222
+      Workers__Security__Endpoint: http://worker-security:8080
+      Workers__Inference__Endpoint: http://worker-inference:8080
+      Workers__Transcription__Endpoint: http://worker-transcription:8080
+      Workers__Kokoro__Endpoint: http://worker-kokoro:8080
+      Workers__Playwright__Endpoint: http://worker-playwright:8080
+    volumes:
+      - oc_todo_app_data:/data
+    networks:
+      - oc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  # =========================================================================
+  # 2. Relational Database (PostgreSQL)
+  # =========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: oc-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: openconnect
+      POSTGRES_USER: openconnect
+      POSTGRES_PASSWORD: openconnect_dev_password
+    volumes:
+      - oc_postgres_data:/var/lib/postgresql/data
+    networks:
+      - oc-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openconnect -d openconnect"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 2s
+
+  # =========================================================================
+  # 3. Messaging Transport (NATS JetStream)
+  # =========================================================================
+  nats:
+    image: nats:2.10-alpine
+    container_name: oc-nats
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - oc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8222/varz || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 2s
+
+  # =========================================================================
+  # 4. OpenConnect Sample Host / Gateway API
+  # =========================================================================
+  gateway-host:
+    build:
+      context: .
+      dockerfile: samples/workers/shared/OpenConnect.Samples.Workers.Host/Dockerfile
+    image: vuminkosimatibe/openconnect-sample-host:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-gateway-host
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      OC_TEST_MODE: "true"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
+      Nats__Url: nats://nats:4222
+      Workers__Security__Endpoint: http://worker-security:8080
+      Workers__Inference__Endpoint: http://worker-inference:8080
+      Workers__Transcription__Endpoint: http://worker-transcription:8080
+      Workers__Kokoro__Endpoint: http://worker-kokoro:8080
+      Workers__Playwright__Endpoint: http://worker-playwright:8080
+    networks:
+      - oc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  # =========================================================================
+  # 5. Core OpenConnect Workers
+  # =========================================================================
+  worker-security:
+    build:
+      context: workers/security
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-security:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-security
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: Production
+      OC_MODEL_DEVICE: auto
+      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "false"
+      OC_SECURITY_RULES_ENABLED: "true"
+    volumes:
+      - oc_security_models:/models
+    networks:
+      - oc-network
+
+  worker-inference:
+    build:
+      context: workers/inference
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-inference:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-inference
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: Production
+      OC_MODEL_DEVICE: auto
+      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_CACHE_DIR: /models
+    volumes:
+      - oc_inference_models:/models
+    networks:
+      - oc-network
+
+  worker-transcription:
+    build:
+      context: workers/transcription
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-transcription
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: Production
+      OC_MODEL_DEVICE: auto
+      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_CACHE_DIR: /models
+    volumes:
+      - oc_transcription_models:/models
+    networks:
+      - oc-network
+
+  worker-kokoro:
+    build:
+      context: workers/kokoro
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-kokoro
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: Production
+      OC_MODEL_DEVICE: auto
+      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_CACHE_DIR: /models
+      OC_KOKORO_MODEL: hexgrad/Kokoro-82M
+      OC_KOKORO_VOICE: af_heart
+    volumes:
+      - oc_kokoro_models:/models
+    networks:
+      - oc-network
+
+  worker-playwright:
+    build:
+      context: workers/navigator-playwright
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-navigator-playwright:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-playwright
+    networks:
+      - oc-network
+
+  worker-outbox:
+    build:
+      context: .
+      dockerfile: src/OpenConnect.WorkerHosts.Outbox/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-outbox
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
+      Nats__Url: nats://nats:4222
+      WorkerHosts__Outbox__Mode: Standalone
+      WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
+    networks:
+      - oc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  worker-operational:
+    build:
+      context: .
+      dockerfile: src/OpenConnect.WorkerHosts.Operational/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-operational
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=openconnect_dev_password"
+      WorkerHosts__Operational__Mode: Standalone
+      WorkerHosts__Operational__EmbeddedEnabled: "false"
+    networks:
+      - oc-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+# =============================================================================
+# Networks & Persistent Volumes
+# =============================================================================
+networks:
+  oc-network:
+    driver: bridge
+
+volumes:
+  oc_todo_app_data:
+  oc_postgres_data:
+  oc_security_models:
+  oc_inference_models:
+  oc_transcription_models:
+  oc_kokoro_models:
