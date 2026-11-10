@@ -11,6 +11,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddOpenConnect(this IServiceCollection services, Action<OpenConnectOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ThrowOnConflictingRepeatRegistration(services, configure);
+        services.TryAddSingleton(OptionsConflictGuard.Capture(Materialize(configure)));
         services.AddSingleton<IValidateOptions<OpenConnectOptions>, OpenConnectOptionsValidator>();
         services.AddOptions<OpenConnectOptions>().Configure(options => configure?.Invoke(options)).ValidateOnStart();
         services.TryAddSingleton<IAgentDefinitionRegistry>(provider =>
@@ -24,6 +26,27 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    private static void ThrowOnConflictingRepeatRegistration(IServiceCollection services, Action<OpenConnectOptions>? configure)
+    {
+        // A null configure delegate cannot introduce a conflict; treat as idempotent.
+        if (configure is null)
+            return;
+        var registered = services
+            .FirstOrDefault(d => d.ServiceType == typeof(OpenConnectRegistrationSnapshot))?
+            .ImplementationInstance as OpenConnectRegistrationSnapshot;
+        if (registered is null)
+            return;
+        var conflict = OptionsConflictGuard.FindConflict(registered, OptionsConflictGuard.Capture(Materialize(configure)));
+        if (conflict.HasValue)
+            throw OptionsConflictGuard.ConflictException(conflict.Value.Field, conflict.Value.OldValue, conflict.Value.NewValue);
+    }
+
+    private static OpenConnectOptions Materialize(Action<OpenConnectOptions>? configure)
+    {
+        var options = new OpenConnectOptions();
+        configure?.Invoke(options);
+        return options;
+    }
     private sealed class PrivacyWarningConfiguration : IPostConfigureOptions<OpenConnectOptions>
     {
         public void PostConfigure(string? name, OpenConnectOptions options)
