@@ -42,6 +42,10 @@ public sealed class AgentRegistryOptions
     public long MaxTokens { get; set; } = long.MaxValue;
     public int MaxQueuedAgents { get; set; } = int.MaxValue;
     public long MaxCostMicrocents { get; set; } = long.MaxValue;
+    /// <summary>Gets or sets the metered cost rate in microcents per thousand tokens applied to
+    /// model-call token estimates as <c>ceil(tokens * rate / 1000)</c>. Zero (the default) meters
+    /// zero cost, so the cost dimension never denies on its own until a nonzero rate is configured.</summary>
+    public long MicrocentsPerThousandTokens { get; set; } = 0;
     public TimeSpan MaxTurnDuration { get; set; } = TimeSpan.FromSeconds(120);
     public TimeSpan MaxToolDuration { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan LongRunningThreshold { get; set; } = TimeSpan.FromSeconds(3);

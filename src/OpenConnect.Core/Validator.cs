@@ -26,6 +26,7 @@ public sealed class OpenConnectOptionsValidator : IValidateOptions<OpenConnectOp
         if (agents.MaxTokens < 0) errors.Add("Agents:MaxTokens cannot be negative.");
         if (agents.MaxQueuedAgents < 0) errors.Add("Agents:MaxQueuedAgents cannot be negative.");
         if (agents.MaxCostMicrocents < 0) errors.Add("Agents:MaxCostMicrocents cannot be negative.");
+        if (agents.MicrocentsPerThousandTokens < 0) errors.Add("Agents:MicrocentsPerThousandTokens cannot be negative.");
         if (agents.MaxTurnDuration <= TimeSpan.Zero) errors.Add("Agents:MaxTurnDuration must be positive.");
         if (agents.MaxToolDuration <= TimeSpan.Zero) errors.Add("Agents:MaxToolDuration must be positive.");
         if (agents.LongRunningThreshold <= TimeSpan.Zero) errors.Add("Agents:LongRunningThreshold must be positive.");

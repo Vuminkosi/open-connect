@@ -6,8 +6,15 @@ namespace OpenConnect.Tools;
 /// <summary>Executes tools only after fresh host authorization, schema validation, and approval checks.</summary>
 public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService authorization)
 {
+    /// <summary>
+    /// Executes a tool after registration, allowlist, policy, schema, and approval checks.
+    /// Optional <paramref name="tryReserveToolCall"/> is consulted after approval checks and
+    /// before tool invocation; a <c>false</c> result denies with <see cref="ErrorCodes.ToolNotAllowed"/>
+    /// and zero side effects. Intended adapter: <c>() =&gt; ledger.TryReserveToolCall()</c>.
+    /// A <c>null</c> delegate leaves invocation unenforced (existing behavior).
+    /// </summary>
     public async ValueTask<JsonElement> InvokeAsync(ToolAccessRequest request, JsonElement arguments,
-        ToolApproval? approval = null, CancellationToken cancellationToken = default)
+        ToolApproval? approval = null, Func<bool>? tryReserveToolCall = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!catalog.TryGetRegistration(request.ToolId, out var registration) ||
@@ -23,6 +30,11 @@ public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService aut
         if ((registration.RequiresApproval && approval is null) ||
             (approval is not null && !authorization.ConsumeApproval(approval, request, arguments)))
             throw new ToolAuthorizationException(ErrorCodes.ApprovalRequired);
+
+        // Budget choke point: reservation failure denies before any tool side effect.
+        if (tryReserveToolCall is not null && !tryReserveToolCall())
+            throw new ToolAuthorizationException(ErrorCodes.ToolNotAllowed);
+
         return await registration.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
     }
 

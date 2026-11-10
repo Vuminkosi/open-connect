@@ -12,17 +12,26 @@ public sealed class RunBudgetLedger
     private int _toolCalls;
     private int _modelCalls;
     private long _tokens;
+    private long _costMicrocents;
+    private readonly long _microcentsPerThousandTokens;
 
     /// <summary>Creates a run ledger bounded by the run budget and, when supplied, the inherited residual budget.</summary>
     /// <param name="runBudget">The immutable run-wide limits.</param>
     /// <param name="parentRemainingBudgets">Optional narrower residual limits inherited from a parent.</param>
-    public RunBudgetLedger(AgentBudget runBudget, AgentBudget? parentRemainingBudgets = null)
+    /// <param name="microcentsPerThousandTokens">Cost rate applied to model-call token estimates as
+    /// <c>ceil(tokens * rate / 1000)</c>. Zero (the default) disables cost debiting while preserving
+    /// cost-limit enforcement for explicitly reserved cost.</param>
+    public RunBudgetLedger(AgentBudget runBudget, AgentBudget? parentRemainingBudgets = null,
+        long microcentsPerThousandTokens = 0)
     {
         ArgumentNullException.ThrowIfNull(runBudget);
+        if (microcentsPerThousandTokens < 0)
+            throw new ArgumentOutOfRangeException(nameof(microcentsPerThousandTokens), "Cost rate cannot be negative.");
         if (!IsValid(runBudget) || (parentRemainingBudgets is not null && !IsValid(parentRemainingBudgets)))
             throw new ArgumentOutOfRangeException(nameof(runBudget), "Budget limits cannot be negative.");
 
         _limit = parentRemainingBudgets is null ? runBudget : Intersect(runBudget, parentRemainingBudgets);
+        _microcentsPerThousandTokens = microcentsPerThousandTokens;
     }
 
     /// <summary>Gets an immutable snapshot of remaining run-wide capacity.</summary>
@@ -39,7 +48,7 @@ public sealed class RunBudgetLedger
                     _limit.MaxConcurrentAgents,
                     _limit.MaxQueuedAgents,
                     Math.Max(0, _limit.MaxTotalAgents - _subagents),
-                    _limit.MaxCostMicrocents);
+                    MaxCostMicrocents: Math.Max(0, _limit.MaxCostMicrocents - _costMicrocents));
         }
     }
 
@@ -130,17 +139,30 @@ public sealed class RunBudgetLedger
         }
     }
 
-    /// <summary>Atomically reserves one model-call attempt and its token usage.</summary>
+    /// <summary>Atomically reserves one model-call attempt, its token usage, and its metered cost.</summary>
+    /// <remarks>Cost is metered as <c>ceil(tokens * rate / 1000)</c> from the ledger's configured rate.
+    /// All three dimensions are checked before any debit, so denial leaves every counter unchanged.</remarks>
     /// <param name="tokens">Nonnegative token count for this attempt.</param>
-    /// <returns>True when both call and token capacity are reserved; false with no debit otherwise.</returns>
+    /// <returns>True when call, token, and cost capacity are all reserved; false with no debit otherwise.</returns>
     public bool TryReserveModelCall(long tokens)
     {
         if (tokens < 0) return false;
         lock (_sync)
         {
             if (_modelCalls >= _limit.MaxModelCalls || tokens > _limit.MaxTokens - _tokens) return false;
+            long cost;
+            try
+            {
+                cost = MeterCost(tokens);
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
+            if (cost > _limit.MaxCostMicrocents - _costMicrocents) return false;
             _modelCalls++;
             _tokens += tokens;
+            _costMicrocents += cost;
             return true;
         }
     }
@@ -159,6 +181,20 @@ public sealed class RunBudgetLedger
         }
     }
 
+    /// <summary>Atomically reserves cost capacity independently of a model-call reservation.</summary>
+    /// <param name="microcents">Nonnegative cost in microcents to reserve.</param>
+    /// <returns>True when reserved; false when invalid or exhausted, with no partial debit.</returns>
+    public bool TryReserveCost(long microcents)
+    {
+        if (microcents < 0) return false;
+        lock (_sync)
+        {
+            if (microcents > _limit.MaxCostMicrocents - _costMicrocents) return false;
+            _costMicrocents += microcents;
+            return true;
+        }
+    }
+
     private static bool IsValid(AgentBudget budget) => budget.MaxToolCalls >= 0 && budget.MaxModelCalls >= 0 &&
         budget.MaxTokens >= 0 && budget.MaxConcurrentAgents >= 0 && budget.MaxQueuedAgents >= 0 &&
         budget.MaxTotalAgents >= 0 && budget.MaxCostMicrocents >= 0 && (budget.MaxRuntime is null || budget.MaxRuntime >= TimeSpan.Zero);
@@ -168,6 +204,18 @@ public sealed class RunBudgetLedger
         Math.Min(left.MaxTokens, right.MaxTokens), Min(left.MaxRuntime, right.MaxRuntime),
         Math.Min(left.MaxConcurrentAgents, right.MaxConcurrentAgents), Math.Min(left.MaxQueuedAgents, right.MaxQueuedAgents),
         Math.Min(left.MaxTotalAgents, right.MaxTotalAgents), Math.Min(left.MaxCostMicrocents, right.MaxCostMicrocents));
+
+    /// <summary>Computes metered cost for a token estimate without mutating ledger state.</summary>
+    /// <remarks>Must be called under <see cref="_sync"/>. A zero rate always meters zero cost.</remarks>
+    private long MeterCost(long tokens)
+    {
+        if (tokens == 0 || _microcentsPerThousandTokens == 0) return 0;
+        checked
+        {
+            return (tokens / 1000) * _microcentsPerThousandTokens +
+                ((tokens % 1000) * _microcentsPerThousandTokens + 999) / 1000;
+        }
+    }
 
     private static TimeSpan? Min(TimeSpan? left, TimeSpan? right) => (left, right) switch
     {
