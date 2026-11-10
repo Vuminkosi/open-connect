@@ -95,7 +95,6 @@ public static class SampleWorkerHostApp
         app.UseAuthorization();
 
         app.MapOpenConnect();
-        app.MapOpenConnectNavigator();
 
         app.MapGet("/sample-harness/workers", () => Results.Ok(CanonicalWorkers.All));
 
