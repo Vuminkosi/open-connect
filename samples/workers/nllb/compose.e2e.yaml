@@ -13,7 +13,15 @@ services:
     ports:
       - "${PORT_NLLB:-8082}:8080"
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      # T3 E2E (explicitly fake-labeled, local-only): use the app's canonical
+      # token var (OPENCONNECT_WORKER_TOKEN, which the app reads in
+      # config.py:from_environment) and run the explicitly labeled fake
+      # engine (OC_WORKER_ENGINE=fake; default is real). Language pair is
+      # eng_Latn->fra_Latn from the app's finite allowlist (languages.py);
+      # the app honors no model/lang env ids (manifest-gated real mode is
+      # bypassed by fake). Synthetic text only; no downloads.
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: fake
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s
