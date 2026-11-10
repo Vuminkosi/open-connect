@@ -1,1 +1,1 @@
-{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174005","text":"Hello from end to end.","voice":"e2e-test-voice","language":"en"}
+{"idempotencyKey":"e2e-kokoro-t3-0001","kind":"speech.synthesize","payload":{"format":"wav","locale":"en-US","schemaVersion":"openconnect.v1","text":"Synthetic end-to-end check speech. This audio is fake-engine output, not a real voice.","voiceId":"af_heart"},"schemaVersion":"openconnect.v1","taskId":"123e4567-e89b-42d3-a456-426614174005"}

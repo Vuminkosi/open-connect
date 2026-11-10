@@ -19,12 +19,16 @@ wait_ready "$BASE/health/ready"
 echo "PASS T2 kokoro: ready"
 
 if [ "${TIER:-t2}" = "t3" ]; then
-  echo "==> T3 kokoro: fixture request to /synthesize"
+  echo "==> T3 kokoro: execute envelope to /internal/v1/execute (fake engine, synthetic text)"
+  TOKEN="${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}"
   BODY="$SAMPLE_DIR/fixtures/request.json"
-  OUT="$SAMPLE_DIR/.t3-response.json"
+  OUT="$(mktemp "${TMPDIR:-/tmp}/kokoro-t3-resp.XXXXXX.json")"
+  NEG="$(mktemp "${TMPDIR:-/tmp}/kokoro-t3-neg.XXXXXX.json")"
+  trap 'rm -f "$OUT" "$NEG"' EXIT INT TERM
   CODE="$(curl -sS -o "$OUT" -w '%{http_code}' --max-time 30 \
     -H 'Content-Type: application/json' \
-    -d @"$BODY" "$BASE/synthesize")"
+    -H "Authorization: Bearer $TOKEN" \
+    -d @"$BODY" "$BASE/internal/v1/execute")"
   sanitize_file "$OUT"
   EXPECTED_STATUS="$("$PYBIN" -c "import json,sys;print(json.load(open(sys.argv[1]))['expectedStatus'])" "$SAMPLE_DIR/fixtures/expected.json")"
   if [ "$CODE" != "$EXPECTED_STATUS" ]; then
@@ -33,6 +37,48 @@ if [ "${TIER:-t2}" = "t3" ]; then
   fi
   EXPECTED_STATUS="$CODE" "$PYBIN" "$SHARED/assert_response.py" \
     "$OUT" "$SAMPLE_DIR/fixtures/expected.json"
-  rm -f "$OUT"
+  "$PYBIN" - "$OUT" <<'PYEOF'
+import base64, json, sys
+body = json.load(open(sys.argv[1]))
+result = body.get("result")
+assert isinstance(result, dict), "result must be an object"
+b64 = result.get("audioBase64")
+assert isinstance(b64, str) and b64, "result.audioBase64 must be present"
+raw = base64.b64decode(b64)
+assert raw.startswith(b"FAKE-"), "fake-engine marker (FAKE- prefix) missing"
+print("PASS T3 kokoro: audioBase64 present with fake-engine marker")
+PYEOF
+  # Negatives: no token -> 401; wrong token -> 401.
+  for AUTH in "none" "wrong"; do
+    if [ "$AUTH" = "none" ]; then
+      NCODE="$(curl -sS -o "$NEG" -w '%{http_code}' --max-time 30 \
+        -H 'Content-Type: application/json' \
+        -d @"$BODY" "$BASE/internal/v1/execute")"
+    else
+      NCODE="$(curl -sS -o "$NEG" -w '%{http_code}' --max-time 30 \
+        -H 'Content-Type: application/json' \
+        -H 'Authorization: Bearer wrong-test-token' \
+        -d @"$BODY" "$BASE/internal/v1/execute")"
+    fi
+    sanitize_file "$NEG"
+    if [ "$NCODE" != "401" ]; then
+      echo "FAIL T3 kokoro negative ($AUTH token): expected HTTP 401, got $NCODE" >&2
+      exit 1
+    fi
+  done
+  # Negative: unknown kind -> 422.
+  "$PYBIN" -c "import json;doc=json.load(open('$BODY'));doc['kind']='no.such.kind';doc['taskId']='e2e-kokoro-t3-neg-kind';json.dump(doc,open('$NEG','w'))"
+  NCODE="$(curl -sS -o "$NEG.out" -w '%{http_code}' --max-time 30 \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" \
+    -d @"$NEG" "$BASE/internal/v1/execute")"
+  rm -f "$NEG.out"
+  sanitize_file "$NEG"
+  case "$NCODE" in
+    4*) echo "PASS T3 kokoro negatives: 401/4xx enforced" ;;
+    *) echo "FAIL T3 kokoro negative (unknown kind): expected 4xx, got $NCODE" >&2; exit 1 ;;
+  esac
+  rm -f "$OUT" "$NEG"
+  trap - EXIT INT TERM
   echo "PASS T3 kokoro: fixture response conforms"
 fi
