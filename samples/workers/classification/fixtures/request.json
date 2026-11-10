@@ -1,1 +1,1 @@
-{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174001","text":"I cannot log in to my account.","candidateLabels":["billing","auth","other"]}
+{"input":{"labelSetVersion":"v1","maxLabels":3,"text":"Synthetic end-to-end check text. This classification is fake-engine output, advisory only."},"schemaVersion":"openconnect.v1","taskId":"123e4567-e89b-42d3-a456-426614174001"}
