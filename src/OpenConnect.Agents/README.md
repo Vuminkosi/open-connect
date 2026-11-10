@@ -1,22 +1,24 @@
 # OpenConnect.Agents
 
-MAF 1.27.0 foundation. `MafRealAgentFactory` builds real agents via
-`IChatClient.AsAIAgent(...)` and runs one turn via `RunAsync(...)`;
-session state uses the native `AgentSession` codec, and Workflow runs
-use the native Workflow primitive via `InProcessExecution` with
-host authorization enforced before any model call.
+MAF-first agent execution for OpenConnect: real Microsoft Agent Framework runtime agents
+with an agent catalog, delegation gates, and run budgets layered above the MAF runtime
+(`OpenConnect.Agents`, `OpenConnect.Agents.Catalog`). Unsupported orchestration profiles
+fail closed before any model call is attempted.
 
-Supported: Direct execution and host-constructed Workflow
-(Sequential / Parallel / Handoff / Supervisor delegation runners).
-Unsupported per Rule 2 (explicit gates, never fabricated):
-Harness, Durable execution, MCP integration, A2A integration.
+## Install
 
-Unsupported profiles fail closed: `OrchestrationProfileRouter`
-(`MafRuntimeProbe` capability matrix) throws
-`MafCapabilityUnavailableException` before any execution is attempted.
+```bash
+dotnet add package OpenConnect.Agents
+```
 
-Policy layers are not execution rebuilds: `AgentCatalog`,
-`DelegationGate`, `RunBudgetLedger`, and `ContextProjection`
-(authorization, budget, scope) sit above the MAF runtime.
+Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-Execution traces record parent/child records around the real MAF call.
+## Usage
+
+Explore the `OpenConnect.Agents` and `OpenConnect.Agents.Catalog` namespaces for the
+execution building blocks, and compose them through `OpenConnect.Core` service
+registration. See the repository docs (`docs/`) for supported execution profiles.
+
+## License
+
+Same terms as the OpenConnect repository.

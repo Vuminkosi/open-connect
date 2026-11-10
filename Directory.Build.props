@@ -45,6 +45,16 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- Package README (OC-README-SLICE): embed each library's README.md as the
+       NuGet package readme. Exists-guarded so non-library projects (tests,
+       samples) and libraries without a README are unaffected. Additive only. -->
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/README.md')">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)/README.md')">
+    <None Include="$(MSBuildProjectDirectory)/README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
   <!-- SourceLink (OC-G5-FIX02): repo-embedded debugging for shippable libs.
        Version pinned in Directory.Packages.props (10.0.403, SDK-aligned,
        verified on nuget.org). PrivateAssets=all: build-time only, never
