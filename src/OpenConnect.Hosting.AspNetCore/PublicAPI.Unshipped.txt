@@ -1,0 +1,134 @@
+#nullable enable
+OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter
+OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Context.get -> OpenConnect.Agents.Execution.AgentExecutionContext!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Dispose() -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.HostTaskAgentExecution(OpenConnect.Agents.Execution.MafConversationRunner! runner, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.IsExecutionRevoked! isExecutionRevoked, OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext! persistenceContext) -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.IsExecutionRevoked.get -> OpenConnect.Agents.Execution.IsExecutionRevoked!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.PersistenceContext.get -> OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Runner.get -> OpenConnect.Agents.Execution.MafConversationRunner!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.HostTaskExecution(OpenConnect.Abstractions.TaskId TaskId, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, string! Message, string! IdempotencyKey) -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.IdempotencyKey.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.IdempotencyKey.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.Message.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.Message.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.SessionId.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.SessionId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.TaskId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecutionServiceCollectionExtensions
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskAgentExecutionFactory
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskAgentExecutionFactory.CreateAsync(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution! task, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution!>!
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskExecutionAuthorizer
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskExecutionAuthorizer.AuthorizeAsync(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution! task, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskExecutor
+OpenConnect.Hosting.AspNetCore.Execution.IHostTaskExecutor.ExecuteAsync(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution! task, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutionServiceCollectionExtensions
+OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor
+OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor.ExecuteAsync(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution! task, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor.MafHostTaskExecutor(OpenConnect.Hosting.AspNetCore.Execution.IHostTaskAgentExecutionFactory! factory) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.ApproveAsync(Microsoft.Agents.AI.Workflows.ExternalRequest! request, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision! decision, object! responseData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWorkflowApprovalBridge(OpenConnect.Agents.Execution.NativeWorkflowInteraction! interaction, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope! expectedScope, string! expectedArgumentsHash, string! expectedToolRevision) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWorkflowApprovalBridge(OpenConnect.Agents.Execution.NativeWorkflowInteraction! interaction, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope! expectedScope, string! expectedArgumentsHash, string! expectedToolRevision, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isExecutionRevokedAsync, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isGrantValidAsync, System.TimeProvider? timeProvider) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWorkflowApprovalBridge(OpenConnect.Agents.Execution.NativeWorkflowInteraction! interaction, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope! expectedScope, string! expectedArgumentsHash, string! expectedToolRevision, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isExecutionRevokedAsync, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isGrantValidAsync, System.TimeProvider? timeProvider, System.Func<string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! tryConsumeNonceAsync) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.PendingRequest.get -> Microsoft.Agents.AI.Workflows.ExternalRequest?
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Approved.get -> bool
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Approved.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ArgumentsHash.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ArgumentsHash.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ExpiresAt.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.NativeWorkflowApprovalDecision(bool Approved, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TaskId TaskId, string! RequestId, string! ArgumentsHash, string! ToolRevision, string! Nonce, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Nonce.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Nonce.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.RequestId.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.RequestId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.SessionId.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.SessionId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.TaskId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ToolRevision.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ToolRevision.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.NativeWorkflowApprovalScope(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TaskId TaskId) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.SessionId.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.SessionId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.TaskId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.Capacity.get -> int
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.Capacity.set -> void
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.MaxRetainedTasks.get -> int
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.MaxRetainedTasks.set -> void
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.OpenConnectTaskExecutionOptions() -> void
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.WorkerConcurrency.get -> int
+OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.WorkerConcurrency.set -> void
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
+OpenConnect.Hosting.AspNetCore.InMemoryEventJournal
+OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.AppendAsync(OpenConnect.Abstractions.EventRecord! event, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
+OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.InMemoryEventJournal() -> void
+OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.ReplayAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.AppendEventAsync(OpenConnect.Abstractions.Ulid id, string! type, string! data, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.Create(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal) -> OpenConnect.Hosting.AspNetCore.SessionRecord!
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.Get(OpenConnect.Abstractions.Ulid id) -> OpenConnect.Hosting.AspNetCore.SessionRecord?
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.GetEvents(OpenConnect.Abstractions.Ulid id, long afterSequence) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.InMemorySessionStore() -> void
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.InMemorySessionStore(OpenConnect.Hosting.AspNetCore.InMemoryEventJournal! journal) -> void
+OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver
+OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.InMemorySessionUuidResolver() -> void
+OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.Register(System.Guid sessionUuid, OpenConnect.Abstractions.Ulid sessionUlid) -> void
+OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
+OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.Unregister(System.Guid sessionUuid) -> bool
+OpenConnect.Hosting.AspNetCore.InMemoryTaskStore
+OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.InMemoryTaskStore() -> void
+OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.TransitionAsync(OpenConnect.Abstractions.TaskId taskId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.AgentRunState expectedState, OpenConnect.Abstractions.AgentRunState newState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
+OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector
+OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.DataProtectionNativeAgentSessionProtector(Microsoft.AspNetCore.DataProtection.IDataProtectionProvider! provider) -> void
+OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.ProtectAsync(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding! binding, System.ReadOnlyMemory<byte> plaintext, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
+OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.UnprotectAsync(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding! binding, System.ReadOnlyMemory<byte> ciphertext, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
+OpenConnect.Hosting.AspNetCore.Protection.NativeAgentSessionProtectionServiceCollectionExtensions
+OpenConnect.Hosting.AspNetCore.SessionRecord
+OpenConnect.Hosting.AspNetCore.SessionRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Hosting.AspNetCore.SessionRecord.CreatedAt.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.Id.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.SessionRecord.Id.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.SessionRecord.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.SessionRecord(OpenConnect.Abstractions.SessionId Id, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.SessionRecord.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRequest
+OpenConnect.Hosting.AspNetCore.SessionRequest.Name.get -> string?
+OpenConnect.Hosting.AspNetCore.SessionRequest.Name.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRequest.SessionRequest(string? Name = null) -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest
+OpenConnect.Hosting.AspNetCore.TaskRequest.ClientTaskId.get -> string!
+OpenConnect.Hosting.AspNetCore.TaskRequest.ClientTaskId.init -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest.Message.get -> string?
+OpenConnect.Hosting.AspNetCore.TaskRequest.Message.init -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.get -> string?
+OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.init -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest.TaskRequest(string! ClientTaskId, string? Message = null, string? SessionId = null) -> void
+static OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter.TryToCanonical(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionUuid, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
+static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnect(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecutionServiceCollectionExtensions.AddOpenConnectTaskExecution(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutionServiceCollectionExtensions.AddMafHostTaskExecutor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.Protection.NativeAgentSessionProtectionServiceCollectionExtensions.AddOpenConnectNativeAgentSessionProtection(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

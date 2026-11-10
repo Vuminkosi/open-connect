@@ -34,11 +34,11 @@ public sealed class MafRealAgentFactory
     }
 
     /// <summary>Runs one turn on a real MAF agent and records its root/agent trace.</summary>
-    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, CancellationToken cancellationToken = default)
+    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, CancellationToken cancellationToken)
         => await RunAsync(agentId, prompt, tools: null, cancellationToken, instructions: null).ConfigureAwait(false);
 
     /// <summary>Runs one turn using host-authorized tools. Tool discovery and approval belong to OpenConnect.Tools; this factory performs no authorization.</summary>
-    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools, CancellationToken cancellationToken = default, string? instructions = null)
+    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools = null, CancellationToken cancellationToken = default, string? instructions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
@@ -61,7 +61,8 @@ public sealed class MafRealAgentFactory
     /// <summary>Returns a snapshot of all execution records.</summary>
     public IReadOnlyList<ExecutionTraceRecord> GetTrace()
     {
-        lock (_sync) return _traces.ToArray();
+        lock (_sync)
+            return _traces.ToArray();
     }
 
     private static IChatClient Guard(IChatClient chatClient, IEgressGate? egressGate, IEgressContextProvider? egressContext)
@@ -73,7 +74,8 @@ public sealed class MafRealAgentFactory
 
     private void AddTrace(ExecutionTraceRecord trace)
     {
-        lock (_sync) _traces.Add(trace);
+        lock (_sync)
+            _traces.Add(trace);
     }
 
     private void CompleteTrace(Guid id)

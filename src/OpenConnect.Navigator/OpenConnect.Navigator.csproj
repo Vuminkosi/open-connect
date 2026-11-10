@@ -1,11 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
     <AssemblyName>OpenConnect.Navigator</AssemblyName>
     <RootNamespace>OpenConnect.Navigator</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Public-API tracking (CF-IMP-005e-C): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <ProjectReference Include="../OpenConnect.Core/OpenConnect.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.Options" />

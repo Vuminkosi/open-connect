@@ -1,0 +1,9 @@
+# Local-only e2e runtime artifacts (never commit).
+.env
+shared/evidence/
+.t3-response.json
+# Untracked build noise.
+__pycache__/
+.venv/
+node_modules/
+.pytest_cache/

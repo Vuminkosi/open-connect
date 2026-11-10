@@ -1,0 +1,138 @@
+#nullable enable
+OpenConnect.Core.AgentDefinitionRegistry
+OpenConnect.Core.AgentDefinitionRegistry.AgentDefinitionRegistry() -> void
+OpenConnect.Core.AgentDefinitionRegistry.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
+OpenConnect.Core.AgentDefinitionRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentDefinition!>!
+OpenConnect.Core.AgentDefinitionRegistry.Register(OpenConnect.Abstractions.AgentDefinition! definition) -> void
+OpenConnect.Core.Capabilities.CapabilityRegistry
+OpenConnect.Core.Capabilities.CapabilityRegistry.CapabilityRegistry(System.TimeSpan? ttl = null, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Capabilities.CapabilityRegistry.Get(OpenConnect.Abstractions.CapabilityId capabilityId) -> OpenConnect.Abstractions.CapabilityDescriptor?
+OpenConnect.Core.Capabilities.CapabilityRegistry.GetReady(OpenConnect.Abstractions.CapabilityKind kind) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!
+OpenConnect.Core.Capabilities.CapabilityRegistry.MarkStale(OpenConnect.Abstractions.CapabilityId capabilityId) -> void
+OpenConnect.Core.Capabilities.CapabilityRegistry.Register(OpenConnect.Abstractions.CapabilityDescriptor! descriptor) -> void
+OpenConnect.Core.Configuration.AgentOptionsMapping
+OpenConnect.Core.Configuration.AgentRegistryOptions
+OpenConnect.Core.Configuration.AgentRegistryOptions.AgentRegistryOptions() -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.Concurrency.get -> OpenConnect.Abstractions.SessionTurnConcurrency
+OpenConnect.Core.Configuration.AgentRegistryOptions.Concurrency.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.ContextSharing.get -> OpenConnect.Abstractions.AgentContextSharingMode
+OpenConnect.Core.Configuration.AgentRegistryOptions.ContextSharing.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.DefaultExecutionMode.get -> OpenConnect.Abstractions.AgentExecutionMode
+OpenConnect.Core.Configuration.AgentRegistryOptions.DefaultExecutionMode.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.HeartbeatInterval.get -> System.TimeSpan
+OpenConnect.Core.Configuration.AgentRegistryOptions.HeartbeatInterval.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.IdentityMode.get -> OpenConnect.Abstractions.AgentIdentityMode
+OpenConnect.Core.Configuration.AgentRegistryOptions.IdentityMode.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.LongRunningThreshold.get -> System.TimeSpan
+OpenConnect.Core.Configuration.AgentRegistryOptions.LongRunningThreshold.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxConcurrentSubagents.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxConcurrentSubagents.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxDelegationDepth.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxDelegationDepth.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxModelCalls.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxModelCalls.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxToolDuration.get -> System.TimeSpan
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxToolDuration.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTotalSubagentsPerRun.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTotalSubagentsPerRun.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTotalToolCalls.get -> int
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTotalToolCalls.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTurnDuration.get -> System.TimeSpan
+OpenConnect.Core.Configuration.AgentRegistryOptions.MaxTurnDuration.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.MemoryMode.get -> OpenConnect.Abstractions.AgentMemoryMode
+OpenConnect.Core.Configuration.AgentRegistryOptions.MemoryMode.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.OrchestrationMode.get -> OpenConnect.Abstractions.AgentOrchestrationMode
+OpenConnect.Core.Configuration.AgentRegistryOptions.OrchestrationMode.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.ProgressCoalescingInterval.get -> System.TimeSpan
+OpenConnect.Core.Configuration.AgentRegistryOptions.ProgressCoalescingInterval.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.RegisterLeadAgent.get -> bool
+OpenConnect.Core.Configuration.AgentRegistryOptions.RegisterLeadAgent.set -> void
+OpenConnect.Core.Configuration.AgentRegistryOptions.SessionHistory.get -> OpenConnect.Abstractions.AgentHistoryPolicy
+OpenConnect.Core.Configuration.AgentRegistryOptions.SessionHistory.set -> void
+OpenConnect.Core.Configuration.DetectorOptions
+OpenConnect.Core.Configuration.DetectorOptions.DetectorOptions() -> void
+OpenConnect.Core.Configuration.DetectorOptions.Device.get -> OpenConnect.Abstractions.DetectorDevice
+OpenConnect.Core.Configuration.DetectorOptions.Device.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.DetectorOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.LoadPolicy.get -> OpenConnect.Abstractions.DetectorLoadPolicy
+OpenConnect.Core.Configuration.DetectorOptions.LoadPolicy.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.MaxConcurrentRequests.get -> int
+OpenConnect.Core.Configuration.DetectorOptions.MaxConcurrentRequests.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.MemoryBudgetMb.get -> int?
+OpenConnect.Core.Configuration.DetectorOptions.MemoryBudgetMb.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.ModelDirectory.get -> string?
+OpenConnect.Core.Configuration.DetectorOptions.ModelDirectory.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.ModelId.get -> string?
+OpenConnect.Core.Configuration.DetectorOptions.ModelId.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.Revision.get -> string?
+OpenConnect.Core.Configuration.DetectorOptions.Revision.set -> void
+OpenConnect.Core.Configuration.DetectorOptions.Threshold.get -> double?
+OpenConnect.Core.Configuration.DetectorOptions.Threshold.set -> void
+OpenConnect.Core.Configuration.OpenConnectConfigurationBinder
+OpenConnect.Core.Configuration.OpenConnectOptions
+OpenConnect.Core.Configuration.OpenConnectOptions.Agents.get -> OpenConnect.Core.Configuration.AgentRegistryOptions!
+OpenConnect.Core.Configuration.OpenConnectOptions.OpenConnectOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectOptions.Privacy.get -> OpenConnect.Core.Configuration.PrivacyOptions!
+OpenConnect.Core.Configuration.OpenConnectOptions.Runtime.get -> OpenConnect.Core.Configuration.RuntimeOptions!
+OpenConnect.Core.Configuration.OpenConnectOptions.Transport.get -> OpenConnect.Core.Configuration.TransportOptions!
+OpenConnect.Core.Configuration.PrivacyOptions
+OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
+OpenConnect.Core.Configuration.PrivacyOptions.Mode.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.OnFailure.get -> OpenConnect.Abstractions.FirewallFailureAction
+OpenConnect.Core.Configuration.PrivacyOptions.OnFailure.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.PaddleOcr.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Policies.get -> OpenConnect.Core.Configuration.SecurityPolicyOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.PrivacyOptions() -> void
+OpenConnect.Core.Configuration.PrivacyOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.RuntimeOptions
+OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.get -> string?
+OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.set -> void
+OpenConnect.Core.Configuration.RuntimeOptions.RuntimeOptions() -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions
+OpenConnect.Core.Configuration.SecurityPolicyOptions.ContentSafety.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.ContentSafety.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.FaceDetection.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.FaceDetection.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.ImageText.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.ImageText.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.PromptInjection.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.PromptInjection.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.SecurityPolicyOptions() -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.SemanticPii.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.SemanticPii.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.get -> OpenConnect.Abstractions.SecurityCoverageUnavailableAction
+OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.set -> void
+OpenConnect.Core.Configuration.TransportOptions
+OpenConnect.Core.Configuration.TransportOptions.Mode.get -> OpenConnect.Abstractions.OpenConnectTransportMode
+OpenConnect.Core.Configuration.TransportOptions.Mode.set -> void
+OpenConnect.Core.Configuration.TransportOptions.TransportOptions() -> void
+OpenConnect.Core.OpenConnectLeadAgent
+OpenConnect.Core.OpenConnectOptionsValidator
+OpenConnect.Core.OpenConnectOptionsValidator.OpenConnectOptionsValidator() -> void
+OpenConnect.Core.OpenConnectOptionsValidator.Validate(string? name, OpenConnect.Core.Configuration.OpenConnectOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+OpenConnect.Core.Runtime.InstructionLoader
+OpenConnect.Core.Runtime.InstructionLoader.InstructionLoader(string! contentRoot, int maximumBytes = 65536) -> void
+OpenConnect.Core.Runtime.InstructionLoader.LoadAsync(string! relativePath = "agent-runtime.md", System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Core.Runtime.LoadedInstructions!>!
+OpenConnect.Core.Runtime.LoadedInstructions
+OpenConnect.Core.Runtime.LoadedInstructions.Content.get -> string!
+OpenConnect.Core.Runtime.LoadedInstructions.Content.init -> void
+OpenConnect.Core.Runtime.LoadedInstructions.LoadedInstructions(string! Content, string! Revision) -> void
+OpenConnect.Core.Runtime.LoadedInstructions.Revision.get -> string!
+OpenConnect.Core.Runtime.LoadedInstructions.Revision.init -> void
+OpenConnect.Core.ServiceCollectionExtensions
+const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
+const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
+static OpenConnect.Core.Configuration.AgentOptionsMapping.ToRunBudget(OpenConnect.Core.Configuration.AgentRegistryOptions! options) -> OpenConnect.Abstractions.AgentBudget!
+static OpenConnect.Core.Configuration.OpenConnectConfigurationBinder.Bind(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! configurationValues, string! sectionPrefix = "OpenConnect") -> OpenConnect.Core.Configuration.OpenConnectOptions!
+static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnect(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
+virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!

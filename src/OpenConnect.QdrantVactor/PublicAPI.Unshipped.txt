@@ -1,0 +1,78 @@
+#nullable enable
+OpenConnect.QdrantVactor.DeterministicEmbeddingStub
+OpenConnect.QdrantVactor.DeterministicEmbeddingStub.DeterministicEmbeddingStub() -> void
+OpenConnect.QdrantVactor.DeterministicEmbeddingStub.GenerateAsync(string! text, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.ReadOnlyMemory<float>>
+OpenConnect.QdrantVactor.IAgentScopeAuthorizer
+OpenConnect.QdrantVactor.IAgentScopeAuthorizer.Authorize(string! tenantId, string! agentId) -> bool
+OpenConnect.QdrantVactor.IEmbeddingGenerator
+OpenConnect.QdrantVactor.IEmbeddingGenerator.GenerateAsync(string! text, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.ReadOnlyMemory<float>>
+OpenConnect.QdrantVactor.IProjectionReader
+OpenConnect.QdrantVactor.IProjectionReader.ReadSanitizedAsync(string! projectionReference, string! tenantId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<string?>!
+OpenConnect.QdrantVactor.IVectorStore
+OpenConnect.QdrantVactor.IVectorStore.DeleteAsync(string! tenantId, string! agentId, string! documentId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.IVectorStore.SearchAsync(string! tenantId, string! agentId, System.ReadOnlyMemory<float> vector, int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.QdrantVactor.VectorPoint!>!>!
+OpenConnect.QdrantVactor.IVectorStore.UpsertAsync(OpenConnect.QdrantVactor.VectorPoint! point, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.InMemoryVectorStore
+OpenConnect.QdrantVactor.InMemoryVectorStore.DeleteAsync(string! tenantId, string! agentId, string! documentId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.InMemoryVectorStore.InMemoryVectorStore() -> void
+OpenConnect.QdrantVactor.InMemoryVectorStore.SearchAsync(string! tenantId, string! agentId, System.ReadOnlyMemory<float> vector, int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.QdrantVactor.VectorPoint!>!>!
+OpenConnect.QdrantVactor.InMemoryVectorStore.UpsertAsync(OpenConnect.QdrantVactor.VectorPoint! point, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.QdrantVactorIndexer
+OpenConnect.QdrantVactor.QdrantVactorIndexer.QdrantVactorIndexer(OpenConnect.QdrantVactor.IProjectionReader! projections, OpenConnect.QdrantVactor.IEmbeddingGenerator! embeddings, OpenConnect.QdrantVactor.IVectorStore! store, Microsoft.Extensions.Options.IOptions<OpenConnect.QdrantVactor.QdrantVactorOptions!>! options, OpenConnect.Abstractions.IAgentEventSubscriptionV2? subscription = null) -> void
+OpenConnect.QdrantVactor.QdrantVactorIndexer.RunAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.QdrantVactorOptions
+OpenConnect.QdrantVactor.QdrantVactorOptions.ApiKey.get -> string?
+OpenConnect.QdrantVactor.QdrantVactorOptions.ApiKey.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.CollectionName.get -> string!
+OpenConnect.QdrantVactor.QdrantVactorOptions.CollectionName.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.Enabled.get -> bool
+OpenConnect.QdrantVactor.QdrantVactorOptions.Enabled.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.Endpoint.get -> System.Uri?
+OpenConnect.QdrantVactor.QdrantVactorOptions.Endpoint.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.QdrantVactorOptions() -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.SubscribeToAgentEvents.get -> bool
+OpenConnect.QdrantVactor.QdrantVactorOptions.SubscribeToAgentEvents.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptions.VectorSize.get -> int
+OpenConnect.QdrantVactor.QdrantVactorOptions.VectorSize.set -> void
+OpenConnect.QdrantVactor.QdrantVactorOptionsValidator
+OpenConnect.QdrantVactor.QdrantVactorOptionsValidator.QdrantVactorOptionsValidator() -> void
+OpenConnect.QdrantVactor.QdrantVactorOptionsValidator.Validate(string? name, OpenConnect.QdrantVactor.QdrantVactorOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+OpenConnect.QdrantVactor.QdrantVactorService
+OpenConnect.QdrantVactor.QdrantVactorService.QdrantVactorService(OpenConnect.QdrantVactor.QdrantVactorIndexer! indexer, Microsoft.Extensions.Options.IOptions<OpenConnect.QdrantVactor.QdrantVactorOptions!>! options) -> void
+OpenConnect.QdrantVactor.QdrantVectorStoreRest
+OpenConnect.QdrantVactor.QdrantVectorStoreRest.DeleteAsync(string! tenantId, string! agentId, string! documentId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.QdrantVectorStoreRest.QdrantVectorStoreRest(System.Net.Http.HttpClient! httpClient, System.Uri! endpoint, string! apiKey, string! collectionName, int vectorSize) -> void
+OpenConnect.QdrantVactor.QdrantVectorStoreRest.SearchAsync(string! tenantId, string! agentId, System.ReadOnlyMemory<float> vector, int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.QdrantVactor.VectorPoint!>!>!
+OpenConnect.QdrantVactor.QdrantVectorStoreRest.UpsertAsync(OpenConnect.QdrantVactor.VectorPoint! point, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.SemanticMemorySearchProvider
+OpenConnect.QdrantVactor.SemanticMemorySearchProvider.DeleteAsync(OpenConnect.Abstractions.MemoryDeletionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.SemanticMemorySearchProvider.SearchAsync(OpenConnect.Abstractions.MemorySearchRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.MemorySearchResult!>!
+OpenConnect.QdrantVactor.SemanticMemorySearchProvider.SemanticMemorySearchProvider(OpenConnect.QdrantVactor.IEmbeddingGenerator! embeddings, OpenConnect.QdrantVactor.IVectorStore! store, OpenConnect.QdrantVactor.IAgentScopeAuthorizer! authorizer) -> void
+OpenConnect.QdrantVactor.SemanticMemorySearchProvider.UpsertAsync(OpenConnect.Abstractions.MemoryDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.QdrantVactor.ServiceCollectionExtensions
+OpenConnect.QdrantVactor.VectorPoint
+OpenConnect.QdrantVactor.VectorPoint.AgentId.get -> string!
+OpenConnect.QdrantVactor.VectorPoint.AgentId.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Content.get -> string!
+OpenConnect.QdrantVactor.VectorPoint.Content.init -> void
+OpenConnect.QdrantVactor.VectorPoint.CreatedAt.get -> System.DateTimeOffset?
+OpenConnect.QdrantVactor.VectorPoint.CreatedAt.init -> void
+OpenConnect.QdrantVactor.VectorPoint.EventId.get -> string?
+OpenConnect.QdrantVactor.VectorPoint.EventId.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Id.get -> string!
+OpenConnect.QdrantVactor.VectorPoint.Id.init -> void
+OpenConnect.QdrantVactor.VectorPoint.PrivacyClass.get -> string?
+OpenConnect.QdrantVactor.VectorPoint.PrivacyClass.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Revision.get -> long
+OpenConnect.QdrantVactor.VectorPoint.Revision.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Score.get -> double?
+OpenConnect.QdrantVactor.VectorPoint.Score.init -> void
+OpenConnect.QdrantVactor.VectorPoint.SessionId.get -> string?
+OpenConnect.QdrantVactor.VectorPoint.SessionId.init -> void
+OpenConnect.QdrantVactor.VectorPoint.TenantId.get -> string!
+OpenConnect.QdrantVactor.VectorPoint.TenantId.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Vector.get -> System.ReadOnlyMemory<float>
+OpenConnect.QdrantVactor.VectorPoint.Vector.init -> void
+OpenConnect.QdrantVactor.VectorPoint.VectorPoint(string! Id, string! TenantId, string! AgentId, string! Content, System.ReadOnlyMemory<float> Vector, long Revision, string? EventId = null, string? SessionId = null, string? PrivacyClass = "Sanitized", System.DateTimeOffset? CreatedAt = null, double? Score = null) -> void
+static OpenConnect.QdrantVactor.ServiceCollectionExtensions.AddQdrantVactor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.QdrantVactor.QdrantVactorOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.QdrantVactor.ServiceCollectionExtensions.UseQdrantRestVectorStore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

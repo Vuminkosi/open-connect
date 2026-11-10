@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net8.0</TargetFramework><AssemblyName>OpenConnect.QdrantVactor</AssemblyName><RootNamespace>OpenConnect.QdrantVactor</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
-  <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /><ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" /><ProjectReference Include="../OpenConnect.Observability/OpenConnect.Observability.csproj" /></ItemGroup>
+  <PropertyGroup><TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks><AssemblyName>OpenConnect.QdrantVactor</AssemblyName><RootNamespace>OpenConnect.QdrantVactor</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Public-API tracking (CF-IMP-005e-B): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild></PropertyGroup>
+  <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /><ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" /><ProjectReference Include="../OpenConnect.Observability/OpenConnect.Observability.csproj" /><PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"><PrivateAssets>all</PrivateAssets><IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets></PackageReference></ItemGroup>
 </Project>

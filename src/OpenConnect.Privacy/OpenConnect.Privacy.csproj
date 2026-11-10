@@ -1,11 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
     <AssemblyName>OpenConnect.Privacy</AssemblyName>
     <RootNamespace>OpenConnect.Privacy</RootNamespace>
+    <!-- Public-API tracking (CF-IMP-005e-B): project-local so no repo-wide effects. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

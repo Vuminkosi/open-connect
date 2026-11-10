@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><AssemblyName>OpenConnect.Client</AssemblyName><RootNamespace>OpenConnect.Client</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" /><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
+  <PropertyGroup><TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks><AssemblyName>OpenConnect.Client</AssemblyName><RootNamespace>OpenConnect.Client</RootNamespace><NoWarn>$(NoWarn);1591</NoWarn><!-- Public-API tracking (CF-IMP-005e-A): project-local so no repo-wide effects. --><EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"><PrivateAssets>all</PrivateAssets><IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets></PackageReference><ProjectReference Include="../OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" /><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
 </Project>

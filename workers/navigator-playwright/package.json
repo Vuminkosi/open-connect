@@ -1,0 +1,18 @@
+{
+  "name": "@openconnect/navigator-playwright",
+  "version": "0.1.0",
+  "description": "OpenConnect navigator-playwright worker: allowlisted Chromium tool facade (no arbitrary JS, no file access, SSRF-guarded).",
+  "private": true,
+  "type": "commonjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright-core": "1.49.1"
+  }
+}

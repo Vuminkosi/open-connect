@@ -1,0 +1,55 @@
+#nullable enable
+OpenConnect.Tools.IToolAccessPolicy
+OpenConnect.Tools.IToolAccessPolicy.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Tools.ToolAccessRequest
+OpenConnect.Tools.ToolAccessRequest.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Tools.ToolAccessRequest.AgentId.init -> void
+OpenConnect.Tools.ToolAccessRequest.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Tools.ToolAccessRequest.PrincipalId.init -> void
+OpenConnect.Tools.ToolAccessRequest.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Tools.ToolAccessRequest.TaskId.init -> void
+OpenConnect.Tools.ToolAccessRequest.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Tools.ToolAccessRequest.TenantId.init -> void
+OpenConnect.Tools.ToolAccessRequest.ToolAccessRequest(OpenConnect.Abstractions.AgentId AgentId, OpenConnect.Abstractions.ToolId ToolId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.TaskId TaskId) -> void
+OpenConnect.Tools.ToolAccessRequest.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Tools.ToolAccessRequest.ToolId.init -> void
+OpenConnect.Tools.ToolApproval
+OpenConnect.Tools.ToolApproval.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Tools.ToolApproval.ArgumentsHash.get -> string!
+OpenConnect.Tools.ToolApproval.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Tools.ToolApproval.Id.get -> string!
+OpenConnect.Tools.ToolApproval.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Tools.ToolApproval.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Tools.ToolApproval.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Tools.ToolApproval.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Tools.ToolAuthorizationException
+OpenConnect.Tools.ToolAuthorizationException.ErrorCode.get -> string!
+OpenConnect.Tools.ToolAuthorizationException.ToolAuthorizationException(string! errorCode) -> void
+OpenConnect.Tools.ToolAuthorizationService
+OpenConnect.Tools.ToolAuthorizationService.ConsumeApproval(OpenConnect.Tools.ToolApproval? approval, OpenConnect.Tools.ToolAccessRequest! request, System.Text.Json.JsonElement arguments) -> bool
+OpenConnect.Tools.ToolAuthorizationService.CreateApproval(OpenConnect.Tools.ToolAccessRequest! request, System.Text.Json.JsonElement arguments, System.TimeSpan lifetime) -> OpenConnect.Tools.ToolApproval!
+OpenConnect.Tools.ToolAuthorizationService.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Tools.ToolAuthorizationService.ToolAuthorizationService(OpenConnect.Tools.IToolAccessPolicy! policy, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Tools.ToolBroker
+OpenConnect.Tools.ToolBroker.InvokeAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Text.Json.JsonElement arguments, OpenConnect.Tools.ToolApproval? approval = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>
+OpenConnect.Tools.ToolBroker.ToolBroker(OpenConnect.Tools.ToolCatalog! catalog, OpenConnect.Tools.ToolAuthorizationService! authorization) -> void
+OpenConnect.Tools.ToolCatalog
+OpenConnect.Tools.ToolCatalog.DiscoverAsync(OpenConnect.Abstractions.AgentId agent, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.TaskId task, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!>
+OpenConnect.Tools.ToolCatalog.Get(OpenConnect.Abstractions.ToolId toolId) -> OpenConnect.Abstractions.ToolDescriptor?
+OpenConnect.Tools.ToolCatalog.GetAuthorized(OpenConnect.Abstractions.AgentId agentId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Tools.ToolCatalog.GetForAgent(OpenConnect.Abstractions.AgentId agentId) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Tools.ToolCatalog.Register(OpenConnect.Tools.ToolRegistration! registration, System.Collections.Generic.IEnumerable<OpenConnect.Abstractions.AgentId>! allowedAgents) -> void
+OpenConnect.Tools.ToolCatalog.ToolCatalog(OpenConnect.Tools.ToolAuthorizationService! authorization) -> void
+OpenConnect.Tools.ToolRegistration
+OpenConnect.Tools.ToolRegistration.Descriptor.get -> OpenConnect.Abstractions.ToolDescriptor!
+OpenConnect.Tools.ToolRegistration.Descriptor.init -> void
+OpenConnect.Tools.ToolRegistration.InvokeAsync.get -> System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>!
+OpenConnect.Tools.ToolRegistration.InvokeAsync.init -> void
+OpenConnect.Tools.ToolRegistration.JsonSchema.get -> string!
+OpenConnect.Tools.ToolRegistration.JsonSchema.init -> void
+OpenConnect.Tools.ToolRegistration.RequiresApproval.get -> bool
+OpenConnect.Tools.ToolRegistration.RequiresApproval.init -> void
+OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.ToolDescriptor! Descriptor, string! JsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, bool RequiresApproval = false) -> void
+OpenConnect.Tools.ToolValidationException
+OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
+static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
