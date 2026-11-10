@@ -1,0 +1,123 @@
+# Release — NuGet OIDC trusted publishing (Gate 6).
+#
+# Owner/repo: Vuminkosi/open-connect. Package pattern: OpenConnect.*.
+# Auth model: GitHub OIDC -> nuget.org short-lived API key via NuGet/login.
+# NO long-lived API keys anywhere. No `dotnet nuget push` executes unless the
+# workflow was explicitly armed for publishing (see `publish` input below).
+#
+# Gate 7 (maintainer approval) is HARD_BLOCKED until a maintainer says go:
+#   1. The `production` environment MUST have required reviewers configured in
+#      the GitHub UI (Settings > Environments > production). Repo code cannot
+#      create that protection; this workflow only *references* it.
+#   2. Publishing additionally requires inputs.publish == true on a manual
+#      dispatch. Tag pushes (v*) always take the dry-run path: pack, verify,
+#      attest, list — never push.
+#
+# Required `production` environment configuration (names only, no values):
+#   - Secret  NUGET_USER : nuget.org username of the TRUSTED PUBLISHING POLICY
+#                          CREATOR (must be the user that created the trusted
+#                          publishing policy on nuget.org, not the org owner).
+#   - Protection: required reviewers (maintainer approval) + optional
+#                 deployment-branch/tag policy limiting runs to v* tags.
+#   - nuget.org side: trusted publishing policy for owner Vuminkosi, repo
+#                     Vuminkosi/open-connect, workflow release.yml,
+#                     environment production, package pattern OpenConnect.*.
+name: Release (NuGet OIDC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to nuget.org (false = dry-run: pack, verify, attest only)'
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Pack, attest, publish (OIDC, dry-run by default)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: 10.0.403
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      - name: Pack Release (OpenConnect.* only)
+        run: dotnet pack OpenConnect.slnx -c Release --no-restore -warnaserror -o ./artifacts/packages /p:ContinuousIntegrationBuild=true
+
+      - name: Verify package file names match OpenConnect.*
+        shell: pwsh
+        run: |
+          $pkgs = Get-ChildItem ./artifacts/packages -Filter *.nupkg -ErrorAction SilentlyContinue
+          if (-not $pkgs) { Write-Error 'No .nupkg files were produced by dotnet pack.'; exit 1 }
+          $bad = $pkgs | Where-Object { $_.Name -notlike 'OpenConnect.*.nupkg' }
+          if ($bad) { Write-Error ("Packages outside the OpenConnect.* pattern: " + (($bad | ForEach-Object { $_.Name }) -join ', ')); exit 1 }
+          $pkgs | ForEach-Object { Write-Host ("PACKED: " + $_.Name) }
+
+      # Optional SBOM: runs only when scripts/generate-sbom.py exists.
+      # Absence is informational (exit 0), never a failure.
+      - name: Generate SBOM (optional, if script exists)
+        shell: pwsh
+        run: |
+          if (Test-Path scripts/generate-sbom.py) { python scripts/generate-sbom.py }
+          else { Write-Host 'SBOM script scripts/generate-sbom.py not present; skipping (informational).' }
+
+      # Optional NuGet dependency-group audit: same existence guard.
+      - name: Verify NuGet dependency groups (optional, if script exists)
+        shell: pwsh
+        run: |
+          if (Test-Path scripts/verify-nuget-dependency-groups.py) { python scripts/verify-nuget-dependency-groups.py }
+          else { Write-Host 'Audit script scripts/verify-nuget-dependency-groups.py not present; skipping (informational).' }
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: 'artifacts/packages/*'
+
+      # OIDC exchange ONLY. Exchanges the job OIDC token for a short-lived
+      # nuget.org API key. The key is masked and lives only in this job.
+      # `user` is the policy-creator username from the production secret
+      # NUGET_USER (name only; value never appears in repo code or logs).
+      - name: NuGet login (OIDC trusted publishing)
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Dry-run summary (no push)
+        if: ${{ inputs.publish != true }}
+        shell: pwsh
+        run: |
+          Write-Host 'DRY-RUN: pack + verify + attest completed. No push executed (inputs.publish != true).'
+          Get-ChildItem ./artifacts/packages -Filter OpenConnect.*.nupkg | ForEach-Object { Write-Host ("READY (not pushed): " + $_.Name) }
+
+      # Gate 7 arm: manual dispatch with publish=true AND production
+      # environment approval. --skip-duplicate keeps reruns idempotent.
+      # Tag pushes can never reach this step (inputs.publish is undefined
+      # on tag events, so the condition is false).
+      - name: Push to nuget.org (armed publishes only)
+        if: ${{ inputs.publish == true }}
+        run: dotnet nuget push "./artifacts/packages/OpenConnect.*.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
