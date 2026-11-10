@@ -1,6 +1,6 @@
 # Inference worker â€” e2e sample (T0â€“T3)
 
-Status: BLOCKED pending worker delivery â€” Pending infer-stt teammate delivery. No external provider calls in T0-T3.
+Status: T0+T1 green, T3 green fake-labeled (engine fake; synthetic fixtures; no real-model claims).
 
 Canonical image source: `workers/inference/Dockerfile` (built as `openconnect/inference:e2e-local`).
 T4 model-live: **BLOCKED / NOT_RUN** â€” no approved model assets.
@@ -19,9 +19,9 @@ Teardown is `docker compose down --remove-orphans` (never `down -v`).
 Logs are sanitized (Bearer tokens / keys redacted) before display or capture.
 Copy `../shared/env.example` to `.env` beside the compose file to override ports/tokens (test-only values).
 
-## Provisional contract
+## Contract (worker's real routes, fake-labeled engine)
 
-Endpoint paths and response fields below are provisional until the worker
-lands; the single source of truth will be the worker Dockerfile + its docs.
+Contract is the worker's real routes (e.g. `POST /internal/v1/execute` + Bearer auth) with fake-labeled engine and synthetic fixtures; T3 runtime green. No real-model output is claimed.
+The single source of truth will be the worker Dockerfile + its docs.
 If the worker changes an endpoint, update `scripts/smoke.sh`,
 `fixtures/request.json`, and `fixtures/expected.json` in this directory only.

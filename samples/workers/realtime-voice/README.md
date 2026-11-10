@@ -1,9 +1,9 @@
 # Realtime voice worker - e2e sample (T0-T3)
 
-Status: harness aligned to the orchestration-only session contract (explicitly fake-labeled engine); T3 runtime pending daemon, T4 model-live N/A (orchestration-only, no cloud path).
+Status: T0+T1 green, T3 green fake-labeled (orchestration-only session contract; engine fake; synthetic fixtures). T4 model-live: N/A (orchestration-only, no cloud path).
 
 Canonical image source: `workers/realtime-voice/Dockerfile` (built as `openconnect/realtime-voice:e2e-local`).
-T4 model-live: **BLOCKED / NOT_RUN** - no approved model assets.
+T4 model-live: N/A (orchestration-only — no model weights, no model matrix).
 
 ## Tiers
 
