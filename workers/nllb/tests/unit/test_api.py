@@ -13,6 +13,8 @@ def _auth(monkeypatch, **overrides) -> None:
         worker_token="local-test-token",
         model_dir=app_module.settings.model_dir,
         fake_engine=True,
+        is_production=False,
+        model_device="auto",
         max_text_chars=5000,
         license_accepted=False,
     )

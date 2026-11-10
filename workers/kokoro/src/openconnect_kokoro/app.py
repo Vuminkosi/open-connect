@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import ValidationError
 
 from openconnect_kokoro.config import Settings
+from openconnect_kokoro import engine_mode
 from openconnect_kokoro.engine import (
     FakeKokoroEngine,
     IdempotencyConflict,
@@ -44,6 +45,16 @@ def live() -> dict[str, str]:
 
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
+    info, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    assert info is not None
+    if not settings.fake_engine:
+        # Real mode: this build ships no real Kokoro weights, so without the
+        # explicit fake flag the worker is unready until a real engine lands.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
     model_ready = settings.model_marker_present()
     if settings.require_model and not model_ready:
         raise HTTPException(
@@ -55,6 +66,8 @@ def ready() -> dict[str, object]:
         "modelReady": model_ready,
         "defaultVoice": settings.default_voice,
         "capabilities": ["speech.synthesize"] if advertised else [],
+        "device": info.effective,
+        "deviceRequested": info.requested,
     }
 
 
@@ -79,7 +92,7 @@ def capabilities() -> dict[str, object]:
     return {
         "schemaVersion": "openconnect.v1",
         "worker": "kokoro",
-        "engine": FakeKokoroEngine.engine,
+        "engine": FakeKokoroEngine.engine if settings.fake_engine else "real",
         "engineVersion": FakeKokoroEngine.version,
         "capabilities": ["speech.synthesize"],
         "voices": list(settings.voices),
@@ -93,6 +106,14 @@ def capabilities() -> dict[str, object]:
 
 @app.post("/internal/v1/execute", dependencies=[Depends(authenticate)])
 def execute(request: ExecuteRequest) -> dict[str, object]:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    if not settings.fake_engine:
+        # Real mode: no real Kokoro weights are provisioned in this build.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
     if request.kind != "speech.synthesize":
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown kind")
     try:

@@ -5,6 +5,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from openconnect_mms_tts.engine_mode import (
+    fake_requested,
+    is_production,
+    parse_device,
+    validate_startup,
+)
+
 # The full MMS catalogue (~1107 languages) is never pulled; only explicitly
 # opted-in checkpoints may be loaded.
 MAX_OPT_IN_LANGUAGES = 2
@@ -31,6 +38,9 @@ class Settings:
 
     worker_token: str | None
     model_dir: str
+    fake_engine: bool
+    is_production: bool
+    model_device: str
     languages: tuple[str, ...]
     commercial_use: bool
     cache_size: int
@@ -38,6 +48,11 @@ class Settings:
     @classmethod
     def from_environment(cls) -> "Settings":
         token = os.environ.get("OPENCONNECT_WORKER_TOKEN")
+        # Fake is env-gated on the exact OPENCONNECT_FAKE_ENGINE name with the
+        # strict 1/true/yes set ("on" does NOT enable fake mode).
+        fake = fake_requested()
+        # Fail closed at startup: fake requested in production never serves.
+        validate_startup(fake=fake)
         raw = os.environ.get("MMS_LANGUAGES", "eng")
         languages = tuple(lang.strip().lower() for lang in raw.split(",") if lang.strip()) or (
             "eng",
@@ -49,6 +64,9 @@ class Settings:
         return cls(
             worker_token=token if token else None,
             model_dir=os.environ.get("MODEL_DIR", "/models"),
+            fake_engine=fake,
+            is_production=is_production(),
+            model_device=parse_device(os.environ.get("OC_MODEL_DEVICE")),
             languages=languages,
             commercial_use=_as_bool(os.environ.get("MMS_COMMERCIAL_USE"), False),
             cache_size=cache_size,

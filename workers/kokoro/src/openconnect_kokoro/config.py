@@ -6,6 +6,13 @@ import os
 import re
 from dataclasses import dataclass
 
+from openconnect_kokoro.engine_mode import (
+    fake_requested,
+    is_production,
+    parse_device,
+    validate_startup,
+)
+
 _VOICE_PATTERN = re.compile(r"^[a-z]{2}_[a-z0-9_]{1,32}$")
 
 
@@ -21,6 +28,9 @@ class Settings:
 
     worker_token: str | None
     model_dir: str
+    fake_engine: bool
+    is_production: bool
+    model_device: str
     require_model: bool
     voices: tuple[str, ...]
     default_voice: str
@@ -28,6 +38,11 @@ class Settings:
     @classmethod
     def from_environment(cls) -> "Settings":
         token = os.environ.get("OPENCONNECT_WORKER_TOKEN")
+        # Fake is env-gated on the exact OPENCONNECT_FAKE_ENGINE name with the
+        # strict 1/true/yes set ("on" does NOT enable fake mode).
+        fake = fake_requested()
+        # Fail closed at startup: fake requested in production never serves.
+        validate_startup(fake=fake)
         raw_voices = os.environ.get("KOKORO_VOICES", "af_heart")
         voices = tuple(voice.strip() for voice in raw_voices.split(",") if voice.strip()) or (
             "af_heart",
@@ -41,6 +56,9 @@ class Settings:
         return cls(
             worker_token=token if token else None,
             model_dir=os.environ.get("MODEL_DIR", "/models"),
+            fake_engine=fake,
+            is_production=is_production(),
+            model_device=parse_device(os.environ.get("OC_MODEL_DEVICE")),
             require_model=_as_bool(os.environ.get("KOKORO_REQUIRE_MODEL"), False),
             voices=verified,
             default_voice=default,

@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import ValidationError
 
 from openconnect_mms_tts.config import Settings
+from openconnect_mms_tts import engine_mode
 from openconnect_mms_tts.engine import (
     CheckpointCache,
     FakeMmsEngine,
@@ -46,17 +47,28 @@ def live() -> dict[str, str]:
 
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
+    info, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    assert info is not None
     error = settings.configuration_error()
     if error is not None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="worker misconfigured",
         )
+    if not settings.fake_engine:
+        # Real mode: no real MMS checkpoints are provisioned in this build.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
     return {
         "status": "ready",
         "optInLanguages": list(settings.languages),
         "commercialUse": settings.commercial_use,
         "capabilities": ["mms.synthesize"],
+        "device": info.effective,
+        "deviceRequested": info.requested,
     }
 
 
@@ -81,7 +93,7 @@ def capabilities() -> dict[str, object]:
     return {
         "schemaVersion": "openconnect.v1",
         "worker": "mms-tts",
-        "engine": FakeMmsEngine.engine,
+        "engine": FakeMmsEngine.engine if settings.fake_engine else "real",
         "engineVersion": FakeMmsEngine.version,
         "capabilities": ["mms.synthesize"],
         "optInLanguages": [
@@ -94,12 +106,20 @@ def capabilities() -> dict[str, object]:
 
 @app.post("/internal/v1/execute", dependencies=[Depends(authenticate)])
 def execute(request: ExecuteRequest) -> dict[str, object]:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
     if request.kind != "mms.synthesize":
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown kind")
     try:
         body = MmsSynthesizePayload(**request.payload)
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail="invalid payload") from exc
+    if not settings.fake_engine:
+        # Real mode: no real MMS checkpoints are provisioned in this build.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
     try:
         response = tts_engine.synthesize(
             text=body.text,

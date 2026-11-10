@@ -14,6 +14,9 @@ def _use_auth(monkeypatch, **overrides) -> None:
     base = {
         "worker_token": "local-test-token",
         "model_dir": "/models",
+        "fake_engine": True,
+        "is_production": False,
+        "model_device": "auto",
         "require_model": False,
         "voices": ("af_heart",),
         "default_voice": "af_heart",

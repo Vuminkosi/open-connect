@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import ValidationError
 
 from openconnect_realtime_voice import engine as engine_module
+from openconnect_realtime_voice import engine_mode
 from openconnect_realtime_voice.config import Settings
 from openconnect_realtime_voice.schemas import (
     EXECUTE_KINDS,
@@ -41,9 +42,17 @@ voice_engine = engine_module.FakeVoiceEngine(sessions)
 
 
 def _capabilities() -> list[str]:
-    if settings.orchestration_only:
-        return ["voice.session", "voice.barge-in", "voice.fake-chunks"]
-    return ["voice.session", "voice.barge-in", "voice.fake-chunks", "voice.local-vad"]
+    capabilities = ["voice.session", "voice.barge-in"]
+    if settings.fake_engine:
+        # Deterministic fake chunks exist only when the fake engine is on.
+        capabilities.append("voice.fake-chunks")
+    if not settings.orchestration_only:
+        capabilities.append("voice.local-vad")
+    return capabilities
+
+
+def _engine_label() -> str:
+    return engine_module.FakeVoiceEngine.engine if settings.fake_engine else "real"
 
 
 @app.get("/health/live")
@@ -53,11 +62,19 @@ def live() -> dict[str, str]:
 
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
-    # Orchestration-only mode needs no local weights: ready without model init.
+    info, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    assert info is not None
+    # Orchestration-only mode needs no local weights: session orchestration is
+    # ready in real mode too; only fake chunk synthesis requires the fake flag.
     return {
         "status": "ready",
         "mode": settings.mode,
+        "engine": _engine_label(),
         "capabilities": _capabilities(),
+        "device": info.effective,
+        "deviceRequested": info.requested,
     }
 
 
@@ -81,7 +98,7 @@ def capabilities() -> dict[str, object]:
     return {
         "schemaVersion": "openconnect.v1",
         "worker": "realtime-voice",
-        "engine": engine_module.FakeVoiceEngine.engine,
+        "engine": _engine_label(),
         "engineVersion": engine_module.FakeVoiceEngine.version,
         "mode": settings.mode,
         "capabilities": _capabilities(),
@@ -105,6 +122,9 @@ def _session_payload(session_id: str) -> dict[str, object]:
 
 @app.post("/internal/v1/execute", dependencies=[Depends(authenticate)])
 def execute(request: ExecuteRequest) -> dict[str, object]:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
     if request.kind == "voice.session-open":
         try:
             body = SessionOpenRequest(**request.payload)
@@ -123,6 +143,14 @@ def execute(request: ExecuteRequest) -> dict[str, object]:
             body = VoiceEventRequest(**request.payload)
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail="invalid payload") from exc
+        if body.type == "begin-speaking" and not settings.fake_engine:
+            # Real mode: orchestration applies, but fake chunk synthesis is
+            # unavailable without the explicit fake flag. Reject before any
+            # session mutation so failed synthesis never moves session state.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="model_unavailable",
+            )
         try:
             session, detail = sessions.apply_event(
                 str(body.sessionId),

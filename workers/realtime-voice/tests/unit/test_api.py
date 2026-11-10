@@ -15,8 +15,17 @@ SID = "123e4567-e89b-42d3-a456-426614174000"
 AUTH = {"Authorization": "Bearer local-test-token"}
 
 
-def _use_auth(monkeypatch) -> None:
-    monkeypatch.setattr(app_module, "settings", Settings("local-test-token", True, "/models"))
+def _use_auth(monkeypatch, **overrides) -> None:
+    params = {
+        "worker_token": "local-test-token",
+        "orchestration_only": True,
+        "model_dir": "/models",
+        "fake_engine": True,
+        "is_production": False,
+        "model_device": "auto",
+    }
+    params.update(overrides)
+    monkeypatch.setattr(app_module, "settings", Settings(**params))
 
 
 def _open(session_id: str = SID) -> dict:

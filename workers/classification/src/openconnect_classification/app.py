@@ -23,6 +23,7 @@ from openconnect_classification.engine import (
     ModelUnavailableError,
     RealEngine,
 )
+from openconnect_classification import engine_mode
 from openconnect_classification.label_sets import (
     DEFAULT_LABEL_SET_VERSION,
     get_label_set,
@@ -60,6 +61,11 @@ def live() -> dict[str, str]:
 
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
+    info, _, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        return {"status": "unready", "ready": False, "reason": code}
+    assert info is not None
+    device = {"device": info.effective, "deviceRequested": info.requested}
     if settings.fake_engine:
         return {
             "status": "ready",
@@ -68,6 +74,7 @@ def ready() -> dict[str, object]:
             "engineWarning": FAKE_WARNING,
             "modelRevision": "fake-0.1.0",
             "labelSetVersion": DEFAULT_LABEL_SET_VERSION,
+            **device,
         }
     result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
     if result.ready and result.manifest is not None:
@@ -76,6 +83,7 @@ def ready() -> dict[str, object]:
             "ready": True,
             "engine": "real",
             "modelRevision": result.manifest.revision,
+            **device,
         }
     return {"status": "unready", "ready": False, "reason": result.reason}
 
@@ -135,6 +143,17 @@ def capabilities() -> CapabilitiesResponse:
     dependencies=[Depends(authenticate)],
 )
 def execute(request: ExecuteRequest) -> ExecuteResponse:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        return JSONResponse(
+            status_code=status_code or status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "schemaVersion": "openconnect.v1",
+                "taskId": request.taskId,
+                "status": "failed",
+                "error": {"code": code, "message": code.replace("_", " ")},
+            },
+        )  # type: ignore[return-value]
     payload = request.input
     text = payload.text or ""
     if payload.inputRef and not payload.text:

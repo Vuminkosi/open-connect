@@ -18,6 +18,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from openconnect_nllb.config import Settings
+from openconnect_nllb import engine_mode
 from openconnect_nllb.engine import (
     FAKE_TOKENIZER_HASH,
     FAKE_WARNING,
@@ -68,6 +69,10 @@ def live() -> dict[str, str]:
 
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
+    info, _, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        return {"status": "unready", "ready": False, "reason": code}
+    assert info is not None
     if settings.fake_engine:
         return {
             "status": "ready",
@@ -76,6 +81,8 @@ def ready() -> dict[str, object]:
             "engineWarning": FAKE_WARNING,
             "modelRevision": "fake-nllb-0.1.0",
             "supportedLanguages": list(SUPPORTED_LANGUAGES),
+            "device": info.effective,
+            "deviceRequested": info.requested,
         }
     result, reason = _real_readiness()
     if result.ready and result.manifest is not None:
@@ -85,6 +92,8 @@ def ready() -> dict[str, object]:
             "engine": "real",
             "modelRevision": result.manifest.revision,
             "tokenizerHash": result.manifest.tokenizer_hash,
+            "device": info.effective,
+            "deviceRequested": info.requested,
         }
     return {"status": "unready", "ready": False, "reason": reason}
 
@@ -141,6 +150,17 @@ def capabilities() -> CapabilitiesResponse:
     dependencies=[Depends(authenticate)],
 )
 def execute(request: ExecuteRequest) -> ExecuteResponse:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        return JSONResponse(
+            status_code=status_code or status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "schemaVersion": "openconnect.v1",
+                "taskId": request.taskId,
+                "status": "failed",
+                "error": {"code": code, "message": code.replace("_", " ")},
+            },
+        )  # type: ignore[return-value]
     payload = request.input
     text = payload.text or ""
     if payload.inputRef and not payload.text:

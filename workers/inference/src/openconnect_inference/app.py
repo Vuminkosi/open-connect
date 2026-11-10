@@ -12,6 +12,8 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from openconnect_inference.config import Settings
+from openconnect_inference import cloud as cloud_module
+from openconnect_inference import engine_mode
 from openconnect_inference.engine import FakeInferenceEngine, advertised_capabilities
 from openconnect_inference.schemas import (
     CapabilityResponse,
@@ -104,12 +106,125 @@ def ready() -> dict[str, object]:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="endpoint_unavailable",
         )
+    info, status_code, code = engine_mode.rejection(cfg.fake_engine, cfg.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    assert info is not None
+    if cfg.fake_engine:
+        return {
+            "status": "ready",
+            "backend": cfg.backend,
+            "modelLoaded": cfg.model_id is not None,
+            "capabilities": _capabilities(cfg),
+            "device": info.effective,
+            "deviceRequested": info.requested,
+            **_routing_status(cfg),
+        }
+    # Real mode: this build ships no local LLM backend, so readiness depends
+    # on the opt-in cloud leg. Cloud + local both down -> typed unready.
+    if not _real_legs_available(cfg):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="model_unavailable",
+        )
     return {
         "status": "ready",
         "backend": cfg.backend,
         "modelLoaded": cfg.model_id is not None,
         "capabilities": _capabilities(cfg),
+        "device": info.effective,
+        "deviceRequested": info.requested,
+        **_routing_status(cfg),
     }
+
+
+class _LocalLegUnavailable(RuntimeError):
+    """Local leg cannot serve (no local engine provisioned in this build)."""
+
+
+def _routing_status(cfg: Settings) -> dict[str, object]:
+    return {
+        "routeOrder": cfg.route_order,
+        "cloudConfigured": cfg.cloud_url is not None,
+        "cloudAvailable": _cloud_leg_available(cfg),
+        "localAvailable": False,  # reserved: no local engine in this build
+    }
+
+
+def _cloud_leg_available(cfg: Settings) -> bool:
+    return (
+        cfg.cloud_url is not None
+        and cfg.cloud_api_key is not None
+        and not cloud_module.privacy_zone_strict()
+    )
+
+
+def _real_legs_available(cfg: Settings) -> bool:
+    return _cloud_leg_available(cfg)
+
+
+def _try_local_real(cfg: Settings) -> str:
+    """Local leg: raises because this build provisions no local engine.
+
+    Kept as a separate function so the routing chain (local-first order,
+    cloud-down fallback) is observable and unit-testable, and so a future
+    provisioned local backend can serve here without touching the router.
+    """
+    raise _LocalLegUnavailable("local engine not provisioned in this build")
+
+
+def _try_cloud_real(cfg: Settings, messages: list, max_tokens: int | None, stream: bool) -> str:
+    """Cloud leg. Raises CloudPolicyDenied (terminal) or CloudLegFailed/leg errors."""
+    assert cfg.cloud_url is not None and cfg.cloud_api_key is not None
+    if cloud_module.privacy_zone_strict():
+        # Terminal: strict-local disables the cloud path entirely.
+        raise cloud_module.CloudPolicyDenied("privacy_blocked")
+    if stream:
+        # The cloud leg serves content, not streaming framing.
+        raise cloud_module.CloudLegFailed("cloud leg does not serve streaming")
+    payload = {
+        "messages": [{"role": m.role, "content": m.content} for m in messages],
+        "maxTokens": max_tokens,
+    }
+    response = cloud_module.post_json(
+        url=cfg.cloud_url,
+        payload=payload,
+        api_key=cfg.cloud_api_key,
+        timeout_s=cfg.cloud_timeout_ms / 1000.0,
+    )
+    output = response.get("output")
+    if not isinstance(output, str) or not output:
+        raise cloud_module.CloudLegFailed("cloud leg returned no output")
+    return output
+
+
+def _ordered_legs(cfg: Settings) -> list[str]:
+    if cfg.cloud_url is None:
+        return ["local"]
+    if cfg.route_order == cloud_module.LOCAL_FIRST:
+        return ["local", "cloud"]
+    return ["cloud", "local"]
+
+
+def _execute_real_routed(
+    cfg: Settings, messages: list, max_tokens: int | None, stream: bool
+) -> str:
+    """Route across cloud/local legs. Exhaustion -> 503 model_unavailable."""
+    for leg in _ordered_legs(cfg):
+        try:
+            if leg == "cloud":
+                if cfg.cloud_url is None:
+                    continue
+                return _try_cloud_real(cfg, messages, max_tokens, stream)
+            return _try_local_real(cfg)
+        except cloud_module.CloudPolicyDenied as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.code
+            ) from exc
+        except (cloud_module.CloudLegFailed, _LocalLegUnavailable) as exc:
+            logger.info("Real leg %s failed; trying next leg outcome=%s", leg, type(exc).__name__)
+            continue
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable")
 
 
 @app.get(
@@ -123,7 +238,7 @@ def capabilities() -> CapabilityResponse:
         worker="inference",
         version=WORKER_VERSION,
         backend=cfg.backend,
-        engine="fake-bounded",
+        engine="fake-bounded" if cfg.fake_engine else "real",
         modelId=cfg.model_id,
         modelRevision=cfg.model_revision,
         modelLoaded=cfg.model_id is not None,
@@ -144,6 +259,11 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="endpoint_unavailable",
         )
+    _, status_code, code = engine_mode.rejection(cfg.fake_engine, cfg.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    if not cfg.fake_engine:
+        return _execute_real_request(cfg, request)
     advertised = _capabilities(cfg)
     unsupported = [c for c in request.input.requestedCapabilities if c not in advertised]
     if unsupported:
@@ -194,6 +314,53 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
         usage=Usage(inputChars=input_chars, outputChars=len(output)),
         capabilitiesUsed=capabilities_used,
         chunks=chunks,
+    )
+    if idem_key:
+        if len(_idempotency) >= 500:
+            _idempotency.pop(next(iter(_idempotency)))
+        _idempotency[idem_key] = response.model_dump(mode="json")
+    return response
+
+
+def _execute_real_request(cfg: Settings, request: ExecuteRequest) -> ExecuteResponse:
+    """Real-mode execute: policy checks first, then cloud/local routing."""
+    advertised = _capabilities(cfg)
+    unsupported = [c for c in request.input.requestedCapabilities if c not in advertised]
+    if unsupported:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="capability_unavailable",
+        )
+    total_input_chars = sum(len(m.content) for m in request.input.messages)
+    if total_input_chars > cfg.max_input_chars:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_request")
+
+    idem_key = str(request.idempotencyKey) if request.idempotencyKey else None
+    if idem_key and idem_key in _idempotency:
+        cached = _idempotency[idem_key]
+        return ExecuteResponse(**cached)
+
+    output = _execute_real_routed(
+        cfg, request.input.messages, request.input.maxTokens, request.input.stream
+    )
+    # Log metadata only: never message content, never cloud secrets.
+    logger.info(
+        "Inference execute request_id=%s backend=%s messages=%d input_chars=%d stream=%s",
+        request.requestId,
+        cfg.backend,
+        len(request.input.messages),
+        total_input_chars,
+        request.input.stream,
+    )
+    response = ExecuteResponse(
+        schemaVersion="openconnect.v1",
+        requestId=request.requestId,
+        backend=cfg.backend,
+        modelId=cfg.model_id,
+        output=output,
+        usage=Usage(inputChars=total_input_chars, outputChars=len(output)),
+        capabilitiesUsed=["chat"],
+        chunks=None,
     )
     if idem_key:
         if len(_idempotency) >= 500:
