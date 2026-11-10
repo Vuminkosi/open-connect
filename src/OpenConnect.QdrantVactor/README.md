@@ -11,11 +11,19 @@ dotnet add package OpenConnect.QdrantVactor
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Index and query memories through the `OpenConnect.QdrantVactor` namespace, composed
-through service registration with your Qdrant endpoint. See the repository docs (`docs/`)
-for scoping and authorization notes.
+```csharp
+using OpenConnect.QdrantVactor;
+
+services.AddQdrantVactor(options => { /* Qdrant endpoint + API key (see docs) */ });
+services.UseQdrantRestVectorStore(); // swaps InMemoryVectorStore for the Qdrant REST store
+```
+
+`AddQdrantVactor` (`ServiceCollectionExtensions.cs:9`) registers the indexer, an
+in-memory store, and `IAgentSemanticMemory`; `UseQdrantRestVectorStore` (`:27`)
+replaces the store with the Qdrant REST implementation (requires an API key and a
+valid endpoint). Agent scope is deny-by-default.
 
 ## License
 

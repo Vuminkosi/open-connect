@@ -12,11 +12,19 @@ dotnet add package OpenConnect.Components.Contracts
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Reference the `OpenConnect.Components.Contracts` namespace when hosting or extending the
-components shipped in `OpenConnect.Components.Blazor`. See the repository docs (`docs/`)
-for the component model.
+```csharp
+using OpenConnect.Components.Contracts;
+
+bool ok = OpenConnectComponentDescriptor.IsValidName("weather-card");
+```
+
+This package ships contracts only (no service registration): `ComposerMessage`
+(`ComposerContracts.cs:7`), `OpenConnectComponentDescriptor`
+(`ComponentContracts.cs:8`), and `ComposerWireState` (`ComposerContracts.cs:108`).
+Register hosting services with `AddOpenConnectComponents` in
+`OpenConnect.Components.Blazor`.
 
 ## License
 

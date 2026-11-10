@@ -13,11 +13,17 @@ dotnet add package OpenConnect.Core
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Register OpenConnect through the service-registration helpers in `OpenConnect.Core` and
-tune behavior via `OpenConnect.Core.Configuration`. See the repository docs (`docs/`)
-for configuration and architecture guidance.
+```csharp
+using OpenConnect.Core;
+
+services.AddOpenConnect(options => options.Privacy.Enabled = true);
+```
+
+`AddOpenConnect` (`ServiceCollectionExtensions.cs:11`) is the composition root: it
+registers `IAgentDefinitionRegistry`, validates `OpenConnectOptions` on start, and keeps
+privacy enforcement on by default (disabling it only logs a warning).
 
 ## License
 

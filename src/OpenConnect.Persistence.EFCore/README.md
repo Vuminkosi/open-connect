@@ -12,11 +12,19 @@ dotnet add package OpenConnect.Persistence.EFCore
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Register the EF Core stores from the `OpenConnect.Persistence.EFCore` namespaces through
-service registration, pointing them at your provider connection. See the repository docs
-(`docs/`) and the samples for migration ownership and configuration.
+```csharp
+using OpenConnect.Persistence.EFCore.DependencyInjection;
+
+services.AddDbContext<SupportDbContext>(db => db.UseNpgsql(connectionString));
+services.AddOpenConnectEntityFramework<SupportDbContext>();
+```
+
+`AddOpenConnectEntityFramework<TContext>`
+(`DependencyInjection/OpenConnectEfServiceCollectionExtensions.cs:18`) wires the EF Core
+task/event/outbox/session/lease stores; the `DbContext` must be registered first or it
+throws. EFCore-only: migrations are owned by the sample apps, never by this package.
 
 ## License
 

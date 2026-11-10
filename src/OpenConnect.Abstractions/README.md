@@ -12,11 +12,19 @@ dotnet add package OpenConnect.Abstractions
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Reference the `OpenConnect.Abstractions` namespace for identifiers, DTOs, and service
-contracts. Concrete behavior lives in the companion packages (notably `OpenConnect.Core`
-for composition); see the repository docs (`docs/`) for end-to-end setup.
+```csharp
+using OpenConnect.Abstractions;
+
+var registry = provider.GetRequiredService<IAgentDefinitionRegistry>();
+registry.Register(new AgentDefinition(new AgentId("support"), "Support"));
+
+AgentDefinition? agent = registry.Get(new AgentId("support"));
+```
+
+`AgentDefinition` (`DTOs.cs:7`) and `IAgentDefinitionRegistry.Register` (`Interfaces.cs:5`)
+are the contract surface; concrete behavior lives in the companion packages.
 
 ## License
 

@@ -12,11 +12,18 @@ dotnet add package OpenConnect.Transport.Nats
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Publish and relay events with the types in the `OpenConnect.Transport.Nats` namespaces,
-composed through `OpenConnect.Core` service registration against your NATS server. See
-the repository docs (`docs/`) for transport topology.
+```csharp
+using OpenConnect.Transport.Nats;
+
+var publisher = new NatsPublisher(jetStreamPublisher);
+await publisher.PublishAsync("oc.agent.events", envelopeJson);
+```
+
+`NatsPublisher.PublishAsync` (`NatsPublisher.cs:11`) validates the worker envelope and
+publishes through `IJetStreamPublisher.PublishAsync` (`:5`) with JetStream message-id
+deduplication; oversized envelopes throw `ArgumentOutOfRangeException`.
 
 ## License
 

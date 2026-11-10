@@ -12,11 +12,25 @@ dotnet add package OpenConnect.Navigator.OperationalBrowser
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Run operational browser jobs through the `OpenConnect.Navigator.OperationalBrowser`
-namespace, paired with `OpenConnect.Navigator.Operational` for durable scheduling. See
-the repository docs (`docs/`) for isolation and egress rules.
+```csharp
+using OpenConnect.Navigator.OperationalBrowser;
+
+(bool allowed, string reason) = await boundary.ValidateAsync(
+    job, destination, step: 0, bytes: 0);
+if (!allowed)
+{
+    return Results.Forbid();
+}
+
+bool egressOk = await egress.IsAllowedAsync(destination, job.AllowedOrigins);
+```
+
+`BrowserJobBoundary.ValidateAsync` (`BrowserJobBoundary.cs:9`) enforces job budgets and
+the Playwright tool allowlist; `EgressGuard.IsAllowedAsync` (`EgressGuard.cs:22`)
+revalidates each HTTPS destination against the allowed origins. Pair with
+`OpenConnect.Navigator.Operational` for durable scheduling.
 
 ## License
 

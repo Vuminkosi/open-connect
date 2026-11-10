@@ -12,11 +12,26 @@ dotnet add package OpenConnect.Privacy
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Enforce privacy boundaries with the firewall and gates in the `OpenConnect.Privacy`
-namespaces, composed through `OpenConnect.Core` service registration. See the repository
-docs (`docs/`) for detector modes and policy guidance.
+```csharp
+using OpenConnect.Abstractions;
+using OpenConnect.Privacy;
+
+var firewall = provider.GetRequiredService<IPrivacyFirewall>();
+EgressDecision decision = await firewall.EvaluateAsync(
+    content,
+    new EgressContext(
+        new TenantId(Ulid.NewUlid()),
+        new PrincipalId(Ulid.NewUlid()),
+        new SessionId(Ulid.NewUlid()),
+        EgressDestination.Output));
+```
+
+`IPrivacyFirewall.EvaluateAsync` (`PrivacyContracts.cs:99`) applies the policy engine
+(`PrivacyFirewall.cs:28`) and returns an `EgressDecision` (`PrivacyContracts.cs:71`)
+scoped by `EgressContext` (`:64`). Deny-by-default: disabled detectors fail closed on
+external egress.
 
 ## License
 

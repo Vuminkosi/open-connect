@@ -12,11 +12,20 @@ dotnet add package OpenConnect.Components.Blazor
 
 Ships `net8.0`, `net9.0`, and `net10.0` assets; `net10.0` is the default for new consumers.
 
-## Usage
+## How to use
 
-Add the components from the `OpenConnect.Components.Blazor` namespace to your Blazor app
-and back them with the contracts in `OpenConnect.Components.Contracts`. See the
-repository docs (`docs/`) for hosting guidance.
+```csharp
+using OpenConnect.Components.Blazor;
+
+services.AddOpenConnectComponents(); // component catalogue + ComposerSession
+services.AddOpenConnectComposer();   // anchored composer (FAB + bubble)
+```
+
+`AddOpenConnectComponents` (`ServiceCollectionExtensions.cs:14`) and
+`AddOpenConnectComposer` (`:26`) only register library services — the host app keeps
+ownership of the MudBlazor providers (`MudThemeProvider`, `MudDialogProvider`,
+`MudSnackbarProvider`, `MudPopoverProvider`). Pair with
+`OpenConnect.Components.Contracts` for descriptors and composer options.
 
 ## License
 
