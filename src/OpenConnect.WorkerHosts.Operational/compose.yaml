@@ -1,0 +1,52 @@
+# Standalone runnable stack for the operational worker host.
+# Uses the same EF provider/schema as the gateway (Postgres, schema "openconnect")
+# and no model volume: this host supervises runs, it loads no detectors.
+services:
+  operational-host:
+    build:
+      context: ../..
+      dockerfile: src/OpenConnect.WorkerHosts.Operational/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    environment:
+      WorkerHosts__Operational__Mode: Standalone
+      WorkerHosts__Operational__EmbeddedEnabled: "false"
+      WorkerHosts__Operational__TenantUlid: ${OC_OPERATIONAL_TENANT_ULID:?Set OC_OPERATIONAL_TENANT_ULID to the tenant ULID}
+      WorkerHosts__Operational__DatabaseProvider: npgsql
+      WorkerHosts__Operational__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
+  postgres:
+    image: postgis/postgis:17-3.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-openconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.15.1-alpine3.22
+    restart: unless-stopped
+    command: ["-js"]
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pgdata:
+  natsdata:
