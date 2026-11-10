@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# T2 (+T3 when TIER=t3) smoke for Navigator Playwright. Bounded waits, sanitized logs.
-# Exits 3 when the canonical worker Dockerfile is not yet delivered.
+# T2 (+T3 when TIER=t3) smoke for Navigator Playwright (WSE2E-AT-059..065).
+# Bounded waits, sanitized logs. Exits 3 when canonical Dockerfile is missing.
 # Facade contract (workers/navigator-playwright/src/server.js):
 #   POST /internal/v1/execute (Bearer NAVIGATOR_WORKER_TOKEN) with {tool,args}
-#   -> 200 {ok,tool,...}. No /jobs route exists (option A: sample follows worker).
+#   -> 200 {ok,tool,...}.
 set -eu
 SAMPLE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SHARED="$SAMPLE_DIR/../shared/scripts"
@@ -40,7 +40,7 @@ if [ "${TIER:-t2}" = "t3" ]; then
     "$OUT" "$SAMPLE_DIR/fixtures/expected.json"
   rm -f "$OUT"
 
-  echo "==> T3 navigator-playwright: negative probes (no/wrong token, unapproved origin)"
+  echo "==> T3 navigator-playwright: negative probes (no/wrong token, unapproved origin, browser_evaluate, SSRF loopback, secret fill, unconsented capture)"
   NEG_OUT="$SAMPLE_DIR/.t3-negative.json"
   # No token -> 401 (or 503 if worker token unset -> fail closed).
   NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
@@ -53,13 +53,13 @@ if [ "${TIER:-t2}" = "t3" ]; then
   # Wrong token -> 401.
   NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
     -H 'Content-Type: application/json' \
-    -H 'Authorization: Bearer wrong-test-token' \
+    -H 'Authorization: Bearer wrong-test-token-do-not-use-in-prod' \
     -d @"$BODY" "$BASE/internal/v1/execute")"
   case "$NEG_CODE" in
     401) echo "PASS T3 navigator-playwright: wrong-token denied (401)" ;;
     *) echo "FAIL T3 navigator-playwright: wrong-token probe expected 401, got $NEG_CODE" >&2; rm -f "$NEG_OUT"; exit 1 ;;
   esac
-  # Unapproved origin (exact-origin allowlist; fixture allowlist is https://example.com) -> 403.
+  # Unapproved origin -> 403 approval_required.
   NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $TOKEN" \
@@ -69,6 +69,36 @@ if [ "${TIER:-t2}" = "t3" ]; then
     403) echo "PASS T3 navigator-playwright: unapproved-origin denied (403)" ;;
     *) echo "FAIL T3 navigator-playwright: unapproved-origin probe expected 403, got $NEG_CODE" >&2; rm -f "$NEG_OUT"; exit 1 ;;
   esac
+  # Denied tool (browser_evaluate) -> 403 tool_not_allowed.
+  NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" \
+    -d '{"tool":"browser_evaluate","args":{"expression":"document.cookie"}}' \
+    "$BASE/internal/v1/execute")"
+  case "$NEG_CODE" in
+    403) echo "PASS T3 navigator-playwright: browser_evaluate denied (403)" ;;
+    *) echo "FAIL T3 navigator-playwright: browser_evaluate expected 403, got $NEG_CODE" >&2; rm -f "$NEG_OUT"; exit 1 ;;
+  esac
+  # Secret fill -> 403 privacy_blocked.
+  NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" \
+    -d '{"tool":"fill","args":{"targetId":"fld-password","fieldType":"password","value":"synth-do-not-use-in-prod","approvedTargets":["fld-password"]}}' \
+    "$BASE/internal/v1/execute")"
+  case "$NEG_CODE" in
+    403) echo "PASS T3 navigator-playwright: secret fill blocked (403)" ;;
+    *) echo "FAIL T3 navigator-playwright: secret fill expected 403, got $NEG_CODE" >&2; rm -f "$NEG_OUT"; exit 1 ;;
+  esac
+  # Capture without consent -> 403 approval_required.
+  NEG_CODE="$(curl -sS -o "$NEG_OUT" -w '%{http_code}' --max-time 30 \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" \
+    -d '{"tool":"capture","args":{"url":"https://example.com/","consent":false}}' \
+    "$BASE/internal/v1/execute")"
+  case "$NEG_CODE" in
+    403) echo "PASS T3 navigator-playwright: unconsented capture denied (403)" ;;
+    *) echo "FAIL T3 navigator-playwright: unconsented capture expected 403, got $NEG_CODE" >&2; rm -f "$NEG_OUT"; exit 1 ;;
+  esac
   rm -f "$NEG_OUT"
-  echo "PASS T3 navigator-playwright: fixture response conforms"
+  echo "PASS T3 navigator-playwright: fixture response and negative security probes conform"
 fi

@@ -1,0 +1,15 @@
+{
+  "fixtureId": "outbox-competing-dispatchers-100-rows",
+  "acceptanceId": "WSE2E-AT-078",
+  "totalRows": 100,
+  "competingDispatchers": [
+    "dispatcher-worker-1",
+    "dispatcher-worker-2",
+    "dispatcher-worker-3"
+  ],
+  "invariants": {
+    "zeroDuplicateClaims": true,
+    "all100RowsDeliveredExactlyOnce": true,
+    "fencedBatchClaimsNeverCrossLeaseBoundaries": true
+  }
+}

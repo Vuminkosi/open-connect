@@ -1,53 +1,231 @@
-# Aggregate T0 (and optional T2) compose for all 11 worker e2e samples.
-# Each service builds from its canonical worker Dockerfile with a local
-# :e2e-local tag only. No pushes, no model downloads, no shared volumes.
-# T4 model-live: BLOCKED/NOT_RUN.
-#
-# T0:  docker compose -f compose.e2e.yaml config
-# T2:  COMPOSE_PROJECT_NAME=ocw-e2e-all docker compose -f compose.e2e.yaml up --build -d
-# Down: docker compose -f compose.e2e.yaml down --remove-orphans  (never -v)
+# Aggregate E2E compose for all 11 worker samples — §6.2 (WSE2E-IMP-023).
+# Each service builds from its canonical worker Dockerfile with the canonical image name:
+#   vuminkosimatibe/openconnect-worker-<name>:${OC_IMAGE_TAG:-e2e-local}
+# Independent Compose profiles:
+#   profiles: [<worker-name>, all] (plus model-workers / ops-workers)
+# Distinct named model volumes for Python workers only; NO model volumes on
+# navigator-playwright, operational-agents, or outbox.
+# Network isolation: oc-runtime-private (internal: true) and optional oc-model-provisioning.
 services:
   security:
-    build: { context: ../../workers/security, dockerfile: Dockerfile }
-    image: openconnect/security:e2e-local
-    ports: ["${PORT_SECURITY:-8080}:8080"]
+    build:
+      context: ../../../workers/security
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-security:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["security", "all", "model-workers"]
+    ports:
+      - "${PORT_SECURITY:-8080}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_security_models:/models
+    networks:
+      - oc-runtime-private
+
   classification:
-    build: { context: ../../workers/classification, dockerfile: Dockerfile }
-    image: openconnect/classification:e2e-local
-    ports: ["${PORT_CLASSIFICATION:-8081}:8080"]
+    build:
+      context: ../../../workers/classification
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-classification:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["classification", "all", "model-workers"]
+    ports:
+      - "${PORT_CLASSIFICATION:-8081}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_classification_models:/models
+    networks:
+      - oc-runtime-private
+
   nllb:
-    build: { context: ../../workers/nllb, dockerfile: Dockerfile }
-    image: openconnect/nllb:e2e-local
-    ports: ["${PORT_NLLB:-8082}:8080"]
+    build:
+      context: ../../../workers/nllb
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-nllb:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["nllb", "all", "model-workers"]
+    ports:
+      - "${PORT_NLLB:-8082}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_nllb_models:/models
+    networks:
+      - oc-runtime-private
+
   inference:
-    build: { context: ../../workers/inference, dockerfile: Dockerfile }
-    image: openconnect/inference:e2e-local
-    ports: ["${PORT_INFERENCE:-8083}:8080"]
+    build:
+      context: ../../../workers/inference
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-inference:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["inference", "all", "model-workers"]
+    ports:
+      - "${PORT_INFERENCE:-8083}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_inference_models:/models
+    networks:
+      - oc-runtime-private
+
   transcription:
-    build: { context: ../../workers/transcription, dockerfile: Dockerfile }
-    image: openconnect/transcription:e2e-local
-    ports: ["${PORT_TRANSCRIPTION:-8084}:8080"]
+    build:
+      context: ../../../workers/transcription
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["transcription", "all", "model-workers"]
+    ports:
+      - "${PORT_TRANSCRIPTION:-8084}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_transcription_models:/models
+    networks:
+      - oc-runtime-private
+
   realtime-voice:
-    build: { context: ../../workers/realtime-voice, dockerfile: Dockerfile }
-    image: openconnect/realtime-voice:e2e-local
-    ports: ["${PORT_REALTIME_VOICE:-8085}:8080"]
+    build:
+      context: ../../../workers/realtime-voice
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["realtime-voice", "all", "model-workers"]
+    ports:
+      - "${PORT_REALTIME_VOICE:-8085}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_realtime_voice_models:/models
+    networks:
+      - oc-runtime-private
+
   kokoro:
-    build: { context: ../../workers/kokoro, dockerfile: Dockerfile }
-    image: openconnect/kokoro:e2e-local
-    ports: ["${PORT_KOKORO:-8086}:8080"]
+    build:
+      context: ../../../workers/kokoro
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["kokoro", "all", "model-workers"]
+    ports:
+      - "${PORT_KOKORO:-8086}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_kokoro_models:/models
+    networks:
+      - oc-runtime-private
+
   mms-tts:
-    build: { context: ../../workers/mms-tts, dockerfile: Dockerfile }
-    image: openconnect/mms-tts:e2e-local
-    ports: ["${PORT_MMS_TTS:-8087}:8080"]
+    build:
+      context: ../../../workers/mms-tts
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-mms-tts:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["mms-tts", "all", "model-workers"]
+    ports:
+      - "${PORT_MMS_TTS:-8087}:8080"
+    environment:
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_mms_models:/models
+    networks:
+      - oc-runtime-private
+
   navigator-playwright:
-    build: { context: ../../workers/navigator-playwright, dockerfile: Dockerfile }
-    image: openconnect/navigator-playwright:e2e-local
-    ports: ["${PORT_NAVIGATOR_PLAYWRIGHT:-8088}:8080"]
+    build:
+      context: ../../../workers/navigator-playwright
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-navigator-playwright:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["navigator-playwright", "all", "ops-workers"]
+    ports:
+      - "${PORT_NAVIGATOR_PLAYWRIGHT:-8088}:8080"
+    environment:
+      NAVIGATOR_WORKER_TOKEN: ${NAVIGATOR_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      NAVIGATOR_ALLOWED_ORIGINS: ${NAVIGATOR_ALLOWED_ORIGINS:-https://example.com}
+      PLAYWRIGHT_LAUNCH: ${PLAYWRIGHT_LAUNCH:-0}
+    tmpfs:
+      - /tmp/nav-tmp:noexec,nosuid,size=512m
+    networks:
+      - oc-runtime-private
+
   operational-agents:
-    build: { context: ../../workers/operational-agents, dockerfile: Dockerfile }
-    image: openconnect/operational-agents:e2e-local
-    ports: ["${PORT_OPERATIONAL_AGENTS:-8089}:8080"]
+    build:
+      context: ../../..
+      dockerfile: ${OPERATIONAL_DOCKERFILE:-src/OpenConnect.WorkerHosts.Operational/Dockerfile}
+    image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["operational-agents", "all", "ops-workers"]
+    environment:
+      WorkerHosts__Operational__Mode: Standalone
+      WorkerHosts__Operational__EmbeddedEnabled: "false"
+      WorkerHosts__Operational__TenantUlid: ${OC_OPERATIONAL_TENANT_ULID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
+      WorkerHosts__Operational__DatabaseProvider: ${OC_OPERATIONAL_DB_PROVIDER:-npgsql}
+      WorkerHosts__Operational__ConnectionString: ${OC_OPERATIONAL_CONNECTION_STRING:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=e2e-test-pw-do-not-use-in-prod}
+    networks:
+      - oc-runtime-private
+
   outbox:
-    build: { context: ../../workers/outbox, dockerfile: Dockerfile }
-    image: openconnect/outbox:e2e-local
-    ports: ["${PORT_OUTBOX:-8090}:8080"]
+    build:
+      context: ../../..
+      dockerfile: ${OUTBOX_DOCKERFILE:-src/OpenConnect.WorkerHosts.Outbox/Dockerfile}
+    image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
+    profiles: ["outbox", "all", "ops-workers"]
+    environment:
+      WorkerHosts__Outbox__Mode: Standalone
+      WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
+      WorkerHosts__Outbox__TenantUlid: ${OC_OUTBOX_TENANT_ULID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
+      WorkerHosts__Outbox__DatabaseProvider: ${OC_OUTBOX_DB_PROVIDER:-npgsql}
+      WorkerHosts__Outbox__ConnectionString: ${OC_OUTBOX_CONNECTION_STRING:-Host=postgres;Port=5432;Database=openconnect;Username=openconnect;Password=e2e-test-pw-do-not-use-in-prod}
+      WorkerHosts__Outbox__NatsUrl: ${NATS_URL:-nats://nats:4222}
+      WorkerHosts__Outbox__Subject: ${NATS_NOTIFICATION_SUBJECT:-oc.v1.notifications.inapp}
+    networks:
+      - oc-runtime-private
+
+volumes:
+  oc_security_models:
+  oc_classification_models:
+  oc_nllb_models:
+  oc_inference_models:
+  oc_transcription_models:
+  oc_realtime_voice_models:
+  oc_kokoro_models:
+  oc_mms_models:
+
+networks:
+  oc-runtime-private:
+    internal: true

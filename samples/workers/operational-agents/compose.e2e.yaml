@@ -1,53 +1,68 @@
-# E2E sample for the Operational agents (.NET host) worker — T3 supervisor-lease proof.
-# Canonical image source (never a toy worker image):
-#   workers/operational-agents/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see tests/t3_runtime.sh)
-# so parallel runs never share networks or volumes.
-#
-# Decision REG-S07-DNDESIGN-B: the worker exposes NO ports and NO healthcheck
-# (it is a background supervisor host; the former :8080 healthcheck was
-# fictional). Liveness is proven via container uptime + the
-# `Operational supervisor started` log marker + the fenced lease row.
-#
-# NATS is intentionally OMITTED: the supervisor path (Program.cs +
-# OperationalSupervisorService) uses only the EF lease store; no transport
-# is required to acquire, renew, or release oc/operational/supervisor.
-#
-# Migrations are MANUAL: the worker never runs DDL
-# (OpenConnectMigrationMode.Manual in Program.cs). The T3 harness applies the
-# existing sample-owned EF migrations
-# (samples/PostgreSql, history __PostgreSqlMigrationsHistory) against this
-# disposable compose postgres BEFORE the worker starts.
+# E2E sample for the Operational Agents (.NET WorkerHost) — §5.10 (WSE2E-IMP-019, WSE2E-AT-066..072).
+# T4 model-live: NOT_APPLICABLE / NOT_RUN (no ML models exist for this worker).
+# Canonical image source:
+#   src/OpenConnect.WorkerHosts.Operational/Dockerfile (mirrored at workers/operational-agents/Dockerfile)
+# No model volume and no model provisioner service are defined (WSE2E-AT-066).
+# Gateway embedded operational supervisor is explicitly disabled:
+#   WorkerHosts__Operational__Mode=Standalone
+#   WorkerHosts__Operational__EmbeddedEnabled=false
+# Migrations are MANUAL: the worker never executes Database.Migrate or EnsureCreated.
+# Sample-owned migrations live in ./Migrations/ and are applied before the worker starts.
 services:
   operational-agents:
     build:
-      # Repo-root context: the Dockerfile COPYs src/* + workers/* per its header.
       context: ../../..
-      dockerfile: workers/operational-agents/Dockerfile
-    image: openconnect/operational-agents:e2e-local
+      dockerfile: ${OPERATIONAL_DOCKERFILE:-src/OpenConnect.WorkerHosts.Operational/Dockerfile}
+    image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       WorkerHosts__Operational__Mode: Standalone
       WorkerHosts__Operational__EmbeddedEnabled: "false"
-      WorkerHosts__Operational__TenantUlid: ${OC_OPERATIONAL_TENANT_ULID:?Set OC_OPERATIONAL_TENANT_ULID to the synthetic tenant ULID}
-      WorkerHosts__Operational__DatabaseProvider: npgsql
-      WorkerHosts__Operational__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+      WorkerHosts__Operational__TenantUlid: ${OC_OPERATIONAL_TENANT_ULID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
+      WorkerHosts__Operational__DatabaseProvider: ${OC_OPERATIONAL_DB_PROVIDER:-npgsql}
+      WorkerHosts__Operational__ConnectionString: ${OC_OPERATIONAL_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-e2e-test-pw-do-not-use-in-prod}}
+      WorkerHosts__Operational__SupervisorLeaseDuration: "00:00:30"
+      WorkerHosts__Operational__RenewInterval: "00:00:10"
+    networks:
+      - oc-test-private
 
   postgres:
     image: postgis/postgis:17-3.6-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-openconnect}
       POSTGRES_USER: ${POSTGRES_USER:-openconnect}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-e2e-test-pw-do-not-use-in-prod}
     ports:
-      # Host-mapped for the sample-side `dotnet ef migrations script` apply +
-      # psql lease probe only. The worker itself reaches postgres over compose DNS.
       - "127.0.0.1:${POSTGRES_PORT:-55433}:5432"
+    networks:
+      - oc-test-private
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  sqlserver:
+    profiles: ["sqlserver", "matrix"]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-E2eTest_SqlSrv_do-not-use-in-prod!42}
+    ports:
+      - "127.0.0.1:${SQLSERVER_PORT:-51433}:1433"
+    networks:
+      - oc-test-private
+
+networks:
+  oc-test-private:
+    internal: true
