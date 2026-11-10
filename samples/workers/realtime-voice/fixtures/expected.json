@@ -1,1 +1,1 @@
-{"expectedStatus":200,"requiredResponseFields":["text","sequence","isFinal"]}
+{"expectedStatus":200,"requiredResponseFields":["schemaVersion","taskId","kind"]}

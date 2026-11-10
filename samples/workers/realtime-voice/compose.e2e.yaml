@@ -13,7 +13,12 @@ services:
     ports:
       - "${PORT_REALTIME_VOICE:-8085}:8080"
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      # T3 E2E (orchestration-only, explicitly fake-labeled, local-only): use
+      # the app's canonical token var (OPENCONNECT_WORKER_TOKEN, which the app
+      # reads) and the canonical engine switch (OC_WORKER_ENGINE=fake).
+      # Fixture session id is synthetic E2E-only (see fixtures/request.json).
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: fake
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s
