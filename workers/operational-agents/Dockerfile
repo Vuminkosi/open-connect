@@ -8,8 +8,8 @@ COPY src/OpenConnect.Core/ src/OpenConnect.Core/
 COPY src/OpenConnect.Navigator/ src/OpenConnect.Navigator/
 COPY src/OpenConnect.Navigator.Operational/ src/OpenConnect.Navigator.Operational/
 COPY src/OpenConnect.Persistence.EFCore/ src/OpenConnect.Persistence.EFCore/
-COPY src/OpenConnect.WorkerHosts.Operational/ src/OpenConnect.WorkerHosts.Operational/
-RUN dotnet publish src/OpenConnect.WorkerHosts.Operational/OpenConnect.WorkerHosts.Operational.csproj \
+COPY workers/operational-agents/ workers/operational-agents/
+RUN dotnet publish workers/operational-agents/OpenConnect.WorkerHosts.Operational.csproj \
     -c Release -o /app/publish /p:ContinuousIntegrationBuild=true
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0

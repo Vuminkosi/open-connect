@@ -1,6 +1,6 @@
 # Outbox relay (.NET host) worker â€” e2e sample (T0â€“T3)
 
-Status: BLOCKED pending worker delivery â€” Pending dotnet-hosts teammate delivery. If delivered as src/OpenConnect.WorkerHosts.*/Dockerfile, update only the dockerfile: line below.
+Status: Delivered - canonical image source is `workers/outbox/Dockerfile` (see below).
 
 Canonical image source: `workers/outbox/Dockerfile` (built as `openconnect/outbox:e2e-local`).
 T4 model-live: **BLOCKED / NOT_RUN** â€” no approved model assets.

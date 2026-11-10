@@ -1,6 +1,6 @@
 # Operational agents (.NET host) worker â€” e2e sample (T0â€“T3)
 
-Status: BLOCKED pending worker delivery â€” Pending dotnet-hosts teammate delivery. If delivered as src/OpenConnect.WorkerHosts.*/Dockerfile, update only the dockerfile: line below.
+Status: Delivered - canonical image source is `workers/operational-agents/Dockerfile` (see below).
 
 Canonical image source: `workers/operational-agents/Dockerfile` (built as `openconnect/operational-agents:e2e-local`).
 T4 model-live: **BLOCKED / NOT_RUN** â€” no approved model assets.

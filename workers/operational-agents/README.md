@@ -41,7 +41,7 @@ database lane. No model volume exists: this host loads no detectors.
 ```powershell
 $env:WorkerHosts__Operational__TenantUlid="<26-char ULID>"
 $env:WorkerHosts__Operational__ConnectionString="Host=localhost;Port=5874;Database=openconnect;Username=openconnect;Password=..."
-dotnet run --project src/OpenConnect.WorkerHosts.Operational
+dotnet run --project workers/operational-agents
 ```
 
-Or `docker compose -f src/OpenConnect.WorkerHosts.Operational/compose.yaml up --build`.
+Or `docker compose -f workers/operational-agents/compose.yaml up --build`.
