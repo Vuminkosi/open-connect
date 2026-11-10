@@ -5,6 +5,17 @@
 # NO long-lived API keys anywhere. No `dotnet nuget push` executes unless the
 # workflow was explicitly armed for publishing (see `publish` input below).
 #
+# Version rule (automated versioning, no manual Version edits):
+#   - Tag push refs/tags/vX.Y.Z (e.g. v1.1.0) -> pack/push that X.Y.Z.
+#     Tag MUST be valid SemVer after stripping the leading `v` or the run
+#     fails. Duplicate versions can never silently overwrite: the push step
+#     keeps --skip-duplicate so republishes are skipped, not overwritten.
+#   - Manual dispatch publish=true REQUIRES an explicit version: either run
+#     from a v* tag or pass `version` input (validated SemVer). Without an
+#     explicit version the run fails before packing (no draft is ever pushed).
+#   - Dry-run (publish != true, the default) with no tag and no `version`
+#     input uses draft 1.0.0-ci.<run_number>; it is packed/verified/attested
+#     only and never pushed.
 # Gate 7 (maintainer approval) is HARD_BLOCKED until a maintainer says go:
 #   1. The `production` environment MUST have required reviewers configured in
 #      the GitHub UI (Settings > Environments > production). Repo code cannot
@@ -32,6 +43,11 @@ on:
         required: false
         default: false
         type: boolean
+      version:
+        description: 'Explicit package version (SemVer, e.g. 1.2.0). Empty = derive from v* tag or use ci draft.'
+        required: false
+        default: ''
+        type: string
   push:
     tags:
       - 'v*'
@@ -65,8 +81,37 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore OpenConnect.slnx --locked-mode
 
+      - name: Resolve package version
+        id: resolve-version
+        shell: pwsh
+        run: |
+          $semver = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+          $ref = '${{ github.ref }}'
+          $inputVersion = '${{ inputs.version }}'.Trim()
+          $wantsPublish = '${{ inputs.publish }}' -eq 'true'
+          $version = ''
+          $source = ''
+          if ($ref -like 'refs/tags/v*') {
+            $version = $ref.Substring('refs/tags/v'.Length).Trim()
+            $source = "tag $ref"
+            if (-not ($version -match $semver)) { Write-Error "Tag version '$version' from $ref is not valid SemVer."; exit 1 }
+          } elseif ($inputVersion -ne '') {
+            $version = $inputVersion
+            $source = 'workflow_dispatch inputs.version'
+            if (-not ($version -match $semver)) { Write-Error "Input version '$version' is not valid SemVer."; exit 1 }
+          } else {
+            if ($wantsPublish) { Write-Error 'publish=true requires an explicit version: run from a v* tag or pass the `version` input.'; exit 1 }
+            $version = '1.0.0-ci.${{ github.run_number }}'
+            $source = 'dry-run draft'
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "PKG_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Resolved package version $version (source: $source)."
+
       - name: Pack Release (OpenConnect.* only)
-        run: dotnet pack OpenConnect.slnx -c Release --no-restore -warnaserror -o ./artifacts/packages /p:ContinuousIntegrationBuild=true
+        env:
+          PKG_VERSION: ${{ steps.resolve-version.outputs.version }}
+        run: dotnet pack OpenConnect.slnx -c Release --no-restore -warnaserror -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=$PKG_VERSION
 
       - name: Verify package file names match OpenConnect.*
         shell: pwsh
@@ -112,6 +157,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host 'DRY-RUN: pack + verify + attest completed. No push executed (inputs.publish != true).'
+          Write-Host ('DRY-RUN VERSION: ' + '${{ steps.resolve-version.outputs.version }}' + ' (draft unless derived from a v* tag or `version` input; never pushed).')
           Get-ChildItem ./artifacts/packages -Filter OpenConnect.*.nupkg | ForEach-Object { Write-Host ("READY (not pushed): " + $_.Name) }
 
       # Gate 7 arm: manual dispatch with publish=true AND production
