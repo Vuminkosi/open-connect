@@ -1,18 +1,50 @@
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
+using OpenConnect.Client;
+using OpenConnect.Components.Blazor;
+using OpenConnect.Core;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
 using OpenConnect.Samples.Blazor.Components;
+using OpenConnect.Samples.Blazor.Models;
 using OpenConnect.Samples.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Blazor Server (interactive) + routing for the sample's single job screen.
+// MudBlazor UI Services
+builder.Services.AddMudServices();
+
+// Blazor Server Interactive
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Exactly one provider (SQLite file) + the hardened EFCore adapter, mirroring
-// the Minimal console sample's registration (own context, own history table).
+// OpenConnect Client, Composer, and Component Discovery
+builder.Services.AddOpenConnectComponents();
+builder.Services.AddOpenConnectComposer(options =>
+{
+    options.Position = ComposerPosition.BottomRight;
+    options.EnableTaskProgress = true;
+    options.EnableComponentDiscovery = true;
+    options.EnableVoiceInput = true;
+    options.EnableVoiceOutput = true;
+});
+
+// Register sample components in the OpenConnect catalogue
+builder.Services.AddOpenConnectComponent<TodoListComponent>();
+builder.Services.AddOpenConnectComponent<TodoEditorComponent>();
+builder.Services.AddOpenConnectComponent<TodoProgressComponent>();
+
+// Todo store
+builder.Services.AddSingleton<ITodoStore, InMemoryTodoStore>();
+
+// OpenConnect Core & EFCore adapter
+builder.Services.AddOpenConnect(options =>
+{
+    options.Privacy.Enabled = true;
+    options.Agents.RegisterLeadAgent = true;
+});
+
 var sqliteFile = SampleEnvironment.ResolveSqliteFile("OPENCONNECT_BLAZOR_SQLITE_PATH", "blazor-sample.db");
 builder.Services.AddDbContext<BlazorDbContext>(options =>
     BlazorDbContext.ConfigureSqlite(options, SampleEnvironment.ToSqliteConnectionString(sqliteFile)));
@@ -36,8 +68,6 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-// Idempotent startup: applies this sample's own migrations only
-// (history: __BlazorMigrationsHistory). Seeds no data.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BlazorDbContext>();

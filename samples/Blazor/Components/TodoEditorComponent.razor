@@ -1,0 +1,53 @@
+@using OpenConnect.Samples.Blazor.Models
+@inject ITodoStore Store
+@inject ISnackbar Snackbar
+
+<MudPaper Elevation="1" Class="p-4 rounded-lg mb-4">
+    <MudText Typo="Typo.h6" Class="mb-3">Quick Add Task</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="_title" Label="Task Title" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect @bind-Value="_priority" Label="Priority" Variant="Variant.Outlined" Margin="Margin.Dense" T="TodoPriority">
+                <MudSelectItem Value="TodoPriority.Low">Low</MudSelectItem>
+                <MudSelectItem Value="TodoPriority.Medium">Medium</MudSelectItem>
+                <MudSelectItem Value="TodoPriority.High">High</MudSelectItem>
+                <MudSelectItem Value="TodoPriority.Urgent">Urgent</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@CreateTaskAsync" Disabled="@string.IsNullOrWhiteSpace(_title)" FullWidth="true">
+                Add Task
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_description" Label="Description (Optional)" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback OnTaskCreated { get; set; }
+
+    private string _title = string.Empty;
+    private string? _description;
+    private TodoPriority _priority = TodoPriority.Medium;
+
+    private async Task CreateTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title)) return;
+
+        await Store.AddAsync(_title, _description, _priority);
+        _title = string.Empty;
+        _description = null;
+        _priority = TodoPriority.Medium;
+
+        Snackbar.Add("Task added successfully", Severity.Success);
+        if (OnTaskCreated.HasDelegate)
+        {
+            await OnTaskCreated.InvokeAsync();
+        }
+    }
+}

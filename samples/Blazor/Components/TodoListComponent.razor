@@ -1,0 +1,144 @@
+@using OpenConnect.Samples.Blazor.Models
+@inject ITodoStore Store
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2" Class="rounded-lg mb-4">
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
+                <MudIcon Icon="@Icons.Material.Filled.Checklist" />
+            </MudAvatar>
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">OpenConnect Tasks & Workflows</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Live interactive tasks managed directly or orchestrated via OpenConnect Assistant.
+            </MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadItemsAsync" />
+        </CardHeaderActions>
+    </MudCardHeader>
+
+    <MudCardContent>
+        <!-- Filter and Search Bar -->
+        <MudToolBar Dense="true" Class="mb-3 px-0">
+            <MudTextField @bind-Value="_searchQuery" Placeholder="Search tasks..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" Immediate="true" />
+            <MudSelect @bind-Value="_selectedFilter" Dense="true" T="string" Margin="Margin.Dense" Style="max-width: 160px;">
+                <MudSelectItem Value="@("All")">All Tasks</MudSelectItem>
+                <MudSelectItem Value="@("Active")">Active Only</MudSelectItem>
+                <MudSelectItem Value="@("Completed")">Completed Only</MudSelectItem>
+            </MudSelect>
+        </MudToolBar>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else if (FilteredItems.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-2">
+                No tasks found. Click the + button or open the OpenConnect Assistant (FAB) to add one!
+            </MudAlert>
+        }
+        else
+        {
+            <MudList T="TodoItem" Dense="false">
+                @foreach (var item in FilteredItems)
+                {
+                    <MudListItem T="TodoItem" Class="py-2 border-b border-solid mud-border-lines-default">
+                        <div class="d-flex align-center justify-space-between w-100">
+                            <div class="d-flex align-center">
+                                <MudCheckBox T="bool" Value="@item.IsCompleted"
+                                             ValueChanged="@(completed => OnStatusChangedAsync(item, completed))"
+                                             Color="Color.Primary" Dense="true" Class="mr-3" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle1" Style="@(item.IsCompleted ? "text-decoration: line-through; opacity: 0.6;" : "")">
+                                        @item.Title
+                                    </MudText>
+                                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="@(item.IsCompleted ? "opacity: 0.5;" : "")">
+                                            @item.Description
+                                        </MudText>
+                                    }
+                                </div>
+                            </div>
+                            <div class="d-flex align-center">
+                                <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(item.Priority)" Variant="Variant.Filled" Class="mr-2">
+                                    @item.Priority
+                                </MudChip>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => OnDeleteAsync(item.Id))" />
+                            </div>
+                        </div>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private IReadOnlyList<TodoItem> _items = Array.Empty<TodoItem>();
+    private bool _loading = true;
+    private string _searchQuery = string.Empty;
+    private string _selectedFilter = "All";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItemsAsync();
+    }
+
+    private async Task LoadItemsAsync()
+    {
+        _loading = true;
+        _items = await Store.GetAllAsync();
+        _loading = false;
+    }
+
+    private IReadOnlyList<TodoItem> FilteredItems
+    {
+        get
+        {
+            var result = _items.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                result = result.Where(i => i.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                           (i.Description?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            if (_selectedFilter == "Active")
+            {
+                result = result.Where(i => !i.IsCompleted);
+            }
+            else if (_selectedFilter == "Completed")
+            {
+                result = result.Where(i => i.IsCompleted);
+            }
+            return result.ToList();
+        }
+    }
+
+    private async Task OnStatusChangedAsync(TodoItem item, bool isCompleted)
+    {
+        await Store.UpdateStatusAsync(item.Id, isCompleted);
+        item.IsCompleted = isCompleted;
+        Snackbar.Add(isCompleted ? "Task marked completed" : "Task restored to active", Severity.Success);
+    }
+
+    private async Task OnDeleteAsync(Guid id)
+    {
+        await Store.DeleteAsync(id);
+        await LoadItemsAsync();
+        Snackbar.Add("Task removed", Severity.Info);
+    }
+
+    private Color GetPriorityColor(TodoPriority priority) => priority switch
+    {
+        TodoPriority.Urgent => Color.Error,
+        TodoPriority.High => Color.Warning,
+        TodoPriority.Medium => Color.Info,
+        _ => Color.Default
+    };
+}

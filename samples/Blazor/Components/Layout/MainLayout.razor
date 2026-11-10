@@ -1,19 +1,53 @@
 @inherits LayoutComponentBase
+@using MudBlazor
+@using OpenConnect.Components.Blazor
 
-<header class="sample-header">
-    <div class="sample-header-inner">
-        <span class="sample-mark" aria-hidden="true">OC</span>
-        <div>
-            <p class="sample-eyebrow">OpenConnect sample</p>
-            <p class="sample-title">Work overview</p>
-        </div>
-    </div>
-</header>
+<MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-<main class="sample-main">
-    @Body
-</main>
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Primary" Dense="false">
+        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Class="mr-3" Size="Size.Large" />
+        <MudText Typo="Typo.h6">OpenConnect Todo Application</MudText>
+        <MudSpacer />
+        <MudChip T="string" Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Small" Class="mr-2">
+            Interactive Agent Enabled
+        </MudChip>
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                       Color="Color.Inherit" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+    </MudAppBar>
 
-<footer class="sample-footer">
-    <p>Local demonstration store (SQLite file). Nothing here leaves this machine.</p>
-</footer>
+    <MudMainContent Class="pa-4 pa-md-6" Style="max-width: 1200px; margin: 0 auto;">
+        <OpenConnectProvider SessionId="todo-session-1">
+            @Body
+            <MiniComposer Placement="OpenConnect.Components.Contracts.ComposerPlacement.BottomRight"
+                          AssistantName="OpenConnect Assistant"
+                          Placeholder="Ask me to add, complete, or organize your tasks..."
+                          CloseBehavior="OpenConnect.Components.Contracts.ComposerCloseBehavior.MinimizeOnly" />
+            <OpenConnectNavigatorProvider />
+        </OpenConnectProvider>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _isDarkMode = false;
+    private MudTheme _theme = new MudTheme
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#1E88E5",
+            Secondary = "#26A69A",
+            AppbarBackground = "#1E88E5"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#42A5F5",
+            Secondary = "#4DB6AC",
+            Background = "#121212",
+            Surface = "#1E1E1E",
+            AppbarBackground = "#1E1E1E"
+        }
+    };
+}

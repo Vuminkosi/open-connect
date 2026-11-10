@@ -1,0 +1,30 @@
+@using OpenConnect.Samples.Blazor.Models
+@inject ITodoStore Store
+
+<MudPaper Elevation="1" Class="p-4 rounded-lg mb-4">
+    <div class="d-flex justify-space-between align-center mb-2">
+        <MudText Typo="Typo.subtitle1">Overall Progress</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@_completedCount / @_totalCount completed (@_percentage%)</MudText>
+    </div>
+    <MudProgressLinear Color="Color.Success" Value="@_percentage" Size="Size.Large" Class="rounded-lg" />
+</MudPaper>
+
+@code {
+    private int _completedCount;
+    private int _totalCount;
+    private int _percentage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshProgressAsync();
+    }
+
+    public async Task RefreshProgressAsync()
+    {
+        var items = await Store.GetAllAsync();
+        _totalCount = items.Count;
+        _completedCount = items.Count(i => i.IsCompleted);
+        _percentage = _totalCount > 0 ? (int)Math.Round((double)_completedCount / _totalCount * 100) : 0;
+        StateHasChanged();
+    }
+}
