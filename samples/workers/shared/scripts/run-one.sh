@@ -64,7 +64,7 @@ if [ "$NORM_TIER" = "image-startup" ] || [ "$NORM_TIER" = "integration" ]; then
     rc=$?
     docker compose -f "$COMPOSE_FILE" logs --no-color 2>/dev/null | sanitize_stream | tail -n 50 || true
     if [ "$rc" -ne 0 ] && [ "$RETAIN_ON_FAIL" -eq 1 ]; then
-      echo "retain-on-fail enabled for isolated project $COMPOSE_PROJECT_NAME (skipping compose down)" >&2
+      echo "retain-on-fail enabled for isolated project $COMPOSE_PROJECT_NAME (teardown skipped)" >&2
     else
       docker compose -f "$COMPOSE_FILE" down --remove-orphans 2>&1 | sanitize_stream || true
     fi

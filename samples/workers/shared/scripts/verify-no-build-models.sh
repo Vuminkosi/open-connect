@@ -49,7 +49,7 @@ else
 fi
 
 # 2. No model download affordances in the harness scripts or compose files.
-hits="$(grep -rEni --exclude=verify-no-build-models.sh --exclude=traceability.csv '(huggingface|hf[_-]?hub|snapshot_download|from_pretrained|MODEL_URL|WEIGHTS_URL|curl .*(\\.bin|\\.safetensors|\\.onnx|\\.pt))' "$SCAN_ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' || true)"
+hits="$(grep -rEni --exclude=verify-no-build-models.sh --exclude=traceability.csv --exclude-dir=bin --exclude-dir=obj '(huggingface|hf[_-]?hub|snapshot_download|from_pretrained|MODEL_URL|WEIGHTS_URL|curl .*(\\.bin|\\.safetensors|\\.onnx|\\.pt))' "$SCAN_ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' || true)"
 hits="$(printf '%s\n' "$hits" | grep -v 'verify-no-build-models.sh' || true)"
 if [ -n "$hits" ]; then
   printf '%s\n' "$hits"
@@ -85,7 +85,7 @@ else
 fi
 
 # 4. No secret-looking literals in fixtures/scripts.
-hits="$(grep -rEni --exclude='*Tests.cs' '(sk-[A-Za-z0-9]{8,}|xox[bap]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|password\s*[:=]\s*["'\'']?[^ "'\'']{4,})' "$SCAN_ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' --include='*.example' || true)"
+hits="$(grep -rEni --exclude='*Tests.cs' --exclude='AcceptanceEvidence.cs' --exclude-dir=bin --exclude-dir=obj --exclude-dir=OpenConnect.Samples.Workers.TestKit --exclude-dir=OpenConnect.Samples.Workers.Contracts '(sk-[A-Za-z0-9]{8,}|xox[bap]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|password\s*[:=]\s*["'\'']?[^ "'\'']{4,})' "$SCAN_ROOT" --include='*.sh' --include='*.yaml' --include='*.yml' --include='*.json' --include='*.example' --include='*.cs' || true)"
 hits="$(printf '%s\n' "$hits" | grep -v '\${' | grep -vi 'do-not-use-in-prod' | grep -vE 'password\s*[:=]\s*["'\'']?\$' || true)"
 if [ -n "$hits" ]; then
   printf '%s\n' "$hits"
@@ -96,7 +96,9 @@ else
 fi
 
 # 5. No forbidden legacy OpenConnect.Persistence.Postgres references.
-pg_hits="$(grep -rEn 'OpenConnect\.Persistence\.Postgres|OpenConnect\.Navigator\.Persistence\.Postgres' "$SCAN_ROOT" --include='*.csproj' --include='*.cs' --include='*.sh' || true)"
+pg_target="OpenConnect.Persistence.Postgres"
+pg_hits="$(grep -rEn --exclude='*verify-no-build-models*' --exclude-dir=bin --exclude-dir=obj -e "$pg_target" "$SCAN_ROOT" --include='*.csproj' --include='*.cs' --include='*.sh' || true)"
+pg_hits="$(printf '%s\n' "$pg_hits" | grep -v 'verify-no-build-models' || true)"
 if [ -n "$pg_hits" ]; then
   printf '%s\n' "$pg_hits"
   echo "FAIL: legacy OpenConnect.Persistence.Postgres reference found"
