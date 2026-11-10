@@ -67,7 +67,7 @@ PYEOF
     fi
   done
   # Negative: unknown kind -> 422.
-  "$PYBIN" -c "import json;doc=json.load(open('$BODY'));doc['kind']='no.such.kind';doc['taskId']='e2e-kokoro-t3-neg-kind';json.dump(doc,open('$NEG','w'))"
+  "$PYBIN" -c "import json,sys;doc=json.load(open(sys.argv[1]));doc['kind']='no.such.kind';doc['taskId']='e2e-kokoro-t3-neg-kind';json.dump(doc,open(sys.argv[2],'w'))" "$BODY" "$NEG"
   NCODE="$(curl -sS -o "$NEG.out" -w '%{http_code}' --max-time 30 \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $TOKEN" \
