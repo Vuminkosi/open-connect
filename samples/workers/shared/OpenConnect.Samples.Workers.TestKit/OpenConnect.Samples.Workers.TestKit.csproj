@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OpenConnect.Samples.Workers.TestKit</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Workers.TestKit</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <NoWarn>$(NoWarn);1591;NU1902;NU1903</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902;NU1903</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenConnect.Samples.Workers.Contracts\OpenConnect.Samples.Workers.Contracts.csproj" />
+    <ProjectReference Include="..\OpenConnect.Samples.Workers.Host\OpenConnect.Samples.Workers.Host.csproj" />
+    <ProjectReference Include="..\..\..\persistence\postgres\OpenConnect.Samples.Persistence.Postgres.csproj" />
+    <ProjectReference Include="..\..\..\persistence\sqlserver\OpenConnect.Samples.Persistence.SqlServer.csproj" />
+    <ProjectReference Include="..\..\..\persistence\sqlite\OpenConnect.Samples.Persistence.Sqlite.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+</Project>

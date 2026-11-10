@@ -1,0 +1,11 @@
+mode: strict-local
+onFailure: deny
+requiredCoverage:
+  - structured-pii
+optionalDetectors:
+  gliner-pii: false
+  deberta-injection: false
+  qwen3-guard: false
+  paddle-ocr: false
+  yunet: false
+

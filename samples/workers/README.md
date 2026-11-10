@@ -1,80 +1,66 @@
-# Workers e2e samples (T0–T3)
+# OpenConnect Worker End-to-End Samples (`samples/workers/`)
 
-End-to-end harness for the 11 OpenConnect worker images. Each sample builds
-**only** its canonical worker Dockerfile (`workers/<name>/Dockerfile`, never a
-toy image) with a local `:e2e-local` tag. No model downloads, no registry
-pushes, no secrets.
+End-to-end sample applications and shared verification harness for the **11 canonical OpenConnect workers**, plus the no-twelfth-image `voice-vad-client-server` sample and the optional `all-workers` stack (`docs/plans/workers-samples-e2e-spec.md`).
 
-T4 model-live is **BLOCKED / NOT_RUN** everywhere: no approved model assets.
+Each sample builds **only** its canonical production Dockerfile (`workers/<name>/Dockerfile` or `src/OpenConnect.WorkerHosts.<Name>/Dockerfile`) with a local `:e2e-local` tag in PR/CI. Zero build-time model checkpoint downloads, zero registry pushes in PR, and zero hardcoded secrets.
 
-## Prerequisites
+## Shared Harness & Persistence Layout
 
-- Docker with compose v2 (for T0 config checks and T2/T3 bring-up)
-- `sh`, `curl`, `python3` on PATH (T1 is fully offline)
-- Copy `shared/env.example` to `.env` beside a compose file to override
-  ports/tokens (test-only dummy values)
+- `samples/workers/shared/OpenConnect.Samples.Workers.Contracts/` — Canonical worker descriptors, tier/provider validators, `RuntimeModelCacheManager` (§4.1–4.3 12-scenario cache verifier), `WorkerContractAssertions`, and `EvidenceGenerator` (`openconnect.samples.workers.evidence/v1`).
+- `samples/workers/shared/OpenConnect.Samples.Workers.Host/` — Real ASP.NET Core OpenConnect sample gateway (`AddOpenConnect`, `AddOpenConnectAgent`, `AddOpenConnectTaskExecution`, `AddMafHostTaskExecutor`, `AddOpenConnectNavigator`, `MapOpenConnect`, `MapOpenConnectNavigator`), `SampleGatewayCoordinator`, `SampleRulesSecurityDetector`, `FakeExternalModelSink`, and `Dockerfile`.
+- `samples/workers/shared/OpenConnect.Samples.Workers.TestKit/` — xUnit E2E test suite and runner container (`Dockerfile`).
+- `samples/workers/shared/fixtures/{security,translation,audio,image,events,contracts,policy}/` — Synthetic test fixtures across §§5–6.
+- `samples/workers/shared/traceability.csv` — Machine-readable crosswalk mapping `WSE2E-AT-001` through `WSE2E-AT-080`.
+- `samples/persistence/{postgres,sqlserver,sqlite}/{ApplicationDbContext.cs,Migrations/}` — Sample-owned `ApplicationDbContext` and reviewed migrations using `modelBuilder.ApplyOpenConnectModel()` and `OpenConnectMigrationMode.Manual` (worker containers never execute DDL).
 
-## Layout
+## Canonical 11 Worker Matrix
 
-| Sample | Canonical image source | Status |
-|--------|------------------------|--------|
-| `security/` | `workers/security/Dockerfile` | READY — reference implementation (Dockerfile present in-repo) |
-| `classification/` | `workers/classification/Dockerfile` | BLOCKED — pending worker delivery |
-| `nllb/` | `workers/nllb/Dockerfile` | BLOCKED — pending worker delivery |
-| `inference/` | `workers/inference/Dockerfile` | BLOCKED — pending worker delivery |
-| `transcription/` | `workers/transcription/Dockerfile` | BLOCKED — pending worker delivery |
-| `realtime-voice/` | `workers/realtime-voice/Dockerfile` | BLOCKED — pending worker delivery |
-| `kokoro/` | `workers/kokoro/Dockerfile` | BLOCKED — pending worker delivery |
-| `mms-tts/` | `workers/mms-tts/Dockerfile` | BLOCKED — pending worker delivery |
-| `navigator-playwright/` | `workers/navigator-playwright/Dockerfile` | BLOCKED — pending worker delivery |
-| `operational-agents/` | `workers/operational-agents/Dockerfile` | BLOCKED — pending worker delivery |
-| `outbox/` | `workers/outbox/Dockerfile` | BLOCKED — pending worker delivery |
-| `voice-vad-client-server/` | reuses `transcription` image — **no 12th image** | BLOCKED — pending transcription worker |
-| `all-workers/` | aggregate compose of all 11 | T0-runnable (config only) |
-| `shared/` | harness scripts, deps compose, env example, fixtures, CI sketch | READY |
+| ID | Sample Directory | Production Dockerfile / Compose | Canonical Image | Model Volume |
+|---|---|---|---|---|
+| `SEC` | `security/` | `workers/security/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-security` | `oc_security_models` |
+| `CLS` | `classification/` | `workers/classification/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-classification` | `oc_classification_models` |
+| `NLLB` | `nllb/` | `workers/nllb/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-nllb` | `oc_nllb_models` |
+| `INF` | `inference/` | `workers/inference/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-inference` | `oc_inference_models` |
+| `STT` | `transcription/` | `workers/transcription/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-transcription` | `oc_transcription_models` |
+| `RTV` | `realtime-voice/` | `workers/realtime-voice/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-realtime-voice` | `oc_realtime_voice_models` |
+| `KOK` | `kokoro/` | `workers/kokoro/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-kokoro` | `oc_kokoro_models` |
+| `MMS` | `mms-tts/` | `workers/mms-tts/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-mms-tts` | `oc_mms_models` |
+| `NAV` | `navigator-playwright/` | `workers/navigator-playwright/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-navigator-playwright` | *(none)* |
+| `OPS` | `operational-agents/` | `src/OpenConnect.WorkerHosts.Operational/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-operational-agents` | *(none)* |
+| `OUT` | `outbox/` | `src/OpenConnect.WorkerHosts.Outbox/{Dockerfile,compose.yaml}` | `vuminkosimatibe/openconnect-worker-outbox` | *(none)* |
 
-Each worker sample contains `compose.e2e.yaml`, `README.md`, `fixtures/`,
-`tests/t1_contract.sh`, and `scripts/smoke.sh`.
+Additional cross-worker samples:
+- `voice-vad-client-server/` — Client/Server/Hybrid VAD verification with **no 12th worker image**.
+- `all-workers/` — Independent optional profiles and full-stack drill.
 
-## Quickstart
+## Runner Commands (§2.1)
 
-```sh
-# T0 static checks for every sample
-for f in samples/workers/*/compose.e2e.yaml; do docker compose -f "$f" config >/dev/null && echo "PASS T0 $f"; done
+```bash
+# Build all local E2E worker images without model downloads
+./samples/workers/shared/scripts/build-all.sh --tag e2e-local
 
-# T1 contract fixtures (offline) for one worker / all workers
-sh samples/workers/shared/scripts/run-one.sh --worker security --tier t1
-sh samples/workers/shared/scripts/run-all.sh --tier t1
+# Run a single worker sample by tier and relational provider
+./samples/workers/shared/scripts/run-one.sh security --tier contract --provider sqlite
+./samples/workers/shared/scripts/run-one.sh kokoro --tier model-live --manifest /approved/kokoro.manifest.json
+./samples/workers/shared/scripts/run-one.sh kokoro --tier offline-revision --manifest /approved/kokoro.manifest.json
 
-# T2 readiness / T3 fixture e2e (needs docker daemon + worker image build)
-sh samples/workers/shared/scripts/run-one.sh --worker security --tier t3
+# Run across all 11 workers
+./samples/workers/shared/scripts/run-all.sh --tier contract --provider sqlite
+./samples/workers/shared/scripts/run-all.sh --tier integration --provider postgres
+./samples/workers/shared/scripts/run-all.sh --tier integration --provider sqlserver
 
-# Guardrails: no models, no pushes, no secrets, no `down -v`
-sh samples/workers/shared/scripts/verify-no-build-models.sh
+# Verify no build-time model downloads, no registry pushes, no secrets, no `down -v`
+./samples/workers/shared/scripts/verify-no-build-models.sh
 
-# Sanitized evidence bundle
-sh samples/workers/shared/scripts/collect-evidence.sh --tier t1
+# Collect sanitized machine-readable result.json (openconnect.samples.workers.evidence/v1) and summary.md
+./samples/workers/shared/scripts/collect-evidence.sh --run-id local-verify-001
+
+# Run .NET shared harness & persistence provider tests
+dotnet test samples/workers/shared/OpenConnect.Samples.Workers.TestKit/OpenConnect.Samples.Workers.TestKit.csproj -c Release
 ```
 
-## Executable contract
+## Teardown & Evidence Rules
 
-- Unknown `--worker` / `--tier` / `--provider` values are rejected (exit 2);
-  `--tier t4` is explicitly rejected as BLOCKED.
-- Each run uses a separate compose project (`ocw-e2e-<worker>`); parallel runs
-  never share networks, volumes, or container names.
-- Waits are bounded (`READY_TIMEOUT_SEC`, default 120s); failures exit loudly.
-- Logs are sanitized (Bearer tokens, `token`/`apiKey` fields, `SCAN_TOKEN`
-  redacted) before display or capture under `shared/evidence/`.
-- Ordinary teardown is `down --remove-orphans` — never `down -v`.
-
-## Evidence
-
-Per-run sanitized bundles land in `shared/evidence/<UTC-stamp>/` (git-ignored
-by default; attach to the handoff instead of committing). Current status and
-per-worker notes live in each sample README; T4 stays NOT_RUN until approved
-model assets exist.
-
-## CI
-
-`.github/**` is owned by another worker, so the workflow sketch lives at
-`shared/ci/workers-samples-e2e.yml` (T0+T1 per PR, T2/T3 on demand, T4 skipped).
+- Ordinary teardown uses `docker compose down --remove-orphans` — **never** `down -v` or `--volumes` (destructive flags are rejected with exit code 2).
+- Pass `--retain-on-fail` to preserve the isolated `ocw-e2e-<worker>` project containers when debugging a failing integration run.
+- Evidence bundles in `samples/workers/shared/evidence/<run-id>/` emit `result.json` (`openconnect.samples.workers.evidence/v1`) and `summary.md` with initial status `NOT_RUN` where unexecuted and `PASS` only where observed.
