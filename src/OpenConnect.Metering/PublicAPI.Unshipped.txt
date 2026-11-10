@@ -1,0 +1,87 @@
+#nullable enable
+OpenConnect.Metering.BudgetReservation
+OpenConnect.Metering.BudgetReservation.Amount.get -> decimal
+OpenConnect.Metering.BudgetReservation.Amount.init -> void
+OpenConnect.Metering.BudgetReservation.BudgetReservation(System.Guid Id, string! ScopeKey, decimal Amount) -> void
+OpenConnect.Metering.BudgetReservation.Id.get -> System.Guid
+OpenConnect.Metering.BudgetReservation.Id.init -> void
+OpenConnect.Metering.BudgetReservation.ScopeKey.get -> string!
+OpenConnect.Metering.BudgetReservation.ScopeKey.init -> void
+OpenConnect.Metering.CostState
+OpenConnect.Metering.CostState.Known = 0 -> OpenConnect.Metering.CostState
+OpenConnect.Metering.CostState.Unknown = 1 -> OpenConnect.Metering.CostState
+OpenConnect.Metering.IBudgetGuard
+OpenConnect.Metering.IBudgetGuard.Release(OpenConnect.Metering.BudgetReservation! reservation) -> void
+OpenConnect.Metering.IBudgetGuard.Settle(OpenConnect.Metering.BudgetReservation! reservation, decimal? actualCost) -> void
+OpenConnect.Metering.IBudgetGuard.TryReserve(string! scopeKey, decimal estimatedAmount) -> OpenConnect.Metering.BudgetReservation?
+OpenConnect.Metering.IModelUsageMeter
+OpenConnect.Metering.IModelUsageMeter.Normalize(OpenConnect.Metering.ModelUsageEvent! usage) -> OpenConnect.Metering.ModelUsageEvent!
+OpenConnect.Metering.IPriceCatalog
+OpenConnect.Metering.IPriceCatalog.Find(string! provider, string! model) -> OpenConnect.Metering.ModelPrice?
+OpenConnect.Metering.IUsageLedger
+OpenConnect.Metering.IUsageLedger.AppendAsync(OpenConnect.Metering.ModelUsageEvent! usage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Metering.InMemoryBudgetGuard
+OpenConnect.Metering.InMemoryBudgetGuard.InMemoryBudgetGuard(System.Collections.Generic.IReadOnlyDictionary<string!, decimal>! limits, OpenConnect.Metering.MissingCostPolicy missingCostPolicy = OpenConnect.Metering.MissingCostPolicy.TreatAsReserved) -> void
+OpenConnect.Metering.InMemoryBudgetGuard.Release(OpenConnect.Metering.BudgetReservation! reservation) -> void
+OpenConnect.Metering.InMemoryBudgetGuard.Settle(OpenConnect.Metering.BudgetReservation! reservation, decimal? actualCost) -> void
+OpenConnect.Metering.InMemoryBudgetGuard.Spent(string! scopeKey) -> decimal
+OpenConnect.Metering.InMemoryBudgetGuard.TryReserve(string! scopeKey, decimal estimatedAmount) -> OpenConnect.Metering.BudgetReservation?
+OpenConnect.Metering.InMemoryUsageLedger
+OpenConnect.Metering.InMemoryUsageLedger.AppendAsync(OpenConnect.Metering.ModelUsageEvent! usage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Metering.InMemoryUsageLedger.InMemoryUsageLedger() -> void
+OpenConnect.Metering.MissingCostPolicy
+OpenConnect.Metering.MissingCostPolicy.Deny = 0 -> OpenConnect.Metering.MissingCostPolicy
+OpenConnect.Metering.MissingCostPolicy.TreatAsReserved = 1 -> OpenConnect.Metering.MissingCostPolicy
+OpenConnect.Metering.ModelPrice
+OpenConnect.Metering.ModelPrice.CacheReadPerMillion.get -> decimal
+OpenConnect.Metering.ModelPrice.CacheReadPerMillion.init -> void
+OpenConnect.Metering.ModelPrice.CacheWritePerMillion.get -> decimal
+OpenConnect.Metering.ModelPrice.CacheWritePerMillion.init -> void
+OpenConnect.Metering.ModelPrice.Calculate(OpenConnect.Metering.NormalizedUsage! usage) -> decimal
+OpenConnect.Metering.ModelPrice.InputPerMillion.get -> decimal
+OpenConnect.Metering.ModelPrice.InputPerMillion.init -> void
+OpenConnect.Metering.ModelPrice.ModelPrice(decimal InputPerMillion, decimal OutputPerMillion, decimal CacheReadPerMillion = 0, decimal CacheWritePerMillion = 0) -> void
+OpenConnect.Metering.ModelPrice.OutputPerMillion.get -> decimal
+OpenConnect.Metering.ModelPrice.OutputPerMillion.init -> void
+OpenConnect.Metering.ModelUsageEvent
+OpenConnect.Metering.ModelUsageEvent.AttemptId.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Metering.ModelUsageEvent.AttemptId.init -> void
+OpenConnect.Metering.ModelUsageEvent.Cost.get -> decimal?
+OpenConnect.Metering.ModelUsageEvent.Cost.init -> void
+OpenConnect.Metering.ModelUsageEvent.CostState.get -> OpenConnect.Metering.CostState
+OpenConnect.Metering.ModelUsageEvent.CostState.init -> void
+OpenConnect.Metering.ModelUsageEvent.EventId.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Metering.ModelUsageEvent.EventId.init -> void
+OpenConnect.Metering.ModelUsageEvent.Model.get -> string!
+OpenConnect.Metering.ModelUsageEvent.Model.init -> void
+OpenConnect.Metering.ModelUsageEvent.ModelUsageEvent(OpenConnect.Abstractions.Ulid EventId, OpenConnect.Abstractions.Ulid AttemptId, string! Provider, string! Model, OpenConnect.Metering.NormalizedUsage! Usage, decimal? Cost, OpenConnect.Metering.CostState CostState, OpenConnect.Metering.UsageProvenance Provenance) -> void
+OpenConnect.Metering.ModelUsageEvent.Provenance.get -> OpenConnect.Metering.UsageProvenance
+OpenConnect.Metering.ModelUsageEvent.Provenance.init -> void
+OpenConnect.Metering.ModelUsageEvent.Provider.get -> string!
+OpenConnect.Metering.ModelUsageEvent.Provider.init -> void
+OpenConnect.Metering.ModelUsageEvent.Usage.get -> OpenConnect.Metering.NormalizedUsage!
+OpenConnect.Metering.ModelUsageEvent.Usage.init -> void
+OpenConnect.Metering.ModelUsageEvent.Validate() -> OpenConnect.Metering.ModelUsageEvent!
+OpenConnect.Metering.NormalizedUsage
+OpenConnect.Metering.NormalizedUsage.NormalizedUsage(OpenConnect.Metering.UsageQuantity! Quantity) -> void
+OpenConnect.Metering.NormalizedUsage.Quantity.get -> OpenConnect.Metering.UsageQuantity!
+OpenConnect.Metering.NormalizedUsage.Quantity.init -> void
+OpenConnect.Metering.NormalizedUsage.Validate() -> OpenConnect.Metering.NormalizedUsage!
+OpenConnect.Metering.UsageProvenance
+OpenConnect.Metering.UsageProvenance.Estimated = 1 -> OpenConnect.Metering.UsageProvenance
+OpenConnect.Metering.UsageProvenance.ProviderReported = 0 -> OpenConnect.Metering.UsageProvenance
+OpenConnect.Metering.UsageProvenance.Unavailable = 2 -> OpenConnect.Metering.UsageProvenance
+OpenConnect.Metering.UsageQuantity
+OpenConnect.Metering.UsageQuantity.CacheRead.get -> decimal?
+OpenConnect.Metering.UsageQuantity.CacheRead.init -> void
+OpenConnect.Metering.UsageQuantity.CacheWrite.get -> decimal?
+OpenConnect.Metering.UsageQuantity.CacheWrite.init -> void
+OpenConnect.Metering.UsageQuantity.Input.get -> decimal?
+OpenConnect.Metering.UsageQuantity.Input.init -> void
+OpenConnect.Metering.UsageQuantity.Output.get -> decimal?
+OpenConnect.Metering.UsageQuantity.Output.init -> void
+OpenConnect.Metering.UsageQuantity.UsageQuantity(decimal? Input, decimal? Output, decimal? CacheRead = null, decimal? CacheWrite = null) -> void
+OpenConnect.Metering.UsageQuantity.Validate() -> OpenConnect.Metering.UsageQuantity!
+OpenConnect.Metering.UsageUnit
+OpenConnect.Metering.UsageUnit.Requests = 1 -> OpenConnect.Metering.UsageUnit
+OpenConnect.Metering.UsageUnit.Tokens = 0 -> OpenConnect.Metering.UsageUnit

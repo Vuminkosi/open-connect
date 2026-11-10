@@ -1,0 +1,104 @@
+#nullable enable
+OpenConnect.Observability.DefaultTelemetrySecretDetector
+OpenConnect.Observability.DefaultTelemetrySecretDetector.DefaultTelemetrySecretDetector() -> void
+OpenConnect.Observability.DefaultTelemetrySecretDetector.IsSecret(string! name, object? value) -> bool
+OpenConnect.Observability.HmacTelemetryPseudonymizer
+OpenConnect.Observability.HmacTelemetryPseudonymizer.HmacTelemetryPseudonymizer(OpenConnect.Observability.ITelemetryPseudonymizationKeyProvider! keys) -> void
+OpenConnect.Observability.HmacTelemetryPseudonymizer.Pseudonymize(string! domain, string! tenantId, string! value) -> string!
+OpenConnect.Observability.ITelemetryDataClassifier
+OpenConnect.Observability.ITelemetryDataClassifier.Classify(string! name, object? value) -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.ITelemetryExportValidator
+OpenConnect.Observability.ITelemetryExportValidator.IsSafe(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! attributes) -> bool
+OpenConnect.Observability.ITelemetryPiiDetector
+OpenConnect.Observability.ITelemetryPiiDetector.IsPersonalData(string! name, object? value) -> bool
+OpenConnect.Observability.ITelemetryPrivacyFilter
+OpenConnect.Observability.ITelemetryPrivacyFilter.Filter(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! attributes) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
+OpenConnect.Observability.ITelemetryPrivacyOptionsAccessor
+OpenConnect.Observability.ITelemetryPrivacyOptionsAccessor.Options.get -> OpenConnect.Observability.TelemetryPrivacyOptions!
+OpenConnect.Observability.ITelemetryPrivacyPolicy
+OpenConnect.Observability.ITelemetryPrivacyPolicy.Decide(string! name, OpenConnect.Observability.TelemetryDataClassification classification) -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.ITelemetryPseudonymizationKeyProvider
+OpenConnect.Observability.ITelemetryPseudonymizationKeyProvider.GetKey(string! tenantId) -> System.ReadOnlyMemory<byte>
+OpenConnect.Observability.ITelemetryPseudonymizationKeyProvider.KeyId.get -> string!
+OpenConnect.Observability.ITelemetryPseudonymizer
+OpenConnect.Observability.ITelemetryPseudonymizer.Pseudonymize(string! domain, string! tenantId, string! value) -> string!
+OpenConnect.Observability.ITelemetrySecretDetector
+OpenConnect.Observability.ITelemetrySecretDetector.IsSecret(string! name, object? value) -> bool
+OpenConnect.Observability.Instrumentation
+OpenConnect.Observability.NoOpTelemetryPiiDetector
+OpenConnect.Observability.NoOpTelemetryPiiDetector.IsPersonalData(string! name, object? value) -> bool
+OpenConnect.Observability.NoOpTelemetryPiiDetector.NoOpTelemetryPiiDetector() -> void
+OpenConnect.Observability.SafeActivityListener
+OpenConnect.Observability.SafeActivityListener.Dispose() -> void
+OpenConnect.Observability.SafeActivityListener.SafeActivityListener(OpenConnect.Observability.ITelemetryPrivacyFilter? filter = null) -> void
+OpenConnect.Observability.SafeExporter
+OpenConnect.Observability.TelemetryAttribute
+OpenConnect.Observability.TelemetryAttribute.Classification.get -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryAttribute.Classification.init -> void
+OpenConnect.Observability.TelemetryAttribute.Name.get -> string!
+OpenConnect.Observability.TelemetryAttribute.Name.init -> void
+OpenConnect.Observability.TelemetryAttribute.TelemetryAttribute(string! Name, object? Value, OpenConnect.Observability.TelemetryDataClassification Classification = OpenConnect.Observability.TelemetryDataClassification.Unknown) -> void
+OpenConnect.Observability.TelemetryAttribute.Value.get -> object?
+OpenConnect.Observability.TelemetryAttribute.Value.init -> void
+OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Confidential = 4 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Credential = 5 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Internal = 2 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Operational = 1 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.PersonalData = 3 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Public = 0 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassification.Unknown = 6 -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassifier
+OpenConnect.Observability.TelemetryDataClassifier.Classify(string! name, object? value) -> OpenConnect.Observability.TelemetryDataClassification
+OpenConnect.Observability.TelemetryDataClassifier.TelemetryDataClassifier(OpenConnect.Observability.ITelemetrySecretDetector! secrets, OpenConnect.Observability.ITelemetryPiiDetector! pii) -> void
+OpenConnect.Observability.TelemetryExportValidator
+OpenConnect.Observability.TelemetryExportValidator.IsSafe(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! attributes) -> bool
+OpenConnect.Observability.TelemetryExportValidator.TelemetryExportValidator(OpenConnect.Observability.ITelemetryPrivacyFilter! filter) -> void
+OpenConnect.Observability.TelemetryExportValidator.ValidateActivity(System.Diagnostics.Activity! activity) -> bool
+OpenConnect.Observability.TelemetryPrivacy
+OpenConnect.Observability.TelemetryPrivacyFilter
+OpenConnect.Observability.TelemetryPrivacyFilter.Filter(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! attributes) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
+OpenConnect.Observability.TelemetryPrivacyFilter.TelemetryPrivacyFilter(OpenConnect.Observability.ITelemetryDataClassifier! classifier, OpenConnect.Observability.ITelemetryPrivacyPolicy! policy, OpenConnect.Observability.ITelemetryPrivacyOptionsAccessor! options) -> void
+OpenConnect.Observability.TelemetryPrivacyMode
+OpenConnect.Observability.TelemetryPrivacyMode.Balanced = 1 -> OpenConnect.Observability.TelemetryPrivacyMode
+OpenConnect.Observability.TelemetryPrivacyMode.Custom = 2 -> OpenConnect.Observability.TelemetryPrivacyMode
+OpenConnect.Observability.TelemetryPrivacyMode.Strict = 0 -> OpenConnect.Observability.TelemetryPrivacyMode
+OpenConnect.Observability.TelemetryPrivacyOptions
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowCompletion.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowCompletion.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowExceptionMessages.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowExceptionMessages.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowPrompt.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.AllowPrompt.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.DropUnknown.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.DropUnknown.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.EnablePiiDetection.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.EnablePiiDetection.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.EnableSecretDetection.get -> bool
+OpenConnect.Observability.TelemetryPrivacyOptions.EnableSecretDetection.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.MaxAttributeLength.get -> int
+OpenConnect.Observability.TelemetryPrivacyOptions.MaxAttributeLength.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.Mode.get -> OpenConnect.Observability.TelemetryPrivacyMode
+OpenConnect.Observability.TelemetryPrivacyOptions.Mode.set -> void
+OpenConnect.Observability.TelemetryPrivacyOptions.TelemetryPrivacyOptions() -> void
+OpenConnect.Observability.TelemetryPrivacyOptionsAccessor
+OpenConnect.Observability.TelemetryPrivacyOptionsAccessor.Options.get -> OpenConnect.Observability.TelemetryPrivacyOptions!
+OpenConnect.Observability.TelemetryPrivacyOptionsAccessor.TelemetryPrivacyOptionsAccessor(OpenConnect.Observability.TelemetryPrivacyOptions! options) -> void
+OpenConnect.Observability.TelemetryPrivacyOptionsValidator
+OpenConnect.Observability.TelemetryPrivacyOptionsValidator.TelemetryPrivacyOptionsValidator() -> void
+OpenConnect.Observability.TelemetryPrivacyOptionsValidator.Validate(OpenConnect.Observability.TelemetryPrivacyOptions! options) -> void
+OpenConnect.Observability.TelemetryPrivacyPolicy
+OpenConnect.Observability.TelemetryPrivacyPolicy.Decide(string! name, OpenConnect.Observability.TelemetryDataClassification classification) -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetryPrivacyPolicy.TelemetryPrivacyPolicy(OpenConnect.Observability.TelemetryPrivacyOptions! options) -> void
+OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetrySanitizationAction.Allow = 0 -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetrySanitizationAction.Drop = 1 -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetrySanitizationAction.Mask = 3 -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetrySanitizationAction.Pseudonymize = 4 -> OpenConnect.Observability.TelemetrySanitizationAction
+OpenConnect.Observability.TelemetrySanitizationAction.Redact = 2 -> OpenConnect.Observability.TelemetrySanitizationAction
+const OpenConnect.Observability.Instrumentation.MetadataOnly = "MetadataOnly" -> string!
+static OpenConnect.Observability.Instrumentation.AllowlistedTags(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! dimensions) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
+static OpenConnect.Observability.Instrumentation.SafeRecordVector(double durationMilliseconds, string! operation, string! outcome) -> void
+static OpenConnect.Observability.Instrumentation.SafeStartActivity(string! source, string! operation, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags = null, System.Diagnostics.ActivityKind kind = System.Diagnostics.ActivityKind.Internal) -> System.Diagnostics.Activity?
+static OpenConnect.Observability.SafeExporter.ValidateAndSanitizeActivity(System.Diagnostics.Activity! activity, OpenConnect.Observability.ITelemetryPrivacyFilter? filter = null) -> bool
+static OpenConnect.Observability.TelemetryPrivacy.CreateDefault() -> (OpenConnect.Observability.ITelemetryPrivacyFilter! Filter, OpenConnect.Observability.ITelemetryExportValidator! Validator)

@@ -6,17 +6,51 @@
     <!-- Microsoft packages -->
     <PackageVersion Include="Microsoft.Agents.AI.Harness" Version="1.27.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.27.0" />
-    <PackageVersion Include="Microsoft.Agents.AI.Workflows.Declarative.Mcp" Version="1.27.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <!--
+      TFM-aligned EF Core families (CF-IMP-003). net8.0 rows preserve the
+      pre-existing pins so the net8.0 asset and net8.0-only test projects
+      restore exactly as before. Versions verified to exist on nuget.org:
+      8.0.11 (net8.0), 9.0.22 (net9.0), 10.0.14 (net10.0).
+      Condition-on-PackageVersion is evaluated per TargetFramework by NuGet
+      restore, including per inner-build of multi-targeted libraries.
+    -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <!-- Npgsql provider: latest stable per major, verified on nuget.org. -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <!--
+      TFM-aligned Microsoft.Extensions packages. A single 8.x pin would
+      downgrade the transitive 9.x/10.x extensions required by EF 9/10 in the
+      net9.0/net10.0 assets, so each TFM uses its matching major
+      (all versions verified to exist on nuget.org).
+    -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.22" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
@@ -25,15 +59,22 @@
     <PackageVersion Include="Microsoft.Agents.AI" Version="1.27.0" />
     <PackageVersion Include="NATS.Net" Version="3.3.2" />
     <PackageVersion Include="NATS.Client" Version="1.1.8" />
+    <!-- Roslyn public-API tracking pilot (CF-IMP-005a): single Shipped/Unshipped pair under
+         src/OpenConnect.Abstractions, identical inputs for net8.0/net9.0/net10.0 (parity enforced
+         by the build itself); other libs follow the same pattern. Single version for all TFMs. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" />
     <!-- ASP.NET Core -->
     <PackageVersion Include="Microsoft.AspNetCore.App" Version="8.0.11" />
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageVersion Include="bunit" Version="2.14.0" />
     <PackageVersion Include="MudBlazor" Version="8.15.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <!-- CF-SEC-NU001 F1: unconditioned pin; evidence: net9/net10 closures already resolve 2.1.13 clean. Nearest-wins over EF transitive. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 </Project>

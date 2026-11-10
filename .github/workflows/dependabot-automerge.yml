@@ -1,0 +1,111 @@
+name: Dependabot auto-merge
+
+# Allows Dependabot to create PRs (already configured via .github/dependabot.yml
+# `open-pull-requests-limit`) AND have patch/minor updates auto-approved and
+# auto-merged once required CI checks pass. Major updates are commented on and
+# left for manual maintainer review — they are never auto-merged.
+#
+# CHECKOUT SAFETY (pull_request_target): this workflow NEVER checks out the PR
+# head SHA and NEVER executes untrusted code (no build/test steps on PR
+# contents). `pull_request_target` runs in the base-repo context with
+# read-only code access; the only actions taken are trusted first-party
+# operations: reading Dependabot metadata via dependabot/fetch-metadata and
+# issuing `gh` CLI approve / auto-merge / comment calls against the PR.
+# Auto-merge is enabled with `--auto`, so GitHub still waits for all required
+# branch-protection checks (CI) to pass before the squash merge happens.
+# CODEOWNERS (`/.github/ @openconnect/maintainers`) still governs review of
+# workflow changes themselves.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    name: Dependabot metadata
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      update-type: ${{ steps.meta.outputs.update-type }}
+      dependency-type: ${{ steps.meta.outputs.dependency-type }}
+      package-ecosystem: ${{ steps.meta.outputs.package-ecosystem }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@0873845567c218a6ea729223bc67e1dbf594a75 # v2.2.0
+
+  approve:
+    name: Approve patch/minor update
+    needs: metadata
+    if: |
+      github.actor == 'dependabot[bot]' &&
+      (needs.metadata.outputs.update-type == 'version-update:semver-patch' ||
+       needs.metadata.outputs.update-type == 'version-update:semver-minor') &&
+      (needs.metadata.outputs.dependency-type == 'direct:production' ||
+       needs.metadata.outputs.dependency-type == 'direct:development') &&
+      contains(fromJSON('["github-actions", "nuget", "npm", "uv"]'), needs.metadata.outputs.package-ecosystem)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr review --approve "$PR_URL"
+
+  automerge:
+    name: Enable auto-merge (squash)
+    needs: metadata
+    if: |
+      github.actor == 'dependabot[bot]' &&
+      (needs.metadata.outputs.update-type == 'version-update:semver-patch' ||
+       needs.metadata.outputs.update-type == 'version-update:semver-minor') &&
+      (needs.metadata.outputs.dependency-type == 'direct:production' ||
+       needs.metadata.outputs.dependency-type == 'direct:development') &&
+      contains(fromJSON('["github-actions", "nuget", "npm", "uv"]'), needs.metadata.outputs.package-ecosystem)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Auto-merge enablement touches merge state, so this job alone gets
+      # contents: write; every other job stays at read-only least privilege.
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable squash auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+  major-notice:
+    name: Flag major update for manual review
+    needs: metadata
+    if: |
+      github.actor == 'dependabot[bot]' &&
+      needs.metadata.outputs.update-type == 'version-update:semver-major'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment that major update needs manual review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: >
+          gh pr comment "$PR_URL" --body
+          "Major version update detected — auto-merge is disabled for major updates. A maintainer must review and merge manually."

@@ -1,0 +1,44 @@
+#nullable enable
+OpenConnect.Client.CreateTaskRequest
+OpenConnect.Client.CreateTaskRequest.ClientTaskId.get -> string!
+OpenConnect.Client.CreateTaskRequest.ClientTaskId.init -> void
+OpenConnect.Client.CreateTaskRequest.CreateTaskRequest(string! ClientTaskId, string! IdempotencyKey, string? Message = null, string? SessionId = null) -> void
+OpenConnect.Client.CreateTaskRequest.IdempotencyKey.get -> string!
+OpenConnect.Client.CreateTaskRequest.IdempotencyKey.init -> void
+OpenConnect.Client.CreateTaskRequest.Message.get -> string?
+OpenConnect.Client.CreateTaskRequest.Message.init -> void
+OpenConnect.Client.CreateTaskRequest.SessionId.get -> string?
+OpenConnect.Client.CreateTaskRequest.SessionId.init -> void
+OpenConnect.Client.IOpenConnectClient
+OpenConnect.Client.IOpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.IOpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.IOpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
+OpenConnect.Client.IOpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
+OpenConnect.Client.IOpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.IOpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
+OpenConnect.Client.IOpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.OpenConnectClient
+OpenConnect.Client.OpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
+OpenConnect.Client.OpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
+OpenConnect.Client.OpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.OpenConnectClient(System.Net.Http.HttpClient! httpClient) -> void
+OpenConnect.Client.OpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
+OpenConnect.Client.OpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.OpenConnectClientException
+OpenConnect.Client.OpenConnectClientException.ErrorCode.get -> string?
+OpenConnect.Client.OpenConnectClientException.OpenConnectClientException(int statusCode, string? errorCode, string! message) -> void
+OpenConnect.Client.OpenConnectClientException.StatusCodeValue.get -> int
+OpenConnect.Client.OpenConnectClientServiceCollectionExtensions
+OpenConnect.Client.SessionRecord
+OpenConnect.Client.SessionRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Client.SessionRecord.CreatedAt.init -> void
+OpenConnect.Client.SessionRecord.Id.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Client.SessionRecord.Id.init -> void
+OpenConnect.Client.SessionRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Client.SessionRecord.PrincipalId.init -> void
+OpenConnect.Client.SessionRecord.SessionRecord(OpenConnect.Abstractions.SessionId Id, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Client.SessionRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Client.SessionRecord.TenantId.init -> void
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Uri! baseAddress, System.Action<Microsoft.Extensions.DependencyInjection.IHttpClientBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

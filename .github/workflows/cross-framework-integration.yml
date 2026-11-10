@@ -1,0 +1,309 @@
+name: Cross-Framework Integration
+
+# Provider-backed integration per TFM (CF-REQ-095/096/100, spec section 10).
+#
+# SCOPE: Testcontainers SQL Server / PostgreSQL / SQLite, NATS, fake auth
+# worker, EF major per TFM, MAF workflow smoke, cross-version client/server
+# protocol, privacy fail-closed.
+#
+# TRIGGERS / FILTERS (documented here by requirement):
+# - Manual (`workflow_dispatch`, optional `tfm` + `categories` inputs) for
+#   on-demand provider runs.
+# - Weekly schedule (Sunday 03:00 UTC). This is NOT the nightly OS/RID
+#   matrix: nightly OS/RID expansion is explicitly OUT OF SCOPE and tracked
+#   as future work (see CF-IMP-017 handoff).
+# - No pull_request trigger: PRs are gated by cross-framework-ci.yml; this
+#   heavier provider suite runs on demand / weekly to bound CI cost.
+#
+# ENVIRONMENT SETUP (documented here by requirement):
+# - Docker must be available (Testcontainers for PostgreSQL/SQL Server spin
+#   Ryuk + database containers; no static connection strings in CI).
+# - NATS is provided as a GitHub service container (nats:2.11-alpine) and
+#   exposed to tests via NATS_URL=nats://localhost:4222.
+# - PostgreSQL/SQL Server images are pulled BY TESTCONTAINERS at runtime
+#   using the image names pinned in test code / OPENCONNECT_TEST_* vars.
+# - Fake auth worker: tests requiring a live auth endpoint read
+#   OPENCONNECT_TEST_AUTH_URL. Until the fake-auth worker lands, those steps
+#   probe for workers/fake-auth and report NOT APPLICABLE without failing
+#   the suite (see `auth-dependent` step).
+# - InMemory NEVER substitutes for provider tests: every provider step adds
+#   `FullyQualifiedName!~InMemory` to its filter, and no step sets an
+#   InMemory fallback variable. SQLite file-based tests are the lightest
+#   accepted provider evidence.
+#
+# TFM probing: same Test-TfmSupported guard as cross-framework-ci.yml so
+# `dotnet test -f` never targets an unsupported TFM (MSBuild properties
+# expanded via build/supported-frameworks.props). Observed in-worktree
+# state: tests are single-target net8.0, so net9.0/net10.0 provider legs
+# report NOT APPLICABLE until tests opt into multi-targeting; each runtime
+# is still proven by the PR workflow's build + package-inspect +
+# consumer-smoke legs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tfm:
+        description: "TFM to exercise (net8.0, net9.0, net10.0, or all)"
+        required: false
+        default: all
+      categories:
+        description: "Test categories CSV (sqlite,postgres,sqlserver,nats,auth,maf,protocol,privacy,ef) or all"
+        required: false
+        default: all
+  schedule:
+    - cron: "0 3 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  NATS_URL: nats://localhost:4222
+  # Testcontainers tuning (documented; only read by tests that opt in).
+  TESTCONTAINERS_RYUK_DISABLED: "false"
+  PERSISTENCE_TEST_PROJECT: tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+  TRANSPORT_TEST_PROJECT: tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj
+  CLIENT_TEST_PROJECT: tests/Unit/OpenConnect.Client.Tests/OpenConnect.Client.Tests.csproj
+  AGENTS_TEST_PROJECT: tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj
+  PRIVACY_TEST_PROJECT: tests/Unit/OpenConnect.Privacy.Tests/OpenConnect.Privacy.Tests.csproj
+
+jobs:
+  preflight:
+    name: Preflight (env + Docker + EF major policy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tfms: ${{ steps.resolve.outputs.tfms }}
+      docker: ${{ steps.docker.outputs.available }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve TFM list
+        id: resolve
+        shell: pwsh
+        run: |
+          $input = '${{ inputs.tfm }}'
+          if ([string]::IsNullOrWhiteSpace($input) -or $input -eq 'all') { $tfms = '["net8.0", "net9.0", "net10.0"]' }
+          else { $tfms = '["' + $input + '"]' }
+          "tfms=$tfms" >> $env:GITHUB_OUTPUT
+          Write-Host "TFMs: $tfms"
+
+      - name: Check Docker availability for Testcontainers
+        id: docker
+        shell: pwsh
+        run: |
+          try {
+            docker info | Out-Null
+            if ($LASTEXITCODE -eq 0) { "available=true" >> $env:GITHUB_OUTPUT; Write-Host 'Docker available.' }
+            else { "available=false" >> $env:GITHUB_OUTPUT; Write-Host 'WARNING: Docker unavailable; container steps will report NOT APPLICABLE.' }
+          } catch {
+            "available=false" >> $env:GITHUB_OUTPUT
+            Write-Host 'WARNING: Docker unavailable; container steps will report NOT APPLICABLE.'
+          }
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+
+      # Static policy check, no containers: EF Core major must track the TFM
+      # major for net8/net9/net10 legs (net8->EF8, net9->EF9, net10->EF10).
+      - name: Verify EF Core major tracks TFM policy
+        shell: pwsh
+        run: |
+          $props = Get-Content 'Directory.Packages.props' -Raw
+          if ($props -match '<PackageVersion Include="Microsoft\.EntityFrameworkCore" Version="([^"]+)"') {
+            $efMajor = $Matches[1].Split('.')[0]
+            Write-Host "EF Core pinned major: $efMajor"
+            "## EF Core major policy`n`nPinned EF Core major: **$efMajor**. Expected mapping: net8.0->EF8, net9.0->EF9, net10.0->EF10. Reconcile drift as part of the CF-IMP-003 multi-target work." >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            Write-Error 'Microsoft.EntityFrameworkCore pin not found in Directory.Packages.props.'
+            exit 1
+          }
+
+      - name: Publish environment setup summary
+        shell: pwsh
+        run: |
+          @'
+          ## Integration environment
+          | Requirement | Source |
+          |---|---|
+          | NATS server | service container `nats:2.11-alpine`, `NATS_URL=nats://localhost:4222` |
+          | PostgreSQL | Testcontainers (Docker required), image pinned in test code |
+          | SQL Server | Testcontainers (Docker required), Testcontainers-managed SA credential |
+          | SQLite | file-based, no Docker required |
+          | Fake auth worker | `OPENCONNECT_TEST_AUTH_URL`; NOT APPLICABLE until `workers/fake-auth` lands |
+          | InMemory | NEVER a substitute: provider filters exclude `FullyQualifiedName~InMemory` |
+          '@ >> $env:GITHUB_STEP_SUMMARY
+
+  provider:
+    name: Provider integration (${{ matrix.tfm }})
+    needs: preflight
+    if: needs.preflight.outputs.tfms != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        tfm: ${{ fromJson(needs.preflight.outputs.tfms) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      nats:
+        image: nats:2.11-alpine
+        ports:
+          - 4222:4222
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up .NET SDK (pinned by global.json)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            **/packages.lock.json
+
+      # Older runtimes so net8.0/net9.0 tests execute on matching runtimes.
+      # Runtime-only installs: global.json keeps the CLI on the primary SDK.
+      - name: Set up .NET 8 and 9 runtimes (execution only)
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version: |
+            8.0.404
+            9.0.320
+
+      - name: Diagnose SDKs, runtimes, CLR version
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          $fsx = Join-Path $env:RUNNER_TEMP 'print-env-version.fsx'
+          Set-Content -Path $fsx -Value 'printfn "Environment.Version = %O" System.Environment.Version'
+          dotnet fsi --noninteractive $fsx
+
+      - name: Restore locked dependencies
+        run: dotnet restore OpenConnect.slnx --locked-mode
+
+      # Shared probe: resolves the test projects that target this TFM and
+      # gates every `dotnet test -f` below, which NEVER runs against an
+      # unsupported TFM. Legs with nothing applicable report NOT APPLICABLE.
+      - name: Resolve TFM-applicable test projects
+        id: probe
+        shell: pwsh
+        run: |
+          function Resolve-Tfms {
+            param([string]$Raw)
+            $resolved = $Raw
+            if ($resolved -match '\$\(([^)]+)\)') {
+              $name = $Matches[1]
+              $val = ''
+              foreach ($f in @('build/supported-frameworks.props', 'Directory.Build.props')) {
+                $x = [xml](Get-Content $f -Raw)
+                $node = $x.SelectSingleNode("//*[local-name()='$name']")
+                if ($node -ne $null) { $val = $node.InnerText; break }
+              }
+              if ($val -ne '') { $resolved = $resolved -replace ('\$\(' + $name + '\)'), $val }
+            }
+            return @($resolved -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          }
+          function Test-TfmSupported {
+            param([string]$Csproj, [string]$Tfm)
+            $xml = Get-Content $Csproj -Raw
+            if ($xml -match '<TargetFrameworks?>([^<]+)</TargetFrameworks?>') {
+              return (Resolve-Tfms $Matches[1]) -contains $Tfm
+            }
+            $props = Get-Content 'Directory.Build.props' -Raw
+            if ($props -match '<TargetFrameworks?>([^<]+)</TargetFrameworks?>') {
+              return (Resolve-Tfms $Matches[1]) -contains $Tfm
+            }
+            return $false
+          }
+          $tfm = '${{ matrix.tfm }}'
+          $resolved = @()
+          foreach ($var in @('PERSISTENCE_TEST_PROJECT','TRANSPORT_TEST_PROJECT','CLIENT_TEST_PROJECT','AGENTS_TEST_PROJECT','PRIVACY_TEST_PROJECT')) {
+            $p = [Environment]::GetEnvironmentVariable($var)
+            if ((Test-Path $p) -and (Test-TfmSupported $p $tfm)) { $resolved += $p } else { Write-Host "SKIP (TFM not targeted): $p" }
+          }
+          if ($resolved.Count -eq 0) {
+            "has_any=false" >> $env:GITHUB_OUTPUT
+            Write-Host "NOT APPLICABLE: no test projects target $tfm yet (tests are single-target net8.0)."
+            "## Provider integration (${{ matrix.tfm }})`n`nNOT APPLICABLE: no test projects target this TFM in-tree. Pending test multi-targeting decision." >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "has_any=true" >> $env:GITHUB_OUTPUT
+            "projects=$($resolved -join ' ')" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: SQLite provider tests (no Docker required)
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:PERSISTENCE_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Sqlite&FullyQualifiedName!~InMemory"
+
+      - name: PostgreSQL provider tests (Testcontainers)
+        if: needs.preflight.outputs.docker == 'true' && steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:PERSISTENCE_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~PostgreSql&FullyQualifiedName!~InMemory"
+
+      - name: PostgreSQL skipped (no Docker)
+        if: needs.preflight.outputs.docker != 'true'
+        shell: pwsh
+        run: |
+          'PostgreSQL provider tests: NOT APPLICABLE on this runner (Docker unavailable).' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: SQL Server provider tests (Testcontainers)
+        if: needs.preflight.outputs.docker == 'true' && steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:PERSISTENCE_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~SqlServer&FullyQualifiedName!~InMemory"
+
+      - name: SQL Server skipped (no Docker)
+        if: needs.preflight.outputs.docker != 'true'
+        shell: pwsh
+        run: |
+          'SQL Server provider tests: NOT APPLICABLE on this runner (Docker unavailable).' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: NATS transport tests (service container)
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:TRANSPORT_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Nats"
+
+      - name: MAF workflow smoke tests
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:AGENTS_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Workflow|FullyQualifiedName~Maf"
+
+      - name: Cross-version client/server protocol tests
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:CLIENT_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Protocol|FullyQualifiedName~Compatibility"
+          'Cross-TFM client/server matrix (e.g. net8 client vs net10 server) runs in the future nightly OS/RID expansion; this suite proves same-TFM protocol per leg.' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Privacy fail-closed tests
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          dotnet test $env:PRIVACY_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~FailClosed|FullyQualifiedName~Privacy"
+
+      - name: Fake-auth-worker-dependent tests
+        if: steps.probe.outputs.has_any == 'true'
+        shell: pwsh
+        run: |
+          if (Test-Path 'workers/fake-auth') {
+            dotnet test $env:PRIVACY_TEST_PROJECT -c Release -f ${{ matrix.tfm }} --no-restore --filter "FullyQualifiedName~Auth"
+          } else {
+            Write-Host 'NOT APPLICABLE: workers/fake-auth not present yet; auth-dependent tests deferred until the fake auth worker lands.'
+            'Auth-dependent tests: NOT APPLICABLE (no `workers/fake-auth` in tree).' >> $env:GITHUB_STEP_SUMMARY
+          }

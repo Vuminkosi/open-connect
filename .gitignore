@@ -354,3 +354,20 @@ ehthumbs.db
 Thumbs.db
 /docs/plans
 /docs
+
+# CF-OPS-001 (append-only): narrow un-ignore for cross-framework deliverables.
+# `build/` (line 309) and `/docs` (line 356) exclude parent dirs, and git cannot
+# re-include a file while its parent dir is excluded — so re-include the dirs
+# first, re-exclude their other children, then un-ignore only the deliverables.
+# Existing rules above are untouched; everything else stays ignored.
+!build/
+build/*
+!build/supported-frameworks.props
+!build/scripts/
+!build/compatibility-report.schema.json
+!build/compatibility-manifest.json
+!docs/
+docs/*
+!docs/compatibility/
+!docs/architecture/
+!docs/architecture/adr/

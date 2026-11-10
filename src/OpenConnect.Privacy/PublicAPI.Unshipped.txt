@@ -1,0 +1,103 @@
+#nullable enable
+OpenConnect.Privacy.DetectorResult
+OpenConnect.Privacy.DetectorResult.Available.get -> bool
+OpenConnect.Privacy.DetectorResult.Available.init -> void
+OpenConnect.Privacy.DetectorResult.DetectedEntities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>!
+OpenConnect.Privacy.DetectorResult.DetectedEntities.init -> void
+OpenConnect.Privacy.DetectorResult.DetectorResult(bool Available, string! SanitizedContent, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities) -> void
+OpenConnect.Privacy.DetectorResult.SanitizedContent.get -> string!
+OpenConnect.Privacy.DetectorResult.SanitizedContent.init -> void
+OpenConnect.Privacy.EgressContext
+OpenConnect.Privacy.EgressContext.Destination.get -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressContext.Destination.init -> void
+OpenConnect.Privacy.EgressContext.EgressContext(OpenConnect.Abstractions.TenantId Tenant, OpenConnect.Abstractions.PrincipalId Principal, OpenConnect.Abstractions.SessionId Session, OpenConnect.Privacy.EgressDestination Destination) -> void
+OpenConnect.Privacy.EgressContext.Principal.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Privacy.EgressContext.Principal.init -> void
+OpenConnect.Privacy.EgressContext.Session.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Privacy.EgressContext.Session.init -> void
+OpenConnect.Privacy.EgressContext.Tenant.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Privacy.EgressContext.Tenant.init -> void
+OpenConnect.Privacy.EgressDecision
+OpenConnect.Privacy.EgressDecision.Action.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Privacy.EgressDecision.Action.init -> void
+OpenConnect.Privacy.EgressDecision.Allowed.get -> bool
+OpenConnect.Privacy.EgressDecision.Allowed.init -> void
+OpenConnect.Privacy.EgressDecision.DetectedEntities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>!
+OpenConnect.Privacy.EgressDecision.DetectedEntities.init -> void
+OpenConnect.Privacy.EgressDecision.EgressDecision(bool Allowed, string? SanitizedContent, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities, OpenConnect.Abstractions.SecurityPolicyAction Action, string! Reason) -> void
+OpenConnect.Privacy.EgressDecision.Reason.get -> string!
+OpenConnect.Privacy.EgressDecision.Reason.init -> void
+OpenConnect.Privacy.EgressDecision.SanitizedContent.get -> string?
+OpenConnect.Privacy.EgressDecision.SanitizedContent.init -> void
+OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.AuditLog = 6 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.ExternalModel = 0 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.Nats = 4 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.Output = 3 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.Tool = 1 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.WebSocket = 5 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EgressDestination.Worker = 2 -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.EntitySpan
+OpenConnect.Privacy.EntitySpan.EntitySpan(int Start, int Length, string! EntityType) -> void
+OpenConnect.Privacy.EntitySpan.EntityType.get -> string!
+OpenConnect.Privacy.EntitySpan.EntityType.init -> void
+OpenConnect.Privacy.EntitySpan.Length.get -> int
+OpenConnect.Privacy.EntitySpan.Length.init -> void
+OpenConnect.Privacy.EntitySpan.Start.get -> int
+OpenConnect.Privacy.EntitySpan.Start.init -> void
+OpenConnect.Privacy.Gates.EgressGate
+OpenConnect.Privacy.Gates.EgressGate.DemandAllowedAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Gates.EgressGate.EgressGate(OpenConnect.Privacy.IPrivacyFirewall! firewall) -> void
+OpenConnect.Privacy.Gates.EgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.IEgressGate
+OpenConnect.Privacy.IEgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.IPrivacyFirewall
+OpenConnect.Privacy.IPrivacyFirewall.Enabled.get -> bool
+OpenConnect.Privacy.IPrivacyFirewall.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.ISecurityDetector
+OpenConnect.Privacy.ISecurityDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
+OpenConnect.Privacy.ITokenVault
+OpenConnect.Privacy.ITokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+OpenConnect.Privacy.ITokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Policy.PolicyEngine
+OpenConnect.Privacy.Policy.PolicyEngine.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, OpenConnect.Abstractions.FirewallMode mode, bool enabled, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.Policy.PolicyEngine.PolicyEngine(OpenConnect.Privacy.ISecurityDetector? detector = null) -> void
+OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyAction.Allow = 0 -> OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyAction.Block = 3 -> OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyAction.Mask = 1 -> OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyAction.Redact = 2 -> OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyAction.Review = 4 -> OpenConnect.Privacy.PrivacyAction
+OpenConnect.Privacy.PrivacyBlockedException
+OpenConnect.Privacy.PrivacyBlockedException.PrivacyBlockedException(string! message) -> void
+OpenConnect.Privacy.PrivacyFirewall
+OpenConnect.Privacy.PrivacyFirewall.Enabled.get -> bool
+OpenConnect.Privacy.PrivacyFirewall.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.PrivacyFirewall.PrivacyFirewall(Microsoft.Extensions.Options.IOptions<OpenConnect.Privacy.PrivacyOptions!>! options, OpenConnect.Privacy.Policy.PolicyEngine! policyEngine) -> void
+OpenConnect.Privacy.PrivacyOptions
+OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.get -> System.TimeSpan
+OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.set -> void
+OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
+OpenConnect.Privacy.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
+OpenConnect.Privacy.PrivacyOptions.Mode.set -> void
+OpenConnect.Privacy.PrivacyOptions.PrivacyOptions() -> void
+OpenConnect.Privacy.PrivacyScope
+OpenConnect.Privacy.PrivacyScope.Principal.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Privacy.PrivacyScope.Principal.init -> void
+OpenConnect.Privacy.PrivacyScope.PrivacyScope(OpenConnect.Abstractions.TenantId Tenant, OpenConnect.Abstractions.PrincipalId Principal, OpenConnect.Abstractions.SessionId Session, string! Purpose) -> void
+OpenConnect.Privacy.PrivacyScope.Purpose.get -> string!
+OpenConnect.Privacy.PrivacyScope.Purpose.init -> void
+OpenConnect.Privacy.PrivacyScope.Session.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Privacy.PrivacyScope.Session.init -> void
+OpenConnect.Privacy.PrivacyScope.Tenant.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Privacy.PrivacyScope.Tenant.init -> void
+OpenConnect.Privacy.PrivacyScope.Validate() -> OpenConnect.Privacy.PrivacyScope!
+OpenConnect.Privacy.Tokenization.TokenGenerator
+OpenConnect.Privacy.Tokenization.TokenGenerator.CreateAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Tokenization.TokenGenerator.TokenGenerator(OpenConnect.Privacy.ITokenVault! vault) -> void
+OpenConnect.Privacy.Tokenization.TokenVault
+OpenConnect.Privacy.Tokenization.TokenVault.Dispose() -> void
+OpenConnect.Privacy.Tokenization.TokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+OpenConnect.Privacy.Tokenization.TokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Tokenization.TokenVault.TokenVault(byte[]! key, System.TimeProvider? timeProvider = null) -> void

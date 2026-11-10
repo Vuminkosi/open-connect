@@ -1,0 +1,21 @@
+<Project>
+  <!--
+    OpenConnect cross-framework foundation (CF-REQ-001/002/020/022).
+
+    Every shippable OpenConnect library targets these TFMs and publishes ONE
+    package ID + ONE SemVer containing TFM-specific assets/dependency groups:
+
+      OpenConnectLibraryTargetFrameworks = net8.0;net9.0;net10.0
+
+    Eligible library projects opt in with:
+      <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
+
+    Lifecycle note (comment only, no build behavior):
+    net10.0 is the recommended production asset; net8.0/net9.0 assets are
+    compatibility-only and follow their .NET release end-of-support dates.
+    The wire protocol is versioned independently of TFM.
+  -->
+  <PropertyGroup>
+    <OpenConnectLibraryTargetFrameworks>net8.0;net9.0;net10.0</OpenConnectLibraryTargetFrameworks>
+  </PropertyGroup>
+</Project>

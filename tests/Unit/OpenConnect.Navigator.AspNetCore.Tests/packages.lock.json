@@ -1,0 +1,821 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.NET.Test.Sdk": {
+        "type": "Direct",
+        "requested": "[17.11.1, )",
+        "resolved": "17.11.1",
+        "contentHash": "U3Ty4BaGoEu+T2bwSko9tWqWUOU16WzSFkq6U8zve75oRBMSLTBdMAZrVNNz1Tq12aCdDom9fcOcM9QZaFHqFg==",
+        "dependencies": {
+          "Microsoft.CodeCoverage": "17.11.1",
+          "Microsoft.TestPlatform.TestHost": "17.11.1"
+        }
+      },
+      "xunit": {
+        "type": "Direct",
+        "requested": "[2.9.2, )",
+        "resolved": "2.9.2",
+        "contentHash": "7LhFS2N9Z6Xgg8aE5lY95cneYivRMfRI8v+4PATa4S64D5Z/Plkg0qa8dTRHSiGRgVZ/CL2gEfJDE5AUhOX+2Q==",
+        "dependencies": {
+          "xunit.analyzers": "1.16.0",
+          "xunit.assert": "2.9.2",
+          "xunit.core": "[2.9.2]"
+        }
+      },
+      "xunit.runner.visualstudio": {
+        "type": "Direct",
+        "requested": "[2.8.2, )",
+        "resolved": "2.8.2",
+        "contentHash": "vm1tbfXhFmjFMUmS4M0J0ASXz3/U5XvXBa6DOQUL3fEz4Vt6YPhv+ESCarx6M6D+9kJkJYZKCNvJMas1+nVfmQ=="
+      },
+      "Microsoft.CodeCoverage": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "nPJqrcA5iX+Y0kqoT3a+pD/8lrW/V7ayqnEJQsTonSoPz59J8bmoQhcSN4G8+UJ64Hkuf0zuxnfuj2lkHOq4cA=="
+      },
+      "Microsoft.EntityFrameworkCore.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "/SaznoTTFfKzxYEbCPAwwKBR3XT92DZgH4jJ3/cqs2skP3o2D+TL6i9Aaj+8Azwtu6/sRd0ve4P2mN12nfVmCw=="
+      },
+      "Microsoft.EntityFrameworkCore.Analyzers": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "gaANlGNTxkgODX2eeVT8jjd3AmlFilQV4DFf8qoW30+wUCm2o4N7nEHtZvnHIwfhaJni2DqcjE47Au7tC0Q5jA=="
+      },
+      "Microsoft.TestPlatform.ObjectModel": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "E2jZqAU6JeWEVsyOEOrSW1o1bpHLgb25ypvKNB/moBXPVsFYBPd/Jwi7OrYahG50J83LfHzezYI+GaEkpAotiA=="
+      },
+      "Microsoft.TestPlatform.TestHost": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "DnG+GOqJXO/CkoqlJWeDFTgPhqD/V6VqUIL3vINizCWZ3X+HshCtbbyDdSHQQEjrc2Sl/K3yaxX6s+5LFEdYuw==",
+        "dependencies": {
+          "Microsoft.TestPlatform.ObjectModel": "17.11.1",
+          "Newtonsoft.Json": "13.0.1"
+        }
+      },
+      "NATS.Client.Abstractions": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "6VAmrvgN9116SAfRXK/gfR7Fxu02lOUtN2ZejwI/C2iMw9dsofLRZBSrutWH+iH+06FjAidKtpGiLt5ui6/xlQ=="
+      },
+      "NATS.Client.Core": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qs79vr6A2Le6sQxY5FFpQayRVSLOXJZkSvSx1lb8A8FK9bmvNcJRW1FE5pdoEEW+WV92TDFoc38MRqe4w0Lnjg==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2",
+          "NATS.NKeys": "1.0.1"
+        }
+      },
+      "NATS.Client.Hosting": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "7Ksdm1Qqa9rxTS9jBhiIOFjAKeXasULAWqW+IRy6+mNaXzPlf1KI03MYBKH9cN9squbzC6KPcRv3h8AEnc1/JQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.JetStream": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "JF2xH52Fjj/KTpiCqLgOvFGoJl92eKlgT62X02oEkff/TphWjoXG1s26I7ySIwiScHgToW/fAuM0HW/76k7J4Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.KeyValueStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qnh6AxEJmwl1GZuCMHoxnt1dwCHHSUda+kuOQrWYrP+PliZNWxcn1AIdhEXFqFfqaPgLj0S+/t5fWnRA4rjHPA==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.ObjectStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "UMaNZipnGNjVNZpPBnYDo8PexatDLSj2gl2aF8+zL2cW57lYpqyIkf39rc5Qrpedfcc7BLQL1cQOUWKkX/Sb2w==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.Serializers.Json": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "KBlvc5CgDMDOP8JkiMnEHo0nizhjVP7aLkzZ6Rwxla9MShlmETmFLfXIsOxv8oNmDiDDOu+Sr+LzK23K4nSlDw==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2"
+        }
+      },
+      "NATS.Client.Services": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "juyTC/EP8vHT2vKF2MxGKqusEC085xNCWBJoIuBqxUZl48gtbt5Bbx6cS4wIp+EmY6nZTWw1nGjHo0h4Xs4l0Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.Simplified": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "OawFZin+XxiLru3IBYC66S3Oae0OrknRyBH+yRr/PP4DChu3iJiIbWk0R3sqSIp1UeKBp11DbZV/O+NkT/jkmA==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2"
+        }
+      },
+      "NATS.Extensions.Microsoft.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "W3+8HiBseOOgCx9xDJ5RBF55VfxwDfEx9x50Sf1TfyABb+/No1eQowemgNFuxoQt9yaubNvAUENsJZtzL+glsg==",
+        "dependencies": {
+          "NATS.Client.Simplified": "3.3.2"
+        }
+      },
+      "NATS.NKeys": {
+        "type": "Transitive",
+        "resolved": "1.0.1",
+        "contentHash": "xtURX0fexmMd10noG3Uc8gFgwaH7QLQxxgdaVoQKFo0+8a4blwe8vPGgY2S5pzeVYcRXyjlIoA4AR4JgtThyjQ=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "xunit.abstractions": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
+      },
+      "xunit.analyzers": {
+        "type": "Transitive",
+        "resolved": "1.16.0",
+        "contentHash": "hptYM7vGr46GUIgZt21YHO4rfuBAQS2eINbFo16CV/Dqq+24Tp+P5gDCACu1AbFfW4Sp/WRfDPSK8fmUUb8s0Q=="
+      },
+      "xunit.assert": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "QkNBAQG4pa66cholm28AxijBjrmki98/vsEh4Sx5iplzotvPgpiotcxqJQMRC8d7RV7nIT8ozh97957hDnZwsQ=="
+      },
+      "xunit.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "O6RrNSdmZ0xgEn5kT927PNwog5vxTtKrWMihhhrT0Sg9jQ7iBDciYOwzBgP2krBEk5/GBXI18R1lKvmnxGcb4w==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]",
+          "xunit.extensibility.execution": "[2.9.2]"
+        }
+      },
+      "xunit.extensibility.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "Ol+KlBJz1x8BrdnhN2DeOuLrr1I/cTwtHCggL9BvYqFuVd/TUSzxNT5O0NxCIXth30bsKxgMfdqLTcORtM52yQ==",
+        "dependencies": {
+          "xunit.abstractions": "2.0.3"
+        }
+      },
+      "xunit.extensibility.execution": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "rKMpq4GsIUIJibXuZoZ8lYp5EpROlnYaRpwu9Zr0sRZXE7JqJfEEbCsUriZqB+ByXCLFBJyjkTRULMdC+U566g==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]"
+        }
+      },
+      "openconnect.abstractions": {
+        "type": "Project"
+      },
+      "openconnect.core": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.aspnetcore": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Navigator.Operational": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.operational": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[10.0.14, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Persistence.EFCore": "[1.0.0, )"
+        }
+      },
+      "openconnect.persistence.efcore": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[10.0.14, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.transport.nats": {
+        "type": "Project",
+        "dependencies": {
+          "NATS.Net": "[3.3.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "Microsoft.EntityFrameworkCore": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "vY3931PYPIDBbKovGHbACmpOWvURvKNyRXfCjMh5yLW+FH6vLWeqUu2xzSCRo4Oz4tgx9GYpd0JlV5LDyAoQdg==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Abstractions": "10.0.14",
+          "Microsoft.EntityFrameworkCore.Analyzers": "10.0.14"
+        }
+      },
+      "Microsoft.EntityFrameworkCore.Relational": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "Ut0kgtfoKX9QElQVEXSEAgdQc79jISWStVWSOhfPDDHNSKMwFzSXG3gtdYFTAbsBoV+8NtXdVaj4xwdqeky8UA==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "10.0.14"
+        }
+      },
+      "NATS.Net": {
+        "type": "CentralTransitive",
+        "requested": "[3.3.2, )",
+        "resolved": "3.3.2",
+        "contentHash": "Jo9fnjwUE4qAbNvWd3/H3K1NcRUDTDCCYqlJevklvD8M/grAtEh/EO2NIjIacfPZTcBfjtpxskzWhy2aw4mgVQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Hosting": "3.3.2",
+          "NATS.Client.JetStream": "3.3.2",
+          "NATS.Client.KeyValueStore": "3.3.2",
+          "NATS.Client.ObjectStore": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2",
+          "NATS.Client.Services": "3.3.2",
+          "NATS.Client.Simplified": "3.3.2",
+          "NATS.Extensions.Microsoft.DependencyInjection": "3.3.2"
+        }
+      }
+    },
+    "net8.0": {
+      "Microsoft.NET.Test.Sdk": {
+        "type": "Direct",
+        "requested": "[17.11.1, )",
+        "resolved": "17.11.1",
+        "contentHash": "U3Ty4BaGoEu+T2bwSko9tWqWUOU16WzSFkq6U8zve75oRBMSLTBdMAZrVNNz1Tq12aCdDom9fcOcM9QZaFHqFg==",
+        "dependencies": {
+          "Microsoft.CodeCoverage": "17.11.1",
+          "Microsoft.TestPlatform.TestHost": "17.11.1"
+        }
+      },
+      "xunit": {
+        "type": "Direct",
+        "requested": "[2.9.2, )",
+        "resolved": "2.9.2",
+        "contentHash": "7LhFS2N9Z6Xgg8aE5lY95cneYivRMfRI8v+4PATa4S64D5Z/Plkg0qa8dTRHSiGRgVZ/CL2gEfJDE5AUhOX+2Q==",
+        "dependencies": {
+          "xunit.analyzers": "1.16.0",
+          "xunit.assert": "2.9.2",
+          "xunit.core": "[2.9.2]"
+        }
+      },
+      "xunit.runner.visualstudio": {
+        "type": "Direct",
+        "requested": "[2.8.2, )",
+        "resolved": "2.8.2",
+        "contentHash": "vm1tbfXhFmjFMUmS4M0J0ASXz3/U5XvXBa6DOQUL3fEz4Vt6YPhv+ESCarx6M6D+9kJkJYZKCNvJMas1+nVfmQ=="
+      },
+      "Microsoft.CodeCoverage": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "nPJqrcA5iX+Y0kqoT3a+pD/8lrW/V7ayqnEJQsTonSoPz59J8bmoQhcSN4G8+UJ64Hkuf0zuxnfuj2lkHOq4cA=="
+      },
+      "Microsoft.EntityFrameworkCore.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.0.11",
+        "contentHash": "++zY0Ea724ku1jptWJmF7jm3I4IXTexfT4qi1ETcSFFF7qj+qm6rRgN7mTuKkwIETuXk0ikfzudryRjUGrrNKQ=="
+      },
+      "Microsoft.EntityFrameworkCore.Analyzers": {
+        "type": "Transitive",
+        "resolved": "8.0.11",
+        "contentHash": "NI/AJQjtC7qgWM8Nr85sRkwlog2AnFer5RKP8xTUH0RuPF3nN0tGXBEeYJOLZWp+/+M/C6O7MMDRhKRE8bZwIA=="
+      },
+      "Microsoft.TestPlatform.ObjectModel": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "E2jZqAU6JeWEVsyOEOrSW1o1bpHLgb25ypvKNB/moBXPVsFYBPd/Jwi7OrYahG50J83LfHzezYI+GaEkpAotiA=="
+      },
+      "Microsoft.TestPlatform.TestHost": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "DnG+GOqJXO/CkoqlJWeDFTgPhqD/V6VqUIL3vINizCWZ3X+HshCtbbyDdSHQQEjrc2Sl/K3yaxX6s+5LFEdYuw==",
+        "dependencies": {
+          "Microsoft.TestPlatform.ObjectModel": "17.11.1",
+          "Newtonsoft.Json": "13.0.1"
+        }
+      },
+      "NATS.Client.Abstractions": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "6VAmrvgN9116SAfRXK/gfR7Fxu02lOUtN2ZejwI/C2iMw9dsofLRZBSrutWH+iH+06FjAidKtpGiLt5ui6/xlQ=="
+      },
+      "NATS.Client.Core": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qs79vr6A2Le6sQxY5FFpQayRVSLOXJZkSvSx1lb8A8FK9bmvNcJRW1FE5pdoEEW+WV92TDFoc38MRqe4w0Lnjg==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2",
+          "NATS.NKeys": "1.0.1",
+          "System.Diagnostics.DiagnosticSource": "9.0.1"
+        }
+      },
+      "NATS.Client.Hosting": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "7Ksdm1Qqa9rxTS9jBhiIOFjAKeXasULAWqW+IRy6+mNaXzPlf1KI03MYBKH9cN9squbzC6KPcRv3h8AEnc1/JQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.JetStream": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "JF2xH52Fjj/KTpiCqLgOvFGoJl92eKlgT62X02oEkff/TphWjoXG1s26I7ySIwiScHgToW/fAuM0HW/76k7J4Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.KeyValueStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qnh6AxEJmwl1GZuCMHoxnt1dwCHHSUda+kuOQrWYrP+PliZNWxcn1AIdhEXFqFfqaPgLj0S+/t5fWnRA4rjHPA==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.ObjectStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "UMaNZipnGNjVNZpPBnYDo8PexatDLSj2gl2aF8+zL2cW57lYpqyIkf39rc5Qrpedfcc7BLQL1cQOUWKkX/Sb2w==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.Serializers.Json": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "KBlvc5CgDMDOP8JkiMnEHo0nizhjVP7aLkzZ6Rwxla9MShlmETmFLfXIsOxv8oNmDiDDOu+Sr+LzK23K4nSlDw==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2"
+        }
+      },
+      "NATS.Client.Services": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "juyTC/EP8vHT2vKF2MxGKqusEC085xNCWBJoIuBqxUZl48gtbt5Bbx6cS4wIp+EmY6nZTWw1nGjHo0h4Xs4l0Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.Simplified": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "OawFZin+XxiLru3IBYC66S3Oae0OrknRyBH+yRr/PP4DChu3iJiIbWk0R3sqSIp1UeKBp11DbZV/O+NkT/jkmA==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2"
+        }
+      },
+      "NATS.Extensions.Microsoft.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "W3+8HiBseOOgCx9xDJ5RBF55VfxwDfEx9x50Sf1TfyABb+/No1eQowemgNFuxoQt9yaubNvAUENsJZtzL+glsg==",
+        "dependencies": {
+          "NATS.Client.Simplified": "3.3.2"
+        }
+      },
+      "NATS.NKeys": {
+        "type": "Transitive",
+        "resolved": "1.0.1",
+        "contentHash": "xtURX0fexmMd10noG3Uc8gFgwaH7QLQxxgdaVoQKFo0+8a4blwe8vPGgY2S5pzeVYcRXyjlIoA4AR4JgtThyjQ=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "System.Diagnostics.DiagnosticSource": {
+        "type": "Transitive",
+        "resolved": "9.0.1",
+        "contentHash": "yOcDWx4P/s1I83+7gQlgQLmhny2eNcU0cfo1NBWi+en4EAI38Jau+/neT85gUW6w1s7+FUJc2qNOmmwGLIREqA=="
+      },
+      "xunit.abstractions": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
+      },
+      "xunit.analyzers": {
+        "type": "Transitive",
+        "resolved": "1.16.0",
+        "contentHash": "hptYM7vGr46GUIgZt21YHO4rfuBAQS2eINbFo16CV/Dqq+24Tp+P5gDCACu1AbFfW4Sp/WRfDPSK8fmUUb8s0Q=="
+      },
+      "xunit.assert": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "QkNBAQG4pa66cholm28AxijBjrmki98/vsEh4Sx5iplzotvPgpiotcxqJQMRC8d7RV7nIT8ozh97957hDnZwsQ=="
+      },
+      "xunit.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "O6RrNSdmZ0xgEn5kT927PNwog5vxTtKrWMihhhrT0Sg9jQ7iBDciYOwzBgP2krBEk5/GBXI18R1lKvmnxGcb4w==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]",
+          "xunit.extensibility.execution": "[2.9.2]"
+        }
+      },
+      "xunit.extensibility.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "Ol+KlBJz1x8BrdnhN2DeOuLrr1I/cTwtHCggL9BvYqFuVd/TUSzxNT5O0NxCIXth30bsKxgMfdqLTcORtM52yQ==",
+        "dependencies": {
+          "xunit.abstractions": "2.0.3"
+        }
+      },
+      "xunit.extensibility.execution": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "rKMpq4GsIUIJibXuZoZ8lYp5EpROlnYaRpwu9Zr0sRZXE7JqJfEEbCsUriZqB+ByXCLFBJyjkTRULMdC+U566g==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]"
+        }
+      },
+      "openconnect.abstractions": {
+        "type": "Project"
+      },
+      "openconnect.core": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.aspnetcore": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Navigator.Operational": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.operational": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[8.0.11, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Persistence.EFCore": "[1.0.0, )"
+        }
+      },
+      "openconnect.persistence.efcore": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[8.0.11, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[8.0.11, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.transport.nats": {
+        "type": "Project",
+        "dependencies": {
+          "NATS.Net": "[3.3.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "Microsoft.EntityFrameworkCore": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.11, )",
+        "resolved": "8.0.11",
+        "contentHash": "stbjWBTtpQ1HtqXMFyKnXFTr76PvaOHI2b2h85JqBi3eZr00nspvR/a90Zwh8CQ4rVawqLiTG0+0yZQWaav+sQ==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Abstractions": "8.0.11",
+          "Microsoft.EntityFrameworkCore.Analyzers": "8.0.11"
+        }
+      },
+      "Microsoft.EntityFrameworkCore.Relational": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.11, )",
+        "resolved": "8.0.11",
+        "contentHash": "3TuuW3i5I4Ro0yoaHmi2MqEDGObOVuhLaMEnd/heaLB1fcvm4fu4PevmC4BOWnI0vo176AIlV5o4rEQciLoohw==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "8.0.11"
+        }
+      },
+      "NATS.Net": {
+        "type": "CentralTransitive",
+        "requested": "[3.3.2, )",
+        "resolved": "3.3.2",
+        "contentHash": "Jo9fnjwUE4qAbNvWd3/H3K1NcRUDTDCCYqlJevklvD8M/grAtEh/EO2NIjIacfPZTcBfjtpxskzWhy2aw4mgVQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Hosting": "3.3.2",
+          "NATS.Client.JetStream": "3.3.2",
+          "NATS.Client.KeyValueStore": "3.3.2",
+          "NATS.Client.ObjectStore": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2",
+          "NATS.Client.Services": "3.3.2",
+          "NATS.Client.Simplified": "3.3.2",
+          "NATS.Extensions.Microsoft.DependencyInjection": "3.3.2"
+        }
+      }
+    },
+    "net9.0": {
+      "Microsoft.NET.Test.Sdk": {
+        "type": "Direct",
+        "requested": "[17.11.1, )",
+        "resolved": "17.11.1",
+        "contentHash": "U3Ty4BaGoEu+T2bwSko9tWqWUOU16WzSFkq6U8zve75oRBMSLTBdMAZrVNNz1Tq12aCdDom9fcOcM9QZaFHqFg==",
+        "dependencies": {
+          "Microsoft.CodeCoverage": "17.11.1",
+          "Microsoft.TestPlatform.TestHost": "17.11.1"
+        }
+      },
+      "xunit": {
+        "type": "Direct",
+        "requested": "[2.9.2, )",
+        "resolved": "2.9.2",
+        "contentHash": "7LhFS2N9Z6Xgg8aE5lY95cneYivRMfRI8v+4PATa4S64D5Z/Plkg0qa8dTRHSiGRgVZ/CL2gEfJDE5AUhOX+2Q==",
+        "dependencies": {
+          "xunit.analyzers": "1.16.0",
+          "xunit.assert": "2.9.2",
+          "xunit.core": "[2.9.2]"
+        }
+      },
+      "xunit.runner.visualstudio": {
+        "type": "Direct",
+        "requested": "[2.8.2, )",
+        "resolved": "2.8.2",
+        "contentHash": "vm1tbfXhFmjFMUmS4M0J0ASXz3/U5XvXBa6DOQUL3fEz4Vt6YPhv+ESCarx6M6D+9kJkJYZKCNvJMas1+nVfmQ=="
+      },
+      "Microsoft.CodeCoverage": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "nPJqrcA5iX+Y0kqoT3a+pD/8lrW/V7ayqnEJQsTonSoPz59J8bmoQhcSN4G8+UJ64Hkuf0zuxnfuj2lkHOq4cA=="
+      },
+      "Microsoft.EntityFrameworkCore.Abstractions": {
+        "type": "Transitive",
+        "resolved": "9.0.22",
+        "contentHash": "H1OiSYqSi4q9LnYfr4H6qkMOiS+bMSylLkbTcjlotI0aRojjDPHS+P2JAIn+kvzd8+wcVbzD1Jw0JexBAjiK2Q=="
+      },
+      "Microsoft.EntityFrameworkCore.Analyzers": {
+        "type": "Transitive",
+        "resolved": "9.0.22",
+        "contentHash": "wtYr03ZnX3a7x92WE0yELwyhN2EooJ7BTlY4N2gBPaVBsg2XwjEKyyGBLbkhc9fgKaQ6ed1fEgnHmZ9YCfTlLQ=="
+      },
+      "Microsoft.TestPlatform.ObjectModel": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "E2jZqAU6JeWEVsyOEOrSW1o1bpHLgb25ypvKNB/moBXPVsFYBPd/Jwi7OrYahG50J83LfHzezYI+GaEkpAotiA=="
+      },
+      "Microsoft.TestPlatform.TestHost": {
+        "type": "Transitive",
+        "resolved": "17.11.1",
+        "contentHash": "DnG+GOqJXO/CkoqlJWeDFTgPhqD/V6VqUIL3vINizCWZ3X+HshCtbbyDdSHQQEjrc2Sl/K3yaxX6s+5LFEdYuw==",
+        "dependencies": {
+          "Microsoft.TestPlatform.ObjectModel": "17.11.1",
+          "Newtonsoft.Json": "13.0.1"
+        }
+      },
+      "NATS.Client.Abstractions": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "6VAmrvgN9116SAfRXK/gfR7Fxu02lOUtN2ZejwI/C2iMw9dsofLRZBSrutWH+iH+06FjAidKtpGiLt5ui6/xlQ=="
+      },
+      "NATS.Client.Core": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qs79vr6A2Le6sQxY5FFpQayRVSLOXJZkSvSx1lb8A8FK9bmvNcJRW1FE5pdoEEW+WV92TDFoc38MRqe4w0Lnjg==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2",
+          "NATS.NKeys": "1.0.1"
+        }
+      },
+      "NATS.Client.Hosting": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "7Ksdm1Qqa9rxTS9jBhiIOFjAKeXasULAWqW+IRy6+mNaXzPlf1KI03MYBKH9cN9squbzC6KPcRv3h8AEnc1/JQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.JetStream": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "JF2xH52Fjj/KTpiCqLgOvFGoJl92eKlgT62X02oEkff/TphWjoXG1s26I7ySIwiScHgToW/fAuM0HW/76k7J4Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.KeyValueStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qnh6AxEJmwl1GZuCMHoxnt1dwCHHSUda+kuOQrWYrP+PliZNWxcn1AIdhEXFqFfqaPgLj0S+/t5fWnRA4rjHPA==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.ObjectStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "UMaNZipnGNjVNZpPBnYDo8PexatDLSj2gl2aF8+zL2cW57lYpqyIkf39rc5Qrpedfcc7BLQL1cQOUWKkX/Sb2w==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.Serializers.Json": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "KBlvc5CgDMDOP8JkiMnEHo0nizhjVP7aLkzZ6Rwxla9MShlmETmFLfXIsOxv8oNmDiDDOu+Sr+LzK23K4nSlDw==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2"
+        }
+      },
+      "NATS.Client.Services": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "juyTC/EP8vHT2vKF2MxGKqusEC085xNCWBJoIuBqxUZl48gtbt5Bbx6cS4wIp+EmY6nZTWw1nGjHo0h4Xs4l0Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.Simplified": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "OawFZin+XxiLru3IBYC66S3Oae0OrknRyBH+yRr/PP4DChu3iJiIbWk0R3sqSIp1UeKBp11DbZV/O+NkT/jkmA==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2"
+        }
+      },
+      "NATS.Extensions.Microsoft.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "W3+8HiBseOOgCx9xDJ5RBF55VfxwDfEx9x50Sf1TfyABb+/No1eQowemgNFuxoQt9yaubNvAUENsJZtzL+glsg==",
+        "dependencies": {
+          "NATS.Client.Simplified": "3.3.2"
+        }
+      },
+      "NATS.NKeys": {
+        "type": "Transitive",
+        "resolved": "1.0.1",
+        "contentHash": "xtURX0fexmMd10noG3Uc8gFgwaH7QLQxxgdaVoQKFo0+8a4blwe8vPGgY2S5pzeVYcRXyjlIoA4AR4JgtThyjQ=="
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "xunit.abstractions": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
+      },
+      "xunit.analyzers": {
+        "type": "Transitive",
+        "resolved": "1.16.0",
+        "contentHash": "hptYM7vGr46GUIgZt21YHO4rfuBAQS2eINbFo16CV/Dqq+24Tp+P5gDCACu1AbFfW4Sp/WRfDPSK8fmUUb8s0Q=="
+      },
+      "xunit.assert": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "QkNBAQG4pa66cholm28AxijBjrmki98/vsEh4Sx5iplzotvPgpiotcxqJQMRC8d7RV7nIT8ozh97957hDnZwsQ=="
+      },
+      "xunit.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "O6RrNSdmZ0xgEn5kT927PNwog5vxTtKrWMihhhrT0Sg9jQ7iBDciYOwzBgP2krBEk5/GBXI18R1lKvmnxGcb4w==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]",
+          "xunit.extensibility.execution": "[2.9.2]"
+        }
+      },
+      "xunit.extensibility.core": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "Ol+KlBJz1x8BrdnhN2DeOuLrr1I/cTwtHCggL9BvYqFuVd/TUSzxNT5O0NxCIXth30bsKxgMfdqLTcORtM52yQ==",
+        "dependencies": {
+          "xunit.abstractions": "2.0.3"
+        }
+      },
+      "xunit.extensibility.execution": {
+        "type": "Transitive",
+        "resolved": "2.9.2",
+        "contentHash": "rKMpq4GsIUIJibXuZoZ8lYp5EpROlnYaRpwu9Zr0sRZXE7JqJfEEbCsUriZqB+ByXCLFBJyjkTRULMdC+U566g==",
+        "dependencies": {
+          "xunit.extensibility.core": "[2.9.2]"
+        }
+      },
+      "openconnect.abstractions": {
+        "type": "Project"
+      },
+      "openconnect.core": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.aspnetcore": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Navigator.Operational": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.operational": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[9.0.22, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Persistence.EFCore": "[1.0.0, )"
+        }
+      },
+      "openconnect.persistence.efcore": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[9.0.22, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[9.0.22, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.transport.nats": {
+        "type": "Project",
+        "dependencies": {
+          "NATS.Net": "[3.3.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "Microsoft.EntityFrameworkCore": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.22, )",
+        "resolved": "9.0.22",
+        "contentHash": "wBYt52v8cQ5abaA8jR3m+LPV8N3ymhz0pTPMvwYck9VZ9ItcYIu130qEYdsinMNt9co+4n7SMZdI1dFjJHIvNQ==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Abstractions": "9.0.22",
+          "Microsoft.EntityFrameworkCore.Analyzers": "9.0.22"
+        }
+      },
+      "Microsoft.EntityFrameworkCore.Relational": {
+        "type": "CentralTransitive",
+        "requested": "[9.0.22, )",
+        "resolved": "9.0.22",
+        "contentHash": "BwTl8180y2ct3po1+5MYk72HY0qZsbB4nqj/bbaHi9stz23Sxsf3xcG0CtASjm0T5UzBPVLAj9CNinuWfiLx3Q==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "9.0.22"
+        }
+      },
+      "NATS.Net": {
+        "type": "CentralTransitive",
+        "requested": "[3.3.2, )",
+        "resolved": "3.3.2",
+        "contentHash": "Jo9fnjwUE4qAbNvWd3/H3K1NcRUDTDCCYqlJevklvD8M/grAtEh/EO2NIjIacfPZTcBfjtpxskzWhy2aw4mgVQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Hosting": "3.3.2",
+          "NATS.Client.JetStream": "3.3.2",
+          "NATS.Client.KeyValueStore": "3.3.2",
+          "NATS.Client.ObjectStore": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2",
+          "NATS.Client.Services": "3.3.2",
+          "NATS.Client.Simplified": "3.3.2",
+          "NATS.Extensions.Microsoft.DependencyInjection": "3.3.2"
+        }
+      }
+    }
+  }
+}
