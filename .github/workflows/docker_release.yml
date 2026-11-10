@@ -123,6 +123,26 @@ jobs:
           $delimiter | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host ('Image tags: ' + ($tagList -join ', '))
 
+      # operational-agents + outbox Dockerfiles (:2 "Build context is the
+      # repository root") COPY repo-relative paths — e.g. operational-agents
+      # COPYs Directory.Build.props + src/... + workers/operational-agents/,
+      # outbox COPYs Directory.Build.props + src/... + workers/outbox/ — so
+      # they REQUIRE repo-root context ".". The nine Python/Node workers are
+      # self-contained (e.g. security COPYs pyproject.toml + src/ relative)
+      # and keep worker-dir context workers/<worker>.
+      - name: Resolve build context
+        id: resolve-context
+        shell: pwsh
+        run: |
+          $worker = '${{ matrix.worker }}'
+          if (($worker -eq 'operational-agents') -or ($worker -eq 'outbox')) {
+            $context = '.'
+          } else {
+            $context = "workers/$worker"
+          }
+          "context=$context" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Build context for ${worker}: $context."
+
       # Armed-only login. Skipped on every dry-run, so no registry
       # credentials are touched unless publish == true.
       - name: Log in to Docker Hub (armed publishes only)
@@ -135,7 +155,7 @@ jobs:
       - name: Build worker image (push only when armed)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
-          context: workers/${{ matrix.worker }}
+          context: ${{ steps.resolve-context.outputs.context }}
           file: workers/${{ matrix.worker }}/Dockerfile
           push: ${{ inputs.publish == true }}
           tags: ${{ steps.resolve-tags.outputs.tags }}
