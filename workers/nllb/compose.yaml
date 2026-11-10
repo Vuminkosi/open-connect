@@ -26,22 +26,25 @@ services:
   nllb:
     build:
       context: .
-    image: openconnect-nllb:0.1.0
+    image: vuminkosimatibe/openconnect-worker-nllb:${OC_IMAGE_TAG:-e2e-local}
     depends_on:
       model-init:
         condition: service_completed_successfully
     environment:
       MODEL_DIR: /models
       HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
       # Canonical OC_* defaults (workers-model-defaults contract). Secrets
       # stay placeholders -- never real values.
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
       OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker bearer token}
       LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
     volumes:

@@ -16,8 +16,10 @@ from openconnect_inference.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_offline,
     parse_provisioning,
     resolve_cache_dir,
+    resolve_environment,
     validate_startup,
     warn_deprecated_alias,
 )
@@ -148,6 +150,8 @@ class Settings:
     default_lease_ms: int
     provisioning: str = "first-start-if-missing"
     inference_provider: str = DEFAULT_INFERENCE_PROVIDER
+    environment: str = "Production"
+    model_offline: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -239,4 +243,6 @@ class Settings:
             inference_provider=provider_raw.strip()
             if provider_raw is not None and provider_raw.strip() != ""
             else DEFAULT_INFERENCE_PROVIDER,
+            environment=resolve_environment(),
+            model_offline=parse_offline(),
         )

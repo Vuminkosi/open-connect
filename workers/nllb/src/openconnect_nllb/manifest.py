@@ -7,6 +7,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from openconnect_nllb.runtime_cache import (
+    RuntimeModelCacheManager,
+    RuntimeModelManifest,
+    is_license_approved,
+)
+
 # NLLB checkpoints carry a non-permissive research license family; the worker
 # treats them as requiring explicit operator acceptance.
 PRE_APPROVED_LICENSES = frozenset({"apache-2.0", "mit", "bsd-3-clause"})
@@ -72,8 +78,83 @@ def load_manifest(model_dir: Path) -> ModelManifest | None:
         return None
 
 
-def check_readiness(model_dir: Path, *, license_accepted: bool) -> Readiness:
-    """Truthful readiness: manifest, weights, tokenizer hash, license."""
+def _check_versioned_readiness(
+    model_dir: Path,
+    *,
+    license_accepted: bool,
+    commercial_use: bool = False,
+) -> Readiness:
+    nllb_root = model_dir / "nllb"
+    manager = RuntimeModelCacheManager(model_dir, "nllb")
+    model_roots = sorted(p for p in nllb_root.iterdir() if p.is_dir())
+    if not model_roots:
+        return Readiness(ready=False, reason="model_unavailable", manifest=None)
+
+    for model_root in model_roots:
+        revisions_dir = model_root / "revisions"
+        candidate_rev_dirs: list[Path] = []
+        active_path = model_root / "active.json"
+        if active_path.is_file():
+            try:
+                active_data = json.loads(active_path.read_text(encoding="utf-8"))
+                active_fp = active_data.get("activeFingerprint")
+                if isinstance(active_fp, str) and active_fp:
+                    candidate_rev_dirs.append(revisions_dir / active_fp)
+            except (OSError, ValueError):
+                return Readiness(ready=False, reason="cache_corrupt", manifest=None)
+        if revisions_dir.is_dir():
+            for rev_dir in sorted(p for p in revisions_dir.iterdir() if p.is_dir()):
+                if rev_dir not in candidate_rev_dirs:
+                    candidate_rev_dirs.append(rev_dir)
+
+        for rev_dir in candidate_rev_dirs:
+            lock_path = rev_dir / "manifest.lock.json"
+            if not lock_path.is_file():
+                return Readiness(ready=False, reason="cache_corrupt", manifest=None)
+            try:
+                lock_data = json.loads(lock_path.read_text(encoding="utf-8"))
+                rt_manifest = RuntimeModelManifest.model_validate(lock_data["manifest"])
+            except Exception:
+                return Readiness(ready=False, reason="cache_corrupt", manifest=None)
+
+            res = manager.verify_revision(
+                rt_manifest,
+                license_accepted=license_accepted,
+                commercial_use=commercial_use,
+            )
+            weights_sha = next(
+                (a.sha256 for a in rt_manifest.assets if a.kind == "weights"),
+                rt_manifest.assets[0].sha256,
+            )
+            tok_sha = next(
+                (a.sha256 for a in rt_manifest.assets if a.kind == "tokenizer"),
+                rt_manifest.assets[0].sha256,
+            )
+            manifest = ModelManifest(
+                model_id=rt_manifest.modelId,
+                revision=rt_manifest.immutableRevision,
+                checksum=weights_sha,
+                tokenizer_hash=tok_sha,
+                license=rt_manifest.license,
+            )
+            return Readiness(ready=res.ready, reason=res.reason, manifest=manifest)
+
+    return Readiness(ready=False, reason="model_unavailable", manifest=None)
+
+
+def check_readiness(
+    model_dir: Path,
+    *,
+    license_accepted: bool,
+    commercial_use: bool = False,
+) -> Readiness:
+    """Truthful readiness: supports versioned RuntimeModelCacheManager layout and flat layout."""
+    if (model_dir / "nllb").is_dir():
+        return _check_versioned_readiness(
+            model_dir,
+            license_accepted=license_accepted,
+            commercial_use=commercial_use,
+        )
     manifest = load_manifest(model_dir)
     if manifest is None:
         return Readiness(ready=False, reason="model_unavailable", manifest=None)
@@ -84,6 +165,13 @@ def check_readiness(model_dir: Path, *, license_accepted: bool) -> Readiness:
         return Readiness(ready=False, reason="model_unavailable", manifest=manifest)
     if sha256_file(tokenizer) != manifest.tokenizer_hash:
         return Readiness(ready=False, reason="tokenizer_mismatch", manifest=manifest)
-    if manifest.license.lower() not in PRE_APPROVED_LICENSES and not license_accepted:
+    approved = (
+        manifest.license.lower() in PRE_APPROVED_LICENSES or license_accepted
+    ) and is_license_approved(
+        manifest.license,
+        license_accepted=license_accepted,
+        commercial_use=commercial_use,
+    )
+    if not approved:
         return Readiness(ready=False, reason="license_denied", manifest=manifest)
     return Readiness(ready=True, reason=None, manifest=manifest)

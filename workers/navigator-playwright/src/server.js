@@ -131,16 +131,46 @@ function readBody(req) {
   });
 }
 
+const PROFILE_TOKEN_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
+
+function sanitizeProfileSegment(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value !== 'string' || !PROFILE_TOKEN_PATTERN.test(value) || value === '.' || value === '..') {
+    throw policy.error('invalid_request', 'tenantId/sessionId must match [A-Za-z0-9_.-]{1,64}', 400);
+  }
+  return value;
+}
+
 /**
- * Create an isolated per-run browser profile directory and remove it afterwards.
- * Real chromium launches (production) receive this dir as user-data-dir so no
- * state leaks between runs.
+ * Create an isolated per-run browser profile directory scoped to tenantId/sessionId
+ * (never shared across runs or tenants) and remove it afterwards, even on error or timeout.
+ * Real chromium launches (production) receive this dir as --user-data-dir so no
+ * state, cookies, storage, or cache leaks between runs or tenants.
  */
-async function withFreshProfile(fn) {
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'nav-play-'));
+async function withFreshProfile(fn, options = {}) {
+  const tenantSegment = sanitizeProfileSegment(options.tenantId, 'anon');
+  const sessionSegment = sanitizeProfileSegment(options.sessionId, 'run');
+  const prefix = path.join(os.tmpdir(), `nav-play-${tenantSegment}-${sessionSegment}-`);
+  const dir = await fs.promises.mkdtemp(prefix);
+  const timeoutMs =
+    typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+      ? Math.min(options.timeoutMs, policy.MAX_WAIT_MS)
+      : null;
+  let timer = null;
   try {
+    if (timeoutMs !== null) {
+      return await Promise.race([
+        fn(dir),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(policy.error('invalid_request', `profile execution timed out after ${timeoutMs}ms`, 408));
+          }, timeoutMs);
+        }),
+      ]);
+    }
     return await fn(dir);
   } finally {
+    if (timer !== null) clearTimeout(timer);
     await fs.promises.rm(dir, { recursive: true, force: true });
   }
 }
@@ -180,24 +210,30 @@ function simulatedResult(tool, args) {
       return { ok: true, tool, at: now, targetId: args.targetId, value: args.value };
     case 'wait':
       return { ok: true, tool, at: now, waitedMs: args.ms };
-    case 'capture':
+    case 'capture': {
+      const scrubbed = policy.scrubCaptureBytes(args.bytesBase64 || args.imageBase64, {
+        redactBoxes: args.redactBoxes,
+      });
       return {
         ok: true,
         tool,
         at: now,
-        mimeType: 'image/png',
-        // Redacted placeholder: real captures are scrubbed before return.
-        bytesBase64: Buffer.from('redacted-capture').toString('base64'),
+        mimeType: scrubbed.mimeType,
+        // Scrubbed image bytes: EXIF/PNG text chunks stripped and redactBoxes blacked out.
+        bytesBase64: scrubbed.bytes.toString('base64'),
+        metadataStripped: scrubbed.metadataStripped,
+        redactedBoxes: scrubbed.redactedBoxes,
         text: policy.redactText(args.text || ''),
         consent: true,
         redacted: true,
       };
+    }
     default:
       throw policy.error('tool_not_allowed', `tool not allowed: ${tool}`, 403);
   }
 }
 
-async function maybeLaunchBrowser(tool, args, profileDir) {
+async function maybeLaunchBrowser(tool, args, profileDir, allowedOrigins = [], lookup = undefined) {
   if (process.env.PLAYWRIGHT_LAUNCH !== '1') return null;
   let playwright;
   try {
@@ -206,19 +242,62 @@ async function maybeLaunchBrowser(tool, args, profileDir) {
     throw policy.error('capability_unavailable', 'browser runtime unavailable', 503);
   }
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
-  const browser = await playwright.chromium.launch({ executablePath });
+  const browser = await playwright.chromium.launch({
+    executablePath,
+    args: [`--user-data-dir=${profileDir}`],
+  });
   try {
     const context = await browser.newContext();
+    await context.route('**/*', async (route, request) => {
+      try {
+        await policy.assertNavigationAllowed(request.url(), allowedOrigins, lookup);
+        await route.continue();
+      } catch {
+        await route.abort('accessdenied');
+      }
+    });
     const page = await context.newPage();
-    void page;
-    void profileDir;
+    if (args.url) {
+      const response = await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: policy.MAX_WAIT_MS });
+      if (response) {
+        const chain = [];
+        let req = response.request();
+        while (req) {
+          chain.unshift({ url: req.url() });
+          req = typeof req.redirectedFrom === 'function' ? req.redirectedFrom() : null;
+        }
+        const addr = typeof response.serverAddr === 'function' ? await response.serverAddr() : null;
+        if (addr && addr.ip && chain.length > 0) {
+          chain[chain.length - 1].ip = addr.ip;
+        }
+        if (chain.length > 0) {
+          await policy.assertRedirectChainAllowed(chain, allowedOrigins, lookup);
+        }
+      }
+    }
+    if (tool === 'capture') {
+      const rawShot = await page.screenshot({ type: 'png' });
+      const scrubbed = policy.scrubCaptureBytes(rawShot, { redactBoxes: args.redactBoxes });
+      return {
+        launched: true,
+        tool,
+        url: args.url || null,
+        mimeType: scrubbed.mimeType,
+        bytesBase64: scrubbed.bytes.toString('base64'),
+        metadataStripped: scrubbed.metadataStripped,
+        redactedBoxes: scrubbed.redactedBoxes,
+        text: policy.redactText(args.text || ''),
+        consent: true,
+        redacted: true,
+      };
+    }
     return { launched: true, tool, url: args.url || null };
   } finally {
     await browser.close().catch(() => {});
   }
 }
 
-async function executeTool(tool, args) {
+async function executeTool(tool, args, options = {}) {
   if (typeof tool !== 'string' || tool.length === 0) {
     throw policy.error('invalid_request', 'tool is required', 400);
   }
@@ -229,15 +308,28 @@ async function executeTool(tool, args) {
     throw policy.error('invalid_request', 'args must be an object', 400);
   }
 
-  const allowedOrigins = getAllowedOrigins();
+  const allowedOrigins = options.allowedOrigins || getAllowedOrigins();
+  const lookup = options.lookup;
   const approvedTargets =
     (Array.isArray(args.approvedTargets) && args.approvedTargets) ||
     (args.grant && Array.isArray(args.grant.targets) && args.grant.targets) ||
     [];
 
+  async function validateUrlAndRedirects() {
+    if (args.url !== undefined) {
+      await policy.assertNavigationAllowed(args.url, allowedOrigins, lookup);
+    }
+    if (args.redirectChain !== undefined) {
+      await policy.assertRedirectChainAllowed(args.redirectChain, allowedOrigins, lookup);
+    }
+  }
+
   switch (tool) {
     case 'navigate': {
-      await policy.assertNavigationAllowed(args.url, allowedOrigins);
+      await policy.assertNavigationAllowed(args.url, allowedOrigins, lookup);
+      if (args.redirectChain !== undefined) {
+        await policy.assertRedirectChainAllowed(args.redirectChain, allowedOrigins, lookup);
+      }
       break;
     }
     case 'observe':
@@ -245,9 +337,7 @@ async function executeTool(tool, args) {
       if (tool === 'find-target' && (typeof args.query !== 'string' || args.query.length === 0)) {
         throw policy.error('invalid_request', 'query is required', 400);
       }
-      if (args.url !== undefined) {
-        await policy.assertNavigationAllowed(args.url, allowedOrigins);
-      }
+      await validateUrlAndRedirects();
       break;
     }
     case 'click':
@@ -256,9 +346,7 @@ async function executeTool(tool, args) {
       if (tool === 'select' && typeof args.value !== 'string') {
         throw policy.error('invalid_request', 'value is required', 400);
       }
-      if (args.url !== undefined) {
-        await policy.assertNavigationAllowed(args.url, allowedOrigins);
-      }
+      await validateUrlAndRedirects();
       break;
     }
     case 'fill': {
@@ -269,9 +357,7 @@ async function executeTool(tool, args) {
       if (policy.isSecretFill(args)) {
         throw policy.error('privacy_blocked', 'secret fill is not permitted', 403);
       }
-      if (args.url !== undefined) {
-        await policy.assertNavigationAllowed(args.url, allowedOrigins);
-      }
+      await validateUrlAndRedirects();
       break;
     }
     case 'wait': {
@@ -286,20 +372,26 @@ async function executeTool(tool, args) {
       if (!consent) {
         throw policy.error('approval_required', 'capture requires explicit consent', 403);
       }
-      if (args.url !== undefined) {
-        await policy.assertNavigationAllowed(args.url, allowedOrigins);
-      }
+      policy.normalizeRedactBoxes(args.redactBoxes);
+      await validateUrlAndRedirects();
       break;
     }
     default:
       throw policy.error('tool_not_allowed', `tool not allowed: ${tool}`, 403);
   }
 
-  return withFreshProfile(async (profileDir) => {
-    const launched = await maybeLaunchBrowser(tool, args, profileDir);
-    if (launched) return { ok: true, ...launched, profileCleaned: true };
-    return { ...simulatedResult(tool, args), profileCleaned: true };
-  });
+  return withFreshProfile(
+    async (profileDir) => {
+      const launched = await maybeLaunchBrowser(tool, args, profileDir, allowedOrigins, lookup);
+      if (launched) return { ok: true, ...launched, profileCleaned: true };
+      return { ...simulatedResult(tool, args), profileCleaned: true };
+    },
+    {
+      tenantId: args.tenantId,
+      sessionId: args.sessionId,
+      timeoutMs: args.timeoutMs,
+    },
+  );
 }
 
 function createServer() {

@@ -16,8 +16,10 @@ from openconnect_transcription.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_offline,
     parse_provisioning,
     resolve_cache_dir,
+    resolve_environment,
     validate_startup,
     warn_deprecated_alias,
 )
@@ -125,6 +127,8 @@ class Settings:
     transcription_mode: str = DEFAULT_TRANSCRIPTION_MODE
     transcription_realtime_url: str = DEFAULT_TRANSCRIPTION_REALTIME_URL
     transcription_file_url: str = DEFAULT_TRANSCRIPTION_FILE_URL
+    environment: str = "Production"
+    model_offline: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -221,6 +225,8 @@ class Settings:
             transcription_file_url=file_raw.strip()
             if file_raw is not None and file_raw.strip() != ""
             else DEFAULT_TRANSCRIPTION_FILE_URL,
+            environment=resolve_environment(),
+            model_offline=parse_offline(),
         )
 
     @property

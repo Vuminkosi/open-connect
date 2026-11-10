@@ -3,29 +3,36 @@ name: oc-mms-tts
 services:
   init-models:
     build: .
+    image: vuminkosimatibe/openconnect-worker-mms-tts:${OC_IMAGE_TAG:-e2e-local}
     # Init records only the opted-in language manifest; the ~1107-language
-    # MMS catalogue is never pulled and checkpoints are never fetched here.
+    # MMS catalogue is never pulled and checkpoints are never fetched during build.
     command: ["python", "-m", "openconnect_mms_tts.init_models"]
     environment:
       MODEL_DIR: /models
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
       MMS_LANGUAGES: "${MMS_LANGUAGES:-eng}"
     volumes:
       - oc_mms_models:/models
 
   serve:
     build: .
+    image: vuminkosimatibe/openconnect-worker-mms-tts:${OC_IMAGE_TAG:-e2e-local}
     ports:
       - "${OC_MMS_TTS_PORT:-8080}:8080"
     environment:
       MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
       # Canonical OC_* defaults (workers-model-defaults contract).
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
       OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       MMS_LANGUAGES: "${MMS_LANGUAGES:-eng}"
       MMS_COMMERCIAL_USE: "${MMS_COMMERCIAL_USE:-0}"
       MMS_CACHE_SIZE: "${MMS_CACHE_SIZE:-2}"
@@ -38,3 +45,4 @@ services:
 
 volumes:
   oc_mms_models:
+    name: oc_mms_models

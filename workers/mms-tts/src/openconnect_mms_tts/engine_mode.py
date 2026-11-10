@@ -13,7 +13,8 @@ Normative behavior (identical in every Python worker):
    helpers, ``on`` does NOT enable fake mode; the legacy accepted set is
    exactly ``1``/``true``/``yes``.
 2. Production rejects fake. When ``OPENCONNECT_ENV=production`` (exact variable
-   name and exact, case-sensitive value) AND fake is requested, the worker
+   name and exact, case-sensitive value) OR ``OC_ENVIRONMENT=Production``
+   (case-insensitive ``production``) AND fake is requested, the worker
    fails closed twice: at startup (``Settings.from_environment`` raises
    ``FakeNotAllowedInProductionError``, so the container never serves) and on
    execute (HTTP 503, stable code ``fake_not_allowed_in_production``).
@@ -37,15 +38,11 @@ Normative behavior (identical in every Python worker):
    torch. The detector is injectable for unit tests.
 5. Model provisioning via ``OC_MODEL_PROVISIONING`` (exact name):
    ``disabled`` | ``verify-existing-only`` | ``first-start-if-missing``
-   (default; unknown values fail closed at startup). No worker downloads
-   model weights today -- provisioning is informational until a provisioner
-   lands -- so ``disabled`` and ``first-start-if-missing`` behave identically:
-   missing assets make the worker unready, and nothing is ever fetched.
-   The effective value is exposed in ``/health/ready``.
+   (default; unknown values fail closed at startup).
 6. Model cache via ``OC_MODEL_CACHE_DIR`` (exact name; default ``/models``).
    ``MODEL_DIR`` remains a deprecated alias that still works (with a one-time
-   warning); ``OC_MODEL_CACHE_DIR`` wins when set. Informational until the
-   provisioner lands: exposed in ``/health/ready``, never triggers downloads.
+   warning); ``OC_MODEL_CACHE_DIR`` wins when set.
+7. Offline mode via ``OC_MODEL_OFFLINE`` (exact name; default ``false``).
 """
 
 from __future__ import annotations
@@ -66,11 +63,13 @@ ENGINE_REAL = "real"
 ENGINE_FAKE = "fake"
 FAKE_ENV_VAR = "OPENCONNECT_FAKE_ENGINE"
 ENV_ENV_VAR = "OPENCONNECT_ENV"
+OC_ENVIRONMENT_ENV_VAR = "OC_ENVIRONMENT"
 DEVICE_ENV_VAR = "OC_MODEL_DEVICE"
 GPU_ALLOWED_ENV_VAR = "OC_GPU_ALLOWED"
 PROVISIONING_ENV_VAR = "OC_MODEL_PROVISIONING"
 CACHE_DIR_ENV_VAR = "OC_MODEL_CACHE_DIR"
 LEGACY_MODEL_DIR_ENV_VAR = "MODEL_DIR"
+OFFLINE_ENV_VAR = "OC_MODEL_OFFLINE"
 
 DEFAULT_PROVISIONING = "first-start-if-missing"
 DEFAULT_CACHE_DIR = "/models"
@@ -87,7 +86,7 @@ Detector = Callable[[], bool]
 
 
 class FakeNotAllowedInProductionError(ValueError):
-    """Startup refusal: fake engine requested while OPENCONNECT_ENV=production."""
+    """Startup refusal: fake engine requested while in production."""
 
 
 class EngineModeConfigError(ValueError):
@@ -111,13 +110,7 @@ def _get(env: Mapping[str, str] | None, name: str) -> str | None:
 
 
 def resolve_engine_mode(env: Mapping[str, str] | None = None) -> str:
-    """Canonical engine mode: ``real`` (default) or ``fake``.
-
-    ``OC_WORKER_ENGINE`` is primary; the legacy ``OPENCONNECT_FAKE_ENGINE``
-    1/true/yes flag still works as a deprecated alias (one-time warning) and
-    is ignored whenever ``OC_WORKER_ENGINE`` is set. Unknown ``OC_`` values
-    raise ``EngineModeConfigError`` (fail closed at startup).
-    """
+    """Canonical engine mode: ``real`` (default) or ``fake``."""
     raw = _get(env, ENGINE_ENV_VAR)
     if raw is not None and raw.strip() != "":
         value = raw.strip().lower()
@@ -137,8 +130,28 @@ def fake_requested(env: Mapping[str, str] | None = None) -> bool:
 
 
 def is_production(env: Mapping[str, str] | None = None) -> bool:
-    """True only when OPENCONNECT_ENV is exactly ``production`` (case-sensitive)."""
-    return _get(env, ENV_ENV_VAR) == PRODUCTION_VALUE
+    """True when OPENCONNECT_ENV is exact ``production`` or OC_ENVIRONMENT is ``production`` (case-insensitive)."""
+    if _get(env, ENV_ENV_VAR) == PRODUCTION_VALUE:
+        return True
+    oc_env = _get(env, OC_ENVIRONMENT_ENV_VAR)
+    return oc_env is not None and oc_env.strip().lower() == PRODUCTION_VALUE
+
+
+def resolve_environment(env: Mapping[str, str] | None = None) -> str:
+    """Resolve the canonical runtime environment name (OC_ENVIRONMENT or OPENCONNECT_ENV)."""
+    oc_env = _get(env, OC_ENVIRONMENT_ENV_VAR)
+    if oc_env is not None and oc_env.strip() != "":
+        return oc_env.strip()
+    legacy = _get(env, ENV_ENV_VAR)
+    if legacy is not None and legacy.strip() != "":
+        return legacy.strip()
+    return "Production"
+
+
+def parse_offline(raw: str | None = None, *, env: Mapping[str, str] | None = None) -> bool:
+    """Parse OC_MODEL_OFFLINE boolean flag (default False)."""
+    val = raw if raw is not None else _get(env, OFFLINE_ENV_VAR)
+    return val is not None and val.strip().lower() in _ON_VALUES
 
 
 def validate_startup(*, fake: bool, env: Mapping[str, str] | None = None) -> None:
@@ -191,12 +204,7 @@ def gpu_allowed(env: Mapping[str, str] | None = None) -> bool:
 
 
 def detect_gpu_present() -> bool:
-    """Best-effort GPU probe. Never raises, never downloads, never inits on CPU path.
-
-    An empty or ``-1`` CUDA_VISIBLE_DEVICES means "no GPU" without importing
-    torch. Otherwise a lazy ``torch.cuda.is_available()`` probe decides;
-    missing/broken torch means no GPU.
-    """
+    """Best-effort GPU probe. Never raises, never downloads, never inits on CPU path."""
     visible = os.environ.get("CUDA_VISIBLE_DEVICES")
     if visible is not None and visible.strip() in ("", "-1"):
         return False
@@ -224,13 +232,7 @@ def device_info(
     gpu_present: bool | None = None,
     detector: Detector | None = None,
 ) -> DeviceInfo:
-    """Resolve the effective device without touching CUDA on the ``cpu`` path.
-
-    ``gpu_present`` (or ``detector``) is consulted only when a GPU could
-    actually be used: explicit ``cuda``, or ``auto`` with GPU allowed.
-    Pass ``gpu_present``/``detector`` in unit tests to cover both branches
-    without real hardware.
-    """
+    """Resolve the effective device without touching CUDA on the ``cpu`` path."""
     requested = parse_device(requested_raw)
     allowed = gpu_allowed(env)
     if requested == "cpu":
@@ -277,12 +279,7 @@ def rejection(
     gpu_present: bool | None = None,
     detector: Detector | None = None,
 ) -> tuple[DeviceInfo | None, int | None, str | None]:
-    """Fail-closed ordering shared by readiness and execute paths.
-
-    Returns ``(info, status_code, code)``; ``status_code``/``code`` are None
-    when the request may proceed. Production+fake is checked before GPU
-    availability.
-    """
+    """Fail-closed ordering shared by readiness and execute paths."""
     if production_fake_active(fake_engine, env):
         return None, 503, FAKE_NOT_ALLOWED_CODE
     info = device_info(model_device, env=env, gpu_present=gpu_present, detector=detector)

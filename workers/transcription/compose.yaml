@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openconnect-transcription:0.1.0
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_IMAGE_TAG:-e2e-local}
     ports:
       - "8080:8080"
     environment:
@@ -31,6 +31,7 @@ services:
       # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
       # Canonical OC_* defaults (workers-model-defaults contract). Either
       # OC_TRANSCRIPTION_FILE_URL or TRANSCRIPTION_CLOUD_URL set means the
@@ -43,6 +44,7 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
       OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       OC_TRANSCRIPTION_PROVIDER: ${OC_TRANSCRIPTION_PROVIDER:-meta-model-api}
       OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
       OC_TRANSCRIPTION_REALTIME_URL: ${OC_TRANSCRIPTION_REALTIME_URL:-wss://api.meta.ai/v1/asr/realtime}

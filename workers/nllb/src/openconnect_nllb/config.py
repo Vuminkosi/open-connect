@@ -8,8 +8,10 @@ from openconnect_nllb.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_offline,
     parse_provisioning,
     resolve_cache_dir,
+    resolve_environment,
     validate_startup,
 )
 
@@ -30,6 +32,8 @@ class Settings:
     max_text_chars: int
     license_accepted: bool
     provisioning: str = "first-start-if-missing"
+    environment: str = "Production"
+    model_offline: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -61,4 +65,6 @@ class Settings:
             max_text_chars=max(1, max_chars),
             license_accepted=accepted,
             provisioning=parse_provisioning(os.environ.get("OC_MODEL_PROVISIONING")),
+            environment=resolve_environment(),
+            model_offline=parse_offline(),
         )

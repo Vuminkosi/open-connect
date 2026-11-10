@@ -77,6 +77,136 @@ describe('policy', () => {
     });
     assert.equal(fs.existsSync(seen), false);
   });
+
+  it('cleans up per-run profiles on crash and timeout and isolates cross-tenant profiles', async () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    let crashedDir = null;
+    await assert.rejects(
+      withFreshProfile(
+        async (dir) => {
+          crashedDir = dir;
+          await fs.promises.writeFile(path.join(dir, 'secret-cookie'), 'leaked');
+          throw new Error('simulated browser crash');
+        },
+        { tenantId: 'tenant-a', sessionId: 'sess-1' },
+      ),
+      /simulated browser crash/,
+    );
+    assert.ok(crashedDir.includes('tenant-a-sess-1'));
+    assert.equal(fs.existsSync(crashedDir), false);
+
+    let timedOutDir = null;
+    await assert.rejects(
+      withFreshProfile(
+        async (dir) => {
+          timedOutDir = dir;
+          await sleep(150);
+        },
+        { tenantId: 'tenant-a', sessionId: 'sess-timeout', timeoutMs: 25 },
+      ),
+      /timed out/,
+    );
+    assert.equal(fs.existsSync(timedOutDir), false);
+
+    const seenDirs = [];
+    await Promise.all([
+      withFreshProfile(
+        async (dir) => {
+          seenDirs.push(dir);
+          await fs.promises.writeFile(path.join(dir, 'storage'), 'tenant-alpha');
+          await sleep(15);
+        },
+        { tenantId: 'tenant-alpha', sessionId: 's1' },
+      ),
+      withFreshProfile(
+        async (dir) => {
+          seenDirs.push(dir);
+          assert.equal(fs.existsSync(path.join(dir, 'storage')), false);
+          await sleep(15);
+        },
+        { tenantId: 'tenant-beta', sessionId: 's1' },
+      ),
+    ]);
+    assert.equal(seenDirs.length, 2);
+    assert.notEqual(seenDirs[0], seenDirs[1]);
+    assert.equal(fs.existsSync(seenDirs[0]), false);
+    assert.equal(fs.existsSync(seenDirs[1]), false);
+  });
+
+  it('rejects redirect chains that hop to unapproved origins or DNS-rebind to private/metadata IPs', async () => {
+    const allowed = ['https://example.com', 'https://app.example.com'];
+    const okChain = await policy.assertRedirectChainAllowed(
+      ['https://example.com/start', { url: 'https://app.example.com/final', ip: '93.184.216.34' }],
+      allowed,
+      fakeLookup,
+    );
+    assert.deepEqual(okChain, ['https://example.com', 'https://app.example.com']);
+
+    await assert.rejects(
+      policy.assertRedirectChainAllowed(
+        ['https://example.com/start', 'https://metadata.rebind.test/latest'],
+        ['https://example.com', 'https://metadata.rebind.test'],
+        fakeLookup,
+      ),
+      /destination address not allowed/,
+    );
+
+    await assert.rejects(
+      policy.assertRedirectChainAllowed(
+        ['https://example.com/start', { url: 'https://app.example.com/final', ip: '169.254.169.254' }],
+        allowed,
+        fakeLookup,
+      ),
+      /destination address not allowed/,
+    );
+  });
+
+  it('strips PNG/JPEG metadata chunks and redacts bounding-box pixels on capture bytes', () => {
+    const zlib = require('node:zlib');
+    const pngWithMeta = policy.createSolidPng(4, 4, [200, 100, 50, 255], [
+      { type: 'tEXt', data: 'Author\0secret@example.com' },
+      { type: 'iTXt', data: 'Comment\0\0\0\0\0internal-token-xyz' },
+      { type: 'eXIf', data: 'MM\x00*\x00\x00\x00\x08' },
+    ]);
+    assert.ok(pngWithMeta.includes(Buffer.from('secret@example.com')));
+
+    const scrubbed = policy.scrubCaptureBytes(pngWithMeta, {
+      redactBoxes: [{ x: 0, y: 0, width: 2, height: 2 }],
+    });
+    assert.equal(scrubbed.metadataStripped, true);
+    assert.equal(scrubbed.strippedChunks, 3);
+    assert.equal(scrubbed.redactedBoxes, 1);
+    assert.equal(scrubbed.bytes.includes(Buffer.from('secret@example.com')), false);
+    assert.equal(scrubbed.bytes.includes(Buffer.from('internal-token-xyz')), false);
+    assert.equal(scrubbed.bytes.includes(Buffer.from('tEXt')), false);
+    assert.equal(scrubbed.bytes.includes(Buffer.from('iTXt')), false);
+    assert.equal(scrubbed.bytes.includes(Buffer.from('eXIf')), false);
+
+    // Verify IDAT pixels inside (0..1, 0..1) are zeroed while (3, 3) remains intact.
+    const idatIdx = scrubbed.bytes.indexOf(Buffer.from('IDAT'));
+    const idatLen = scrubbed.bytes.readUInt32BE(idatIdx - 4);
+    const idatData = scrubbed.bytes.subarray(idatIdx + 4, idatIdx + 4 + idatLen);
+    const rawScanlines = zlib.inflateSync(idatData);
+    const stride = 4 * 4;
+    // Pixel (0, 0) is redacted -> [0, 0, 0, 255]
+    assert.deepEqual([...rawScanlines.subarray(1, 5)], [0, 0, 0, 255]);
+    // Pixel (3, 3) is unredacted -> [200, 100, 50, 255]
+    const row3 = 3 * (stride + 1) + 1 + 3 * 4;
+    assert.deepEqual([...rawScanlines.subarray(row3, row3 + 4)], [200, 100, 50, 255]);
+
+    // JPEG APP1 (EXIF) and COM segment stripping (JPEG segment length includes the 2 length bytes)
+    const fakeJpeg = Buffer.concat([
+      Buffer.from([0xff, 0xd8]), // SOI
+      Buffer.from([0xff, 0xe1, 0x00, 0x0c, ...Buffer.from('ExifSecret')]), // APP1 (2 + 10 = 12)
+      Buffer.from([0xff, 0xfe, 0x00, 0x08, ...Buffer.from('Secret')]), // COM (2 + 6 = 8)
+      Buffer.from([0xff, 0xda, 0x00, 0x02, 0x11, 0x22, 0xff, 0xd9]), // SOS + EOI
+    ]);
+    const scrubbedJpeg = policy.scrubCaptureBytes(fakeJpeg);
+    assert.equal(scrubbedJpeg.mimeType, 'image/jpeg');
+    assert.equal(scrubbedJpeg.strippedChunks, 2);
+    assert.equal(scrubbedJpeg.bytes.includes(Buffer.from('ExifSecret')), false);
+  });
 });
 
 describe('http facade', () => {

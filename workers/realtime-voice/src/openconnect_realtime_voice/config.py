@@ -10,8 +10,10 @@ from openconnect_realtime_voice.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_offline,
     parse_provisioning,
     resolve_cache_dir,
+    resolve_environment,
     validate_startup,
 )
 
@@ -55,6 +57,8 @@ class Settings:
     model_device: str
     provisioning: str = "first-start-if-missing"
     transcription_mode: str = DEFAULT_TRANSCRIPTION_MODE
+    environment: str = "Production"
+    model_offline: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -78,6 +82,8 @@ class Settings:
             model_device=parse_device(os.environ.get("OC_MODEL_DEVICE")),
             provisioning=parse_provisioning(os.environ.get("OC_MODEL_PROVISIONING")),
             transcription_mode=parse_transcription_mode(os.environ.get(TRANSCRIPTION_MODE_ENV_VAR)),
+            environment=resolve_environment(),
+            model_offline=parse_offline(),
         )
 
     @property

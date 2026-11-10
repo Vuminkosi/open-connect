@@ -3,29 +3,38 @@ name: oc-realtime-voice
 services:
   init-models:
     build: .
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_IMAGE_TAG:-e2e-local}
     # Init prepares the model volume only; never downloads weights. In
     # orchestration-only mode no local weights are required at all.
     command: ["python", "-m", "openconnect_realtime_voice.init_models"]
     environment:
       MODEL_DIR: /models
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       OC_REALTIME_ORCHESTRATION_ONLY: "${OC_REALTIME_ORCHESTRATION_ONLY:-1}"
     volumes:
       - oc_realtime_voice_models:/models
 
   serve:
     build: .
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_IMAGE_TAG:-e2e-local}
     ports:
       - "${OC_REALTIME_VOICE_PORT:-8080}:8080"
     environment:
       MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       # Deprecated alias; OC_WORKER_ENGINE wins when set.
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
       # Canonical OC_* defaults (workers-model-defaults contract).
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
       OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
       OC_REALTIME_ORCHESTRATION_ONLY: "${OC_REALTIME_ORCHESTRATION_ONLY:-1}"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
@@ -37,3 +46,4 @@ services:
 
 volumes:
   oc_realtime_voice_models:
+    name: oc_realtime_voice_models

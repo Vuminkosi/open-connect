@@ -14,7 +14,11 @@ from openconnect_mms_tts.config import MAX_OPT_IN_LANGUAGES
 
 
 def main() -> None:
-    model_dir = Path(os.environ.get("MODEL_DIR", "/models"))
+    if os.environ.get("OC_MODEL_PROVISIONING", "").strip().lower() == "disabled":
+        print("mms-tts init skipped (OC_MODEL_PROVISIONING=disabled)")
+        return
+    cache_dir = os.environ.get("OC_MODEL_CACHE_DIR") or os.environ.get("MODEL_DIR", "/models")
+    model_dir = Path(cache_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     raw = os.environ.get("MMS_LANGUAGES", "eng")
     languages = [lang.strip().lower() for lang in raw.split(",") if lang.strip()] or ["eng"]

@@ -6,6 +6,7 @@ services:
     build:
       context: ../..
       dockerfile: workers/outbox/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
     restart: unless-stopped
     depends_on:
       postgres:

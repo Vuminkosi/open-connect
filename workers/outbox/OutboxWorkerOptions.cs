@@ -29,7 +29,7 @@ public sealed class OutboxWorkerOptions
     /// <summary>Gets or sets the tenant ULID (26-character Crockford Base32) that scopes the supervisor lease.</summary>
     public string TenantUlid { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the EF provider. One of <c>npgsql</c> (default, same as the gateway) or <c>sqlite</c>.</summary>
+    /// <summary>Gets or sets the EF provider. One of <c>npgsql</c> / <c>postgres</c> (default, same as the gateway), <c>sqlserver</c>, or <c>sqlite</c>.</summary>
     public string DatabaseProvider { get; set; } = "npgsql";
 
     /// <summary>Gets or sets the database connection string. Never logged.</summary>
@@ -64,8 +64,10 @@ public sealed class OutboxWorkerOptionsValidator : IValidateOptions<OutboxWorker
         try { _ = Abstractions.Ulid.Parse(options.TenantUlid); }
         catch (Exception) { failures.Add("outbox_tenant_ulid_invalid: TenantUlid must be a 26-character Crockford Base32 ULID."); }
         if (!string.Equals(options.DatabaseProvider, "npgsql", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(options.DatabaseProvider, "postgres", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(options.DatabaseProvider, "sqlserver", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(options.DatabaseProvider, "sqlite", StringComparison.OrdinalIgnoreCase))
-            failures.Add("outbox_db_provider_invalid: DatabaseProvider must be npgsql or sqlite.");
+            failures.Add("outbox_db_provider_invalid: DatabaseProvider must be npgsql, postgres, sqlserver, or sqlite.");
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
             failures.Add("outbox_connection_string_missing: a database connection string is required (same EF provider/schema as the gateway).");
         if (options.SupervisorLeaseDuration < TimeSpan.FromSeconds(5) || options.SupervisorLeaseDuration > TimeSpan.FromHours(1))
