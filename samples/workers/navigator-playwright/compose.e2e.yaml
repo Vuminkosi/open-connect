@@ -1,24 +1,69 @@
-# E2E sample for the Navigator Playwright worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
+# E2E sample for the Navigator Playwright worker (T0-T3; WSE2E-IMP-018, WSE2E-AT-059..065).
+# T4 model-live: NOT_APPLICABLE / NOT_RUN (no ML models exist for this worker).
 # Canonical image source (never a toy worker image):
 #   workers/navigator-playwright/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
+# No model volume and no model provisioner service are defined (WSE2E-AT-059).
 # Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
 # so parallel runs never share networks or volumes.
 services:
+  synthetic-site:
+    image: node:22.17.1-bookworm-slim
+    working_dir: /site
+    command: ["node", "server.mjs"]
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      SITE_PORT: "8090"
+    volumes:
+      - ./fixtures/site:/site:ro
+    networks:
+      - oc-test-private
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
   navigator-playwright:
     build:
       context: ../../../workers/navigator-playwright
       dockerfile: Dockerfile
-    image: openconnect/navigator-playwright:e2e-local
+    image: vuminkosimatibe/openconnect-worker-navigator-playwright:${OC_IMAGE_TAG:-e2e-local}
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp/nav-tmp:noexec,nosuid,size=512m
     ports:
       - "${PORT_NAVIGATOR_PLAYWRIGHT:-8088}:8080"
     environment:
+      PORT: "8080"
+      TMPDIR: /tmp/nav-tmp
       NAVIGATOR_WORKER_TOKEN: ${NAVIGATOR_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
-      NAVIGATOR_ALLOWED_ORIGINS: ${NAVIGATOR_ALLOWED_ORIGINS:-https://example.com}
-      PLAYWRIGHT_LAUNCH: "0"
+      NAVIGATOR_ALLOWED_ORIGINS: ${NAVIGATOR_ALLOWED_ORIGINS:-https://example.com,http://synthetic-site:8090}
+      PLAYWRIGHT_LAUNCH: ${PLAYWRIGHT_LAUNCH:-0}
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    depends_on:
+      synthetic-site:
+        condition: service_healthy
+    networks:
+      - oc-test-private
+      - default
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 24
       start_period: 10s
+
+networks:
+  oc-test-private:
+    internal: true

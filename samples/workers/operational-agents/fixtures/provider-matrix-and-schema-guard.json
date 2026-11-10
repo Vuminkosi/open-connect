@@ -1,0 +1,30 @@
+{
+  "fixtureId": "operational-provider-matrix-and-schema-guard",
+  "acceptanceId": "WSE2E-AT-071",
+  "providers": [
+    {
+      "name": "sqlite",
+      "tablePrefix": "oc_",
+      "schema": null,
+      "supportsOperationalLeasesAndReceipts": true
+    },
+    {
+      "name": "npgsql",
+      "tablePrefix": "",
+      "schema": "openconnect",
+      "supportsOperationalLeasesAndReceipts": true
+    },
+    {
+      "name": "sqlserver",
+      "tablePrefix": "",
+      "schema": "openconnect",
+      "supportsOperationalLeasesAndReceipts": true
+    }
+  ],
+  "schemaGuards": {
+    "existingDbContextWithApplyOnStartupErrorCode": "ef_migration_not_allowed",
+    "missingModelEntitiesErrorCode": "ef_model_missing",
+    "missingDatabaseSchemaErrorCode": "ef_schema_missing",
+    "inMemoryDurableSingleDatabaseErrorCode": "ef_inmemory_not_durable"
+  }
+}

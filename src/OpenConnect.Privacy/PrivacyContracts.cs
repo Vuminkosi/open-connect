@@ -138,6 +138,12 @@ public sealed class PrivacyOptions
     public FirewallMode Mode { get; set; } = FirewallMode.StrictLocal;
     /// <summary>Gets or sets the default lifetime for privacy tokens.</summary>
     public TimeSpan DefaultTokenTtl { get; set; } = TimeSpan.FromMinutes(30);
+    /// <summary>Gets or sets whether outbound egress validation is required.</summary>
+    public bool RequireEgressValidation { get; set; } = true;
+    /// <summary>Gets or sets whether sensitive spans are tokenized through the encrypted vault.</summary>
+    public bool EnableTokenization { get; set; } = true;
+    /// <summary>Gets or sets whether model/tool outputs are inspected before emission.</summary>
+    public bool EnableOutputInspection { get; set; } = true;
 }
 
 /// <summary>Raised when privacy policy prevents content from proceeding.</summary>

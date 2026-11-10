@@ -77,11 +77,17 @@ OpenConnect.Privacy.PrivacyFirewall.PrivacyFirewall(Microsoft.Extensions.Options
 OpenConnect.Privacy.PrivacyOptions
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.get -> System.TimeSpan
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.set -> void
+OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.get -> bool
+OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.set -> void
+OpenConnect.Privacy.PrivacyOptions.EnableTokenization.get -> bool
+OpenConnect.Privacy.PrivacyOptions.EnableTokenization.set -> void
 OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
 OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
 OpenConnect.Privacy.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
 OpenConnect.Privacy.PrivacyOptions.Mode.set -> void
 OpenConnect.Privacy.PrivacyOptions.PrivacyOptions() -> void
+OpenConnect.Privacy.PrivacyOptions.RequireEgressValidation.get -> bool
+OpenConnect.Privacy.PrivacyOptions.RequireEgressValidation.set -> void
 OpenConnect.Privacy.PrivacyScope
 OpenConnect.Privacy.PrivacyScope.Principal.get -> OpenConnect.Abstractions.PrincipalId
 OpenConnect.Privacy.PrivacyScope.Principal.init -> void
@@ -93,6 +99,8 @@ OpenConnect.Privacy.PrivacyScope.Session.init -> void
 OpenConnect.Privacy.PrivacyScope.Tenant.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Privacy.PrivacyScope.Tenant.init -> void
 OpenConnect.Privacy.PrivacyScope.Validate() -> OpenConnect.Privacy.PrivacyScope!
+OpenConnect.Privacy.PrivacyServiceCollectionExtensions
+static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.EnsureHostPrivacyServices(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Privacy.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 OpenConnect.Privacy.Tokenization.TokenGenerator
 OpenConnect.Privacy.Tokenization.TokenGenerator.CreateAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Tokenization.TokenGenerator.TokenGenerator(OpenConnect.Privacy.ITokenVault! vault) -> void

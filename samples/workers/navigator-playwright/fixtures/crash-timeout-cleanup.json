@@ -1,0 +1,17 @@
+{
+  "fixtureId": "navigator-crash-timeout-cleanup",
+  "acceptanceId": "WSE2E-AT-064",
+  "excessiveWaitProbe": {
+    "tool": "wait",
+    "args": {
+      "ms": 60000
+    },
+    "expectedStatus": 400,
+    "expectedErrorCode": "invalid_request"
+  },
+  "simulatedCrashProbe": {
+    "description": "Forces an unhandled error inside withFreshProfile callback and verifies the temporary profile directory under os.tmpdir() is still deleted in finally{}.",
+    "expectTempProfileRemoved": true,
+    "expectZeroLeakedNavPlayDirs": true
+  }
+}

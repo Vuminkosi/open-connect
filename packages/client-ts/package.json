@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./vad": {
+      "types": "./dist/vad.d.ts",
+      "import": "./dist/vad.js"
     }
   },
   "files": ["dist", "README.md"],

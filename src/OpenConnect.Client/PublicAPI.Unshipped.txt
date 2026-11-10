@@ -1,4 +1,51 @@
 #nullable enable
+OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.ClientAuthenticationMode.BearerToken = 1 -> OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.ClientAuthenticationMode.Cookie = 2 -> OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.ClientAuthenticationMode.Host = 0 -> OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.ClientAuthenticationMode.None = 3 -> OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.ClientVadOptions
+OpenConnect.Client.ClientVadOptions.ClientVadOptions() -> void
+OpenConnect.Client.ClientVadOptions.EnableBargeIn.get -> bool
+OpenConnect.Client.ClientVadOptions.EnableBargeIn.set -> void
+OpenConnect.Client.ClientVadOptions.EnablePreRoll.get -> bool
+OpenConnect.Client.ClientVadOptions.EnablePreRoll.set -> void
+OpenConnect.Client.ClientVadOptions.EnableSilenceSuppression.get -> bool
+OpenConnect.Client.ClientVadOptions.EnableSilenceSuppression.set -> void
+OpenConnect.Client.ClientVadOptions.Enabled.get -> bool
+OpenConnect.Client.ClientVadOptions.Enabled.set -> void
+OpenConnect.Client.ClientVadOptions.Engine.get -> OpenConnect.Client.VadEngine
+OpenConnect.Client.ClientVadOptions.Engine.set -> void
+OpenConnect.Client.ClientVadOptions.FrameSamples.get -> int
+OpenConnect.Client.ClientVadOptions.FrameSamples.set -> void
+OpenConnect.Client.ClientVadOptions.InferenceSampleRate.get -> int
+OpenConnect.Client.ClientVadOptions.InferenceSampleRate.set -> void
+OpenConnect.Client.ClientVadOptions.Location.get -> OpenConnect.Client.VadLocation
+OpenConnect.Client.ClientVadOptions.Location.set -> void
+OpenConnect.Client.ClientVadOptions.ModelAssetBaseUrl.get -> string!
+OpenConnect.Client.ClientVadOptions.ModelAssetBaseUrl.set -> void
+OpenConnect.Client.ClientVadOptions.PreRollMilliseconds.get -> int
+OpenConnect.Client.ClientVadOptions.PreRollMilliseconds.set -> void
+OpenConnect.Client.ClientVadOptions.RequireMicrophonePermission.get -> bool
+OpenConnect.Client.ClientVadOptions.RequireMicrophonePermission.set -> void
+OpenConnect.Client.ClientVadOptions.Validate() -> void
+OpenConnect.Client.ClientVadService
+OpenConnect.Client.ClientVadService.ClientVadService(OpenConnect.Client.ClientVadOptions! options) -> void
+OpenConnect.Client.ClientVadService.CreateSession(bool microphonePermissionGranted) -> OpenConnect.Client.IClientVadSession!
+OpenConnect.Client.ClientVadService.Options.get -> OpenConnect.Client.ClientVadOptions!
+OpenConnect.Client.ClientVadSession
+OpenConnect.Client.ClientVadSession.CaptureId.get -> System.Guid
+OpenConnect.Client.ClientVadSession.ClientVadSession(OpenConnect.Client.ClientVadOptions! options) -> void
+OpenConnect.Client.ClientVadSession.ContextSampleCount.get -> int
+OpenConnect.Client.ClientVadSession.CurrentSpeechEpoch.get -> long
+OpenConnect.Client.ClientVadSession.DisposeAsync() -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.ClientVadSession.GetPreRollFrames() -> System.Collections.Generic.IReadOnlyList<float[]!>!
+OpenConnect.Client.ClientVadSession.IsDisposed.get -> bool
+OpenConnect.Client.ClientVadSession.NextFrameSequence.get -> long
+OpenConnect.Client.ClientVadSession.ProcessPcmFrame(System.ReadOnlySpan<float> pcmSamples, int sourceSampleRate, long? explicitFrameSequence = null) -> OpenConnect.Client.VadFrameObservation!
+OpenConnect.Client.ClientVadSession.RecurrentStateLength.get -> int
+OpenConnect.Client.ClientVadSession.ResetState() -> void
+OpenConnect.Client.ClientVadSession.TotalSourceSamples.get -> long
 OpenConnect.Client.CreateTaskRequest
 OpenConnect.Client.CreateTaskRequest.ClientTaskId.get -> string!
 OpenConnect.Client.CreateTaskRequest.ClientTaskId.init -> void
@@ -9,6 +56,38 @@ OpenConnect.Client.CreateTaskRequest.Message.get -> string?
 OpenConnect.Client.CreateTaskRequest.Message.init -> void
 OpenConnect.Client.CreateTaskRequest.SessionId.get -> string?
 OpenConnect.Client.CreateTaskRequest.SessionId.init -> void
+OpenConnect.Client.IClientVadService
+OpenConnect.Client.IClientVadService.CreateSession(bool microphonePermissionGranted) -> OpenConnect.Client.IClientVadSession!
+OpenConnect.Client.IClientVadService.Options.get -> OpenConnect.Client.ClientVadOptions!
+OpenConnect.Client.IClientVadSession
+OpenConnect.Client.IClientVadSession.CaptureId.get -> System.Guid
+OpenConnect.Client.IClientVadSession.ContextSampleCount.get -> int
+OpenConnect.Client.IClientVadSession.CurrentSpeechEpoch.get -> long
+OpenConnect.Client.IClientVadSession.GetPreRollFrames() -> System.Collections.Generic.IReadOnlyList<float[]!>!
+OpenConnect.Client.IClientVadSession.IsDisposed.get -> bool
+OpenConnect.Client.IClientVadSession.NextFrameSequence.get -> long
+OpenConnect.Client.IClientVadSession.ProcessPcmFrame(System.ReadOnlySpan<float> pcmSamples, int sourceSampleRate, long? explicitFrameSequence = null) -> OpenConnect.Client.VadFrameObservation!
+OpenConnect.Client.IClientVadSession.RecurrentStateLength.get -> int
+OpenConnect.Client.IClientVadSession.ResetState() -> void
+OpenConnect.Client.IClientVadSession.TotalSourceSamples.get -> long
+OpenConnect.Client.IMauiAudioCaptureService
+OpenConnect.Client.IMauiAudioCaptureService.CaptureAndProcessEnhancedPcm(OpenConnect.Client.IClientVadSession! session, System.ReadOnlySpan<float> pcmSamples) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.VadFrameObservation!>!
+OpenConnect.Client.IMauiAudioCaptureService.Options.get -> OpenConnect.Client.MauiAudioOptions!
+OpenConnect.Client.IMauiAudioCaptureService.StartNativeCaptureSession(bool platformPermissionGranted) -> OpenConnect.Client.IClientVadSession!
+OpenConnect.Client.INavigatorClientService
+OpenConnect.Client.INavigatorClientService.ActiveStepIndex.get -> int
+OpenConnect.Client.INavigatorClientService.ActiveTourId.get -> string?
+OpenConnect.Client.INavigatorClientService.ActiveTourSteps.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.INavigatorClientService.CanExecuteAction(string! actionId, bool userConsentGranted) -> bool
+OpenConnect.Client.INavigatorClientService.Changed -> System.Action?
+OpenConnect.Client.INavigatorClientService.ClearHighlight() -> void
+OpenConnect.Client.INavigatorClientService.Highlight(string! targetId) -> void
+OpenConnect.Client.INavigatorClientService.HighlightedTargetId.get -> string?
+OpenConnect.Client.INavigatorClientService.IsTourActive.get -> bool
+OpenConnect.Client.INavigatorClientService.NextTourStep() -> bool
+OpenConnect.Client.INavigatorClientService.Options.get -> OpenConnect.Client.NavigatorClientOptions!
+OpenConnect.Client.INavigatorClientService.StartGuidedTour(string! tourId, System.Collections.Generic.IReadOnlyList<string!>! stepTargetIds) -> void
+OpenConnect.Client.INavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.IOpenConnectClient
 OpenConnect.Client.IOpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
@@ -17,6 +96,64 @@ OpenConnect.Client.IOpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.S
 OpenConnect.Client.IOpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
 OpenConnect.Client.IOpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.IVoiceClientService
+OpenConnect.Client.IVoiceClientService.AcceptRecordingForSubmission(bool userConsentGranted) -> OpenConnect.Client.RecordedVoiceDraft!
+OpenConnect.Client.IVoiceClientService.BeginPlayback() -> long
+OpenConnect.Client.IVoiceClientService.CommitGatewayAuthorizedTranscript(string! finalTranscript, long speechEpoch) -> bool
+OpenConnect.Client.IVoiceClientService.CommittedTranscripts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.IVoiceClientService.CurrentPlaybackEpoch.get -> long
+OpenConnect.Client.IVoiceClientService.CurrentSpeechEpoch.get -> long
+OpenConnect.Client.IVoiceClientService.DiscardRecording() -> void
+OpenConnect.Client.IVoiceClientService.InvalidateAllEpochs() -> void
+OpenConnect.Client.IVoiceClientService.IsPlaybackActive.get -> bool
+OpenConnect.Client.IVoiceClientService.LivePartialTranscript.get -> string!
+OpenConnect.Client.IVoiceClientService.Options.get -> OpenConnect.Client.VoiceClientOptions!
+OpenConnect.Client.IVoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
+OpenConnect.Client.IVoiceClientService.StagedRecording.get -> OpenConnect.Client.RecordedVoiceDraft?
+OpenConnect.Client.IVoiceClientService.StartLiveCapture(bool microphonePermissionGranted) -> long
+OpenConnect.Client.IVoiceClientService.TriggerBargeIn() -> long
+OpenConnect.Client.IVoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
+OpenConnect.Client.IVoiceClientService.UpdateLiveHypothesis(string! partialTranscript, long speechEpoch) -> bool
+OpenConnect.Client.MauiAudioCaptureService
+OpenConnect.Client.MauiAudioCaptureService.CaptureAndProcessEnhancedPcm(OpenConnect.Client.IClientVadSession! session, System.ReadOnlySpan<float> pcmSamples) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.VadFrameObservation!>!
+OpenConnect.Client.MauiAudioCaptureService.MauiAudioCaptureService(OpenConnect.Client.MauiAudioOptions! options, OpenConnect.Client.IClientVadService! vadService) -> void
+OpenConnect.Client.MauiAudioCaptureService.Options.get -> OpenConnect.Client.MauiAudioOptions!
+OpenConnect.Client.MauiAudioCaptureService.StartNativeCaptureSession(bool platformPermissionGranted) -> OpenConnect.Client.IClientVadSession!
+OpenConnect.Client.MauiAudioOptions
+OpenConnect.Client.MauiAudioOptions.Channels.get -> int
+OpenConnect.Client.MauiAudioOptions.Channels.set -> void
+OpenConnect.Client.MauiAudioOptions.MauiAudioOptions() -> void
+OpenConnect.Client.MauiAudioOptions.RequireMicrophonePermission.get -> bool
+OpenConnect.Client.MauiAudioOptions.RequireMicrophonePermission.set -> void
+OpenConnect.Client.MauiAudioOptions.SampleRate.get -> int
+OpenConnect.Client.MauiAudioOptions.SampleRate.set -> void
+OpenConnect.Client.MauiAudioOptions.Validate() -> void
+OpenConnect.Client.NavigatorClientOptions
+OpenConnect.Client.NavigatorClientOptions.EnableGuidedTours.get -> bool
+OpenConnect.Client.NavigatorClientOptions.EnableGuidedTours.set -> void
+OpenConnect.Client.NavigatorClientOptions.EnableHighlighting.get -> bool
+OpenConnect.Client.NavigatorClientOptions.EnableHighlighting.set -> void
+OpenConnect.Client.NavigatorClientOptions.Enabled.get -> bool
+OpenConnect.Client.NavigatorClientOptions.Enabled.set -> void
+OpenConnect.Client.NavigatorClientOptions.NavigatorClientOptions() -> void
+OpenConnect.Client.NavigatorClientOptions.RequireConsentForActions.get -> bool
+OpenConnect.Client.NavigatorClientOptions.RequireConsentForActions.set -> void
+OpenConnect.Client.NavigatorClientOptions.Validate() -> void
+OpenConnect.Client.NavigatorClientService
+OpenConnect.Client.NavigatorClientService.ActiveStepIndex.get -> int
+OpenConnect.Client.NavigatorClientService.ActiveTourId.get -> string?
+OpenConnect.Client.NavigatorClientService.ActiveTourSteps.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.NavigatorClientService.CanExecuteAction(string! actionId, bool userConsentGranted) -> bool
+OpenConnect.Client.NavigatorClientService.Changed -> System.Action?
+OpenConnect.Client.NavigatorClientService.ClearHighlight() -> void
+OpenConnect.Client.NavigatorClientService.Highlight(string! targetId) -> void
+OpenConnect.Client.NavigatorClientService.HighlightedTargetId.get -> string?
+OpenConnect.Client.NavigatorClientService.IsTourActive.get -> bool
+OpenConnect.Client.NavigatorClientService.NavigatorClientService(OpenConnect.Client.NavigatorClientOptions! options) -> void
+OpenConnect.Client.NavigatorClientService.NextTourStep() -> bool
+OpenConnect.Client.NavigatorClientService.Options.get -> OpenConnect.Client.NavigatorClientOptions!
+OpenConnect.Client.NavigatorClientService.StartGuidedTour(string! tourId, System.Collections.Generic.IReadOnlyList<string!>! stepTargetIds) -> void
+OpenConnect.Client.NavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.OpenConnectClient
 OpenConnect.Client.OpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
@@ -30,7 +167,41 @@ OpenConnect.Client.OpenConnectClientException
 OpenConnect.Client.OpenConnectClientException.ErrorCode.get -> string?
 OpenConnect.Client.OpenConnectClientException.OpenConnectClientException(int statusCode, string? errorCode, string! message) -> void
 OpenConnect.Client.OpenConnectClientException.StatusCodeValue.get -> int
+OpenConnect.Client.OpenConnectClientOptions
+OpenConnect.Client.OpenConnectClientOptions.ApiBaseAddress.get -> System.Uri?
+OpenConnect.Client.OpenConnectClientOptions.ApiBaseAddress.set -> void
+OpenConnect.Client.OpenConnectClientOptions.Authentication.get -> OpenConnect.Client.ClientAuthenticationMode
+OpenConnect.Client.OpenConnectClientOptions.Authentication.set -> void
+OpenConnect.Client.OpenConnectClientOptions.OpenConnectClientOptions() -> void
+OpenConnect.Client.OpenConnectClientOptions.Reconnect.get -> OpenConnect.Client.OpenConnectClientReconnectOptions!
+OpenConnect.Client.OpenConnectClientOptions.Validate() -> void
+OpenConnect.Client.OpenConnectClientOptions.WebSocketAddress.get -> System.Uri?
+OpenConnect.Client.OpenConnectClientOptions.WebSocketAddress.set -> void
+OpenConnect.Client.OpenConnectClientReconnectOptions
+OpenConnect.Client.OpenConnectClientReconnectOptions.Enabled.get -> bool
+OpenConnect.Client.OpenConnectClientReconnectOptions.Enabled.set -> void
+OpenConnect.Client.OpenConnectClientReconnectOptions.InitialDelay.get -> System.TimeSpan
+OpenConnect.Client.OpenConnectClientReconnectOptions.InitialDelay.set -> void
+OpenConnect.Client.OpenConnectClientReconnectOptions.MaxDelay.get -> System.TimeSpan
+OpenConnect.Client.OpenConnectClientReconnectOptions.MaxDelay.set -> void
+OpenConnect.Client.OpenConnectClientReconnectOptions.OpenConnectClientReconnectOptions() -> void
+OpenConnect.Client.OpenConnectClientReconnectOptions.ResumeFromLastCursor.get -> bool
+OpenConnect.Client.OpenConnectClientReconnectOptions.ResumeFromLastCursor.set -> void
 OpenConnect.Client.OpenConnectClientServiceCollectionExtensions
+OpenConnect.Client.RecordedVoiceDraft
+OpenConnect.Client.RecordedVoiceDraft.CreatedAtUtc.get -> System.DateTimeOffset
+OpenConnect.Client.RecordedVoiceDraft.CreatedAtUtc.init -> void
+OpenConnect.Client.RecordedVoiceDraft.DraftId.get -> string!
+OpenConnect.Client.RecordedVoiceDraft.DraftId.init -> void
+OpenConnect.Client.RecordedVoiceDraft.Duration.get -> System.TimeSpan
+OpenConnect.Client.RecordedVoiceDraft.Duration.init -> void
+OpenConnect.Client.RecordedVoiceDraft.MimeType.get -> string!
+OpenConnect.Client.RecordedVoiceDraft.MimeType.init -> void
+OpenConnect.Client.RecordedVoiceDraft.RecordedVoiceDraft(string! DraftId, string! MimeType, int SizeBytes, System.TimeSpan Duration, string! Sha256Checksum, System.DateTimeOffset CreatedAtUtc) -> void
+OpenConnect.Client.RecordedVoiceDraft.Sha256Checksum.get -> string!
+OpenConnect.Client.RecordedVoiceDraft.Sha256Checksum.init -> void
+OpenConnect.Client.RecordedVoiceDraft.SizeBytes.get -> int
+OpenConnect.Client.RecordedVoiceDraft.SizeBytes.init -> void
 OpenConnect.Client.SessionRecord
 OpenConnect.Client.SessionRecord.CreatedAt.get -> System.DateTimeOffset
 OpenConnect.Client.SessionRecord.CreatedAt.init -> void
@@ -41,4 +212,72 @@ OpenConnect.Client.SessionRecord.PrincipalId.init -> void
 OpenConnect.Client.SessionRecord.SessionRecord(OpenConnect.Abstractions.SessionId Id, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, System.DateTimeOffset CreatedAt) -> void
 OpenConnect.Client.SessionRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Client.SessionRecord.TenantId.init -> void
+OpenConnect.Client.VadEngine
+OpenConnect.Client.VadEngine.None = 0 -> OpenConnect.Client.VadEngine
+OpenConnect.Client.VadEngine.SileroOnnx = 1 -> OpenConnect.Client.VadEngine
+OpenConnect.Client.VadEngine.WebRtcFast = 2 -> OpenConnect.Client.VadEngine
+OpenConnect.Client.VadFrameObservation
+OpenConnect.Client.VadFrameObservation.FrameSequence.get -> long
+OpenConnect.Client.VadFrameObservation.FrameSequence.init -> void
+OpenConnect.Client.VadFrameObservation.InferenceSampleRate.get -> int
+OpenConnect.Client.VadFrameObservation.InferenceSampleRate.init -> void
+OpenConnect.Client.VadFrameObservation.IsAuthoritativeTurn.get -> bool
+OpenConnect.Client.VadFrameObservation.IsAuthoritativeTurn.init -> void
+OpenConnect.Client.VadFrameObservation.IsSpeechCandidate.get -> bool
+OpenConnect.Client.VadFrameObservation.IsSpeechCandidate.init -> void
+OpenConnect.Client.VadFrameObservation.SampleCount.get -> int
+OpenConnect.Client.VadFrameObservation.SampleCount.init -> void
+OpenConnect.Client.VadFrameObservation.SourceSampleOffset.get -> long
+OpenConnect.Client.VadFrameObservation.SourceSampleOffset.init -> void
+OpenConnect.Client.VadFrameObservation.SourceSampleRate.get -> int
+OpenConnect.Client.VadFrameObservation.SourceSampleRate.init -> void
+OpenConnect.Client.VadFrameObservation.SpeechEpoch.get -> long
+OpenConnect.Client.VadFrameObservation.SpeechEpoch.init -> void
+OpenConnect.Client.VadFrameObservation.SpeechProbability.get -> float
+OpenConnect.Client.VadFrameObservation.SpeechProbability.init -> void
+OpenConnect.Client.VadFrameObservation.VadFrameObservation(long FrameSequence, long SourceSampleOffset, int SourceSampleRate, int InferenceSampleRate, int SampleCount, float SpeechProbability, bool IsSpeechCandidate, long SpeechEpoch, bool IsAuthoritativeTurn = false) -> void
+OpenConnect.Client.VadLocation
+OpenConnect.Client.VadLocation.Client = 1 -> OpenConnect.Client.VadLocation
+OpenConnect.Client.VadLocation.Disabled = 0 -> OpenConnect.Client.VadLocation
+OpenConnect.Client.VadLocation.Hybrid = 3 -> OpenConnect.Client.VadLocation
+OpenConnect.Client.VadLocation.Server = 2 -> OpenConnect.Client.VadLocation
+OpenConnect.Client.VoiceClientOptions
+OpenConnect.Client.VoiceClientOptions.EnableBargeIn.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableBargeIn.set -> void
+OpenConnect.Client.VoiceClientOptions.EnableLiveTranscription.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableLiveTranscription.set -> void
+OpenConnect.Client.VoiceClientOptions.EnablePlayback.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnablePlayback.set -> void
+OpenConnect.Client.VoiceClientOptions.EnableVoiceRecording.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableVoiceRecording.set -> void
+OpenConnect.Client.VoiceClientOptions.MaxRecordingBytes.get -> int
+OpenConnect.Client.VoiceClientOptions.MaxRecordingBytes.set -> void
+OpenConnect.Client.VoiceClientOptions.MaxRecordingDuration.get -> System.TimeSpan
+OpenConnect.Client.VoiceClientOptions.MaxRecordingDuration.set -> void
+OpenConnect.Client.VoiceClientOptions.Validate() -> void
+OpenConnect.Client.VoiceClientOptions.VoiceClientOptions() -> void
+OpenConnect.Client.VoiceClientService
+OpenConnect.Client.VoiceClientService.AcceptRecordingForSubmission(bool userConsentGranted) -> OpenConnect.Client.RecordedVoiceDraft!
+OpenConnect.Client.VoiceClientService.BeginPlayback() -> long
+OpenConnect.Client.VoiceClientService.CommitGatewayAuthorizedTranscript(string! finalTranscript, long speechEpoch) -> bool
+OpenConnect.Client.VoiceClientService.CommittedTranscripts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.VoiceClientService.CurrentPlaybackEpoch.get -> long
+OpenConnect.Client.VoiceClientService.CurrentSpeechEpoch.get -> long
+OpenConnect.Client.VoiceClientService.DiscardRecording() -> void
+OpenConnect.Client.VoiceClientService.InvalidateAllEpochs() -> void
+OpenConnect.Client.VoiceClientService.IsPlaybackActive.get -> bool
+OpenConnect.Client.VoiceClientService.LivePartialTranscript.get -> string!
+OpenConnect.Client.VoiceClientService.Options.get -> OpenConnect.Client.VoiceClientOptions!
+OpenConnect.Client.VoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
+OpenConnect.Client.VoiceClientService.StagedRecording.get -> OpenConnect.Client.RecordedVoiceDraft?
+OpenConnect.Client.VoiceClientService.StartLiveCapture(bool microphonePermissionGranted) -> long
+OpenConnect.Client.VoiceClientService.TriggerBargeIn() -> long
+OpenConnect.Client.VoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
+OpenConnect.Client.VoiceClientService.UpdateLiveHypothesis(string! partialTranscript, long speechEpoch) -> bool
+OpenConnect.Client.VoiceClientService.VoiceClientService(OpenConnect.Client.VoiceClientOptions! options) -> void
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.OpenConnectClientOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Uri! baseAddress, System.Action<Microsoft.Extensions.DependencyInjection.IHttpClientBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClientVad(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.ClientVadOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectMauiAudio(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.MauiAudioOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectNavigatorClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.NavigatorClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectVoiceClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.VoiceClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

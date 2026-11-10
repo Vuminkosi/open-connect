@@ -1,0 +1,16 @@
+{
+  "fixtureId": "outbox-fenced-claim-and-puback",
+  "acceptanceId": "WSE2E-AT-075",
+  "claimParameters": {
+    "batchSize": 10,
+    "leaseOwner": "dispatcher-host-alpha",
+    "leaseDurationSeconds": 30
+  },
+  "invariants": {
+    "fencingVersionIncrementedOnClaim": true,
+    "leaseOwnerPopulated": true,
+    "leaseExpiresUtcPopulated": true,
+    "pubackRequiredBeforeDeliveredMark": true,
+    "unacknowledgedPublishesLeaveRowPending": true
+  }
+}

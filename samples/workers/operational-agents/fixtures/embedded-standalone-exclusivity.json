@@ -1,0 +1,19 @@
+{
+  "fixtureId": "operational-embedded-standalone-exclusivity",
+  "acceptanceId": "WSE2E-AT-072",
+  "standaloneWithEmbeddedEnabledTrue": {
+    "mode": "Standalone",
+    "embeddedEnabled": true,
+    "expectedValidationFailureCode": "operational_standalone_requires_embedded_disabled"
+  },
+  "embeddedModeSupervisorStartAttempt": {
+    "mode": "Embedded",
+    "embeddedEnabled": true,
+    "expectedStartupExceptionCode": "operational_embedded_mode"
+  },
+  "duplicateStandaloneSupervisorAttempt": {
+    "mode": "Standalone",
+    "embeddedEnabled": false,
+    "expectedSecondHostExceptionCode": "operational_duplicate_supervisor"
+  }
+}

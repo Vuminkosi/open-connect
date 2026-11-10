@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-supported-language-pairs",
+  "supportedLanguages": [
+    "eng_Latn",
+    "fra_Latn",
+    "deu_Latn",
+    "spa_Latn",
+    "por_Latn",
+    "ita_Latn",
+    "nld_Latn",
+    "pol_Latn",
+    "ukr_Cyrl",
+    "rus_Cyrl",
+    "ara_Arab",
+    "hin_Deva",
+    "ben_Beng",
+    "swh_Latn",
+    "hau_Latn",
+    "yor_Latn",
+    "zul_Latn",
+    "amh_Ethi"
+  ],
+  "sampleRequests": [
+    {
+      "taskId": "00000000-0000-4000-8000-000000000301",
+      "sourceLang": "eng_Latn",
+      "targetLang": "zul_Latn",
+      "text": "Good morning, welcome to OpenConnect."
+    },
+    {
+      "taskId": "00000000-0000-4000-8000-000000000302",
+      "sourceLang": "fra_Latn",
+      "targetLang": "eng_Latn",
+      "text": "Bonjour tout le monde."
+    }
+  ]
+}

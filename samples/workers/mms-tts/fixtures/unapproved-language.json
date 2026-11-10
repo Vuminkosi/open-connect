@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-unapproved-language",
+  "optInLanguages": ["eng", "spa"],
+  "requestedLanguage": "deu",
+  "text": "Guten Tag, wie geht es Ihnen?",
+  "expectedBehavior": {
+    "networkFetchAttempted": false,
+    "expectedStatus": 422,
+    "expectedReason": "language_not_opted_in"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-resample-24k-to-16k",
+  "sourceAudio": "utterance-24k.wav",
+  "sourceSampleRateHz": 24000,
+  "targetAudio": "utterance-16k.wav",
+  "targetSampleRateHz": 16000,
+  "downsampleRatio": 0.6666666666666666,
+  "channels": 1
+}

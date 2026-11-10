@@ -1,0 +1,24 @@
+{
+  "fixtureId": "operational-checkpoint-hitl-resume",
+  "acceptanceId": "WSE2E-AT-069",
+  "tenantScope": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "sessionKey": "op-session-checkpoint-001",
+  "agentId": "operational-navigator-agent",
+  "checkpointPayload": {
+    "version": 1,
+    "completedStepIndex": 1,
+    "pendingCommandId": "cmd-approve-step-2",
+    "pendingCommandDigest": "sha256:4f8b9c2e1d3a7f6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b"
+  },
+  "approvalGate": {
+    "commandId": "cmd-approve-step-2",
+    "commandDigest": "sha256:4f8b9c2e1d3a7f6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+    "idempotencyKey": "idem-hitl-step-2",
+    "tamperedDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "expectFirstConsumeOutcome": "Succeeded",
+    "expectReplaySameDigestOutcome": "Succeeded",
+    "expectReplayIsReplayFlag": true,
+    "expectTamperedDigestOutcome": "Conflict",
+    "expectUncertainStepNeverSavedAsCompletedReceipt": true
+  }
+}

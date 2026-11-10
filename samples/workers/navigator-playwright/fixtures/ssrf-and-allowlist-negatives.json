@@ -1,0 +1,157 @@
+{
+  "fixtureId": "navigator-ssrf-and-allowlist-negatives",
+  "acceptanceId": "WSE2E-AT-061",
+  "cases": [
+    {
+      "name": "arbitrary-browser-evaluate-denied",
+      "tool": "browser_evaluate",
+      "args": { "expression": "document.cookie" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "arbitrary-evaluate-denied",
+      "tool": "evaluate",
+      "args": { "script": "window.localStorage" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "arbitrary-eval-denied",
+      "tool": "eval",
+      "args": { "code": "fetch('http://169.254.169.254')" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "arbitrary-exec-denied",
+      "tool": "exec",
+      "args": { "cmd": "id" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "file-read-tool-denied",
+      "tool": "file-read",
+      "args": { "path": "/etc/passwd" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "file-write-tool-denied",
+      "tool": "file-write",
+      "args": { "path": "/tmp/pwn", "content": "x" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "tool_not_allowed"
+    },
+    {
+      "name": "file-scheme-url-denied",
+      "tool": "navigate",
+      "args": { "url": "file:///etc/passwd" },
+      "expectedStatus": 400,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "javascript-scheme-url-denied",
+      "tool": "navigate",
+      "args": { "url": "javascript:alert(1)" },
+      "expectedStatus": 400,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "data-scheme-url-denied",
+      "tool": "navigate",
+      "args": { "url": "data:text/html,<script>alert(1)</script>" },
+      "expectedStatus": 400,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "unapproved-origin-denied",
+      "tool": "navigate",
+      "args": { "url": "https://unapproved.example.org/login" },
+      "expectedStatus": 403,
+      "expectedErrorCode": "approval_required"
+    },
+    {
+      "name": "ssrf-loopback-ipv4-denied",
+      "tool": "navigate",
+      "args": { "url": "http://127.0.0.1:8080/internal/v1/capabilities" },
+      "allowedOriginsOverride": ["http://127.0.0.1:8080"],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "ssrf-cloud-metadata-denied",
+      "tool": "navigate",
+      "args": { "url": "http://169.254.169.254/latest/meta-data/" },
+      "allowedOriginsOverride": ["http://169.254.169.254"],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "ssrf-rfc1918-10-net-denied",
+      "tool": "navigate",
+      "args": { "url": "http://10.0.0.42/internal" },
+      "allowedOriginsOverride": ["http://10.0.0.42"],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "ssrf-rfc1918-192-168-denied",
+      "tool": "navigate",
+      "args": { "url": "http://192.168.1.10/admin" },
+      "allowedOriginsOverride": ["http://192.168.1.10"],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "ssrf-ipv6-loopback-denied",
+      "tool": "navigate",
+      "args": { "url": "http://[::1]:8080/" },
+      "allowedOriginsOverride": ["http://[::1]:8080"],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "dns-rebinding-to-loopback-denied",
+      "tool": "navigate",
+      "args": { "url": "https://rebind-loopback.example.com/secret" },
+      "allowedOriginsOverride": ["https://rebind-loopback.example.com"],
+      "simulatedDnsRecords": [{ "address": "127.0.0.1", "family": 4 }],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "dns-rebinding-to-metadata-denied",
+      "tool": "navigate",
+      "args": { "url": "https://rebind-metadata.example.com/latest" },
+      "allowedOriginsOverride": ["https://rebind-metadata.example.com"],
+      "simulatedDnsRecords": [{ "address": "169.254.169.254", "family": 4 }],
+      "expectedStatus": 403,
+      "expectedErrorCode": "invalid_request"
+    },
+    {
+      "name": "unapproved-target-click-denied",
+      "tool": "click",
+      "args": {
+        "targetId": "btn-unapproved-delete",
+        "approvedTargets": ["hdr-login"]
+      },
+      "expectedStatus": 403,
+      "expectedErrorCode": "approval_required"
+    },
+    {
+      "name": "secret-field-fill-blocked",
+      "tool": "fill",
+      "args": {
+        "targetId": "fld-password",
+        "fieldName": "account_secret",
+        "fieldType": "password",
+        "value": "synthetic-secret-do-not-use-in-prod",
+        "approvedTargets": ["fld-password"]
+      },
+      "expectedStatus": 403,
+      "expectedErrorCode": "privacy_blocked"
+    }
+  ]
+}

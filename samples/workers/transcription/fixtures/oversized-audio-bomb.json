@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-oversized-audio-bomb",
+  "limits": {
+    "maxAudioBytes": 5242880,
+    "maxDurationMs": 300000
+  },
+  "bombPayload": {
+    "durationMs": 300001,
+    "expectedStatus": 422,
+    "expectedReason": "audio_too_long"
+  }
+}

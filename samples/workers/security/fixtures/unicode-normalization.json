@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "security-unicode-normalization-v1",
+  "description": "Synthetic Unicode normalization, combining diacritics, zero-width joiners, and surrogate/emoji offset alignment tests.",
+  "cases": [
+    {
+      "id": "nfc-combining-accent-and-emoji",
+      "text": "Cafe\u0301 \ud83d\udc69\u200d\ud83d\udcbb contact bob.unicode@example.org or +1 415 555 0199.",
+      "detectors": ["rules"],
+      "expectedSpans": [
+        {
+          "entityType": "EMAIL",
+          "matchedText": "bob.unicode@example.org",
+          "codePointStart": 19,
+          "codePointEnd": 42
+        },
+        {
+          "entityType": "PHONE",
+          "matchedText": "+1 415 555 0199",
+          "codePointStart": 46,
+          "codePointEnd": 61
+        }
+      ]
+    },
+    {
+      "id": "multilingual-cjk-rtl-prefix",
+      "text": "\u6771\u4eac\u652f\u5e97 \u0645\u0631\u062d\u0628\u0627 support.intl@example.com token=canary-unicode-do-not-use-in-prod",
+      "detectors": ["rules"],
+      "expectedSpans": [
+        {
+          "entityType": "EMAIL",
+          "matchedText": "support.intl@example.com",
+          "codePointStart": 11,
+          "codePointEnd": 35
+        },
+        {
+          "entityType": "SECRET",
+          "matchedText": "token=canary-unicode-do-not-use-in-prod",
+          "codePointStart": 36,
+          "codePointEnd": 75
+        }
+      ]
+    }
+  ]
+}

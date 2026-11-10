@@ -1,22 +1,83 @@
-# E2E sample for the Transcription worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
-# Canonical image source (never a toy worker image):
-#   workers/transcription/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
-# so parallel runs never share networks or volumes.
+name: oc-e2e-voice-vad-client-server
+
+# Standalone E2E stack for Client/Server Voice VAD (§6.1).
+# Reuses the canonical Transcription worker image; NO 12th worker image!
+# Runtime model cache lives in the named volume oc_transcription_models; NO weights are baked into the image.
+
 services:
   transcription:
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_E2E_TAG:-e2e-local}
     build:
-      context: ../../../workers/transcription
-      dockerfile: Dockerfile
-    image: openconnect/transcription:e2e-local
-    ports:
-      - "${PORT_TRANSCRIPTION:-8084}:8080"
+      context: ../../..
+      dockerfile: workers/transcription/Dockerfile
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OPENCONNECT_TRANSCRIPTION_TOKEN: ${OPENCONNECT_TRANSCRIPTION_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-fake}
+      OC_TRANSCRIPTION_MODEL: ${OC_TRANSCRIPTION_MODEL:-whisper-tiny}
+      OC_TRANSCRIPTION_FILE_URL: ""
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-disabled}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Development}
+    volumes:
+      - oc_transcription_models:/models:ro
+    ports:
+      - "127.0.0.1:${PORT_TRANSCRIPTION:-8084}:8080"
+    networks:
+      - oc-test-private
+      - oc-test-host-bridge
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health/live',timeout=2).status==200 else 1)"
       interval: 5s
       timeout: 3s
-      retries: 24
-      start_period: 10s
+      retries: 12
+      start_period: 5s
+
+  test-host:
+    profiles: ["harness", "integration"]
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_E2E_TAG:-e2e-local}
+    depends_on:
+      transcription:
+        condition: service_healthy
+    environment:
+      WORKER_BASE_URL: http://transcription:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+    networks:
+      - oc-test-private
+    command: ["python", "-c", "import urllib.request; print(urllib.request.urlopen('http://transcription:8080/health/ready', timeout=5).read().decode())"]
+
+  e2e-test:
+    profiles: ["harness", "integration"]
+    image: vuminkosimatibe/openconnect-worker-transcription:${OC_E2E_TAG:-e2e-local}
+    depends_on:
+      transcription:
+        condition: service_healthy
+    environment:
+      WORKER_BASE_URL: http://transcription:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+    volumes:
+      - ./:/sample:ro
+    networks:
+      - oc-test-private
+    command: ["python", "/sample/tests/test_vad_client_server.py"]
+
+volumes:
+  oc_transcription_models:
+    name: oc_transcription_models
+
+networks:
+  oc-test-private:
+    internal: true
+  oc-test-host-bridge:
+    driver: bridge

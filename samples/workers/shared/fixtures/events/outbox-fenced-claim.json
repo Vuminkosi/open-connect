@@ -1,0 +1,1 @@
+{"batchSize":50,"fencingToken":1,"requirePubAckBeforeDelivered":true,"disallowPlaintextPii":true}

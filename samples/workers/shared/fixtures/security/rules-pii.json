@@ -1,0 +1,1 @@
+{"tenantId":"01JCF3G72M9W4P7RVAXB3C9D1E","principalId":"01JCF3G72M9W4P7RVAXB3C9D1F","text":"Contact synthetic.user@example.test or +1-555-234-5678","expectedEntities":["email","phone"]}

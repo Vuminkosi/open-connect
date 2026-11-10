@@ -1,0 +1,15 @@
+{
+  "fixtureId": "operational-competing-hosts-lease-fence",
+  "acceptanceId": "WSE2E-AT-068",
+  "tenantScope": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "supervisorResourceKey": "oc/operational/supervisor",
+  "executionId": "exec-fence-race-001",
+  "competingHosts": ["host-alpha", "host-bravo"],
+  "expectedWinnerCount": 1,
+  "expectedInitialFencingToken": 1,
+  "expectedTakeoverFencingTokenAfterExpiry": 2,
+  "staleHostWriteAfterTakeover": {
+    "expectedRunStatus": "LeaseLost",
+    "expectDurableReceiptSaved": false
+  }
+}

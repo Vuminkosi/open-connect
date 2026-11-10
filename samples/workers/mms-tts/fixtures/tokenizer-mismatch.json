@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-tokenizer-mismatch",
+  "declaredTokenizerHash": "expected-sha256-hash",
+  "actualTokenizerHash": "corrupted-sha256-hash",
+  "expectedBehavior": {
+    "readinessFails": true,
+    "expectedStatus": 503,
+    "expectedReason": "tokenizer_mismatch"
+  }
+}

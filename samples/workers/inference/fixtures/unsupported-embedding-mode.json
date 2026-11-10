@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-unsupported-embedding-mode",
+  "requestId": "123e4567-e89b-42d3-a456-426614174007",
+  "requestedCapabilities": ["embeddings"],
+  "expectedBehavior": {
+    "engineAdvertisesEmbeddings": false,
+    "rejectionStatusCode": 422,
+    "rejectionReason": "capability_unavailable"
+  }
+}

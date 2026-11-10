@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OpenConnect.Samples.Workers.Host</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Workers.Host</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <NoWarn>$(NoWarn);1591;NU1902;NU1903</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902;NU1903</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Core\OpenConnect.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Agents\OpenConnect.Agents.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Privacy\OpenConnect.Privacy.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Tools\OpenConnect.Tools.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Transport.Nats\OpenConnect.Transport.Nats.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Hosting.AspNetCore\OpenConnect.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator\OpenConnect.Navigator.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.AspNetCore\OpenConnect.Navigator.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.Operational\OpenConnect.Navigator.Operational.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.OperationalBrowser\OpenConnect.Navigator.OperationalBrowser.csproj" />
+    <ProjectReference Include="..\OpenConnect.Samples.Workers.Contracts\OpenConnect.Samples.Workers.Contracts.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+</Project>

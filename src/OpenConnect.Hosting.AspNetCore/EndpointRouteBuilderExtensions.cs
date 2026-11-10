@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore.Execution;
 
 [assembly: InternalsVisibleTo("OpenConnect.Hosting.Tests")]
@@ -20,28 +21,111 @@ namespace OpenConnect.Hosting.AspNetCore;
 /// <summary>Maps the versioned OpenConnect HTTP API.</summary>
 public static class EndpointRouteBuilderExtensions
 {
+    private static readonly ConditionalWeakTable<IEndpointRouteBuilder, HashSet<string>> MappedEndpointGroups = new();
+
+    private static bool TryMarkMapped(IEndpointRouteBuilder endpoints, string groupName)
+    {
+        var set = MappedEndpointGroups.GetOrCreateValue(endpoints);
+        lock (set)
+        {
+            return set.Add(groupName);
+        }
+    }
+
     /// <summary>Maps OpenConnect endpoints under <c>/openconnect/v1</c>.</summary>
     public static IEndpointRouteBuilder MapOpenConnect(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        var group = endpoints.MapGroup("/openconnect/v1");
 
-        group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+        if (TryMarkMapped(endpoints, "core"))
         {
-            var store = context.RequestServices.GetService<InMemoryTaskStore>();
-            return store is null
-                ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
-                : await HandleCreateTaskAsync(context, request, store, cancellationToken);
+            var group = endpoints.MapGroup("/openconnect/v1");
+
+            group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+            {
+                var store = context.RequestServices.GetService<InMemoryTaskStore>();
+                return store is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
+                    : await HandleCreateTaskAsync(context, request, store, cancellationToken);
+            }).RequireAuthorization();
+            group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
+            group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
+            group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
+            group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
+            group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
+            group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
+            group.MapGet("/components", HandleComponents).RequireAuthorization();
+            group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+            group.MapGet("/health/ready", HandleReady).RequireAuthorization();
+        }
+
+        // Sub-feature endpoints are idempotent and safe to map here or call explicitly
+        endpoints.MapOpenConnectVoice();
+        endpoints.MapOpenConnectNavigator();
+        endpoints.MapOpenConnectMcp();
+
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect voice endpoints under <c>/openconnect/v1/voice</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectVoice(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "voice")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/voice");
+        group.MapGet("/status", (IServiceProvider services) =>
+        {
+            var vad = services.GetService<ServerSileroVadEngine>();
+            return Results.Ok(new { vadConfigured = vad is not null });
         }).RequireAuthorization();
-        group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
-        group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
-        group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
-        group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
-        group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
-        group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
-        group.MapGet("/components", HandleComponents).RequireAuthorization();
-        group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-        group.MapGet("/health/ready", HandleReady).RequireAuthorization();
+
+        group.MapPost("/audio", (HttpContext context) =>
+        {
+            if (!context.Request.HasFormContentType && !context.Request.ContentType?.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Audio payload must be audio/* or multipart form.");
+            }
+            if (context.Request.ContentLength > 10 * 1024 * 1024)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Audio payload exceeds maximum allowed size.");
+            }
+            return Results.Ok(new { status = "accepted" });
+        }).RequireAuthorization();
+
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect navigator endpoints under <c>/openconnect/v1/navigator</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectNavigator(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "navigator")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/navigator");
+        group.MapGet("/status", (IServiceProvider services) =>
+        {
+            var registry = services.GetService<IWorkerCapabilityRegistry>();
+            var ready = registry?.GetReady().Where(w => w.Kind == OpenConnectWorkerKind.NavigatorPlaywright).ToArray() ?? [];
+            return Results.Ok(new { ready = ready.Length > 0, count = ready.Length });
+        }).RequireAuthorization();
+
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect MCP endpoints under <c>/openconnect/v1/mcp</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectMcp(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "mcp")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/mcp");
+        group.MapGet("/tools", (IServiceProvider services) =>
+        {
+            var catalog = services.GetService<IToolCatalog>();
+            return Results.Ok(catalog is not null ? catalog.GetForAgent(new AgentId("default")) : Array.Empty<ToolDescriptor>());
+        }).RequireAuthorization();
+
         return endpoints;
     }
 

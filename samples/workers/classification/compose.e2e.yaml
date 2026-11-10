@@ -1,26 +1,71 @@
-# E2E sample for the Classification worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
-# Canonical image source (never a toy worker image):
-#   workers/classification/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
-# so parallel runs never share networks or volumes.
+# E2E sample for the Classification worker (T0-T5).
+# Canonical production image source:
+#   workers/classification/Dockerfile & workers/classification/compose.yaml
+# Image repository: vuminkosimatibe/openconnect-worker-classification (local e2e tag only in PR/CI)
+# Model cache volume: oc_classification_models
 services:
   classification:
     build:
       context: ../../../workers/classification
       dockerfile: Dockerfile
-    image: openconnect/classification:e2e-local
+    image: vuminkosimatibe/openconnect-worker-classification:${OC_E2E_TAG:-e2e-local}
     ports:
       - "${PORT_CLASSIFICATION:-8081}:8080"
     environment:
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
-      OC_WORKER_ENGINE: fake
-      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-fake}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-CI}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-cpu}
-      LABEL_SET_VERSION: v1
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+      LABEL_SET_VERSION: ${LABEL_SET_VERSION:-v1}
+    volumes:
+      - oc_classification_models:/models:ro
+    networks:
+      - oc-test-private
+      - oc-test-loopback
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 24
       start_period: 10s
+
+  test-host:
+    profiles: ["harness", "integration"]
+    build:
+      context: ../../..
+      dockerfile: samples/workers/shared/OpenConnect.Samples.Workers.Host/Dockerfile
+    environment:
+      OC_WORKER_CLASSIFICATION_URL: http://classification:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_TEST_MODE: "true"
+    networks:
+      - oc-test-private
+    depends_on:
+      classification:
+        condition: service_healthy
+
+  e2e-test:
+    profiles: ["harness", "integration"]
+    build:
+      context: ../../..
+      dockerfile: samples/workers/shared/OpenConnect.Samples.Workers.TestKit/Dockerfile
+    command: ["test", "--worker", "classification", "--tier", "integration"]
+    networks:
+      - oc-test-private
+    depends_on:
+      test-host:
+        condition: service_healthy
+
+networks:
+  oc-test-private:
+    internal: true
+  oc-test-loopback:
+    driver: bridge
+
+volumes:
+  oc_classification_models:
+    name: oc_classification_models

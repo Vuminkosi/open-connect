@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-malicious-fake-engine-claim",
+  "environment": "Production",
+  "requestedEngine": "fake",
+  "expectedRejection": {
+    "statusCode": 503,
+    "errorCode": "fake_engine_prohibited"
+  }
+}

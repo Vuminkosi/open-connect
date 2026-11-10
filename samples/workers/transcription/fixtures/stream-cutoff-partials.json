@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-stream-cutoff-partials",
+  "taskId": "123e4567-e89b-42d3-a456-426614174014",
+  "chunks": [
+    { "seq": 0, "partialText": "Hello", "isFinal": false },
+    { "seq": 1, "partialText": "Hello world", "isFinal": false },
+    { "seq": 2, "partialText": "Hello world.", "isFinal": true }
+  ],
+  "expectedBehavior": {
+    "singleFinalCommit": true,
+    "interruptedChunkDiscarded": true
+  }
+}

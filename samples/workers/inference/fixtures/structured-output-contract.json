@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-structured-output-contract",
+  "requestId": "123e4567-e89b-42d3-a456-426614174004",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "summary": { "type": "string" },
+      "score": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "required": ["summary", "score"]
+  },
+  "sampleResponse": {
+    "summary": "Bounded fake response conforming to schema",
+    "score": 0.95
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "fixtureId": "outbox-atomic-task-event-outbox",
+  "acceptanceId": "WSE2E-AT-074",
+  "tenantScope": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "atomicAcceptance": {
+    "taskId": "task-atomic-001",
+    "sessionId": "sess-atomic-001",
+    "idempotencyKey": "idem-atomic-001",
+    "eventType": "task.created",
+    "outboxSubject": "oc.v1.notifications.inapp",
+    "expectCommittedRowsCount": 3,
+    "rollbackScenario": {
+      "failDuringUnitOfWork": true,
+      "expectCommittedOutboxRows": 0,
+      "expectCommittedTaskRows": 0,
+      "expectCommittedEventRows": 0
+    }
+  }
+}

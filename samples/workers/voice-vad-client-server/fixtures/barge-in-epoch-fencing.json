@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "vad-barge-in-epoch-fencing",
+  "sessionId": "123e4567-e89b-42d3-a456-426614174025",
+  "speechEpoch": 1,
+  "bargeInTriggered": true,
+  "nextSpeechEpoch": 2,
+  "expectedBehavior": {
+    "discardPendingAudioEpoch1": true,
+    "singleFinalCommit": true,
+    "noPartialTranscriptCommit": true
+  }
+}

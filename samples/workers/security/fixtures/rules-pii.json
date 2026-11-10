@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "security-rules-pii-v1",
+  "description": "Synthetic structured PII (email, phone, secret token, payment card, SSN, IP) for deterministic rules-only detector verification.",
+  "request": {
+    "schemaVersion": "openconnect.v1",
+    "requestId": "123e4567-e89b-42d3-a456-426614174010",
+    "text": "Contact alice.synthetic@example.org or call +1-202-555-0143 with api_key=synthetic-canary-token-do-not-use-in-prod regarding account.",
+    "detectors": ["rules"],
+    "policyRevision": "e2e-rules-1"
+  },
+  "expectedSpans": [
+    {
+      "entityType": "EMAIL",
+      "start": 8,
+      "end": 35,
+      "matchedText": "alice.synthetic@example.org",
+      "minConfidence": 0.95,
+      "decision": "mask"
+    },
+    {
+      "entityType": "PHONE",
+      "start": 44,
+      "end": 59,
+      "matchedText": "+1-202-555-0143",
+      "minConfidence": 0.85,
+      "decision": "mask"
+    },
+    {
+      "entityType": "SECRET",
+      "start": 65,
+      "end": 114,
+      "matchedText": "api_key=synthetic-canary-token-do-not-use-in-prod",
+      "minConfidence": 0.85,
+      "decision": "mask"
+    }
+  ],
+  "additionalCases": [
+    {
+      "id": "luhn-card-and-ip",
+      "text": "Card 4111-1111-1111-1111 from host 198.51.100.42",
+      "expectedEntityTypes": ["PHONE"]
+    }
+  ]
+}

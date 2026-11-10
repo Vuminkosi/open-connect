@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-corrupt-tokenizer",
+  "validManifest": {
+    "modelId": "nllb-200-distilled-600M",
+    "revision": "rev-2026-04-01",
+    "license": "CC-BY-NC-4.0",
+    "expected_tokenizer_Content": "sentencepiece-vocabulary-v1"
+  },
+  "corruptedTokenizerContent": "CORRUPTED_BYTES_DO_NOT_USE",
+  "expectedReadiness": {
+    "ready": false,
+    "reason": "tokenizer_mismatch"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-interrupted-stream-epoch",
+  "taskId": "123e4567-e89b-42d3-a456-426614174023",
+  "presentedEpoch": 0,
+  "currentSessionEpoch": 1,
+  "expectedBehavior": {
+    "streamInterrupted": true,
+    "remainingChunksDiscarded": true
+  }
+}

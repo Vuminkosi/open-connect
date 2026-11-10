@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-text-overflow",
+  "maxChars": 2000,
+  "oversizedInput": {
+    "repeatUnit": "MMS text to speech bounds check sentence. ",
+    "repeatCount": 60,
+    "expectedStatus": 422,
+    "expectedReason": "input_too_long"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "fixtureId": "navigator-allowlisted-flow",
+  "acceptanceId": "WSE2E-AT-060",
+  "allowedOrigins": [
+    "https://example.com",
+    "http://synthetic-site:8090"
+  ],
+  "approvedTargets": [
+    "hdr-login",
+    "fld-search",
+    "sel-topic",
+    "nav-next",
+    "btn-confirm-tour"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "tool": "observe",
+      "args": {
+        "url": "https://example.com/index.html"
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "nodes", "redacted", "profileCleaned"]
+    },
+    {
+      "step": 2,
+      "tool": "find-target",
+      "args": {
+        "url": "https://example.com/index.html",
+        "query": "Log in"
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "targets", "profileCleaned"]
+    },
+    {
+      "step": 3,
+      "tool": "navigate",
+      "args": {
+        "url": "https://example.com/page2.html"
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "url", "profileCleaned"]
+    },
+    {
+      "step": 4,
+      "tool": "click",
+      "args": {
+        "targetId": "hdr-login",
+        "approvedTargets": ["hdr-login"]
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "targetId", "profileCleaned"]
+    },
+    {
+      "step": 5,
+      "tool": "fill",
+      "args": {
+        "targetId": "fld-search",
+        "fieldName": "q",
+        "fieldLabel": "Search",
+        "value": "privacy firewall",
+        "approvedTargets": ["fld-search"]
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "targetId", "filled", "redacted", "profileCleaned"]
+    },
+    {
+      "step": 6,
+      "tool": "select",
+      "args": {
+        "targetId": "sel-topic",
+        "value": "security",
+        "approvedTargets": ["sel-topic"]
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "targetId", "value", "profileCleaned"]
+    },
+    {
+      "step": 7,
+      "tool": "wait",
+      "args": {
+        "ms": 250
+      },
+      "expectedStatus": 200,
+      "requiredFields": ["ok", "tool", "waitedMs", "profileCleaned"]
+    }
+  ]
+}

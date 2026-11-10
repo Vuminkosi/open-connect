@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-provider-network-deny-policy",
+  "privacyMode": "strict-local",
+  "cloudApiUrl": "https://api.external-inference-provider.example/v1/chat/completions",
+  "expectedBehavior": {
+    "outboundEgressBlocked": true,
+    "rejectionStatusCode": 503,
+    "rejectionDetail": "privacy_blocked"
+  }
+}

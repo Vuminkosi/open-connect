@@ -1,28 +1,26 @@
-# E2E sample for the Outbox relay (.NET host) worker — T3 live relay proof.
-# Canonical image source (never a toy worker image):
-#   workers/outbox/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see tests/t3_runtime.sh)
-# so parallel runs never share networks or volumes.
-#
-# Decision REG-S07-DNDESIGN-B: the worker exposes NO ports and has NO
-# healthcheck (it is a background dispatcher host; the former :8080
-# healthcheck/ports were fictional). Liveness is proven via container uptime
-# + the `Outbox dispatcher started … subject oc.v1.notifications.inapp` log
-# marker + the PUBACK-then-marked-delivered relay assert.
-#
-# Migrations are MANUAL: the worker never runs DDL
-# (OpenConnectMigrationMode.Manual in Program.cs). The T3 harness applies the
-# existing sample-owned EF migrations
-# (samples/PostgreSql, history __PostgreSqlMigrationsHistory) against this
-# disposable compose postgres BEFORE the worker starts.
+# E2E sample for the Outbox relay (.NET WorkerHost) — §5.11 (WSE2E-IMP-020, WSE2E-AT-073..080).
+# T4 model-live: NOT_APPLICABLE / NOT_RUN (no ML models exist for this worker).
+# Canonical image source:
+#   src/OpenConnect.WorkerHosts.Outbox/Dockerfile (mirrored at workers/outbox/Dockerfile)
+# No model volume and no model provisioner service are defined (WSE2E-AT-073).
+# Embedded dispatcher disabled:
+#   WorkerHosts__Outbox__Mode=Standalone
+#   WorkerHosts__Outbox__EmbeddedDispatcherEnabled=false
+# Migrations are MANUAL: the worker never runs DDL. Sample-owned migrations in ./Migrations/.
 services:
   outbox:
     build:
-      # Repo-root context: the Dockerfile COPYs src/* + workers/* per its header.
       context: ../../..
-      dockerfile: workers/outbox/Dockerfile
-    image: openconnect/outbox:e2e-local
+      dockerfile: ${OUTBOX_DOCKERFILE:-src/OpenConnect.WorkerHosts.Outbox/Dockerfile}
+    image: vuminkosimatibe/openconnect-worker-outbox:${OC_IMAGE_TAG:-e2e-local}
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,23 +29,27 @@ services:
     environment:
       WorkerHosts__Outbox__Mode: Standalone
       WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
-      WorkerHosts__Outbox__TenantUlid: ${OC_OUTBOX_TENANT_ULID:?Set OC_OUTBOX_TENANT_ULID to the synthetic tenant ULID}
-      WorkerHosts__Outbox__DatabaseProvider: npgsql
-      WorkerHosts__Outbox__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+      WorkerHosts__Outbox__TenantUlid: ${OC_OUTBOX_TENANT_ULID:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
+      WorkerHosts__Outbox__DatabaseProvider: ${OC_OUTBOX_DB_PROVIDER:-npgsql}
+      WorkerHosts__Outbox__ConnectionString: ${OC_OUTBOX_CONNECTION_STRING:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-e2e-test-pw-do-not-use-in-prod}}
       WorkerHosts__Outbox__NatsUrl: nats://nats:4222
       WorkerHosts__Outbox__Subject: ${NATS_NOTIFICATION_SUBJECT:-oc.v1.notifications.inapp}
       WorkerHosts__Outbox__PollingInterval: ${OC_OUTBOX_POLL_INTERVAL:-00:00:02}
+      WorkerHosts__Outbox__SupervisorLeaseDuration: "00:00:30"
+      WorkerHosts__Outbox__BatchSize: "50"
+    networks:
+      - oc-test-private
 
   postgres:
     image: postgis/postgis:17-3.6-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-openconnect}
       POSTGRES_USER: ${POSTGRES_USER:-openconnect}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to the disposable test password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-e2e-test-pw-do-not-use-in-prod}
     ports:
-      # Host-mapped for the sample-side `dotnet ef migrations script` apply +
-      # psql seed/probe only. The worker itself reaches postgres over compose DNS.
       - "127.0.0.1:${POSTGRES_PORT:-55434}:5432"
+    networks:
+      - oc-test-private
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
@@ -56,15 +58,17 @@ services:
 
   nats:
     image: nats:2.15.1-alpine3.22
-    # -js enables JetStream; -m explicitly enables the HTTP monitoring
-    # endpoint (recent nats-server builds no longer listen on :8222 by
-    # default), which the healthcheck probes.
     command: ["-js", "-m", "8222"]
     ports:
-      # Host-mapped for the JetStream receipt probe only.
       - "127.0.0.1:${NATS_HTTP_PORT:-8222}:8222"
+    networks:
+      - oc-test-private
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8222/healthz"]
       interval: 5s
       timeout: 5s
       retries: 12
+
+networks:
+  oc-test-private:
+    internal: true

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-short-text-af-heart",
+  "taskId": "123e4567-e89b-42d3-a456-426614174020",
+  "input": {
+    "text": "Hello, welcome to OpenConnect voice synthesis.",
+    "voiceId": "af_heart",
+    "locale": "en",
+    "format": "wav"
+  },
+  "expectedBehavior": {
+    "expectedStatus": 200,
+    "expectedSampleRateHz": 24000,
+    "expectedChannels": 1
+  }
+}

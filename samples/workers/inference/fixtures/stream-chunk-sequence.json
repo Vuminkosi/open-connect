@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-stream-chunk-sequence",
+  "requestId": "123e4567-e89b-42d3-a456-426614174005",
+  "expectedProperties": {
+    "contiguousSeqFromZero": true,
+    "terminalOnce": true,
+    "finalChunkDelta": ""
+  },
+  "sampleChunks": [
+    { "seq": 0, "delta": "fake-inference ", "done": false },
+    { "seq": 1, "delta": "response to: ", "done": false },
+    { "seq": 2, "delta": "Hello", "done": false },
+    { "seq": 3, "delta": "", "done": true }
+  ]
+}
