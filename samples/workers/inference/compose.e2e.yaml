@@ -13,7 +13,17 @@ services:
     ports:
       - "${PORT_INFERENCE:-8083}:8080"
     environment:
-      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      # T3 E2E (explicitly fake-labeled, local-only): opt OUT of the cloud leg
+      # (empty OC_INFERENCE_API_BASE_URL => cloud_url None => no key required;
+      # production fail-closed CloudConfigError when URL set without key is
+      # unchanged in the app), run the explicitly labeled fake engine, and use
+      # the app's canonical token var (OPENCONNECT_INFERENCE_TOKEN, which the
+      # app reads; OPENCONNECT_WORKER_TOKEN is the fallback). Fixture model is
+      # a non-contributor id so the contributor approval gate stays untouched.
+      OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: fake
+      OC_INFERENCE_API_BASE_URL: ""
+      OC_INFERENCE_MODEL: muse-spark-1.3
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s
