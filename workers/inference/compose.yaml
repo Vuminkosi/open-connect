@@ -31,6 +31,13 @@ services:
       OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
       OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
       OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      # Cloud is opt-in only (empty = local-only). A shared URL can be wired
+      # per deploy via INFERENCE_CLOUD_URL: ${WORKER_CLOUD_URL:-}. The API key
+      # must come from a secret mount, never baked into images or logs.
+      INFERENCE_CLOUD_URL: ${INFERENCE_CLOUD_URL:-}
+      INFERENCE_CLOUD_API_KEY: ${INFERENCE_CLOUD_API_KEY:-}
+      INFERENCE_ROUTE_ORDER: ${INFERENCE_ROUTE_ORDER:-cloud-first}
+      INFERENCE_CLOUD_TIMEOUT_MS: ${INFERENCE_CLOUD_TIMEOUT_MS:-5000}
       INFERENCE_BACKEND: ${INFERENCE_BACKEND:-python-transformers}
       INFERENCE_MODEL_ID: ${INFERENCE_MODEL_ID:-}
       INFERENCE_MODEL_REVISION: ${INFERENCE_MODEL_REVISION:-}
