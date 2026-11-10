@@ -1,0 +1,32 @@
+name: workers-samples-e2e (sketch)
+# SKETCH — canonical CI lives outside samples/workers ownership.
+# Kept here because .github/** is owned by another worker.
+# Promote to .github/workflows/workers-samples-e2e.yml when authorized.
+#
+# Tiers: T0 (compose config) + T1 (contract fixtures) run on every PR.
+# T2/T3 run on demand (workflow_dispatch) with bounded waits.
+# T4 model-live is BLOCKED/NOT_RUN: no approved model assets.
+
+on:
+  pull_request:
+    paths:
+      - "samples/workers/**"
+      - "workers/**/Dockerfile"
+  workflow_dispatch:
+
+jobs:
+  t0-t1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: T0 compose config (all samples)
+        run: |
+          for f in samples/workers/*/compose.e2e.yaml samples/workers/all-workers/compose.e2e.yaml; do
+            echo "==> $f"
+            docker compose -f "$f" config >/dev/null
+          done
+      - name: T1 contract fixtures
+        run: sh samples/workers/shared/scripts/run-all.sh --tier t1 --provider local
+      - name: Guardrails (no models, no pushes, no secrets, no down -v)
+        run: sh samples/workers/shared/scripts/verify-no-build-models.sh

@@ -1,0 +1,22 @@
+# E2E sample for the Outbox relay (.NET host) worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
+# Canonical image source (never a toy worker image):
+#   workers/outbox/Dockerfile
+# Local tag only. The harness never pushes images and never downloads models.
+# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
+# so parallel runs never share networks or volumes.
+services:
+  outbox:
+    build:
+      context: ../../../workers/outbox
+      dockerfile: Dockerfile
+    image: openconnect/outbox:e2e-local
+    ports:
+      - "${PORT_OUTBOX:-8090}:8080"
+    environment:
+      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
