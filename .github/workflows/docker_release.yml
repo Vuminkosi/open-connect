@@ -1,0 +1,151 @@
+# Docker release — build all worker images, push to Docker Hub only when armed.
+#
+# Namespace: docker.io/vuminkosimatibe.
+# Images: vuminkosimatibe/openconnect-worker-<name>:<version> (+ :latest on tag events).
+#
+# Auth model: Docker Hub username/password from the `production` environment
+# secrets DOCKERHUB_USERNAME / DOCKERHUB_TOKEN (names only; values never appear
+# in repo code or logs). Login executes ONLY when explicitly armed.
+#
+# Version rule (mirrors release.yml):
+#   - Tag push refs/tags/vX.Y.Z (e.g. v1.1.0) -> build that X.Y.Z.
+#     Tag MUST be valid SemVer after stripping the leading `v` or the run fails.
+#   - Manual dispatch publish=true REQUIRES an explicit version: either run
+#     from a v* tag or pass `version` input (validated SemVer). Without an
+#     explicit version the run fails before building (no draft is ever pushed).
+#   - Dry-run (publish != true, the default) with no tag and no `version`
+#     input uses draft 1.0.0-ci.<run_number>; images are built only, never pushed.
+# Gate 7 (maintainer approval) is HARD_BLOCKED until a maintainer says go:
+#   1. The `production` environment MUST have required reviewers configured in
+#      the GitHub UI (Settings > Environments > production). Repo code cannot
+#      create that protection; this workflow only *references* it.
+#   2. Pushing additionally requires inputs.publish == true on a manual
+#      dispatch. Tag pushes (v*) always take the dry-run path: build only,
+#      never push.
+#
+# Required `production` environment configuration (names only, no values):
+#   - Secret  DOCKERHUB_USERNAME : Docker Hub username (namespace owner).
+#   - Secret  DOCKERHUB_TOKEN    : Docker Hub access token (write scope).
+#   - Protection: required reviewers (maintainer approval) + optional
+#                 deployment-branch/tag policy limiting runs to v* tags.
+name: Docker release (workers, dry-run by default)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Push to Docker Hub (false = dry-run: build only, no push)'
+        required: false
+        default: false
+        type: boolean
+      version:
+        description: 'Explicit image version (SemVer, e.g. 1.2.0). Empty = derive from v* tag or use ci draft.'
+        required: false
+        default: ''
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build worker images (push only when armed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        worker:
+          - classification
+          - inference
+          - kokoro
+          - mms-tts
+          - navigator-playwright
+          - nllb
+          - operational-agents
+          - outbox
+          - realtime-voice
+          - security
+          - transcription
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Resolve image version
+        id: resolve-version
+        shell: pwsh
+        run: |
+          $semver = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+          $ref = '${{ github.ref }}'
+          $inputVersion = '${{ inputs.version }}'.Trim()
+          $wantsPublish = '${{ inputs.publish }}' -eq 'true'
+          $version = ''
+          $source = ''
+          if ($ref -like 'refs/tags/v*') {
+            $version = $ref.Substring('refs/tags/v'.Length).Trim()
+            $source = "tag $ref"
+            if (-not ($version -match $semver)) { Write-Error "Tag version '$version' from $ref is not valid SemVer."; exit 1 }
+          } elseif ($inputVersion -ne '') {
+            $version = $inputVersion
+            $source = 'workflow_dispatch inputs.version'
+            if (-not ($version -match $semver)) { Write-Error "Input version '$version' is not valid SemVer."; exit 1 }
+          } else {
+            if ($wantsPublish) { Write-Error 'publish=true requires an explicit version: run from a v* tag or pass the `version` input.'; exit 1 }
+            $version = '1.0.0-ci.${{ github.run_number }}'
+            $source = 'dry-run draft'
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Resolved image version $version (source: $source)."
+
+      - name: Resolve image tags
+        id: resolve-tags
+        shell: pwsh
+        run: |
+          $worker = '${{ matrix.worker }}'
+          $version = '${{ steps.resolve-version.outputs.version }}'
+          $tagList = @("vuminkosimatibe/openconnect-worker-${worker}:${version}")
+          if ('${{ github.ref }}' -like 'refs/tags/v*') {
+            $tagList += "vuminkosimatibe/openconnect-worker-${worker}:latest"
+          }
+          $delimiter = 'IMAGETAGS_EOF'
+          "tags<<$delimiter" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $tagList | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $delimiter | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host ('Image tags: ' + ($tagList -join ', '))
+
+      # Armed-only login. Skipped on every dry-run, so no registry
+      # credentials are touched unless publish == true.
+      - name: Log in to Docker Hub (armed publishes only)
+        if: ${{ inputs.publish == true }}
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build worker image (push only when armed)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: workers/${{ matrix.worker }}
+          file: workers/${{ matrix.worker }}/Dockerfile
+          push: ${{ inputs.publish == true }}
+          tags: ${{ steps.resolve-tags.outputs.tags }}
+
+      - name: Dry-run summary (no push)
+        if: ${{ inputs.publish != true }}
+        shell: pwsh
+        run: |
+          Write-Host 'DRY-RUN: image built only. No push executed (inputs.publish != true).'
+          Write-Host ('DRY-RUN VERSION: ' + '${{ steps.resolve-version.outputs.version }}' + ' (draft unless derived from a v* tag or `version` input; never pushed).')
