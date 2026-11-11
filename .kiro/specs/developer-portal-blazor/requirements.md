@@ -1,6 +1,6 @@
 # Developer portal on Blazor Web App requirements
 
-**Status:** Approved implementation direction, evidence-gated.  
+**Status:** Approved implementation direction, evidence-gated.
 **Supersedes:** Astro/Starlight site-hosting implementation for `OC2-D-REL-023`, `OC2-D-REL-024`, `OC2-D-REL-025`; the historical IDs and behavioral obligations remain in scope.
 
 ## Product boundary
