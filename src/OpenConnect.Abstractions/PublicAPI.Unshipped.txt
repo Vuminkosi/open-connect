@@ -381,11 +381,22 @@ OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly = 0 -> OpenConnect.Abs
 OpenConnect.Abstractions.ModelExecutionLocation.RemoteAllowed = 2 -> OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Abstractions.ModelExecutionLocation.SelfHosted = 1 -> OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Abstractions.ModelRequirement
+OpenConnect.Abstractions.ModelRequirement.FallbackModelId.get -> string?
+OpenConnect.Abstractions.ModelRequirement.FallbackModelId.init -> void
 OpenConnect.Abstractions.ModelRequirement.Location.get -> OpenConnect.Abstractions.ModelExecutionLocation?
 OpenConnect.Abstractions.ModelRequirement.Location.init -> void
 OpenConnect.Abstractions.ModelRequirement.ModelId.get -> string?
 OpenConnect.Abstractions.ModelRequirement.ModelId.init -> void
-OpenConnect.Abstractions.ModelRequirement.ModelRequirement(string? ModelId = null, OpenConnect.Abstractions.ModelExecutionLocation? Location = null) -> void
+OpenConnect.Abstractions.ModelRequirement.ModelRequirement(string? ModelId = null, OpenConnect.Abstractions.ModelExecutionLocation? Location = null, bool RequireTools = false, bool RequireStreaming = false, bool RequireStructuredOutput = false, bool RequireVision = false, string? FallbackModelId = null) -> void
+OpenConnect.Abstractions.ModelRequirement.ModelRequirement(string? modelId, OpenConnect.Abstractions.ModelExecutionLocation? location) -> void
+OpenConnect.Abstractions.ModelRequirement.RequireStreaming.get -> bool
+OpenConnect.Abstractions.ModelRequirement.RequireStreaming.init -> void
+OpenConnect.Abstractions.ModelRequirement.RequireStructuredOutput.get -> bool
+OpenConnect.Abstractions.ModelRequirement.RequireStructuredOutput.init -> void
+OpenConnect.Abstractions.ModelRequirement.RequireTools.get -> bool
+OpenConnect.Abstractions.ModelRequirement.RequireTools.init -> void
+OpenConnect.Abstractions.ModelRequirement.RequireVision.get -> bool
+OpenConnect.Abstractions.ModelRequirement.RequireVision.init -> void
 OpenConnect.Abstractions.OpenConnectTransportMode
 OpenConnect.Abstractions.OpenConnectTransportMode.InMemoryDevelopment = 1 -> OpenConnect.Abstractions.OpenConnectTransportMode
 OpenConnect.Abstractions.OpenConnectTransportMode.JetStream = 0 -> OpenConnect.Abstractions.OpenConnectTransportMode

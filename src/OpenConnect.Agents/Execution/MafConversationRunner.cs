@@ -34,9 +34,10 @@ public sealed class MafConversationRunner
     /// <param name="concurrency">Policy for overlapping turns. Queue currently has the same FIFO gate-wait behavior as Serialize; bounded-queue semantics are not specified.</param>
     /// <param name="runLedger">Optional shared run-wide budget ledger. Each invocation reserves once; tokens are estimated from prompt UTF-8 bytes, not response tokens.</param>
     /// <param name="rateLimitGate">Optional tenant/application rate gate; when absent, rate limiting is skipped. When present, turns and delegated children are each gated exactly once with the attributed tenant before any reservation; unattributed calls deny fail-closed.</param>
+    /// <param name="pinnedCatalogRevision">Optional pinned catalog revision for the run; when specified, resume attempts with incompatible revisions fail closed.</param>
     public MafConversationRunner(MafRealAgentFactory factory, AgentId leadAgentId,
         SessionTurnConcurrency concurrency = SessionTurnConcurrency.Serialize, RunBudgetLedger? runLedger = null,
-        IRateLimitGate? rateLimitGate = null)
+        IRateLimitGate? rateLimitGate = null, string? pinnedCatalogRevision = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _leadAgentId = leadAgentId;
@@ -44,7 +45,11 @@ public sealed class MafConversationRunner
         _concurrency = concurrency;
         _runLedger = runLedger;
         _rateLimitGate = rateLimitGate;
+        PinnedCatalogRevision = pinnedCatalogRevision;
     }
+
+    /// <summary>Gets the pinned catalog revision for this runner, if any.</summary>
+    public string? PinnedCatalogRevision { get; }
 
     /// <summary>Returns a snapshot of the conversation's user and assistant messages.</summary>
     public IReadOnlyList<ChatMessage> History
@@ -222,6 +227,12 @@ public sealed class MafConversationRunner
         ArgumentNullException.ThrowIfNull(persistenceContext);
         var binding = persistenceContext.Binding;
         ValidateExecutionBinding(executionContext, binding);
+        if (PinnedCatalogRevision is not null &&
+            !StringComparer.Ordinal.Equals(binding.DefinitionRevision, PinnedCatalogRevision))
+        {
+            throw new InvalidOperationException(
+                $"The native session binding definition revision '{binding.DefinitionRevision}' does not match the runner's pinned catalog revision '{PinnedCatalogRevision}'.");
+        }
         using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, executionContext.CancellationToken);
         var requestToken = requestCancellation.Token;
@@ -350,14 +361,14 @@ public sealed class MafConversationRunner
         {
             var children = _childHistoryCounts.Select(item =>
                 new ChildSessionCheckpoint(item.Key.AgentId, item.Key.Key, item.Value));
-            return ConversationCheckpointCodec.Export(_leadAgentId.Value, sessionKey, _turnSequence, children);
+            return ConversationCheckpointCodec.Export(_leadAgentId.Value, sessionKey, _turnSequence, children, PinnedCatalogRevision);
         }
     }
 
     /// <summary>Imports compatible counters into an empty runner; it does not reconstruct MAF-owned sessions.</summary>
     public void ImportCheckpoint(ConversationCheckpoint checkpoint, string sessionKey)
     {
-        var validated = ConversationCheckpointCodec.Import(checkpoint, _leadAgentId.Value, sessionKey);
+        var validated = ConversationCheckpointCodec.Import(checkpoint, _leadAgentId.Value, sessionKey, PinnedCatalogRevision);
         lock (_sync)
         {
             if (_history.Count != 0 || _trace.Count != 0 || _turnSequence != 0 || _childSessions.Count != 0)
