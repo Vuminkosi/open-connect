@@ -1,0 +1,47 @@
+name: Documentation Portal
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  portal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Packages.props
+            Directory.Build.props
+            site/OpenConnect.Docs/packages.lock.json
+      - name: Restore portal
+        run: dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
+      - name: Build portal
+        run: dotnet build site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -warnaserror
+      - name: Validate content files
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem site/OpenConnect.Docs/Content -Filter *.md -Recurse
+          if (-not $files) { throw 'No documentation content files found.' }
+          foreach ($file in $files) {
+            $text = Get-Content $file.FullName -Raw
+            if ($text -notmatch '(?s)^---\s*.*?title\s*:') { throw "Missing title front matter: $($file.FullName)" }
+          }
+      - name: Check source tree for secrets in portal assets
+        shell: pwsh
+        run: |
+          $hits = Get-ChildItem site/OpenConnect.Docs -Recurse -File | Select-String -Pattern 'sk-[A-Za-z0-9]{16,}|BEGIN .*PRIVATE KEY|OPENCONNECT_SCAN_TOKEN=' -AllMatches
+          if ($hits) { $hits | Format-List; throw 'Secret-like value found in portal assets.' }
+      - name: Todo source regression build
+        run: dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release --no-restore -warnaserror

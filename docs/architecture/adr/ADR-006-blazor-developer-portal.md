@@ -1,7 +1,7 @@
 # ADR-006: ASP.NET Core Blazor developer portal
 
-**Status:** Accepted  
-**Date:** 2026-11-11  
+**Status:** Accepted
+**Date:** 2026-11-11
 **Supersedes implementation direction:** Astro/Starlight hosting for `OC2-D-REL-023`, `OC2-D-REL-024`, `OC2-D-REL-025` and related SITE obligations.
 
 ## Decision
