@@ -1,0 +1,5 @@
+@rendermode InteractiveServer
+@inject DocumentationSearchService Search
+@inject DocumentationContentStore Content
+<div class="search-box"><label for="docs-search">Search documentation</label><input id="docs-search" @bind="query" @bind:event="oninput" placeholder="Search guides and API notes" /><div aria-live="polite">@if (!string.IsNullOrWhiteSpace(query)) { <ul>@foreach (var result in Results) { <li><a href="/docs/@result.Version/@result.Slug">@result.Title</a><small>@result.Summary</small></li>}</ul> }</div></div>
+@code { private string query = ""; private IReadOnlyList<DocumentationDocument> Results => Search.Search(query, Content.Versions().FirstOrDefault() ?? "v1"); }

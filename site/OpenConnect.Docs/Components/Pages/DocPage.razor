@@ -1,0 +1,24 @@
+@page "/docs/{Version}/{Slug}"
+@inject DocumentationContentStore Content
+@inject NavigationManager Navigation
+
+@if (Document is null)
+{
+    <NotFound />
+}
+else
+{
+    <PageTitle>@Document.Title · OpenConnect</PageTitle>
+    <HeadContent><link rel="canonical" href="/docs/@Document.Version/@Document.Slug" /><meta name="description" content="@Document.Summary" /><meta property="og:title" content="@Document.Title" /></HeadContent>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/docs">Docs</a><span>/</span><span>@Document.Title</span></nav>
+    <div class="doc-heading"><span class="version-label">@Document.Version</span><h1>@Document.Title</h1><p>@Document.Summary</p></div>
+    <MarkdownRenderer Markdown="@Document.Markdown" />
+    <p class="edit-link"><a href="https://github.com/Vuminkosi/open-connect/edit/master/site/OpenConnect.Docs/Content/@Document.Version/@($"{Document.Slug}.md")">Edit this page on GitHub</a></p>
+}
+
+@code {
+    [Parameter] public string Version { get; set; } = "";
+    [Parameter] public string Slug { get; set; } = "";
+    private DocumentationDocument? Document;
+    protected override void OnParametersSet() => Document = Content.Find(Version, Slug);
+}

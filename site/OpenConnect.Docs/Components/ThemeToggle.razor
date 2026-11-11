@@ -1,0 +1,6 @@
+@rendermode InteractiveServer
+<button class="theme-toggle" type="button" @onclick="Toggle" aria-label="Toggle color theme">@(dark ? "Light mode" : "Dark mode")</button>
+@code {
+    private bool dark;
+    private void Toggle() => dark = !dark;
+}

@@ -1,0 +1,27 @@
+@inherits LayoutComponentBase
+@inject DocumentationContentStore Content
+
+<header class="site-header">
+    <a class="brand" href="/" aria-label="OpenConnect home">OpenConnect <span>Developer Portal</span></a>
+    <nav aria-label="Primary navigation">
+        <a href="/docs">Documentation</a>
+        <a href="/tutorials/todo">Todo tutorial</a>
+        <a href="https://github.com/Vuminkosi/open-connect">GitHub</a>
+    </nav>
+    <ThemeToggle />
+</header>
+<div class="shell">
+    <aside class="sidebar" aria-label="Documentation navigation">
+        <a href="/docs">Documentation home</a>
+        @foreach (var version in Content.Versions())
+        {
+            <strong>@version</strong>
+            @foreach (var document in Content.Documents.Where(d => d.Version == version))
+            {
+                <a href="/docs/@version/@document.Slug">@document.Title</a>
+            }
+        }
+    </aside>
+    <main id="main-content" class="content">@Body</main>
+</div>
+<footer class="site-footer">OpenConnect documentation · <a href="/sitemap.xml">Sitemap</a></footer>

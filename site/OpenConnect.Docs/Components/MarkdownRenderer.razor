@@ -1,0 +1,61 @@
+@using System.Net
+@using System.Text.RegularExpressions
+
+<article class="markdown-body">
+@foreach (var block in Blocks)
+{
+    @((MarkupString)block)
+}
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Markdown { get; set; } = string.Empty;
+    private IEnumerable<string> Blocks => Render(Markdown);
+
+    private static IEnumerable<string> Render(string markdown)
+    {
+        var lines = markdown.Replace("\r", string.Empty).Split('\n');
+        var paragraph = new List<string>();
+        var inCode = false;
+        var code = new List<string>();
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("```") && !inCode)
+            {
+                FlushParagraph(paragraph);
+                paragraph.Clear(); inCode = true; code.Clear(); continue;
+            }
+            if (line.StartsWith("```") && inCode)
+            {
+                yield return $"<pre><code>{WebUtility.HtmlEncode(string.Join("\n", code))}</code></pre>";
+                inCode = false; continue;
+            }
+            if (inCode) { code.Add(line); continue; }
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                foreach (var block in FlushParagraph(paragraph)) yield return block;
+                paragraph.Clear(); continue;
+            }
+            if (line.StartsWith("#"))
+            {
+                foreach (var block in FlushParagraph(paragraph)) yield return block;
+                paragraph.Clear();
+                var level = Math.Min(3, line.TakeWhile(c => c == '#').Count());
+                var text = WebUtility.HtmlEncode(line[level..].Trim());
+                yield return $"<h{level + 1}>{text}</h{level + 1}>";
+                continue;
+            }
+            paragraph.Add(line);
+        }
+        if (inCode) yield return $"<pre><code>{WebUtility.HtmlEncode(string.Join("\n", code))}</code></pre>";
+        foreach (var block in FlushParagraph(paragraph)) yield return block;
+    }
+
+    private static IEnumerable<string> FlushParagraph(List<string> lines)
+    {
+        if (lines.Count == 0) yield break;
+        var text = WebUtility.HtmlEncode(string.Join(" ", lines));
+        text = Regex.Replace(text, @"\[([^\]]+)\]\((https?://[^)]+|/[^)]+)\)", "<a href=\"$2\">$1</a>");
+        yield return $"<p>{text}</p>";
+    }
+}
