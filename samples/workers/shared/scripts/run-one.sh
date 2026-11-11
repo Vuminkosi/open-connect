@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# POSIX LF-normalized by repository attributes for Linux CI.
 # Run a single worker sample across tiers (static, contract, image-startup, integration, model-live, offline-revision, release).
 # Usage: run-one.sh [<worker>|--worker <name>] [--tier <tier>] [--provider sqlite|postgres|sqlserver|local] [--manifest <path>] [--retain-on-fail]
 # Teardown uses `docker compose down --remove-orphans` (never `down -v`).

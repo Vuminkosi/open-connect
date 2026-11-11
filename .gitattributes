@@ -1,0 +1,2 @@
+# Keep executable POSIX harness scripts portable on Linux CI and developer shells.
+*.sh text eol=lf

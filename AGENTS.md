@@ -46,10 +46,10 @@ OpenConnect is an open-source, .NET-first, privacy-first, model-agnostic AI appl
 - **OpenConnect.Core**: Implementation, DI registration, configuration
 - **OpenConnect.Agents**: MAF adapters, agent lifecycle
 - **OpenConnect.Privacy**: Firewall, policy, vault, gates
-- **OpenConnect.Sessions**: Session state management
+- **OpenConnect.Persistence.EFCore**: Provider-neutral EF Core persistence, sessions, tasks, events, and outbox
 - **OpenConnect.Tools**: Tool discovery and authorization
 - **OpenConnect.Transport.Nats**: JetStream integration
-- **OpenConnect.Persistence.Postgres**: EF Core, migrations
+- **OpenConnect.Persistence.EFCore**: EF Core mappings and provider-neutral persistence
 - **OpenConnect.Hosting.AspNetCore**: HTTP/WS endpoints
 
 ## Coding Standards

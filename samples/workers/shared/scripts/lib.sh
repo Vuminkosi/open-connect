@@ -80,8 +80,8 @@ project_name_for() {
 }
 
 sanitize_stream() {
-  sed -e 's/\([Bb]earer \)[^ "]*$/\1***REDACTED***/g' \
-      -e 's/\([Bb]earer \)[^ "]* /\1***REDACTED*** /g' \
+  sed -e 's/\([Bb]earer \)[^ " ]*$/\1***REDACTED***/g' \
+      -e 's/\([Bb]earer \)[^ " ]* /\1***REDACTED*** /g' \
       -e 's/\("token" *: *\)"[^"]*"/\1"***REDACTED***"/g' \
       -e 's/\("api[_-]\?key" *: *\)"[^"]*"/\1"***REDACTED***"/g' \
       -e 's/\(OPENCONNECT_SCAN_TOKEN=\)[^ ]*/\1***REDACTED***/g'

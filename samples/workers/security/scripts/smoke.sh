@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# POSIX LF-normalized by repository attributes for Linux CI.
 # T2 (+T3 when TIER=t3/integration) smoke for Security. Bounded waits, sanitized logs.
 # Covers WSE2E-AT-001..008 runtime assertions against the real security worker container.
 set -eu

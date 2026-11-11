@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# POSIX LF-normalized by repository attributes for Linux CI.
 # T1: offline contract-fixture, negative policy, and cache protocol validation for security.
 # No docker, no network. Covers WSE2E-AT-001..008 offline assertions.
 set -eu
