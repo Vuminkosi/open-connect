@@ -32,8 +32,17 @@ class FakeElement {
   readonly children: FakeElement[] = [];
   readonly listeners: Record<string, Listener[]> = {};
 
+  shadowRoot: FakeElement | null = null;
+
   constructor(tag: string) {
     this.tagName = tag;
+  }
+
+  attachShadow(options: { mode: string }): FakeElement {
+    const shadow = new FakeElement("#shadow-root");
+    this.shadowRoot = shadow;
+    shadow.parentNode = this;
+    return shadow;
   }
 
   get firstChild(): FakeElement | null {
@@ -238,6 +247,28 @@ describe("createMiniComposer mount/dispose", () => {
     (doc as unknown as FakeElement).fire("keydown", keyEvent("Escape"));
     expect(composer.getState().displayState).toBe("closed");
     composer.dispose();
+  });
+
+  it("mounts inside ShadowRoot when useShadowRoot is enabled", () => {
+    installFakeDom();
+    const composer = createMiniComposer({
+      sessionId: "s-1",
+      useShadowRoot: true,
+      shadowRootStyles: ".oc-composer-host { position: fixed; }",
+    });
+    const doc = (globalThis as Record<string, unknown>)["document"] as FakeElement & {
+      body: FakeElement;
+    };
+    composer.mount(doc.body as unknown as HTMLElement);
+    expect(doc.body.children).toHaveLength(1);
+    const shadowHost = doc.body.children[0];
+    expect(shadowHost.className).toBe("oc-composer-shadow-host");
+    expect(shadowHost.shadowRoot).not.toBeNull();
+    expect(shadowHost.shadowRoot?.children.some((c) => c.className === "oc-composer-host")).toBe(true);
+    expect(shadowHost.shadowRoot?.children.some((c) => c.tagName === "style")).toBe(true);
+
+    composer.dispose();
+    expect(doc.body.children).toHaveLength(0);
   });
 });
 
