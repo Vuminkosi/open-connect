@@ -8,7 +8,7 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout Style="@($"background-color: {(_isDarkMode ? _theme.PaletteDark.Background : _theme.PaletteLight.Background)}; min-height: 100vh; color: {(_isDarkMode ? _theme.PaletteDark.TextPrimary : _theme.PaletteLight.TextPrimary)};")">
+<MudLayout Style="min-height: 100vh;">
     <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true" Dense="false">
         <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
             <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />

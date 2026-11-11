@@ -12,20 +12,29 @@
         return (window.matchMedia && window.matchMedia("(max-width: 599px)").matches) ? 5 : 5;
     }
 
+    function resolveInput(el) {
+        if (!el) return null;
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return el;
+        return el.querySelector ? el.querySelector(".oc-bubble__field-wrap textarea, .oc-bubble__field-wrap input, textarea, input") : null;
+    }
+
     window.ocComposerInput = {
         autosize: function (el) {
-            if (!el || !el.style) { return; }
+            var target = resolveInput(el);
+            if (!target || !target.style) { return; }
             var maxLines = lineCap();
-            el.style.height = "auto";
+            target.style.height = "auto";
             var min = LINE_HEIGHT + VERTICAL_PADDING;
             var max = maxLines * LINE_HEIGHT + VERTICAL_PADDING;
-            var next = Math.min(max, Math.max(min, el.scrollHeight));
-            el.style.height = next + "px";
-            el.style.overflowY = el.scrollHeight > max + 1 ? "auto" : "hidden";
+            var next = Math.min(max, Math.max(min, target.scrollHeight));
+            target.style.height = next + "px";
+            target.style.overflowY = target.scrollHeight > max + 1 ? "auto" : "hidden";
         },
         attachEnter: function (el, dotNet) {
             if (!el || !dotNet || attached.has(el)) { return; }
             var onKey = function (ev) {
+                var target = ev.target;
+                if (!target || (!target.matches("textarea, input") && target !== el)) { return; }
                 if (ev.key !== "Enter" || ev.shiftKey) { return; }
                 // Managed shortcut owns Ctrl/Meta+Enter; Alt+Enter never JS-submits.
                 if (ev.ctrlKey || ev.metaKey || ev.altKey) { return; }
@@ -33,12 +42,25 @@
                 if (ev.isComposing || ev.keyCode === 229 || ev.repeat) { return; }
                 ev.preventDefault();
                 try {
-                    var p = dotNet.invokeMethodAsync("SubmitFromJs");
-                    if (p && typeof p.catch === "function") { p.catch(function () { /* keep typing usable */ }); }
-                } catch (e) { /* managed fallback handles Enter */ }
+                    var val = target.value || "";
+                    var p = dotNet.invokeMethodAsync("SubmitKeyboardMessage", val);
+                    if (p && typeof p.catch === "function") {
+                        p.catch(function () {
+                            dotNet.invokeMethodAsync("SubmitFromJs");
+                        });
+                    }
+                } catch (e) {
+                    try { dotNet.invokeMethodAsync("SubmitFromJs"); } catch (e2) {}
+                }
             };
             el.addEventListener("keydown", onKey);
             attached.set(el, onKey);
+        },
+        focus: function (el) {
+            var target = resolveInput(el);
+            if (target && typeof target.focus === "function") {
+                target.focus();
+            }
         },
         detach: function (el) {
             if (!el || !attached.has(el)) { return; }

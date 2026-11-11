@@ -33,7 +33,6 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private CancellationTokenSource? _sendCts;
     private ElementReference _panelRef;
     private ElementReference _handleRef;
-    private ElementReference _inputRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
 
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
@@ -98,6 +97,18 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
+    private string? SentMessage => VisibleMessages.LastOrDefault(m => m.Role == "user")?.Text;
+
+    private string? ResponseText => !string.IsNullOrEmpty(Session?.StreamingText)
+        ? Session.StreamingText
+        : VisibleMessages.LastOrDefault(m => m.Role == "assistant")?.Text;
+
+    private string? LivePartialTranscript => Session?.LivePartialTranscript;
+
+    private string MotionClass => StatusText == "Thinking…" ? "oc-status__motion--thinking" :
+        StatusText?.Contains("connect", StringComparison.OrdinalIgnoreCase) == true ? "oc-status__motion--connecting" :
+        "oc-status__motion--pulse";
+
     private string StatusText => Session switch
     {
         null => "Not connected",
@@ -127,6 +138,76 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     }
 
     private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void SelectMode(string mode)
+    {
+        _open = true;
+        _openedOnce = true;
+        if (mode is not "Ask")
+        {
+            _draft = $"[{mode}] ";
+        }
+    }
+
+    private Task OnInputChanged(string? value)
+    {
+        _draft = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnInteractPositionChanged(double x, double y)
+    {
+        _ = x;
+        _ = y;
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public async Task SubmitKeyboardMessage(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > EffectiveMaxLength)
+        {
+            return;
+        }
+
+        _draft = value;
+        if (CanSend)
+        {
+            await SendAsync();
+        }
+    }
+
+    private async Task OnHandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Home")
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("ocComposerDrag.detach", _handleRef, _panelRef, true).ConfigureAwait(false);
+                await JS.InvokeVoidAsync("ocComposerDrag.attach", _handleRef, _panelRef, _dotNetRef).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+            return;
+        }
+
+        var step = e.Key switch
+        {
+            "ArrowUp" => (0.0, -24.0),
+            "ArrowDown" => (0.0, 24.0),
+            "ArrowLeft" => (-24.0, 0.0),
+            "ArrowRight" => (24.0, 0.0),
+            _ => ((double, double)?)null,
+        };
+        if (step is not null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("ocComposerDrag.moveBy", _panelRef, step.Value.Item1, step.Value.Item2).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+        }
+    }
 
     private void Toggle()
     {
@@ -225,9 +306,19 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         try
         {
-            await Client.CreateTaskAsync(
-                new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, Session.SessionId),
-                token).ConfigureAwait(false);
+            try
+            {
+                await Client.CreateTaskAsync(
+                    new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, Session.SessionId),
+                    token).ConfigureAwait(false);
+            }
+            catch (OpenConnectClientException ex) when (ex.StatusCodeValue == 404)
+            {
+                // Stale or uninitialized session on gateway: retry with null sessionId so gateway auto-creates the session
+                await Client.CreateTaskAsync(
+                    new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, null),
+                    token).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -274,7 +365,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 try
                 {
-                    await _inputRef.FocusAsync().ConfigureAwait(false);
+                    await JS.InvokeVoidAsync("ocComposerInput.focus", _panelRef).ConfigureAwait(false);
                 }
                 catch (InvalidOperationException)
                 {
@@ -299,14 +390,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             if (!_dragAttached && !IsAttached)
             {
                 _dotNetRef ??= DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("ocComposerDrag.attach", _handleRef, _panelRef).ConfigureAwait(false);
+                await JS.InvokeVoidAsync("ocComposerDrag.attach", _handleRef, _panelRef, _dotNetRef).ConfigureAwait(false);
                 _dragAttached = true;
             }
 
             if (!_enterAttached)
             {
                 _dotNetRef ??= DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("ocComposerInput.attachEnter", _inputRef, _dotNetRef).ConfigureAwait(false);
+                await JS.InvokeVoidAsync("ocComposerInput.attachEnter", _panelRef, _dotNetRef).ConfigureAwait(false);
                 _enterAttached = true;
             }
         }
@@ -320,7 +411,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         try
         {
-            await JS.InvokeVoidAsync("ocComposerInput.autosize", _inputRef).ConfigureAwait(false);
+            await JS.InvokeVoidAsync("ocComposerInput.autosize", _panelRef).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
         {
@@ -339,7 +430,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
             if (!dragOnly && _enterAttached)
             {
-                await JS.InvokeVoidAsync("ocComposerInput.detach", _inputRef).ConfigureAwait(false);
+                await JS.InvokeVoidAsync("ocComposerInput.detach", _panelRef).ConfigureAwait(false);
                 _enterAttached = false;
             }
         }
