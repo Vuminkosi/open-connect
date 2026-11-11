@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @using MudBlazor
 @using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -8,24 +9,38 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary" Dense="false">
-        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Class="mr-3" Size="Size.Large" />
-        <MudText Typo="Typo.h6">OpenConnect Todo Application</MudText>
+    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true" Dense="false">
+        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
+            <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h6" Class="font-weight-bold" Color="Color.Primary">OpenConnect</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="margin-top: -4px; display: block;">Task Management Platform</MudText>
+        </div>
+
         <MudSpacer />
-        <MudChip T="string" Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Small" Class="mr-2">
-            Interactive Agent Enabled
-        </MudChip>
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                       Color="Color.Inherit" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+
+        <div class="d-none d-sm-flex align-center px-3 py-1 rounded-pill mr-3"
+             style="background-color: var(--mud-palette-background); border: 1px solid var(--mud-palette-lines-default);">
+            <span class="oc-pulse-dot mr-2"></span>
+            <MudText Typo="Typo.caption" Class="font-weight-medium">Agent Active</MudText>
+        </div>
+
+        <MudTooltip Text="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
+            <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Default"
+                           OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+        </MudTooltip>
     </MudAppBar>
 
-    <MudMainContent Class="pa-4 pa-md-6" Style="max-width: 1200px; margin: 0 auto;">
+    <MudMainContent Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
         <OpenConnectProvider SessionId="todo-session-1">
             @Body
-            <MiniComposer Placement="OpenConnect.Components.Contracts.ComposerPlacement.BottomRight"
-                          AssistantName="OpenConnect Assistant"
-                          Placeholder="Ask me to add, complete, or organize your tasks..."
-                          CloseBehavior="OpenConnect.Components.Contracts.ComposerCloseBehavior.MinimizeOnly" />
+            <MiniComposer Placement="ComposerPlacement.BottomRight"
+                          AssistantName="OpenConnect Agent"
+                          FabIcon="@Icons.Material.Filled.SmartToy"
+                          Placeholder="Ask OpenConnect Agent to create, plan, or organize tasks..."
+                          CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
             <OpenConnectNavigatorProvider />
         </OpenConnectProvider>
     </MudMainContent>
@@ -33,21 +48,52 @@
 
 @code {
     private bool _isDarkMode = false;
-    private MudTheme _theme = new MudTheme
+
+    private readonly MudTheme _theme = new()
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#1E88E5",
-            Secondary = "#26A69A",
-            AppbarBackground = "#1E88E5"
+            Primary = "#2563EB",
+            PrimaryDarken = "#1D4ED8",
+            PrimaryLighten = "#3B82F6",
+            Secondary = "#0D9488",
+            Background = "#F8FAFC",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#FFFFFF",
+            AppbarText = "#0F172A",
+            TextPrimary = "#0F172A",
+            TextSecondary = "#64748B",
+            LinesDefault = "#E2E8F0",
+            TableLines = "#E2E8F0",
+            ActionDefault = "#64748B",
+            Success = "#16A34A",
+            Warning = "#D97706",
+            Error = "#DC2626",
+            Info = "#0284C7"
         },
         PaletteDark = new PaletteDark
         {
-            Primary = "#42A5F5",
-            Secondary = "#4DB6AC",
-            Background = "#121212",
-            Surface = "#1E1E1E",
-            AppbarBackground = "#1E1E1E"
+            Primary = "#3B82F6",
+            PrimaryDarken = "#2563EB",
+            PrimaryLighten = "#60A5FA",
+            Secondary = "#14B8A6",
+            Background = "#090D16",
+            Surface = "#111827",
+            AppbarBackground = "#111827",
+            AppbarText = "#F8FAFC",
+            TextPrimary = "#F8FAFC",
+            TextSecondary = "#94A3B8",
+            LinesDefault = "#1F2937",
+            TableLines = "#1F2937",
+            ActionDefault = "#94A3B8",
+            Success = "#22C55E",
+            Warning = "#F59E0B",
+            Error = "#EF4444",
+            Info = "#38BDF8"
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "10px"
         }
     };
 }

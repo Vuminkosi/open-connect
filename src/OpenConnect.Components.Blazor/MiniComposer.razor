@@ -13,13 +13,14 @@
 <div class="oc-anchored-host @(IsAttached ? "oc-attached" : "")">
     @if (ShowFab)
     {
-        <MudFab StartIcon="@Icons.Material.Filled.Chat"
+        <MudFab StartIcon="@FabIcon"
                 Color="Color.Primary"
-                Size="Size.Medium"
+                Size="Size.Large"
                 aria-label="@(_open ? $"Close {AssistantName}" : $"Open {AssistantName}")"
                 aria-expanded="@_open"
                 OnClick="@Toggle"
-                Class="oc-anchored-fab" />
+                Class="@($"oc-anchored-fab {FabClass}")"
+                Style="@FabStyle" />
     }
 
     @if (_open || IsAttached)

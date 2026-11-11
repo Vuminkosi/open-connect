@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using OpenConnect.Client;
@@ -11,6 +12,15 @@ using OpenConnect.Samples.Blazor.Models;
 using OpenConnect.Samples.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Persist Data Protection keys so antiforgery tokens remain valid across restarts
+var keysDir = Directory.Exists("/data")
+    ? "/data/dataprotection-keys"
+    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".openconnect", "keys");
+Directory.CreateDirectory(keysDir);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysDir))
+    .SetApplicationName("OpenConnect.Samples.Blazor");
 
 // MudBlazor UI Services
 builder.Services.AddMudServices();

@@ -2,27 +2,25 @@
    bubble never reflows host content. Logical properties throughout for RTL. */
 .oc-anchored-host { position: static; }
 
-/* Closed state: FAB only, 2.75rem (44px), fixed bottom inline-end, safe-area aware. */
+/* Closed state: FAB on bottom-right, 85vh from the top */
 .oc-anchored-fab {
     position: fixed !important;
-    inset-inline-end: max(16px, env(safe-area-inset-right, 0px));
-    inset-block-end: max(16px, env(safe-area-inset-bottom, 0px));
+    inset-block-start: 85vh !important;
+    inset-inline-end: max(24px, env(safe-area-inset-right, 0px)) !important;
+    inset-block-end: auto !important;
     z-index: 1200;
-    inline-size: 2.75rem;
-    block-size: 2.75rem;
-    min-inline-size: 2.75rem;
 }
 
-/* Open state: bubble min(23.5rem, 100vw-2rem) anchored above the FAB, with tail. */
+/* Open state: bubble anchored right above the FAB, with tail pointing to it. */
 .oc-bubble {
     --oc-dx: 0px;
     --oc-dy: 0px;
     position: fixed;
-    inset-inline-end: max(16px, env(safe-area-inset-right, 0px));
-    inset-block-end: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 3.5rem);
+    inset-inline-end: max(24px, env(safe-area-inset-right, 0px));
+    inset-block-end: calc(100vh - 85vh + 16px);
     transform: translate(var(--oc-dx), var(--oc-dy));
     inline-size: min(23.5rem, calc(100vw - 2rem));
-    max-block-size: min(34rem, calc(100vh - 8rem));
+    max-block-size: min(34rem, calc(85vh - 2rem));
     display: flex;
     flex-direction: column;
     background: var(--mud-palette-surface, #fff);

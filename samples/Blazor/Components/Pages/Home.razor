@@ -26,5 +26,9 @@
         {
             await _progressRef.RefreshProgressAsync();
         }
+        if (_todoListRef != null)
+        {
+            await _todoListRef.LoadItemsAsync();
+        }
     }
 }

@@ -66,6 +66,15 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// <summary>Whether the bubble starts open. Closed (FAB only) is the default.</summary>
     [Parameter] public bool StartOpen { get; set; }
 
+    /// <summary>Icon displayed on the floating activator button. Defaults to the agent icon (<see cref="Icons.Material.Filled.SmartToy"/>).</summary>
+    [Parameter] public string FabIcon { get; set; } = Icons.Material.Filled.SmartToy;
+
+    /// <summary>Optional custom CSS class for the floating FAB.</summary>
+    [Parameter] public string? FabClass { get; set; }
+
+    /// <summary>Optional custom CSS style for the floating FAB.</summary>
+    [Parameter] public string? FabStyle { get; set; }
+
     private bool IsAttached => Placement == ComposerPlacement.Attached;
 
     private bool ShowFab => !IsAttached;
@@ -301,12 +310,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 _enterAttached = true;
             }
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
         {
             // Prerendering or missing JS: managed fallback keeps text working.
-        }
-        catch (JSDisconnectedException)
-        {
         }
     }
 
@@ -316,10 +322,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             await JS.InvokeVoidAsync("ocComposerInput.autosize", _inputRef).ConfigureAwait(false);
         }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
         {
         }
     }
@@ -340,10 +343,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 _enterAttached = false;
             }
         }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
         {
         }
     }

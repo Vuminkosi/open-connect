@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/samples/Blazor/">
+    <Project Path="samples/Blazor/OpenConnect.Samples.Blazor.csproj" />
+  </Folder>
+  <Folder Name="/samples/_shared/">
+    <Project Path="samples/_shared/OpenConnect.Samples.Shared/OpenConnect.Samples.Shared.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <Project Path="src/OpenConnect.Agents/OpenConnect.Agents.csproj" />

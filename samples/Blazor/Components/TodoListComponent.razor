@@ -2,136 +2,176 @@
 @inject ITodoStore Store
 @inject ISnackbar Snackbar
 
-<MudCard Elevation="2" Class="rounded-lg mb-4">
-    <MudCardHeader>
-        <CardHeaderAvatar>
-            <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
-                <MudIcon Icon="@Icons.Material.Filled.Checklist" />
-            </MudAvatar>
-        </CardHeaderAvatar>
-        <CardHeaderContent>
-            <MudText Typo="Typo.h6">OpenConnect Tasks & Workflows</MudText>
+<MudPaper Elevation="0" Class="oc-surface-card pa-4">
+    <!-- Header & Filter Bar -->
+    <div class="d-flex flex-column flex-sm-row justify-space-between align-sm-center pb-3 mb-2 border-b border-solid mud-border-lines-default gap-3">
+        <div>
+            <MudText Typo="Typo.h6" Class="font-weight-bold">Workflows & Tasks</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Live interactive tasks managed directly or orchestrated via OpenConnect Assistant.
+                Tasks tracked by OpenConnect runtime and lead agent.
             </MudText>
-        </CardHeaderContent>
-        <CardHeaderActions>
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadItemsAsync" />
-        </CardHeaderActions>
-    </MudCardHeader>
+        </div>
 
-    <MudCardContent>
-        <!-- Filter and Search Bar -->
-        <MudToolBar Dense="true" Class="mb-3 px-0">
-            <MudTextField @bind-Value="_searchQuery" Placeholder="Search tasks..." Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" Immediate="true" />
-            <MudSelect @bind-Value="_selectedFilter" Dense="true" T="string" Margin="Margin.Dense" Style="max-width: 160px;">
-                <MudSelectItem Value="@("All")">All Tasks</MudSelectItem>
-                <MudSelectItem Value="@("Active")">Active Only</MudSelectItem>
-                <MudSelectItem Value="@("Completed")">Completed Only</MudSelectItem>
-            </MudSelect>
-        </MudToolBar>
+        <div class="d-flex align-center gap-2">
+            <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true" ApplyEffectsToContainer="false" Color="Color.Transparent">
+                <MudTabPanel Text="All" />
+                <MudTabPanel Text="Active" />
+                <MudTabPanel Text="Completed" />
+            </MudTabs>
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="@LoadItemsAsync" />
+        </div>
+    </div>
 
-        @if (_loading)
-        {
-            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
-        }
-        else if (FilteredItems.Count == 0)
-        {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-2">
-                No tasks found. Click the + button or open the OpenConnect Assistant (FAB) to add one!
-            </MudAlert>
-        }
-        else
-        {
-            <MudList T="TodoItem" Dense="false">
-                @foreach (var item in FilteredItems)
+    <!-- Search Input -->
+    <div class="mb-3">
+        <MudTextField @bind-Value="_searchQuery"
+                      Placeholder="Search tasks by title or description..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Small"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Clearable="true"
+                      Immediate="true" />
+    </div>
+
+    @if (_loading)
+    {
+        <div class="pa-8 d-flex justify-center align-center flex-column">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tasks...</MudText>
+        </div>
+    }
+    else if (FilteredItems.Count == 0)
+    {
+        <div class="pa-12 d-flex flex-column align-center justify-center text-center">
+            <MudAvatar Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Large" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Color="Color.Secondary" Size="Size.Large" />
+            </MudAvatar>
+            <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-1">No tasks to display</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 380px;">
+                @if (!string.IsNullOrWhiteSpace(_searchQuery))
                 {
-                    <MudListItem T="TodoItem" Class="py-2 border-b border-solid mud-border-lines-default">
-                        <div class="d-flex align-center justify-space-between w-100">
-                            <div class="d-flex align-center">
-                                <MudCheckBox T="bool" Value="@item.IsCompleted"
-                                             ValueChanged="@(completed => OnStatusChangedAsync(item, completed))"
-                                             Color="Color.Primary" Dense="true" Class="mr-3" />
-                                <div>
-                                    <MudText Typo="Typo.subtitle1" Style="@(item.IsCompleted ? "text-decoration: line-through; opacity: 0.6;" : "")">
-                                        @item.Title
+                    <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
+                }
+                else
+                {
+                    <span>All caught up! Add a new task above or ask the OpenConnect Agent (floating button on bottom right) to plan your next milestone.</span>
+                }
+            </MudText>
+        </div>
+    }
+    else
+    {
+        <MudList T="TodoItem" Dense="false" Class="pa-0">
+            @foreach (var item in FilteredItems)
+            {
+                <MudListItem T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
+                             Style="transition: background-color 0.15s ease;">
+                    <div class="d-flex align-center justify-space-between w-100 gap-2">
+                        <div class="d-flex align-center" style="flex: 1; min-width: 0;">
+                            <MudCheckBox T="bool" Value="@item.IsCompleted"
+                                         ValueChanged="@(completed => OnStatusChangedAsync(item, completed))"
+                                         Color="Color.Success" Dense="true" Class="mr-3" />
+                            <div style="flex: 1; min-width: 0;">
+                                <MudText Typo="Typo.body1"
+                                         Class="@(item.IsCompleted ? "text-decoration-line-through text-muted" : "font-weight-medium")"
+                                         Style="@(item.IsCompleted ? "opacity: 0.55;" : "")">
+                                    @item.Title
+                                </MudText>
+                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block text-truncate"
+                                             Style="@(item.IsCompleted ? "opacity: 0.5;" : "")">
+                                        @item.Description
                                     </MudText>
-                                    @if (!string.IsNullOrWhiteSpace(item.Description))
-                                    {
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="@(item.IsCompleted ? "opacity: 0.5;" : "")">
-                                            @item.Description
-                                        </MudText>
-                                    }
+                                }
+                                <div class="d-flex align-center mt-1 gap-2">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 0.72rem;">
+                                        @item.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")
+                                    </MudText>
                                 </div>
                             </div>
-                            <div class="d-flex align-center">
-                                <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(item.Priority)" Variant="Variant.Filled" Class="mr-2">
-                                    @item.Priority
-                                </MudChip>
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                               OnClick="@(() => OnDeleteAsync(item.Id))" />
-                            </div>
                         </div>
-                    </MudListItem>
-                }
-            </MudList>
-        }
-    </MudCardContent>
-</MudCard>
+
+                        <div class="d-flex align-center gap-2">
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Variant="Variant.Filled"
+                                     Color="@GetPriorityColor(item.Priority)">
+                                @item.Priority
+                            </MudChip>
+
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OnDeleteAsync(item))"
+                                           aria-label="Delete task" />
+                        </div>
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+    }
+</MudPaper>
 
 @code {
     private IReadOnlyList<TodoItem> _items = Array.Empty<TodoItem>();
-    private bool _loading = true;
     private string _searchQuery = string.Empty;
-    private string _selectedFilter = "All";
+    private int _activeTab = 0;
+    private bool _loading = true;
+
+    private List<TodoItem> FilteredItems
+    {
+        get
+        {
+            var query = _items.AsEnumerable();
+
+            if (_activeTab == 1) // Active
+            {
+                query = query.Where(i => !i.IsCompleted);
+            }
+            else if (_activeTab == 2) // Completed
+            {
+                query = query.Where(i => i.IsCompleted);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                query = query.Where(i =>
+                    i.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return query.OrderByDescending(i => i.Priority).ThenByDescending(i => i.CreatedAtUtc).ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadItemsAsync();
     }
 
-    private async Task LoadItemsAsync()
+    public async Task LoadItemsAsync()
     {
         _loading = true;
+        StateHasChanged();
         _items = await Store.GetAllAsync();
         _loading = false;
-    }
-
-    private IReadOnlyList<TodoItem> FilteredItems
-    {
-        get
-        {
-            var result = _items.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(_searchQuery))
-            {
-                result = result.Where(i => i.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                                           (i.Description?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
-            }
-            if (_selectedFilter == "Active")
-            {
-                result = result.Where(i => !i.IsCompleted);
-            }
-            else if (_selectedFilter == "Completed")
-            {
-                result = result.Where(i => i.IsCompleted);
-            }
-            return result.ToList();
-        }
+        StateHasChanged();
     }
 
     private async Task OnStatusChangedAsync(TodoItem item, bool isCompleted)
     {
         await Store.UpdateStatusAsync(item.Id, isCompleted);
-        item.IsCompleted = isCompleted;
-        Snackbar.Add(isCompleted ? "Task marked completed" : "Task restored to active", Severity.Success);
+        await LoadItemsAsync();
     }
 
-    private async Task OnDeleteAsync(Guid id)
+    private async Task OnDeleteAsync(TodoItem item)
     {
-        await Store.DeleteAsync(id);
+        await Store.DeleteAsync(item.Id);
+        Snackbar.Add($"Task \"{item.Title}\" deleted", Severity.Info);
         await LoadItemsAsync();
-        Snackbar.Add("Task removed", Severity.Info);
     }
 
     private Color GetPriorityColor(TodoPriority priority) => priority switch
@@ -139,6 +179,7 @@
         TodoPriority.Urgent => Color.Error,
         TodoPriority.High => Color.Warning,
         TodoPriority.Medium => Color.Info,
+        TodoPriority.Low => Color.Default,
         _ => Color.Default
     };
 }
