@@ -1,0 +1,1 @@
+{"type":"https://openconnect.dev/problems/session-not-found","title":"Session not found","status":404,"detail":"The requested session does not exist or has expired","instance":"/sessions/123e4567-e89b-42d3-a456-426614174001","code":"session_not_found","correlationId":"corr-problem-1"}

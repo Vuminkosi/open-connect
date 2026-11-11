@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","taskId":"123e4567-e89b-42d3-a456-426614174000","toolId":"order_status","arguments":{"orderId":"order-999"},"callerActorId":"user:ops-lead","tenantId":"tenant-alpha","executionMode":"durable","timeoutMs":30000}
