@@ -27,3 +27,18 @@ Implementing a partial mode would either return task `503` or invent authorizati
 ## NOT VERIFIED
 
 Same-host task acceptance, native MAF Todo tool mutation, approvals, cross-tenant Todo isolation, WebSocket replay, gateway restart recovery, optional-worker outage, live privacy/model egress, Playwright and axe-core browser tests.
+
+## Canonical Compose live verification
+
+The running root `docker-compose-all.yml` stack was inspected on the current machine. `todo-web-app` is built from `samples/Blazor/Dockerfile`; `gateway-host` is the separate OpenConnect gateway; `worker-inference` is configured from the Meta cloud environment variables.
+
+Observed:
+
+- `GET http://127.0.0.1:5000/` → HTTP 200.
+- `GET http://127.0.0.1:8080/openconnect/v1/health` → HTTP 200.
+- Inference worker `/health/ready` returned HTTP 200 in container logs.
+- Authenticated session creation with synthetic development claims → HTTP 201.
+- Unauthenticated session read → HTTP 401.
+- Cross-tenant session read → HTTP 404.
+
+This proves the existing ExternalGateway mode's UI startup, gateway health, inference readiness and route-level authentication/tenant isolation. It does not prove Todo tool execution because the separate gateway does not register the Blazor Todo store or Todo MAF tools.
