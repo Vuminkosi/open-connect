@@ -1,6 +1,6 @@
 # Critical path to production and submission
 
-**Baseline:** `master` at `c179954` (2026-11-11).  
+**Baseline:** `master` at `c179954` (2026-11-11).
 **Working rule:** each slice follows Requirements → Design → Atomic Tasks → Implementation → Tests → Evidence → Review. A checklist checkbox changes only after executable evidence.
 
 ## Ordered work packages

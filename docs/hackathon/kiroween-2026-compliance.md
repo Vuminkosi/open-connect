@@ -1,7 +1,7 @@
 # Kiroween 2026 compliance
 
-**Assessment date:** 2026-11-11  
-**Source:** [official Kiroween 2026 Devpost page](https://kiroween.devpost.com/)  
+**Assessment date:** 2026-11-11
+**Source:** [official Kiroween 2026 Devpost page](https://kiroween.devpost.com/)
 **Repository revision:** `c179954`
 
 ## Eligibility
@@ -21,7 +21,7 @@
 
 ## Recommended project framing
 
-**Category:** Skeleton Crew.  
+**Category:** Skeleton Crew.
 **Project:** OpenConnect, a .NET-first application harness around native Microsoft Agent Framework capabilities, demonstrated through two separate applications: a Blazor task/privacy console and a worker-backed privacy-protected agent sample. The framework supplies reusable composition, authorization, privacy and durable application boundaries while MAF remains the execution engine.
 
 This framing is eligible only if the final repository visibly contains two separate application folders and the submission demonstrates both. Existing `samples/Blazor` and `samples/workers` are candidates; the actual working URLs and journeys still require verification.

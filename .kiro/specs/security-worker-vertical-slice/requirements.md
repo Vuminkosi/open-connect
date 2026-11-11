@@ -1,6 +1,6 @@
 # Security worker vertical slice requirements
 
-**Status:** Planned, evidence-gated.  
+**Status:** Planned, evidence-gated.
 **Scope:** rules-only security worker with a private authenticated scan contract. No model download, registry publish, production migration, or production credentials.
 
 ## Requirements

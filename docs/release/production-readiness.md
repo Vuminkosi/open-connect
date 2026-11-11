@@ -1,7 +1,7 @@
 # Production readiness assessment
 
-**Assessment date:** 2026-11-11  
-**Repository revision:** `c179954469d58e7f0d55714bd0e883c883fa6d3f` on `master`  
+**Assessment date:** 2026-11-11
+**Repository revision:** `c179954469d58e7f0d55714bd0e883c883fa6d3f` on `master`
 **Scope:** canonical checkout only. Existing worktrees are excluded.
 
 ## Executive result
