@@ -10,6 +10,8 @@ using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Persistence.EFCore.Entities;
 using OpenConnect.Persistence.EFCore.Model;
+using OpenConnect.Persistence.EFCore.Health;
+using OpenConnect.Persistence.EFCore.Stores;
 using Xunit;
 
 namespace OpenConnect.Persistence.EFCore.Tests;
@@ -223,6 +225,179 @@ public sealed class RelationalPersistenceTests
         Assert.Equal("oc_sessions", prefixed.Model.GetEntityTypes().Single(e => e.ClrType.Name == "SessionEntity").GetTableName());
         Assert.Equal("Sessions", unprefixed.Model.GetEntityTypes().Single(e => e.ClrType.Name == "SessionEntity").GetTableName());
     }
+
+
+    [Fact]
+    public async Task EF_AT_016_single_transaction_persists_task_session_turn_event_and_outbox_atomically()
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+        await db.Database.EnsureCreatedAsync();
+        var provider = ServicesForExisting(db).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var uow = scope.ServiceProvider.GetRequiredService<IOpenConnectPersistenceUnitOfWork>();
+        var sessions = scope.ServiceProvider.GetRequiredService<ISessionStore>();
+        var tasks = scope.ServiceProvider.GetRequiredService<ITaskStore>();
+        var journal = scope.ServiceProvider.GetRequiredService<IEventJournal>();
+        var outbox = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+
+        var sessionId = new SessionId(Ulid.NewUlid());
+        var taskId = new TaskId(Ulid.NewUlid());
+        var outboxId = Guid.NewGuid();
+
+        // 1. Commit path: all entities persisted atomically
+        await uow.ExecuteAsync(async ct =>
+        {
+            await sessions.UpsertAsync(new(sessionId, Tenant, Principal, 1), ct);
+            await tasks.AcceptAsync(new(taskId, Tenant, Principal, "client-task-1"), ct);
+            db.Set<TurnEntity>().Add(new()
+            {
+                TurnId = Guid.NewGuid(),
+                SessionId = UlidGuidMapper.ToGuid(sessionId.Value),
+                TenantScope = Tenant.Value.ToString(),
+                PrincipalScope = Principal.Value.ToString(),
+                Sequence = 1,
+                State = "Started",
+                Context = null,
+                StartedUtc = DateTime.UtcNow
+            });
+            await journal.AppendAsync(new(sessionId, 0, "turn.started", "payload-1"), ct);
+            await outbox.EnqueueAsync(new(outboxId, "events.turn", "payload-1"), ct);
+            return true;
+        });
+
+        Assert.NotNull(await sessions.GetAsync(sessionId, Tenant, Principal));
+        Assert.Equal(taskId, (await tasks.GetAsync(taskId))!.Id);
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_sessions"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_tasks"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_turns"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_events"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_outbox"));
+
+        // 2. Rollback path: when work throws, all mutations are aborted atomically
+        var failSessionId = new SessionId(Ulid.NewUlid());
+        var failTaskId = new TaskId(Ulid.NewUlid());
+        var failOutboxId = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => uow.ExecuteAsync<int>(async ct =>
+        {
+            await sessions.UpsertAsync(new(failSessionId, Tenant, Principal, 1), ct);
+            await tasks.AcceptAsync(new(failTaskId, Tenant, Principal, "client-task-fail"), ct);
+            await outbox.EnqueueAsync(new(failOutboxId, "events.fail", "payload-fail"), ct);
+            throw new InvalidOperationException("aborted");
+        }));
+
+        Assert.Null(await sessions.GetAsync(failSessionId, Tenant, Principal));
+        Assert.Null(await tasks.GetAsync(failTaskId));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_sessions"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_tasks"));
+        Assert.Equal(1L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM oc_outbox"));
+    }
+
+    [Fact]
+    public async Task EF_AT_017_concurrent_event_appends_allocate_monotonic_per_session_sequences()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"openconnect-seq-{Guid.NewGuid():N}.db");
+        try
+        {
+            var services = Services(file);
+            await using var provider = services.BuildServiceProvider();
+            var sessionId = new SessionId(Ulid.NewUlid());
+
+            // Initialize database and session
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                var sessions = initScope.ServiceProvider.GetRequiredService<ISessionStore>();
+                await sessions.UpsertAsync(new(sessionId, Tenant, Principal, 1));
+            }
+
+            const int concurrentAppends = 10;
+            var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var tasks = Enumerable.Range(0, concurrentAppends).Select(async i =>
+            {
+                await barrier.Task;
+                using var scope = provider.CreateScope();
+                var journal = scope.ServiceProvider.GetRequiredService<IEventJournal>();
+                return await journal.AppendAsync(new(sessionId, 0, "test.event", $"event-{i}"));
+            }).ToArray();
+
+            barrier.SetResult();
+            var sequences = await Task.WhenAll(tasks);
+
+            Array.Sort(sequences);
+            var expected = Enumerable.Range(1, concurrentAppends).Select(i => (long)i).ToArray();
+            Assert.Equal(expected, sequences);
+
+            // Replay from journal to verify exact chronological order and completeness
+            using (var verifyScope = provider.CreateScope())
+            {
+                var journal = verifyScope.ServiceProvider.GetRequiredService<IEventJournal>();
+                var replayed = new List<EventRecord>();
+                await foreach (var record in journal.ReplayAsync(sessionId))
+                {
+                    replayed.Add(record);
+                }
+                Assert.Equal(concurrentAppends, replayed.Count);
+                Assert.Equal(expected, replayed.Select(r => r.Sequence).ToArray());
+            }
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public async Task EF_AT_027_schema_health_check_validates_readiness_without_creating_tables_and_exposes_diagnostics()
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Context(connection);
+
+        // 1. Model-only validation passes when all OpenConnect entities are mapped in model
+        var modelOnlyOptions = Options.Create(new OpenConnectEfOptions { ValidateSchema = OpenConnectSchemaValidationMode.ValidateModel });
+        var modelCheck = new EfSchemaHealthCheck<ApplicationDbContext>(db, modelOnlyOptions);
+        var (modelHealthy, modelDesc) = await modelCheck.CheckHealthAsync();
+        Assert.True(modelHealthy, modelDesc ?? "null");
+        Assert.Null(modelDesc);
+
+        // Verify that no tables were created by the health check
+        Assert.Equal(0L, await ScalarCountAsync(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name LIKE 'oc_%'"));
+
+        // 2. Schema and connection validation succeeds when connection is alive
+        var schemaOptions = Options.Create(new OpenConnectEfOptions { ValidateSchema = OpenConnectSchemaValidationMode.ValidateSchemaAndVersion });
+        var schemaCheck = new EfSchemaHealthCheck<ApplicationDbContext>(db, schemaOptions);
+        var (schemaHealthy, schemaDesc) = await schemaCheck.CheckHealthAsync();
+        Assert.True(schemaHealthy);
+        Assert.Contains("Database object creation is never performed", schemaDesc);
+
+        // 3. Missing model entities fail closed with exact actionable diagnostics containing ef_model_missing
+        var bareOptions = new DbContextOptionsBuilder<MissingModelDbContext>().UseSqlite("Data Source=:memory:").Options;
+        using var bareDb = new MissingModelDbContext(bareOptions);
+        var bareCheck = new EfSchemaHealthCheck<MissingModelDbContext>(bareDb, modelOnlyOptions);
+        var (bareHealthy, bareDesc) = await bareCheck.CheckHealthAsync();
+        Assert.False(bareHealthy);
+        Assert.NotNull(bareDesc);
+        Assert.Contains(ErrorCodes.EfModelMissing, bareDesc);
+        Assert.Contains("ApplyOpenConnectModel", bareDesc);
+
+        // 4. Unreachable connection fails closed with ef_schema_missing
+        var deadOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=127.0.0.1;Port=54329;Database=oc_unreachable;Username=fake;Password=fake;Timeout=1;CommandTimeout=1")
+            .Options;
+        using var deadDb = new ApplicationDbContext(deadOptions, false);
+        var deadCheck = new EfSchemaHealthCheck<ApplicationDbContext>(deadDb, schemaOptions);
+        var (deadHealthy, deadDesc) = await deadCheck.CheckHealthAsync();
+        Assert.False(deadHealthy);
+        Assert.NotNull(deadDesc);
+        Assert.Contains(ErrorCodes.EfSchemaMissing, deadDesc);
+    }
+
+    private sealed class MissingModelDbContext(DbContextOptions<MissingModelDbContext> options) : DbContext(options);
 
     private static ServiceCollection Services(string file)
     {
