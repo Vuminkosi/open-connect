@@ -1,7 +1,7 @@
 # ADR-007: Todo same-host gateway feasibility boundary
 
-**Status:** Accepted with implementation gate  
-**Date:** 2026-11-11  
+**Status:** Accepted with implementation gate
+**Date:** 2026-11-11
 **Related:** ADR-006, Task 005C
 
 ## Decision

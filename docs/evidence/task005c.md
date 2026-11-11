@@ -1,6 +1,6 @@
 # Task 005C evidence
 
-**Current revision:** `afbd26c` at audit start; blocker documentation follows in a new commit.  
+**Current revision:** `afbd26c` at audit start; blocker documentation follows in a new commit.
 **Disposition:** BLOCKED for complete same-host Todo gateway execution.
 
 ## PASS
