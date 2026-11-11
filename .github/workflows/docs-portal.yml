@@ -51,3 +51,36 @@ jobs:
         run: dotnet test site/OpenConnect.Docs.Tests/OpenConnect.Docs.Tests.csproj -c Release --no-restore
       - name: Todo source regression build
         run: dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release --no-restore -warnaserror
+
+  published-consumers:
+    name: Published NuGet consumers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+      - name: Verify clean NuGet consumers
+        shell: pwsh
+        run: ./scripts/verify-published-consumers.ps1
+      - name: Print consumer evidence
+        shell: pwsh
+        run: Get-ChildItem build/evidence/published-consumers -File | ForEach-Object { Write-Host $_.Name; Get-Content $_.FullName }
+
+  snippets:
+    name: Published documentation snippets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        with:
+          dotnet-version-file: global.json
+      - name: Compile runnable C# snippets
+        shell: pwsh
+        run: ./scripts/verify-doc-snippets.ps1

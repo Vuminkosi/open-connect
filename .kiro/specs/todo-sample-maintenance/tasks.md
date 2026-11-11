@@ -1,9 +1,9 @@
 # Todo sample maintenance tasks
 
-- [ ] **TODO-MAINT-TASK-001 Audit** — Capture current Todo entrypoints, components, store, project references, Dockerfile, Compose dependencies and CI cases.
-- [ ] **TODO-MAINT-TASK-002 Tutorial** — Add accurate developer portal instructions for running the existing Todo sample and separate gateway.
-- [ ] **TODO-MAINT-TASK-003 Regression** — Add or reconcile Todo behavior tests without changing the current application contract.
-- [ ] **TODO-MAINT-TASK-004 Optional persistence** — Only if separately approved, design sample-owned Todo EF persistence, migrations, tenant scope and rollback.
-- [ ] **TODO-MAINT-TASK-005 Workers** — Verify optional workers disabled behavior and label model-live/Navigator/voice evidence accurately.
-- [ ] **TODO-MAINT-TASK-006 Evidence** — Record source integration versus published-package tests and actual CI artifacts.
-- [ ] **TODO-MAINT-TASK-007 Review** — Confirm no portal change rewrote, moved, deleted or silently altered the Todo sample.
+- [x] **TODO-MAINT-TASK-001 Audit** — Captured current `samples/Blazor` entrypoint, components, `InMemoryTodoStore`, project references, Dockerfile, Compose gateway dependencies and CI cases during Task 005 audit.
+- [x] **TODO-MAINT-TASK-002 Tutorial** — Added the accurate developer portal tutorial for running the existing Todo sample and separately hosted gateway.
+- [ ] **TODO-MAINT-TASK-003 Regression** — Added process-local `InMemoryTodoStore` CRUD/seed regression tests. Gateway authorization, task progress, replay and UI regression remain NOT VERIFIED.
+- [ ] **TODO-MAINT-TASK-004 Optional persistence** — No change; Todo domain remains process-local and no persistence migration was introduced.
+- [ ] **TODO-MAINT-TASK-005 Workers** — Optional-worker absence and model-live/Navigator/voice evidence remain NOT VERIFIED.
+- [x] **TODO-MAINT-TASK-006 Evidence** — Recorded source-integration and published-package consumer evidence in the portal task ledger; live gateway evidence remains open.
+- [ ] **TODO-MAINT-TASK-007 Review** — Final independent review remains NOT VERIFIED; no Todo source was changed by the portal work.

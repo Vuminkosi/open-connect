@@ -11,11 +11,13 @@ OpenConnect is a .NET-first application framework around Microsoft Agent Framewo
 
 ## Register the framework
 
-```csharp
-builder.Services.AddOpenConnect(options =>
-{
-    options.Privacy.Enabled = true;
-});
+```csharp runnable
+using Microsoft.Extensions.DependencyInjection;
+using OpenConnect.Core;
+
+var services = new ServiceCollection();
+services.AddOpenConnect();
+Console.WriteLine(services.Count);
 ```
 
 Registration does not start Docker, download models, create databases or provision NATS streams.
