@@ -26,6 +26,7 @@ public static class HostTaskExecutionServiceCollectionExtensions
         services.AddSingleton<InMemorySessionStore>();
         services.AddSingleton<ExecutionQueue>();
         services.AddSingleton<ExecutionRuntimeState>();
+        services.AddSingleton<DurableToolExecutionTracker>();
         services.AddSingleton<IHostTaskExecutionDispatcher, HostTaskExecutionDispatcher>();
         services.AddHostedService<HostTaskExecutionWorker>();
         return services;

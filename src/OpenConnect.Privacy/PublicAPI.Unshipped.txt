@@ -45,10 +45,29 @@ OpenConnect.Privacy.EntitySpan.Length.get -> int
 OpenConnect.Privacy.EntitySpan.Length.init -> void
 OpenConnect.Privacy.EntitySpan.Start.get -> int
 OpenConnect.Privacy.EntitySpan.Start.init -> void
+OpenConnect.Privacy.Gates.ContentModality
+OpenConnect.Privacy.Gates.ContentModality.Audio = 1 -> OpenConnect.Privacy.Gates.ContentModality
+OpenConnect.Privacy.Gates.ContentModality.Document = 3 -> OpenConnect.Privacy.Gates.ContentModality
+OpenConnect.Privacy.Gates.ContentModality.Image = 2 -> OpenConnect.Privacy.Gates.ContentModality
+OpenConnect.Privacy.Gates.ContentModality.Text = 0 -> OpenConnect.Privacy.Gates.ContentModality
 OpenConnect.Privacy.Gates.EgressGate
 OpenConnect.Privacy.Gates.EgressGate.DemandAllowedAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Gates.EgressGate.EgressGate(OpenConnect.Privacy.IPrivacyFirewall! firewall) -> void
 OpenConnect.Privacy.Gates.EgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
+OpenConnect.Privacy.Gates.ModalityEgressGate
+OpenConnect.Privacy.Gates.ModalityEgressGate.EvaluateModality(OpenConnect.Privacy.Gates.ModalityEgressRequest! request, OpenConnect.Abstractions.FirewallMode mode) -> OpenConnect.Privacy.EgressDecision!
+OpenConnect.Privacy.Gates.ModalityEgressGate.ModalityEgressGate(OpenConnect.Privacy.IPrivacyFirewall! firewall) -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Context.get -> OpenConnect.Privacy.EgressContext!
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Context.init -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest.HasVerifiedLocalRedaction.get -> bool
+OpenConnect.Privacy.Gates.ModalityEgressRequest.HasVerifiedLocalRedaction.init -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Modality.get -> OpenConnect.Privacy.Gates.ContentModality
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Modality.init -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest.ModalityEgressRequest(OpenConnect.Privacy.Gates.ContentModality Modality, OpenConnect.Privacy.EgressContext! Context, bool HasVerifiedLocalRedaction = false) -> void
+OpenConnect.Privacy.Gates.OutgoingContentScanner
+OpenConnect.Privacy.Gates.OutgoingContentScanner.OutgoingContentScanner() -> void
+OpenConnect.Privacy.Gates.OutgoingContentScanner.ScanOutgoing(string! content, OpenConnect.Privacy.EgressContext! context, bool failClosed = true) -> OpenConnect.Privacy.EgressDecision!
 OpenConnect.Privacy.IEgressGate
 OpenConnect.Privacy.IEgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.IPrivacyFirewall
@@ -77,12 +96,12 @@ OpenConnect.Privacy.PrivacyFirewall.PrivacyFirewall(Microsoft.Extensions.Options
 OpenConnect.Privacy.PrivacyOptions
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.get -> System.TimeSpan
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.set -> void
+OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
 OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.get -> bool
 OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.set -> void
 OpenConnect.Privacy.PrivacyOptions.EnableTokenization.get -> bool
 OpenConnect.Privacy.PrivacyOptions.EnableTokenization.set -> void
-OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
-OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
 OpenConnect.Privacy.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
 OpenConnect.Privacy.PrivacyOptions.Mode.set -> void
 OpenConnect.Privacy.PrivacyOptions.PrivacyOptions() -> void
@@ -100,7 +119,37 @@ OpenConnect.Privacy.PrivacyScope.Tenant.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Privacy.PrivacyScope.Tenant.init -> void
 OpenConnect.Privacy.PrivacyScope.Validate() -> OpenConnect.Privacy.PrivacyScope!
 OpenConnect.Privacy.PrivacyServiceCollectionExtensions
-static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.EnsureHostPrivacyServices(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Privacy.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+OpenConnect.Privacy.Restoration.ITokenRestorationService
+OpenConnect.Privacy.Restoration.ITokenRestorationService.RestoreAsync(string! content, OpenConnect.Privacy.PrivacyScope! scope, OpenConnect.Privacy.Restoration.RestorationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Restoration.RestorationContext
+OpenConnect.Privacy.Restoration.RestorationContext.AllowedFieldPaths.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Privacy.Restoration.RestorationContext.AllowedFieldPaths.init -> void
+OpenConnect.Privacy.Restoration.RestorationContext.RestorationContext(OpenConnect.Privacy.Restoration.RestorationTarget Target, System.Collections.Generic.IReadOnlySet<string!>? AllowedFieldPaths = null) -> void
+OpenConnect.Privacy.Restoration.RestorationContext.Target.get -> OpenConnect.Privacy.Restoration.RestorationTarget
+OpenConnect.Privacy.Restoration.RestorationContext.Target.init -> void
+OpenConnect.Privacy.Restoration.RestorationTarget
+OpenConnect.Privacy.Restoration.RestorationTarget.Diagnostics = 2 -> OpenConnect.Privacy.Restoration.RestorationTarget
+OpenConnect.Privacy.Restoration.RestorationTarget.FinalUserOutput = 0 -> OpenConnect.Privacy.Restoration.RestorationTarget
+OpenConnect.Privacy.Restoration.RestorationTarget.ToolArguments = 1 -> OpenConnect.Privacy.Restoration.RestorationTarget
+OpenConnect.Privacy.Restoration.TokenRestorationService
+OpenConnect.Privacy.Restoration.TokenRestorationService.RestoreAsync(string! content, OpenConnect.Privacy.PrivacyScope! scope, OpenConnect.Privacy.Restoration.RestorationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Restoration.TokenRestorationService.TokenRestorationService(OpenConnect.Privacy.ITokenVault! vault) -> void
+OpenConnect.Privacy.Rules.CustomDetectorRule
+OpenConnect.Privacy.Rules.CustomDetectorRule.CustomDetectorRule(string! EntityType, System.Text.RegularExpressions.Regex! Pattern) -> void
+OpenConnect.Privacy.Rules.CustomDetectorRule.EntityType.get -> string!
+OpenConnect.Privacy.Rules.CustomDetectorRule.EntityType.init -> void
+OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.get -> System.Text.RegularExpressions.Regex!
+OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.init -> void
+OpenConnect.Privacy.Rules.RulesSecurityDetector
+static OpenConnect.Privacy.Rules.RulesSecurityDetector.CountUnicodeCodePoints(string! str, int startIndex, int length) -> int
+OpenConnect.Privacy.Rules.RulesSecurityDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
+static OpenConnect.Privacy.Rules.RulesSecurityDetector.PassesLuhnCheck(string! digits) -> bool
+OpenConnect.Privacy.Rules.RulesSecurityDetector.RulesSecurityDetector(OpenConnect.Privacy.ITokenVault? vault = null, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Rules.CustomDetectorRule!>? customRules = null) -> void
+OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer
+OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.ProcessChunkAsync(string! chunk, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.StreamingPlaceholderBuffer(OpenConnect.Privacy.ITokenVault! vault, OpenConnect.Privacy.PrivacyScope! scope) -> void
+OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.StreamingPlaceholderBuffer(System.Func<string!, System.Threading.Tasks.ValueTask<string?>>! resolver) -> void
 OpenConnect.Privacy.Tokenization.TokenGenerator
 OpenConnect.Privacy.Tokenization.TokenGenerator.CreateAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Tokenization.TokenGenerator.TokenGenerator(OpenConnect.Privacy.ITokenVault! vault) -> void
@@ -109,3 +158,5 @@ OpenConnect.Privacy.Tokenization.TokenVault.Dispose() -> void
 OpenConnect.Privacy.Tokenization.TokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 OpenConnect.Privacy.Tokenization.TokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Tokenization.TokenVault.TokenVault(byte[]! key, System.TimeProvider? timeProvider = null) -> void
+static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.AddOpenConnectRulesDetector(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.EnsureHostPrivacyServices(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Privacy.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

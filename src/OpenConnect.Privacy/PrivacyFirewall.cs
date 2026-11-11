@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Privacy.Gates;
 using OpenConnect.Privacy.Policy;
+using OpenConnect.Privacy.Restoration;
+using OpenConnect.Privacy.Rules;
 using OpenConnect.Privacy.Tokenization;
 
 namespace OpenConnect.Privacy;
@@ -52,6 +54,17 @@ public static class PrivacyServiceCollectionExtensions
         services.TryAddSingleton<PolicyEngine>(sp => new PolicyEngine(sp.GetService<ISecurityDetector>()));
         services.TryAddSingleton<IPrivacyFirewall, PrivacyFirewall>();
         services.TryAddSingleton<IEgressGate, EgressGate>();
+        services.TryAddSingleton<ITokenRestorationService, TokenRestorationService>();
+        services.TryAddSingleton<OutgoingContentScanner>();
+        services.TryAddSingleton<ModalityEgressGate>();
+        return services;
+    }
+
+    /// <summary>Registers the deterministic local rules detector for PII, secrets, and checksums.</summary>
+    public static IServiceCollection AddOpenConnectRulesDetector(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<ISecurityDetector>(sp => new RulesSecurityDetector(sp.GetService<ITokenVault>()));
         return services;
     }
 }

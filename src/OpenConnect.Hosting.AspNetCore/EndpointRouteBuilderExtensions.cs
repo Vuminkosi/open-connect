@@ -50,6 +50,11 @@ public static class EndpointRouteBuilderExtensions
             }).RequireAuthorization();
             group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
             group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
+            group.MapGet("/tasks/{id}/tools/{invocationId}", (string id, string invocationId, HttpContext context, IServiceProvider services) =>
+            {
+                var tracker = services.GetService<DurableToolExecutionTracker>();
+                return tracker is null ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Tool tracking is not configured.") : HandleGetToolInvocationStatus(id, invocationId, context, tracker);
+            }).RequireAuthorization();
             group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
             group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
             group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
@@ -188,6 +193,21 @@ public static class EndpointRouteBuilderExtensions
         if (dispatcher is null) return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
         var cancelled = await dispatcher.CancelAsync(value, cancellationToken);
         return cancelled is null ? Results.Json(null, options: OpenConnectHttpJson.CreateOptions()) : IdentifierJson(cancelled, StatusCodes.Status200OK);
+    }
+
+    internal static IResult HandleGetToolInvocationStatus(string id, string invocationId, HttpContext context, DurableToolExecutionTracker tracker)
+    {
+        if (!UlidTryParse(id, out var taskId) || !UlidTryParse(invocationId, out var invId))
+            return Results.Problem(statusCode: 400, title: "The task or tool invocation ID is invalid.");
+
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
+
+        var record = tracker.GetSanitized(invId, new TenantId(tenant), new PrincipalId(principal));
+        if (record is null || record.TaskId.Value != taskId)
+            return Results.Problem(statusCode: 404, title: "Tool invocation not found.");
+
+        return IdentifierJson(record, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleCreateSession(HttpContext context, SessionRequest? request, InMemorySessionStore store)
