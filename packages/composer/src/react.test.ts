@@ -8,7 +8,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
-import { createElement } from "react";
+import { createElement, StrictMode } from "react";
 import { OpenConnectProvider, MiniComposer } from "./react.js";
 import type { ComposerClient } from "./composer.js";
 
@@ -56,5 +56,30 @@ describe("React adapter SSR & provider integration (OC2-D-CLIENT-018)", () => {
     expect(client.createTask).not.toHaveBeenCalled();
     // Subscriptions only attach in browser useEffect
     expect(client.subscribeEvents).not.toHaveBeenCalled();
+  });
+
+  it("renders correctly under React StrictMode without duplicate effects (OC2-D-CLIENT-020, CMP-AT-024)", () => {
+    const client: ComposerClient = {
+      createTask: vi.fn(),
+      subscribeEvents: vi.fn(() => () => {}),
+    };
+
+    let html = "";
+    expect(() => {
+      html = renderToString(
+        createElement(
+          StrictMode,
+          null,
+          createElement(
+            OpenConnectProvider,
+            { client, sessionId: "sess-strict" },
+            createElement(MiniComposer, { assistantName: "StrictAssistant" }),
+          ),
+        ),
+      );
+    }).not.toThrow();
+
+    expect(html).toContain("StrictAssistant");
+    expect(html).toContain("oc-composer-fab");
   });
 });
