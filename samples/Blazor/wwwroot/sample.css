@@ -97,4 +97,8 @@ body {
 
 .oc-bubble {
     z-index: 99999 !important;
+    max-height: none !important;
+    max-block-size: none !important;
+    height: auto !important;
+    overflow: visible !important;
 }

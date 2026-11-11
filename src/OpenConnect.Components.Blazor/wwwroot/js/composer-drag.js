@@ -2,25 +2,25 @@
    Adopted from SwiftAidv2: uses direct viewport pixel coordinates (left, top).
    Guaranteed 1:1 direct tracking with zero reversal or opposing directions. */
 (function () {
-    const STEP = 24;
-    const tracked = new WeakMap();
+    var STEP = 24;
+    var tracked = new WeakMap();
 
     function clamp(val, max) {
         return Math.max(0, Math.min(val, Math.max(0, max)));
     }
 
     function applyPosition(root, x, y) {
-        const maxX = window.innerWidth - root.offsetWidth;
-        const maxY = window.innerHeight - root.offsetHeight;
-        const clampedX = clamp(x, maxX);
-        const clampedY = clamp(y, maxY);
+        var maxX = window.innerWidth - root.offsetWidth;
+        var maxY = window.innerHeight - root.offsetHeight;
+        var clampedX = clamp(x, maxX);
+        var clampedY = clamp(y, maxY);
 
-        root.style.insetInlineEnd = "auto";
-        root.style.insetBlockEnd = "auto";
-        root.style.right = "auto";
-        root.style.bottom = "auto";
-        root.style.left = clampedX + "px";
-        root.style.top = clampedY + "px";
+        root.style.setProperty("inset-inline-end", "auto", "important");
+        root.style.setProperty("inset-block-end", "auto", "important");
+        root.style.setProperty("right", "auto", "important");
+        root.style.setProperty("bottom", "auto", "important");
+        root.style.setProperty("left", clampedX + "px", "important");
+        root.style.setProperty("top", clampedY + "px", "important");
 
         return { x: clampedX, y: clampedY };
     }
@@ -29,15 +29,36 @@
         attach: function (handle, root, dotnet) {
             if (!handle || !root || tracked.has(handle)) return;
 
-            let dragging = false;
-            let startX = 0;
-            let startY = 0;
-            let initialLeft = 0;
-            let initialTop = 0;
+            var dragging = false;
+            var startX = 0;
+            var startY = 0;
+            var initialLeft = 0;
+            var initialTop = 0;
 
-            const onPointerDown = function (ev) {
+            var onPointerMove = function (ev) {
+                if (!dragging) return;
+                var deltaX = ev.clientX - startX;
+                var deltaY = ev.clientY - startY;
+                var pos = applyPosition(root, initialLeft + deltaX, initialTop + deltaY);
+                if (dotnet) {
+                    try { dotnet.invokeMethodAsync("OnInteractPositionChanged", pos.x, pos.y); } catch (e) {}
+                }
+            };
+
+            var onPointerUp = function (ev) {
+                if (!dragging) return;
+                dragging = false;
+                root.classList.remove("oc-composer--dragging");
+                try {
+                    if (ev && ev.pointerId !== undefined && handle.hasPointerCapture && handle.hasPointerCapture(ev.pointerId)) {
+                        handle.releasePointerCapture(ev.pointerId);
+                    }
+                } catch (e) {}
+            };
+
+            var onPointerDown = function (ev) {
                 if (ev.button !== undefined && ev.button !== 0) return;
-                const rect = root.getBoundingClientRect();
+                var rect = root.getBoundingClientRect();
                 dragging = true;
                 startX = ev.clientX;
                 startY = ev.clientY;
@@ -51,26 +72,7 @@
                 ev.preventDefault();
             };
 
-            const onPointerMove = function (ev) {
-                if (!dragging) return;
-                const deltaX = ev.clientX - startX;
-                const deltaY = ev.clientY - startY;
-                const pos = applyPosition(root, initialLeft + deltaX, initialTop + deltaY);
-                if (dotnet) {
-                    dotnet.invokeMethodAsync("OnInteractPositionChanged", pos.x, pos.y).catch(function () {});
-                }
-            };
-
-            const onPointerUp = function (ev) {
-                if (!dragging) return;
-                dragging = false;
-                root.classList.remove("oc-composer--dragging");
-                try {
-                    handle.releasePointerCapture(ev.pointerId);
-                } catch (e) {}
-            };
-
-            const onKeyDown = function (ev) {
+            var onKeyDown = function (ev) {
                 if (ev.key === "Home") {
                     root.style.removeProperty("left");
                     root.style.removeProperty("top");
@@ -82,8 +84,8 @@
                     return;
                 }
 
-                let stepX = 0;
-                let stepY = 0;
+                var stepX = 0;
+                var stepY = 0;
                 switch (ev.key) {
                     case "ArrowLeft": stepX = -STEP; break;
                     case "ArrowRight": stepX = STEP; break;
@@ -93,17 +95,20 @@
                 }
 
                 ev.preventDefault();
-                const rect = root.getBoundingClientRect();
+                var rect = root.getBoundingClientRect();
                 applyPosition(root, rect.left + stepX, rect.top + stepY);
             };
 
-            const onResize = function () {
+            var onResize = function () {
                 if (!root.style.left && !root.style.top) return;
-                const rect = root.getBoundingClientRect();
+                var rect = root.getBoundingClientRect();
                 applyPosition(root, rect.left, rect.top);
             };
 
             handle.addEventListener("pointerdown", onPointerDown);
+            handle.addEventListener("pointermove", onPointerMove);
+            handle.addEventListener("pointerup", onPointerUp);
+            handle.addEventListener("pointercancel", onPointerUp);
             window.addEventListener("pointermove", onPointerMove);
             window.addEventListener("pointerup", onPointerUp);
             window.addEventListener("pointercancel", onPointerUp);
@@ -121,14 +126,17 @@
 
         moveBy: function (root, deltaX, deltaY) {
             if (!root) return { x: 0, y: 0 };
-            const rect = root.getBoundingClientRect();
+            var rect = root.getBoundingClientRect();
             return applyPosition(root, rect.left + deltaX, rect.top + deltaY);
         },
 
         detach: function (handle, root, resetPosition) {
             if (!handle || !tracked.has(handle)) return;
-            const refs = tracked.get(handle);
+            var refs = tracked.get(handle);
             handle.removeEventListener("pointerdown", refs.onPointerDown);
+            handle.removeEventListener("pointermove", refs.onPointerMove);
+            handle.removeEventListener("pointerup", refs.onPointerUp);
+            handle.removeEventListener("pointercancel", refs.onPointerUp);
             window.removeEventListener("pointermove", refs.onPointerMove);
             window.removeEventListener("pointerup", refs.onPointerUp);
             window.removeEventListener("pointercancel", refs.onPointerUp);

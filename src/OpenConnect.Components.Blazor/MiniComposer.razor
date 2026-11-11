@@ -42,10 +42,11 @@
                           class="oc-drag-handle oc-bubble__handle"
                           tabindex="0"
                           role="button"
+                          style="touch-action: none; cursor: grab; user-select: none;"
                           aria-label="@($"Move {AssistantName} composer. Drag in any direction, or use the arrow keys to move and Home to reset.")"
                           title="Drag to move"
                           @onkeydown="OnHandleKeyDown">
-                        <MudIcon Icon="@Icons.Material.Filled.OpenWith" Size="Size.Small" />
+                        <MudIcon Icon="@Icons.Material.Filled.OpenWith" Size="Size.Small" Style="pointer-events: none;" />
                     </span>
                 }
                 else
@@ -109,16 +110,6 @@
                                            aria-label="Stop reply"
                                            title="Stop reply" />
                         }
-                        else if (!string.IsNullOrWhiteSpace(_draft))
-                        {
-                            <MudIconButton Icon="@Icons.Material.Filled.Send"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="SendAsync"
-                                           Disabled="@(!CanSend)"
-                                           aria-label="@($"Send to {AssistantName}")"
-                                           title="Send" />
-                        }
                         else
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Mic"
@@ -127,13 +118,27 @@
                                            OnClick="@(() => _micOn = !_micOn)"
                                            aria-label="Voice recording"
                                            title="Voice recording" />
-                            <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
-                                           Color="@(_speechOn ? Color.Primary : Color.Default)"
-                                           Size="Size.Small"
-                                           Class="@(_speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
-                                           OnClick="@(() => _speechOn = !_speechOn)"
-                                           aria-label="Voice input"
-                                           title="Voice input" />
+
+                            @if (!string.IsNullOrWhiteSpace(_draft))
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="SendAsync"
+                                               Disabled="@(!CanSend)"
+                                               aria-label="@($"Send to {AssistantName}")"
+                                               title="Send" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
+                                               Color="@(_speechOn ? Color.Primary : Color.Default)"
+                                               Size="Size.Small"
+                                               Class="@(_speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
+                                               OnClick="@(() => _speechOn = !_speechOn)"
+                                               aria-label="Voice input"
+                                               title="Voice input" />
+                            }
                         }
                     </span>
                 </div>

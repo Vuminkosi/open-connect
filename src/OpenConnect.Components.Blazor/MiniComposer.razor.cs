@@ -84,9 +84,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         && (Session.Connection == ComposerConnectionState.Streaming
             || Session.Connection == ComposerConnectionState.Connecting);
 
-    private bool CanType => Session?.SessionId is not null;
+    private bool CanType => !IsLoading;
 
-    private bool CanSend => !IsLoading && !_sending && !string.IsNullOrWhiteSpace(_draft) && Session?.SessionId is not null;
+    private bool CanSend => !IsLoading && !_sending && !string.IsNullOrWhiteSpace(_draft);
 
     private IReadOnlyList<ComposerMessage> VisibleMessages
     {
@@ -152,6 +152,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private Task OnInputChanged(string? value)
     {
         _draft = value ?? string.Empty;
+        StateHasChanged();
         return Task.CompletedTask;
     }
 
@@ -261,11 +262,6 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             return;
         }
 
-        if (!(args.CtrlKey || args.MetaKey))
-        {
-            return;
-        }
-
         await SendAsync().ConfigureAwait(false);
     }
 
@@ -282,7 +278,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
 
         var text = _draft.Trim();
-        if (string.IsNullOrWhiteSpace(text) || Session?.SessionId is null)
+        if (string.IsNullOrWhiteSpace(text))
         {
             return;
         }
@@ -367,10 +363,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 {
                     await JS.InvokeVoidAsync("ocComposerInput.focus", _panelRef).ConfigureAwait(false);
                 }
-                catch (InvalidOperationException)
-                {
-                }
-                catch (JSDisconnectedException)
+                catch (Exception)
                 {
                 }
             }
