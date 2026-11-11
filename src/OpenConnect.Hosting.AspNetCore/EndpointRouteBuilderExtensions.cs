@@ -397,6 +397,12 @@ public static class EndpointRouteBuilderExtensions
             !TryReadCursor(query, hasAfterSequence ? "afterSequence" : "after", out var cursor))
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The event position is invalid.", type: "https://openconnect.dev/problems/invalid_request");
 
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            await Streaming.SessionWebSocketHandler.HandleAsync(context, id, cursor, store, cancellationToken).ConfigureAwait(false);
+            return Results.Empty;
+        }
+
         return await HandleGetSessionEventsAsync(id, cursor, context, store, cancellationToken).ConfigureAwait(false);
     }
 
