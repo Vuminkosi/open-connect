@@ -6,6 +6,9 @@ namespace OpenConnect.Tools;
 /// <summary>Executes tools only after fresh host authorization, schema validation, and approval checks.</summary>
 public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService authorization)
 {
+    /// <summary>Maximum allowed output size in bytes (default 1 MB). Outputs exceeding this limit throw <see cref="ToolValidationException"/>.</summary>
+    public int MaxOutputBytes { get; set; } = 1024 * 1024;
+
     /// <summary>
     /// Executes a tool after registration, allowlist, policy, schema, and approval checks.
     /// Optional <paramref name="tryReserveToolCall"/> is consulted after approval checks and
@@ -35,7 +38,19 @@ public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService aut
         if (tryReserveToolCall is not null && !tryReserveToolCall())
             throw new ToolAuthorizationException(ErrorCodes.ToolNotAllowed);
 
-        return await registration.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+        var result = await registration.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+        ValidateOutput(result);
+        return result;
+    }
+
+    private void ValidateOutput(JsonElement result)
+    {
+        if (result.ValueKind == JsonValueKind.Undefined)
+            throw new ToolValidationException("Tool output must be valid JSON.");
+
+        var raw = result.GetRawText();
+        if (raw.Length > MaxOutputBytes)
+            throw new ToolValidationException($"Tool output size ({raw.Length} bytes) exceeds configured maximum of {MaxOutputBytes} bytes.");
     }
 
     private static void ValidateArguments(string schema, JsonElement arguments)

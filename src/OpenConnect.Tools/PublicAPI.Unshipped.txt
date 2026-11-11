@@ -32,6 +32,8 @@ OpenConnect.Tools.ToolAuthorizationService.IsAllowedAsync(OpenConnect.Tools.Tool
 OpenConnect.Tools.ToolAuthorizationService.ToolAuthorizationService(OpenConnect.Tools.IToolAccessPolicy! policy, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Tools.ToolBroker
 OpenConnect.Tools.ToolBroker.InvokeAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Text.Json.JsonElement arguments, OpenConnect.Tools.ToolApproval? approval = null, System.Func<bool>? tryReserveToolCall = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>
+OpenConnect.Tools.ToolBroker.MaxOutputBytes.get -> int
+OpenConnect.Tools.ToolBroker.MaxOutputBytes.set -> void
 OpenConnect.Tools.ToolBroker.ToolBroker(OpenConnect.Tools.ToolCatalog! catalog, OpenConnect.Tools.ToolAuthorizationService! authorization) -> void
 OpenConnect.Tools.ToolCatalog
 OpenConnect.Tools.ToolCatalog.DiscoverAsync(OpenConnect.Abstractions.AgentId agent, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.TaskId task, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!>
@@ -50,6 +52,8 @@ OpenConnect.Tools.ToolRegistration.JsonSchema.init -> void
 OpenConnect.Tools.ToolRegistration.RequiresApproval.get -> bool
 OpenConnect.Tools.ToolRegistration.RequiresApproval.init -> void
 OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.ToolDescriptor! Descriptor, string! JsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, bool RequiresApproval = false) -> void
+OpenConnect.Tools.ToolRetryClassifier
+static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
 OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
 static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
