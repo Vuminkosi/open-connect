@@ -46,7 +46,21 @@ public sealed record OperationalPolicy(
     TimeSpan? MaxRunDuration = null);
 
 /// <summary>Requirements imposed on the model selected for an agent.</summary>
-public sealed record ModelRequirement(string? ModelId = null, ModelExecutionLocation? Location = null);
+public sealed record ModelRequirement(
+    string? ModelId = null,
+    ModelExecutionLocation? Location = null,
+    bool RequireTools = false,
+    bool RequireStreaming = false,
+    bool RequireStructuredOutput = false,
+    bool RequireVision = false,
+    string? FallbackModelId = null)
+{
+    /// <summary>Creates a requirement with model identifier and execution location only.</summary>
+    public ModelRequirement(string? modelId, ModelExecutionLocation? location)
+        : this(modelId, location, false, false, false, false, null)
+    {
+    }
+}
 
 /// <summary>Server-controlled delegation and execution graph policy.</summary>
 public sealed record OrchestrationPolicy(

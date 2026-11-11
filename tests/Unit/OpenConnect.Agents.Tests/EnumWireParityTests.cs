@@ -27,7 +27,8 @@ public sealed class EnumWireParityTests
         (typeof(AgentRunState), ["accepted", "preparing", "running", "awaiting-user", "awaiting-approval", "paused", "completed", "failed", "cancel-requested", "cancelled", "outcome-unknown"]),
         (typeof(AgentHistoryPolicy), ["recent-turns", "bounded-summary", "full-within-budget", "provider-managed"]),
         (typeof(AgentMemoryWritePolicy), ["deny-by-default", "explicit-approved", "application-policy"]),
-        (typeof(OpenConnectTransportMode), ["jet-stream", "in-memory-development"])
+        (typeof(OpenConnectTransportMode), ["jet-stream", "in-memory-development"]),
+        (typeof(ModelExecutionLocation), ["local-only", "self-hosted", "remote-allowed"])
     ];
 
     public static IEnumerable<object[]> EnumValues()

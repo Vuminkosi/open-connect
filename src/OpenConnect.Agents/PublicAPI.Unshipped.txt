@@ -215,9 +215,11 @@ OpenConnect.Agents.Execution.ContextProjectionBuilder.Build(OpenConnect.Agents.E
 OpenConnect.Agents.Execution.ContextProjectionBuilder.ContextProjectionBuilder(System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Agents.Execution.ContextProjectionBuilder.RequestAdditional(OpenConnect.Agents.Execution.AgentContextProjection! existing, OpenConnect.Abstractions.AgentId requestor, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Execution.ContextItem!>! extraItems) -> (OpenConnect.Agents.Execution.AgentContextProjection! Projection, int QuarantinedCount)
 OpenConnect.Agents.Execution.ConversationCheckpoint
+OpenConnect.Agents.Execution.ConversationCheckpoint.CatalogRevision.get -> string?
+OpenConnect.Agents.Execution.ConversationCheckpoint.CatalogRevision.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.ChildSessions.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>!
 OpenConnect.Agents.Execution.ConversationCheckpoint.ChildSessions.init -> void
-OpenConnect.Agents.Execution.ConversationCheckpoint.ConversationCheckpoint(string! Version, string! LeadAgentId, string! SessionKey, long TurnSequence, System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! ChildSessions) -> void
+OpenConnect.Agents.Execution.ConversationCheckpoint.ConversationCheckpoint(string! Version, string! LeadAgentId, string! SessionKey, long TurnSequence, System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! ChildSessions, string? CatalogRevision = null) -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.LeadAgentId.get -> string!
 OpenConnect.Agents.Execution.ConversationCheckpoint.LeadAgentId.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.SessionKey.get -> string!
@@ -347,7 +349,8 @@ OpenConnect.Agents.Execution.MafConversationRunner.GetTrace() -> System.Collecti
 OpenConnect.Agents.Execution.MafConversationRunner.History.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
 OpenConnect.Agents.Execution.MafConversationRunner.ImportCheckpoint(OpenConnect.Agents.Execution.ConversationCheckpoint! checkpoint, string! sessionKey) -> void
 OpenConnect.Agents.Execution.MafConversationRunner.IsUsable.get -> bool
-OpenConnect.Agents.Execution.MafConversationRunner.MafConversationRunner(OpenConnect.Agents.Execution.MafRealAgentFactory! factory, OpenConnect.Abstractions.AgentId leadAgentId, OpenConnect.Abstractions.SessionTurnConcurrency concurrency = OpenConnect.Abstractions.SessionTurnConcurrency.Serialize, OpenConnect.Agents.Execution.RunBudgetLedger? runLedger = null, OpenConnect.Abstractions.IRateLimitGate? rateLimitGate = null) -> void
+OpenConnect.Agents.Execution.MafConversationRunner.MafConversationRunner(OpenConnect.Agents.Execution.MafRealAgentFactory! factory, OpenConnect.Abstractions.AgentId leadAgentId, OpenConnect.Abstractions.SessionTurnConcurrency concurrency = OpenConnect.Abstractions.SessionTurnConcurrency.Serialize, OpenConnect.Agents.Execution.RunBudgetLedger? runLedger = null, OpenConnect.Abstractions.IRateLimitGate? rateLimitGate = null, string? pinnedCatalogRevision = null) -> void
+OpenConnect.Agents.Execution.MafConversationRunner.PinnedCatalogRevision.get -> string?
 OpenConnect.Agents.Execution.MafConversationRunner.TurnAsync(string! prompt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string? tenant = null) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
 OpenConnect.Agents.Execution.MafConversationRunner.TurnDurableAsync(string! prompt, OpenConnect.Agents.Execution.AgentExecutionContext! executionContext, OpenConnect.Agents.Execution.IsExecutionRevoked! isExecutionRevoked, OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext! persistenceContext, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
 OpenConnect.Agents.Execution.MafRealAgentFactory
@@ -482,6 +485,8 @@ OpenConnect.Agents.Execution.ParallelPartialFailureException.CompletedIds.get ->
 OpenConnect.Agents.Execution.ParallelPartialFailureException.Error.get -> System.Exception!
 OpenConnect.Agents.Execution.ParallelPartialFailureException.FailedChildId.get -> string!
 OpenConnect.Agents.Execution.ParallelPartialFailureException.ParallelPartialFailureException(string! failedChildId, System.Exception! error, System.Collections.Generic.IReadOnlyList<string!>! completedIds, System.Collections.Generic.IReadOnlyList<string!>! cancelledIds) -> void
+OpenConnect.Agents.Execution.PerCallToolReauthorizer
+static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
 OpenConnect.Agents.Execution.QuarantinedChildResult
 OpenConnect.Agents.Execution.QuarantinedChildResult.QuarantinedChildResult(OpenConnect.Agents.Execution.ChildResult! Result, string! Reason) -> void
 OpenConnect.Agents.Execution.QuarantinedChildResult.Reason.get -> string!
@@ -495,6 +500,8 @@ OpenConnect.Agents.Execution.RateLimitOptions.RateLimitOptions() -> void
 OpenConnect.Agents.Execution.RateLimitOptions.SustainedPerDay.get -> int
 OpenConnect.Agents.Execution.RateLimitOptions.SustainedPerDay.set -> void
 OpenConnect.Agents.Execution.RateLimitServiceCollectionExtensions
+OpenConnect.Agents.Execution.ReauthorizingAIFunction
+OpenConnect.Agents.Execution.ReauthorizingAIFunction.ReauthorizingAIFunction(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> void
 OpenConnect.Agents.Execution.ResultMerger
 OpenConnect.Agents.Execution.RunBudgetLedger
 OpenConnect.Agents.Execution.RunBudgetLedger.ReleaseActiveChild() -> bool
@@ -508,6 +515,20 @@ OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveSubagent(int activeCount,
 OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveSubagentWithSlot() -> bool
 OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveTokens(long tokens) -> bool
 OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveToolCall() -> bool
+OpenConnect.Agents.Execution.StructuredOutputValidationResult
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.ErrorMessage.get -> string?
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.ErrorMessage.init -> void
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.IsValid.get -> bool
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.IsValid.init -> void
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.RepairsAttempted.get -> int
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.RepairsAttempted.init -> void
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.StructuredOutputValidationResult(bool IsValid, string? ValidatedContent = null, string? ErrorMessage = null, int RepairsAttempted = 0) -> void
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.ValidatedContent.get -> string?
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.ValidatedContent.init -> void
+OpenConnect.Agents.Execution.StructuredOutputValidator
+OpenConnect.Agents.Execution.StructuredOutputValidator.ExecuteIfValidAsync<TResult>(string? outputSchemaRef, string! rawContent, System.Func<string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>>! validAction, System.Func<string!, string!, System.Threading.Tasks.ValueTask<string!>>? repairCallback = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<TResult>
+OpenConnect.Agents.Execution.StructuredOutputValidator.StructuredOutputValidator(int maxRepairs = 2) -> void
+OpenConnect.Agents.Execution.StructuredOutputValidator.ValidateWithRepairAsync(string? outputSchemaRef, string! rawContent, System.Func<string!, string!, System.Threading.Tasks.ValueTask<string!>>? repairCallback = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Execution.StructuredOutputValidationResult!>
 OpenConnect.Agents.Execution.TenantApplicationRateLimiter
 OpenConnect.Agents.Execution.TenantApplicationRateLimiter.TenantApplicationRateLimiter(OpenConnect.Abstractions.IRateLimitAuditKeyProvider! keys, System.TimeProvider? clock = null, OpenConnect.Agents.Execution.RateLimitOptions? options = null) -> void
 OpenConnect.Agents.Execution.TenantApplicationRateLimiter.TryAcquire(OpenConnect.Abstractions.RateLimitKey! key, string! executionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> OpenConnect.Abstractions.RateLimitDecision!
@@ -527,10 +548,15 @@ OpenConnect.Agents.Providers.IProviderAdapter.Descriptor.get -> OpenConnect.Agen
 OpenConnect.Agents.Providers.IProviderAdapter.SendAsync(OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
 OpenConnect.Agents.Providers.ProviderAdapter
 OpenConnect.Agents.Providers.ProviderAdapter.ProviderAdapter(System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.IProviderAdapter!>! providers) -> void
+OpenConnect.Agents.Providers.ModelRouteSelector
+static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.ProviderAdapter.Providers.get -> System.Collections.Generic.IReadOnlyCollection<OpenConnect.Agents.Providers.ProviderDescriptor!>!
 OpenConnect.Agents.Providers.ProviderAdapter.SendAsync(string! providerId, OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
 OpenConnect.Agents.Providers.ProviderDescriptor
-OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! ProviderId, bool SupportsChat, bool SupportsStreaming, bool SupportsTools, bool SupportsStructuredOutput) -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.Locality.get -> OpenConnect.Abstractions.ModelExecutionLocation
+OpenConnect.Agents.Providers.ProviderDescriptor.Locality.init -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! ProviderId, bool SupportsChat, bool SupportsStreaming, bool SupportsTools, bool SupportsStructuredOutput, bool SupportsVision = false, OpenConnect.Abstractions.ModelExecutionLocation Locality = OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly) -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! providerId, bool supportsChat, bool supportsStreaming, bool supportsTools, bool supportsStructuredOutput) -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderId.get -> string!
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderId.init -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsChat.get -> bool
@@ -541,6 +567,8 @@ OpenConnect.Agents.Providers.ProviderDescriptor.SupportsStructuredOutput.get -> 
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsStructuredOutput.init -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsTools.get -> bool
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsTools.init -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.SupportsVision.get -> bool
+OpenConnect.Agents.Providers.ProviderDescriptor.SupportsVision.init -> void
 OpenConnect.Agents.Providers.ProviderRequest
 OpenConnect.Agents.Providers.ProviderRequest.Prompt.get -> string!
 OpenConnect.Agents.Providers.ProviderRequest.Prompt.init -> void
@@ -702,8 +730,8 @@ static OpenConnect.Agents.Execution.AgentRunStateMachine.Validate(OpenConnect.Ab
 static OpenConnect.Agents.Execution.ChildContextRestrictionGate.ValidateChildRestriction(OpenConnect.Agents.Execution.AgentExecutionContext! parentContext, string! parentDataZone, string! parentModelRoute, System.Collections.Generic.IReadOnlySet<string!>! allowedDataClasses, System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.AgentId>! allowedChildAgents, OpenConnect.Agents.Execution.ChildContextRestrictionRequest! request) -> void
 static OpenConnect.Agents.Execution.ContextProjectionBounds.GetMaxBudget(OpenConnect.Abstractions.AgentContextSharingMode mode) -> int
 static OpenConnect.Agents.Execution.ContextProjectionBounds.ValidateBounds(OpenConnect.Abstractions.AgentContextSharingMode mode, int tokenBudget, System.TimeSpan ttl) -> void
-static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Export(string! leadAgentId, string! sessionKey, long turnSequence, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! childSessions) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
-static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Import(OpenConnect.Agents.Execution.ConversationCheckpoint! checkpoint, string! expectedLeadAgentId, string! expectedSessionKey) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
+static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Export(string! leadAgentId, string! sessionKey, long turnSequence, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! childSessions, string? catalogRevision = null) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
+static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Import(OpenConnect.Agents.Execution.ConversationCheckpoint! checkpoint, string! expectedLeadAgentId, string! expectedSessionKey, string? expectedCatalogRevision = null) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
 static OpenConnect.Agents.Execution.FirewallGuardedChatClientExtensions.AddFirewallGuardedChatClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, OpenConnect.Privacy.EgressContext! context) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Execution.MafRuntimeProbe.GetAgentApiInventory() -> System.Collections.Generic.IReadOnlyList<string!>!
 static OpenConnect.Agents.Execution.MafRuntimeProbe.GetWorkflowCapabilityMatrix() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.MafCapabilityProbe!>!

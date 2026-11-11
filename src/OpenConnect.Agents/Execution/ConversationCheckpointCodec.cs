@@ -6,7 +6,8 @@ public sealed record ConversationCheckpoint(
     string LeadAgentId,
     string SessionKey,
     long TurnSequence,
-    IReadOnlyList<ChildSessionCheckpoint> ChildSessions);
+    IReadOnlyList<ChildSessionCheckpoint> ChildSessions,
+    string? CatalogRevision = null);
 
 /// <summary>Metadata identifying a child session without copying its MAF history.</summary>
 public sealed record ChildSessionCheckpoint(string AgentId, string SessionKey, int HistoryCount);
@@ -24,7 +25,7 @@ public static class ConversationCheckpointCodec
 
     /// <summary>Creates an immutable checkpoint. No MAF transcript content is included.</summary>
     public static ConversationCheckpoint Export(string leadAgentId, string sessionKey, long turnSequence,
-        IEnumerable<ChildSessionCheckpoint> childSessions)
+        IEnumerable<ChildSessionCheckpoint> childSessions, string? catalogRevision = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(leadAgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionKey);
@@ -39,12 +40,12 @@ public static class ConversationCheckpointCodec
         if (children.Select(child => (child.AgentId, child.SessionKey)).Distinct().Count() != children.Length)
             throw new ArgumentException("Child agent and session key pairs must be unique within a checkpoint.", nameof(childSessions));
 
-        return new ConversationCheckpoint(CurrentVersion, leadAgentId, sessionKey, turnSequence, Array.AsReadOnly(children));
+        return new ConversationCheckpoint(CurrentVersion, leadAgentId, sessionKey, turnSequence, Array.AsReadOnly(children), catalogRevision);
     }
 
     /// <summary>Validates checkpoint compatibility and expected lead/session ownership.</summary>
     public static ConversationCheckpoint Import(ConversationCheckpoint checkpoint, string expectedLeadAgentId,
-        string expectedSessionKey)
+        string expectedSessionKey, string? expectedCatalogRevision = null)
     {
         ArgumentNullException.ThrowIfNull(checkpoint);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedLeadAgentId);
@@ -56,6 +57,8 @@ public static class ConversationCheckpointCodec
         if (!StringComparer.Ordinal.Equals(checkpoint.LeadAgentId, expectedLeadAgentId) ||
             !StringComparer.Ordinal.Equals(checkpoint.SessionKey, expectedSessionKey))
             throw new InvalidOperationException("Checkpoint belongs to a different lead agent or conversation session.");
+        if (expectedCatalogRevision is not null && !StringComparer.Ordinal.Equals(checkpoint.CatalogRevision, expectedCatalogRevision))
+            throw new InvalidOperationException("Checkpoint belongs to a different catalog revision.");
         if (checkpoint.TurnSequence < 0 || checkpoint.TurnSequence == long.MaxValue)
             throw new ArgumentException("Checkpoint metadata is invalid.", nameof(checkpoint));
         ArgumentNullException.ThrowIfNull(checkpoint.ChildSessions);
