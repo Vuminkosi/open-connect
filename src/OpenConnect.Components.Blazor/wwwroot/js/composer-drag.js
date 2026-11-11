@@ -8,19 +8,21 @@
     var STEP = 24;
     var tracked = new WeakMap();
 
-    function clampOffsets(panel, dx, dy) {
+    function clampOffsets(panel, dx, dy, curDx, curDy) {
         var rect = panel.getBoundingClientRect();
         var vw = window.innerWidth || document.documentElement.clientWidth || 0;
         var vh = window.innerHeight || document.documentElement.clientHeight || 0;
-        // rect already includes the current transform; remove it to find the base box.
-        var baseLeft = rect.left - dx;
-        var baseTop = rect.top - dy;
-        var minDx = 8 - (baseLeft + rect.width);
-        var maxDx = vw - 8 - baseLeft;
-        var minDy = 8 - (baseTop + rect.height);
-        var maxDy = vh - 8 - baseTop;
-        if (minDx > maxDx) { minDx = maxDx = (minDx + maxDx) / 2; }
-        if (minDy > maxDy) { minDy = maxDy = (minDy + maxDy) / 2; }
+        var origLeft = rect.left - (curDx || 0);
+        var origTop = rect.top - (curDy || 0);
+
+        var minDx = 16 - origLeft;
+        var maxDx = vw - 16 - (origLeft + rect.width);
+        var minDy = 16 - origTop;
+        var maxDy = vh - 16 - (origTop + rect.height);
+
+        if (minDx > maxDx) { minDx = maxDx = 0; }
+        if (minDy > maxDy) { minDy = maxDy = 0; }
+
         return {
             dx: Math.min(maxDx, Math.max(minDx, dx)),
             dy: Math.min(maxDy, Math.max(minDy, dy))
@@ -50,7 +52,7 @@
         }
         if (handled) {
             ev.preventDefault();
-            var clamped = clampOffsets(panel, state.dx, state.dy);
+            var clamped = clampOffsets(panel, state.dx, state.dy, state.dx, state.dy);
             state.dx = clamped.dx;
             state.dy = clamped.dy;
             apply(panel, state);
@@ -73,9 +75,9 @@
             };
             var onPointerMove = function (ev) {
                 if (!state.dragging) { return; }
-                // In RTL the visual x-axis is mirrored; computed positions stay in CSS pixels.
-                var deltaX = state.startX - ev.clientX;
-                var raw = clampOffsets(panel, state.baseDx + deltaX, state.baseDy + (state.startY - ev.clientY));
+                var deltaX = ev.clientX - state.startX;
+                var deltaY = ev.clientY - state.startY;
+                var raw = clampOffsets(panel, state.baseDx + deltaX, state.baseDy + deltaY, state.dx, state.dy);
                 state.dx = raw.dx;
                 state.dy = raw.dy;
                 apply(panel, state);

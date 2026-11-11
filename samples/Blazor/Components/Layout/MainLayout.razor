@@ -3,12 +3,12 @@
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Components.Contracts
 
-<MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
+<MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
+<MudLayout Style="@($"background-color: {(_isDarkMode ? _theme.PaletteDark.Background : _theme.PaletteLight.Background)}; min-height: 100vh; color: {(_isDarkMode ? _theme.PaletteDark.TextPrimary : _theme.PaletteLight.TextPrimary)};")">
     <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true" Dense="false">
         <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
             <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
@@ -29,7 +29,7 @@
         <MudTooltip Text="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
             <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                            Color="Color.Default"
-                           OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+                           OnClick="@ToggleThemeAsync" />
         </MudTooltip>
     </MudAppBar>
 
@@ -47,7 +47,9 @@
 </MudLayout>
 
 @code {
+    private MudThemeProvider _mudThemeProvider = null!;
     private bool _isDarkMode = false;
+    private bool _userExplicitlySetTheme = false;
 
     private readonly MudTheme _theme = new()
     {
@@ -57,12 +59,12 @@
             PrimaryDarken = "#1D4ED8",
             PrimaryLighten = "#3B82F6",
             Secondary = "#0D9488",
-            Background = "#F8FAFC",
+            Background = "#F1F5F9",
             Surface = "#FFFFFF",
             AppbarBackground = "#FFFFFF",
             AppbarText = "#0F172A",
             TextPrimary = "#0F172A",
-            TextSecondary = "#64748B",
+            TextSecondary = "#475569",
             LinesDefault = "#E2E8F0",
             TableLines = "#E2E8F0",
             ActionDefault = "#64748B",
@@ -96,4 +98,42 @@
             DefaultBorderRadius = "10px"
         }
     };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _mudThemeProvider != null)
+        {
+            try
+            {
+                var systemDark = await _mudThemeProvider.GetSystemDarkModeAsync();
+                if (!_userExplicitlySetTheme)
+                {
+                    _isDarkMode = systemDark;
+                    StateHasChanged();
+                }
+
+                await _mudThemeProvider.WatchSystemDarkModeAsync(OnSystemPreferenceChanged);
+            }
+            catch
+            {
+                // Fallback gracefully if browser interop is not ready yet
+            }
+        }
+    }
+
+    private Task OnSystemPreferenceChanged(bool newValue)
+    {
+        if (!_userExplicitlySetTheme)
+        {
+            _isDarkMode = newValue;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private void ToggleThemeAsync()
+    {
+        _userExplicitlySetTheme = true;
+        _isDarkMode = !_isDarkMode;
+    }
 }
