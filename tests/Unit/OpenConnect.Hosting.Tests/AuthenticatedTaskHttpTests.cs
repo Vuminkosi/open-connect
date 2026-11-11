@@ -250,6 +250,49 @@ public sealed class AuthenticatedTaskHttpTests
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Tool_invocation_status_endpoint_enforces_tenant_isolation_and_returns_sanitized_status()
+    {
+        await using var host = await HttpFixture.StartAsync();
+        var tracker = host.Services.GetRequiredService<DurableToolExecutionTracker>();
+
+        var taskId = new TaskId(Ulid.Parse(TenantA));
+        var sessionId = new SessionId(Ulid.Parse(TenantA));
+        var tenantId = new TenantId(Ulid.Parse(TenantA));
+        var principalId = new PrincipalId(Ulid.Parse(PrincipalA));
+
+        var record = tracker.AcceptInvocation(
+            taskId,
+            sessionId,
+            tenantId,
+            principalId,
+            toolId: "indexer",
+            toolRevision: "v1.0",
+            executionMode: ToolExecutionMode.BackgroundDurable,
+            canonicalArgumentsJson: "{\"batch\":1}",
+            requiresApproval: false);
+
+        tracker.MarkStarted(record.InvocationId);
+        tracker.ReportProgress(record.InvocationId, "indexing", completedUnits: 25, totalUnits: 100);
+
+        // Own tenant client can read status
+        using var clientA = host.AuthenticatedClient(TenantA, PrincipalA);
+        using var responseA = await clientA.GetAsync($"/openconnect/v1/tasks/{taskId.Value}/tools/{record.InvocationId}");
+        Assert.Equal(HttpStatusCode.OK, responseA.StatusCode);
+
+        var body = await responseA.Content.ReadFromJsonAsync<DurableToolInvocationRecord>(IdentifierJsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(ToolInvocationStatus.Progressing, body.Status);
+        Assert.Equal(25, body.CompletedUnits);
+        Assert.Equal(100, body.TotalUnits);
+        Assert.NotEmpty(body.CanonicalArgumentHash);
+
+        // Foreign tenant client receives 404 (isolation/concealment)
+        using var clientB = host.AuthenticatedClient(TenantB, PrincipalB);
+        using var responseB = await clientB.GetAsync($"/openconnect/v1/tasks/{taskId.Value}/tools/{record.InvocationId}");
+        Assert.Equal(HttpStatusCode.NotFound, responseB.StatusCode);
+    }
+
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 
     private static async Task<HttpResponseMessage> Post(HttpClient client, string path, HttpContent content, string key)
@@ -263,6 +306,7 @@ public sealed class AuthenticatedTaskHttpTests
     {
         private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
         private readonly WebApplication _app;
+        public IServiceProvider Services => _app.Services;
         public HttpClient Client { get; }
         public RecordingExecutor Executor { get; }
         public int TaskCount => _app.Services.GetRequiredService<InMemoryTaskStore>().All().Count;

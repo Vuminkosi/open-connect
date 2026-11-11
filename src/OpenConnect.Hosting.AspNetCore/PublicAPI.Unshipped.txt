@@ -1,6 +1,53 @@
 #nullable enable
 OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter
 OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.AcceptInvocation(OpenConnect.Abstractions.TaskId taskId, OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! toolId, string! toolRevision, OpenConnect.Abstractions.ToolExecutionMode executionMode, string! canonicalArgumentsJson, bool requiresApproval) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.Approve(OpenConnect.Abstractions.Ulid invocationId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.DurableToolExecutionTracker(System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.GetSanitized(OpenConnect.Abstractions.Ulid invocationId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.MarkCompleted(OpenConnect.Abstractions.Ulid invocationId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.MarkStarted(OpenConnect.Abstractions.Ulid invocationId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.ReportProgress(OpenConnect.Abstractions.Ulid invocationId, string! phase, long completedUnits, long? totalUnits, string? localizedStatusKey = null, bool isHeartbeat = false) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.RequestCancellation(OpenConnect.Abstractions.Ulid invocationId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CanonicalArgumentHash.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CanonicalArgumentHash.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CompletedAt.get -> System.DateTimeOffset?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CompletedAt.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CompletedUnits.get -> long
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CompletedUnits.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CreatedAt.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CurrentPhase.get -> string?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CurrentPhase.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.DurableToolInvocationRecord(OpenConnect.Abstractions.Ulid InvocationId, OpenConnect.Abstractions.TaskId TaskId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! ToolId, string! ToolRevision, OpenConnect.Abstractions.ToolExecutionMode ExecutionMode, OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus Status, string! CanonicalArgumentHash, string? CurrentPhase, long CompletedUnits, long? TotalUnits, string? LocalizedStatusKey, System.DateTimeOffset CreatedAt, System.DateTimeOffset? LastHeartbeatAt, System.DateTimeOffset? CompletedAt, string? ErrorMessage) -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ErrorMessage.get -> string?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ErrorMessage.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ExecutionMode.get -> OpenConnect.Abstractions.ToolExecutionMode
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ExecutionMode.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.InvocationId.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.InvocationId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.LastHeartbeatAt.get -> System.DateTimeOffset?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.LastHeartbeatAt.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.LocalizedStatusKey.get -> string?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.LocalizedStatusKey.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.SessionId.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.SessionId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Status.get -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Status.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TaskId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToolId.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToolId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToolRevision.get -> string!
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToolRevision.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TotalUnits.get -> long?
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.TotalUnits.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Context.get -> OpenConnect.Agents.Execution.AgentExecutionContext!
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Dispose() -> void
@@ -79,8 +126,17 @@ OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.MaxReta
 OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.OpenConnectTaskExecutionOptions() -> void
 OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.WorkerConcurrency.get -> int
 OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions.WorkerConcurrency.set -> void
-OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
-OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Accepted = 1 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.CancellationRequested = 7 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Cancelled = 8 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Completed = 5 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Failed = 6 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Finalizing = 4 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.OutcomeUnknown = 9 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.PendingApproval = 0 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Progressing = 3 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
+OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Started = 2 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.AppendAsync(OpenConnect.Abstractions.EventRecord! event, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.InMemoryEventJournal() -> void
@@ -100,6 +156,8 @@ OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.Unregister(System.Gui
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.InMemoryTaskStore() -> void
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.TransitionAsync(OpenConnect.Abstractions.TaskId taskId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.AgentRunState expectedState, OpenConnect.Abstractions.AgentRunState newState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.DataProtectionNativeAgentSessionProtector(Microsoft.AspNetCore.DataProtection.IDataProtectionProvider! provider) -> void
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.ProtectAsync(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding! binding, System.ReadOnlyMemory<byte> plaintext, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
