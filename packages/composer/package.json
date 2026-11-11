@@ -17,7 +17,11 @@
       "import": "./dist/react.js"
     }
   },
-  "files": ["dist", "src/styles.css", "README.md"],
+  "files": [
+    "dist",
+    "src/styles.css",
+    "README.md"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=24"
@@ -40,7 +44,9 @@
     "@openconnect/client": "file:../client-ts",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.3.0",
     "react": "^19.0.0",
+    "react-dom": "^19.3.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
