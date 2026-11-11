@@ -108,7 +108,7 @@ jobs:
           }
 
       - name: Set up .NET SDK (pinned by global.json)
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v4.3.1
         with:
           dotnet-version-file: global.json
 
@@ -162,7 +162,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up .NET SDK (pinned by global.json)
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v4.3.1
         with:
           dotnet-version-file: global.json
           cache: true
@@ -175,7 +175,7 @@ jobs:
       # Older runtimes so net8.0/net9.0 tests execute on matching runtimes.
       # Runtime-only installs: global.json keeps the CLI on the primary SDK.
       - name: Set up .NET 8 and 9 runtimes (execution only)
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v4.3.1
         with:
           dotnet-version: |
             8.0.404
