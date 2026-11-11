@@ -25,23 +25,29 @@ jobs:
             Directory.Packages.props
             Directory.Build.props
             site/OpenConnect.Docs/packages.lock.json
-      - name: Restore portal
-        run: dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
+      - name: Restore solution and portal
+        run: |
+          dotnet restore OpenConnect.slnx --locked-mode
+          dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
+      - name: Build solution serially
+        run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror -m:1
+      - name: Generate DocFX and contract artifacts
+        shell: pwsh
+        run: ./scripts/generate-docs-api.ps1 -Mode all
       - name: Build portal
         run: dotnet build site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -warnaserror
       - name: Validate content files
         shell: pwsh
-        run: |
-          $files = Get-ChildItem site/OpenConnect.Docs/Content -Filter *.md -Recurse
-          if (-not $files) { throw 'No documentation content files found.' }
-          foreach ($file in $files) {
-            $text = Get-Content $file.FullName -Raw
-            if ($text -notmatch '(?s)^---\s*.*?title\s*:') { throw "Missing title front matter: $($file.FullName)" }
-          }
+        run: ./scripts/validate-docs-content.ps1
+      - name: Validate OpenAPI and JSON Schema contracts
+        shell: pwsh
+        run: ./scripts/validate-docs-contracts.ps1
       - name: Check source tree for secrets in portal assets
         shell: pwsh
         run: |
           $hits = Get-ChildItem site/OpenConnect.Docs -Recurse -File | Select-String -Pattern 'sk-[A-Za-z0-9]{16,}|BEGIN .*PRIVATE KEY|OPENCONNECT_SCAN_TOKEN=' -AllMatches
           if ($hits) { $hits | Format-List; throw 'Secret-like value found in portal assets.' }
+      - name: Portal component tests
+        run: dotnet test site/OpenConnect.Docs.Tests/OpenConnect.Docs.Tests.csproj -c Release --no-restore
       - name: Todo source regression build
         run: dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release --no-restore -warnaserror

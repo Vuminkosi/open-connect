@@ -1,0 +1,27 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": ["src/*/*.csproj"],
+          "exclude": ["src/OpenConnect.WorkerHosts.*/*.csproj"]
+        }
+      ],
+      "dest": "site/OpenConnect.Docs/generated/api/v1",
+      "disableDefaultFilter": false,
+      "properties": {
+        "TargetFramework": "net10.0"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": ["**/*.md"], "src": "site/OpenConnect.Docs/Content" }
+    ],
+    "dest": "site/OpenConnect.Docs/generated/docfx",
+    "globalMetadata": {
+      "_enableSearch": false,
+      "_disableContribution": true
+    }
+  }
+}

@@ -14,3 +14,13 @@ Build with:
 dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
 dotnet build site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -warnaserror
 ```
+
+## API generation
+
+From the repository root, after a serialized Release build:
+
+```powershell
+./scripts/generate-docs-api.ps1 -Mode all
+```
+
+The pinned DocFX tool consumes the actual source projects and emits versioned API metadata plus copied OpenAPI and JSON Schema contracts under `site/OpenConnect.Docs/generated/`. Generated output is ignored and must be rebuilt in CI.

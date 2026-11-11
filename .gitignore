@@ -372,3 +372,6 @@ docs/*
 !docs/architecture/
 !docs/architecture/adr/
 !docs/evidence/
+
+# Generated documentation output is rebuilt by scripts/generate-docs-api.ps1.
+/site/OpenConnect.Docs/generated/

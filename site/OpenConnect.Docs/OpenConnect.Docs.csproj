@@ -13,5 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content/**/*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="generated/**/*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('generated')" />
+    <Content Include="generated/api/**/*.yml" CopyToOutputDirectory="PreserveNewest" Condition="Exists('generated/api')" />
   </ItemGroup>
 </Project>
