@@ -1,6 +1,6 @@
 # Task 005B evidence
 
-**Revision audited:** `49b9235` before this task's test-marker correction.  
+**Revision audited:** `49b9235` before this task's test-marker correction.
 **Current correction commit:** pending.
 
 ## PASS
