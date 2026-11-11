@@ -17,6 +17,7 @@
 - Locked solution restore: `dotnet restore OpenConnect.slnx --locked-mode` — PASS.
 - Serialized full Release build: `dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror -m:1` — PASS, 16.9 seconds before portal test project addition; repeated after addition — PASS, 8.4 seconds.
 - Baseline non-live solution tests: `dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive" --no-restore -m:1` — PASS, 1,433 total, 1,432 passed, 0 failed, 1 skipped, 28.3 seconds. The two named failures from the task were not present in repository evidence and were not reproduced.
+- Full current solution tests after portal test integration: `dotnet test OpenConnect.slnx -c Release --no-build --no-restore --filter "Category!=NatsLive" -m:1` — PASS, 1,437 total, 1,436 passed, 0 failed, 1 skipped, 32.5 seconds.
 - DocFX tool availability: `dotnet tool search docfx --detail` — PASS; pinned `docfx` 2.81.0 in `dotnet-tools.json`.
 - DocFX generation: `./scripts/generate-docs-api.ps1 -Mode all` — PASS; 21 source projects, generated API YAML and contract artifacts under ignored `site/OpenConnect.Docs/generated/`.
 - Content validation: `./scripts/validate-docs-content.ps1` — PASS, 12 files and 12 unique routes.
