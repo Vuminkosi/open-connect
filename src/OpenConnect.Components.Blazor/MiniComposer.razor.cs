@@ -210,6 +210,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
+    private void OpenMode(string mode)
+    {
+        _open = true;
+        _openedOnce = true;
+        StateHasChanged();
+    }
+
     private void Toggle()
     {
         _open = !_open;

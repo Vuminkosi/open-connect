@@ -9,20 +9,33 @@
         return Math.max(0, Math.min(val, Math.max(0, max)));
     }
 
+    function getOffsetParentRect(el) {
+        var p = el ? el.offsetParent : null;
+        if (!p || p === document.body || p === document.documentElement) {
+            return { left: 0, top: 0 };
+        }
+        return p.getBoundingClientRect();
+    }
+
     function applyPosition(root, x, y) {
+        var parentRect = getOffsetParentRect(root);
         var maxX = window.innerWidth - root.offsetWidth;
         var maxY = window.innerHeight - root.offsetHeight;
-        var clampedX = clamp(x, maxX);
-        var clampedY = clamp(y, maxY);
+
+        var clampedViewportX = clamp(x + parentRect.left, maxX);
+        var clampedViewportY = clamp(y + parentRect.top, maxY);
+
+        var finalX = clampedViewportX - parentRect.left;
+        var finalY = clampedViewportY - parentRect.top;
 
         root.style.setProperty("inset-inline-end", "auto", "important");
         root.style.setProperty("inset-block-end", "auto", "important");
         root.style.setProperty("right", "auto", "important");
         root.style.setProperty("bottom", "auto", "important");
-        root.style.setProperty("left", clampedX + "px", "important");
-        root.style.setProperty("top", clampedY + "px", "important");
+        root.style.setProperty("left", finalX + "px", "important");
+        root.style.setProperty("top", finalY + "px", "important");
 
-        return { x: clampedX, y: clampedY };
+        return { x: clampedViewportX, y: clampedViewportY };
     }
 
     window.ocComposerDrag = {
@@ -34,6 +47,23 @@
             var startY = 0;
             var initialLeft = 0;
             var initialTop = 0;
+
+            var onPointerDown = function (ev) {
+                if (ev.button !== undefined && ev.button !== 0) return;
+                var parentRect = getOffsetParentRect(root);
+                var rect = root.getBoundingClientRect();
+                dragging = true;
+                startX = ev.clientX;
+                startY = ev.clientY;
+                initialLeft = rect.left - parentRect.left;
+                initialTop = rect.top - parentRect.top;
+
+                root.classList.add("oc-composer--dragging");
+                try {
+                    handle.setPointerCapture(ev.pointerId);
+                } catch (e) {}
+                ev.preventDefault();
+            };
 
             var onPointerMove = function (ev) {
                 if (!dragging) return;
@@ -54,22 +84,6 @@
                         handle.releasePointerCapture(ev.pointerId);
                     }
                 } catch (e) {}
-            };
-
-            var onPointerDown = function (ev) {
-                if (ev.button !== undefined && ev.button !== 0) return;
-                var rect = root.getBoundingClientRect();
-                dragging = true;
-                startX = ev.clientX;
-                startY = ev.clientY;
-                initialLeft = rect.left;
-                initialTop = rect.top;
-
-                root.classList.add("oc-composer--dragging");
-                try {
-                    handle.setPointerCapture(ev.pointerId);
-                } catch (e) {}
-                ev.preventDefault();
             };
 
             var onKeyDown = function (ev) {
@@ -95,20 +109,19 @@
                 }
 
                 ev.preventDefault();
+                var parentRect = getOffsetParentRect(root);
                 var rect = root.getBoundingClientRect();
-                applyPosition(root, rect.left + stepX, rect.top + stepY);
+                applyPosition(root, (rect.left - parentRect.left) + stepX, (rect.top - parentRect.top) + stepY);
             };
 
             var onResize = function () {
                 if (!root.style.left && !root.style.top) return;
+                var parentRect = getOffsetParentRect(root);
                 var rect = root.getBoundingClientRect();
-                applyPosition(root, rect.left, rect.top);
+                applyPosition(root, rect.left - parentRect.left, rect.top - parentRect.top);
             };
 
             handle.addEventListener("pointerdown", onPointerDown);
-            handle.addEventListener("pointermove", onPointerMove);
-            handle.addEventListener("pointerup", onPointerUp);
-            handle.addEventListener("pointercancel", onPointerUp);
             window.addEventListener("pointermove", onPointerMove);
             window.addEventListener("pointerup", onPointerUp);
             window.addEventListener("pointercancel", onPointerUp);
@@ -126,17 +139,15 @@
 
         moveBy: function (root, deltaX, deltaY) {
             if (!root) return { x: 0, y: 0 };
+            var parentRect = getOffsetParentRect(root);
             var rect = root.getBoundingClientRect();
-            return applyPosition(root, rect.left + deltaX, rect.top + deltaY);
+            return applyPosition(root, (rect.left - parentRect.left) + deltaX, (rect.top - parentRect.top) + deltaY);
         },
 
         detach: function (handle, root, resetPosition) {
             if (!handle || !tracked.has(handle)) return;
             var refs = tracked.get(handle);
             handle.removeEventListener("pointerdown", refs.onPointerDown);
-            handle.removeEventListener("pointermove", refs.onPointerMove);
-            handle.removeEventListener("pointerup", refs.onPointerUp);
-            handle.removeEventListener("pointercancel", refs.onPointerUp);
             window.removeEventListener("pointermove", refs.onPointerMove);
             window.removeEventListener("pointerup", refs.onPointerUp);
             window.removeEventListener("pointercancel", refs.onPointerUp);

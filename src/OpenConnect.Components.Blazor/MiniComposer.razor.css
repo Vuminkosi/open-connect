@@ -1,7 +1,8 @@
 /* MiniComposer — Production-grade floating assistant composer.
    Referenced from SwiftAidv2 EllaiCompactComposer + EllaiLauncherMenu.
-   Features chat-bubble shell with pointing notch, MudFabMenu activator,
-   drag handle with direct viewport tracking, input row, captions, and breathing motion dots. */
+   Features floating card anchored above MudFab launcher, 1:1 direct viewport
+   tracking, input row with live waveform and send switch, dotted divider,
+   breathing status dots, and green voice/mic toggles. */
 
 .oc-anchored-host {
     position: static;
@@ -10,9 +11,10 @@
 /* Floating Launcher Menu (SwiftAidv2 MudFabMenu activator) */
 .oc-launcher-menu {
     position: fixed !important;
-    top: 85vh !important;
-    bottom: auto !important;
+    bottom: 24px !important;
     right: 24px !important;
+    top: auto !important;
+    left: auto !important;
     z-index: 99999 !important;
 }
 
@@ -45,45 +47,42 @@
     font-size: 28px !important;
 }
 
-/* Floating Composer Card (SwiftAidv2 Chat-Bubble Shell) */
+/* Floating Composer Card (Clean Card, No pseudo-elements, No scroll constraints) */
 .oc-bubble {
-    position: fixed;
-    right: 24px;
-    bottom: calc(15vh + 1.25rem);
-    inline-size: min(24rem, calc(100vw - 2rem));
-    max-inline-size: calc(100vw - 2rem);
-    max-block-size: none;
-    max-height: none;
-    height: auto;
-    background: var(--mud-palette-surface, #ffffff);
-    border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
-    padding: 0.625rem;
-    z-index: 99999;
-    display: flex;
-    flex-direction: column;
-    overflow: visible;
+    position: fixed !important;
+    right: 24px !important;
+    bottom: 96px !important;
+    width: 380px !important;
+    max-width: calc(100vw - 32px) !important;
+    height: auto !important;
+    max-height: none !important;
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+    padding: 10px 14px !important;
+    z-index: 99998 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
 }
 
 /* Attached mode (Placement == Attached): inline bubble, no FAB */
 .oc-attached .oc-bubble {
-    position: static;
-    transform: none;
-    right: auto;
-    bottom: auto;
-    z-index: auto;
-}
-
-.oc-attached .oc-bubble::after {
-    content: none;
+    position: static !important;
+    transform: none !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: auto !important;
 }
 
 /* Move / Header Row */
 .oc-bubble__move-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
 }
 
 .oc-bubble__handle {
@@ -93,7 +92,7 @@
     padding: 0.25rem;
     border-radius: 0.375rem;
     user-select: none;
-    color: var(--mud-palette-text-primary, #1f2937);
+    color: #424242;
 }
 
 .oc-bubble__handle:active {
@@ -150,13 +149,13 @@
 .oc-bubble__sent-message {
     margin-block: 0.5rem 0.25rem;
     padding-inline-start: 0.5rem;
-    border-inline-start: 2px solid var(--mud-palette-lines-default, #e2e8f0);
+    border-inline-start: 2px solid #e2e8f0;
     max-block-size: none;
     max-height: none;
     overflow: visible;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
-    color: var(--mud-palette-text-secondary, #6b7280);
+    color: #6b7280;
 }
 
 .oc-bubble__response {
@@ -166,7 +165,7 @@
     overflow: visible;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
-    color: var(--mud-palette-text-primary, #111827);
+    color: #111827;
 }
 
 .oc-bubble__partial-transcript {
@@ -175,7 +174,7 @@
     max-height: none;
     overflow: visible;
     overflow-wrap: anywhere;
-    color: var(--mud-palette-text-secondary, #6b7280);
+    color: #6b7280;
     font-size: 0.75rem;
     line-height: 1.35;
 }
@@ -199,7 +198,7 @@
 .oc-message-role {
     font-size: 11px;
     font-weight: 600;
-    color: var(--mud-palette-text-secondary, #6b7280);
+    color: #6b7280;
 }
 
 .oc-message-text {
@@ -223,7 +222,7 @@
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 12px;
-    background: color-mix(in srgb, var(--mud-palette-error, #dc3545) 12%, transparent);
+    background: color-mix(in srgb, #dc3545 12%, transparent);
 }
 
 .oc-bubble-chips {
@@ -233,109 +232,95 @@
     padding: 4px 0;
 }
 
+/* Dotted Divider */
 .oc-bubble-divider {
-    border-bottom: 1.5px dotted var(--mud-palette-lines-default, #e2e8f0);
-    margin: 0.375rem 0;
+    border: none !important;
+    border-top: 1px dotted #cccccc !important;
+    margin: 8px 0 !important;
+    width: 100% !important;
 }
 
-/* Status Row: 3-bar animated breathing dots + Voice/Mic Toggles */
+/* Status Row: 3 green dots + Voice/Mic Toggles */
 .oc-bubble__status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding-top: 2px !important;
 }
 
 .oc-status__line {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-width: 0;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
 }
 
-.oc-status__motion {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    width: 14px;
-    height: 14px;
-    flex: 0 0 14px;
-    color: var(--mud-palette-primary, #059669);
+.oc-status__dots {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
 }
 
-.oc-status__motion i {
-    display: block;
-    width: 3px;
-    height: 7px;
-    border-radius: 2px;
-    background: currentColor;
-    animation: oc-status-breathe 2.8s ease-in-out infinite;
+.oc-status__dot {
+    width: 5px !important;
+    height: 5px !important;
+    border-radius: 50% !important;
+    background-color: #00875a !important;
+    display: inline-block !important;
+    animation: oc-dot-breathe 2.4s ease-in-out infinite;
 }
 
-.oc-status__motion i:nth-child(2) {
-    animation-delay: .16s;
+.oc-status__dot:nth-child(2) {
+    animation-delay: 0.2s;
 }
 
-.oc-status__motion i:nth-child(3) {
-    animation-delay: .32s;
+.oc-status__dot:nth-child(3) {
+    animation-delay: 0.4s;
 }
 
-.oc-status__motion--thinking {
-    color: #7C3AED;
-}
-
-.oc-status__motion--thinking i {
-    animation-name: oc-status-wave;
-    animation-duration: 1.2s;
-}
-
-.oc-status__motion--connecting i {
-    animation-name: oc-status-wave;
-    animation-duration: .9s;
-}
-
-@keyframes oc-status-breathe {
+@keyframes oc-dot-breathe {
     0%, 100% {
-        opacity: .55;
-        transform: scaleY(.65);
+        opacity: 0.45;
+        transform: scale(0.8);
     }
     50% {
         opacity: 1;
-        transform: scaleY(1);
-    }
-}
-
-@keyframes oc-status-wave {
-    0%, 100% {
-        transform: scaleY(.35);
-        opacity: .5;
-    }
-    50% {
-        transform: scaleY(1.5);
-        opacity: 1;
+        transform: scale(1.15);
     }
 }
 
 .oc-status__text {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--mud-palette-text-primary, #374151);
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #212121 !important;
 }
 
 .oc-bubble__speech-action {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-height: 2rem;
-    color: var(--mud-palette-text-secondary, #6b7280);
-    font-size: 0.75rem;
-    margin-inline-start: auto;
-    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-inline-start: auto !important;
+}
+
+.oc-speech-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #00875a !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+.oc-speech-item .mud-icon-root {
+    color: #00875a !important;
+    fill: #00875a !important;
+    font-size: 18px !important;
 }
 
 .oc-bubble-settings {
-    border-top: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+    border-top: 1px solid #e2e8f0;
     padding: 8px 0;
 }
 
@@ -346,22 +331,14 @@
     margin: 0;
     font-size: 12px;
     line-height: 20px;
-    color: var(--mud-palette-text-secondary, #475569);
+    color: #475569;
 }
 
 @media (max-width: 599px) {
     .oc-bubble {
-        inline-size: calc(100vw - 2rem);
-        max-block-size: none;
-        max-height: none;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .oc-status__motion i {
-        animation: none;
-    }
-    .oc-bubble__live-speak--active {
-        transition: none;
+        inline-size: calc(100vw - 2rem) !important;
+        width: calc(100vw - 2rem) !important;
+        max-block-size: none !important;
+        max-height: none !important;
     }
 }

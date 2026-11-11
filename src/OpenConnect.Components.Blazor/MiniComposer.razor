@@ -5,9 +5,9 @@
 @*
   MiniComposer — Enhanced Production Floating Assistant Composer
   Referenced from SwiftAidv2 EllaiCompactComposer + EllaiLauncherMenu.
-  Fully featured: MudFabMenu mode selector, handle drag with 1:1 direct tracking,
-  voice/mic toggles, live equalizer waveform, sent message and streaming captions,
-  and 3-bar animated breathing status indicators.
+  Fully featured: 1:1 direct tracking drag handle, settings, red stop button,
+  input field with dynamic equalizer-to-send switch, enter-to-send,
+  dotted divider, breathing status dots, and green voice/mic toggles.
 *@
 
 <div class="oc-anchored-host @(IsAttached ? "oc-attached" : "")">
@@ -112,12 +112,12 @@
                         }
                         else
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Mic"
-                                           Color="Color.Default"
+                            <MudIconButton Icon="@Icons.Material.Filled.StopCircle"
+                                           Color="Color.Error"
                                            Size="Size.Small"
                                            OnClick="@(() => _micOn = !_micOn)"
-                                           aria-label="Voice recording"
-                                           title="Voice recording" />
+                                           aria-label="Stop / Record"
+                                           title="Stop / Record" />
 
                             @if (!string.IsNullOrWhiteSpace(_draft))
                             {
@@ -210,33 +210,22 @@
             <!-- Dotted Divider (SwiftAidv2 Style) -->
             <div class="oc-bubble-divider"></div>
 
-            <!-- Status Row (SwiftAidv2 StatusLine + Voice Toggles) -->
+            <!-- Status Row (SwiftAidv2 StatusLine + Voice Toggles matching Reference Image) -->
             <div class="oc-bubble__status-row">
                 <div class="oc-status__line">
-                    <span class="oc-status__motion @MotionClass" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="oc-status__dots" aria-hidden="true"><i class="oc-status__dot"></i><i class="oc-status__dot"></i><i class="oc-status__dot"></i></span>
                     <span class="oc-status__text">@StatusText</span>
                 </div>
                 <div class="oc-bubble__speech-action">
-                    <MudIconButton Icon="@(_speechOn ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)"
-                                   Color="@(_speechOn ? Color.Primary : Color.Default)"
-                                   Size="Size.Small"
-                                   OnClick="@(() => _speechOn = !_speechOn)"
-                                   aria-pressed="@(_speechOn ? "true" : "false")"
-                                   aria-label="@(_speechOn ? "Turn off voice" : "Listen")"
-                                   title="@(_speechOn ? "Turn off voice" : "Listen")" />
-                    <span>@(_speechOn ? "Voice on" : "Listen")</span>
+                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="@(() => _speechOn = !_speechOn)" title="@(_speechOn ? "Turn off voice" : "Listen")">
+                        <MudIcon Icon="@(_speechOn ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)" Size="Size.Small" />
+                        <span>@(_speechOn ? "Voice on" : "Listen")</span>
+                    </span>
 
-                    @if (_speechOn)
-                    {
-                        <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
-                                       Color="@(_micOn ? Color.Primary : Color.Default)"
-                                       Size="Size.Small"
-                                       OnClick="@(() => _micOn = !_micOn)"
-                                       aria-pressed="@(_micOn ? "true" : "false")"
-                                       aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
-                                       title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
+                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="@(() => _micOn = !_micOn)" title="@(_micOn ? "Turn off microphone" : "Turn on microphone")">
+                        <MudIcon Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)" Size="Size.Small" />
                         <span>@(_micOn ? "Mic on" : "Mic off")</span>
-                    }
+                    </span>
                 </div>
             </div>
 
