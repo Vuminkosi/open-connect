@@ -21,8 +21,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private bool _open;
     private bool _openedOnce;
     private bool _showSettings;
-    private bool _micOn;
-    private bool _speechOn;
+    private bool _micOn = true;
+    private bool _speechOn = true;
     private bool _sending;
     private bool _disposed;
     private bool _dragAttached;

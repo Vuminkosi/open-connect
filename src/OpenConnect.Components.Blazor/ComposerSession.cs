@@ -438,6 +438,19 @@ public sealed class ComposerSession
         return notify;
     }
 
+    public void MarkIdle()
+    {
+        lock (_gate)
+        {
+            if (Connection != ComposerConnectionState.Streaming)
+            {
+                Connection = ComposerConnectionState.Idle;
+            }
+        }
+
+        Notify();
+    }
+
     public void MarkConnecting()
     {
         lock (_gate)

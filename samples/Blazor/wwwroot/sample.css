@@ -66,3 +66,35 @@ body {
         box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
     }
 }
+
+/* Global Floating Activator (MudFab) and Composer Floating Guard */
+.oc-anchored-fab {
+    position: fixed !important;
+    top: 85vh !important;
+    right: 24px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 99999 !important;
+    background-color: #007a4d !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28) !important;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+}
+
+.oc-anchored-fab:hover {
+    background-color: #006640 !important;
+}
+
+.oc-anchored-fab .mud-icon-root {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    font-size: 28px !important;
+}
+
+.oc-bubble {
+    z-index: 99999 !important;
+}

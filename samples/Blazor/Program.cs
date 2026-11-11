@@ -33,7 +33,11 @@ builder.Services.AddRazorComponents()
 var gatewayUrl = builder.Configuration["GATEWAY_URL"]
     ?? builder.Configuration["OpenConnect:Gateway:Url"]
     ?? "http://gateway-host:8080/";
-builder.Services.AddOpenConnectClient(new Uri(gatewayUrl));
+builder.Services.AddOpenConnectClient(options =>
+{
+    options.AllowInsecureHttp = true;
+    options.ApiBaseAddress = new Uri(gatewayUrl);
+});
 builder.Services.AddOpenConnectComponents();
 builder.Services.AddOpenConnectComposer(options =>
 {

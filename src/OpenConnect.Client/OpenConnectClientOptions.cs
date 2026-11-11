@@ -37,25 +37,29 @@ public sealed class OpenConnectClientOptions
     public Uri? WebSocketAddress { get; set; }
     public ClientAuthenticationMode Authentication { get; set; } = ClientAuthenticationMode.Host;
     public OpenConnectClientReconnectOptions Reconnect { get; } = new();
+    public bool AllowInsecureHttp { get; set; }
 
     public void Validate()
     {
+        var allowHttp = AllowInsecureHttp;
         if (ApiBaseAddress is null
             || !ApiBaseAddress.IsAbsoluteUri
-            || (ApiBaseAddress.Scheme != Uri.UriSchemeHttps && ApiBaseAddress.Scheme != Uri.UriSchemeHttp)
+            || (!allowHttp && ApiBaseAddress.Scheme != Uri.UriSchemeHttps)
+            || (allowHttp && ApiBaseAddress.Scheme != Uri.UriSchemeHttps && ApiBaseAddress.Scheme != Uri.UriSchemeHttp)
             || !string.IsNullOrEmpty(ApiBaseAddress.Query)
             || !string.IsNullOrEmpty(ApiBaseAddress.Fragment))
         {
-            throw new ArgumentException("The API base address must be an absolute HTTP or HTTPS URL without a query or fragment.", nameof(ApiBaseAddress));
+            throw new ArgumentException("The API base address must be an absolute HTTPS URL without a query or fragment.", nameof(ApiBaseAddress));
         }
 
         if (WebSocketAddress is not null
             && (!WebSocketAddress.IsAbsoluteUri
-                || (WebSocketAddress.Scheme != "wss" && WebSocketAddress.Scheme != "ws" && WebSocketAddress.Scheme != Uri.UriSchemeHttps && WebSocketAddress.Scheme != Uri.UriSchemeHttp)
+                || (!allowHttp && WebSocketAddress.Scheme != "wss" && WebSocketAddress.Scheme != Uri.UriSchemeHttps)
+                || (allowHttp && WebSocketAddress.Scheme != "wss" && WebSocketAddress.Scheme != "ws" && WebSocketAddress.Scheme != Uri.UriSchemeHttps && WebSocketAddress.Scheme != Uri.UriSchemeHttp)
                 || !string.IsNullOrEmpty(WebSocketAddress.Query)
                 || !string.IsNullOrEmpty(WebSocketAddress.Fragment)))
         {
-            throw new ArgumentException("The WebSocket address must be an absolute WS, WSS, HTTP or HTTPS URL without a query or fragment.", nameof(WebSocketAddress));
+            throw new ArgumentException("The WebSocket address must be an absolute WSS or HTTPS URL without a query or fragment.", nameof(WebSocketAddress));
         }
 
         if (!Enum.IsDefined(Authentication))

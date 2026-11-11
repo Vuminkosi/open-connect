@@ -168,6 +168,8 @@ OpenConnect.Client.OpenConnectClientException.ErrorCode.get -> string?
 OpenConnect.Client.OpenConnectClientException.OpenConnectClientException(int statusCode, string? errorCode, string! message) -> void
 OpenConnect.Client.OpenConnectClientException.StatusCodeValue.get -> int
 OpenConnect.Client.OpenConnectClientOptions
+OpenConnect.Client.OpenConnectClientOptions.AllowInsecureHttp.get -> bool
+OpenConnect.Client.OpenConnectClientOptions.AllowInsecureHttp.set -> void
 OpenConnect.Client.OpenConnectClientOptions.ApiBaseAddress.get -> System.Uri?
 OpenConnect.Client.OpenConnectClientOptions.ApiBaseAddress.set -> void
 OpenConnect.Client.OpenConnectClientOptions.Authentication.get -> OpenConnect.Client.ClientAuthenticationMode

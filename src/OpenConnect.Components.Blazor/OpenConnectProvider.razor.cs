@@ -114,16 +114,7 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     private async Task RunLoopAsync(string sessionIdValue, CancellationToken token)
     {
-        SessionId sessionId;
-        try
-        {
-            sessionId = new SessionId(Ulid.Parse(sessionIdValue));
-        }
-        catch (FormatException)
-        {
-            Session.MarkError("The session reference is not valid.");
-            return;
-        }
+        var sessionId = ParseOrDeriveSessionId(sessionIdValue);
 
         var clientOptions = ServiceProvider.GetService<OpenConnectClientOptions>();
         var reconnectEnabled = clientOptions?.Reconnect.Enabled ?? true;
@@ -143,6 +134,15 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                         Session.ApplyEvent(record);
                     }
 
+                    failures = 0;
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(PollInterval, token).ConfigureAwait(false);
+                }
+                catch (OpenConnectClientException ex) when (ex.StatusCodeValue == 404 && !token.IsCancellationRequested)
+                {
+                    // Session is brand new and has not had any events/tasks created yet on the gateway.
+                    // Keep session active in Idle/Ready state so user can immediately type and send messages.
+                    Session.MarkIdle();
                     failures = 0;
                     await InvokeAsync(StateHasChanged);
                     await Task.Delay(PollInterval, token).ConfigureAwait(false);
@@ -207,5 +207,33 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         }
         await Task.CompletedTask;
         GC.SuppressFinalize(this);
+    }
+
+    private static SessionId ParseOrDeriveSessionId(string sessionIdValue)
+    {
+        try
+        {
+            return new SessionId(Ulid.Parse(sessionIdValue));
+        }
+        catch (FormatException)
+        {
+            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(sessionIdValue));
+            const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+            var chars = new char[26];
+            chars[0] = alphabet[hash[0] % 8];
+            for (var i = 1; i < 26; i++)
+            {
+                chars[i] = alphabet[hash[i] % 32];
+            }
+
+            try
+            {
+                return new SessionId(Ulid.Parse(new string(chars)));
+            }
+            catch
+            {
+                return new SessionId(Ulid.NewUlid());
+            }
+        }
     }
 }
