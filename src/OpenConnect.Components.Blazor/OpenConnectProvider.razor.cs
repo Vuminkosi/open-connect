@@ -197,7 +197,14 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         Session.Changed -= OnSessionChanged;
         StopLoop();
         Session.DisposeVoiceState();
-        ServiceProvider.GetService<IVoiceClientService>()?.InvalidateAllEpochs();
+        try
+        {
+            ServiceProvider?.GetService<IVoiceClientService>()?.InvalidateAllEpochs();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Service provider engine scope can already be disposed during circuit teardown.
+        }
         await Task.CompletedTask;
         GC.SuppressFinalize(this);
     }

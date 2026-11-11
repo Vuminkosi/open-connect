@@ -9,10 +9,10 @@
     <link href="_content/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.bundle.scp.css" rel="stylesheet" />
     <link href="OpenConnect.Samples.Blazor.styles.css" rel="stylesheet" />
     <link rel="stylesheet" href="sample.css" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-    <Routes />
+    <Routes @rendermode="InteractiveServer" />
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
