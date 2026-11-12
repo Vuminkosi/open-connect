@@ -202,3 +202,54 @@ def post_json(
             raise CloudLegFailed("cloud leg returned malformed JSON")
         return decoded
     raise CloudLegFailed(f"cloud leg unreachable after retries ({last_error})")
+
+
+def post_multipart(
+    *,
+    url: str,
+    fields: dict[str, str],
+    file_field: str,
+    filename: str,
+    file_bytes: bytes,
+    file_content_type: str,
+    api_key: str,
+    timeout_s: float,
+) -> dict[str, object]:
+    """POST an audio multipart request to the configured cloud transcription endpoint."""
+    boundary = f"----OpenConnectBoundary{os.urandom(12).hex()}"
+    separator = f"--{boundary}".encode()
+    body = bytearray()
+    for name, value in fields.items():
+        body.extend(separator + b"\r\n")
+        body.extend(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode())
+        body.extend(value.encode())
+        body.extend(b"\r\n")
+    body.extend(separator + b"\r\n")
+    body.extend(
+        f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"\r\n'
+        f"Content-Type: {file_content_type}\r\n\r\n".encode()
+    )
+    body.extend(file_bytes)
+    body.extend(b"\r\n" + separator + b"--\r\n")
+    request = urllib.request.Request(
+        url,
+        data=bytes(body),
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            raw = response.read()
+            decoded = json.loads(raw.decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        logger.info("Cloud multipart transcription rejected host=%s status=%d", cloud_host(url), exc.code)
+        raise CloudLegFailed(f"cloud multipart request rejected with status {exc.code}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+        logger.info("Cloud multipart transcription failed host=%s outcome=%s", cloud_host(url), type(exc).__name__)
+        raise CloudLegFailed("cloud multipart request failed") from exc
+    if not isinstance(decoded, dict):
+        raise CloudLegFailed("cloud multipart response was not an object")
+    return decoded

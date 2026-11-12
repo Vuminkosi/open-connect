@@ -219,6 +219,8 @@ services:
       # Forward Cloud STT credentials from .env
       OC_TRANSCRIPTION_PROVIDER: ${OpenConnect__TranscriptionModel:-meta-model-api}
       OC_TRANSCRIPTION_MODEL: ${OpenConnect__ASR_MODEL:-${OpenConnect__TranscriptionModel:-}}
+      OC_TRANSCRIPTION_MODE: ${OpenConnect__ASRMode:-ENDPOINTING}
+      TRANSCRIPTION_DEFAULT_LOCALE: ${OpenConnect__Asr__Language:-en}
       OC_TRANSCRIPTION_FILE_URL: ${OpenConnect__ASR_Transcription__URL:-${OpenConnect__TranscriptionApiUrl:-https://api.meta.ai/v1/asr/transcribe}}
       OC_TRANSCRIPTION_REALTIME_URL: ${OpenConnect__ASR_WSS:-wss://api.meta.ai/v1/asr/realtime}
       TRANSCRIPTION_CLOUD_API_KEY: ${OpenConnect__ApiKey:-${OpenConnect__MetaApiKey:-}}

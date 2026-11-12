@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import struct
 import os
 import time
 import uuid
@@ -146,6 +147,16 @@ def _try_local_real(cfg: Settings, audio, locale: str) -> TranscriptResult:
     raise _LocalLegUnavailable("no provisioned local model for this request")
 
 
+def _pcm_to_wav(audio) -> bytes:
+    """Wrap validated PCM in a canonical WAV container for Meta cloud STT."""
+    data_size = len(audio.raw_pcm)
+    byte_rate = audio.sample_rate_hz * audio.channels * (audio.bits_per_sample // 8)
+    block_align = audio.channels * (audio.bits_per_sample // 8)
+    header = b"RIFF" + struct.pack("<I", 36 + data_size) + b"WAVEfmt "
+    header += struct.pack("<IHHIIHH", 16, 1, audio.channels, audio.sample_rate_hz, byte_rate, block_align, audio.bits_per_sample)
+    return header + b"data" + struct.pack("<I", data_size) + audio.raw_pcm
+
+
 def _try_cloud_real(cfg: Settings, audio, request: ExecuteRequest) -> TranscriptResult:
     """Cloud leg. Raises CloudPolicyDenied (terminal) or CloudLegFailed."""
     assert cfg.cloud_url is not None and cfg.cloud_api_key is not None
@@ -153,17 +164,18 @@ def _try_cloud_real(cfg: Settings, audio, request: ExecuteRequest) -> Transcript
         # Terminal: strict-local disables the cloud path entirely.
         raise cloud_module.CloudPolicyDenied("privacy_blocked")
     payload = {
-        "audioBase64": request.input.audioBase64,
-        "mimeType": request.input.mimeType,
-        "sampleRateHz": request.input.sampleRateHz,
-        "channels": request.input.channels,
-        "bitsPerSample": request.input.bitsPerSample,
-        "durationMs": request.input.durationMs,
-        "locale": request.input.locale,
+        "model": cfg.model_id or "",
+        "language": request.input.locale,
+        "mode": cfg.transcription_mode,
     }
-    response = cloud_module.post_json(
+    wav = _pcm_to_wav(audio)
+    response = cloud_module.post_multipart(
         url=cfg.cloud_url,
-        payload=payload,
+        fields=payload,
+        file_field="file",
+        filename="audio.wav",
+        file_bytes=wav,
+        file_content_type="audio/wav",
         api_key=cfg.cloud_api_key,
         timeout_s=cfg.cloud_timeout_ms / 1000.0,
     )
