@@ -22,7 +22,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
-      GATEWAY_URL: http://gateway-host:8080/
+      GATEWAY_URL: http://gateway-host:8080/openconnect/v1/
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080

@@ -65,8 +65,15 @@ else
     builder.Services.AddOpenConnectClient(options =>
     {
         options.AllowInsecureHttp = true;
-        options.ApiBaseAddress = new Uri(gatewayUrl);
+        options.ApiBaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/openconnect/v1/");
     });
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddTransient<SameHostIdentityHandler>();
+        builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
+            client.BaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/openconnect/v1/"))
+            .AddHttpMessageHandler<SameHostIdentityHandler>();
+    }
 }
 builder.Services.AddOpenConnectComponents();
 builder.Services.AddOpenConnectComposer(options =>
