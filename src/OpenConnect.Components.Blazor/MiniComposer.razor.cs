@@ -34,6 +34,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private ElementReference _panelRef;
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
+    private bool _voiceActive;
+
+    /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
+    [Parameter] public string? VoiceEndpoint { get; set; }
 
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
@@ -350,6 +354,72 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _sending = false;
             _pendingIdempotencyKey = null;
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnVoicePartial(string text, long speechEpoch)
+    {
+        if (Session.UpdateLiveHypothesis(text, speechEpoch))
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    [JSInvokable]
+    public async Task OnVoiceFinal(string text, long speechEpoch)
+    {
+        if (!Session.CommitLiveTranscript(text, speechEpoch)) return;
+        _voiceActive = false;
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    [JSInvokable]
+    public Task OnVoiceError(string message)
+    {
+        _voiceActive = false;
+        Session.MarkError(string.IsNullOrWhiteSpace(message) ? "Voice input is unavailable. Text input remains available." : message);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnVoiceStopped()
+    {
+        _voiceActive = false;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleVoiceAsync()
+    {
+        if (_voiceActive)
+        {
+            _voiceActive = false;
+            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); } catch (Exception) { }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Session.SessionId))
+        {
+            try
+            {
+                var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+                Session.AttachSession(created.Id.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                Session.MarkError(FriendlyError(ex));
+                return;
+            }
+        }
+
+        var epoch = Session.StartLiveListening(permissionGranted: true);
+        if (Session.MicrophoneState == ComposerMicrophoneState.Failed) return;
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint).ConfigureAwait(false);
+            _voiceActive = true;
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Session.MarkError("Microphone access or voice transcription is unavailable. Text input remains available.");
         }
     }
 

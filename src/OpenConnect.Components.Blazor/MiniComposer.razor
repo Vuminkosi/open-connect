@@ -135,7 +135,7 @@
                                                Color="@(_speechOn ? Color.Primary : Color.Default)"
                                                Size="Size.Small"
                                                Class="@(_speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
-                                               OnClick="@(() => _speechOn = !_speechOn)"
+                                               OnClick="ToggleVoiceAsync"
                                                aria-label="Voice input"
                                                title="Voice input" />
                             }

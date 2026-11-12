@@ -5,7 +5,7 @@ public interface IOpenConnectClient
     Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default);
     Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
     Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
-    Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default);
+    Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException("Session creation is not supported by this client implementation.");
     Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default);
     /// <summary>

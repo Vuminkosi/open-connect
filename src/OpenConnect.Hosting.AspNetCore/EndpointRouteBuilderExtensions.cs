@@ -98,6 +98,11 @@ public static class EndpointRouteBuilderExtensions
             return Results.Ok(new { status = "accepted" });
         }).RequireAuthorization();
 
+        group.Map("/realtime/{sessionId}", async (HttpContext context, string sessionId, CancellationToken cancellationToken) =>
+        {
+            await VoiceRealtimeWebSocketHandler.HandleAsync(context, sessionId, cancellationToken).ConfigureAwait(false);
+        }).RequireAuthorization();
+
         return endpoints;
     }
 
