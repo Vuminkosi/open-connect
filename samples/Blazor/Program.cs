@@ -85,6 +85,7 @@ builder.Services.AddOpenConnectComponent<TodoProgressComponent>();
 
 // Todo store
 builder.Services.AddSingleton<ITodoStore, InMemoryTodoStore>();
+builder.Services.AddSingleton<ITenantTodoStore>(sp => (InMemoryTodoStore)sp.GetRequiredService<ITodoStore>());
 builder.Services.AddSingleton(_ => TodoInternalOptions.FromConfiguration(builder.Configuration));
 
 // OpenConnect Core & EFCore adapter

@@ -39,30 +39,34 @@ public static class TodoInternalApiExtensions
             var options = context.HttpContext.RequestServices.GetRequiredService<TodoInternalOptions>();
             var authorization = context.HttpContext.Request.Headers.Authorization.ToString();
             var tenant = context.HttpContext.Request.Headers["X-OpenConnect-Tenant"].ToString();
+            var tenantValid = false;
+            try { tenantValid = Ulid.Parse(tenant) != default; } catch (FormatException) { }
             if (!authorization.StartsWith("Bearer ", StringComparison.Ordinal) ||
                 !CryptographicOperations.FixedTimeEquals(
                     Encoding.UTF8.GetBytes(authorization["Bearer ".Length..]),
                     Encoding.UTF8.GetBytes(options.Token)) ||
-                !string.Equals(tenant, options.AllowedTenant, StringComparison.Ordinal))
+                !tenantValid)
                 return Results.Unauthorized();
             return await next(context);
         });
 
-        group.MapGet("", async (ITodoStore store, CancellationToken ct) => Results.Ok(await store.GetAllAsync(ct)));
-        group.MapPost("", async (TodoCreateRequest request, ITodoStore store, CancellationToken ct) =>
+        group.MapGet("", async (HttpContext context, ITenantTodoStore store, CancellationToken ct) => Results.Ok(await store.GetAllAsync(Tenant(context), ct)));
+        group.MapPost("", async (HttpContext context, TodoCreateRequest request, ITenantTodoStore store, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["title"] = ["A title of 1-200 characters is required."] });
             if (!Enum.TryParse<TodoPriority>(request.Priority, true, out var priority))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["priority"] = ["A valid Todo priority is required."] });
-            return Results.Ok(await store.AddAsync(request.Title.Trim(), request.Description?.Trim(), priority, request.DueDateUtc, ct));
+            return Results.Ok(await store.AddAsync(Tenant(context), request.Title.Trim(), request.Description?.Trim(), priority, request.DueDateUtc, ct));
         });
-        group.MapPut("/{id:guid}", async (Guid id, TodoUpdateRequest request, ITodoStore store, CancellationToken ct) =>
-            await store.UpdateStatusAsync(id, request.IsCompleted, ct) ? Results.Ok(await store.GetByIdAsync(id, ct)) : Results.NotFound());
-        group.MapDelete("/{id:guid}", async (Guid id, ITodoStore store, CancellationToken ct) =>
-            await store.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+        group.MapPut("/{id:guid}", async (Guid id, HttpContext context, TodoUpdateRequest request, ITenantTodoStore store, CancellationToken ct) =>
+            await store.UpdateStatusAsync(Tenant(context), id, request.IsCompleted, ct) ? Results.Ok() : Results.NotFound());
+        group.MapDelete("/{id:guid}", async (Guid id, HttpContext context, ITenantTodoStore store, CancellationToken ct) =>
+            await store.DeleteAsync(Tenant(context), id, ct) ? Results.NoContent() : Results.NotFound());
         return endpoints;
     }
+
+    private static TenantId Tenant(HttpContext context) => new(Ulid.Parse(context.Request.Headers["X-OpenConnect-Tenant"]!));
 }
 
 public sealed record TodoCreateRequest(string Title, string? Description = null, string Priority = "Medium", DateTime? DueDateUtc = null);

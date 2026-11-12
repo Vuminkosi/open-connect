@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using OpenConnect.Abstractions;
 
 namespace OpenConnect.Samples.Blazor.Models;
 
@@ -38,7 +39,7 @@ public interface ITodoStore
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
-public sealed class InMemoryTodoStore : ITodoStore
+public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
 {
     private readonly List<TodoItem> _items = new()
     {
@@ -117,4 +118,56 @@ public sealed class InMemoryTodoStore : ITodoStore
             return Task.FromResult(_items.RemoveAll(i => i.Id == id) > 0);
         }
     }
+
+    private readonly Dictionary<string, List<TodoItem>> _tenantItems = new(StringComparer.Ordinal);
+
+    private List<TodoItem> ForTenant(TenantId tenantId)
+    {
+        var key = tenantId.Value.ToString();
+        if (_tenantItems.TryGetValue(key, out var existing)) return existing;
+        var seeded = _items.Select(Clone).ToList();
+        _tenantItems[key] = seeded;
+        return seeded;
+    }
+
+    public Task<IReadOnlyList<TodoItem>> GetAllAsync(TenantId tenantId, CancellationToken ct = default)
+    {
+        lock (_lock) return Task.FromResult<IReadOnlyList<TodoItem>>(ForTenant(tenantId).OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAtUtc).Select(Clone).ToList());
+    }
+
+    public Task<TodoItem> AddAsync(TenantId tenantId, string title, string? description = null, TodoPriority priority = TodoPriority.Medium, DateTime? dueDate = null, CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            var item = new TodoItem { Title = title, Description = description, Priority = priority, DueDateUtc = dueDate };
+            ForTenant(tenantId).Add(item);
+            return Task.FromResult(Clone(item));
+        }
+    }
+
+    public Task<bool> UpdateStatusAsync(TenantId tenantId, Guid id, bool isCompleted, CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            var item = ForTenant(tenantId).FirstOrDefault(i => i.Id == id);
+            if (item is null) return Task.FromResult(false);
+            item.IsCompleted = isCompleted;
+            return Task.FromResult(true);
+        }
+    }
+
+    public Task<bool> DeleteAsync(TenantId tenantId, Guid id, CancellationToken ct = default)
+    {
+        lock (_lock) return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
+    }
+
+    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc };
+}
+
+public interface ITenantTodoStore
+{
+    Task<IReadOnlyList<TodoItem>> GetAllAsync(TenantId tenantId, CancellationToken ct = default);
+    Task<TodoItem> AddAsync(TenantId tenantId, string title, string? description = null, TodoPriority priority = TodoPriority.Medium, DateTime? dueDate = null, CancellationToken ct = default);
+    Task<bool> UpdateStatusAsync(TenantId tenantId, Guid id, bool isCompleted, CancellationToken ct = default);
+    Task<bool> DeleteAsync(TenantId tenantId, Guid id, CancellationToken ct = default);
 }
