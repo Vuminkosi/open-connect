@@ -149,6 +149,7 @@ services:
       TODO_INTERNAL_TOKEN: ${TODO_INTERNAL_TOKEN:-e2e-todo-internal-do-not-use-in-prod}
       TODO_INTERNAL_TENANT: ${TODO_INTERNAL_TENANT:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
       TODO_ALLOW_MUTATIONS: ${TODO_ALLOW_MUTATIONS:-true}
+      TODO_MUTATION_APPROVAL: ${TODO_MUTATION_APPROVAL:-approved}
     networks:
       - oc-network
     depends_on:

@@ -20,6 +20,7 @@ public sealed class MetaCloudOptions
     public string TodoInternalToken { get; init; } = string.Empty;
     public string TodoTenant { get; init; } = string.Empty;
     public bool AllowMutations { get; init; }
+    public bool MutationApprovalGranted { get; init; }
 
     public static MetaCloudOptions FromConfiguration(IConfiguration configuration)
     {
@@ -46,7 +47,8 @@ public sealed class MetaCloudOptions
             TodoServiceUrl = todoUrl,
             TodoInternalToken = todoToken,
             TodoTenant = tenant,
-            AllowMutations = configuration.GetValue("TODO_ALLOW_MUTATIONS", false)
+            AllowMutations = configuration.GetValue("TODO_ALLOW_MUTATIONS", false),
+            MutationApprovalGranted = string.Equals(configuration["TODO_MUTATION_APPROVAL"], "approved", StringComparison.Ordinal)
         };
     }
 }
@@ -116,7 +118,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             {
                 AIFunctionFactory.Create(async (CancellationToken ct) => await todo.ListAsync(ct).ConfigureAwait(false), "todo.list", "List the current tenant's Todo records.")
             };
-            if (_options.AllowMutations)
+            if (_options.AllowMutations && _options.MutationApprovalGranted)
             {
                 tools.Add(AIFunctionFactory.Create(async (string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => await todo.CreateAsync(title, description, priority, dueDateUtc, ct).ConfigureAwait(false), "todo.create", "Create a Todo for the current tenant."));
                 tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.CompleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.complete", "Complete a Todo by id."));
