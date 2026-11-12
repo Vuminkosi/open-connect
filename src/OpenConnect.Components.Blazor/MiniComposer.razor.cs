@@ -88,7 +88,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         && (Session.Connection == ComposerConnectionState.Streaming
             || Session.Connection == ComposerConnectionState.Connecting);
 
-    private bool CanType => !IsLoading;
+    private bool CanType => true;
 
     private bool CanSend => !IsLoading && !_sending && !string.IsNullOrWhiteSpace(_draft);
 
@@ -369,6 +369,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         if (!Session.CommitLiveTranscript(text, speechEpoch)) return;
         _voiceActive = false;
+        _draft = string.Empty;
+        await AutosizeAsync().ConfigureAwait(false);
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
