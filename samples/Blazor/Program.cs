@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using OpenConnect.Agents.Templates;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
@@ -44,6 +45,7 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
         .AddScheme<AuthenticationSchemeOptions, SameHostDevelopmentAuthenticationHandler>(SameHostDevelopmentAuthenticationHandler.SchemeName, _ => { });
     builder.Services.AddAuthorization();
     builder.Services.AddOpenConnectTaskExecution();
+    builder.Services.AddOpenConnectAgent("worker-sample-direct");
     builder.Services.AddMetaTodoIntegration(builder.Configuration);
     builder.Services.AddOpenConnectClient(options =>
     {

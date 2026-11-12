@@ -221,6 +221,7 @@ services:
       OC_TRANSCRIPTION_FILE_URL: ${OpenConnect__ASR_Transcription__URL:-${OpenConnect__TranscriptionApiUrl:-https://api.meta.ai/v1/asr/transcribe}}
       OC_TRANSCRIPTION_REALTIME_URL: ${OpenConnect__ASR_WSS:-wss://api.meta.ai/v1/asr/realtime}
       TRANSCRIPTION_CLOUD_API_KEY: ${OpenConnect__ApiKey:-${OpenConnect__MetaApiKey:-}}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-e2e-worker-token-do-not-use-in-prod}
     volumes:
       - oc_transcription_models:/models
     networks:

@@ -104,26 +104,33 @@ public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
     }
 }
 
-public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, IOptions<MetaCloudOptions> options) : IHostTaskExecutor
+public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
 {
     private readonly MetaCloudOptions _options = options.Value;
 
     public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
     {
-        var tools = new List<AITool>
+        try
         {
-            AIFunctionFactory.Create(async (CancellationToken ct) => await todo.ListAsync(ct).ConfigureAwait(false), "todo.list", "List the current tenant's Todo records.")
-        };
-        if (_options.AllowMutations)
-        {
-            tools.Add(AIFunctionFactory.Create(async (string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => await todo.CreateAsync(title, description, priority, dueDateUtc, ct).ConfigureAwait(false), "todo.create", "Create a Todo for the current tenant."));
-            tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.CompleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.complete", "Complete a Todo by id."));
-            tools.Add(AIFunctionFactory.Create(async (string todoId, bool isCompleted, CancellationToken ct) => await todo.UpdateAsync(Guid.Parse(todoId), isCompleted, ct).ConfigureAwait(false), "todo.update", "Update Todo completion state."));
-            tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.DeleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.delete", "Delete a Todo by id."));
-        }
+            var tools = new List<AITool>
+            {
+                AIFunctionFactory.Create(async (CancellationToken ct) => await todo.ListAsync(ct).ConfigureAwait(false), "todo.list", "List the current tenant's Todo records.")
+            };
+            if (_options.AllowMutations)
+            {
+                tools.Add(AIFunctionFactory.Create(async (string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => await todo.CreateAsync(title, description, priority, dueDateUtc, ct).ConfigureAwait(false), "todo.create", "Create a Todo for the current tenant."));
+                tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.CompleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.complete", "Complete a Todo by id."));
+                tools.Add(AIFunctionFactory.Create(async (string todoId, bool isCompleted, CancellationToken ct) => await todo.UpdateAsync(Guid.Parse(todoId), isCompleted, ct).ConfigureAwait(false), "todo.update", "Update Todo completion state."));
+                tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.DeleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.delete", "Delete a Todo by id."));
+            }
 
-        var response = await factory.RunAsync(new AgentId("worker-sample-direct"), task.Message, tools, cancellationToken).ConfigureAwait(false);
-        _ = response;
+            _ = await factory.RunAsync(new AgentId("worker-sample-direct"), task.Message, tools, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
+            throw;
+        }
     }
 }
 
