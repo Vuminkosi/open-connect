@@ -127,3 +127,28 @@ durationMs: 1000
 ```
 
 The configured Meta endpoint, model, mode, language and bearer credential were used without printing the credential. The worker response still labels its configured backend as `local-fake` due the existing worker backend enum/reporting path; the cloud-first route returned the successful provider transcript. That backend label remains a reporting defect to correct separately.
+
+## SwiftAid-compatible realtime transcription
+
+OpenConnect now proxies the SwiftAid-compatible Meta realtime protocol at `/internal/v1/realtime`:
+
+- First text frame is the JSON handshake with Bearer access token, `PCM_24KHZ`, model and mode.
+- Binary frames are validated PCM16 and forwarded to Meta.
+- `endStream` is forwarded.
+- Provider partial/final JSON events are relayed.
+- Cloud privacy and worker authentication remain enforced.
+
+Command:
+
+```powershell
+./scripts/run-live-realtime-transcription.ps1
+```
+
+Observed PASS:
+
+```text
+ACK sessionId=voyager/duplex/...
+final transcript event: Yeah
+```
+
+The test uses synthetic zero PCM audio and proves protocol/transport/final-event handling; it is not a speech quality benchmark.

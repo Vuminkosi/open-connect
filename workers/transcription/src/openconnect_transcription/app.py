@@ -11,11 +11,12 @@ import time
 import uuid
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, status
 
 from openconnect_transcription.config import Settings
 from openconnect_transcription import cloud as cloud_module
 from openconnect_transcription import engine_mode
+from openconnect_transcription import realtime
 from openconnect_transcription.engine import (
     FakeTranscriptionEngine,
     TranscriptResult,
@@ -100,6 +101,16 @@ def _require_live_lease(entry: dict[str, Any], lease_id: str) -> None:
 @app.get("/health/live")
 def live() -> dict[str, str]:
     return {"status": "live"}
+
+
+@app.websocket("/internal/v1/realtime")
+async def realtime_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    supplied = (websocket.headers.get("authorization") or "").removeprefix("Bearer ")
+    if token is None or not hmac.compare_digest(supplied, token):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await realtime.proxy(websocket, _settings())
 
 
 class _LocalLegUnavailable(RuntimeError):
