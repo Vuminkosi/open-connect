@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import struct
 import os
@@ -163,17 +164,18 @@ def _try_cloud_real(cfg: Settings, audio, request: ExecuteRequest) -> Transcript
     if cloud_module.privacy_zone_strict():
         # Terminal: strict-local disables the cloud path entirely.
         raise cloud_module.CloudPolicyDenied("privacy_blocked")
-    payload = {
+    payload = json.dumps({
         "model": cfg.model_id or "",
-        "language": request.input.locale,
+        "audioEncoding": "WAV",
         "mode": cfg.transcription_mode,
-    }
+        "language": request.input.locale,
+    })
     wav = _pcm_to_wav(audio)
     response = cloud_module.post_multipart(
         url=cfg.cloud_url,
-        fields=payload,
-        file_field="file",
-        filename="audio.wav",
+        fields={"request": payload},
+        file_field="audio",
+        filename="ellai-capture.wav",
         file_bytes=wav,
         file_content_type="audio/wav",
         api_key=cfg.cloud_api_key,

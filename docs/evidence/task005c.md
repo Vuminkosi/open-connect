@@ -101,3 +101,29 @@ The first same-host run failed because the sample omitted `AddOpenConnectAgent("
 ## Voice update
 
 The transcription worker is configured for Meta cloud routing and reports `cloudConfigured=true` and `cloudAvailable=true`. A synthetic WAV execution request with the worker token returned HTTP 503 `model_unavailable`; no transcript was claimed. The exact Meta cloud capability remains NOT VERIFIED and must not be presented as passing live transcription evidence.
+
+## SwiftAidv2 transcription parity
+
+SwiftAidv2 was inspected at `C:\DevOps\SwiftAidv2`. Its verified Meta upload contract is:
+
+- `multipart/form-data`
+- JSON settings in field `request`
+- audio bytes in field `audio`
+- filename `ellai-capture.wav`
+- `audioEncoding: WAV`
+- `mode` from `OpenConnect__ASRMode`
+- `language` from `OpenConnect__Asr__Language`
+- `model` from `OpenConnect__ASR_MODEL`
+- Bearer API key from `OpenConnect__ApiKey`
+
+OpenConnect transcription was changed to match that contract. The previous `file` plus individual form fields shape was rejected by Meta with HTTP 415.
+
+After the parity fix, the live transcription request returned HTTP 200 with a final transcript envelope:
+
+```text
+transcript: "Yeah."
+isFinal: true
+durationMs: 1000
+```
+
+The configured Meta endpoint, model, mode, language and bearer credential were used without printing the credential. The worker response still labels its configured backend as `local-fake` due the existing worker backend enum/reporting path; the cloud-first route returned the successful provider transcript. That backend label remains a reporting defect to correct separately.
