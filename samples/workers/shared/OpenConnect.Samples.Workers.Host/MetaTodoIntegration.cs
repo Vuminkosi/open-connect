@@ -29,6 +29,10 @@ public sealed class MetaCloudOptions
         var todoUrl = configuration["TODO_SERVICE_URL"] ?? string.Empty;
         var todoToken = configuration["TODO_INTERNAL_TOKEN"] ?? string.Empty;
         var tenant = configuration["TODO_INTERNAL_TENANT"] ?? string.Empty;
+        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
+        if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(todoToken, "e2e-todo-internal-do-not-use-in-prod", StringComparison.Ordinal))
+            throw new InvalidOperationException("TODO_INTERNAL_TOKEN must be replaced outside Development.");
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) throw new InvalidOperationException("OpenConnect:ApiUrl must be an absolute Meta-compatible endpoint.");
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(todoUrl) || string.IsNullOrWhiteSpace(todoToken) || string.IsNullOrWhiteSpace(tenant))
             throw new InvalidOperationException("Meta inference and internal Todo service configuration are required.");

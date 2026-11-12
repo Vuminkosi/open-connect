@@ -121,6 +121,7 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OC_TEST_MODE: "true"
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}

@@ -19,6 +19,10 @@ public sealed class TodoInternalOptions
                 ? "e2e-todo-internal-do-not-use-in-prod"
                 : string.Empty);
         var tenant = configuration["TODO_INTERNAL_TENANT"] ?? "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
+        if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(token, "e2e-todo-internal-do-not-use-in-prod", StringComparison.Ordinal))
+            throw new InvalidOperationException("TODO_INTERNAL_TOKEN must be replaced outside Development.");
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(tenant))
             throw new InvalidOperationException("TODO_INTERNAL_TOKEN and TODO_INTERNAL_TENANT are required for the internal Todo API.");
         return new TodoInternalOptions { Token = token, AllowedTenant = tenant };
