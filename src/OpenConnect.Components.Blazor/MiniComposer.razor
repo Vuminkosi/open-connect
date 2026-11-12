@@ -112,12 +112,12 @@
                         }
                         else
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.StopCircle"
-                                           Color="Color.Error"
+                            <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
+                                           Color="@(_micOn ? Color.Primary : Color.Default)"
                                            Size="Size.Small"
                                            OnClick="@(() => _micOn = !_micOn)"
-                                           aria-label="Stop / Record"
-                                           title="Stop / Record" />
+                                           aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
+                                           title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
 
                             @if (!string.IsNullOrWhiteSpace(_draft))
                             {
