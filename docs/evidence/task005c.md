@@ -69,3 +69,18 @@ Observed PASS:
 The first live attempt exposed a real contract defect: model-generated priority text was rejected by the Todo internal API because the request used an enum JSON shape. The API was corrected to accept and validate the string priority contract, then the live scenario passed.
 
 This proves ExternalGateway mode and live Meta tool execution. SameHostGateway, interactive approval prompts, WebSocket replay, gateway restart recovery, live voice transcription and automated browser/axe tests remain separate gates.
+
+## SameHostGateway verification
+
+Optional `SameHostGateway` configuration was added to `samples/Blazor` with development-only claims, same-origin client header propagation, OpenConnect route mapping and the existing Meta Todo integration.
+
+Observed in a local .NET process on port 5400:
+
+- Blazor app startup: PASS.
+- OpenConnect `/openconnect/v1/health`: PASS, HTTP 200.
+- OpenConnect `/openconnect/v1/health/ready`: PASS, HTTP 200 with development auth.
+- Same-host task acceptance: PASS, HTTP 202.
+- Same-host task completion: FAIL; the task reached `failed` during the first live run. The process logs exposed only the generic `Host task execution failed` warning, so this remains a live integration defect to diagnose before claiming SameHostGateway completion.
+- Same-host internal Todo API: PASS, HTTP 200.
+
+The external Compose path remains the verified live path. The same-host source mode is compiled and starts, but its live MAF execution is not yet closed.

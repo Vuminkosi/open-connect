@@ -26,10 +26,12 @@ public sealed class MetaCloudOptions
         var endpoint = configuration["OpenConnect:ApiUrl"] ?? configuration["OpenConnect__ApiUrl"] ?? string.Empty;
         var apiKey = configuration["OpenConnect:ApiKey"] ?? configuration["OpenConnect__ApiKey"] ?? string.Empty;
         var model = configuration["OpenConnect:ReasoningModel"] ?? configuration["OpenConnect__ReasoningModel"] ?? string.Empty;
-        var todoUrl = configuration["TODO_SERVICE_URL"] ?? string.Empty;
-        var todoToken = configuration["TODO_INTERNAL_TOKEN"] ?? string.Empty;
-        var tenant = configuration["TODO_INTERNAL_TENANT"] ?? string.Empty;
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
+        var todoUrl = configuration["TODO_SERVICE_URL"] ??
+            (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) ? "http://127.0.0.1:5000" : string.Empty);
+        var todoToken = configuration["TODO_INTERNAL_TOKEN"] ??
+            (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) ? "e2e-todo-internal-do-not-use-in-prod" : string.Empty);
+        var tenant = configuration["TODO_INTERNAL_TENANT"] ?? "01ARZ3NDEKTSV4RRFFQ69G5FAV";
         if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(todoToken, "e2e-todo-internal-do-not-use-in-prod", StringComparison.Ordinal))
             throw new InvalidOperationException("TODO_INTERNAL_TOKEN must be replaced outside Development.");

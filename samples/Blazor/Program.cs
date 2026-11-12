@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
-using OpenConnect.Persistence.EFCore.Configuration;
+using OpenConnect.Hosting.AspNetCore;
+using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Samples.Workers.Host;using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
 using OpenConnect.Samples.Blazor.Components;
@@ -30,14 +33,39 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // OpenConnect Client, Composer, and Component Discovery
-var gatewayUrl = builder.Configuration["GATEWAY_URL"]
-    ?? builder.Configuration["OpenConnect:Gateway:Url"]
-    ?? "http://gateway-host:8080/";
-builder.Services.AddOpenConnectClient(options =>
+var gatewayOptions = TodoGatewayOptions.FromConfiguration(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton(gatewayOptions);
+builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(gatewayOptions));
+
+if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
-    options.AllowInsecureHttp = true;
-    options.ApiBaseAddress = new Uri(gatewayUrl);
-});
+    builder.Services
+        .AddAuthentication(SameHostDevelopmentAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, SameHostDevelopmentAuthenticationHandler>(SameHostDevelopmentAuthenticationHandler.SchemeName, _ => { });
+    builder.Services.AddAuthorization();
+    builder.Services.AddOpenConnectTaskExecution();
+    builder.Services.AddMetaTodoIntegration(builder.Configuration);
+    builder.Services.AddOpenConnectClient(options =>
+    {
+        options.AllowInsecureHttp = true;
+        options.ApiBaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/");
+    });
+    builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
+        client.BaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/"))
+        .AddHttpMessageHandler<SameHostIdentityHandler>();
+    builder.Services.AddTransient<SameHostIdentityHandler>();
+}
+else
+{
+    var gatewayUrl = builder.Configuration["GATEWAY_URL"]
+        ?? builder.Configuration["OpenConnect:Gateway:Url"]
+        ?? "http://gateway-host:8080/";
+    builder.Services.AddOpenConnectClient(options =>
+    {
+        options.AllowInsecureHttp = true;
+        options.ApiBaseAddress = new Uri(gatewayUrl);
+    });
+}
 builder.Services.AddOpenConnectComponents();
 builder.Services.AddOpenConnectComposer(options =>
 {
@@ -83,6 +111,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
@@ -94,6 +128,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapTodoInternalApi();
+if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
+{
+    app.MapOpenConnect();
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

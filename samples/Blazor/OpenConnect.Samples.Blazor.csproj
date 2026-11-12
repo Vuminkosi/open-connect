@@ -19,4 +19,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\workers\shared\OpenConnect.Samples.Workers.Host\OpenConnect.Samples.Workers.Host.csproj" />
+  </ItemGroup>
 </Project>

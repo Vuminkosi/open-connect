@@ -9,6 +9,8 @@ COPY build/supported-frameworks.props build/supported-frameworks.props
 # Copy sources and sample projects
 COPY src/ src/
 COPY samples/_shared/ samples/_shared/
+COPY samples/workers/shared/OpenConnect.Samples.Workers.Contracts/ samples/workers/shared/OpenConnect.Samples.Workers.Contracts/
+COPY samples/workers/shared/OpenConnect.Samples.Workers.Host/ samples/workers/shared/OpenConnect.Samples.Workers.Host/
 COPY samples/Blazor/ samples/Blazor/
 
 # Publish the Blazor sample in Release mode
