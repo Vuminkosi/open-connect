@@ -84,3 +84,20 @@ Observed in a local .NET process on port 5400:
 - Same-host internal Todo API: PASS, HTTP 200.
 
 The external Compose path remains the verified live path. The same-host source mode is compiled and starts, but its live MAF execution is not yet closed.
+
+## SameHostGateway live execution update
+
+After adding agent registration and configurable same-host base URL, the optional same-host process was run on `http://127.0.0.1:5400` with Development authentication, Meta configuration, and the existing Todo store.
+
+Observed:
+
+- Same-host startup and OpenConnect health: PASS.
+- Same-host authenticated task acceptance: PASS, HTTP 202.
+- Same-host native Meta task completion: PASS, terminal state `completed`.
+- Same-host Todo store verification: PASS, weighbridge records present.
+
+The first same-host run failed because the sample omitted `AddOpenConnectAgent("worker-sample-direct")`; that was corrected before the passing run.
+
+## Voice update
+
+The transcription worker is configured for Meta cloud routing and reports `cloudConfigured=true` and `cloudAvailable=true`. A synthetic WAV execution request with the worker token returned HTTP 503 `model_unavailable`; no transcript was claimed. The exact Meta cloud capability remains NOT VERIFIED and must not be presented as passing live transcription evidence.
