@@ -777,6 +777,98 @@
           "System.CodeDom": "6.0.0"
         }
       },
+      "NATS.Client.Abstractions": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "6VAmrvgN9116SAfRXK/gfR7Fxu02lOUtN2ZejwI/C2iMw9dsofLRZBSrutWH+iH+06FjAidKtpGiLt5ui6/xlQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "6.0.0"
+        }
+      },
+      "NATS.Client.Core": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qs79vr6A2Le6sQxY5FFpQayRVSLOXJZkSvSx1lb8A8FK9bmvNcJRW1FE5pdoEEW+WV92TDFoc38MRqe4w0Lnjg==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "6.0.1",
+          "Microsoft.Extensions.Primitives": "6.0.0",
+          "NATS.Client.Abstractions": "3.3.2",
+          "NATS.NKeys": "1.0.1"
+        }
+      },
+      "NATS.Client.Hosting": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "7Ksdm1Qqa9rxTS9jBhiIOFjAKeXasULAWqW+IRy6+mNaXzPlf1KI03MYBKH9cN9squbzC6KPcRv3h8AEnc1/JQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Hosting.Abstractions": "8.0.0",
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.JetStream": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "JF2xH52Fjj/KTpiCqLgOvFGoJl92eKlgT62X02oEkff/TphWjoXG1s26I7ySIwiScHgToW/fAuM0HW/76k7J4Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.KeyValueStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "qnh6AxEJmwl1GZuCMHoxnt1dwCHHSUda+kuOQrWYrP+PliZNWxcn1AIdhEXFqFfqaPgLj0S+/t5fWnRA4rjHPA==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.ObjectStore": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "UMaNZipnGNjVNZpPBnYDo8PexatDLSj2gl2aF8+zL2cW57lYpqyIkf39rc5Qrpedfcc7BLQL1cQOUWKkX/Sb2w==",
+        "dependencies": {
+          "NATS.Client.JetStream": "3.3.2"
+        }
+      },
+      "NATS.Client.Serializers.Json": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "KBlvc5CgDMDOP8JkiMnEHo0nizhjVP7aLkzZ6Rwxla9MShlmETmFLfXIsOxv8oNmDiDDOu+Sr+LzK23K4nSlDw==",
+        "dependencies": {
+          "NATS.Client.Abstractions": "3.3.2"
+        }
+      },
+      "NATS.Client.Services": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "juyTC/EP8vHT2vKF2MxGKqusEC085xNCWBJoIuBqxUZl48gtbt5Bbx6cS4wIp+EmY6nZTWw1nGjHo0h4Xs4l0Q==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2"
+        }
+      },
+      "NATS.Client.Simplified": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "OawFZin+XxiLru3IBYC66S3Oae0OrknRyBH+yRr/PP4DChu3iJiIbWk0R3sqSIp1UeKBp11DbZV/O+NkT/jkmA==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2"
+        }
+      },
+      "NATS.Extensions.Microsoft.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "3.3.2",
+        "contentHash": "W3+8HiBseOOgCx9xDJ5RBF55VfxwDfEx9x50Sf1TfyABb+/No1eQowemgNFuxoQt9yaubNvAUENsJZtzL+glsg==",
+        "dependencies": {
+          "Microsoft.Extensions.Hosting.Abstractions": "8.0.0",
+          "Microsoft.Extensions.Options": "8.0.2",
+          "NATS.Client.Simplified": "3.3.2"
+        }
+      },
+      "NATS.NKeys": {
+        "type": "Transitive",
+        "resolved": "1.0.1",
+        "contentHash": "xtURX0fexmMd10noG3Uc8gFgwaH7QLQxxgdaVoQKFo0+8a4blwe8vPGgY2S5pzeVYcRXyjlIoA4AR4JgtThyjQ=="
+      },
       "Newtonsoft.Json": {
         "type": "Transitive",
         "resolved": "13.0.4",
@@ -803,6 +895,17 @@
         "contentHash": "ZU60dSqoSNRe49KcQDUmOVgdRtjITOssVXFtiISs+zJXDI4D2Sndwpn2NOtzDQNPu0ZAvpoLPQ+GLKv6iEZn8Q==",
         "dependencies": {
           "SQLitePCLRaw.core": "2.1.13"
+        }
+      },
+      "System.ClientModel": {
+        "type": "Transitive",
+        "resolved": "1.15.0",
+        "contentHash": "y6zQLInrpX+oGL1gXM04DrUSu1O1esWxt4rD/zrujTnzIFChn/noD1OiVVpTrU8ZvglwqO2Uw038svUR3SiAOg==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.9",
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.9",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.9",
+          "System.Memory.Data": "10.0.9"
         }
       },
       "System.CodeDom": {
@@ -867,6 +970,11 @@
         "type": "Transitive",
         "resolved": "10.0.14",
         "contentHash": "lVqovhCt3HlZe7ONG5ydaj6BYwYI004gldVfMMkJl/lR5ueeCtWNpW4nejOX75sPmzm8vXCxB69GqwHaYCnyUQ=="
+      },
+      "System.Memory.Data": {
+        "type": "Transitive",
+        "resolved": "10.0.9",
+        "contentHash": "YweovHiLUoEdbr2Xv8eRqCSkTu1vMms4a6xBHaQiMSFVy32PL+hXv6Vhol2NWOmLHjaVgTyhJ3R52U6JxS6w3Q=="
       },
       "System.Numerics.Tensors": {
         "type": "Transitive",
@@ -968,6 +1076,38 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.navigator": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.aspnetcore": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Navigator.Operational": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.operational": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[10.0.14, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Persistence.EFCore": "[1.0.0, )"
+        }
+      },
+      "openconnect.navigator.operationalbrowser": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Navigator": "[1.0.0, )"
+        }
+      },
       "openconnect.persistence.efcore": {
         "type": "Project",
         "dependencies": {
@@ -998,13 +1138,57 @@
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
           "OpenConnect.Persistence.EFCore": "[1.0.0, )",
-          "OpenConnect.Samples.Shared": "[1.0.0, )"
+          "OpenConnect.Samples.Shared": "[1.0.0, )",
+          "OpenConnect.Samples.Workers.Host": "[1.0.0, )"
         }
       },
       "openconnect.samples.shared": {
         "type": "Project",
         "dependencies": {
           "OpenConnect.Persistence.EFCore": "[1.0.0, )"
+        }
+      },
+      "openconnect.samples.workers.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )",
+          "OpenConnect.Transport.Nats": "[1.0.0, )"
+        }
+      },
+      "openconnect.samples.workers.host": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.14, )",
+          "Microsoft.Extensions.AI.OpenAI": "[10.10.1, )",
+          "OpenAI": "[2.14.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Agents": "[1.0.0, )",
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.Navigator": "[1.0.0, )",
+          "OpenConnect.Navigator.AspNetCore": "[1.0.0, )",
+          "OpenConnect.Navigator.Operational": "[1.0.0, )",
+          "OpenConnect.Navigator.OperationalBrowser": "[1.0.0, )",
+          "OpenConnect.Persistence.EFCore": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )",
+          "OpenConnect.Samples.Workers.Contracts": "[1.0.0, )",
+          "OpenConnect.Tools": "[1.0.0, )",
+          "OpenConnect.Transport.Nats": "[1.0.0, )"
+        }
+      },
+      "openconnect.tools": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.transport.nats": {
+        "type": "Project",
+        "dependencies": {
+          "NATS.Net": "[3.3.2, )",
+          "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
       "Microsoft.Agents.AI": {
@@ -1134,6 +1318,16 @@
           "SQLitePCLRaw.core": "2.1.13"
         }
       },
+      "Microsoft.Extensions.AI.OpenAI": {
+        "type": "CentralTransitive",
+        "requested": "[10.10.1, )",
+        "resolved": "10.10.1",
+        "contentHash": "0cYykDvDaTyLHA73DzjVzsNO/GNOutuliPrhQ5kzKSK4BuUnpFyHnPU63XqD4jsz+FCNZefi19TGc+zkaabIBA==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
+          "OpenAI": "2.14.0"
+        }
+      },
       "Microsoft.Extensions.Configuration": {
         "type": "CentralTransitive",
         "requested": "[8.0.0, )",
@@ -1221,6 +1415,32 @@
           "Microsoft.AspNetCore.Components": "9.0.1",
           "Microsoft.AspNetCore.Components.Web": "9.0.1",
           "Microsoft.Extensions.Localization": "9.0.1"
+        }
+      },
+      "NATS.Net": {
+        "type": "CentralTransitive",
+        "requested": "[3.3.2, )",
+        "resolved": "3.3.2",
+        "contentHash": "Jo9fnjwUE4qAbNvWd3/H3K1NcRUDTDCCYqlJevklvD8M/grAtEh/EO2NIjIacfPZTcBfjtpxskzWhy2aw4mgVQ==",
+        "dependencies": {
+          "NATS.Client.Core": "3.3.2",
+          "NATS.Client.Hosting": "3.3.2",
+          "NATS.Client.JetStream": "3.3.2",
+          "NATS.Client.KeyValueStore": "3.3.2",
+          "NATS.Client.ObjectStore": "3.3.2",
+          "NATS.Client.Serializers.Json": "3.3.2",
+          "NATS.Client.Services": "3.3.2",
+          "NATS.Client.Simplified": "3.3.2",
+          "NATS.Extensions.Microsoft.DependencyInjection": "3.3.2"
+        }
+      },
+      "OpenAI": {
+        "type": "CentralTransitive",
+        "requested": "[2.14.0, )",
+        "resolved": "2.14.0",
+        "contentHash": "AeyC3GxbrJ7KRoWDyFeNSUOQQWD9AnNvM7LYQijCcXcqjyr53aGRcf5GBLExcSBzIs0RWYHe+NbzPrHTeuU5zA==",
+        "dependencies": {
+          "System.ClientModel": "1.15.0"
         }
       },
       "SQLitePCLRaw.bundle_e_sqlite3": {
