@@ -20,8 +20,8 @@
 
 ::deep .oc-anchored-fab,
 .oc-anchored-fab {
-    background-color: #007a4d !important;
-    color: #ffffff !important;
+    background-color: var(--mud-palette-primary) !important;
+    color: var(--mud-palette-primary-text) !important;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28) !important;
     width: 56px !important;
     height: 56px !important;
@@ -36,14 +36,14 @@
 
 ::deep .oc-anchored-fab:hover,
 .oc-anchored-fab:hover {
-    background-color: #006640 !important;
+    background-color: var(--mud-palette-primary-darken) !important;
     transform: scale(1.06) !important;
 }
 
 ::deep .oc-anchored-fab .mud-icon-root,
 .oc-anchored-fab .mud-icon-root {
-    color: #ffffff !important;
-    fill: #ffffff !important;
+    color: var(--mud-palette-primary-text) !important;
+    fill: var(--mud-palette-primary-text) !important;
     font-size: 28px !important;
 }
 
@@ -56,10 +56,10 @@
     max-width: calc(100vw - 32px) !important;
     height: auto !important;
     max-height: none !important;
-    background: #ffffff !important;
-    border: 1px solid #e0e0e0 !important;
+    background: var(--mud-palette-surface) !important;
+    border: 1px solid var(--mud-palette-lines-default) !important;
     border-radius: 12px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+    box-shadow: var(--mud-elevation-8) !important;
     padding: 10px 14px !important;
     z-index: 99998 !important;
     display: flex !important;
@@ -92,7 +92,7 @@
     padding: 0.25rem;
     border-radius: 0.375rem;
     user-select: none;
-    color: #424242;
+    color: var(--mud-palette-text-primary);
 }
 
 .oc-bubble__handle:active {
@@ -149,13 +149,13 @@
 .oc-bubble__sent-message {
     margin-block: 0.5rem 0.25rem;
     padding-inline-start: 0.5rem;
-    border-inline-start: 2px solid #e2e8f0;
+    border-inline-start: 2px solid var(--mud-palette-lines-default);
     max-block-size: none;
     max-height: none;
     overflow: visible;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
-    color: #6b7280;
+    color: var(--mud-palette-text-secondary);
 }
 
 .oc-bubble__response {
@@ -165,7 +165,7 @@
     overflow: visible;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
-    color: #111827;
+    color: var(--mud-palette-text-primary);
 }
 
 .oc-bubble__partial-transcript {
@@ -174,7 +174,7 @@
     max-height: none;
     overflow: visible;
     overflow-wrap: anywhere;
-    color: #6b7280;
+    color: var(--mud-palette-text-secondary);
     font-size: 0.75rem;
     line-height: 1.35;
 }
@@ -198,7 +198,7 @@
 .oc-message-role {
     font-size: 11px;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--mud-palette-text-secondary);
 }
 
 .oc-message-text {
@@ -235,7 +235,7 @@
 /* Dotted Divider */
 .oc-bubble-divider {
     border: none !important;
-    border-top: 1px dotted #cccccc !important;
+    border-top: 1px dotted var(--mud-palette-lines-default) !important;
     margin: 8px 0 !important;
     width: 100% !important;
 }

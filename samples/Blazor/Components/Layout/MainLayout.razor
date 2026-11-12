@@ -1,7 +1,8 @@
 @inherits LayoutComponentBase
 @using MudBlazor
 @using OpenConnect.Components.Blazor
-@using OpenConnect.Components.Contracts
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 
 <MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -105,12 +106,18 @@
         {
             try
             {
-                var systemDark = await _mudThemeProvider.GetSystemDarkModeAsync();
-                if (!_userExplicitlySetTheme)
+                var storedTheme = await JS.InvokeAsync<string?>("localStorage.getItem", "openconnect-theme-dark");
+                if (bool.TryParse(storedTheme, out var storedDark))
                 {
-                    _isDarkMode = systemDark;
-                    StateHasChanged();
+                    _isDarkMode = storedDark;
+                    _userExplicitlySetTheme = true;
                 }
+                else
+                {
+                    var systemDark = await _mudThemeProvider.GetSystemDarkModeAsync();
+                    _isDarkMode = systemDark;
+                }
+                StateHasChanged();
 
                 await _mudThemeProvider.WatchSystemDarkModeAsync(OnSystemPreferenceChanged);
             }
@@ -131,9 +138,17 @@
         return Task.CompletedTask;
     }
 
-    private void ToggleThemeAsync()
+    private async Task ToggleThemeAsync()
     {
         _userExplicitlySetTheme = true;
         _isDarkMode = !_isDarkMode;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "openconnect-theme-dark", _isDarkMode.ToString().ToLowerInvariant());
+        }
+        catch (JSException)
+        {
+            // Theme remains active for the current circuit when storage is unavailable.
+        }
     }
 }

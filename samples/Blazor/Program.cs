@@ -118,6 +118,7 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseWebSockets();
 }
 
 app.UseHttpsRedirection();

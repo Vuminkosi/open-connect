@@ -26,6 +26,13 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
     }
     public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Post, $"tasks/{taskId.Value}/cancel", cancellationToken);
     public Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Get, $"tasks/{taskId.Value}", cancellationToken);
+    public async Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("sessions", new { name = "OpenConnect composer" }, JsonOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<SessionRecord>(response, cancellationToken).ConfigureAwait(false);
+    }
+
     public Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default) => SendAsync<SessionRecord>(HttpMethod.Get, $"sessions/{sessionId.Value}", cancellationToken);
     public async Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities", cancellationToken).ConfigureAwait(false);
 

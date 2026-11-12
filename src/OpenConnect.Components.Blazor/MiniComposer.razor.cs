@@ -309,6 +309,20 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         try
         {
+            if (string.IsNullOrWhiteSpace(Session.SessionId))
+            {
+                try
+                {
+                    var createdSession = await Client.CreateSessionAsync(token).ConfigureAwait(false);
+                    Session.AttachSession(createdSession.Id.Value.ToString());
+                }
+                catch (OpenConnectClientException ex) when (ex.StatusCodeValue is 401 or 403 or 404)
+                {
+                    // External gateways may require an independently authenticated session.
+                    // Preserve the existing null-session task fallback in that mode.
+                }
+            }
+
             try
             {
                 await Client.CreateTaskAsync(
