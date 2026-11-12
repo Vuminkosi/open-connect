@@ -9,6 +9,13 @@ public sealed class InMemoryEventJournal : IEventJournal
     private const int EventLimit = 1000;
     private readonly ConcurrentDictionary<Ulid, SessionEvents> _sessions = new();
 
+    internal long Append(EventRecord @event)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        var events = _sessions.GetOrAdd(@event.SessionId.Value, static _ => new SessionEvents());
+        return events.Append(@event, EventLimit);
+    }
+
     public Task<long> AppendAsync(EventRecord @event, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(@event);

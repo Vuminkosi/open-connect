@@ -52,6 +52,7 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
                 var input = new HostTaskExecution(record.Id, tenant, principal, session, request.Message ?? string.Empty, key);
                 work = new ExecutionWork(input, record, new CancellationTokenSource());
                 _store.Put(record);
+                _sessions.AppendEvent(session.Value, "task.accepted", JsonSerializer.Serialize(new { taskId = record.Id.Value.ToString(), state = "accepted" }));
                 _keys[scopedKey] = (fingerprint, work);
                 if (!_queue.Channel.Writer.TryWrite(work))
                 {

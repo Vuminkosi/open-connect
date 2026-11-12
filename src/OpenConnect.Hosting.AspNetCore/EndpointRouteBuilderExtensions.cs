@@ -568,6 +568,12 @@ public sealed class InMemorySessionStore
     internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
 
+    internal long AppendEvent(Ulid id, string type, string data)
+    {
+        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        return _journal.Append(new EventRecord(new SessionId(id), 0, type, data));
+    }
+
     public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)
     {
         if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
