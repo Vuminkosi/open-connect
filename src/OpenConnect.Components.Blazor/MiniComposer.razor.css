@@ -222,7 +222,7 @@
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 12px;
-    background: color-mix(in srgb, #dc3545 12%, transparent);
+    background: color-mix(in srgb, var(--mud-palette-error) 12%, transparent);
 }
 
 .oc-bubble-chips {
@@ -265,7 +265,7 @@
     width: 5px !important;
     height: 5px !important;
     border-radius: 50% !important;
-    background-color: #00875a !important;
+    background-color: var(--mud-palette-secondary) !important;
     display: inline-block !important;
     animation: oc-dot-breathe 2.4s ease-in-out infinite;
 }
@@ -292,7 +292,7 @@
 .oc-status__text {
     font-size: 13px !important;
     font-weight: 500 !important;
-    color: #212121 !important;
+    color: var(--mud-palette-text-primary) !important;
 }
 
 .oc-bubble__speech-action {
