@@ -160,7 +160,7 @@ OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTa
 OpenConnect.Client.OpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
 OpenConnect.Client.OpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
 OpenConnect.Client.OpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
-OpenConnect.Client.OpenConnectClient.OpenConnectClient(System.Net.Http.HttpClient! httpClient) -> void
+OpenConnect.Client.OpenConnectClient.OpenConnectClient(System.Net.Http.HttpClient! httpClient, Microsoft.Extensions.Options.IOptions<OpenConnect.Client.OpenConnectClientOptions!>? options = null) -> void
 OpenConnect.Client.OpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
 OpenConnect.Client.OpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Client.OpenConnectClientException
@@ -288,5 +288,4 @@ OpenConnect.Client.OpenConnectClient.CreateSessionAsync(System.Threading.Cancell
 OpenConnect.Client.IRealtimeOpenConnectClient
 OpenConnect.Client.IRealtimeOpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Client.OpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
-OpenConnect.Client.OpenConnectClient.OpenConnectClient(System.Net.Http.HttpClient! httpClient, OpenConnect.Client.OpenConnectClientOptions? options) -> void
 OpenConnect.Client.OpenConnectClientOptions.WebSocketHeaders.get -> System.Collections.Generic.IDictionary<string!, string!>!

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Net.Http.Json;
 using System.Globalization;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 namespace OpenConnect.Client;
@@ -14,13 +14,10 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
     private readonly HttpClient _httpClient;
     private readonly OpenConnectClientOptions? _options;
 
-    public OpenConnectClient(HttpClient httpClient) : this(httpClient, null) { }
-
-    [ActivatorUtilitiesConstructor]
-    public OpenConnectClient(HttpClient httpClient, OpenConnectClientOptions? options)
+    public OpenConnectClient(HttpClient httpClient, IOptions<OpenConnectClientOptions>? options = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options;
+        _options = options?.Value;
     }
 
     public async Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
