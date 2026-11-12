@@ -42,3 +42,30 @@ Observed:
 - Cross-tenant session read → HTTP 404.
 
 This proves the existing ExternalGateway mode's UI startup, gateway health, inference readiness and route-level authentication/tenant isolation. It does not prove Todo tool execution because the separate gateway does not register the Blazor Todo store or Todo MAF tools.
+
+## Task 005D live ExternalGateway evidence
+
+Current implementation uses the canonical root `docker-compose-all.yml` with `todo-web-app` and `gateway-host` as separate services. The gateway uses the configured Meta-compatible OpenAI cloud endpoint and model from environment configuration; credentials are not printed.
+
+Command:
+
+```powershell
+./scripts/run-live-todo-e2e.ps1
+```
+
+Observed PASS:
+
+- Gateway health: HTTP 200.
+- Unauthenticated session creation: HTTP 401.
+- Authenticated session creation: HTTP 201.
+- Authenticated task acceptance: HTTP 202.
+- Native MAF task completed: terminal state `completed`.
+- Todo service mutation verified through the existing `InMemoryTodoStore` internal API.
+- Live response produced `weighbridge` Todo matches.
+- Cross-tenant internal Todo request: HTTP 401.
+- Inference worker readiness: HTTP 200 in Compose logs.
+- Root Compose UI: HTTP 200 on port 5000.
+
+The first live attempt exposed a real contract defect: model-generated priority text was rejected by the Todo internal API because the request used an enum JSON shape. The API was corrected to accept and validate the string priority contract, then the live scenario passed.
+
+This proves ExternalGateway mode and live Meta tool execution. SameHostGateway, interactive approval prompts, WebSocket replay, gateway restart recovery, live voice transcription and automated browser/axe tests remain separate gates.

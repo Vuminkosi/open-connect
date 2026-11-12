@@ -55,6 +55,7 @@ builder.Services.AddOpenConnectComponent<TodoProgressComponent>();
 
 // Todo store
 builder.Services.AddSingleton<ITodoStore, InMemoryTodoStore>();
+builder.Services.AddSingleton(_ => TodoInternalOptions.FromConfiguration(builder.Configuration));
 
 // OpenConnect Core & EFCore adapter
 builder.Services.AddOpenConnect(options =>
@@ -92,6 +93,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync().ConfigureAwait(false);
 }
 
+app.MapTodoInternalApi();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

@@ -9,6 +9,8 @@
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902;NU1903</WarningsNotAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="OpenAI" />
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Core\OpenConnect.Core.csproj" />
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Agents\OpenConnect.Agents.csproj" />

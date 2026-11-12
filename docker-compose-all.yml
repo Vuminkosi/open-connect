@@ -51,6 +51,8 @@ services:
       OpenConnect__TranscriptionModel: ${OpenConnect__TranscriptionModel:-}
       OpenConnect__TranscriptionApiUrl: ${OpenConnect__TranscriptionApiUrl:-}
       OPENCONNECT_TTS_INTERNAL_KEY: ${OPENCONNECT_TTS_INTERNAL_KEY:-}
+      TODO_INTERNAL_TOKEN: ${TODO_INTERNAL_TOKEN:-e2e-todo-internal-do-not-use-in-prod}
+      TODO_INTERNAL_TENANT: ${TODO_INTERNAL_TENANT:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
     volumes:
       - oc_todo_app_data:/data
     networks:
@@ -142,6 +144,10 @@ services:
       OpenConnect__ClaudeApiKey: ${OpenConnect__ClaudeApiKey:-}
       OpenConnect__ClaudeApiUrl: ${OpenConnect__ClaudeApiUrl:-}
       OpenConnect__ClaudeModel: ${OpenConnect__ClaudeModel:-}
+      TODO_SERVICE_URL: http://todo-web-app:5000
+      TODO_INTERNAL_TOKEN: ${TODO_INTERNAL_TOKEN:-e2e-todo-internal-do-not-use-in-prod}
+      TODO_INTERNAL_TENANT: ${TODO_INTERNAL_TENANT:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
+      TODO_ALLOW_MUTATIONS: ${TODO_ALLOW_MUTATIONS:-true}
     networks:
       - oc-network
     depends_on:

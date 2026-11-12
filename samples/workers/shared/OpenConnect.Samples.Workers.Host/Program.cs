@@ -81,6 +81,7 @@ public static class SampleWorkerHostApp
         });
         builder.Services.AddOpenConnectAgent("worker-sample-direct");
         builder.Services.AddOpenConnectTaskExecution();
+        builder.Services.AddMetaTodoIntegration(builder.Configuration);
         builder.Services.AddMafHostTaskExecutor();
         builder.Services.AddOpenConnectNavigator();
 
