@@ -38,6 +38,7 @@ public sealed class OpenConnectClientOptions
     public ClientAuthenticationMode Authentication { get; set; } = ClientAuthenticationMode.Host;
     public OpenConnectClientReconnectOptions Reconnect { get; } = new();
     public bool AllowInsecureHttp { get; set; }
+    public IDictionary<string, string> WebSocketHeaders { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     public void Validate()
     {

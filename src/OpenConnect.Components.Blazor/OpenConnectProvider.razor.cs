@@ -129,6 +129,19 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                 try
                 {
                     var cursor = resumeFromLastCursor ? Session.LastSequence : 0;
+                    if (Client is IRealtimeOpenConnectClient realtimeClient)
+                    {
+                        await foreach (var record in realtimeClient.SubscribeEventsWebSocketAsync(sessionId, cursor, token).ConfigureAwait(false))
+                        {
+                            Session.ApplyEvent(record);
+                        }
+
+                        failures = 0;
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Delay(PollInterval, token).ConfigureAwait(false);
+                        continue;
+                    }
+
                     await foreach (var record in Client.SubscribeEventsAsync(sessionId, cursor, token).ConfigureAwait(false))
                     {
                         Session.ApplyEvent(record);

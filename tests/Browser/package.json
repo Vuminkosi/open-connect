@@ -1,0 +1,16 @@
+{
+  "name": "openconnect-browser-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:browsers": "playwright install chromium",
+    "test": "playwright test",
+    "test:ci": "playwright test --reporter=line",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "trace": "playwright show-trace test-results"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}

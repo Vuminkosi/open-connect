@@ -51,6 +51,8 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
     {
         options.AllowInsecureHttp = true;
         options.ApiBaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/");
+        options.WebSocketHeaders["X-OpenConnect-Test-Tenant"] = gatewayOptions.TenantId;
+        options.WebSocketHeaders["X-OpenConnect-Test-Principal"] = gatewayOptions.PrincipalId;
     });
     builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
         client.BaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/"))
@@ -62,16 +64,22 @@ else
     var gatewayUrl = builder.Configuration["GATEWAY_URL"]
         ?? builder.Configuration["OpenConnect:Gateway:Url"]
         ?? "http://gateway-host:8080/";
+    var gatewayBase = gatewayUrl.TrimEnd('/');
+    var gatewayApiBase = gatewayBase.EndsWith("/openconnect/v1", StringComparison.OrdinalIgnoreCase)
+        ? gatewayBase + "/"
+        : gatewayBase + "/openconnect/v1/";
     builder.Services.AddOpenConnectClient(options =>
     {
         options.AllowInsecureHttp = true;
-        options.ApiBaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/openconnect/v1/");
+        options.ApiBaseAddress = new Uri(gatewayApiBase);
+        options.WebSocketHeaders["X-OpenConnect-Test-Tenant"] = gatewayOptions.TenantId;
+        options.WebSocketHeaders["X-OpenConnect-Test-Principal"] = gatewayOptions.PrincipalId;
     });
     if (builder.Environment.IsDevelopment())
     {
         builder.Services.AddTransient<SameHostIdentityHandler>();
         builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
-            client.BaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/openconnect/v1/"))
+            client.BaseAddress = new Uri(gatewayApiBase))
             .AddHttpMessageHandler<SameHostIdentityHandler>();
     }
 }

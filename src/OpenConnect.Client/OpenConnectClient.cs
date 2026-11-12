@@ -5,12 +5,21 @@ using System.Globalization;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 namespace OpenConnect.Client;
-public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClient
+public sealed partial class OpenConnectClient : IOpenConnectClient
 {
     private static readonly ActivitySource ActivitySource = new("OpenConnect.Client");
     private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
     private static readonly JsonSerializerOptions EventJsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    private readonly HttpClient _httpClient;
+    private readonly OpenConnectClientOptions? _options;
+
+    public OpenConnectClient(HttpClient httpClient) : this(httpClient, null) { }
+
+    public OpenConnectClient(HttpClient httpClient, OpenConnectClientOptions? options)
+    {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _options = options;
+    }
 
     public async Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
     {
