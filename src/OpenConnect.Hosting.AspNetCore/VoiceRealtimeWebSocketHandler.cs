@@ -7,6 +7,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenConnect.Abstractions;
 using OpenConnect.Hosting.AspNetCore.Execution;
 
@@ -66,14 +67,28 @@ internal static class VoiceRealtimeWebSocketHandler
             return;
         }
 
+        // The worker emits the provider session acknowledgement before it starts
+        // consuming audio. Wait for that boundary so queued browser PCM cannot
+        // reach Meta before the provider handshake is complete.
+        var workerHandshake = await ReceiveWorkerMessageAsync(upstream, cancellationToken).ConfigureAwait(false);
+        if (workerHandshake is null)
+        {
+            await CloseAsync(browser, WebSocketCloseStatus.EndpointUnavailable, "transcription_unavailable", cancellationToken).ConfigureAwait(false);
+            return;
+        }
+        await browser.SendAsync(workerHandshake.Value.Payload, workerHandshake.Value.MessageType, true, cancellationToken).ConfigureAwait(false);
+
         // The worker owns the provider handshake and credentials. The browser handshake is
         // host-owned metadata only and must never be forwarded to Meta.
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OpenConnect.VoiceRealtime");
         var relayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
         var browserToWorker = RelayBrowserToWorkerAsync(browser, upstream, captureId, speechEpoch, relayCancellation.Token);
-        var workerToBrowser = RelayWorkerToBrowserAsync(upstream, browser, context, sessionId, captureId, speechEpoch, tenant, principal, relayCancellation.Token);
+        var workerToBrowser = RelayWorkerToBrowserAsync(upstream, browser, context, sessionId, captureId, speechEpoch, tenant, principal, relayCancellation.Token, logger);
         await Task.WhenAny(browserToWorker, workerToBrowser).ConfigureAwait(false);
         relayCancellation.Cancel();
-        try { await Task.WhenAll(browserToWorker, workerToBrowser).ConfigureAwait(false); } catch (OperationCanceledException) { }
+        try { await Task.WhenAll(browserToWorker, workerToBrowser).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (relayCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { logger.LogWarning("Realtime voice relay stopped with {ExceptionType}.", exception.GetType().Name); }
         relayCancellation.Dispose();
     }
 
@@ -94,31 +109,44 @@ internal static class VoiceRealtimeWebSocketHandler
             else if (result.MessageType == WebSocketMessageType.Text)
             {
                 var text = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                if (text is "endStream" or "{\"type\":\"endStream\"}")
+                if (IsEndStreamControl(text))
                     await worker.SendAsync(Encoding.UTF8.GetBytes("{\"type\":\"endStream\"}"), WebSocketMessageType.Text, true, token).ConfigureAwait(false);
             }
         }
     }
 
-    private static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token)
+    private static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token, ILogger logger)
     {
         var buffer = new byte[MaxFrameBytes];
         while (worker.State == WebSocketState.Open && browser.State == WebSocketState.Open && !token.IsCancellationRequested)
         {
             var result = await worker.ReceiveAsync(buffer, token).ConfigureAwait(false);
-            if (result.MessageType == WebSocketMessageType.Close) break;
+            if (result.MessageType == WebSocketMessageType.Close)
+            {
+                logger.LogInformation("Realtime transcription worker closed with status {CloseStatus}.", result.CloseStatus);
+                break;
+            }
             if (result.MessageType != WebSocketMessageType.Text) continue;
             var provider = Encoding.UTF8.GetString(buffer, 0, result.Count);
             using var document = JsonDocument.Parse(provider);
             var root = document.RootElement;
             var type = root.TryGetProperty("type", out var typeValue) ? typeValue.GetString() : null;
+            logger.LogInformation("Realtime transcription event type {EventType}.", type ?? "unknown");
+            if (string.Equals(type, "error", StringComparison.OrdinalIgnoreCase))
+            {
+                var errorCode = root.TryGetProperty("code", out var codeValue) ? codeValue.GetString() : null;
+                var errorDetail = root.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : root.TryGetProperty("error", out var errorValue) && errorValue.ValueKind == JsonValueKind.String ? errorValue.GetString() : null;
+                logger.LogWarning("Realtime transcription provider error code {ErrorCode} detail {ErrorDetail}.", errorCode ?? "unspecified", string.IsNullOrWhiteSpace(errorDetail) ? "unspecified" : errorDetail[..Math.Min(errorDetail.Length, 120)]);
+            }
             var text = root.TryGetProperty("text", out var textValue) ? textValue.GetString() : root.TryGetProperty("transcript", out var transcript) ? transcript.GetString() : null;
             var isFinal = root.TryGetProperty("final", out var finalValue) && finalValue.ValueKind == JsonValueKind.True;
             var speechComplete = string.Equals(type, "speechComplete", StringComparison.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(text) && !speechComplete) continue;
+            var providerError = string.Equals(type, "error", StringComparison.OrdinalIgnoreCase);
+            if (speechComplete && !string.IsNullOrWhiteSpace(text)) isFinal = true;
+            if (string.IsNullOrWhiteSpace(text) && !speechComplete && !providerError) continue;
 
-            var outgoingType = isFinal ? "transcript-final" : speechComplete ? "speech-complete" : "transcript-partial";
-            await SendJsonAsync(browser, new { type = outgoingType, captureId, speechEpoch, text = text?.Trim() ?? string.Empty, authoritative = isFinal }, token).ConfigureAwait(false);
+            var outgoingType = providerError ? "error" : isFinal ? "transcript-final" : speechComplete ? "speech-complete" : "transcript-partial";
+            await SendJsonAsync(browser, new { type = outgoingType, captureId, speechEpoch, text = providerError ? "Voice transcription provider unavailable." : text?.Trim() ?? string.Empty, authoritative = isFinal }, token).ConfigureAwait(false);
             if (isFinal && !string.IsNullOrWhiteSpace(text))
                 await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, text.Trim(), tenant, principal, token).ConfigureAwait(false);
         }
@@ -157,11 +185,32 @@ internal static class VoiceRealtimeWebSocketHandler
         catch (JsonException) { return false; }
     }
 
+    private static bool IsEndStreamControl(string text)
+    {
+        if (string.Equals(text, "endStream", StringComparison.Ordinal)) return true;
+        try
+        {
+            using var document = JsonDocument.Parse(text);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("type", out var type)
+                && string.Equals(type.GetString(), "endStream", StringComparison.Ordinal);
+        }
+        catch (JsonException) { return false; }
+    }
+
     private static async Task<string?> ReceiveTextAsync(WebSocket socket, CancellationToken token)
     {
         var buffer = new byte[4096];
         var result = await socket.ReceiveAsync(buffer, token).ConfigureAwait(false);
         return result.MessageType == WebSocketMessageType.Text && result.EndOfMessage ? Encoding.UTF8.GetString(buffer, 0, result.Count) : null;
+    }
+
+    private static async Task<(WebSocketMessageType MessageType, byte[] Payload)?> ReceiveWorkerMessageAsync(WebSocket socket, CancellationToken token)
+    {
+        var buffer = new byte[MaxFrameBytes];
+        var result = await socket.ReceiveAsync(buffer, token).ConfigureAwait(false);
+        if (result.MessageType is not (WebSocketMessageType.Text or WebSocketMessageType.Binary)) return null;
+        return (result.MessageType, buffer[..result.Count]);
     }
 
     private static Task SendJsonAsync(WebSocket socket, object value, CancellationToken token) => socket.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, JsonOptions)), WebSocketMessageType.Text, true, token);

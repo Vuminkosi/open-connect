@@ -41,7 +41,7 @@ public static class TodoInternalApiExtensions
             var authorization = context.HttpContext.Request.Headers.Authorization.ToString();
             var tenant = context.HttpContext.Request.Headers["X-OpenConnect-Tenant"].ToString();
             var tenantValid = false;
-            try { tenantValid = Ulid.Parse(tenant) != default; } catch (FormatException) { }
+            try { tenantValid = Ulid.Parse(tenant) != default && string.Equals(tenant, options.AllowedTenant, StringComparison.Ordinal); } catch (FormatException) { }
             if (!authorization.StartsWith("Bearer ", StringComparison.Ordinal) ||
                 !CryptographicOperations.FixedTimeEquals(
                     Encoding.UTF8.GetBytes(authorization["Bearer ".Length..]),

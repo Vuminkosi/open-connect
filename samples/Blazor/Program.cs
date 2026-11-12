@@ -121,11 +121,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseWebSockets();
+
 if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
     app.UseAuthentication();
     app.UseAuthorization();
-    app.UseWebSockets();
 }
 
 app.UseHttpsRedirection();
@@ -142,6 +143,10 @@ app.MapTodoInternalApi();
 if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
     app.MapOpenConnect();
+}
+else if (builder.Environment.IsDevelopment())
+{
+    ExternalGatewayVoiceProxy.Map(app, gatewayOptions, builder.Configuration);
 }
 
 app.MapRazorComponents<App>()
