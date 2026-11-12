@@ -93,7 +93,7 @@ public sealed class TodoServiceClient(HttpClient httpClient, IOptions<MetaCloudO
     }
 }
 
-public sealed record TodoServiceRecord(Guid Id, string Title, string? Description, bool IsCompleted, string Priority, DateTime CreatedAtUtc, DateTime? DueDateUtc);
+public sealed record TodoServiceRecord(Guid Id, string Title, string? Description, bool IsCompleted, int Priority, DateTime CreatedAtUtc, DateTime? DueDateUtc);
 
 public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
 {

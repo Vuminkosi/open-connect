@@ -55,7 +55,11 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
         options.WebSocketHeaders["X-OpenConnect-Test-Principal"] = gatewayOptions.PrincipalId;
     });
     builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
-        client.BaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/"))
+    {
+        client.BaseAddress = new Uri(gatewayOptions.SameHostBaseUrl.TrimEnd('/') + "/openconnect/v1/");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-OpenConnect-Test-Tenant", gatewayOptions.TenantId);
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-OpenConnect-Test-Principal", gatewayOptions.PrincipalId);
+    })
         .AddHttpMessageHandler<SameHostIdentityHandler>();
     builder.Services.AddTransient<SameHostIdentityHandler>();
 }
@@ -79,7 +83,11 @@ else
     {
         builder.Services.AddTransient<SameHostIdentityHandler>();
         builder.Services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client =>
-            client.BaseAddress = new Uri(gatewayApiBase))
+        {
+            client.BaseAddress = new Uri(gatewayApiBase);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("X-OpenConnect-Test-Tenant", gatewayOptions.TenantId);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("X-OpenConnect-Test-Principal", gatewayOptions.PrincipalId);
+        })
             .AddHttpMessageHandler<SameHostIdentityHandler>();
     }
 }

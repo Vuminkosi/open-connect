@@ -54,7 +54,9 @@ public static class ExternalGatewayVoiceProxy
             var gatewayToBrowser = RelayAsync(gateway, browser, linked.Token);
             await Task.WhenAny(browserToGateway, gatewayToBrowser).ConfigureAwait(false);
             linked.Cancel();
-            try { await Task.WhenAll(browserToGateway, gatewayToBrowser).ConfigureAwait(false); } catch (OperationCanceledException) { }
+            try { await Task.WhenAll(browserToGateway, gatewayToBrowser).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (linked.IsCancellationRequested) { }
+            catch (WebSocketException) when (linked.IsCancellationRequested || context.RequestAborted.IsCancellationRequested) { }
         });
     }
 

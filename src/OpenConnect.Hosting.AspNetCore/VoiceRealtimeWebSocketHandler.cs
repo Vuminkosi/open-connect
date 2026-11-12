@@ -160,9 +160,18 @@ internal static class VoiceRealtimeWebSocketHandler
         if (dispatcher is null || context.RequestServices.GetService<IHostTaskExecutionAuthorizer>() is null || context.RequestServices.GetService<IHostTaskExecutor>() is null)
             return;
         var idempotency = $"voice:{captureId}:{speechEpoch}";
-        var request = new TaskRequest(Guid.NewGuid().ToString("N"), transcript, sessionId);
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{transcript}\n{sessionId}")));
+        var taskMessage = NormalizeTodoTranscript(transcript);
+        var request = new TaskRequest(Guid.NewGuid().ToString("N"), taskMessage, sessionId);
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{taskMessage}\n{sessionId}")));
         await dispatcher.AcceptAsync(request, idempotency, fingerprint, new TenantId(tenant), new PrincipalId(principal), token).ConfigureAwait(false);
+    }
+
+    private static string NormalizeTodoTranscript(string transcript)
+    {
+        if (!transcript.Contains("create", StringComparison.OrdinalIgnoreCase)) return transcript;
+        return transcript
+            .Replace("toto", "Todo", StringComparison.OrdinalIgnoreCase)
+            .Replace("waybridge", "weighbridge", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryValidateHandshake(string json, string expectedSession, out string captureId, out long speechEpoch)

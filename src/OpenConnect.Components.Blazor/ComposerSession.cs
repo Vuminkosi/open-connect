@@ -32,6 +32,7 @@ public sealed class ComposerSession
     private string? _streamingRole;
     private string _streamingText = string.Empty;
     private string _livePartialTranscript = string.Empty;
+    private long _committedSpeechEpoch;
 
     public string? SessionId { get; private set; }
 
@@ -89,6 +90,7 @@ public sealed class ComposerSession
             _streamingText = string.Empty;
             _streamingRole = null;
             _livePartialTranscript = string.Empty;
+            _committedSpeechEpoch = 0;
             StagedRecording = null;
             MicrophoneState = ComposerMicrophoneState.Off;
             SpeechState = ComposerSpeechState.Off;
@@ -178,11 +180,12 @@ public sealed class ComposerSession
 
         lock (_gate)
         {
-            if (speechEpoch == 0 || speechEpoch != SpeechEpoch)
+            if (speechEpoch == 0 || speechEpoch != SpeechEpoch || _committedSpeechEpoch == speechEpoch)
             {
                 return false;
             }
 
+            _committedSpeechEpoch = speechEpoch;
             _livePartialTranscript = string.Empty;
             MicrophoneState = ComposerMicrophoneState.Off;
             _messages.Add(new ComposerMessage("user", finalTranscript.Trim(), LastSequence, ComposerMessageState.Received));
