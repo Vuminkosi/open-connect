@@ -118,6 +118,7 @@ internal static class VoiceRealtimeWebSocketHandler
     private static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token, ILogger logger)
     {
         var buffer = new byte[MaxFrameBytes];
+        string? bestFinalTranscript = null;
         while (worker.State == WebSocketState.Open && browser.State == WebSocketState.Open && !token.IsCancellationRequested)
         {
             var result = await worker.ReceiveAsync(buffer, token).ConfigureAwait(false);
@@ -147,9 +148,12 @@ internal static class VoiceRealtimeWebSocketHandler
 
             var outgoingType = providerError ? "error" : isFinal ? "transcript-final" : speechComplete ? "speech-complete" : "transcript-partial";
             await SendJsonAsync(browser, new { type = outgoingType, captureId, speechEpoch, text = providerError ? "Voice transcription provider unavailable." : text?.Trim() ?? string.Empty, authoritative = isFinal }, token).ConfigureAwait(false);
-            if (isFinal && !string.IsNullOrWhiteSpace(text))
-                await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, text.Trim(), tenant, principal, token).ConfigureAwait(false);
+            if (isFinal && !string.IsNullOrWhiteSpace(text) && text.Trim().Length > (bestFinalTranscript?.Length ?? 0))
+                bestFinalTranscript = text.Trim();
         }
+
+        if (!string.IsNullOrWhiteSpace(bestFinalTranscript))
+            await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, token).ConfigureAwait(false);
     }
 
     private static async Task AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, CancellationToken token)
@@ -171,7 +175,9 @@ internal static class VoiceRealtimeWebSocketHandler
         if (!transcript.Contains("create", StringComparison.OrdinalIgnoreCase)) return transcript;
         return transcript
             .Replace("toto", "Todo", StringComparison.OrdinalIgnoreCase)
-            .Replace("waybridge", "weighbridge", StringComparison.OrdinalIgnoreCase);
+            .Replace("waybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
+            .Replace("weybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
+            .Replace("weigh bridge", "weighbridge", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryValidateHandshake(string json, string expectedSession, out string captureId, out long speechEpoch)

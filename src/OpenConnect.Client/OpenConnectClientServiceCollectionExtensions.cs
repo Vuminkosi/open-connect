@@ -43,8 +43,22 @@ public static class OpenConnectClientServiceCollectionExtensions
         services.Configure(configure);
 
         var normalizedBaseAddress = new Uri(options.ApiBaseAddress!.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
-        services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client => client.BaseAddress = normalizedBaseAddress);
+        var builder = services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client => client.BaseAddress = normalizedBaseAddress);
+        AddDevelopmentIdentityHeaders(builder, options);
         return services;
+    }
+
+    private static void AddDevelopmentIdentityHeaders(IHttpClientBuilder builder, OpenConnectClientOptions options)
+    {
+        var headers = options.WebSocketHeaders
+            .Where(pair => pair.Key.StartsWith("X-OpenConnect-Test-", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (headers.Length == 0) return;
+        builder.ConfigureHttpClient(client =>
+        {
+            foreach (var header in headers)
+                client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+        });
     }
 
     public static IServiceCollection AddOpenConnectClientVad(

@@ -1,3 +1,4 @@
+using System.Net.WebSockets;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
@@ -122,6 +123,10 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
         Session.MarkConnecting();
         var failures = 0;
+        // The current gateway exposes the durable HTTP event snapshot contract. Keep the
+        // optional WebSocket transport available to explicit callers, but use the snapshot
+        // contract for the provider so a socket that closes without replay cannot strand UI state.
+        var webSocketUnavailable = true;
         try
         {
             while (!token.IsCancellationRequested)
@@ -129,20 +134,29 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                 try
                 {
                     var cursor = resumeFromLastCursor ? Session.LastSequence : 0;
-                    if (Client is IRealtimeOpenConnectClient realtimeClient)
+                    if (Client is IRealtimeOpenConnectClient realtimeClient && !webSocketUnavailable)
                     {
-                        await foreach (var record in realtimeClient.SubscribeEventsWebSocketAsync(sessionId, cursor, token).ConfigureAwait(false))
+                        try
                         {
-                            Session.ApplyEvent(record);
-                        }
+                            await foreach (var record in realtimeClient.SubscribeEventsWebSocketAsync(sessionId, cursor, token).ConfigureAwait(false))
+                            {
+                                Session.ApplyEvent(record);
+                            }
 
-                        failures = 0;
-                        await InvokeAsync(StateHasChanged);
-                        await Task.Delay(PollInterval, token).ConfigureAwait(false);
-                        continue;
+                            failures = 0;
+                            await InvokeAsync(StateHasChanged);
+                            await Task.Delay(PollInterval, token).ConfigureAwait(false);
+                            continue;
+                        }
+                        catch (WebSocketException)
+                        {
+                            // The HTTP API remains the authoritative event source when the
+                            // deployment has not exposed the optional session event socket.
+                            webSocketUnavailable = true;
+                        }
                     }
 
-                    await foreach (var record in Client.SubscribeEventsAsync(sessionId, cursor, token).ConfigureAwait(false))
+                    await foreach (var record in Client.SubscribeEventsAsync(sessionId, Session.LastSequence, token).ConfigureAwait(false))
                     {
                         Session.ApplyEvent(record);
                     }
@@ -197,7 +211,16 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnSessionChanged()
+    {
+        var sessionId = Session.SessionId;
+        if (AutoSubscribe && !string.IsNullOrWhiteSpace(sessionId))
+        {
+            RestartLoop(sessionId!);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     public async ValueTask DisposeAsync()
     {
