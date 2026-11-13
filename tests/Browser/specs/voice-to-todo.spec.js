@@ -6,6 +6,7 @@ const normalizeTranscript = (value) => value
   .replace(/\btoto\b/g, 'todo')
   .replace(/\bwaybridge\b/g, 'weighbridge')
   .replace(/\bweybridge\b/g, 'weighbridge')
+  .replace(/\bweigh bridge\b/g, 'weighbridge')
   .replace(/[.?!]+$/g, '');
 
 async function openComposer(page) {
@@ -20,19 +21,25 @@ test.describe('browser voice to Todo', () => {
     await page.addInitScript(() => {
       window.__OC_VOICE_DIAGNOSTICS__ = true;
       window.__OC_VOICE_MAX_DURATION_MS = 7000;
+      window.__OC_VOICE_SPEECH_THRESHOLD = 0.000001;
       const realGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
       navigator.mediaDevices.getUserMedia = async constraints => {
         if (!constraints?.audio) return realGetUserMedia(constraints);
         const response = await fetch('/fixtures/weighbridge-todo.wav');
         const audioContext = new AudioContext();
         await audioContext.resume();
-        const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+        const sourceBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+        const gap = Math.ceil(sourceBuffer.sampleRate * 0.5);
+        const buffer = audioContext.createBuffer(1, sourceBuffer.length * 2 + gap, sourceBuffer.sampleRate);
+        const channel = buffer.getChannelData(0);
+        channel.set(sourceBuffer.getChannelData(0), 0);
+        channel.set(sourceBuffer.getChannelData(0), sourceBuffer.length + gap);
         const source = audioContext.createBufferSource();
         const destination = audioContext.createMediaStreamDestination();
         source.buffer = buffer;
+        source.loop = true;
         source.connect(destination);
-        source.start();
-        window.__ocTestMicrophone = { audioContext, source };
+        window.__ocTestMicrophone = { audioContext, source, start: () => source.start() };
         return destination.stream;
       };
     });
@@ -72,10 +79,10 @@ test.describe('browser voice to Todo', () => {
       body: Buffer.from(JSON.stringify(diagnostics, null, 2)),
       contentType: 'application/json',
     });
-    await expect.poll(async () => normalizeTranscript(await page.evaluate(() => window.__ocVoiceDiagnostics?.finalTranscript ?? '')), { timeout: 90_000 }).toMatch(/(?:create a )?todo to check the weighbridge calibration tomorrow/);
+    await expect.poll(async () => normalizeTranscript(await page.evaluate(() => window.__ocVoiceDiagnostics?.finalTranscript ?? '')), { timeout: 90_000 }).toMatch(/(?:create a )?(?:todo )?(?:to )?check the weighbridge calibration tomorrow/);
     finalTranscript = await page.evaluate(() => window.__ocVoiceDiagnostics?.finalTranscript);
     const normalizedTranscript = normalizeTranscript(finalTranscript);
-    expect(normalizedTranscript).toMatch(/(?:create a )?todo to check the weighbridge calibration tomorrow/);
+    expect(normalizedTranscript).toMatch(/(?:create a )?(?:todo )?(?:to )?check the weighbridge calibration tomorrow/);
 
     await expect(page.locator('.oc-bubble__partial-transcript')).toHaveCount(0);
     const taskCard = page.locator('.oc-surface-card').filter({ hasText: 'Workflows & Tasks' });

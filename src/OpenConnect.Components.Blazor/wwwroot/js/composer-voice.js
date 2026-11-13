@@ -1,7 +1,7 @@
 window.ocComposerVoice = (() => {
   let state = null;
   const targetSampleRate = 24000;
-  const maxPendingFrames = 256;
+  const speechThreshold = Number(window.__OC_VOICE_SPEECH_THRESHOLD || 0.012);
   const toWs = (url) => url.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const workletUrl = () => new URL('_content/OpenConnect.Components.Blazor/js/voice-capture-worklet.js', document.baseURI).href;
 
@@ -80,6 +80,8 @@ window.ocComposerVoice = (() => {
     await context.audioWorklet.addModule(workletUrl());
     const source = context.createMediaStreamSource(stream);
     const processor = new AudioWorkletNode(context, 'openconnect-pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
+    let processorReadyResolve;
+    const processorReady = new Promise(resolve => { processorReadyResolve = resolve; });
     const diagnostics = window.__OC_VOICE_DIAGNOSTICS__ ? {
       captureId,
       streamId: stream.id,
@@ -87,7 +89,7 @@ window.ocComposerVoice = (() => {
       trackSettings: track?.getSettings?.() ?? {},
       trackReadyState: track?.readyState,
       processorType: 'AudioWorkletNode',
-      processorReady: true,
+      processorReady: false,
       processorMessages: 0,
       sourceFrames: 0,
       sentFrames: 0,
@@ -101,7 +103,7 @@ window.ocComposerVoice = (() => {
     } : null;
     window.__ocVoiceDiagnostics = diagnostics;
     if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
-    const current = { dotnet, captureId, speechEpoch, stream, context, source, processor, socket, diagnostics, maxTimer: null, silenceTimer: null, pendingPcm: [], pendingFrameCount: 0, endRequested: false, speechSeen: false, finalTranscript: '', transportOpened: false };
+    const current = { dotnet, captureId, speechEpoch, stream, context, source, processor, socket, diagnostics, maxTimer: null, silenceTimer: null, pendingPcm: [], pendingFrameCount: 0, endRequested: false, speechSeen: false, finalTranscript: '', processorReady: false, transportOpened: false };
     state = current;
 
     const maxDurationMs = Number(window.__OC_VOICE_MAX_DURATION_MS || 0);
@@ -144,6 +146,12 @@ window.ocComposerVoice = (() => {
     socket.onclose = () => { if (state === current) state = null; };
 
     processor.port.onmessage = event => {
+      if (event.data && event.data.type === 'ready') {
+        current.processorReady = true;
+        if (current.diagnostics) current.diagnostics.processorReady = true;
+        processorReadyResolve();
+        return;
+      }
       if (state !== current || current.endRequested) return;
       const sourceSamples = event.data instanceof Float32Array ? event.data : new Float32Array(event.data);
       if (!sourceSamples.length) return;
@@ -160,7 +168,7 @@ window.ocComposerVoice = (() => {
         current.diagnostics.rmsMax = Math.max(current.diagnostics.rmsMax, rms);
         current.diagnostics.peakMax = Math.max(current.diagnostics.peakMax, peak);
       }
-      const isSpeech = rms >= 0.012;
+      const isSpeech = rms >= speechThreshold;
       if (isSpeech) {
         current.speechSeen = true;
         if (current.diagnostics) current.diagnostics.speechSeen = true;
@@ -185,6 +193,8 @@ window.ocComposerVoice = (() => {
 
     source.connect(processor);
     processor.connect(context.destination);
+    await processorReady;
+    if (window.__ocTestMicrophone?.start) window.__ocTestMicrophone.start();
     if (socket.readyState !== WebSocket.OPEN) await waitForSocket(socket);
     openTransport();
   };

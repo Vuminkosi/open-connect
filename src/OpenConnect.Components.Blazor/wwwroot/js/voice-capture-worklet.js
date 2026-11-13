@@ -1,4 +1,9 @@
 class OpenConnectPcmCaptureProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.port.postMessage({ type: 'ready' });
+  }
+
   process(inputs) {
     const input = inputs[0];
     const channel = input?.[0];
