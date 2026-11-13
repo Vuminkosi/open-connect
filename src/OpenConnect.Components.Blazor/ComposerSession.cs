@@ -394,12 +394,20 @@ public sealed class ComposerSession
             else if (type.EndsWith("completed", StringComparison.OrdinalIgnoreCase)
                 || type.EndsWith("done", StringComparison.OrdinalIgnoreCase))
             {
-                if (_streamingText.Length > 0 || _streamingRole is not null)
+                var completionText = _streamingText;
+                if (string.IsNullOrWhiteSpace(completionText)
+                    && type.Contains("task.completed", StringComparison.OrdinalIgnoreCase))
                 {
-                    _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, record.Sequence));
-                    _streamingText = string.Empty;
-                    _streamingRole = null;
+                    completionText = "Task completed.";
                 }
+
+                if (!string.IsNullOrWhiteSpace(completionText))
+                {
+                    _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", completionText, record.Sequence));
+                }
+
+                _streamingText = string.Empty;
+                _streamingRole = null;
 
                 if (Connection == ComposerConnectionState.Streaming)
                 {
