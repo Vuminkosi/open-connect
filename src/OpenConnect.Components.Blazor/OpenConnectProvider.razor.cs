@@ -156,9 +156,16 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                         }
                     }
 
+                    var receivedEvent = false;
                     await foreach (var record in Client.SubscribeEventsAsync(sessionId, Session.LastSequence, token).ConfigureAwait(false))
                     {
+                        receivedEvent = true;
                         Session.ApplyEvent(record);
+                    }
+
+                    if (!receivedEvent)
+                    {
+                        Session.MarkIdle();
                     }
 
                     failures = 0;
