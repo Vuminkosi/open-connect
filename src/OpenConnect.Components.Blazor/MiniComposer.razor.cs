@@ -310,6 +310,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         Session.BeginSend(text);
         _draft = string.Empty;
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        await ClearInputAsync().ConfigureAwait(true);
         await AutosizeAsync().ConfigureAwait(false);
 
         try
@@ -507,6 +509,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
         {
             // Prerendering or missing JS: managed fallback keeps text working.
+        }
+    }
+
+    private async Task ClearInputAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerInput.clear", _panelRef).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException)
+        {
         }
     }
 

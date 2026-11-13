@@ -60,6 +60,16 @@
         attached.set(el, onKey);
     };
 
+    window.ocComposerInput.clear = function (el) {
+        var target = resolveInput(el);
+        if (!target) { return; }
+        target.value = "";
+        try {
+            target.dispatchEvent(new Event("input", { bubbles: true }));
+            target.dispatchEvent(new Event("change", { bubbles: true }));
+        } catch (e) { /* noop */ }
+    };
+
     window.ocComposerInput.focus = function (el) {
         var target = resolveInput(el);
         if (target && typeof target.focus === "function") {
