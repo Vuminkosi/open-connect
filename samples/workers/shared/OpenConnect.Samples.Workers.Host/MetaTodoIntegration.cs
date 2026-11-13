@@ -7,6 +7,7 @@ using OpenAI.Chat;
 using OpenAI;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
+using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 
 namespace OpenConnect.Samples.Workers.Host;
@@ -106,7 +107,7 @@ public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
     }
 }
 
-public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
+public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, InMemorySessionStore sessions, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
 {
     private readonly MetaCloudOptions _options = options.Value;
 
@@ -126,7 +127,11 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.DeleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.delete", "Delete a Todo by id."));
             }
 
-            _ = await factory.RunAsync(new AgentId("worker-sample-direct"), task.Message, tools, cancellationToken).ConfigureAwait(false);
+            var response = await factory.RunAsync(new AgentId("worker-sample-direct"), task.Message, tools, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(response.Text))
+            {
+                await sessions.AppendEventAsync(task.SessionId.Value, "message", response.Text, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (Exception exception)
         {
