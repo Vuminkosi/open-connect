@@ -90,6 +90,7 @@
             <div class="oc-bubble__input-row">
                 <div class="oc-bubble__field-wrap">
                     <MudTextField T="string"
+                                  @key="_inputRenderKey"
                                   Value="@_draft"
                                   ValueChanged="OnInputChanged"
                                   Label="@($"Message {AssistantName}")"
@@ -148,7 +149,7 @@
             @if (!string.IsNullOrWhiteSpace(Session?.StreamingText))
             {
                 <MudText Typo="Typo.caption" Class="oc-bubble__response" aria-live="polite">
-                    @Session.StreamingText
+                    @RenderMarkdown(Session.StreamingText)
                 </MudText>
             }
 
@@ -168,7 +169,7 @@
                     {
                         <div class="oc-message @(message.Role == "user" ? "oc-message-user" : "oc-message-assistant")">
                             <span class="oc-message-role">@(message.Role == "user" ? "You" : AssistantName)</span>
-                            <p class="oc-message-text">@message.Text</p>
+                            <div class="oc-message-text">@RenderMarkdown(message.Text)</div>
                         </div>
                     }
                     @if (Session?.Proposals is not null)

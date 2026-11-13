@@ -1,3 +1,6 @@
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -15,7 +18,7 @@ namespace OpenConnect.Components.Blazor;
 /// </summary>
 public partial class MiniComposer : ComponentBase, IAsyncDisposable
 {
-    private const int MaxRenderedMessages = 30;
+    private const int MaxRenderedMessages = 4;
     private const int MaxInputLengthHardCap = 8000;
 
     private bool _open;
@@ -37,6 +40,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private bool _voiceActive;
     private bool _sessionCreationStarted;
     private int _spokenResponseLength;
+    private int _inputRenderKey;
 
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
@@ -132,6 +136,48 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         ComposerCloseBehavior.EndSession => "End session and close",
         _ => $"Close {AssistantName}",
     };
+
+    private static MarkupString RenderMarkdown(string? source)
+    {
+        var encoded = WebUtility.HtmlEncode(source ?? string.Empty);
+        var lines = encoded.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var output = new StringBuilder();
+        var inList = false;
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+            if (line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal))
+            {
+                if (!inList) { output.Append("<ul>"); inList = true; }
+                output.Append("<li>").Append(RenderInline(line[2..])).Append("</li>");
+                continue;
+            }
+
+            if (inList) { output.Append("</ul>"); inList = false; }
+            if (line.Length == 0) { output.Append("<br />"); continue; }
+            if (line.StartsWith("### ", StringComparison.Ordinal))
+                output.Append("<h5>").Append(RenderInline(line[4..])).Append("</h5>");
+            else if (line.StartsWith("## ", StringComparison.Ordinal))
+                output.Append("<h4>").Append(RenderInline(line[3..])).Append("</h4>");
+            else if (line.StartsWith("# ", StringComparison.Ordinal))
+                output.Append("<h3>").Append(RenderInline(line[2..])).Append("</h3>");
+            else
+                output.Append("<span>").Append(RenderInline(line)).Append("</span><br />");
+        }
+
+        if (inList) output.Append("</ul>");
+        return new MarkupString(output.ToString());
+    }
+
+    private static string RenderInline(string value)
+    {
+        value = Regex.Replace(value, @"\[([^\]]+)\]\((https?://[^\s)]+)\)", "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>", RegexOptions.CultureInvariant);
+        value = Regex.Replace(value, @"`([^`]+)`", "<code>$1</code>", RegexOptions.CultureInvariant);
+        value = Regex.Replace(value, @"\*\*([^*]+)\*\*", "<strong>$1</strong>", RegexOptions.CultureInvariant);
+        value = Regex.Replace(value, @"(?<!\*)\*([^*]+)\*(?!\*)", "<em>$1</em>", RegexOptions.CultureInvariant);
+        return value;
+    }
 
     protected override void OnInitialized()
     {
@@ -360,6 +406,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         Session.BeginSend(text);
         _draft = string.Empty;
+        _inputRenderKey++;
         await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         await ClearInputAsync().ConfigureAwait(true);
         await AutosizeAsync().ConfigureAwait(false);
@@ -423,6 +470,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (!Session.CommitLiveTranscript(text, speechEpoch)) return;
         _voiceActive = false;
         _draft = string.Empty;
+        _inputRenderKey++;
         await AutosizeAsync().ConfigureAwait(false);
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
