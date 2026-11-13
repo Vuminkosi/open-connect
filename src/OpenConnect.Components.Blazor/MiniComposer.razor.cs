@@ -35,6 +35,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
+    private bool _sessionCreationStarted;
 
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
@@ -442,11 +443,27 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         Provider?.Reconnect();
     }
 
+    private async Task EnsureSessionAsync()
+    {
+        if (_sessionCreationStarted || !string.IsNullOrWhiteSpace(Session.SessionId)) return;
+        _sessionCreationStarted = true;
+        try
+        {
+            var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+            await InvokeAsync(() => Session.AttachSession(created.Id.Value.ToString()));
+        }
+        catch (Exception ex)
+        {
+            await InvokeAsync(() => Session.MarkError(FriendlyError(ex)));
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Server prerendering has no JS interop: only attach once interactive.
         if ((_open || IsAttached) && !_disposed)
         {
+            await EnsureSessionAsync().ConfigureAwait(false);
             await AttachJsAsync().ConfigureAwait(false);
             await AutosizeAsync().ConfigureAwait(false);
 
