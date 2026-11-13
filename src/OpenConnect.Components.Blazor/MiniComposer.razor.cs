@@ -36,6 +36,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
     private bool _sessionCreationStarted;
+    private int _spokenResponseLength;
 
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
@@ -142,7 +143,56 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnSessionChanged()
+    {
+        var response = Session?.StreamingText ?? string.Empty;
+        if (_speechOn && response.Length > _spokenResponseLength)
+        {
+            var delta = response[_spokenResponseLength..];
+            _spokenResponseLength = response.Length;
+            _ = SpeakResponseDeltaAsync(delta);
+        }
+        else if (response.Length == 0 && Session?.Connection != ComposerConnectionState.Streaming)
+        {
+            _spokenResponseLength = 0;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SpeakResponseDeltaAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try { await JS.InvokeVoidAsync("ocComposerSpeech.speak", text).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+    }
+
+    private async Task ToggleSpeechAsync()
+    {
+        _speechOn = !_speechOn;
+        if (!_speechOn)
+        {
+            try { await JS.InvokeVoidAsync("ocComposerSpeech.stop").ConfigureAwait(false); } catch (Exception) { }
+        }
+        else if (!string.IsNullOrWhiteSpace(Session?.StreamingText))
+        {
+            _spokenResponseLength = 0;
+            OnSessionChanged();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleMicrophoneAsync()
+    {
+        _micOn = !_micOn;
+        if (!_micOn && _voiceActive)
+        {
+            _voiceActive = false;
+            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); } catch (Exception) { }
+        }
+        await InvokeAsync(StateHasChanged);
+    }
 
     private void SelectMode(string mode)
     {
@@ -394,6 +444,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleVoiceAsync()
     {
+        if (!_micOn)
+        {
+            Session.MarkError("Microphone is turned off. Turn it on before starting voice input.");
+            return;
+        }
+
         if (_voiceActive)
         {
             _voiceActive = false;

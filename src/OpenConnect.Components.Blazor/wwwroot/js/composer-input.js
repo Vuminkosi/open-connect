@@ -70,6 +70,32 @@
         } catch (e) { /* noop */ }
     };
 
+    var speechQueue = [];
+    var speechActive = false;
+
+    function speakNext() {
+        if (speechActive || speechQueue.length === 0 || !window.speechSynthesis) return;
+        speechActive = true;
+        var utterance = new SpeechSynthesisUtterance(speechQueue.shift());
+        utterance.onend = utterance.onerror = function () {
+            speechActive = false;
+            speakNext();
+        };
+        window.speechSynthesis.speak(utterance);
+    }
+
+    window.ocComposerSpeech = window.ocComposerSpeech || {};
+    window.ocComposerSpeech.speak = function (text) {
+        if (!text || !window.speechSynthesis) return;
+        speechQueue.push(String(text));
+        speakNext();
+    };
+    window.ocComposerSpeech.stop = function () {
+        speechQueue = [];
+        speechActive = false;
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+
     window.ocComposerInput.focus = function (el) {
         var target = resolveInput(el);
         if (target && typeof target.focus === "function") {

@@ -115,7 +115,7 @@
                             <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
                                            Color="@(_micOn ? Color.Primary : Color.Default)"
                                            Size="Size.Small"
-                                           OnClick="@(() => _micOn = !_micOn)"
+                                           OnClick="ToggleMicrophoneAsync"
                                            aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
                                            title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
 
@@ -209,12 +209,12 @@
                     <span class="oc-status__text">@StatusText</span>
                 </div>
                 <div class="oc-bubble__speech-action">
-                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="@(() => _speechOn = !_speechOn)" title="@(_speechOn ? "Turn off voice" : "Listen")">
+                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="ToggleSpeechAsync" title="@(_speechOn ? "Turn off voice" : "Listen")">
                         <MudIcon Icon="@(_speechOn ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)" Size="Size.Small" />
                         <span>@(_speechOn ? "Voice on" : "Listen")</span>
                     </span>
 
-                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="@(() => _micOn = !_micOn)" title="@(_micOn ? "Turn off microphone" : "Turn on microphone")">
+                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="ToggleMicrophoneAsync" title="@(_micOn ? "Turn off microphone" : "Turn on microphone")">
                         <MudIcon Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)" Size="Size.Small" />
                         <span>@(_micOn ? "Mic on" : "Mic off")</span>
                     </span>
