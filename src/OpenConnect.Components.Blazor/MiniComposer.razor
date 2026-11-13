@@ -144,19 +144,11 @@
                 </div>
             </div>
 
-            <!-- Sent Message Caption -->
-            @if (!string.IsNullOrWhiteSpace(SentMessage))
-            {
-                <MudText Typo="Typo.caption" Class="oc-bubble__sent-message" aria-label="Your latest message">
-                    @SentMessage
-                </MudText>
-            }
-
-            <!-- Response / Streaming Text Caption -->
-            @if (!string.IsNullOrWhiteSpace(ResponseText))
+            <!-- Live streaming response -->
+            @if (!string.IsNullOrWhiteSpace(Session?.StreamingText))
             {
                 <MudText Typo="Typo.caption" Class="oc-bubble__response" aria-live="polite">
-                    @ResponseText
+                    @Session.StreamingText
                 </MudText>
             }
 
