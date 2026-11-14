@@ -3,6 +3,7 @@
     let context = null;
     let source = null;
     let playbackEpoch = 0;
+    let activeResolve = null;
 
     function decodeBase64(value) {
         const binary = atob(value);
@@ -13,6 +14,10 @@
 
     function stop() {
         playbackEpoch++;
+        if (activeResolve) {
+            activeResolve();
+            activeResolve = null;
+        }
         if (source) {
             try { source.stop(); } catch (_) { }
             source.disconnect();
@@ -22,7 +27,6 @@
 
     async function playPcm(base64, sampleRate, channels, epoch) {
         if (!base64 || sampleRate !== 24000 || channels !== 1 || !epoch) return;
-        stop();
         const localEpoch = playbackEpoch;
         context = context || new AudioContext({ sampleRate });
         if (context.state === 'suspended') await context.resume();
@@ -37,8 +41,14 @@
         source = context.createBufferSource();
         source.buffer = buffer;
         source.connect(context.destination);
-        source.onended = () => { if (source) { source.disconnect(); source = null; } };
-        source.start();
+        await new Promise(resolve => {
+            activeResolve = resolve;
+            source.onended = () => {
+                if (source) { source.disconnect(); source = null; }
+                if (activeResolve) { activeResolve(); activeResolve = null; }
+            };
+            source.start();
+        });
     }
 
     window.ocComposerAudio = { playPcm, stop };

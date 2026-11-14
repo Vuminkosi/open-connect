@@ -40,7 +40,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private bool _voiceActive;
     private bool _sessionCreationStarted;
     private int _inputRenderKey;
-    private string? _lastSpokenResponse;
+    private int _speechCursor;
+    private readonly Queue<string> _speechQueue = new();
+    private CancellationTokenSource? _speechCts;
+    private bool _speechWorkerRunning;
 
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
@@ -191,33 +194,74 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private void OnSessionChanged()
     {
-        if (_speechOn && Session?.Connection != ComposerConnectionState.Streaming)
+        if (_speechOn && Session is not null)
         {
-            var response = Session?.Messages.LastOrDefault(message => message.Role == "assistant")?.Text;
-            if (!string.IsNullOrWhiteSpace(response) && !string.Equals(response, _lastSpokenResponse, StringComparison.Ordinal))
-            {
-                _lastSpokenResponse = response;
-                _ = SpeakResponseAsync(response);
-            }
+            var response = Session.Connection == ComposerConnectionState.Streaming
+                ? Session.StreamingText
+                : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
+            QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
         }
 
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private async Task SpeakResponseAsync(string text)
+    private void QueueSpeechSegments(string response, bool flush)
+    {
+        if (response.Length < _speechCursor) _speechCursor = 0;
+        var start = _speechCursor;
+        while (start < response.Length)
+        {
+            var boundary = FindSpeechBoundary(response, start, flush);
+            if (boundary <= start) break;
+            _speechQueue.Enqueue(response[start..boundary].Trim());
+            start = boundary;
+        }
+        _speechCursor = start;
+        if (_speechQueue.Count > 0 && !_speechWorkerRunning) _ = DrainSpeechQueueAsync();
+    }
+
+    private static int FindSpeechBoundary(string text, int start, bool flush)
+    {
+        for (var i = start; i < text.Length; i++)
+        {
+            if (text[i] is '.' or '!' or '?' or ';' or ':' or '\n') return i + 1;
+            if (i - start >= 240) return i + 1;
+        }
+        return flush ? text.Length : start;
+    }
+
+    private async Task DrainSpeechQueueAsync()
+    {
+        _speechWorkerRunning = true;
+        try
+        {
+            while (_speechOn && !_disposed)
+            {
+                string? segment;
+                lock (_speechQueue)
+                {
+                    if (_speechQueue.Count == 0) break;
+                    segment = _speechQueue.Dequeue();
+                }
+                if (!string.IsNullOrWhiteSpace(segment)) await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
+            }
+        }
+        finally { _speechWorkerRunning = false; }
+    }
+
+    private async Task SpeakResponseSegmentAsync(string text)
     {
         try
         {
+            _speechCts?.Dispose();
+            _speechCts = new CancellationTokenSource();
             var result = await Client.SynthesizeSpeechAsync(
                 new SpeechSynthesisRequest(text, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
-                _sendCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+                _speechCts.Token).ConfigureAwait(false);
             var epoch = Session.BeginSpeechPlayback();
             await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels, epoch).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException)
-        {
-            // Speech is optional UI output. Text remains authoritative when Kokoro is unavailable.
-        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException) { }
     }
 
     private async Task ToggleSpeechAsync()
@@ -225,12 +269,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         _speechOn = !_speechOn;
         if (!_speechOn)
         {
+            _speechCts?.Cancel();
+            lock (_speechQueue) _speechQueue.Clear();
             Session.TriggerBargeIn();
             try { await JS.InvokeVoidAsync("ocComposerAudio.stop").ConfigureAwait(false); } catch (Exception) { }
         }
         else
         {
-            _lastSpokenResponse = null;
+            _speechCursor = 0;
             OnSessionChanged();
         }
 
@@ -405,6 +451,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
 
         _sending = true;
+        _speechCursor = 0;
+        lock (_speechQueue) _speechQueue.Clear();
+        _speechCts?.Cancel();
         _pendingIdempotencyKey = Guid.NewGuid().ToString("N");
 
         _sendCts?.Cancel();
@@ -688,10 +737,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         try
         {
             _sendCts?.Cancel();
+            _speechCts?.Cancel();
         }
         catch (ObjectDisposedException) { }
 
         _sendCts?.Dispose();
+        _speechCts?.Dispose();
         await DetachJsAsync(dragOnly: false).ConfigureAwait(false);
         _dotNetRef?.Dispose();
         GC.SuppressFinalize(this);
