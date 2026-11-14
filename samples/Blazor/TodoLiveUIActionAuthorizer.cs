@@ -12,14 +12,18 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (context.Route.Path != "/") return Deny();
+
+        if (context.Action.Type == LiveUIActionType.Navigate)
+        {
+            var destination = context.Manifest.Routes.SingleOrDefault(route =>
+                route.Id == context.Action.Parameters.DestinationRouteId);
+            return destination?.Path == "/" ? Allow("todo_home_navigation") : Deny();
+        }
 
         if (context.Action.Type == LiveUIActionType.ClearHighlight)
-            return Allow("todo_visual_clear");
+            return context.Route.Path == "/" ? Allow("todo_visual_clear") : Deny();
 
-        if (context.Action.Type == LiveUIActionType.Navigate &&
-            context.Action.Parameters.DestinationRouteId == context.Route.Id && context.Route.Path == "/")
-            return Allow("todo_home_navigation");
+        if (context.Route.Path != "/") return Deny();
 
         if (context.Target is null)
             return context.Action.Type == LiveUIActionType.Inspect ? Allow("todo_page_inspection") : Deny();

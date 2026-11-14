@@ -82,6 +82,26 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Current_page_returns_safe_navigation_catalog_when_current_route_is_not_inspectable()
+    {
+        var authorizer = new RecordingAuthorizer((_, context) =>
+            context.Action.Type == LiveUIActionType.Navigate
+                ? context.Action.Parameters.DestinationRouteId == "todo.home"
+                : context.Route.Id == "todo.home");
+        var tools = new LiveUIAgentTools(
+            new ContextAccessor(new LiveUIAgentContext("trusted-session", "todo.settings")),
+            new ManifestProvider(Manifest), authorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(authorizer, new RecordingRuntime()), Options.Create(new LiveUIOptions()));
+
+        var page = await tools.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.Equal("todo.settings", page.RouteId);
+        Assert.Empty(page.Targets);
+        Assert.Equal("todo.home", Assert.Single(page.NavigableRoutes).RouteId);
+    }
+
+    [Fact]
     public async Task Client_tool_factory_uses_host_session_and_returns_structured_client_receipts()
     {
         var broker = new RecordingInteractionBroker((session, request, resultKind) =>

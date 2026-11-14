@@ -28,11 +28,11 @@ public sealed class LiveUIAgentTools(
         if (context is null || manifest is null || route is null) return null;
 
         var routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
-        if (!await IsAllowedAsync(new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken)
-                .ConfigureAwait(false)) return null;
+        var canInspectRoute = await IsAllowedAsync(
+            new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
 
         var targets = new List<LiveUIAgentTarget>();
-        foreach (var target in route.Targets.Where(target => target.Capabilities.Count > 0))
+        foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0) : [])
         {
             cancellationToken.ThrowIfCancellationRequested();
             var authorizedCapabilities = new HashSet<LiveUICapability>();
