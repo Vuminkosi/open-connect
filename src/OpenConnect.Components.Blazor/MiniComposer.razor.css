@@ -222,13 +222,37 @@
     word-break: break-word;
 }
 
+.oc-message-inline {
+    display: inline-flex;
+    align-items: baseline;
+    max-width: 100%;
+    gap: 0.15rem;
+}
+
 .oc-message-copy {
-    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: var(--mud-palette-text-secondary);
+    cursor: pointer;
     opacity: 0.65;
+    vertical-align: baseline;
+}
+
+.oc-message-copy .mud-icon-root {
+    font-size: 0.8rem;
 }
 
 .oc-message-copy:hover,
 .oc-message-copy:focus-visible {
+    color: var(--mud-palette-primary);
     opacity: 1;
 }
 

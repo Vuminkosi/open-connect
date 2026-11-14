@@ -195,16 +195,19 @@
                     {
                         <div class="oc-message @(message.Role == "user" ? "oc-message-user" : "oc-message-assistant")">
                             <span class="oc-message-role">@(message.Role == "user" ? "You" : AssistantName)</span>
-                            <div class="oc-message-text">@(message.Role == "assistant" && ShouldRenderSpeechProgress(message) ? RenderSpeechProgress(message.Text) : RenderMarkdown(message.Text))</div>
-                            @if (message.Role == "assistant")
-                            {
-                                <MudIconButton Icon="@(_copiedResponse == message.Text ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
-                                               Size="Size.Small"
-                                               Class="oc-message-copy"
-                                               OnClick="@(() => CopyResponseAsync(message.Text))"
-                                               aria-label="@(_copiedResponse == message.Text ? "Response copied" : "Copy response to clipboard")"
-                                               title="@(_copiedResponse == message.Text ? "Copied" : "Copy response")" />
-                            }
+                            <span class="oc-message-inline">
+                                <span class="oc-message-text">@(message.Role == "assistant" && ShouldRenderSpeechProgress(message) ? RenderSpeechProgress(message.Text) : RenderMarkdown(message.Text))</span>
+                                @if (message.Role == "assistant")
+                                {
+                                    <MudIcon Icon="@(_copiedResponse == message.Text ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
+                                             Class="oc-message-copy"
+                                             @onclick="@(() => CopyResponseAsync(message.Text))"
+                                             role="button"
+                                             tabindex="0"
+                                             aria-label="@(_copiedResponse == message.Text ? "Response copied" : "Copy response to clipboard")"
+                                             title="@(_copiedResponse == message.Text ? "Copied" : "Copy response")" />
+                                }
+                            </span>
                         </div>
                     }
                     @if (Session?.Proposals is not null)
