@@ -166,32 +166,33 @@ public sealed class LiveUIManifestValidator
                 routeTargets.TryAdd(target.Id, target);
             }
 
+            var parentVisitStates = new Dictionary<string, byte>(StringComparer.Ordinal);
+            var hasParentCycle = false;
             foreach (var target in routeTargets.Values)
             {
                 if (target.ParentId is null) continue;
-                if (!routeTargets.TryGetValue(target.ParentId, out var parent))
+                if (!routeTargets.ContainsKey(target.ParentId))
                 {
                     errors.Add("manifest_target_parent_missing");
-                    continue;
                 }
 
-                var visited = new HashSet<string>(StringComparer.Ordinal);
-                var current = target;
-                var hasCycle = false;
-                while (true)
-                {
-                    if (!visited.Add(current.Id))
-                    {
-                        hasCycle = true;
-                        break;
-                    }
+                if (parentVisitStates.ContainsKey(target.Id)) continue;
 
+                var path = new List<string>();
+                var current = target;
+                byte state;
+                while (!parentVisitStates.TryGetValue(current.Id, out state))
+                {
+                    parentVisitStates[current.Id] = 1;
+                    path.Add(current.Id);
                     if (current.ParentId is not { } parentId || !routeTargets.TryGetValue(parentId, out var next)) break;
                     current = next;
                 }
-                if (hasCycle && !errors.Contains("manifest_target_parent_cycle", StringComparer.Ordinal))
-                    errors.Add("manifest_target_parent_cycle");
+                if (state == 1) hasParentCycle = true;
+                foreach (var targetId in path) parentVisitStates[targetId] = 2;
             }
+            if (hasParentCycle)
+                errors.Add("manifest_target_parent_cycle");
         }
         if (errors.Count == 0)
         {
