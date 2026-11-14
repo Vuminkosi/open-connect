@@ -8,6 +8,7 @@ public interface IOpenConnectClient
     Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException("Session creation is not supported by this client implementation.");
     Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default);
+    Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException("Speech synthesis is not supported by this client implementation.");
     /// <summary>
     /// Retrieves a finite snapshot of events for a session after the specified sequence.
     /// This method does not poll or reconnect. To retrieve subsequent events, call it again
@@ -38,4 +39,6 @@ public interface IOpenConnectClient
     IAsyncEnumerable<CanonicalAgentEvent> ReplayEventsAsync(Guid sessionId, long afterSequence = 0, CancellationToken cancellationToken = default);
 }
 public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null);
+public sealed record SpeechSynthesisRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0);
+public sealed record SpeechSynthesisResult(string VoiceId, string Format, int SampleRateHz, int Channels, string AudioBase64);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);

@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,6 +9,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
@@ -59,6 +62,7 @@ public static class EndpointRouteBuilderExtensions
             group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
             group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
             group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
+            group.MapPost("/speech/synthesize", HandleSpeechSynthesisAsync).RequireAuthorization();
             group.MapGet("/components", HandleComponents).RequireAuthorization();
             group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
             group.MapGet("/health/ready", HandleReady).RequireAuthorization();
@@ -138,6 +142,53 @@ public static class EndpointRouteBuilderExtensions
 
         return endpoints;
     }
+
+    private static async Task<IResult> HandleSpeechSynthesisAsync(
+        SpeechRequest request,
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000 ||
+            !string.Equals(request.VoiceId, "af_heart", StringComparison.Ordinal) ||
+            request.Format is not ("pcm" or "wav"))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["speech"] = ["Only af_heart PCM or WAV synthesis is supported."] });
+
+        var endpoint = configuration["Workers:Kokoro:Endpoint"];
+        var token = configuration["OPENCONNECT_WORKER_TOKEN"];
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var workerUri) || string.IsNullOrWhiteSpace(token))
+            return Results.Problem(statusCode: 503, title: "Kokoro speech worker is not configured.");
+
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(workerUri, "/internal/v1/execute"));
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        message.Content = JsonContent.Create(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId = $"tts-{Guid.NewGuid():N}",
+            kind = "speech.synthesize",
+            payload = new
+            {
+                schemaVersion = "openconnect.v1",
+                text = request.Text,
+                voiceId = "af_heart",
+                locale = request.Locale,
+                format = request.Format,
+                speechEpoch = request.SpeechEpoch,
+                idempotencyKey = request.IdempotencyKey
+            }
+        });
+
+        using var response = await httpClientFactory.CreateClient("openconnect-kokoro").SendAsync(message, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            return Results.Problem(statusCode: (int)response.StatusCode, title: "Kokoro speech synthesis failed.");
+
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false), cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!document.RootElement.TryGetProperty("result", out var result))
+            return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
+        return Results.Json(result.Clone());
+    }
+
+    private sealed record SpeechRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0, string? IdempotencyKey = null);
 
     internal static async Task<IResult> HandleCreateTaskAsync(HttpContext context, TaskRequest request, InMemoryTaskStore store, CancellationToken cancellationToken)
     {

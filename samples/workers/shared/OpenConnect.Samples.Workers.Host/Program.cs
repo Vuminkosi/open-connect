@@ -68,6 +68,7 @@ public static class SampleWorkerHostApp
         SampleGatewayCoordinator.ValidateHostingExclusivity(embeddedOps, standaloneOps, embeddedOutbox, standaloneOutbox);
 
         var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = TimeSpan.FromSeconds(60));
         builder.Services
             .AddAuthentication(SampleTestAuthHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, SampleTestAuthHandler>(SampleTestAuthHandler.SchemeName, _ => { });

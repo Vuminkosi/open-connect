@@ -43,6 +43,14 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
 
     public Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default) => SendAsync<SessionRecord>(HttpMethod.Get, $"sessions/{sessionId.Value}", cancellationToken);
     public async Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities", cancellationToken).ConfigureAwait(false);
+    public async Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000) throw new ArgumentException("Speech text must contain 1-2000 characters.", nameof(request));
+        using var response = await _httpClient.PostAsJsonAsync("speech/synthesize", request, JsonOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<SpeechSynthesisResult>(response, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Retrieves one finite snapshot of events available after the specified sequence.

@@ -289,3 +289,29 @@ OpenConnect.Client.IRealtimeOpenConnectClient
 OpenConnect.Client.IRealtimeOpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Client.OpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Client.OpenConnectClientOptions.WebSocketHeaders.get -> System.Collections.Generic.IDictionary<string!, string!>!
+OpenConnect.Client.IOpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
+OpenConnect.Client.OpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
+OpenConnect.Client.SpeechSynthesisRequest
+OpenConnect.Client.SpeechSynthesisRequest.SpeechSynthesisRequest(string! Text, string! VoiceId = "af_heart", string! Locale = "en-US", string! Format = "pcm", long SpeechEpoch = 0) -> void
+OpenConnect.Client.SpeechSynthesisRequest.Text.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Text.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.VoiceId.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.VoiceId.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.Locale.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Locale.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.Format.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Format.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.get -> long
+OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.init -> void
+OpenConnect.Client.SpeechSynthesisResult
+OpenConnect.Client.SpeechSynthesisResult.SpeechSynthesisResult(string! VoiceId, string! Format, int SampleRateHz, int Channels, string! AudioBase64) -> void
+OpenConnect.Client.SpeechSynthesisResult.VoiceId.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.VoiceId.init -> void
+OpenConnect.Client.SpeechSynthesisResult.Format.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.Format.init -> void
+OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.get -> int
+OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.init -> void
+OpenConnect.Client.SpeechSynthesisResult.Channels.get -> int
+OpenConnect.Client.SpeechSynthesisResult.Channels.init -> void
+OpenConnect.Client.SpeechSynthesisResult.AudioBase64.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.AudioBase64.init -> void
