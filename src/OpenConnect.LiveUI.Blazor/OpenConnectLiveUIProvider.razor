@@ -26,6 +26,7 @@
     private ComposerSession? _boundSession;
     private LiveUIAgentTools? _agentTools;
     private string? _lastRequestId;
+    private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
 
     protected override void OnParametersSet()
@@ -45,10 +46,16 @@
     private void OnComposerSessionChanged()
     {
         var cancellationId = _boundSession?.PendingClientInteractionCancellationId;
-        if (cancellationId is not null && _activeInteractions.TryGetValue(cancellationId, out var active))
+        if (cancellationId is not null && cancellationId != _lastHandledCancellationId)
         {
-            try { active.Cancel(); }
-            catch (ObjectDisposedException) { }
+            _lastHandledCancellationId = cancellationId;
+            if (_activeInteractions.TryGetValue(cancellationId, out var active))
+            {
+                try { active.Cancel(); }
+                catch (ObjectDisposedException) { }
+            }
+
+            if (_agentTools is not null) _ = InvokeAsync(ClearHighlightsAfterCancellationAsync);
         }
 
         var request = _boundSession?.PendingClientInteraction;
@@ -64,6 +71,12 @@
             return;
         }
         _ = InvokeAsync(() => ProcessClientInteractionAsync(request, client, cancellation));
+    }
+
+    private async Task ClearHighlightsAfterCancellationAsync()
+    {
+        try { await _agentTools!.ClearHighlightAsync(); }
+        catch (Exception) { }
     }
 
     private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client,

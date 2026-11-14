@@ -63,8 +63,48 @@ public sealed class LiveUIProviderClientInteractionTests
             JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), OpenConnectHttpJson.CreateOptions()))));
 
         await runtime.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await runtime.HighlightCleared.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await Task.Delay(25);
         Assert.Null(client.Response);
+    }
+
+    [Fact]
+    public async Task Provider_clears_highlight_when_cancellation_arrives_after_the_action_receipt()
+    {
+        using var context = new BunitContext();
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        await Task.Delay(25);
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 2, ClientInteractionEventTypes.Cancellation,
+            JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), OpenConnectHttpJson.CreateOptions()))));
+
+        await runtime.HighlightCleared.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, runtime.ClearHighlightCount);
     }
 
     [Theory]
@@ -145,11 +185,18 @@ public sealed class LiveUIProviderClientInteractionTests
     private sealed class RecordingRuntime : ILiveUIRuntime
     {
         public string? LastAction { get; private set; }
+        public int ClearHighlightCount { get; private set; }
+        public TaskCompletionSource<bool> HighlightCleared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             LastAction = context.Action.Type.ToString();
+            if (context.Action.Type == LiveUIActionType.ClearHighlight)
+            {
+                ClearHighlightCount++;
+                HighlightCleared.TrySetResult(true);
+            }
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "state_verified", true, "state_verified"));
         }
     }
@@ -158,10 +205,17 @@ public sealed class LiveUIProviderClientInteractionTests
     {
         public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource<bool> Canceled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> HighlightCleared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default)
         {
+            if (context.Action.Type == LiveUIActionType.ClearHighlight)
+            {
+                HighlightCleared.TrySetResult(true);
+                return new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "highlight_cleared", true, "cleared");
+            }
+
             Started.TrySetResult(true);
             try
             {
