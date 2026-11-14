@@ -210,6 +210,18 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return new MarkupString(output.ToString());
     }
 
+    private static string StripMarkdown(string value)
+    {
+        var text = Regex.Replace(value, @"\[([^\]]+)\]\([^\)]*\)", "$1", RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"(^|\n)\s{0,3}#{1,6}\s*", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"(^|\n)\s*[-*+]\s+", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        text = text.Replace("```", string.Empty, StringComparison.Ordinal).Replace("`", string.Empty, StringComparison.Ordinal);
+        text = text.Replace("**", string.Empty, StringComparison.Ordinal).Replace("__", string.Empty, StringComparison.Ordinal);
+        text = Regex.Replace(text, @"(?<!\*)\*([^*]+)\*(?!\*)", "$1", RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"(?<!_)_([^_]+)_(?!_)", "$1", RegexOptions.CultureInvariant);
+        return Regex.Replace(text, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
+    }
+
     private static string RenderInline(string value)
     {
         value = Regex.Replace(value, @"\[([^\]]+)\]\((https?://[^\s)]+)\)", "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>", RegexOptions.CultureInvariant);
@@ -293,8 +305,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             _speechCts?.Dispose();
             _speechCts = new CancellationTokenSource();
+            var speechText = StripMarkdown(segment.Text);
+            if (string.IsNullOrWhiteSpace(speechText)) return;
             var result = await Client.SynthesizeSpeechAsync(
-                new SpeechSynthesisRequest(segment.Text, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
+                new SpeechSynthesisRequest(speechText, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
                 _speechCts.Token).ConfigureAwait(false);
             var epoch = Session.BeginSpeechPlayback();
             _beingSpokenStart = segment.StartCursor;
