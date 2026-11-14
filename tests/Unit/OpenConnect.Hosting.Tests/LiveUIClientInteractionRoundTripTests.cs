@@ -18,8 +18,11 @@ public sealed class LiveUIClientInteractionRoundTripTests
     private const string Tenant = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
     private const string Principal = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
 
-    [Fact]
-    public async Task Maf_tool_waits_for_host_authorized_browser_action_and_verified_receipt()
+    [Theory]
+    [InlineData(false, 1_500)]
+    [InlineData(true, 0)]
+    public async Task Maf_tool_waits_for_host_authorized_browser_action_and_verified_receipt(
+        bool synchronizeWithSpeech, int expectedHighlightDuration)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -32,7 +35,14 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var manifestProvider = new TestManifestProvider(manifest);
         var authorizer = new AllowAuthorizer();
         var runtime = new RecordingRuntime();
-        var options = Options.Create(new LiveUIOptions());
+        var options = Options.Create(new LiveUIOptions
+        {
+            Narration = new LiveUINarrationOptions
+            {
+                Enabled = synchronizeWithSpeech,
+                SynchronizeWithSpeech = synchronizeWithSpeech
+            }
+        });
         var validator = new LiveUIManifestValidator();
         var orchestrator = new LiveUIOrchestrator(manifestProvider, authorizer, runtime, options, validator);
         var hostTools = new LiveUIAgentTools(new TestContextAccessor(new LiveUIAgentContext("blazor-circuit", "todo.home")),
@@ -83,7 +93,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
             highlightRequest.TargetId!, durationMilliseconds: highlightRequest.HighlightDurationMilliseconds);
         Assert.Equal(LiveUIActionOutcome.Completed, highlightReceipt.Outcome);
         Assert.Equal(LiveUIActionType.Highlight, runtime.LastContext!.Action.Type);
-        Assert.Equal(1_500, runtime.LastContext.Action.Parameters.HighlightDurationMilliseconds);
+        Assert.Equal(expectedHighlightDuration, runtime.LastContext.Action.Parameters.HighlightDurationMilliseconds);
 
         var highlightResponse = new ClientInteractionResponse(highlightRequest.CorrelationId, "action",
             JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions()));

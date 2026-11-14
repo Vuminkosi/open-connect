@@ -107,13 +107,16 @@ public sealed class LiveUIAgentTools(
     /// <summary>Highlights a compiled target without changing application focus.</summary>
     /// <param name="targetId">The compiled target identifier.</param>
     /// <param name="cancellationToken">Cancels the interaction request.</param>
-    /// <param name="durationMilliseconds">Optional temporary highlight duration, bounded to 30 seconds by the runtime.</param>
+    /// <param name="durationMilliseconds">Optional temporary highlight duration, bounded to 30 seconds by the runtime. Ignored when speech synchronization is enabled so playback events control cleanup.</param>
     public ValueTask<LiveUIActionReceipt> HighlightAsync(
         string targetId,
         CancellationToken cancellationToken = default,
-        int durationMilliseconds = 0) =>
-        ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Highlight,
-            new(HighlightDurationMilliseconds: durationMilliseconds), cancellationToken);
+        int durationMilliseconds = 0)
+    {
+        var effectiveDuration = options.Value.Narration.SynchronizeWithSpeech ? 0 : durationMilliseconds;
+        return ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Highlight,
+            new(HighlightDurationMilliseconds: effectiveDuration), cancellationToken);
+    }
 
     /// <summary>Clears LiveUI highlights without opening a Navigator tour.</summary>
     public ValueTask<LiveUIActionReceipt> ClearHighlightAsync(CancellationToken cancellationToken = default) =>

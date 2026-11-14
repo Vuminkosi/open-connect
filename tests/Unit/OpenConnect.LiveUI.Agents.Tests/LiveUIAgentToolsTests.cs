@@ -215,6 +215,40 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Highlight_with_speech_synchronization_remains_active_until_playback_finishes()
+    {
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var options = new LiveUIOptions
+        {
+            Narration = new LiveUINarrationOptions { Enabled = true, SynchronizeWithSpeech = true }
+        };
+        var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("trusted-session", "todo.home")),
+            new ManifestProvider(Manifest), authorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(authorizer, runtime), Options.Create(options));
+
+        var receipt = await tools.HighlightAsync("todo.search", durationMilliseconds: 1_500);
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(0, runtime.LastContext!.Action.Parameters.HighlightDurationMilliseconds);
+    }
+
+    [Fact]
+    public async Task Highlight_without_speech_synchronization_keeps_requested_temporary_duration()
+    {
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("trusted-session", "todo.home")),
+            new ManifestProvider(Manifest), authorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(authorizer, runtime), Options.Create(new LiveUIOptions()));
+
+        var receipt = await tools.HighlightAsync("todo.search", durationMilliseconds: 1_500);
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(1_500, runtime.LastContext!.Action.Parameters.HighlightDurationMilliseconds);
+    }
+
+    [Fact]
     public void Creating_MAF_tools_registers_ready_tool_capability()
     {
         var registry = new RecordingCapabilityRegistry();
