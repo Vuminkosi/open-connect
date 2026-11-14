@@ -215,22 +215,21 @@
     color: var(--mud-palette-text-secondary);
 }
 
+.oc-message-inline {
+    display: block;
+    max-width: 100%;
+}
+
 .oc-message-text {
+    display: inline;
     margin: 0;
     font-size: 13px;
     line-height: 18px;
     word-break: break-word;
 }
 
-.oc-message-inline {
-    display: inline-flex;
-    align-items: baseline;
-    max-width: 100%;
-    gap: 0.15rem;
-}
-
 .oc-message-copy {
-    display: inline-block;
+    display: inline;
     width: auto;
     height: auto;
     margin: 0 0.1rem 0 0.15rem;
