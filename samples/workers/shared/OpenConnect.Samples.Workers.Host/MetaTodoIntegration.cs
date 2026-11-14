@@ -115,11 +115,12 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
     {
         try
         {
-            var tools = new List<AITool>
+            var tools = new List<AITool>();
+            if (RequiresTodoTools(task.Message))
             {
-                AIFunctionFactory.Create(async (CancellationToken ct) => await todo.ListAsync(ct).ConfigureAwait(false), "todo.list", "List the current tenant's Todo records.")
-            };
-            if (_options.AllowMutations && _options.MutationApprovalGranted)
+                tools.Add(AIFunctionFactory.Create(async (CancellationToken ct) => await todo.ListAsync(ct).ConfigureAwait(false), "todo.list", "List the current tenant's Todo records."));
+            }
+            if (_options.AllowMutations && _options.MutationApprovalGranted && RequiresTodoTools(task.Message))
             {
                 tools.Add(AIFunctionFactory.Create(async (string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => await todo.CreateAsync(title, description, priority, dueDateUtc, ct).ConfigureAwait(false), "todo.create", "Create a Todo for the current tenant."));
                 tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.CompleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.complete", "Complete a Todo by id."));
@@ -127,7 +128,12 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 tools.Add(AIFunctionFactory.Create(async (string todoId, CancellationToken ct) => await todo.DeleteAsync(Guid.Parse(todoId), ct).ConfigureAwait(false), "todo.delete", "Delete a Todo by id."));
             }
 
-            var response = await factory.RunAsync(new AgentId("worker-sample-direct"), task.Message, tools, cancellationToken).ConfigureAwait(false);
+            var response = await factory.RunAsync(
+                new AgentId("worker-sample-direct"),
+                task.Message,
+                tools,
+                cancellationToken,
+                "You are the OpenConnect assistant. Handle ordinary conversation naturally. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", response.Text, cancellationToken).ConfigureAwait(false);
@@ -138,6 +144,13 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
             throw;
         }
+    }
+
+    private static bool RequiresTodoTools(string message)
+    {
+        var value = message.Trim().ToLowerInvariant();
+        string[] terms = ["todo", "to-do", "task", "tasks", "reminder", "remind me"];
+        return terms.Any(value.Contains);
     }
 }
 
