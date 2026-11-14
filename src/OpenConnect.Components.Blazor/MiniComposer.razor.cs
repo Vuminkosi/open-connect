@@ -213,12 +213,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private static string StripMarkdown(string value)
     {
         var text = Regex.Replace(value, @"\[([^\]]+)\]\([^\)]*\)", "$1", RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"(^|\n)\s{0,3}#{1,6}\s*", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"(^|\n)\s*[-*+]\s+", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-        text = text.Replace("```", string.Empty, StringComparison.Ordinal).Replace("`", string.Empty, StringComparison.Ordinal);
-        text = text.Replace("**", string.Empty, StringComparison.Ordinal).Replace("__", string.Empty, StringComparison.Ordinal);
-        text = Regex.Replace(text, @"(?<!\*)\*([^*]+)\*(?!\*)", "$1", RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"(?<!_)_([^_]+)_(?!_)", "$1", RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"<[^>]+>", string.Empty, RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"[*_#`~]", string.Empty, RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"(^|\n)\s*[-+]\s+", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
         return Regex.Replace(text, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
     }
 
