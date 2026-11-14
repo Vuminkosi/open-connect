@@ -55,9 +55,11 @@
 </MudLayout>
 
 @code {
+    private readonly LiveUISpeechPlaybackFence _speechPlaybackFence = new();
+
     private async Task OnSpeechPlaybackChanged(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        if (playbackEvent.Stage is ComposerSpeechPlaybackStage.ResponseCompleted or ComposerSpeechPlaybackStage.Interrupted)
+        if (_speechPlaybackFence.ShouldClearHighlights(playbackEvent))
             await LiveUITools.ClearHighlightAsync();
     }
 
