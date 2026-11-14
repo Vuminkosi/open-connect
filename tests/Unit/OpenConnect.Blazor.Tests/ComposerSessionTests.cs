@@ -34,6 +34,25 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void AttachSession_preserves_a_pending_first_user_turn_until_the_gateway_reply_arrives()
+    {
+        var session = new ComposerSession();
+        session.BeginSend("Explain what I am looking at.");
+
+        session.AttachSession("FIRST-SESSION");
+
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.Equal("Explain what I am looking at.", Assert.Single(session.Messages).Text);
+        session.ApplyEvent(Event(1, "message", "The task list is visible."));
+        session.ApplyEvent(Event(2, "task.completed", "{}"));
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Collection(session.Messages,
+            message => Assert.Equal(("user", "Explain what I am looking at."), (message.Role, message.Text)),
+            message => Assert.Equal(("assistant", "The task list is visible."), (message.Role, message.Text)));
+    }
+
+    [Fact]
     public void SpeechPlayback_completion_is_epoch_fenced_and_returns_to_on_state()
     {
         var session = new ComposerSession();

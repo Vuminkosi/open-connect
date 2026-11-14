@@ -105,14 +105,21 @@ public sealed class ComposerSession
     {
         lock (_gate)
         {
+            var pendingInitialUserMessage = SessionId is null && Connection == ComposerConnectionState.Streaming
+                ? _messages.LastOrDefault(message => message.Role == "user")
+                : null;
             SessionId = sessionId;
-            Connection = ComposerConnectionState.Idle;
+            Connection = pendingInitialUserMessage is null
+                ? ComposerConnectionState.Idle
+                : ComposerConnectionState.Streaming;
             LastSequence = 0;
             _messages.Clear();
+            if (pendingInitialUserMessage is not null)
+                _messages.Add(pendingInitialUserMessage);
             _proposals.Clear();
             _errors.Clear();
             _streamingText = string.Empty;
-            _streamingRole = null;
+            _streamingRole = pendingInitialUserMessage is null ? null : "assistant";
             _livePartialTranscript = string.Empty;
             _committedSpeechEpoch = 0;
             StagedRecording = null;
