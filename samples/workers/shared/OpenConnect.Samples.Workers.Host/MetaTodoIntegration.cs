@@ -143,8 +143,8 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 task.Message,
                 tools,
                 cancellationToken,
-                "You are the OpenConnect assistant. Handle ordinary conversation naturally. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
-            if (coreRequest)
+                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
+            if (coreRequest && RequiresCompletionAcknowledgement(task.Message))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", CompletionAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
             }
@@ -184,6 +184,15 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
         if (value.Contains("create") || value.Contains("add") || value.Contains("remind")) return "I’ll add that reminder to your list. ";
         if (value.Contains("update") || value.Contains("change") || value.Contains("edit")) return "I’ll update that task for you. ";
         return "I’ll look through your tasks now. ";
+    }
+
+    private static bool RequiresCompletionAcknowledgement(string message)
+    {
+        var value = message.ToLowerInvariant();
+        return value.Contains("delete") || value.Contains("remove")
+            || value.Contains("complete") || value.Contains("finish") || value.Contains("mark")
+            || value.Contains("create") || value.Contains("add") || value.Contains("remind")
+            || value.Contains("update") || value.Contains("change") || value.Contains("edit");
     }
 
     private static string CompletionAcknowledgement(string message)
