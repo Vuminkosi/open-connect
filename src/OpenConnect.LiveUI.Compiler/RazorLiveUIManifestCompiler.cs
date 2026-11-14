@@ -68,10 +68,12 @@ public sealed class RazorLiveUIManifestCompiler
             var idCounts = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var component in componentSet)
             {
-                var componentElements = Descendants(component.Root).Where(node => node.GetType().Name == "MarkupElementIntermediateNode").ToArray();
-                foreach (var element in componentElements)
+                var componentElements = DescendantsWithAncestors(component.Root, Array.Empty<IntermediateNode>())
+                    .Where(item => item.Node.GetType().Name == "MarkupElementIntermediateNode").ToArray();
+                var regionIds = new Dictionary<IntermediateNode, string>();
+                foreach (var item in componentElements)
                 {
-                    foreach (var descriptor in Describe(element, component.Source))
+                    foreach (var descriptor in Describe(item.Node, component.Source))
                     {
                         var key = Slug($"{component.File}:{descriptor.Kind}:{descriptor.Label}");
                         idCounts.TryGetValue(key, out var count);
@@ -80,8 +82,13 @@ public sealed class RazorLiveUIManifestCompiler
                         if (count > 0)
                             diagnostics.Add(new("LUI1002", LiveUICompilerDiagnosticSeverity.Warning, component.File,
                                 $"Repeated {descriptor.Kind} target '{descriptor.Label}' is ambiguous at runtime."));
+                        var parentId = item.Ancestors.Reverse()
+                            .Select(ancestor => regionIds.TryGetValue(ancestor, out var parent) ? parent : null)
+                            .FirstOrDefault(parent => parent is not null);
                         targets.Add(new(id, descriptor.Kind, descriptor.Label, descriptor.Capabilities, descriptor.Role,
-                            Selector: descriptor.Selector, RequiresConfirmation: descriptor.RequiresConfirmation));
+                            Selector: descriptor.Selector, ParentId: parentId, RequiresConfirmation: descriptor.RequiresConfirmation));
+                        if (descriptor.Kind == LiveUITargetKind.Region && descriptor.Selector is not null)
+                            regionIds[item.Node] = id;
                     }
                 }
                 foreach (var block in Descendants(component.Root).Where(node => node.GetType().Name == "MarkupBlockIntermediateNode"))
@@ -513,6 +520,18 @@ public sealed class RazorLiveUIManifestCompiler
         {
             yield return child;
             foreach (var descendant in Descendants(child))
+                yield return descendant;
+        }
+    }
+
+    private static IEnumerable<(IntermediateNode Node, IReadOnlyList<IntermediateNode> Ancestors)> DescendantsWithAncestors(
+        IntermediateNode node, IReadOnlyList<IntermediateNode> ancestors)
+    {
+        foreach (var child in node.Children)
+        {
+            yield return (child, ancestors);
+            var childAncestors = ancestors.Append(child).ToArray();
+            foreach (var descendant in DescendantsWithAncestors(child, childAncestors))
                 yield return descendant;
         }
     }

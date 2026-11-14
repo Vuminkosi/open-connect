@@ -21,7 +21,7 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
             </MudTabs>
             <MudTextField Placeholder="Search tasks..." />
             <MudList T="Task"><MudListItem>Report ready</MudListItem></MudList>
-            <MudPaper data-oc-target="results" aria-label="Results" />
+            <MudPaper data-oc-target="results" aria-label="Results"><MudButton>Save results</MudButton></MudPaper>
             <input type="password" aria-label="Secret" />
             """);
 
@@ -39,8 +39,11 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
                                                 target.Capabilities.Contains(LiveUICapability.Filter));
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.List && target.Label == "Task list" &&
                                                 target.Selector == ".mud-list" && target.Capabilities.Contains(LiveUICapability.WaitForState));
-        Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Region && target.Label == "Results" &&
-                                                target.Selector == "[data-oc-target=\"results\"]" && target.Capabilities.Contains(LiveUICapability.WaitForState));
+        var resultRegion = Assert.Single(route.Targets, target => target.Kind == LiveUITargetKind.Region && target.Label == "Results");
+        Assert.Equal("[data-oc-target=\"results\"]", resultRegion.Selector);
+        Assert.Contains(LiveUICapability.WaitForState, resultRegion.Capabilities);
+        var saveButton = Assert.Single(route.Targets, target => target.Kind == LiveUITargetKind.Button && target.Label == "Save results");
+        Assert.Equal(resultRegion.Id, saveButton.ParentId);
         Assert.DoesNotContain(route.Targets, target => target.Label == "Secret");
         Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
         Assert.True(File.Exists(output));

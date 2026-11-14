@@ -12,7 +12,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return result("Completed", "highlight_cleared", true, "cleared");
   }
   if (!target) return result("Failed", "target_missing");
-  const resolution = resolveTarget(target, enableRuntimeFallback);
+  const resolution = resolveTarget(target, enableRuntimeFallback, route);
   if (resolution.status === "ambiguous") return result("Ambiguous", "target_ambiguous");
   if (resolution.status !== "resolved") return result("MissingTarget", "target_missing");
 
@@ -54,21 +54,33 @@ export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(expectedPath)) return false;
     if (route && route.targets && route.targets.length) {
-      return route.targets.some((target) => resolveTarget(target, enableRuntimeFallback).status === "resolved");
+      return route.targets.some((target) => resolveTarget(target, enableRuntimeFallback, route).status === "resolved");
     }
     return !route || !route.title || document.title === route.title;
   };
   return waitUntil(matches, timeoutMs, "route_ready", "route_not_ready");
 }
 
-function resolveTarget(target, enableRuntimeFallback) {
-  const marked = [...document.querySelectorAll("[" + idAttribute + "]")]
+function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()) {
+  if (visited.has(target.id)) return { status: "ambiguous" };
+  visited.add(target.id);
+
+  let scope = document;
+  if (target.parentId) {
+    const parent = route?.targets?.find((candidate) => candidate.id === target.parentId);
+    if (!parent) return { status: "missing" };
+    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited);
+    if (parentResolution.status !== "resolved") return parentResolution;
+    scope = parentResolution.element;
+  }
+
+  const marked = [...scope.querySelectorAll("[" + idAttribute + "]")]
     .filter((element) => element.getAttribute(idAttribute) === target.id && isVisible(element));
   if (marked.length > 1) return { status: "ambiguous" };
   if (marked.length === 1) return { status: "resolved", element: marked[0] };
   if (target.selector) {
     try {
-      const selected = [...document.querySelectorAll(target.selector)].filter(isVisible);
+      const selected = [...scope.querySelectorAll(target.selector)].filter(isVisible);
       if (selected.length > 1) return { status: "ambiguous" };
       if (selected.length === 1) return { status: "resolved", element: selected[0] };
     } catch {
@@ -78,7 +90,7 @@ function resolveTarget(target, enableRuntimeFallback) {
   if (!enableRuntimeFallback) return { status: "missing" };
   const label = normalize(target.label);
   if (!label) return { status: "missing" };
-  const matches = [...document.querySelectorAll("*")]
+  const matches = [...scope.querySelectorAll("*")]
     .filter(isVisible)
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&

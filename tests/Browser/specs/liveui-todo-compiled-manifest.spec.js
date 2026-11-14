@@ -89,6 +89,27 @@ test('searches through the existing Todo search input and verifies rendered resu
   await expect(page.getByText('Prepare a launch checklist', { exact: true })).toHaveCount(0);
 });
 
+test('scopes the compiled search target to its parent region when an outside duplicate exists', async ({ page }) => {
+  const region = todoRoute.targets.find((candidate) => candidate.label === 'todo-list');
+  const search = todoRoute.targets.find((candidate) => candidate.label === 'Search tasks by title or description...');
+  expect(region).toBeDefined();
+  expect(search).toBeDefined();
+  expect(search.parentId).toBe(region.id);
+
+  await page.evaluate(() => {
+    const duplicate = document.createElement('input');
+    duplicate.placeholder = 'Search tasks by title or description...';
+    duplicate.setAttribute('aria-label', 'Search tasks by title or description...');
+    document.body.append(duplicate);
+  });
+
+  const receipt = await executeTarget(page, search.label, 'SetValue', 'scoped report');
+
+  expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'value_set' });
+  await expect(page.locator('[data-oc-target="todo-list"] input[placeholder="Search tasks by title or description..."]')).toHaveValue('scoped report');
+  await expect(page.locator('body > input[placeholder="Search tasks by title or description..."]')).toHaveValue('');
+});
+
 test('waits for the compiled task list to reflect the existing search control', async ({ page }) => {
   const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
   expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });

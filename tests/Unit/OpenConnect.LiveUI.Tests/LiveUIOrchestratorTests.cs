@@ -85,6 +85,26 @@ public sealed class LiveUIOrchestratorTests
     }
 
     [Fact]
+    public void ManifestValidator_RejectsMissingAndCyclicParentTargets()
+    {
+        var route = new LiveUIRoute("route.home", "/", "Home",
+        [
+            new LiveUITarget("target.missing-parent", LiveUITargetKind.Button, "Missing parent",
+                new HashSet<LiveUICapability> { LiveUICapability.Activate }, ParentId: "target.unknown"),
+            new LiveUITarget("target.cycle-a", LiveUITargetKind.Region, "Cycle A",
+                new HashSet<LiveUICapability>(), ParentId: "target.cycle-b"),
+            new LiveUITarget("target.cycle-b", LiveUITargetKind.Region, "Cycle B",
+                new HashSet<LiveUICapability>(), ParentId: "target.cycle-a")
+        ]);
+        var candidate = Manifest with { Routes = [route] };
+
+        var errors = new LiveUIManifestValidator().Validate(candidate);
+
+        Assert.Contains("manifest_target_parent_missing", errors);
+        Assert.Contains("manifest_target_parent_cycle", errors);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_DeniesBeforeBrowserExecution_WhenAuthorizationFails()
     {
         var runtime = new RecordingRuntime();

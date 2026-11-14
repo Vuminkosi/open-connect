@@ -152,6 +152,7 @@ public sealed class LiveUIManifestValidator
                 continue;
             }
 
+            var routeTargets = new Dictionary<string, LiveUITarget>(StringComparer.Ordinal);
             foreach (var target in route.Targets)
             {
                 if (target is null || string.IsNullOrWhiteSpace(target.Id) || string.IsNullOrWhiteSpace(target.Label) ||
@@ -162,6 +163,34 @@ public sealed class LiveUIManifestValidator
                 }
                 if (target.Selector is { Length: > 512 }) errors.Add("manifest_selector_invalid");
                 if (!targetIds.Add(target.Id)) errors.Add("manifest_target_id_duplicate");
+                routeTargets.TryAdd(target.Id, target);
+            }
+
+            foreach (var target in routeTargets.Values)
+            {
+                if (target.ParentId is null) continue;
+                if (!routeTargets.TryGetValue(target.ParentId, out var parent))
+                {
+                    errors.Add("manifest_target_parent_missing");
+                    continue;
+                }
+
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var current = target;
+                var hasCycle = false;
+                while (true)
+                {
+                    if (!visited.Add(current.Id))
+                    {
+                        hasCycle = true;
+                        break;
+                    }
+
+                    if (current.ParentId is not { } parentId || !routeTargets.TryGetValue(parentId, out var next)) break;
+                    current = next;
+                }
+                if (hasCycle && !errors.Contains("manifest_target_parent_cycle", StringComparer.Ordinal))
+                    errors.Add("manifest_target_parent_cycle");
             }
         }
         if (errors.Count == 0)
