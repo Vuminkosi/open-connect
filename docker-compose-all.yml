@@ -238,16 +238,13 @@ services:
     image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-kokoro
     environment:
-      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-fake}
-      OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
       OC_MODEL_CACHE_DIR: /models
       OC_KOKORO_MODEL: hexgrad/Kokoro-82M
       OC_KOKORO_VOICE: af_heart
-      OPENCONNECT_TTS_INTERNAL_KEY: ${OPENCONNECT_TTS_INTERNAL_KEY:-}
+      KOKORO_VOICES: af_heart
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
     volumes:
-      - oc_kokoro_models:/models
+      - "${OC_KOKORO_MODEL_DIR:?set OC_KOKORO_MODEL_DIR to the existing SwiftAid Kokoro model directory}:/models:ro"
     networks:
       - oc-network
     healthcheck:
