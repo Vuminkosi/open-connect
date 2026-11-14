@@ -1,52 +1,16 @@
 name: oc-kokoro
 
 services:
-  init-models:
-    build: .
-    image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
-    # Init stages only the configured voice inventory marker; the image and
-    # this worker never download model weights during build or on synthesize.
-    command: ["python", "-m", "openconnect_kokoro.init_models"]
-    environment:
-      MODEL_DIR: /models
-      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
-      OC_KOKORO_MODEL: "${OC_KOKORO_MODEL:-hexgrad/Kokoro-82M}"
-      OC_KOKORO_VOICE: "${OC_KOKORO_VOICE:-af_heart}"
-      KOKORO_VOICES: "${KOKORO_VOICES:-af_heart}"
-    volumes:
-      - oc_kokoro_models:/models
-
   serve:
     build: .
     image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
     ports:
       - "${OC_KOKORO_PORT:-8080}:8080"
     environment:
-      MODEL_DIR: /models
-      HF_HUB_OFFLINE: "1"
-      TRANSFORMERS_OFFLINE: "1"
-      # Deprecated alias; OC_WORKER_ENGINE wins when set.
-      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
-      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
-      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
-      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
-      # Canonical OC_* defaults (workers-model-defaults contract).
-      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
-      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
-      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
-      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
-      OC_KOKORO_MODEL: "${OC_KOKORO_MODEL:-hexgrad/Kokoro-82M}"
-      OC_KOKORO_VOICE: "${OC_KOKORO_VOICE:-af_heart}"
-      KOKORO_VOICES: "${KOKORO_VOICES:-af_heart}"
-      KOKORO_DEFAULT_VOICE: "${KOKORO_DEFAULT_VOICE:-af_heart}"
-      KOKORO_REQUIRE_MODEL: "${KOKORO_REQUIRE_MODEL:-0}"
+      OC_MODEL_CACHE_DIR: /models
+      OC_KOKORO_MODEL: "hexgrad/Kokoro-82M"
+      OC_KOKORO_VOICE: "af_heart"
+      KOKORO_VOICES: "af_heart"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
     volumes:
-      - oc_kokoro_models:/models:ro
-    depends_on:
-      init-models:
-        condition: service_completed_successfully
-
-volumes:
-  oc_kokoro_models:
-    name: oc_kokoro_models
+      - "${OC_KOKORO_MODEL_DIR:?set OC_KOKORO_MODEL_DIR to the existing SwiftAid Kokoro model directory}:/models:ro"

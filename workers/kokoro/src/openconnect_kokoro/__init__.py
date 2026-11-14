@@ -1,1 +1,1 @@
-"""OpenConnect Kokoro TTS worker (fake synthesis engine)."""
+"""OpenConnect local-only Kokoro TTS worker."""
