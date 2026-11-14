@@ -29,7 +29,10 @@ public sealed class LiveUIOrchestrator(
             if (manifestErrors.Count > 0)
                 return Receipt(action, LiveUIActionOutcome.Failed, manifestErrors[0], false);
 
-            if (!string.Equals(action.ManifestHash, manifest!.ContentHash, StringComparison.Ordinal))
+            if (manifest!.Routes.Any(route => route.Targets.Count > config.Discovery.MaximumTargetsPerRoute))
+                return Receipt(action, LiveUIActionOutcome.Failed, "manifest_target_limit", false);
+
+            if (!string.Equals(action.ManifestHash, manifest.ContentHash, StringComparison.Ordinal))
                 return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false);
 
             if (action.Type == LiveUIActionType.Navigate &&
@@ -51,6 +54,8 @@ public sealed class LiveUIOrchestrator(
             var requiredCapability = GetRequiredCapability(action.Type);
             if (requiredCapability is not null && (target is null || !target.Capabilities.Contains(requiredCapability.Value)))
                 return Receipt(action, LiveUIActionOutcome.Denied, "capability_unavailable", false);
+            if (!config.Interaction.EnableFiltering && target?.Capabilities.Contains(LiveUICapability.Filter) == true)
+                return Receipt(action, LiveUIActionOutcome.Denied, "filtering_disabled", false);
 
             var context = new LiveUIExecutionContext(manifest, route, target, action);
             var decision = await authorizer.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false);

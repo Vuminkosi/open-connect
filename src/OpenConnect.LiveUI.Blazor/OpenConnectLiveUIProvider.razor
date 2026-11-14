@@ -1,0 +1,18 @@
+@namespace OpenConnect.LiveUI.Blazor
+@using OpenConnect.LiveUI
+@inject LiveUIManifestState ManifestState
+
+@ChildContent
+
+@code {
+    [Parameter, EditorRequired]
+    public LiveUIManifest Manifest { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        ManifestState.SetManifest(Manifest);
+    }
+}

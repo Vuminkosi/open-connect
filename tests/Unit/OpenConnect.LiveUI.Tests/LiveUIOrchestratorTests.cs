@@ -135,6 +135,34 @@ public sealed class LiveUIOrchestratorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_RespectsFilteringOptionForCompilerMarkedFilterTargets()
+    {
+        var route = Manifest.Routes[0];
+        var filter = route.Targets[0] with
+        {
+            Capabilities = new HashSet<LiveUICapability>
+            {
+                LiveUICapability.Select, LiveUICapability.Highlight, LiveUICapability.Filter
+            }
+        };
+        var manifest = Manifest with { Routes = [route with { Targets = [filter] }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(
+            new RecordingManifestProvider(manifest),
+            new RecordingAuthorizer(true),
+            runtime,
+            Options.Create(new LiveUIOptions { Interaction = new LiveUIInteractionOptions { EnableFiltering = false } }),
+            new LiveUIManifestValidator());
+
+        var receipt = await orchestrator.ExecuteAsync(Action(hash: manifest.ContentHash));
+
+        Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal("filtering_disabled", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_RejectsDuplicateSessionActionId()
     {
         var runtime = new RecordingRuntime();

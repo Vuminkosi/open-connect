@@ -13,7 +13,7 @@ public static class LiveUISchema
 [JsonConverter(typeof(JsonStringEnumConverter<LiveUITargetKind>))]
 public enum LiveUITargetKind { Button, Link, Input, Select, Checkbox, Tab, Heading, Region, List, Table }
 [JsonConverter(typeof(JsonStringEnumConverter<LiveUICapability>))]
-public enum LiveUICapability { Activate, Close, Focus, Highlight, Inspect, Scroll, SetValue, Select, WaitForState }
+public enum LiveUICapability { Activate, Close, Filter, Focus, Highlight, Inspect, Scroll, SetValue, Select, WaitForState }
 [JsonConverter(typeof(JsonStringEnumConverter<LiveUIActionType>))]
 public enum LiveUIActionType { Navigate, Open, Close, Click, Focus, Scroll, Highlight, ClearHighlight, SetValue, Select, SelectTab, Inspect, WaitForState }
 [JsonConverter(typeof(JsonStringEnumConverter<LiveUIActionOutcome>))]
