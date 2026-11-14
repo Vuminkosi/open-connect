@@ -141,6 +141,9 @@ test('keeps Todo filtering available when composer voice output is disabled', as
   await expect(voiceOutput).toBeVisible();
   await voiceOutput.click();
   await expect(page.locator('.oc-bubble__live-speak')).not.toHaveClass(/--active/);
+  await expect(page.locator('.mud-overlay')).toHaveCount(0);
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Keep text input available.');
+  await page.getByRole('button', { name: /send to ellai/i }).click({ trial: true });
 
   const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
   expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });

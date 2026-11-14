@@ -40,6 +40,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private bool _voiceActive;
     private bool _sessionCreationStarted;
     private int _inputRenderKey;
+    private MudMenu? _settingsMenu;
     private int _speechCursor;
     private readonly Queue<SpeechSegment> _speechQueue = new();
     private CancellationTokenSource? _speechCts;
@@ -494,6 +495,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task OpenSettingsDialogAsync()
     {
+        await CloseSettingsMenuAsync();
         var parameters = new DialogParameters<ComposerSettingsDialog>
         {
             { dialog => dialog.SpeechOn, _speechOn },
@@ -506,13 +508,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task OnSpeechSwitchChanged(bool value)
     {
-        if (_speechOn != value) await ToggleSpeechAsync().ConfigureAwait(false);
+        if (_speechOn != value) await ToggleSpeechAsync();
+        await InvokeAsync(CloseSettingsMenuAsync);
     }
 
     private async Task OnMicrophoneSwitchChanged(bool value)
     {
-        if (_micOn != value) await ToggleMicrophoneAsync().ConfigureAwait(false);
+        if (_micOn != value) await ToggleMicrophoneAsync();
+        await InvokeAsync(CloseSettingsMenuAsync);
     }
+
+    private Task CloseSettingsMenuAsync() => _settingsMenu?.CloseMenuAsync() ?? Task.CompletedTask;
 
     private async Task ToggleMicrophoneAsync()
     {
