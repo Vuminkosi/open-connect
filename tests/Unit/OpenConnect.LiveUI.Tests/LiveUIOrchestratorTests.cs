@@ -6,20 +6,43 @@ namespace OpenConnect.LiveUI.Tests;
 
 public sealed class LiveUIOrchestratorTests
 {
-    private static readonly LiveUIManifest Manifest = new(
-        LiveUISchema.CurrentVersion,
-        "build-001",
-        "sha256:manifest",
+    private static readonly LiveUIManifest Manifest = CreateManifest();
+
+    private static LiveUIAction Action(string id = "action-001", string? hash = null) =>
+        new(id, LiveUISchema.CurrentVersion, "session-001", hash ?? Manifest.ContentHash, "todo.home", "todo.completed",
+            LiveUIActionType.SelectTab, new LiveUIActionParameters(Value: "Completed"), TimeSpan.FromSeconds(5));
+
+    private static LiveUIManifest CreateManifest()
+    {
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build-001", string.Empty,
         [
             new LiveUIRoute("todo.home", "/", "Todo", [
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
                     new HashSet<LiveUICapability> { LiveUICapability.Select, LiveUICapability.Highlight })
             ])
         ]);
+        return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+    }
 
-    private static LiveUIAction Action(string id = "action-001", string hash = "sha256:manifest") =>
-        new(id, LiveUISchema.CurrentVersion, "session-001", hash, "todo.home", "todo.completed",
-            LiveUIActionType.SelectTab, new LiveUIActionParameters(Value: "Completed"), TimeSpan.FromSeconds(5));
+    [Fact]
+    public void ManifestHasher_IsStableAcrossRouteAndCapabilityOrdering()
+    {
+        var route = Manifest.Routes[0];
+        var reordered = Manifest with
+        {
+            Routes = [route with
+            {
+                Targets = [route.Targets[0] with
+                {
+                    Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Highlight, LiveUICapability.Select }
+                }]
+            }]
+        };
+
+        Assert.Equal(Manifest.ContentHash, LiveUIManifestHasher.ComputeContentHash(reordered));
+        Assert.Contains("manifest_hash_mismatch",
+            new LiveUIManifestValidator().Validate(Manifest with { BuildId = "other-build" }));
+    }
 
     [Fact]
     public void ManifestValidator_RejectsDuplicateIdsAndUnknownCapabilities()
@@ -87,10 +110,15 @@ public sealed class LiveUIOrchestratorTests
     {
         var route = Manifest.Routes[0];
         var consequential = route.Targets[0] with { RequiresConfirmation = true };
-        var manifestProvider = new RecordingManifestProvider(Manifest with
+        var changedManifest = Manifest with
         {
             Routes = [route with { Targets = [consequential] }]
-        });
+        };
+        changedManifest = changedManifest with
+        {
+            ContentHash = LiveUIManifestHasher.ComputeContentHash(changedManifest)
+        };
+        var manifestProvider = new RecordingManifestProvider(changedManifest);
         var runtime = new RecordingRuntime();
         var orchestrator = new LiveUIOrchestrator(
             manifestProvider,
@@ -99,7 +127,7 @@ public sealed class LiveUIOrchestratorTests
             Options.Create(new LiveUIOptions()),
             new LiveUIManifestValidator());
 
-        var receipt = await orchestrator.ExecuteAsync(Action());
+        var receipt = await orchestrator.ExecuteAsync(Action(hash: changedManifest.ContentHash));
 
         Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
         Assert.Equal("approval_required", receipt.Code);

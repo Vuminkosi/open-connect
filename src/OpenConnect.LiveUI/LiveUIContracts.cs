@@ -1,3 +1,8 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace OpenConnect.LiveUI;
 
 public static class LiveUISchema
@@ -5,9 +10,13 @@ public static class LiveUISchema
     public const string CurrentVersion = "openconnect.liveui/v1";
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<LiveUITargetKind>))]
 public enum LiveUITargetKind { Button, Link, Input, Select, Checkbox, Tab, Heading, Region, List, Table }
+[JsonConverter(typeof(JsonStringEnumConverter<LiveUICapability>))]
 public enum LiveUICapability { Activate, Close, Focus, Highlight, Inspect, Scroll, SetValue, Select, WaitForState }
+[JsonConverter(typeof(JsonStringEnumConverter<LiveUIActionType>))]
 public enum LiveUIActionType { Navigate, Open, Close, Click, Focus, Scroll, Highlight, ClearHighlight, SetValue, Select, SelectTab, Inspect, WaitForState }
+[JsonConverter(typeof(JsonStringEnumConverter<LiveUIActionOutcome>))]
 public enum LiveUIActionOutcome { Completed, Denied, Ambiguous, MissingTarget, Uncertain, Failed, Conflict }
 
 public sealed record LiveUIManifest(string SchemaVersion, string BuildId, string ContentHash, IReadOnlyList<LiveUIRoute> Routes);
@@ -54,6 +63,41 @@ public sealed record LiveUIExecutionContext(LiveUIManifest Manifest, LiveUIRoute
 public sealed record LiveUIAuthorizationDecision(bool Allowed, string Code, bool UserConfirmed = false);
 public sealed record LiveUIRuntimeResult(LiveUIActionOutcome Outcome, string Code, bool PostconditionVerified, string? VerifiedState = null);
 
+public static class LiveUIManifestHasher
+{
+    public static string ComputeContentHash(LiveUIManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var canonical = new
+        {
+            schemaVersion = manifest.SchemaVersion,
+            buildId = manifest.BuildId,
+            routes = manifest.Routes
+                .OrderBy(route => route.Id, StringComparer.Ordinal)
+                .Select(route => new
+                {
+                    route.Id,
+                    route.Path,
+                    route.Title,
+                    targets = route.Targets
+                        .OrderBy(target => target.Id, StringComparer.Ordinal)
+                        .Select(target => new
+                        {
+                            target.Id,
+                            kind = target.Kind.ToString(),
+                            target.Label,
+                            capabilities = target.Capabilities.Select(value => value.ToString()).Order(StringComparer.Ordinal),
+                            target.Role,
+                            target.Selector,
+                            target.ParentId,
+                            target.RequiresConfirmation
+                        })
+                })
+        };
+        return "sha256:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical))).ToLowerInvariant();
+    }
+}
+
 public interface ILiveUIActionAuthorizer
 {
     ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default);
@@ -95,6 +139,11 @@ public sealed class LiveUIManifestValidator
                 errors.Add("manifest_route_invalid");
                 continue;
             }
+            if (!route.Path.StartsWith("/", StringComparison.Ordinal) ||
+                route.Path.StartsWith("//", StringComparison.Ordinal) || route.Path.Contains('\\') ||
+                route.Path.Contains('?') || route.Path.Contains('#') ||
+                route.Path.Split('/').Any(segment => segment is "." or ".."))
+                errors.Add("manifest_route_path_invalid");
             if (!routeIds.Add(route.Id)) errors.Add("manifest_route_id_duplicate");
             if (!routePaths.Add(route.Path)) errors.Add("manifest_route_path_duplicate");
             if (route.Targets is null)
@@ -114,6 +163,14 @@ public sealed class LiveUIManifestValidator
                 if (target.Selector is { Length: > 512 }) errors.Add("manifest_selector_invalid");
                 if (!targetIds.Add(target.Id)) errors.Add("manifest_target_id_duplicate");
             }
+        }
+        if (errors.Count == 0)
+        {
+            var expectedHash = Encoding.ASCII.GetBytes(LiveUIManifestHasher.ComputeContentHash(manifest));
+            var providedHash = Encoding.ASCII.GetBytes(manifest.ContentHash);
+            if (providedHash.Length != expectedHash.Length ||
+                !CryptographicOperations.FixedTimeEquals(providedHash, expectedHash))
+                errors.Add("manifest_hash_mismatch");
         }
         return errors;
     }

@@ -96,10 +96,21 @@ public sealed class LiveUIOrchestrator(
     {
         code = "invalid_action";
         if (string.IsNullOrWhiteSpace(action.ActionId) || action.ActionId.Length > config.Security.MaximumActionIdLength ||
-            string.IsNullOrWhiteSpace(action.SessionId) || string.IsNullOrWhiteSpace(action.ManifestHash) ||
-            string.IsNullOrWhiteSpace(action.RouteId) || action.TargetId is { Length: > 256 } ||
+            string.IsNullOrWhiteSpace(action.SessionId) || action.SessionId.Length > 128 ||
+            string.IsNullOrWhiteSpace(action.ManifestHash) || action.ManifestHash.Length > 128 ||
+            string.IsNullOrWhiteSpace(action.RouteId) || action.RouteId.Length > 256 ||
+            action.TargetId is { Length: > 256 } || action.TargetId is { Length: 0 } ||
             action.SchemaVersion != LiveUISchema.CurrentVersion || !Enum.IsDefined(action.Type) ||
             action.Parameters is null || action.Timeout <= TimeSpan.Zero || action.Timeout > TimeSpan.FromMinutes(2))
+            return false;
+        if (action.Parameters.Value is { Length: > 10_000 } ||
+            action.Parameters.DestinationRouteId is { Length: > 256 } ||
+            action.Parameters.StateName is { Length: > 32 } ||
+            action.Parameters.StateValue is { Length: > 2_000 } ||
+            action.Parameters.ScrollAlignment is not (null or "start" or "center" or "end" or "nearest"))
+            return false;
+        if (action.Parameters.StateName is not null &&
+            action.Parameters.StateName is not ("selected" or "checked" or "expanded" or "visible" or "exists" or "textContains" or "textNotContains"))
             return false;
         if (action.Type == LiveUIActionType.Navigate && string.IsNullOrWhiteSpace(action.Parameters.DestinationRouteId))
             return false;
@@ -117,7 +128,7 @@ public sealed class LiveUIOrchestrator(
         LiveUIActionType.Close => LiveUICapability.Close,
         LiveUIActionType.Focus => LiveUICapability.Focus,
         LiveUIActionType.Scroll => LiveUICapability.Scroll,
-        LiveUIActionType.Highlight or LiveUIActionType.ClearHighlight => LiveUICapability.Highlight,
+        LiveUIActionType.Highlight => LiveUICapability.Highlight,
         LiveUIActionType.SetValue => LiveUICapability.SetValue,
         LiveUIActionType.Select or LiveUIActionType.SelectTab => LiveUICapability.Select,
         LiveUIActionType.Inspect => LiveUICapability.Inspect,
