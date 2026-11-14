@@ -23,7 +23,7 @@ public static class LiveUIAgentToolFactory
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup."),
+                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];

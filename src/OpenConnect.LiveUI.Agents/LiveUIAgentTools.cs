@@ -105,8 +105,15 @@ public sealed class LiveUIAgentTools(
             new(StateName: stateName, StateValue: stateValue), cancellationToken);
 
     /// <summary>Highlights a compiled target without changing application focus.</summary>
-    public ValueTask<LiveUIActionReceipt> HighlightAsync(string targetId, CancellationToken cancellationToken = default) =>
-        ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Highlight, new(), cancellationToken);
+    /// <param name="targetId">The compiled target identifier.</param>
+    /// <param name="cancellationToken">Cancels the interaction request.</param>
+    /// <param name="durationMilliseconds">Optional temporary highlight duration, bounded to 30 seconds by the runtime.</param>
+    public ValueTask<LiveUIActionReceipt> HighlightAsync(
+        string targetId,
+        CancellationToken cancellationToken = default,
+        int durationMilliseconds = 0) =>
+        ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Highlight,
+            new(HighlightDurationMilliseconds: durationMilliseconds), cancellationToken);
 
     /// <summary>Clears LiveUI highlights without opening a Navigator tour.</summary>
     public ValueTask<LiveUIActionReceipt> ClearHighlightAsync(CancellationToken cancellationToken = default) =>

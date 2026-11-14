@@ -48,7 +48,8 @@ public sealed record LiveUIActionParameters(
     string? DestinationRouteId = null,
     string? StateName = null,
     string? StateValue = null,
-    string? ScrollAlignment = null);
+    string? ScrollAlignment = null,
+    int HighlightDurationMilliseconds = 0);
 
 public sealed record LiveUIActionReceipt(
     string ActionId,

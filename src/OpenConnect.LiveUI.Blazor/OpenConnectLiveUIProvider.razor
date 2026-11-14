@@ -132,9 +132,12 @@
                     var receipt = await _agentTools.AwaitStateAsync(request.TargetId, request.StateName, request.StateValue, cancellationToken);
                     payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
                 }
-                else if (request.Operation == "highlight" && request.TargetId is { Length: > 0 and <= 256 })
+                else if (request.Operation == "highlight" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.HighlightDurationMilliseconds is >= 0 and <= 30_000)
                 {
-                    var receipt = await _agentTools.HighlightAsync(request.TargetId, cancellationToken);
+                    var receipt = await _agentTools.HighlightAsync(
+                        request.TargetId, cancellationToken, request.HighlightDurationMilliseconds);
                     payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
                 }
                 else if (request.Operation == "clear_highlight")

@@ -112,7 +112,9 @@ public sealed class LiveUIOrchestrator(
             action.Parameters.DestinationRouteId is { Length: > 256 } ||
             action.Parameters.StateName is { Length: > 32 } ||
             action.Parameters.StateValue is { Length: > 2_000 } ||
-            action.Parameters.ScrollAlignment is not (null or "start" or "center" or "end" or "nearest"))
+            action.Parameters.ScrollAlignment is not (null or "start" or "center" or "end" or "nearest") ||
+            action.Parameters.HighlightDurationMilliseconds is < 0 or > 30_000 ||
+            action.Type != LiveUIActionType.Highlight && action.Parameters.HighlightDurationMilliseconds != 0)
             return false;
         if (action.Parameters.StateName is not null &&
             action.Parameters.StateName is not ("selected" or "checked" or "expanded" or "visible" or "exists" or "textContains" or "textNotContains"))

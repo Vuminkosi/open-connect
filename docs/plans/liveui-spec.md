@@ -68,7 +68,7 @@ The Blazor runtime resolves compiled descriptors using known selectors, optional
 
 Compiled lists, tables, and explicitly marked regions advertise `WaitForState` so a host policy can permit verification after a supported control changes existing application state. The Todo sample allows bounded `textContains` and `textNotContains` checks on its task list and marked `todo-list` region. The stable region remains rendered when the list is replaced by the empty-state message, allowing that result to be verified after Blazor rerenders.
 
-Navigation is restricted to manifest routes and is complete only after route readiness is observed. Highlighting is non-modal, does not intentionally move focus, and respects reduced motion. Traditional Navigator tour behavior remains separate.
+Navigation is restricted to manifest routes and is complete only after route readiness is observed. Highlighting is non-modal, does not intentionally move focus, and respects reduced motion. A .NET agent may request a temporary highlight for up to 30 seconds; the Blazor runtime replaces an earlier timer when the same target is highlighted again, and explicit clear or cancellation removes the highlight. Traditional Navigator tour behavior remains separate.
 
 The current runtime does not establish complete support for every MudBlazor or arbitrary custom component pattern. Unsupported, stale, hidden, or ambiguous targets must fail visibly. In the Todo flow, search verification uses the stable marked region: the list disappears in the empty state, and the broad `.mud-list` selector can become ambiguous when another visible component renders a matching list. Native component adapters may be added where browser semantics alone cannot verify application state.
 

@@ -36,7 +36,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup."),
+                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];
@@ -78,8 +78,17 @@ public static class LiveUIClientAgentToolFactory
                 targetId, StateName: stateName, StateValue: stateValue), "action", cancellationToken);
         }
 
-        public Task<JsonElement> HighlightAsync(string targetId, CancellationToken cancellationToken = default) =>
-            RequestTargetOperationAsync("highlight", targetId, cancellationToken);
+        public Task<JsonElement> HighlightAsync(
+            string targetId,
+            int durationMilliseconds = 0,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
+                durationMilliseconds is < 0 or > 30_000)
+                return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
+            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
+                HighlightDurationMilliseconds: durationMilliseconds), "action", cancellationToken);
+        }
 
         public Task<JsonElement> ClearHighlightAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "clear_highlight"), "action", cancellationToken);

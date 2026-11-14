@@ -9,7 +9,8 @@ public sealed record ClientInteractionRequest(
     string? Value = null,
     string? RouteId = null,
     string? StateName = null,
-    string? StateValue = null);
+    string? StateValue = null,
+    int HighlightDurationMilliseconds = 0);
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>
 public sealed record ClientInteractionResponse(

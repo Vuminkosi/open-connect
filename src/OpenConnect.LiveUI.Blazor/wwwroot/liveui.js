@@ -1,4 +1,5 @@
 const highlights = new Set();
+const highlightTimers = new Map();
 const idAttribute = "data-openconnect-liveui-id";
 const highlightAttribute = "data-openconnect-liveui-highlight";
 const sensitiveFieldPattern = /passw|passwd|secret|token|api[-_]?key|ssn|social.security|credit|card|cvv|cvc|credential|private.key|pin/i;
@@ -36,6 +37,13 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Highlight":
       addHighlight(element);
       element.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      const highlightDuration = Number(parameters.highlightDurationMilliseconds);
+      if (Number.isInteger(highlightDuration) && highlightDuration > 0) {
+        const previousTimer = highlightTimers.get(element);
+        if (previousTimer) clearTimeout(previousTimer);
+        highlightTimers.set(element, setTimeout(() => clearHighlight(element), Math.min(highlightDuration, 30_000)));
+        return result("Completed", "highlight_temporary", true, "highlighted");
+      }
       return result("Completed", "highlight_active", true, "highlighted");
     case "SetValue": return setValue(element, parameters.value);
     case "Select": return selectValue(element, parameters.value);
@@ -233,8 +241,16 @@ function addHighlight(element) {
 }
 
 function clearHighlights() {
-  for (const element of highlights) element.removeAttribute(highlightAttribute);
+  for (const element of highlights) clearHighlight(element);
   highlights.clear();
+}
+
+function clearHighlight(element) {
+  const timer = highlightTimers.get(element);
+  if (timer) clearTimeout(timer);
+  highlightTimers.delete(element);
+  element.removeAttribute(highlightAttribute);
+  highlights.delete(element);
 }
 
 function installHighlightStyles() {
