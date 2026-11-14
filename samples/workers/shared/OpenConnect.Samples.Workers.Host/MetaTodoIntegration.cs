@@ -143,7 +143,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 task.Message,
                 tools,
                 cancellationToken,
-                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
+                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant navigator action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. The Todo sample targets are todo-progress for the summary cards, todo-list for the Todo list, and todo-editor for creating or editing a Todo. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
             if (coreRequest && RequiresCompletionAcknowledgement(task.Message))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", CompletionAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
@@ -173,7 +173,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
     private static bool RequiresNavigatorTools(string message)
     {
         var value = message.ToLowerInvariant();
-        return value.Contains("navigate") || value.Contains("go to") || value.Contains("take me") || value.Contains("highlight") || value.Contains("focus") || value.Contains("scroll") || value.Contains("show me where");
+        return value.Contains("navigate") || value.Contains("go to") || value.Contains("take me") || value.Contains("highlight") || value.Contains("focus") || value.Contains("scroll") || value.Contains("show me where") || value.Contains("tour") || value.Contains("walk me through") || value.Contains("walk me around") || value.Contains("show me around") || value.Contains("introduce me") || value.Contains("guide me");
     }
 
     private static string InitialAcknowledgement(string message)
