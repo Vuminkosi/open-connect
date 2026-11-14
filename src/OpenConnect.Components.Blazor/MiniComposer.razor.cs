@@ -357,6 +357,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task SpeakResponseSegmentAsync(SpeechSegment segment)
     {
+        var playbackEpoch = 0L;
         try
         {
             _speechCts?.Dispose();
@@ -366,18 +367,21 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             var result = await Client.SynthesizeSpeechAsync(
                 new SpeechSynthesisRequest(speechText, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
                 _speechCts.Token).ConfigureAwait(false);
-            var epoch = Session.BeginSpeechPlayback();
+            playbackEpoch = Session.BeginSpeechPlayback();
             _beingSpokenStart = segment.StartCursor;
             _beingSpokenEnd = segment.EndCursor;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
-            await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels, epoch).ConfigureAwait(false);
-            _beingSpokenStart = -1;
-            _beingSpokenEnd = -1;
+            await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels, playbackEpoch).ConfigureAwait(false);
+            if (!Session.TryAcceptTtsAudioChunk(playbackEpoch)) return;
             _spokenResponseCharacters = Math.Max(_spokenResponseCharacters, segment.EndCursor);
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException)
         {
+        }
+        finally
+        {
+            if (playbackEpoch != 0) Session.EndSpeechPlayback(playbackEpoch);
             _beingSpokenStart = -1;
             _beingSpokenEnd = -1;
         }

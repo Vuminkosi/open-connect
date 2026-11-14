@@ -33,6 +33,22 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void SpeechPlayback_completion_is_epoch_fenced_and_returns_to_on_state()
+    {
+        var session = new ComposerSession();
+
+        var completedEpoch = session.BeginSpeechPlayback();
+        Assert.True(session.EndSpeechPlayback(completedEpoch));
+        Assert.Equal(ComposerSpeechState.On, session.SpeechState);
+        Assert.False(session.EndSpeechPlayback(completedEpoch));
+
+        var interruptedEpoch = session.BeginSpeechPlayback();
+        session.TriggerBargeIn();
+        Assert.False(session.EndSpeechPlayback(interruptedEpoch));
+        Assert.Equal(ComposerSpeechState.On, session.SpeechState);
+    }
+
+    [Fact]
     public void Deltas_stream_then_complete_into_single_message()
     {
         var session = new ComposerSession();

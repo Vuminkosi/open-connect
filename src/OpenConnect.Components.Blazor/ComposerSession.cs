@@ -328,6 +328,20 @@ public sealed class ComposerSession
         }
     }
 
+    /// <summary>Completes playback only when the completion belongs to the active playback epoch.</summary>
+    public bool EndSpeechPlayback(long playbackEpoch)
+    {
+        lock (_gate)
+        {
+            if (SpeechState != ComposerSpeechState.Playing || playbackEpoch == 0 || playbackEpoch != PlaybackEpoch)
+                return false;
+            SpeechState = ComposerSpeechState.On;
+        }
+
+        Notify();
+        return true;
+    }
+
     /// <summary>
     /// Locally interrupts active TTS playback via speech epoch fencing.
     /// </summary>
