@@ -24,6 +24,8 @@ The policy must use trusted tenant, principal, session, route, and application p
 
 The `OpenConnectLiveUIProvider` loads the verified build manifest embedded by `OpenConnect.LiveUI.Compiler`; an explicit manifest can also be supplied for hosts that manage manifest loading themselves. The provider does not replace OpenConnectProvider, MiniComposer, the host router, or application components.
 
+Embedded manifests are cached in-process by application assembly name, module version ID, and resource name. The loader validates the manifest before publishing the cached instance; repeated provider renders and circuits using the same application build reuse it. Explicitly supplied manifests are validated by the scoped manifest state.
+
 `AddOpenConnectLiveUIBlazor` also registers the .NET MAF tool adapter and a scoped context accessor for the current circuit route. Create functions for an agent invocation with `LiveUIAgentToolFactory.CreateTools(scopedServices.GetRequiredService<LiveUIAgentTools>())`. Register a host `ILiveUIActionAuthorizer`; without one, the adapter denies actions. See the `OpenConnect.LiveUI.Agents` package documentation for tool names, authorization, and context requirements.
 
 For a browser action requested by an agent, the provider receives the correlated composer-session request, invokes scoped `LiveUIAgentTools`, and posts the result through `IOpenConnectClient`. The authenticated gateway binds the response to the owned session and a matching pending request. The current default broker uses the in-memory session store, so the correlation is process-local.

@@ -86,6 +86,8 @@ The playback-fence unit tests passed 3/3 on .NET 8, 9, and 10, and the Blazor To
 
 No latency or synchronization benchmark is claimed. The SDK now emits metrics for manifest provider load, browser target resolution latency and failures, browser action duration, total action execution, and verified-state latency. Playback/highlight synchronization offset is not instrumented. A focused Playwright browser fixture loading the actual Blazor runtime source passed 2/2 highlight lifecycle checks: independent temporary expiry, explicit clear, and replacing a target's earlier timer. This fixture does not establish sample-host, provider, or speech synchronization acceptance. Benchmark results still require representative applications and browser conditions.
 
+The Blazor adapter caches validated embedded manifests by application assembly name, module version ID, and embedded resource name. This scopes cache entries to the compiled application build; invalid resources are not returned as manifests.
+
 ## Extension points
 
 Other .NET UI frameworks can implement `ILiveUIRuntime`, `ILiveUIManifestProvider`, and `ILiveUIAgentContextAccessor` while reusing the shared action contracts, options, orchestrator, and MAF tools. A future TypeScript/browser package may share the versioned manifest and action schema, but no independent JavaScript-first SDK is required for the current .NET-first delivery.
