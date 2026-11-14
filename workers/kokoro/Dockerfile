@@ -25,7 +25,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     MODEL_DIR=/models
 COPY --from=dependencies /app/.venv /app/.venv
 COPY src/ /app/src/
-RUN mkdir -p /models && chown -R 10001:10001 /app
+RUN mkdir -p /models && chown -R 10001:10001 /app /models
 USER 10001:10001
 
 EXPOSE 8080

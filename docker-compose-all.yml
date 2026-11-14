@@ -244,15 +244,15 @@ services:
       KOKORO_VOICES: af_heart
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
     volumes:
-      - "${OC_KOKORO_MODEL_DIR:?set OC_KOKORO_MODEL_DIR to the existing SwiftAid Kokoro model directory}:/models:ro"
+      - oc_kokoro_models:/models
     networks:
       - oc-network
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready')"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 3s
+      interval: 10s
+      timeout: 30s
+      retries: 10
+      start_period: 120s
 
   worker-playwright:
     build:

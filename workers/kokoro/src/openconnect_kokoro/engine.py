@@ -5,7 +5,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import tempfile
 import threading
+import urllib.request
 import wave
 from collections import OrderedDict
 from pathlib import Path
@@ -18,6 +20,11 @@ MODEL_ID = "hexgrad/Kokoro-82M"
 MODEL_SHA256 = "496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4"
 CONFIG_SHA256 = "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f"
 VOICE_SHA256 = "0ab5709b8ffab19bfd849cd11d98f75b60af7733253ad0d67b12382a102cb4ff"
+ARTIFACT_URLS = {
+    "kokoro-v1_0.pth": ("https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v1_0.pth", MODEL_SHA256),
+    "config.json": ("https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/config.json", CONFIG_SHA256),
+    "voices/af_heart.pt": ("https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/voices/af_heart.pt", VOICE_SHA256),
+}
 
 
 class VoiceUnknown(Exception):
@@ -39,6 +46,30 @@ def _verify(path: Path, expected: str) -> None:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     if digest != expected:
         raise ModelUnavailable(f"Kokoro artifact hash mismatch: {path.name}")
+
+
+def _ensure_artifacts(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for relative, (url, expected) in ARTIFACT_URLS.items():
+        target = directory / relative
+        if target.is_file():
+            try:
+                _verify(target, expected)
+                continue
+            except ModelUnavailable:
+                target.unlink(missing_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response:
+                with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as temporary:
+                    while chunk := response.read(1024 * 1024):
+                        temporary.write(chunk)
+                    temporary_path = Path(temporary.name)
+            temporary_path.replace(target)
+            _verify(target, expected)
+        except Exception as exception:
+            target.unlink(missing_ok=True)
+            raise ModelUnavailable(f"unable to provision Kokoro artifact: {relative}") from exception
 
 
 def _pcm16le(samples: np.ndarray) -> bytes:
@@ -76,6 +107,7 @@ class KokoroEngine:
     def _load(self) -> None:
         if self._pipeline is not None:
             return
+        _ensure_artifacts(self._directory)
         model_file = self._directory / "kokoro-v1_0.pth"
         config_file = self._directory / "config.json"
         voice_file = self._directory / "voices" / "af_heart.pt"
