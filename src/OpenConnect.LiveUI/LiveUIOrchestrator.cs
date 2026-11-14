@@ -119,7 +119,7 @@ public sealed class LiveUIOrchestrator(
             return false;
         if (action.Type == LiveUIActionType.Navigate && string.IsNullOrWhiteSpace(action.Parameters.DestinationRouteId))
             return false;
-        if (action.Type is LiveUIActionType.SetValue or LiveUIActionType.Select or LiveUIActionType.SelectTab &&
+        if (action.Type is LiveUIActionType.SetValue or LiveUIActionType.Select &&
             action.Parameters.Value is null)
             return false;
         code = string.Empty;
@@ -135,7 +135,8 @@ public sealed class LiveUIOrchestrator(
         LiveUIActionType.Scroll => LiveUICapability.Scroll,
         LiveUIActionType.Highlight => LiveUICapability.Highlight,
         LiveUIActionType.SetValue => LiveUICapability.SetValue,
-        LiveUIActionType.Select or LiveUIActionType.SelectTab => LiveUICapability.Select,
+        LiveUIActionType.Select => LiveUICapability.Select,
+        LiveUIActionType.SelectTab => LiveUICapability.Activate,
         LiveUIActionType.Inspect => LiveUICapability.Inspect,
         LiveUIActionType.WaitForState => LiveUICapability.WaitForState,
         _ => null

@@ -6,11 +6,30 @@ namespace OpenConnect.LiveUI.Tests;
 
 public sealed class LiveUIOrchestratorTests
 {
+    [Fact]
+    public void ManifestJson_RoundTripsReadOnlyCapabilitySet()
+    {
+        var manifest = new LiveUIManifest(
+            LiveUISchema.CurrentVersion,
+            "build-1",
+            "hash",
+            [new LiveUIRoute("route.home", "/", "Home",
+                [new LiveUITarget("target.search", LiveUITargetKind.Input, "Search",
+                    new HashSet<LiveUICapability> { LiveUICapability.Filter, LiveUICapability.SetValue })])]);
+        var options = LiveUIManifestJson.CreateSerializerOptions();
+
+        var json = System.Text.Json.JsonSerializer.Serialize(manifest, options);
+        var result = System.Text.Json.JsonSerializer.Deserialize<LiveUIManifest>(json, options);
+
+        Assert.NotNull(result);
+        Assert.Contains(LiveUICapability.Filter, Assert.Single(Assert.Single(result.Routes).Targets).Capabilities);
+    }
+
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
     private static LiveUIAction Action(string id = "action-001", string? hash = null) =>
         new(id, LiveUISchema.CurrentVersion, "session-001", hash ?? Manifest.ContentHash, "todo.home", "todo.completed",
-            LiveUIActionType.SelectTab, new LiveUIActionParameters(Value: "Completed"), TimeSpan.FromSeconds(5));
+            LiveUIActionType.SelectTab, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
 
     private static LiveUIManifest CreateManifest()
     {
@@ -18,7 +37,7 @@ public sealed class LiveUIOrchestratorTests
         [
             new LiveUIRoute("todo.home", "/", "Todo", [
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
-                    new HashSet<LiveUICapability> { LiveUICapability.Select, LiveUICapability.Highlight })
+                    new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.Highlight })
             ])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
@@ -34,7 +53,7 @@ public sealed class LiveUIOrchestratorTests
             {
                 Targets = [route.Targets[0] with
                 {
-                    Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Highlight, LiveUICapability.Select }
+                    Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Highlight, LiveUICapability.Activate, LiveUICapability.Filter }
                 }]
             }]
         };
@@ -50,7 +69,7 @@ public sealed class LiveUIOrchestratorTests
         var route = Manifest.Routes[0];
         var duplicate = route.Targets[0] with
         {
-            Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Select }
+            Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Activate }
         };
         var invalid = route.Targets[0] with
         {
@@ -142,7 +161,7 @@ public sealed class LiveUIOrchestratorTests
         {
             Capabilities = new HashSet<LiveUICapability>
             {
-                LiveUICapability.Select, LiveUICapability.Highlight, LiveUICapability.Filter
+                LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter
             }
         };
         var manifest = Manifest with { Routes = [route with { Targets = [filter] }] };

@@ -8,6 +8,7 @@
     <PackageVersion Include="Microsoft.Agents.AI.Harness" Version="1.27.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.27.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows.Declarative.Mcp" Version="1.27.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Razor.Language" Version="6.0.36" />
     <!--
       TFM-aligned EF Core families (CF-IMP-003). net8.0 rows preserve the
       pre-existing pins so the net8.0 asset and net8.0-only test projects

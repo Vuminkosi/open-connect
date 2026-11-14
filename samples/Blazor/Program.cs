@@ -8,6 +8,8 @@ using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Blazor;
 using OpenConnect.Samples.Workers.Host;using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
@@ -73,6 +75,13 @@ else
     });
 }
 builder.Services.AddOpenConnectComponents();
+builder.Services.AddOpenConnectLiveUIBlazor(options =>
+{
+    options.Discovery.EnableRuntimeFallback = true;
+    options.Interaction.EnableNavigation = true;
+    options.Interaction.EnableFiltering = true;
+    options.Interaction.EnableHighlighting = true;
+});
 builder.Services.AddOpenConnectComposer(options =>
 {
     options.Position = ComposerPosition.BottomRight;
@@ -88,7 +97,11 @@ builder.Services.AddOpenConnectComponent<TodoEditorComponent>();
 builder.Services.AddOpenConnectComponent<TodoProgressComponent>();
 
 // Todo store
-builder.Services.AddSingleton<ITodoStore, InMemoryTodoStore>();
+var useAcceptanceTodoData = builder.Configuration.GetValue<bool>("OpenConnect:Todo:AcceptanceData") ||
+    bool.TryParse(Environment.GetEnvironmentVariable("OPENCONNECT_BLAZOR_ACCEPTANCE_DATA"), out var acceptanceDataEnabled) && acceptanceDataEnabled;
+builder.Services.AddSingleton<ITodoStore>(_ => useAcceptanceTodoData
+    ? InMemoryTodoStore.CreateAcceptanceStore()
+    : new InMemoryTodoStore());
 builder.Services.AddSingleton<ITenantTodoStore>(sp => (InMemoryTodoStore)sp.GetRequiredService<ITodoStore>());
 builder.Services.AddSingleton(_ => TodoInternalOptions.FromConfiguration(builder.Configuration));
 

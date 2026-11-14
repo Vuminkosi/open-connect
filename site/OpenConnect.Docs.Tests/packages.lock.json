@@ -1077,6 +1077,19 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.liveui": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )"
+        }
+      },
+      "openconnect.liveui.blazor": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
       "openconnect.navigator": {
         "type": "Project",
         "dependencies": {
@@ -1138,6 +1151,7 @@
           "OpenConnect.Components.Contracts": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.LiveUI.Blazor": "[1.0.0, )",
           "OpenConnect.Persistence.EFCore": "[1.0.0, )",
           "OpenConnect.Samples.Shared": "[1.0.0, )",
           "OpenConnect.Samples.Workers.Host": "[1.0.0, )"

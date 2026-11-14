@@ -2,6 +2,7 @@
 @using MudBlazor
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Components.Contracts
+@using OpenConnect.LiveUI.Blazor
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 
@@ -37,6 +38,7 @@
 
     <MudMainContent Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
         <OpenConnectProvider>
+          <OpenConnectLiveUIProvider>
             @Body
             <MiniComposer Placement="ComposerPlacement.BottomRight"
                           AssistantName="Ellai"
@@ -44,6 +46,7 @@
                           Placeholder="Ask Ellai..."
                           CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
             <OpenConnectNavigatorProvider />
+          </OpenConnectLiveUIProvider>
         </OpenConnectProvider>
     </MudMainContent>
 </MudLayout>

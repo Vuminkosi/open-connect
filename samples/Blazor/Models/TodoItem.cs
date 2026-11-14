@@ -41,6 +41,55 @@ public interface ITodoStore
 
 public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
 {
+    public InMemoryTodoStore() { }
+
+    private InMemoryTodoStore(IEnumerable<TodoItem> initialItems)
+    {
+        _items.Clear();
+        _items.AddRange(initialItems);
+    }
+
+    public static InMemoryTodoStore CreateAcceptanceStore() =>
+        new(
+        [
+            new TodoItem
+            {
+                Id = Guid.Parse("a1000000-0000-4000-8000-000000000001"),
+                Title = "Review the quarterly report",
+                Description = "Confirm the completed figures for the quarterly report.",
+                Priority = TodoPriority.High,
+                IsCompleted = true,
+                CreatedAtUtc = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)
+            },
+            new TodoItem
+            {
+                Id = Guid.Parse("a1000000-0000-4000-8000-000000000002"),
+                Title = "Draft the annual report",
+                Description = "Prepare the annual report outline.",
+                Priority = TodoPriority.Medium,
+                IsCompleted = true,
+                CreatedAtUtc = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc)
+            },
+            new TodoItem
+            {
+                Id = Guid.Parse("a1000000-0000-4000-8000-000000000003"),
+                Title = "Gather feedback for report",
+                Description = "Collect the remaining feedback before the report is finalized.",
+                Priority = TodoPriority.Low,
+                IsCompleted = false,
+                CreatedAtUtc = new DateTime(2026, 1, 3, 12, 0, 0, DateTimeKind.Utc)
+            },
+            new TodoItem
+            {
+                Id = Guid.Parse("a1000000-0000-4000-8000-000000000004"),
+                Title = "Prepare a launch checklist",
+                Description = "Confirm the release tasks for the upcoming launch.",
+                Priority = TodoPriority.Urgent,
+                IsCompleted = false,
+                CreatedAtUtc = new DateTime(2026, 1, 4, 12, 0, 0, DateTimeKind.Utc)
+            }
+        ]);
+
     private readonly List<TodoItem> _items = new()
     {
         new TodoItem

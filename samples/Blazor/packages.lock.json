@@ -588,6 +588,15 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.liveui": {
+        "type": "Project"
+      },
+      "openconnect.liveui.blazor": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
       "openconnect.navigator": {
         "type": "Project",
         "dependencies": {

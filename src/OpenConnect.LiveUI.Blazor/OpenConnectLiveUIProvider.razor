@@ -5,14 +5,16 @@
 @ChildContent
 
 @code {
-    [Parameter, EditorRequired]
-    public LiveUIManifest Manifest { get; set; } = default!;
+    [Parameter]
+    public LiveUIManifest? Manifest { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     protected override void OnParametersSet()
     {
-        ManifestState.SetManifest(Manifest);
+        var manifest = Manifest ?? LiveUICompiledManifestLoader.LoadFromEntryAssembly()
+            ?? throw new InvalidOperationException("No embedded LiveUI manifest was found. Enable the LiveUI Razor compiler for this application.");
+        ManifestState.SetManifest(manifest);
     }
 }

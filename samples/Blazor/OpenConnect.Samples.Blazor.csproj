@@ -13,6 +13,8 @@
     <ProjectReference Include="..\..\src\OpenConnect.Components.Contracts\OpenConnect.Components.Contracts.csproj" />
     <ProjectReference Include="..\..\src\OpenConnect.Components.Blazor\OpenConnect.Components.Blazor.csproj" />
     <ProjectReference Include="..\..\src\OpenConnect.Hosting.AspNetCore\OpenConnect.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.LiveUI.Blazor\OpenConnect.LiveUI.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.LiveUI.Compiler\OpenConnect.LiveUI.Compiler.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
     <ProjectReference Include="..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
     <PackageReference Include="MudBlazor" />
@@ -22,4 +24,11 @@
   <ItemGroup>
     <ProjectReference Include="..\workers\shared\OpenConnect.Samples.Workers.Host\OpenConnect.Samples.Workers.Host.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(IntermediateOutputPath)openconnect.liveui.manifest.json"
+                      LogicalName="$(AssemblyName).openconnect.liveui.manifest.json" />
+  </ItemGroup>
+  <Target Name="GenerateOpenConnectLiveUIManifest" BeforeTargets="PrepareResourceNames">
+    <Exec Command="dotnet &quot;$(MSBuildThisFileDirectory)..\..\src\OpenConnect.LiveUI.Compiler\bin\$(Configuration)\net8.0\OpenConnect.LiveUI.Compiler.dll&quot; --root &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(IntermediateOutputPath)openconnect.liveui.manifest.json&quot;" />
+  </Target>
 </Project>

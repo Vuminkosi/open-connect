@@ -27,6 +27,7 @@
     <Project Path="src/OpenConnect.Navigator.OperationalBrowser/OpenConnect.Navigator.OperationalBrowser.csproj" />
     <Project Path="src/OpenConnect.LiveUI/OpenConnect.LiveUI.csproj" />
     <Project Path="src/OpenConnect.LiveUI.Blazor/OpenConnect.LiveUI.Blazor.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Compiler/OpenConnect.LiveUI.Compiler.csproj" />
     <Project Path="src/OpenConnect.Observability/OpenConnect.Observability.csproj" />
     <Project Path="src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
     <Project Path="src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
@@ -51,6 +52,7 @@
     <Project Path="tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.LiveUI.Tests/OpenConnect.LiveUI.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.LiveUI.Blazor.Tests/OpenConnect.LiveUI.Blazor.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.LiveUI.Compiler.Tests/OpenConnect.LiveUI.Compiler.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ArchitectureAtlas/OpenConnect.Samples.ArchitectureAtlas.csproj" />
