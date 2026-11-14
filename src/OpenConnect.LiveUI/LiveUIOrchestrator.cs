@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
 
 namespace OpenConnect.LiveUI;
@@ -15,6 +16,7 @@ public sealed class LiveUIOrchestrator(
     public async ValueTask<LiveUIActionReceipt> ExecuteAsync(LiveUIAction action, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(action);
+        var actionStartedAt = Stopwatch.GetTimestamp();
         var config = options.Value;
         if (!IsValidAction(action, config, out var validationCode))
             return Receipt(action, LiveUIActionOutcome.Failed, validationCode, false);
@@ -24,7 +26,9 @@ public sealed class LiveUIOrchestrator(
 
         try
         {
+            var manifestLoadStartedAt = Stopwatch.GetTimestamp();
             var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+            LiveUIMetrics.ManifestLoadDuration.Record(Stopwatch.GetElapsedTime(manifestLoadStartedAt).TotalMilliseconds);
             var manifestErrors = manifestValidator.Validate(manifest);
             if (manifestErrors.Count > 0)
                 return Receipt(action, LiveUIActionOutcome.Failed, manifestErrors[0], false);
@@ -67,7 +71,25 @@ public sealed class LiveUIOrchestrator(
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(action.Timeout);
+            var runtimeStartedAt = Stopwatch.GetTimestamp();
             var result = await runtime.ExecuteAsync(context, timeout.Token).ConfigureAwait(false);
+            var runtimeDuration = Stopwatch.GetElapsedTime(runtimeStartedAt).TotalMilliseconds;
+            var tags = new TagList
+            {
+                { "action.type", action.Type.ToString() },
+                { "outcome", result.Outcome.ToString() }
+            };
+            LiveUIMetrics.ActionExecutionDuration.Record(Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds, tags);
+            if (result.Measurements?.TargetResolutionMilliseconds is { } targetResolutionMilliseconds)
+                LiveUIMetrics.TargetResolutionDuration.Record(targetResolutionMilliseconds, tags);
+            if (result.Measurements?.BrowserActionMilliseconds is { } browserActionMilliseconds)
+                LiveUIMetrics.BrowserActionDuration.Record(browserActionMilliseconds, tags);
+            else
+                LiveUIMetrics.BrowserActionDuration.Record(runtimeDuration, tags);
+            if (result.Code is "target_missing" or "target_ambiguous")
+                LiveUIMetrics.TargetResolutionFailures.Add(1, tags);
+            if (action.Type == LiveUIActionType.WaitForState && result.PostconditionVerified)
+                LiveUIMetrics.ConfirmedStateDuration.Record(Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds, tags);
             if (result.Outcome == LiveUIActionOutcome.Completed && !result.PostconditionVerified)
                 return Receipt(action, LiveUIActionOutcome.Uncertain, "postcondition_unverified", false);
             return Receipt(action, result.Outcome, result.Code, result.PostconditionVerified, result.VerifiedState);

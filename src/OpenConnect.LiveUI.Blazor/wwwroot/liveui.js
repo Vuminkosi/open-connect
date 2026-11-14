@@ -9,13 +9,18 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   if (!manifest || !route || !action || action.schemaVersion !== "openconnect.liveui/v1") return result("Failed", "invalid_request");
   if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return result("Conflict", "route_mismatch");
   if (action.type === "ClearHighlight") {
+    const actionStartedAt = performance.now();
     clearHighlights();
-    return result("Completed", "highlight_cleared", true, "cleared");
+    return withMeasurements(result("Completed", "highlight_cleared", true, "cleared"), 0, actionStartedAt);
   }
   if (!target) return result("Failed", "target_missing");
+  const resolutionStartedAt = performance.now();
   const resolution = resolveTarget(target, enableRuntimeFallback, route);
-  if (resolution.status === "ambiguous") return result("Ambiguous", "target_ambiguous");
-  if (resolution.status !== "resolved") return result("MissingTarget", "target_missing");
+  const targetResolutionMilliseconds = performance.now() - resolutionStartedAt;
+  const actionStartedAt = performance.now();
+  const measured = (value) => withMeasurements(value, targetResolutionMilliseconds, actionStartedAt);
+  if (resolution.status === "ambiguous") return measured(result("Ambiguous", "target_ambiguous"));
+  if (resolution.status !== "resolved") return measured(result("MissingTarget", "target_missing"));
 
   const element = resolution.element;
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
@@ -25,15 +30,15 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Close":
     case "Click":
       element.click();
-      if (parameters.stateName) return waitForState(element, parameters.stateName, parameters.stateValue, timeout);
-      if (action.type !== "Click") return waitForState(element, "expanded", action.type === "Open" ? "true" : "false", timeout);
-      return result("Uncertain", "click_dispatched_without_postcondition");
+      if (parameters.stateName) return measured(waitForState(element, parameters.stateName, parameters.stateValue, timeout));
+      if (action.type !== "Click") return measured(waitForState(element, "expanded", action.type === "Open" ? "true" : "false", timeout));
+      return measured(result("Uncertain", "click_dispatched_without_postcondition"));
     case "Focus":
       element.focus({ preventScroll: true });
-      return document.activeElement === element ? result("Completed", "focus_verified", true, "focused") : result("Uncertain", "focus_unverified");
+      return measured(document.activeElement === element ? result("Completed", "focus_verified", true, "focused") : result("Uncertain", "focus_unverified"));
     case "Scroll":
       element.scrollIntoView({ block: parameters.scrollAlignment || "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
-      return waitForVisibility(element, timeout);
+      return measured(waitForVisibility(element, timeout));
     case "Highlight":
       addHighlight(element);
       element.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
@@ -42,19 +47,19 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
         const previousTimer = highlightTimers.get(element);
         if (previousTimer) clearTimeout(previousTimer);
         highlightTimers.set(element, setTimeout(() => clearHighlight(element), Math.min(highlightDuration, 30_000)));
-        return result("Completed", "highlight_temporary", true, "highlighted");
+        return measured(result("Completed", "highlight_temporary", true, "highlighted"));
       }
-      return result("Completed", "highlight_active", true, "highlighted");
-    case "SetValue": return setValue(element, parameters.value);
-    case "Select": return selectValue(element, parameters.value);
+      return measured(result("Completed", "highlight_active", true, "highlighted"));
+    case "SetValue": return measured(setValue(element, parameters.value));
+    case "Select": return measured(selectValue(element, parameters.value));
     case "SelectTab":
       element.click();
-      return waitForState(element, "selected", "true", timeout);
-    case "Inspect": return inspect(element);
+      return measured(waitForState(element, "selected", "true", timeout));
+    case "Inspect": return measured(inspect(element));
     case "WaitForState":
-      if (!parameters.stateName) return result("Failed", "state_name_required");
-      return waitForState(element, parameters.stateName, parameters.stateValue, timeout);
-    default: return result("Failed", "action_unsupported");
+      if (!parameters.stateName) return measured(result("Failed", "state_name_required"));
+      return measured(waitForState(element, parameters.stateName, parameters.stateValue, timeout));
+    default: return measured(result("Failed", "action_unsupported"));
   }
 }
 
@@ -280,4 +285,14 @@ function normalizePath(value) {
 
 function result(outcome, code, postconditionVerified = false, verifiedState = null) {
   return { outcome, code, postconditionVerified, verifiedState };
+}
+
+function withMeasurements(value, targetResolutionMilliseconds, actionStartedAt) {
+  return Promise.resolve(value).then(actionResult => ({
+    ...actionResult,
+    measurements: {
+      targetResolutionMilliseconds,
+      browserActionMilliseconds: Math.max(0, performance.now() - actionStartedAt),
+    },
+  }));
 }

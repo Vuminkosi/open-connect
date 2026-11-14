@@ -64,6 +64,8 @@ test('expires temporary highlights independently and explicit clear cancels thei
 
   expect(receipts.first).toMatchObject({ outcome: 'Completed', code: 'highlight_temporary' });
   expect(receipts.second).toMatchObject({ outcome: 'Completed', code: 'highlight_temporary' });
+  expect(receipts.first.measurements.targetResolutionMilliseconds).toEqual(expect.any(Number));
+  expect(receipts.first.measurements.browserActionMilliseconds).toEqual(expect.any(Number));
   await expect(page.locator('[data-target="one"]')).toHaveAttribute('data-openconnect-liveui-highlight', 'true');
   await expect(page.locator('[data-target="two"]')).toHaveAttribute('data-openconnect-liveui-highlight', 'true');
 

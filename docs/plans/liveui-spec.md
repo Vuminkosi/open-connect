@@ -84,7 +84,7 @@ Current evidence includes compiler-generated Todo manifest browser checks, brows
 
 The playback-fence unit tests passed 3/3 on .NET 8, 9, and 10, and the Blazor Todo sample Release build passed with warnings as errors. These checks cover stale playback epochs and current-response cleanup, not narration-range to target alignment.
 
-No latency or synchronization benchmark is claimed. A focused Playwright browser fixture loading the actual Blazor runtime source passed 2/2 highlight lifecycle checks: independent temporary expiry, explicit clear, and replacing a target's earlier timer. This fixture does not establish sample-host, provider, or speech synchronization acceptance. Future measurements should separately record manifest load, target resolution, action execution, confirmed-state latency, playback/highlight offset, and target-resolution failure rate using representative applications and browser conditions.
+No latency or synchronization benchmark is claimed. The SDK now emits metrics for manifest provider load, browser target resolution latency and failures, browser action duration, total action execution, and verified-state latency. Playback/highlight synchronization offset is not instrumented. A focused Playwright browser fixture loading the actual Blazor runtime source passed 2/2 highlight lifecycle checks: independent temporary expiry, explicit clear, and replacing a target's earlier timer. This fixture does not establish sample-host, provider, or speech synchronization acceptance. Benchmark results still require representative applications and browser conditions.
 
 ## Extension points
 

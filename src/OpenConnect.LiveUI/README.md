@@ -9,3 +9,16 @@ The host calls AddOpenConnectLiveUI and configures the supported modes and safe 
 LiveUIOrchestrator rejects invalid or stale manifests, unknown routes and targets, unsupported target capabilities, unauthorized actions, duplicate action IDs within a session, and actions without verified postconditions. LiveUIManifestHasher computes the content digest over stable, sorted manifest content.
 
 The core package has no browser, UI framework, model provider, or persistence dependency.
+
+## Runtime metrics
+
+The package publishes metrics through the `OpenConnect.LiveUI` meter. Duration instruments use milliseconds. Where tags are present, they contain only action type and outcome; metrics do not include session IDs, target IDs, UI labels, or user content.
+
+- `openconnect.liveui.manifest.load.duration`: current manifest provider retrieval.
+- `openconnect.liveui.target.resolution.duration`: browser resolver time for a target.
+- `openconnect.liveui.target.resolution.failures`: ambiguous or unresolved target count.
+- `openconnect.liveui.browser.action.duration`: browser action time after resolution.
+- `openconnect.liveui.action.execution.duration`: orchestrator action time through the runtime receipt.
+- `openconnect.liveui.confirmed.state.duration`: request-to-receipt time for verified `WaitForState` actions.
+
+Browser timing fields are accepted only when finite and within the runtime's 120-second maximum. Hosts can collect these instruments with `System.Diagnostics.Metrics` listeners or their OpenTelemetry meter provider. Playback/highlight synchronization offset is not currently measured.

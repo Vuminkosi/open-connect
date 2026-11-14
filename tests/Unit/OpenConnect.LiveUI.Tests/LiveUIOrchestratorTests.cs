@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Options;
 using OpenConnect.LiveUI;
 using Xunit;
@@ -37,7 +39,11 @@ public sealed class LiveUIOrchestratorTests
         [
             new LiveUIRoute("todo.home", "/", "Todo", [
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
-                    new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.Highlight })
+                    new HashSet<LiveUICapability>
+                    {
+                        LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.Highlight,
+                        LiveUICapability.WaitForState
+                    })
             ])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
@@ -53,7 +59,11 @@ public sealed class LiveUIOrchestratorTests
             {
                 Targets = [route.Targets[0] with
                 {
-                    Capabilities = new HashSet<LiveUICapability> { LiveUICapability.Highlight, LiveUICapability.Activate, LiveUICapability.Filter }
+                    Capabilities = new HashSet<LiveUICapability>
+                    {
+                        LiveUICapability.Highlight, LiveUICapability.Activate, LiveUICapability.Filter,
+                        LiveUICapability.WaitForState
+                    }
                 }]
             }]
         };
@@ -234,6 +244,43 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(LiveUIActionOutcome.Failed, receipt.Outcome);
         Assert.Equal("invalid_action", receipt.Code);
         Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EmitsLowCardinalityRuntimeMeasurements()
+    {
+        var observed = new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == "OpenConnect.LiveUI") meterListener.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<double>((instrument, _, _, _) =>
+            observed.AddOrUpdate(instrument.Name, 1, static (_, count) => count + 1));
+        listener.SetMeasurementEventCallback<long>((instrument, _, _, _) =>
+            observed.AddOrUpdate(instrument.Name, 1, static (_, count) => count + 1));
+        listener.Start();
+
+        var runtime = new RecordingRuntime(new LiveUIRuntimeResult(
+            LiveUIActionOutcome.MissingTarget, "target_missing", false,
+            Measurements: new LiveUIRuntimeMeasurements(12.5, 3.25)));
+        var orchestrator = Create(runtime: runtime);
+        var missingTarget = await orchestrator.ExecuteAsync(Action());
+        var confirmedStateAction = Action("action-002") with
+        {
+            Type = LiveUIActionType.WaitForState,
+            Parameters = new LiveUIActionParameters(StateName: "selected")
+        };
+        var confirmedState = await Create(runtime: new RecordingRuntime()).ExecuteAsync(confirmedStateAction);
+
+        Assert.Equal(LiveUIActionOutcome.MissingTarget, missingTarget.Outcome);
+        Assert.True(confirmedState.PostconditionVerified);
+        Assert.Contains("openconnect.liveui.manifest.load.duration", observed.Keys);
+        Assert.Contains("openconnect.liveui.target.resolution.duration", observed.Keys);
+        Assert.Contains("openconnect.liveui.target.resolution.failures", observed.Keys);
+        Assert.Contains("openconnect.liveui.browser.action.duration", observed.Keys);
+        Assert.Contains("openconnect.liveui.action.execution.duration", observed.Keys);
+        Assert.Contains("openconnect.liveui.confirmed.state.duration", observed.Keys);
     }
 
     [Fact]

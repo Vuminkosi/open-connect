@@ -62,7 +62,15 @@ public sealed record LiveUIActionReceipt(
 
 public sealed record LiveUIExecutionContext(LiveUIManifest Manifest, LiveUIRoute Route, LiveUITarget? Target, LiveUIAction Action);
 public sealed record LiveUIAuthorizationDecision(bool Allowed, string Code, bool UserConfirmed = false);
-public sealed record LiveUIRuntimeResult(LiveUIActionOutcome Outcome, string Code, bool PostconditionVerified, string? VerifiedState = null);
+public sealed record LiveUIRuntimeMeasurements(
+    double? TargetResolutionMilliseconds = null,
+    double? BrowserActionMilliseconds = null);
+public sealed record LiveUIRuntimeResult(
+    LiveUIActionOutcome Outcome,
+    string Code,
+    bool PostconditionVerified,
+    string? VerifiedState = null,
+    LiveUIRuntimeMeasurements? Measurements = null);
 
 public static class LiveUIManifestHasher
 {

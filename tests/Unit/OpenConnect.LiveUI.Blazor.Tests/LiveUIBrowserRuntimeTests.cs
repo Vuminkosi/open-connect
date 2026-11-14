@@ -57,11 +57,57 @@ public sealed class LiveUIBrowserRuntimeTests
         Assert.Null(javascript.ImportedModule);
     }
 
-    private static LiveUIManifest CreateManifest()
+    [Fact]
+    public async Task ExecuteAsync_returns_validated_browser_measurements()
+    {
+        var manifest = CreateManifest([
+            new LiveUITarget("target.list", LiveUITargetKind.Region, "Task list",
+                new HashSet<LiveUICapability> { LiveUICapability.Inspect }, Selector: "section")
+        ]);
+        var route = manifest.Routes.Single(item => item.Id == "home");
+        var target = Assert.Single(route.Targets);
+        var action = new LiveUIAction("action-3", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
+        var context = new LiveUIExecutionContext(manifest, route, target, action);
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/start");
+        var module = new TestJsModule("{}", """{"outcome":"Completed","code":"inspection_verified","postconditionVerified":true,"verifiedState":"control_visible","measurements":{"targetResolutionMilliseconds":12.5,"browserActionMilliseconds":3.25}}""");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(module), navigation,
+            Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(context);
+
+        Assert.Equal(12.5, result.Measurements?.TargetResolutionMilliseconds);
+        Assert.Equal(3.25, result.Measurements?.BrowserActionMilliseconds);
+        Assert.Equal("execute", module.LastIdentifier);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_discards_invalid_browser_measurements()
+    {
+        var manifest = CreateManifest([
+            new LiveUITarget("target.list", LiveUITargetKind.Region, "Task list",
+                new HashSet<LiveUICapability> { LiveUICapability.Inspect }, Selector: "section")
+        ]);
+        var route = manifest.Routes.Single(item => item.Id == "home");
+        var target = Assert.Single(route.Targets);
+        var action = new LiveUIAction("action-4", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
+        var context = new LiveUIExecutionContext(manifest, route, target, action);
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/start");
+        var module = new TestJsModule("{}", """{"outcome":"Completed","code":"inspection_verified","postconditionVerified":true,"verifiedState":"control_visible","measurements":{"targetResolutionMilliseconds":120001,"browserActionMilliseconds":-3}}""");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(module), navigation,
+            Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(context);
+
+        Assert.Null(result.Measurements);
+    }
+
+    private static LiveUIManifest CreateManifest(IReadOnlyList<LiveUITarget>? homeTargets = null)
     {
         var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build-001", string.Empty,
         [
-            new LiveUIRoute("home", "/start", "Start", []),
+            new LiveUIRoute("home", "/start", "Start", homeTargets ?? []),
             new LiveUIRoute("tasks", "/tasks", "Tasks", [])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
@@ -91,7 +137,7 @@ public sealed class LiveUIBrowserRuntimeTests
         }
     }
 
-    private sealed class TestJsModule(string routeResult) : IJSObjectReference
+    private sealed class TestJsModule(string routeResult, string actionResult = "{}") : IJSObjectReference
     {
         public string? LastIdentifier { get; private set; }
 
@@ -101,8 +147,13 @@ public sealed class LiveUIBrowserRuntimeTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             LastIdentifier = identifier;
-            if (identifier != "awaitRoute") throw new JSException("Unexpected module invocation.");
-            var value = JsonSerializer.Deserialize<TValue>(routeResult, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var response = identifier switch
+            {
+                "awaitRoute" => routeResult,
+                "execute" => actionResult,
+                _ => throw new JSException("Unexpected module invocation.")
+            };
+            var value = JsonSerializer.Deserialize<TValue>(response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
             return ValueTask.FromResult(value!);
         }
 

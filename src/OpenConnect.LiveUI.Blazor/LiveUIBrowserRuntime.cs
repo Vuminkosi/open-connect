@@ -39,7 +39,7 @@ public sealed class LiveUIBrowserRuntime(
             if (!Enum.TryParse<LiveUIActionOutcome>(result.Outcome, ignoreCase: true, out var outcome))
                 return Failed("runtime_result_invalid");
             return new LiveUIRuntimeResult(outcome, SafeCode(result.Code), result.PostconditionVerified,
-                result.VerifiedState is null ? null : SafeCode(result.VerifiedState));
+                result.VerifiedState is null ? null : SafeCode(result.VerifiedState), SafeMeasurements(result.Measurements));
         }
         catch (JSDisconnectedException)
         {
@@ -112,5 +112,25 @@ public sealed class LiveUIBrowserRuntime(
             ? value
             : "runtime_result_invalid";
 
-    private sealed record BrowserResult(string Outcome, string Code, bool PostconditionVerified, string? VerifiedState);
+    private static LiveUIRuntimeMeasurements? SafeMeasurements(BrowserMeasurements? measurements)
+    {
+        static double? SafeMilliseconds(double? value) =>
+            value is { } milliseconds && double.IsFinite(milliseconds) && milliseconds is >= 0 and <= 120_000
+                ? milliseconds
+                : null;
+
+        var targetResolution = SafeMilliseconds(measurements?.TargetResolutionMilliseconds);
+        var browserAction = SafeMilliseconds(measurements?.BrowserActionMilliseconds);
+        return targetResolution is null && browserAction is null
+            ? null
+            : new LiveUIRuntimeMeasurements(targetResolution, browserAction);
+    }
+
+    private sealed record BrowserMeasurements(double? TargetResolutionMilliseconds, double? BrowserActionMilliseconds);
+    private sealed record BrowserResult(
+        string Outcome,
+        string Code,
+        bool PostconditionVerified,
+        string? VerifiedState,
+        BrowserMeasurements? Measurements = null);
 }
