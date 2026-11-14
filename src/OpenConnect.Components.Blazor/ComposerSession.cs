@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Client;
 using OpenConnect.Components.Contracts;
 
@@ -80,6 +81,8 @@ public sealed class ComposerSession
 
     public ComposerNavigatorAction? PendingNavigatorAction { get; private set; }
 
+    public ClientInteractionRequest? PendingClientInteraction { get; private set; }
+
     public event Action? Changed;
 
     public void AttachSession(string sessionId)
@@ -102,6 +105,7 @@ public sealed class ComposerSession
             SpeechEpoch++;
             PlaybackEpoch++;
             PendingNavigatorAction = null;
+            PendingClientInteraction = null;
         }
 
         Notify();
@@ -409,6 +413,11 @@ public sealed class ComposerSession
             {
                 try { PendingNavigatorAction = JsonSerializer.Deserialize<ComposerNavigatorAction>(record.Data ?? "{}"); }
                 catch (JsonException) { PendingNavigatorAction = null; }
+            }
+            else if (type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal))
+            {
+                try { PendingClientInteraction = JsonSerializer.Deserialize<ClientInteractionRequest>(record.Data ?? "{}", OpenConnectHttpJson.CreateOptions()); }
+                catch (JsonException) { PendingClientInteraction = null; }
             }
             else if (type.EndsWith("delta", StringComparison.OrdinalIgnoreCase)
                 || type.Equals("message", StringComparison.OrdinalIgnoreCase))

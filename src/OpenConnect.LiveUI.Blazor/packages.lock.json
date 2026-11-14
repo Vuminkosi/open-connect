@@ -95,6 +95,25 @@
       "openconnect.abstractions": {
         "type": "Project"
       },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.blazor": {
+        "type": "Project",
+        "dependencies": {
+          "Markdig": "[1.6.0, )",
+          "MudBlazor": "[8.15.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Client": "[1.0.0, )",
+          "OpenConnect.Components.Contracts": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.contracts": {
+        "type": "Project"
+      },
       "openconnect.liveui": {
         "type": "Project"
       },
@@ -105,6 +124,12 @@
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )"
         }
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.6.0, )",
+        "resolved": "1.6.0",
+        "contentHash": "rJEpDfPM8wrfXUgkNejjg2bJN9bciy44uVyRwKUI+92CnSmbaLeJTLPYcCdvgM4RFsKrhs8d2H2hO78yZpMl3g=="
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
@@ -120,6 +145,12 @@
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0"
         }
+      },
+      "MudBlazor": {
+        "type": "CentralTransitive",
+        "requested": "[8.15.0, )",
+        "resolved": "8.15.0",
+        "contentHash": "iOJEnQ6tYGQPfPJaUazyC8H6pcczgaMX7vhUzrJPpB0WqEXNozwMfSzoOe2/JZmVWJcUfYZgKBeBU2Z27XY7Sw=="
       }
     },
     "net8.0": {
@@ -282,6 +313,25 @@
       "openconnect.abstractions": {
         "type": "Project"
       },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.blazor": {
+        "type": "Project",
+        "dependencies": {
+          "Markdig": "[1.6.0, )",
+          "MudBlazor": "[8.15.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Client": "[1.0.0, )",
+          "OpenConnect.Components.Contracts": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.contracts": {
+        "type": "Project"
+      },
       "openconnect.liveui": {
         "type": "Project"
       },
@@ -292,6 +342,12 @@
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )"
         }
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.6.0, )",
+        "resolved": "1.6.0",
+        "contentHash": "rJEpDfPM8wrfXUgkNejjg2bJN9bciy44uVyRwKUI+92CnSmbaLeJTLPYcCdvgM4RFsKrhs8d2H2hO78yZpMl3g=="
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
@@ -319,6 +375,12 @@
         "requested": "[8.0.2, )",
         "resolved": "10.0.12",
         "contentHash": "9/qymSh7hVDMGTGwrLz8MRp5zRyXy9adGDOs4HwRdnLil3oZGYuWeZjbmHgCQ9BL1qBroVfgUK3U/nb61617Cw=="
+      },
+      "MudBlazor": {
+        "type": "CentralTransitive",
+        "requested": "[8.15.0, )",
+        "resolved": "8.15.0",
+        "contentHash": "iOJEnQ6tYGQPfPJaUazyC8H6pcczgaMX7vhUzrJPpB0WqEXNozwMfSzoOe2/JZmVWJcUfYZgKBeBU2Z27XY7Sw=="
       }
     },
     "net9.0": {
@@ -481,6 +543,25 @@
       "openconnect.abstractions": {
         "type": "Project"
       },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.blazor": {
+        "type": "Project",
+        "dependencies": {
+          "Markdig": "[1.6.0, )",
+          "MudBlazor": "[8.15.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.Client": "[1.0.0, )",
+          "OpenConnect.Components.Contracts": "[1.0.0, )"
+        }
+      },
+      "openconnect.components.contracts": {
+        "type": "Project"
+      },
       "openconnect.liveui": {
         "type": "Project"
       },
@@ -491,6 +572,12 @@
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )"
         }
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.6.0, )",
+        "resolved": "1.6.0",
+        "contentHash": "rJEpDfPM8wrfXUgkNejjg2bJN9bciy44uVyRwKUI+92CnSmbaLeJTLPYcCdvgM4RFsKrhs8d2H2hO78yZpMl3g=="
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
@@ -518,6 +605,12 @@
         "requested": "[9.0.22, )",
         "resolved": "10.0.12",
         "contentHash": "9/qymSh7hVDMGTGwrLz8MRp5zRyXy9adGDOs4HwRdnLil3oZGYuWeZjbmHgCQ9BL1qBroVfgUK3U/nb61617Cw=="
+      },
+      "MudBlazor": {
+        "type": "CentralTransitive",
+        "requested": "[8.15.0, )",
+        "resolved": "8.15.0",
+        "contentHash": "iOJEnQ6tYGQPfPJaUazyC8H6pcczgaMX7vhUzrJPpB0WqEXNozwMfSzoOe2/JZmVWJcUfYZgKBeBU2Z27XY7Sw=="
       }
     }
   }

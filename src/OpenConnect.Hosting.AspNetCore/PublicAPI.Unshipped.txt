@@ -148,6 +148,7 @@ OpenConnect.Hosting.AspNetCore.InMemorySessionStore.Get(OpenConnect.Abstractions
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.GetEvents(OpenConnect.Abstractions.Ulid id, long afterSequence) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.InMemorySessionStore() -> void
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.InMemorySessionStore(OpenConnect.Hosting.AspNetCore.InMemoryEventJournal! journal) -> void
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.RequestAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionRequest! request, string! expectedResultKind, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.ClientInteractionResponse?>!
 OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver
 OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.InMemorySessionUuidResolver() -> void
 OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.Register(System.Guid sessionUuid, OpenConnect.Abstractions.Ulid sessionUlid) -> void

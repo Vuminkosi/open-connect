@@ -1095,6 +1095,8 @@
       "openconnect.liveui.blazor": {
         "type": "Project",
         "dependencies": {
+          "OpenConnect.Client": "[1.0.0, )",
+          "OpenConnect.Components.Blazor": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )",
           "OpenConnect.LiveUI.Agents": "[1.0.0, )"
         }
@@ -1191,6 +1193,7 @@
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )",
           "OpenConnect.Navigator": "[1.0.0, )",
           "OpenConnect.Navigator.AspNetCore": "[1.0.0, )",
           "OpenConnect.Navigator.Operational": "[1.0.0, )",

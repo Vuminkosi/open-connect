@@ -7,6 +7,9 @@ public interface IOpenConnectClient
     Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
     Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException("Session creation is not supported by this client implementation.");
     Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default);
+    /// <summary>Posts a connected-client response for a correlated LiveUI request.</summary>
+    Task PostClientInteractionResponseAsync(SessionId sessionId, ClientInteractionResponse response, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Client interaction responses are not supported by this client implementation.");
     Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default);
     Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException("Speech synthesis is not supported by this client implementation.");
     /// <summary>

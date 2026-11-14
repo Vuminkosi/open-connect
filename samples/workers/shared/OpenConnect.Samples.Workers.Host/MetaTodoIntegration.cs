@@ -9,6 +9,7 @@ using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.LiveUI.Agents;
 
 namespace OpenConnect.Samples.Workers.Host;
 
@@ -107,7 +108,8 @@ public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
     }
 }
 
-public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, InMemorySessionStore sessions, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
+public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, InMemorySessionStore sessions,
+    IClientInteractionBroker interactionBroker, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
 {
     private readonly MetaCloudOptions _options = options.Value;
 
@@ -118,6 +120,10 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             var tools = new List<AITool>();
             var coreRequest = RequiresTodoTools(task.Message);
             var navigatorRequest = RequiresNavigatorTools(task.Message);
+            if (RequiresLiveUI(task.Message) || navigatorRequest)
+            {
+                tools.AddRange(LiveUIClientAgentToolFactory.CreateTools(interactionBroker, task.SessionId));
+            }
             if (navigatorRequest)
             {
                 tools.Add(AIFunctionFactory.Create((string route, CancellationToken ct) => EmitNavigatorActionAsync("navigate", route, null, task, ct), "navigator.navigate", "Navigate to an internal application route."));
@@ -143,7 +149,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 task.Message,
                 tools,
                 cancellationToken,
-                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant navigator action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. The Todo sample targets are todo-progress for the summary cards, todo-list for the Todo list, and todo-editor for creating or editing a Todo. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
+                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. For UI navigation, filtering, search, highlighting, or explanation requests, call liveui_get_current_page first and use only its returned target IDs and capabilities. Invoke liveui_execute for each UI action and wait for its verified receipt before dependent actions or claims. To filter Todos, use the existing Completed, Active, or All tabs and the existing search input; do not change Todo data. Highlight the Todo list when relevant. Explain only state verified by tool receipts. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
             if (coreRequest && RequiresCompletionAcknowledgement(task.Message))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", CompletionAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
@@ -174,6 +180,13 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
     {
         var value = message.ToLowerInvariant();
         return value.Contains("navigate") || value.Contains("go to") || value.Contains("take me") || value.Contains("highlight") || value.Contains("focus") || value.Contains("scroll") || value.Contains("show me where") || value.Contains("tour") || value.Contains("walk me through") || value.Contains("walk me around") || value.Contains("show me around") || value.Contains("introduce me") || value.Contains("guide me");
+    }
+
+    private static bool RequiresLiveUI(string message)
+    {
+        var value = message.ToLowerInvariant();
+        string[] terms = ["completed tasks", "active tasks", "show all tasks", "filter", "search", "find tasks", "highlight", "explain what", "what am i looking at", "todo list", "task list"];
+        return terms.Any(value.Contains);
     }
 
     private static string InitialAcknowledgement(string message)

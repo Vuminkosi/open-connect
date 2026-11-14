@@ -10,6 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
+    <ProjectReference Include="../OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../OpenConnect.LiveUI/OpenConnect.LiveUI.csproj" />
     <ProjectReference Include="../OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
   </ItemGroup>

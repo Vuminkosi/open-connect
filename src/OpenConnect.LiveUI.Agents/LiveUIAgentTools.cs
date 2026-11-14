@@ -32,7 +32,7 @@ public sealed class LiveUIAgentTools(
                 .ConfigureAwait(false)) return null;
 
         var targets = new List<LiveUIAgentTarget>();
-        foreach (var target in route.Targets.Where(target => target.Capabilities.Contains(LiveUICapability.Inspect)))
+        foreach (var target in route.Targets.Where(target => target.Capabilities.Count > 0))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var authorizedCapabilities = new HashSet<LiveUICapability>();
@@ -48,7 +48,7 @@ public sealed class LiveUIAgentTools(
                 if (allowed) authorizedCapabilities.UnionWith(group.Select(item => item.Capability));
             }
 
-            if (authorizedCapabilities.Contains(LiveUICapability.Inspect))
+            if (authorizedCapabilities.Count > 0)
                 targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation));
         }
 

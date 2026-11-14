@@ -75,6 +75,7 @@ else
     });
 }
 builder.Services.AddOpenConnectComponents();
+builder.Services.AddScoped<ILiveUIActionAuthorizer, TodoLiveUIActionAuthorizer>();
 builder.Services.AddOpenConnectLiveUIBlazor(options =>
 {
     options.Discovery.EnableRuntimeFallback = true;

@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
   </ItemGroup>
 </Project>

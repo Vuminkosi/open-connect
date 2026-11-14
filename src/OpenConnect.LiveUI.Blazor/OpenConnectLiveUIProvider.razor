@@ -1,20 +1,110 @@
 @namespace OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
+@using OpenConnect.LiveUI.Agents
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Client
+@using OpenConnect.Abstractions
+@using System.Text.Json
 @inject LiveUIManifestState ManifestState
+@inject IServiceProvider Services
+@implements IDisposable
 
 @ChildContent
 
 @code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     [Parameter]
     public LiveUIManifest? Manifest { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    [CascadingParameter]
+    private ComposerSession? ComposerSession { get; set; }
+
+    private ComposerSession? _boundSession;
+    private LiveUIAgentTools? _agentTools;
+    private string? _lastRequestId;
+
     protected override void OnParametersSet()
     {
+        if (!ReferenceEquals(_boundSession, ComposerSession))
+        {
+            if (_boundSession is not null) _boundSession.Changed -= OnComposerSessionChanged;
+            _boundSession = ComposerSession;
+            if (_boundSession is not null) _boundSession.Changed += OnComposerSessionChanged;
+        }
+
         var manifest = Manifest ?? LiveUICompiledManifestLoader.LoadFromEntryAssembly()
             ?? throw new InvalidOperationException("No embedded LiveUI manifest was found. Enable the LiveUI Razor compiler for this application.");
         ManifestState.SetManifest(manifest);
+    }
+
+    private void OnComposerSessionChanged()
+    {
+        var request = _boundSession?.PendingClientInteraction;
+        if (request is null || request.CorrelationId == _lastRequestId ||
+            Services.GetService(typeof(IOpenConnectClient)) is not IOpenConnectClient client)
+            return;
+
+        _lastRequestId = request.CorrelationId;
+        _ = InvokeAsync(() => ProcessClientInteractionAsync(request, client));
+    }
+
+    private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client)
+    {
+        var sessionText = _boundSession?.SessionId;
+        if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(sessionText))
+            return;
+        Ulid sessionId;
+        try { sessionId = Ulid.Parse(sessionText); }
+        catch (FormatException) { return; }
+
+        var responseKind = "action";
+        string payloadJson;
+        try
+        {
+            _agentTools ??= Services.GetService(typeof(LiveUIAgentTools)) as LiveUIAgentTools;
+            if (_agentTools is null) throw new InvalidOperationException("LiveUI agent tools are unavailable.");
+
+            if (request.Operation == "get_current_page")
+            {
+                responseKind = "page";
+                var page = await _agentTools.GetCurrentPageAsync();
+                payloadJson = page is null ? "{\"error\":\"page_unavailable\"}" : JsonSerializer.Serialize(page, JsonOptions);
+            }
+            else if (request.Operation == "execute" &&
+                     request.TargetId is { Length: > 0 and <= 256 } &&
+                     request.Value is not { Length: > 2_000 } &&
+                     request.Action is { Length: > 0 and <= 32 })
+            {
+                var receipt = await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value);
+                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+            }
+            else
+            {
+                throw new JsonException("The interaction request is invalid.");
+            }
+        }
+        catch (Exception)
+        {
+            payloadJson = JsonSerializer.Serialize(new { code = "client_interaction_failed" }, JsonOptions);
+        }
+
+        try
+        {
+            await client.PostClientInteractionResponseAsync(
+                new SessionId(sessionId), new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson));
+        }
+        catch (Exception)
+        {
+            // The gateway times out the correlated agent tool when the client cannot acknowledge it.
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_boundSession is not null) _boundSession.Changed -= OnComposerSessionChanged;
     }
 }

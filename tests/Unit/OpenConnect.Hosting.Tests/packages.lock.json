@@ -438,6 +438,21 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.liveui": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )"
+        }
+      },
+      "openconnect.liveui.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Agents.AI": "[1.27.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
       "openconnect.privacy": {
         "type": "Project",
         "dependencies": {
@@ -1035,6 +1050,21 @@
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.liveui": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[8.0.2, )",
+          "Microsoft.Extensions.Options": "[8.0.2, )"
+        }
+      },
+      "openconnect.liveui.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Agents.AI": "[1.27.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
         }
       },
       "openconnect.privacy": {
@@ -1644,6 +1674,21 @@
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.liveui": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[9.0.22, )",
+          "Microsoft.Extensions.Options": "[9.0.22, )"
+        }
+      },
+      "openconnect.liveui.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Agents.AI": "[1.27.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
         }
       },
       "openconnect.privacy": {

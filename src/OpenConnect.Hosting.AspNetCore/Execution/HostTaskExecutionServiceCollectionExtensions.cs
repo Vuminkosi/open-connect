@@ -24,6 +24,7 @@ public static class HostTaskExecutionServiceCollectionExtensions
         services.AddSingleton<InMemoryTaskStore>();
         services.AddSingleton<ITaskLifecycleStore>(provider => provider.GetRequiredService<InMemoryTaskStore>());
         services.AddSingleton<InMemorySessionStore>();
+        services.TryAddSingleton<IClientInteractionBroker>(provider => provider.GetRequiredService<InMemorySessionStore>());
         services.AddSingleton<ExecutionQueue>();
         services.AddSingleton<ExecutionRuntimeState>();
         services.AddSingleton<DurableToolExecutionTracker>();

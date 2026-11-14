@@ -25,6 +25,7 @@ namespace OpenConnect.Hosting.AspNetCore;
 public static class EndpointRouteBuilderExtensions
 {
     private static readonly ConditionalWeakTable<IEndpointRouteBuilder, HashSet<string>> MappedEndpointGroups = new();
+    private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
 
     private static bool TryMarkMapped(IEndpointRouteBuilder endpoints, string groupName)
     {
@@ -61,6 +62,7 @@ public static class EndpointRouteBuilderExtensions
             group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
             group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
             group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
+            group.MapPost("/sessions/{id}/liveui/responses", HandlePostClientInteractionResponseAsync).RequireAuthorization();
             group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
             group.MapPost("/speech/synthesize", HandleSpeechSynthesisAsync).RequireAuthorization();
             group.MapGet("/components", HandleComponents).RequireAuthorization();
@@ -323,6 +325,72 @@ public static class EndpointRouteBuilderExtensions
         var session = store.Get(value);
         return session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal
             ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
+    }
+
+    internal static async Task<IResult> HandlePostClientInteractionResponseAsync(
+        string id,
+        ClientInteractionResponse response,
+        HttpContext context,
+        InMemorySessionStore store,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UlidTryParse(id, out var value) ||
+            !Guid.TryParseExact(response.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+            response.ResultKind is not ("page" or "action") ||
+            string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid.");
+        try
+        {
+            using var payload = JsonDocument.Parse(response.PayloadJson);
+            if (payload.RootElement.ValueKind != JsonValueKind.Object)
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+        }
+        catch (JsonException)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+        }
+        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        var session = store.Get(value);
+        if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
+
+        var sessionEvents = store.GetEvents(value, 0);
+        var hasMatchingRequest = sessionEvents.Any(item =>
+        {
+            if (!item.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal)) return false;
+            try
+            {
+                var pending = JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, JsonOptions);
+                var expectedKind = pending?.Operation switch
+                {
+                    "get_current_page" => "page",
+                    "execute" => "action",
+                    _ => null
+                };
+                return pending?.CorrelationId == response.CorrelationId && expectedKind == response.ResultKind;
+            }
+            catch (JsonException) { return false; }
+        });
+        if (!hasMatchingRequest)
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "No matching client interaction request exists.");
+
+        var eventData = JsonSerializer.Serialize(response, JsonOptions);
+        foreach (var existing in sessionEvents.Where(item =>
+                     item.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)))
+        {
+            try
+            {
+                var prior = JsonSerializer.Deserialize<ClientInteractionResponse>(existing.Data, JsonOptions);
+                if (prior?.CorrelationId != response.CorrelationId) continue;
+                return prior == response
+                    ? Results.Ok(new { response.CorrelationId, accepted = true })
+                    : Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "A different response already exists for this interaction.");
+            }
+            catch (JsonException) { }
+        }
+
+        await store.AppendEventAsync(value, ClientInteractionEventTypes.Response, eventData, cancellationToken).ConfigureAwait(false);
+        return Results.Ok(new { response.CorrelationId, accepted = true });
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
@@ -604,9 +672,10 @@ public sealed class InMemoryTaskStore : ITaskLifecycleStore
 }
 
 /// <summary>Process-local session and bounded event store.</summary>
-public sealed class InMemorySessionStore
+public sealed class InMemorySessionStore : IClientInteractionBroker
 {
     private const int EventLimit = 1000;
+    private static readonly JsonSerializerOptions InteractionJsonOptions = OpenConnectHttpJson.CreateOptions();
     private readonly ConcurrentDictionary<Ulid, SessionRecord> _sessions = new();
     private readonly InMemoryEventJournal _journal;
 
@@ -634,5 +703,48 @@ public sealed class InMemorySessionStore
     {
         if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
         return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data), cancellationToken);
+    }
+
+    public async Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+        string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (sessionId.Value == default || !_sessions.ContainsKey(sessionId.Value) ||
+            !Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+            expectedResultKind is not ("page" or "action") ||
+            (request.Operation, expectedResultKind) is not (("get_current_page", "page") or ("execute", "action")) ||
+            timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
+            throw new ArgumentException("The client interaction request is invalid.", nameof(request));
+
+        var requestSequence = await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, InteractionJsonOptions), cancellationToken).ConfigureAwait(false);
+        using var responseTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        responseTimeout.CancelAfter(timeout);
+        var cursor = requestSequence;
+        var delay = TimeSpan.FromMilliseconds(40);
+
+        try
+        {
+            while (true)
+            {
+                foreach (var record in GetEvents(sessionId.Value, cursor))
+                {
+                    cursor = Math.Max(cursor, record.Sequence);
+                    if (!record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)) continue;
+                    ClientInteractionResponse? response;
+                    try { response = JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                    catch (JsonException) { continue; }
+                    if (response?.CorrelationId == request.CorrelationId && response.ResultKind == expectedResultKind)
+                        return response;
+                }
+
+                await Task.Delay(delay, responseTimeout.Token).ConfigureAwait(false);
+                delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, 500));
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
     }
 }

@@ -66,6 +66,94 @@ public sealed class GatewayRouteTests
     }
 
     [Fact]
+    public async Task Client_interaction_response_is_tenant_scoped_and_idempotent()
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "action",
+            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}");
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionRequest(response.CorrelationId, "execute", "todo-list", "Highlight")));
+
+        var first = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, Context(app), store), app.Services);
+        var duplicate = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, Context(app), store), app.Services);
+
+        Assert.Equal(200, first.StatusCode);
+        Assert.Equal(200, duplicate.StatusCode);
+        var stored = Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+        Assert.Equal(ClientInteractionEventTypes.Response, stored.Type);
+        Assert.Contains(response.CorrelationId, stored.Data);
+
+        var foreign = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response with { CorrelationId = Guid.NewGuid().ToString("D") },
+            Context(app, "01ARZ3NDEKTSV4RRFFQ69G5FAX"), store), app.Services);
+        Assert.Equal(404, foreign.StatusCode);
+        Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_rejects_malformed_payload()
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+
+        var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "[]"),
+            Context(app), store), app.Services);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Empty(store.GetEvents(session.Id.Value, 0));
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_requires_a_matching_pending_request()
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+
+        var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "{}"),
+            Context(app), store), app.Services);
+
+        Assert.Equal(409, result.StatusCode);
+        Assert.Empty(store.GetEvents(session.Id.Value, 0));
+    }
+
+    [Fact]
+    public async Task Client_interaction_broker_waits_for_matching_correlation_and_result_kind()
+    {
+        await using var host = await CreateAppAsync();
+        var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
+        Assert.Same(store, host.App.Services.GetRequiredService<IClientInteractionBroker>());
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo-list", "Highlight");
+        var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(2));
+
+        await WaitForRequestAsync(store, session.Id.Value);
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "action", "{}")));
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionResponse(request.CorrelationId, "page", "{}")));
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionResponse(request.CorrelationId, "action", "{\"outcome\":\"Completed\"}")));
+
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.NotNull(result);
+        Assert.Equal(request.CorrelationId, result.CorrelationId);
+        Assert.Equal("action", result.ResultKind);
+        Assert.Contains("Completed", result.PayloadJson);
+    }
+
+    [Fact]
     public async Task Components_returns_registered_agent_descriptors()
     {
         var registry = new AgentDefinitionRegistry();
@@ -215,6 +303,16 @@ public sealed class GatewayRouteTests
         var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, new TaskRequest(Guid.NewGuid().ToString("N")), app.Services.GetRequiredService<InMemoryTaskStore>(), CancellationToken.None), app.Services);
         AssertNo501(result);
         return result.Location.Split('/').Last();
+    }
+
+    private static async Task WaitForRequestAsync(InMemorySessionStore store, Ulid sessionId)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            if (store.GetEvents(sessionId, 0).Any(item => item.Type == ClientInteractionEventTypes.Request)) return;
+            await Task.Delay(10);
+        }
+        throw new TimeoutException("The broker did not append its client interaction request.");
     }
 
     private static async Task<Response> ExecuteAsync(IResult result, IServiceProvider? services = null)

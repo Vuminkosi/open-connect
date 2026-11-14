@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.AspNetCore\OpenConnect.Navigator.AspNetCore.csproj" />
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.Operational\OpenConnect.Navigator.Operational.csproj" />
     <ProjectReference Include="..\..\..\..\src\OpenConnect.Navigator.OperationalBrowser\OpenConnect.Navigator.OperationalBrowser.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.LiveUI.Agents\OpenConnect.LiveUI.Agents.csproj" />
     <ProjectReference Include="..\OpenConnect.Samples.Workers.Contracts\OpenConnect.Samples.Workers.Contracts.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>

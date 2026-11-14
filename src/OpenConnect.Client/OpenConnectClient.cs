@@ -42,6 +42,23 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
     }
 
     public Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default) => SendAsync<SessionRecord>(HttpMethod.Get, $"sessions/{sessionId.Value}", cancellationToken);
+    public async Task PostClientInteractionResponseAsync(SessionId sessionId, ClientInteractionResponse response, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        if (string.IsNullOrWhiteSpace(response.CorrelationId) || response.CorrelationId.Length > 64)
+            throw new ArgumentException("A bounded interaction correlation ID is required.", nameof(response));
+        if (response.ResultKind is not ("page" or "action"))
+            throw new ArgumentException("The interaction result kind is unsupported.", nameof(response));
+        if (string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
+            throw new ArgumentException("The interaction result payload must contain 1 to 65536 characters.", nameof(response));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"sessions/{sessionId.Value}/liveui/responses")
+        {
+            Content = JsonContent.Create(response, options: JsonOptions)
+        };
+        using var httpResponse = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(httpResponse, cancellationToken).ConfigureAwait(false);
+    }
     public async Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities", cancellationToken).ConfigureAwait(false);
     public async Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
     {

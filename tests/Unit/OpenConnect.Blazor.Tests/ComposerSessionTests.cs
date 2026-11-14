@@ -111,6 +111,21 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void LiveUI_request_event_is_retained_for_the_blazor_client_bridge()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab");
+
+        Assert.True(session.ApplyEvent(Event(1, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(request))));
+
+        Assert.Equal(request, session.PendingClientInteraction);
+        Assert.Empty(session.Messages);
+        Assert.Equal(string.Empty, session.StreamingText);
+    }
+
+    [Fact]
     public void Valid_proposal_is_kept_and_invalid_name_is_dropped()
     {
         var session = new ComposerSession();

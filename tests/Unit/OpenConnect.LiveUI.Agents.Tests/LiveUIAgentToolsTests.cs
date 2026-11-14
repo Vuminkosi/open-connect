@@ -46,7 +46,7 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
-    public async Task Current_page_contains_only_targets_authorized_for_inspection()
+    public async Task Current_page_contains_only_targets_with_authorized_capabilities()
     {
         var authorizer = new RecordingAuthorizer((_, context) =>
             context.Target?.Id != "todo.secret" && context.Action.Type != LiveUIActionType.SetValue);
@@ -56,11 +56,84 @@ public sealed class LiveUIAgentToolsTests
 
         Assert.NotNull(page);
         Assert.Equal("todo.home", page.RouteId);
-        Assert.Single(page.Targets);
-        Assert.Equal("todo.search", page.Targets[0].TargetId);
-        Assert.Contains(LiveUICapability.Highlight, page.Targets[0].Capabilities);
-        Assert.DoesNotContain(LiveUICapability.SetValue, page.Targets[0].Capabilities);
+        Assert.Equal(2, page.Targets.Count);
+        var search = Assert.Single(page.Targets, target => target.TargetId == "todo.search");
+        Assert.Contains(LiveUICapability.Highlight, search.Capabilities);
+        Assert.DoesNotContain(LiveUICapability.SetValue, search.Capabilities);
+        var tab = Assert.Single(page.Targets, target => target.TargetId == "todo.completed");
+        Assert.Contains(LiveUICapability.Activate, tab.Capabilities);
         Assert.DoesNotContain(authorizer.Contexts, item => item.Action.SessionId != "trusted-session");
+    }
+
+    [Fact]
+    public async Task Client_tool_factory_uses_host_session_and_returns_structured_client_receipts()
+    {
+        var broker = new RecordingInteractionBroker((session, request, resultKind) =>
+        {
+            Assert.Equal("01ARZ3NDEKTSV4RRFFQ69G5FAV", session.Value.ToString());
+            var payload = request.Operation == "get_current_page"
+                ? "{\"routeId\":\"todo.home\"}"
+                : "{\"outcome\":\"Completed\",\"postconditionVerified\":true}";
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind, payload));
+        });
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+
+        var pageFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_get_current_page"));
+        var page = Assert.IsType<System.Text.Json.JsonElement>(await pageFunction.InvokeAsync(new AIFunctionArguments()));
+        Assert.Equal("todo.home", page.GetProperty("routeId").GetString());
+
+        var executeFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        var receipt = Assert.IsType<System.Text.Json.JsonElement>(await executeFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
+        Assert.Equal("Completed", receipt.GetProperty("outcome").GetString());
+
+        var request = Assert.Single(broker.Requests, item => item.Operation == "execute");
+        Assert.Equal("todo.completed", request.TargetId);
+        Assert.Equal("SelectTab", request.Action);
+        Assert.All(broker.Requests, item => Assert.True(Guid.TryParseExact(item.CorrelationId, "D", out _)));
+    }
+
+    [Fact]
+    public async Task Client_tool_factory_rejects_untrusted_response_correlation()
+    {
+        var broker = new RecordingInteractionBroker((_, _, _) => Task.FromResult<ClientInteractionResponse?>(
+            new(Guid.NewGuid().ToString("D"), "page", "{}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var pageFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_get_current_page"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await pageFunction.InvokeAsync(new AIFunctionArguments()));
+
+        Assert.Equal("client_response_mismatch", result.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task MafRealAgentFactory_waits_for_the_connected_client_tool_receipt()
+    {
+        var broker = new RecordingInteractionBroker((session, request, resultKind) =>
+        {
+            Assert.Equal("01ARZ3NDEKTSV4RRFFQ69G5FAV", session.Value.ToString());
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind,
+                "{\"outcome\":\"Completed\",\"postconditionVerified\":true}"));
+        });
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var directFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        _ = await directFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" }));
+        broker.Requests.Clear();
+        var agentId = new AgentId("liveui-client-assistant");
+        var client = new ClientBridgeToolCallChatClient();
+        var factory = new MafRealAgentFactory(new TestAgentRegistry(new AgentDefinition(agentId, "LiveUI")), client);
+
+        var response = await factory.RunAsync(agentId, "show completed tasks", tools, CancellationToken.None);
+
+        Assert.Equal(2, client.Calls);
+        Assert.Contains("Completed", response.Text, StringComparison.Ordinal);
+        var request = Assert.Single(broker.Requests);
+        Assert.Equal("todo.completed", request.TargetId);
+        Assert.Equal("SelectTab", request.Action);
     }
 
     [Fact]
@@ -135,6 +208,8 @@ public sealed class LiveUIAgentToolsTests
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.SetValue, LiveUICapability.Highlight }),
                 new LiveUITarget("todo.secret", LiveUITargetKind.Input, "Private notes",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.SetValue }),
+                new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
+                    new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter }),
             ]),
             new LiveUIRoute("todo.settings", "/settings", "Settings", [])
         ]);
@@ -161,6 +236,20 @@ public sealed class LiveUIAgentToolsTests
             Contexts.Add(context);
             var allowed = allow?.Invoke(this, context) ?? true;
             return ValueTask.FromResult(new LiveUIAuthorizationDecision(allowed, allowed ? "allowed" : "denied"));
+        }
+    }
+
+    private sealed class RecordingInteractionBroker(
+        Func<SessionId, ClientInteractionRequest, string, Task<ClientInteractionResponse?>> respond) : IClientInteractionBroker
+    {
+        public List<ClientInteractionRequest> Requests { get; } = [];
+
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(request);
+            return respond(sessionId, request, expectedResultKind);
         }
     }
 
@@ -210,6 +299,40 @@ public sealed class LiveUIAgentToolsTests
 
             var result = messages.SelectMany(message => message.Contents).OfType<FunctionResultContent>().LastOrDefault();
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, result?.Result?.ToString() ?? "no tool receipt")));
+        }
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var response = await GetResponseAsync(messages, options, cancellationToken);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+
+    private sealed class ClientBridgeToolCallChatClient : IChatClient
+    {
+        public int Calls { get; private set; }
+        public ChatClientMetadata Metadata { get; } = new("liveui-client-bridge-test");
+
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Calls++;
+            if (Calls == 1)
+            {
+                var function = Assert.IsAssignableFrom<AIFunction>(options!.Tools!.Single(tool => tool.Name == "liveui_execute"));
+                var call = new FunctionCallContent("liveui-client-call", function.Name,
+                    new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" });
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, [call])));
+            }
+
+            var result = messages.SelectMany(message => message.Contents).OfType<FunctionResultContent>().LastOrDefault();
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant,
+                result?.Result?.ToString() ?? "missing client receipt")));
         }
 
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
