@@ -93,7 +93,7 @@ test('waits for the compiled task list to reflect the existing search control', 
   const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
   expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
 
-  const receipt = await waitForTargetState(page, 'Task list', 'textContains', 'report');
+  const receipt = await waitForTargetState(page, 'todo-list', 'textContains', 'report');
 
   expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
   await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
@@ -109,6 +109,25 @@ test('verifies the stable Todo region after filtering to the rendered empty stat
   expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
   await expect(page.getByText('No tasks to display', { exact: true })).toBeVisible();
   await expect(page.getByText('Review the quarterly report', { exact: true })).toHaveCount(0);
+});
+
+test('keeps Todo filtering available when composer voice output is disabled', async ({ page }) => {
+  test.setTimeout(30000);
+  await page.locator('.oc-anchored-fab').click();
+  await expect(page.locator('section.oc-bubble')).toBeVisible();
+  await page.locator('.oc-bubble__header-actions button').first().click();
+  const voiceOutput = page.getByText('Voice output', { exact: true });
+  await expect(voiceOutput).toBeVisible();
+  await voiceOutput.click();
+  await expect(page.locator('.oc-bubble__live-speak')).not.toHaveClass(/--active/);
+
+  const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
+  expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  const receipt = await waitForTargetState(page, 'todo-list', 'textContains', 'report');
+
+  expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
+  await expect(page.getByText('Prepare a launch checklist', { exact: true })).toHaveCount(0);
 });
 
 test('combines the existing Completed tab and search controls while retaining filtered state', async ({ page }) => {
