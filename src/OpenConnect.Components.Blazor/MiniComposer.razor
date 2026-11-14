@@ -59,12 +59,37 @@
                 <span class="oc-bubble-subtitle" style="display: none;">@StatusText</span>
 
                 <span class="oc-bubble__header-actions">
-                    <MudIconButton Icon="@Icons.Material.Filled.Settings"
-                                   Size="Size.Small"
-                                   Color="Color.Default"
-                                   OnClick="@(() => _showSettings = !_showSettings)"
-                                   aria-label="Composer settings"
-                                   title="Settings" />
+                    <MudMenu Icon="@Icons.Material.Filled.Settings"
+                             Size="Size.Small"
+                             Color="Color.Default"
+                             Dense="true"
+                             AnchorOrigin="Origin.BottomRight"
+                             TransformOrigin="Origin.TopRight"
+                             aria-label="Composer settings"
+                             title="Settings">
+                        <MudPaper Elevation="0" Class="pa-3 oc-settings-menu" Style="min-width: 240px;">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Composer settings</MudText>
+                            <MudDivider Class="mb-2" />
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Voice</MudText>
+                            <MudSwitch T="bool"
+                                       Value="_speechOn"
+                                       ValueChanged="OnSpeechSwitchChanged"
+                                       Color="Color.Primary"
+                                       Label="Voice output" />
+                            <MudSwitch T="bool"
+                                       Value="_micOn"
+                                       ValueChanged="OnMicrophoneSwitchChanged"
+                                       Color="Color.Primary"
+                                       Label="Microphone" />
+
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Session</MudText>
+                            <MudText Typo="Typo.body2">Placement: @Placement</MudText>
+                            <MudText Typo="Typo.body2">On close: @CloseBehavior</MudText>
+                            <MudText Typo="Typo.body2" Class="text-truncate">Session: @(Session?.SessionId ?? "None")</MudText>
+                        </MudPaper>
+                    </MudMenu>
                     <MudIconButton Icon="@Icons.Material.Filled.StopCircle"
                                    Size="Size.Small"
                                    Color="Color.Error"
@@ -231,15 +256,6 @@
                 </div>
             </div>
 
-            @if (_showSettings)
-            {
-                <div class="oc-bubble-settings">
-                    <p class="oc-settings-row"><span>Placement</span><span>@Placement</span></p>
-                    <p class="oc-settings-row"><span>On close</span><span>@CloseBehavior</span></p>
-                    <p class="oc-settings-row"><span>Input limit</span><span>@MaxInputLength characters</span></p>
-                    <p class="oc-settings-row"><span>Session</span><span>@(Session?.SessionId ?? "None")</span></p>
-                </div>
-            }
         </section>
     }
 </div>

@@ -24,7 +24,6 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private bool _open;
     private bool _openedOnce;
-    private bool _showSettings;
     private bool _micOn = false;
     private bool _speechOn = true;
     private bool _sending;
@@ -376,6 +375,16 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task OnSpeechSwitchChanged(bool value)
+    {
+        if (_speechOn != value) await ToggleSpeechAsync().ConfigureAwait(false);
+    }
+
+    private async Task OnMicrophoneSwitchChanged(bool value)
+    {
+        if (_micOn != value) await ToggleMicrophoneAsync().ConfigureAwait(false);
+    }
+
     private async Task ToggleMicrophoneAsync()
     {
         _micOn = !_micOn;
@@ -479,7 +488,6 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
 
         _open = false;
-        _showSettings = false;
     }
 
     private Task UseSuggestion(string suggestion)
