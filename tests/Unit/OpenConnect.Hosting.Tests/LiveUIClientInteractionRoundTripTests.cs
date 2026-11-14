@@ -47,7 +47,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
             ["targetId"] = "todo.completed",
             ["action"] = "SelectTab"
         })).AsTask();
-        var request = await WaitForRequestAsync(sessions, session.Id.Value);
+        var request = await WaitForRequestAsync(sessions, session.Id.Value, "execute");
         Assert.Equal("execute", request.Operation);
         Assert.Equal("todo.completed", request.TargetId);
         Assert.Equal("SelectTab", request.Action);
@@ -68,6 +68,33 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var modelResult = Assert.IsType<JsonElement>(await toolCall.WaitAsync(TimeSpan.FromSeconds(2)));
         Assert.Equal("Completed", modelResult.GetProperty("outcome").GetString());
         Assert.True(modelResult.GetProperty("postconditionVerified").GetBoolean());
+
+        var highlight = Assert.IsAssignableFrom<Microsoft.Extensions.AI.AIFunction>(
+            clientTools.Single(tool => tool.Name == "liveui_highlight"));
+        var highlightToolCall = highlight.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments(new Dictionary<string, object?>
+        {
+            ["targetId"] = "todo.completed",
+            ["durationMilliseconds"] = 1_500
+        })).AsTask();
+        var highlightRequest = await WaitForRequestAsync(sessions, session.Id.Value, "highlight");
+        Assert.Equal(1_500, highlightRequest.HighlightDurationMilliseconds);
+
+        var highlightReceipt = await hostTools.HighlightAsync(
+            highlightRequest.TargetId!, durationMilliseconds: highlightRequest.HighlightDurationMilliseconds);
+        Assert.Equal(LiveUIActionOutcome.Completed, highlightReceipt.Outcome);
+        Assert.Equal(LiveUIActionType.Highlight, runtime.LastContext!.Action.Type);
+        Assert.Equal(1_500, runtime.LastContext.Action.Parameters.HighlightDurationMilliseconds);
+
+        var highlightResponse = new ClientInteractionResponse(highlightRequest.CorrelationId, "action",
+            JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions()));
+        var highlightEndpointResult = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), highlightResponse, AuthenticatedContext(serviceProvider), sessions);
+        var highlightHttpResponse = await ExecuteAsync(highlightEndpointResult, serviceProvider);
+        Assert.Equal(StatusCodes.Status200OK, highlightHttpResponse.StatusCode);
+
+        var highlightModelResult = Assert.IsType<JsonElement>(await highlightToolCall.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal("Completed", highlightModelResult.GetProperty("outcome").GetString());
+        Assert.True(highlightModelResult.GetProperty("postconditionVerified").GetBoolean());
     }
 
     private static LiveUIManifest CreateManifest()
@@ -77,19 +104,22 @@ public sealed class LiveUIClientInteractionRoundTripTests
             new LiveUIRoute("todo.home", "/", "Todo",
             [
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
-                    new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter })
+                    new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.Highlight })
             ])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
     }
 
-    private static async Task<ClientInteractionRequest> WaitForRequestAsync(InMemorySessionStore sessions, Ulid sessionId)
+    private static async Task<ClientInteractionRequest> WaitForRequestAsync(
+        InMemorySessionStore sessions, Ulid sessionId, string operation)
     {
         for (var attempt = 0; attempt < 100; attempt++)
         {
-            var requestEvent = sessions.GetEvents(sessionId, 0).FirstOrDefault(item => item.Type == ClientInteractionEventTypes.Request);
-            if (requestEvent is not null)
-                return JsonSerializer.Deserialize<ClientInteractionRequest>(requestEvent.Data, OpenConnectHttpJson.CreateOptions())!;
+            var request = sessions.GetEvents(sessionId, 0)
+                .Where(item => item.Type == ClientInteractionEventTypes.Request)
+                .Select(item => JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, OpenConnectHttpJson.CreateOptions()))
+                .FirstOrDefault(item => item?.Operation == operation);
+            if (request is not null) return request;
             await Task.Delay(10);
         }
         throw new TimeoutException("The LiveUI MAF tool did not append a client request.");
