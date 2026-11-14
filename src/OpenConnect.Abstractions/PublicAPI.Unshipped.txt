@@ -191,6 +191,10 @@ OpenConnect.Abstractions.ClientInteractionRequest.StateValue.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.StateValue.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.get -> int
 OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.SpeechEndCharacter.get -> int?
+OpenConnect.Abstractions.ClientInteractionRequest.SpeechEndCharacter.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.SpeechStartCharacter.get -> int?
+OpenConnect.Abstractions.ClientInteractionRequest.SpeechStartCharacter.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.TargetId.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.TargetId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Value.get -> string?

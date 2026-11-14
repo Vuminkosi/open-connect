@@ -7,8 +7,10 @@
 @using OpenConnect.Abstractions
 @using System.Collections.Concurrent
 @using System.Text.Json
+@using Microsoft.Extensions.Options
 @inject LiveUIManifestState ManifestState
 @inject IServiceProvider Services
+@inject IOptions<LiveUIOptions> LiveUIOptions
 @implements IDisposable
 
 @ChildContent
@@ -16,6 +18,9 @@
 @code {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly LiveUISpeechPlaybackFence _speechPlaybackFence = new();
+    private readonly SemaphoreSlim _speechCueGate = new(1, 1);
+    private readonly List<LiveUISpeechCue> _speechCues = [];
+    private readonly HashSet<string> _activeSpeechCueTargets = new(StringComparer.Ordinal);
     [Parameter]
     public LiveUIManifest? Manifest { get; set; }
 
@@ -30,6 +35,7 @@
     private string? _lastRequestId;
     private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
+    private sealed record LiveUISpeechCue(string TargetId, int StartCharacter, int EndCharacter);
 
     protected override void OnParametersSet()
     {
@@ -85,15 +91,103 @@
 
     private async Task ClearHighlightsAfterCancellationAsync()
     {
-        try { await _agentTools!.ClearHighlightAsync(); }
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            _speechCues.Clear();
+            _activeSpeechCueTargets.Clear();
+            await ClearHighlightsCoreAsync();
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private async Task ClearHighlightsCoreAsync()
+    {
+        if (_agentTools is null) return;
+        try { await _agentTools.ClearHighlightAsync(); }
         catch (Exception) { }
     }
 
-    private Task OnSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    private async Task OnSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        return _speechPlaybackFence.ShouldClearHighlights(playbackEvent)
-            ? InvokeAsync(ClearHighlightsAfterCancellationAsync)
-            : Task.CompletedTask;
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            if (_speechPlaybackFence.ShouldClearHighlights(playbackEvent))
+            {
+                _speechCues.Clear();
+                _activeSpeechCueTargets.Clear();
+                await ClearHighlightsCoreAsync();
+                return;
+            }
+
+            if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
+                playbackEvent.Stage == ComposerSpeechPlaybackStage.Started)
+                await ApplySpeechCuesAsync(playbackEvent);
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private async Task RegisterSpeechCueAsync(string targetId, int startCharacter, int endCharacter)
+    {
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            _speechCues.Add(new LiveUISpeechCue(targetId, startCharacter, endCharacter));
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private async Task ApplySpeechCuesAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        if (_speechCues.Count == 0 || playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return;
+
+        var responseLength = GetCurrentAssistantResponseLength();
+        var targets = _speechCues
+            .Where(cue => cue.EndCharacter <= responseLength &&
+                          cue.StartCharacter < playbackEvent.EndCharacter &&
+                          cue.EndCharacter > playbackEvent.StartCharacter)
+            .Select(cue => cue.TargetId)
+            .ToHashSet(StringComparer.Ordinal);
+        if (_activeSpeechCueTargets.SetEquals(targets)) return;
+
+        await ClearHighlightsCoreAsync();
+        _activeSpeechCueTargets.Clear();
+        if (_agentTools is null) return;
+
+        foreach (var targetId in targets.Order(StringComparer.Ordinal))
+        {
+            var receipt = await _agentTools.HighlightAsync(targetId);
+            if (receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
+                _activeSpeechCueTargets.Add(targetId);
+        }
+    }
+
+    private int GetCurrentAssistantResponseLength()
+    {
+        if (_boundSession is null) return 0;
+        if (_boundSession.StreamingText.Length > 0) return _boundSession.StreamingText.Length;
+        return _boundSession.Messages.LastOrDefault(message => message.Role == "assistant")?.Text.Length ?? 0;
+    }
+
+    private static bool IsValidSpeechRange(ClientInteractionRequest request) =>
+        request.SpeechStartCharacter is null && request.SpeechEndCharacter is null ||
+        request.SpeechStartCharacter is >= 0 and < 32_000 &&
+        request.SpeechEndCharacter is > 0 and <= 32_000 &&
+        request.SpeechStartCharacter < request.SpeechEndCharacter;
+
+    private async Task<LiveUIActionReceipt> HandleHighlightRequestAsync(
+        ClientInteractionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var receipt = await _agentTools!.HighlightAsync(
+            request.TargetId!, cancellationToken, request.HighlightDurationMilliseconds);
+        if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
+            request.SpeechStartCharacter is int startCharacter &&
+            request.SpeechEndCharacter is int endCharacter &&
+            receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
+            await RegisterSpeechCueAsync(request.TargetId!, startCharacter, endCharacter);
+        return receipt;
     }
 
     private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client,
@@ -151,10 +245,10 @@
                 }
                 else if (request.Operation == "highlight" &&
                          request.TargetId is { Length: > 0 and <= 256 } &&
-                         request.HighlightDurationMilliseconds is >= 0 and <= 30_000)
+                         request.HighlightDurationMilliseconds is >= 0 and <= 30_000 &&
+                         IsValidSpeechRange(request))
                 {
-                    var receipt = await _agentTools.HighlightAsync(
-                        request.TargetId, cancellationToken, request.HighlightDurationMilliseconds);
+                    var receipt = await HandleHighlightRequestAsync(request, cancellationToken);
                     payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
                 }
                 else if (request.Operation == "clear_highlight")

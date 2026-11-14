@@ -27,7 +27,9 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000004", "await_state", TargetId: "todo.completed", StateName: "selected"), "WaitForState" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000005", "highlight", TargetId: "todo.list", HighlightDurationMilliseconds: 1_250), "Highlight" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000006", "clear_highlight"), "ClearHighlight" },
-        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000007", "await_state", TargetId: "todo.region", StateName: "textContains", StateValue: "No tasks to display"), "WaitForState" }
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000007", "await_state", TargetId: "todo.region", StateName: "textContains", StateValue: "No tasks to display"), "WaitForState" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000008", "highlight", TargetId: "todo.list")
+            { SpeechStartCharacter = 1 }, "invalid" }
     };
 
     [Fact]
@@ -171,6 +173,93 @@ public sealed class LiveUIProviderClientInteractionTests
         rendered.WaitForAssertion(() => Assert.Equal(2, runtime.ClearHighlightCount));
     }
 
+    [Fact]
+    public async Task Provider_switches_authorized_targets_at_their_audio_segment_character_ranges()
+    {
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.Services.AddMudServices();
+        context.Services.AddSingleton(new OpenConnectComponentRegistry());
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor(options =>
+        {
+            options.Narration.Enabled = true;
+            options.Narration.SynchronizeWithSpeech = true;
+        });
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.AddAttribute(2, nameof(OpenConnectLiveUIProvider.ChildContent), (RenderFragment)(childBuilder =>
+                {
+                    childBuilder.OpenComponent<MudThemeProvider>(0);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudPopoverProvider>(1);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudDialogProvider>(2);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudSnackbarProvider>(3);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MiniComposer>(4);
+                    childBuilder.AddAttribute(5, nameof(MiniComposer.StartOpen), true);
+                    childBuilder.CloseComponent();
+                }));
+                builder.CloseComponent();
+            }));
+
+        await rendered.InvokeAsync(() => rendered.Find(".oc-bubble__speech-action .oc-speech-item").Click());
+        var responseText = "Tasks completed: report and cleanup.";
+        var firstSegmentEnd = responseText.IndexOf("report", StringComparison.Ordinal);
+        await SendHighlightCueAsync("todo.list", 0, firstSegmentEnd, 1);
+        await SendHighlightCueAsync("todo.region", firstSegmentEnd, responseText.Length, 2);
+
+        composerSession.BeginSend("Explain the completed tasks.");
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 3, "message.delta", responseText)));
+        var composer = rendered.FindComponent<MiniComposer>().Instance;
+
+        var firstEpoch = composerSession.BeginSpeechPlayback();
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(firstEpoch, 0, firstSegmentEnd, 1));
+        Assert.Equal("todo.list", runtime.LastTargetId);
+
+        Assert.True(composerSession.EndSpeechPlayback(firstEpoch));
+        var secondEpoch = composerSession.BeginSpeechPlayback();
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(secondEpoch, firstSegmentEnd, responseText.Length, 1));
+        Assert.Equal("todo.region", runtime.LastTargetId);
+
+        Assert.True(composerSession.EndSpeechPlayback(secondEpoch));
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 4, "message.completed", string.Empty)));
+        rendered.WaitForAssertion(() => Assert.Equal("ClearHighlight", runtime.LastAction));
+
+        async Task SendHighlightCueAsync(string targetId, int startCharacter, int endCharacter, long sequence)
+        {
+            var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
+                HighlightDurationMilliseconds: 2_000)
+            {
+                SpeechStartCharacter = startCharacter,
+                SpeechEndCharacter = endCharacter
+            };
+            await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+                new SessionId(Ulid.Parse(Session)), sequence, ClientInteractionEventTypes.Request,
+                JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            rendered.WaitForAssertion(() => Assert.Equal(request.CorrelationId, client.Response?.CorrelationId));
+            Assert.Equal(0, runtime.LastParameters!.HighlightDurationMilliseconds);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(Requests))]
     public async Task Provider_executes_correlated_operations_and_posts_verified_receipts(
@@ -211,6 +300,13 @@ public sealed class LiveUIProviderClientInteractionTests
         Assert.Equal(request.CorrelationId, client.Response!.CorrelationId);
         Assert.Equal("action", client.Response.ResultKind);
         using var receipt = JsonDocument.Parse(client.Response.PayloadJson);
+        if (expectedAction == "invalid")
+        {
+            Assert.Null(runtime.LastAction);
+            Assert.Equal("client_interaction_failed", receipt.RootElement.GetProperty("code").GetString());
+            return;
+        }
+
         Assert.Equal(expectedAction, runtime.LastAction);
         if (request.Operation == "highlight")
             Assert.Equal(request.HighlightDurationMilliseconds, runtime.LastParameters!.HighlightDurationMilliseconds);
@@ -251,6 +347,7 @@ public sealed class LiveUIProviderClientInteractionTests
     private sealed class RecordingRuntime : ILiveUIRuntime
     {
         public string? LastAction { get; private set; }
+        public string? LastTargetId { get; private set; }
         public LiveUIActionParameters? LastParameters { get; private set; }
         public int ClearHighlightCount { get; private set; }
         public TaskCompletionSource<bool> HighlightCleared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -259,6 +356,7 @@ public sealed class LiveUIProviderClientInteractionTests
             CancellationToken cancellationToken = default)
         {
             LastAction = context.Action.Type.ToString();
+            LastTargetId = context.Target?.Id;
             LastParameters = context.Action.Parameters;
             if (context.Action.Type == LiveUIActionType.ClearHighlight)
             {

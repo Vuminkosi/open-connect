@@ -1,6 +1,15 @@
 namespace OpenConnect.Abstractions;
 
 /// <summary>A request for the connected client to perform a host-authorized interaction.</summary>
+/// <param name="CorrelationId">Unique correlation identifier for the request.</param>
+/// <param name="Operation">Allowlisted client operation name.</param>
+/// <param name="TargetId">Optional compiled target identifier.</param>
+/// <param name="Action">Optional typed action name.</param>
+/// <param name="Value">Optional bounded action value.</param>
+/// <param name="RouteId">Optional manifest route identifier.</param>
+/// <param name="StateName">Optional state condition name.</param>
+/// <param name="StateValue">Optional state condition value.</param>
+/// <param name="HighlightDurationMilliseconds">Optional temporary highlight duration.</param>
 public sealed record ClientInteractionRequest(
     string CorrelationId,
     string Operation,
@@ -10,7 +19,14 @@ public sealed record ClientInteractionRequest(
     string? RouteId = null,
     string? StateName = null,
     string? StateValue = null,
-    int HighlightDurationMilliseconds = 0);
+    int HighlightDurationMilliseconds = 0)
+{
+    /// <summary>Optional zero-based UTF-16 response range start for a speech highlight cue.</summary>
+    public int? SpeechStartCharacter { get; init; }
+
+    /// <summary>Optional exclusive range end; both range values must be supplied and no greater than 32,000.</summary>
+    public int? SpeechEndCharacter { get; init; }
+}
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>
 public sealed record ClientInteractionResponse(

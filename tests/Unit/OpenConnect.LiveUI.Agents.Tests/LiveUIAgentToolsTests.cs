@@ -143,7 +143,12 @@ public sealed class LiveUIAgentToolsTests
             new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["stateName"] = "selected" }));
         var highlightFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
         _ = await highlightFunction.InvokeAsync(new AIFunctionArguments(
-            new Dictionary<string, object?> { ["targetId"] = "todo.list" }));
+            new Dictionary<string, object?>
+            {
+                ["targetId"] = "todo.list",
+                ["speechStartCharacter"] = 10,
+                ["speechEndCharacter"] = 20
+            }));
         var clearFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_clear_highlight"));
         _ = await clearFunction.InvokeAsync(new AIFunctionArguments());
 
@@ -152,7 +157,10 @@ public sealed class LiveUIAgentToolsTests
         var waitRequest = Assert.Single(broker.Requests, item => item.Operation == "await_state");
         Assert.Equal("todo.completed", waitRequest.TargetId);
         Assert.Equal("selected", waitRequest.StateName);
-        Assert.Equal("todo.list", Assert.Single(broker.Requests, item => item.Operation == "highlight").TargetId);
+        var highlightRequest = Assert.Single(broker.Requests, item => item.Operation == "highlight");
+        Assert.Equal("todo.list", highlightRequest.TargetId);
+        Assert.Equal(10, highlightRequest.SpeechStartCharacter);
+        Assert.Equal(20, highlightRequest.SpeechEndCharacter);
         Assert.Single(broker.Requests, item => item.Operation == "clear_highlight");
         Assert.All(broker.Requests, item => Assert.True(Guid.TryParseExact(item.CorrelationId, "D", out _)));
     }
@@ -169,6 +177,32 @@ public sealed class LiveUIAgentToolsTests
         var result = Assert.IsType<System.Text.Json.JsonElement>(await pageFunction.InvokeAsync(new AIFunctionArguments()));
 
         Assert.Equal("client_response_mismatch", result.GetProperty("error").GetString());
+    }
+
+    [Theory]
+    [InlineData(null, 12)]
+    [InlineData(12, null)]
+    [InlineData(20, 20)]
+    [InlineData(-1, 12)]
+    [InlineData(0, 32_001)]
+    public async Task Client_highlight_tool_rejects_invalid_speech_ranges(int? start, int? end)
+    {
+        var broker = new RecordingInteractionBroker((_, request, resultKind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind, "{}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var highlight = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await highlight.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?>
+            {
+                ["targetId"] = "todo.list",
+                ["speechStartCharacter"] = start,
+                ["speechEndCharacter"] = end
+            })));
+
+        Assert.Equal("invalid_request", result.GetProperty("error").GetString());
+        Assert.Empty(broker.Requests);
     }
 
     [Fact]

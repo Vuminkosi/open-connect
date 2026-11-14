@@ -36,7 +36,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared. When the host enables speech synchronization, playback lifecycle events control cleanup and the duration is ignored."),
+                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared. When the host enables speech synchronization, playback lifecycle events control cleanup and the duration is ignored. To switch targets with narration, supply both speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range in the next assistant response; the target is highlighted when its audio segment starts."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];
@@ -81,14 +81,26 @@ public static class LiveUIClientAgentToolFactory
         public Task<JsonElement> HighlightAsync(
             string targetId,
             int durationMilliseconds = 0,
+            int? speechStartCharacter = null,
+            int? speechEndCharacter = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
-                durationMilliseconds is < 0 or > 30_000)
+                durationMilliseconds is < 0 or > 30_000 ||
+                !IsValidSpeechRange(speechStartCharacter, speechEndCharacter))
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
-            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
-                HighlightDurationMilliseconds: durationMilliseconds), "action", cancellationToken);
+            var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
+                HighlightDurationMilliseconds: durationMilliseconds)
+            {
+                SpeechStartCharacter = speechStartCharacter,
+                SpeechEndCharacter = speechEndCharacter
+            };
+            return RequestAsync(request, "action", cancellationToken);
         }
+
+        private static bool IsValidSpeechRange(int? start, int? end) =>
+            start is null && end is null ||
+            start is >= 0 && end is > 0 and <= 32_000 && start < end;
 
         public Task<JsonElement> ClearHighlightAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "clear_highlight"), "action", cancellationToken);
