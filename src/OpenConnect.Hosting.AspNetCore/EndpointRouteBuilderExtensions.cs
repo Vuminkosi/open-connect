@@ -64,7 +64,13 @@ public static class EndpointRouteBuilderExtensions
             group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
             group.MapPost("/sessions/{id}/liveui/responses", HandlePostClientInteractionResponseAsync).RequireAuthorization();
             group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
-            group.MapPost("/speech/synthesize", HandleSpeechSynthesisAsync).RequireAuthorization();
+            group.MapPost("/speech/synthesize", async (HttpContext context, SpeechRequest request, CancellationToken cancellationToken) =>
+            {
+                var httpClientFactory = context.RequestServices.GetService<IHttpClientFactory>();
+                return httpClientFactory is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Speech synthesis is not configured.")
+                    : await HandleSpeechSynthesisAsync(request, context.RequestServices.GetRequiredService<IConfiguration>(), httpClientFactory, cancellationToken);
+            }).RequireAuthorization();
             group.MapGet("/components", HandleComponents).RequireAuthorization();
             group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
             group.MapGet("/health/ready", HandleReady).RequireAuthorization();
@@ -365,6 +371,11 @@ public static class EndpointRouteBuilderExtensions
                 {
                     "get_current_page" => "page",
                     "execute" => "action",
+                    "navigate" => "action",
+                    "inspect" => "action",
+                    "await_state" => "action",
+                    "highlight" => "action",
+                    "clear_highlight" => "action",
                     _ => null
                 };
                 return pending?.CorrelationId == response.CorrelationId && expectedKind == response.ResultKind;

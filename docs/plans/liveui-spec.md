@@ -50,7 +50,7 @@ The orchestrator validates manifest version and hash, route/target membership, a
 
 ## Agent-to-Blazor request path
 
-The MAF adapter exposes `liveui_get_current_page` and `liveui_execute`. For those operations, it emits a content-bounded `liveui.request` event into the bound session and awaits a correlated response through `IClientInteractionBroker`. The Blazor `OpenConnectLiveUIProvider` observes the composer session event, runs the operation through scoped `LiveUIAgentTools`, and posts a response using the .NET client. The gateway checks authenticated ownership, payload bounds, a matching pending correlation, and result kind before appending the response event. The agent tool returns only the correlated result to MAF.
+The MAF adapter exposes `liveui_get_current_page`, `liveui_navigate`, `liveui_inspect`, `liveui_execute`, `liveui_await_state`, `liveui_highlight`, and `liveui_clear_highlight`. Each operation emits a content-bounded `liveui.request` event into the bound session and awaits a correlated response through `IClientInteractionBroker`. The Blazor `OpenConnectLiveUIProvider` observes the composer session event, runs the operation through scoped `LiveUIAgentTools`, and posts a response using the .NET client. The gateway checks authenticated ownership, payload bounds, a matching pending correlation, and result kind before appending the response event. The agent tool returns only the correlated result to MAF.
 
 Timeout and caller cancellation bound the wait. The browser response path is asynchronous and depends on the connected composer session and provider. A disconnected client cannot complete a browser action; the tool must time out or cancel and must not claim success.
 

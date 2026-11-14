@@ -127,6 +127,31 @@ public sealed class GatewayRouteTests
         Assert.Empty(store.GetEvents(session.Id.Value, 0));
     }
 
+    [Theory]
+    [InlineData("navigate")]
+    [InlineData("inspect")]
+    [InlineData("await_state")]
+    [InlineData("highlight")]
+    [InlineData("clear_highlight")]
+    public async Task Client_interaction_response_accepts_correlated_liveui_operations(string operation)
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlation = Guid.NewGuid().ToString("D");
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionRequest(correlation, operation)));
+
+        var result = await ExecuteAsync(
+            await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+                session.Id.Value.ToString(), new ClientInteractionResponse(correlation, "action", "{}"), Context(app), store),
+            app.Services);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
     [Fact]
     public async Task Client_interaction_broker_waits_for_matching_correlation_and_result_kind()
     {

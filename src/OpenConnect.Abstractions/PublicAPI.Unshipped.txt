@@ -177,11 +177,17 @@ OpenConnect.Abstractions.IClientInteractionBroker.RequestAsync(OpenConnect.Abstr
 OpenConnect.Abstractions.ClientInteractionRequest
 OpenConnect.Abstractions.ClientInteractionRequest.Action.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.Action.init -> void
-OpenConnect.Abstractions.ClientInteractionRequest.ClientInteractionRequest(string! CorrelationId, string! Operation, string? TargetId = null, string? Action = null, string? Value = null) -> void
+OpenConnect.Abstractions.ClientInteractionRequest.ClientInteractionRequest(string! CorrelationId, string! Operation, string? TargetId = null, string? Action = null, string? Value = null, string? RouteId = null, string? StateName = null, string? StateValue = null) -> void
 OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.get -> string!
 OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Operation.get -> string!
 OpenConnect.Abstractions.ClientInteractionRequest.Operation.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.RouteId.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.RouteId.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.StateName.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.StateName.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.StateValue.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.StateValue.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.TargetId.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.TargetId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Value.get -> string?

@@ -91,6 +91,29 @@ public sealed class LiveUIAgentToolsTests
         var request = Assert.Single(broker.Requests, item => item.Operation == "execute");
         Assert.Equal("todo.completed", request.TargetId);
         Assert.Equal("SelectTab", request.Action);
+
+        var navigateFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_navigate"));
+        _ = await navigateFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["routeId"] = "todo.home" }));
+        var inspectFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_inspect"));
+        _ = await inspectFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.list" }));
+        var awaitFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_await_state"));
+        _ = await awaitFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["stateName"] = "selected" }));
+        var highlightFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
+        _ = await highlightFunction.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.list" }));
+        var clearFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_clear_highlight"));
+        _ = await clearFunction.InvokeAsync(new AIFunctionArguments());
+
+        Assert.Equal("todo.home", Assert.Single(broker.Requests, item => item.Operation == "navigate").RouteId);
+        Assert.Equal("todo.list", Assert.Single(broker.Requests, item => item.Operation == "inspect").TargetId);
+        var waitRequest = Assert.Single(broker.Requests, item => item.Operation == "await_state");
+        Assert.Equal("todo.completed", waitRequest.TargetId);
+        Assert.Equal("selected", waitRequest.StateName);
+        Assert.Equal("todo.list", Assert.Single(broker.Requests, item => item.Operation == "highlight").TargetId);
+        Assert.Single(broker.Requests, item => item.Operation == "clear_highlight");
         Assert.All(broker.Requests, item => Assert.True(Guid.TryParseExact(item.CorrelationId, "D", out _)));
     }
 

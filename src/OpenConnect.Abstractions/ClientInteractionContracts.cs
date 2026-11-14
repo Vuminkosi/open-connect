@@ -6,7 +6,10 @@ public sealed record ClientInteractionRequest(
     string Operation,
     string? TargetId = null,
     string? Action = null,
-    string? Value = null);
+    string? Value = null,
+    string? RouteId = null,
+    string? StateName = null,
+    string? StateValue = null);
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>
 public sealed record ClientInteractionResponse(
