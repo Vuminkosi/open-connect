@@ -48,6 +48,21 @@ async function waitForTargetState(page, targetLabel, stateName, stateValue) {
   }, { manifestData: manifest, route: todoRoute, targetData: target, name: stateName, value: stateValue });
 }
 
+async function highlightTarget(page, targetLabel) {
+  const target = todoRoute.targets.find((candidate) => candidate.label === targetLabel);
+  if (!target) throw new Error('The compiled manifest does not contain target: ' + targetLabel);
+
+  return page.evaluate(async ({ manifestData, route, targetData }) => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    return runtime.execute({
+      manifest: manifestData,
+      route,
+      target: targetData,
+      action: { schemaVersion: manifestData.schemaVersion, type: 'Highlight', parameters: {} },
+    }, 5000, true);
+  }, { manifestData: manifest, route: todoRoute, targetData: target });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Task Management' })).toBeVisible();
@@ -103,10 +118,20 @@ test('combines the existing Completed tab and search controls while retaining fi
   const searchReceipt = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
   expect(searchReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
 
+  const selectedReceipt = await waitForTargetState(page, 'Completed', 'selected', 'true');
+  const resultsReceipt = await waitForTargetState(page, 'Task list', 'textContains', 'report');
+  const highlightReceipt = await highlightTarget(page, 'todo-list');
+
+  expect(selectedReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  expect(resultsReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  expect(highlightReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, verifiedState: 'highlighted' });
+
   await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
   await expect(page.getByText('Draft the annual report', { exact: true })).toBeVisible();
   await expect(page.getByText('Gather feedback for report', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-oc-target="todo-list"]')).toHaveAttribute('data-openconnect-liveui-highlight', 'true');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('highlights the existing task region without opening a tour dialog', async ({ page }) => {
