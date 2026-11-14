@@ -1,6 +1,6 @@
 # OpenConnect.LiveUI.Agents
 
-This .NET adapter exposes governed LiveUI operations as Microsoft Agent Framework tools. It does not introduce a second agent loop or execute model-generated scripts.
+This .NET adapter exposes governed LiveUI operations as Microsoft Agent Framework tools. It does not introduce a second agent loop or execute model-generated scripts. .NET contracts and host policy are the primary integration surface; the browser runtime is provided by the Blazor adapter.
 
 ## Create MAF tools
 
@@ -22,6 +22,8 @@ Every action runs through `LiveUIOrchestrator` and `ILiveUIActionAuthorizer`. Th
 
 Actions from the same scoped tool instance execute serially, so one browser acknowledgement completes before the next tool action begins. Cancellation is forwarded to the orchestrator and browser runtime.
 
-`liveui_get_current_page` returns only the current route and targets individually authorized for inspection. Target labels originate from application UI and are untrusted display text; they must not be promoted to instructions. No full application manifest is sent to the model.
+`liveui_get_current_page` returns only the current route and targets exposed by the host authorization policy. Target labels originate from application UI and are untrusted display text; they must not be promoted to instructions. No full application manifest is sent to the model.
+
+When a host registers `IClientInteractionBroker`, `LiveUIClientAgentToolFactory.CreateTools` creates the connected-client `liveui_get_current_page` and `liveui_execute` functions. These emit a bounded, correlated session request and wait for the Blazor provider to return an authorized result. The gateway validates session ownership, correlation, response kind, and payload bounds before releasing the response. The default broker is backed by the process-local in-memory session store; a distributed host must supply a shared implementation before using multiple gateway instances.
 
 When `ICapabilityRegistry` is registered by the host, creating the MAF tools refreshes the `liveui.agent-tools` capability as ready. The host can discover this through `GetReady(CapabilityKind.Tool)` before attaching the functions to an agent.

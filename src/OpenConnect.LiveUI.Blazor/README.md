@@ -4,11 +4,29 @@ The Blazor adapter supplies a scoped manifest state, browser action runtime, and
 
 ## Register and bootstrap
 
-Call AddOpenConnectLiveUIBlazor during service registration and configure navigation, filtering, and highlighting as required. Register a host ILiveUIActionAuthorizer before enabling actions. If no host policy is registered, the adapter denies actions.
+Call `AddOpenConnectLiveUIBlazor` during service registration and configure navigation, filtering, highlighting, and narration as required. Register a host `ILiveUIActionAuthorizer`; the default policy denies actions.
+
+```csharp
+builder.Services.AddOpenConnectLiveUIBlazor(options =>
+{
+    options.Discovery.Mode = LiveUIDiscoveryMode.CompiledFirst;
+    options.Discovery.EnableRuntimeFallback = true;
+    options.Interaction.EnableNavigation = true;
+    options.Interaction.EnableFiltering = true;
+    options.Interaction.EnableHighlighting = true;
+    options.Security.RequireConfirmationForWrites = true;
+});
+
+builder.Services.AddScoped<ILiveUIActionAuthorizer, AppLiveUIActionAuthorizer>();
+```
+
+The policy must use trusted tenant, principal, session, route, and application permissions. Target capabilities describe available operations; they are not authorization grants. Keep existing controls and wrap the existing application content with `OpenConnectLiveUIProvider` inside the current OpenConnect composer/session context.
 
 The `OpenConnectLiveUIProvider` loads the verified build manifest embedded by `OpenConnect.LiveUI.Compiler`; an explicit manifest can also be supplied for hosts that manage manifest loading themselves. The provider does not replace OpenConnectProvider, MiniComposer, the host router, or application components.
 
 `AddOpenConnectLiveUIBlazor` also registers the .NET MAF tool adapter and a scoped context accessor for the current circuit route. Create functions for an agent invocation with `LiveUIAgentToolFactory.CreateTools(scopedServices.GetRequiredService<LiveUIAgentTools>())`. Register a host `ILiveUIActionAuthorizer`; without one, the adapter denies actions. See the `OpenConnect.LiveUI.Agents` package documentation for tool names, authorization, and context requirements.
+
+For a browser action requested by an agent, the provider receives the correlated composer-session request, invokes scoped `LiveUIAgentTools`, and posts the result through `IOpenConnectClient`. The authenticated gateway binds the response to the owned session and a matching pending request. The current default broker uses the in-memory session store, so the correlation is process-local.
 
 ## Runtime behavior
 
