@@ -24,7 +24,8 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000003", "execute", TargetId: "todo.completed", Action: "SelectTab"), "SelectTab" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000004", "await_state", TargetId: "todo.completed", StateName: "selected"), "WaitForState" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000005", "highlight", TargetId: "todo.list"), "Highlight" },
-        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000006", "clear_highlight"), "ClearHighlight" }
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000006", "clear_highlight"), "ClearHighlight" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000007", "await_state", TargetId: "todo.region", StateName: "textContains", StateValue: "No tasks to display"), "WaitForState" }
     };
 
     [Fact]
@@ -120,7 +121,9 @@ public sealed class LiveUIProviderClientInteractionTests
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
                     new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.WaitForState }),
                 new LiveUITarget("todo.list", LiveUITargetKind.List, "Task list",
-                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight })
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight }),
+                new LiveUITarget("todo.region", LiveUITargetKind.Region, "todo-list",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.WaitForState })
             ])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
