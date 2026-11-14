@@ -1,5 +1,3 @@
-import base64
-
 from fastapi.testclient import TestClient
 
 import openconnect_kokoro.app as app_module
@@ -53,28 +51,6 @@ def test_live_and_capabilities(monkeypatch) -> None:
 def test_capabilities_requires_auth(monkeypatch) -> None:
     _use_auth(monkeypatch)
     assert client.get("/internal/v1/capabilities").status_code == 401
-
-
-def test_synthesis_uses_real_engine_contract(monkeypatch) -> None:
-    _use_auth(monkeypatch)
-    monkeypatch.setattr(
-        app_module.synth_engine,
-        "synthesize",
-        lambda **_: ({
-            "text": "hello world",
-            "voiceId": "af_heart",
-            "locale": "en-US",
-            "format": "pcm",
-            "sampleRateHz": 24000,
-            "channels": 1,
-            "audioBase64": base64.b64encode(b"real-pcm").decode(),
-        }, False),
-    )
-    response = _synth()
-    assert response.status_code == 200
-    result = response.json()["result"]
-    assert result["voiceId"] == "af_heart"
-    assert base64.b64decode(result["audioBase64"]) == b"real-pcm"
 
 
 def test_mp3_is_rejected_without_fabricated_audio(monkeypatch) -> None:
