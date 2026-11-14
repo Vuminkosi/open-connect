@@ -194,7 +194,7 @@ public sealed class RazorLiveUIManifestCompiler
         {
             var escaped = explicitTarget.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
             yield return new(LiveUITargetKind.Region, string.IsNullOrWhiteSpace(label) ? explicitTarget : label, "region",
-                Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll), $"[data-oc-target=\"{escaped}\"]");
+                Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState), $"[data-oc-target=\"{escaped}\"]");
         }
 
         switch (lower)

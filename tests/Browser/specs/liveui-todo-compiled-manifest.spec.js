@@ -85,6 +85,17 @@ test('waits for the compiled task list to reflect the existing search control', 
   await expect(page.getByText('Prepare a launch checklist', { exact: true })).toHaveCount(0);
 });
 
+test('verifies the stable Todo region after filtering to the rendered empty state', async ({ page }) => {
+  const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'no-matching-task');
+  expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+
+  const receipt = await waitForTargetState(page, 'todo-list', 'textContains', 'No tasks to display');
+
+  expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  await expect(page.getByText('No tasks to display', { exact: true })).toBeVisible();
+  await expect(page.getByText('Review the quarterly report', { exact: true })).toHaveCount(0);
+});
+
 test('combines the existing Completed tab and search controls while retaining filtered state', async ({ page }) => {
   const tabReceipt = await executeTarget(page, 'Completed', 'SelectTab');
   expect(tabReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });

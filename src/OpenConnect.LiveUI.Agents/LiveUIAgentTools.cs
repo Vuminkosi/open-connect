@@ -183,7 +183,7 @@ public sealed class LiveUIAgentTools(
     };
 
     private static LiveUIActionParameters GetCapabilityProbeParameters(LiveUITarget target, LiveUIActionType actionType) =>
-        actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table)
+        actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table or LiveUITargetKind.Region)
             ? new(StateName: "textContains", StateValue: "probe")
             : new();
 

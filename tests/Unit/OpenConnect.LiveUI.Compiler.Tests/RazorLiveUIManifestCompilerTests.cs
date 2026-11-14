@@ -21,6 +21,7 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
             </MudTabs>
             <MudTextField Placeholder="Search tasks..." />
             <MudList T="Task"><MudListItem>Report ready</MudListItem></MudList>
+            <MudPaper data-oc-target="results" aria-label="Results" />
             <input type="password" aria-label="Secret" />
             """);
 
@@ -38,6 +39,8 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
                                                 target.Capabilities.Contains(LiveUICapability.Filter));
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.List && target.Label == "Task list" &&
                                                 target.Selector == ".mud-list" && target.Capabilities.Contains(LiveUICapability.WaitForState));
+        Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Region && target.Label == "Results" &&
+                                                target.Selector == "[data-oc-target=\"results\"]" && target.Capabilities.Contains(LiveUICapability.WaitForState));
         Assert.DoesNotContain(route.Targets, target => target.Label == "Secret");
         Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
         Assert.True(File.Exists(output));
