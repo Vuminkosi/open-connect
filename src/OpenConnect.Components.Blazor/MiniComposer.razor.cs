@@ -383,9 +383,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             { dialog => dialog.SpeechOn, _speechOn },
             { dialog => dialog.MicrophoneOn, _micOn },
             { dialog => dialog.Placement, Placement },
-            { dialog => dialog.CloseBehavior, CloseBehavior },
-            { dialog => dialog.MaxInputLength, EffectiveMaxLength },
-            { dialog => dialog.SessionId, Session?.SessionId }
+            { dialog => dialog.CloseBehavior, CloseBehavior }
         };
         await DialogService.ShowAsync<ComposerSettingsDialog>("Composer settings", parameters);
     }

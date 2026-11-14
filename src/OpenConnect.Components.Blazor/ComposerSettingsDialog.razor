@@ -33,8 +33,6 @@
                 <MudText Typo="Typo.subtitle2">Composer configuration</MudText>
                 <MudText Typo="Typo.body2">Placement: @Placement</MudText>
                 <MudText Typo="Typo.body2">Close behavior: @CloseBehavior</MudText>
-                <MudText Typo="Typo.body2">Input limit: @MaxInputLength characters</MudText>
-                <MudText Typo="Typo.body2">Session: @(SessionId ?? "None")</MudText>
             </MudPaper>
         </MudStack>
     </DialogContent>
@@ -49,8 +47,6 @@
     [Parameter] public bool MicrophoneOn { get; set; }
     [Parameter] public ComposerPlacement Placement { get; set; }
     [Parameter] public ComposerCloseBehavior CloseBehavior { get; set; }
-    [Parameter] public int MaxInputLength { get; set; }
-    [Parameter] public string? SessionId { get; set; }
 
     private IReadOnlyList<CapabilityDescriptor> _capabilities = Array.Empty<CapabilityDescriptor>();
     private bool _loading;
