@@ -150,10 +150,6 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 tools,
                 cancellationToken,
                 "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. For UI navigation, filtering, search, highlighting, or explanation requests, call liveui_get_current_page first and use only its returned target IDs and capabilities. Use liveui_navigate for manifest routes, liveui_execute for authorized control actions, liveui_await_state with stateName=selected after changing a status tab and stateName=textContains/stateValue=<visible result text> on the stable todo-list region after searching, including the empty-state message when no tasks match, liveui_inspect for privacy-safe target state, and liveui_highlight/liveui_clear_highlight for popup-free guidance. Wait for each verified receipt before dependent actions or claims. To recommend a task or answer which task should be worked on, use todo.list as read-only source data. Priority values are TodoPriority enum values: Urgent=3, High=2, Medium=1, Low=0. Exclude records with IsCompleted=true and recommend only a unique highest-priority remaining record; if none exists or multiple records tie for highest priority, ask the user to clarify. Explain the selection criterion. When asked to highlight that recommendation, use its exact visible title as matchText on the authorized Task list target; claim success only after a verified receipt. Use Todo tools for other viewing or changes only when explicitly requested. Never mutate Todo data without an explicit request, and never claim a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
-            if (coreRequest && RequiresCompletionAcknowledgement(task.Message))
-            {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", CompletionAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
-            }
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", response.Text, cancellationToken).ConfigureAwait(false);
@@ -192,31 +188,18 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
     private static string InitialAcknowledgement(string message)
     {
         var value = message.ToLowerInvariant();
-        if (value.Contains("delete") || value.Contains("remove")) return "I’ll remove that task for you. ";
-        if (value.Contains("complete") || value.Contains("finish") || value.Contains("mark")) return "I’ll update that task’s status. ";
-        if (value.Contains("create") || value.Contains("add") || value.Contains("remind")) return "I’ll add that reminder to your list. ";
-        if (value.Contains("update") || value.Contains("change") || value.Contains("edit")) return "I’ll update that task for you. ";
+        if (ContainsIntent(value, "delete", "remove")) return "I’ll remove that task for you. ";
+        if (ContainsIntent(value, "complete", "finish", "mark")) return "I’ll update that task’s status. ";
+        if (ContainsIntent(value, "create", "add", "remind")) return "I’ll add that reminder to your list. ";
+        if (ContainsIntent(value, "update", "change", "edit")) return "I’ll update that task for you. ";
         return "I’ll look through your tasks now. ";
     }
 
-    private static bool RequiresCompletionAcknowledgement(string message)
-    {
-        var value = message.ToLowerInvariant();
-        return value.Contains("delete") || value.Contains("remove")
-            || value.Contains("complete") || value.Contains("finish") || value.Contains("mark")
-            || value.Contains("create") || value.Contains("add") || value.Contains("remind")
-            || value.Contains("update") || value.Contains("change") || value.Contains("edit");
-    }
-
-    private static string CompletionAcknowledgement(string message)
-    {
-        var value = message.ToLowerInvariant();
-        if (value.Contains("delete") || value.Contains("remove")) return "That task has been removed. ";
-        if (value.Contains("complete") || value.Contains("finish") || value.Contains("mark")) return "That task status has been updated. ";
-        if (value.Contains("create") || value.Contains("add") || value.Contains("remind")) return "Your reminder request is ready. ";
-        if (value.Contains("update") || value.Contains("change") || value.Contains("edit")) return "That task update is ready. ";
-        return "I found the relevant tasks. ";
-    }
+    private static bool ContainsIntent(string message, params string[] intents) =>
+        intents.Any(intent => System.Text.RegularExpressions.Regex.IsMatch(
+            message,
+            $@"\b{System.Text.RegularExpressions.Regex.Escape(intent)}\b",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant));
 
     private async Task<T> RunToolAsync<T>(string description, Func<CancellationToken, Task<T>> operation, HostTaskExecution task, CancellationToken cancellationToken)
     {
