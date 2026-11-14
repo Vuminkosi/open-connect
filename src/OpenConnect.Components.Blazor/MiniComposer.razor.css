@@ -248,6 +248,14 @@
     opacity: 1;
 }
 
+.oc-message-copy ::deep .mud-icon-root,
+.oc-message-copy .mud-icon-root {
+    width: 0.78rem;
+    height: 0.78rem;
+    font-size: 0.78rem;
+    vertical-align: text-bottom;
+}
+
 .oc-message-user {
     align-items: flex-end;
     text-align: right;

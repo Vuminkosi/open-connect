@@ -205,7 +205,9 @@
                                           tabindex="0"
                                           aria-label="@CopyAriaLabel(message.Text)"
                                           title="@CopyTitle(message.Text)">
-                                        @(_copiedResponse == message.Text ? "Copied" : "copy")
+                                        <MudIcon Icon="@(_copiedResponse == message.Text ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
+                                                 Size="Size.Small"
+                                                 aria-hidden="true" />
                                     </span>
                                 }
                             </span>
