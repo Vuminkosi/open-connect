@@ -591,10 +591,19 @@
       "openconnect.liveui": {
         "type": "Project"
       },
+      "openconnect.liveui.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Agents.AI": "[1.27.0, )",
+          "OpenConnect.Abstractions": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
       "openconnect.liveui.blazor": {
         "type": "Project",
         "dependencies": {
-          "OpenConnect.LiveUI": "[1.0.0, )"
+          "OpenConnect.LiveUI": "[1.0.0, )",
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )"
         }
       },
       "openconnect.navigator": {

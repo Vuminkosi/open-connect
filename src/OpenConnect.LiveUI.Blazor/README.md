@@ -6,7 +6,9 @@ The Blazor adapter supplies a scoped manifest state, browser action runtime, and
 
 Call AddOpenConnectLiveUIBlazor during service registration and configure navigation, filtering, and highlighting as required. Register a host ILiveUIActionAuthorizer before enabling actions. If no host policy is registered, the adapter denies actions.
 
-Supply the verified build manifest through the OpenConnectLiveUIProvider component. The provider only supplies manifest state. It does not replace OpenConnectProvider, MiniComposer, the host router, or application components.
+The `OpenConnectLiveUIProvider` loads the verified build manifest embedded by `OpenConnect.LiveUI.Compiler`; an explicit manifest can also be supplied for hosts that manage manifest loading themselves. The provider does not replace OpenConnectProvider, MiniComposer, the host router, or application components.
+
+`AddOpenConnectLiveUIBlazor` also registers the .NET MAF tool adapter and a scoped context accessor for the current circuit route. Create functions for an agent invocation with `LiveUIAgentToolFactory.CreateTools(scopedServices.GetRequiredService<LiveUIAgentTools>())`. Register a host `ILiveUIActionAuthorizer`; without one, the adapter denies actions. See the `OpenConnect.LiveUI.Agents` package documentation for tool names, authorization, and context requirements.
 
 ## Runtime behavior
 
@@ -14,4 +16,4 @@ The browser runtime resolves targets by compiled selector, an optional LiveUI ru
 
 Text entry into password or sensitive fields is denied. A dispatched click without an observable postcondition returns Uncertain; a receipt reports Completed only after the runtime verifies the requested state. Highlighting adds a non-modal outline, preserves focus, and respects reduced-motion settings.
 
-The application must supply a manifest. The Razor build compiler and automatic manifest loading are separate integration work; this package does not claim to generate a manifest on its own.
+The Razor build compiler is provided by the separate `OpenConnect.LiveUI.Compiler` project and must be wired into the consuming app's build. The Todo sample demonstrates manifest generation and embedding. Static analysis cannot infer all runtime component structure; unresolved or ambiguous targets remain explicit failures.

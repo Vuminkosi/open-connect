@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Components;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
+using OpenConnect.LiveUI.Agents;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
@@ -57,5 +59,32 @@ public sealed class LiveUIBlazorTests
             validator.Validate(Manifest with { Routes = [Manifest.Routes[0] with { Path = "//external.test" }] }));
         Assert.Contains("manifest_route_path_invalid",
             validator.Validate(Manifest with { Routes = [Manifest.Routes[0] with { Path = "https://external.test" }] }));
+    }
+
+    [Fact]
+    public async Task BlazorAgentContext_uses_the_active_manifest_route_and_scoped_session_id()
+    {
+        var navigation = new TestNavigationManager("https://localhost/app/", "https://localhost/app/");
+        var state = new LiveUIManifestState(new LiveUIManifestValidator());
+        var scopedManifest = Manifest with
+        {
+            Routes = [Manifest.Routes[0] with { Path = "/app/" }]
+        };
+        state.SetManifest(scopedManifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(scopedManifest) });
+        var accessor = new BlazorLiveUIAgentContextAccessor(navigation, state);
+
+        var context = await accessor.GetCurrentAsync();
+
+        Assert.NotNull(context);
+        Assert.Equal("home", context.CurrentRouteId);
+        Assert.Equal(32, context.SessionId.Length);
+        Assert.Equal(context.SessionId, (await accessor.GetCurrentAsync())?.SessionId);
+    }
+
+    private sealed class TestNavigationManager : NavigationManager
+    {
+        public TestNavigationManager(string baseUri, string uri) => Initialize(baseUri, uri);
+        protected override void NavigateToCore(string uri, bool forceLoad) => Uri = ToAbsoluteUri(uri).ToString();
+        protected override void NavigateToCore(string uri, NavigationOptions options) => Uri = ToAbsoluteUri(uri).ToString();
     }
 }

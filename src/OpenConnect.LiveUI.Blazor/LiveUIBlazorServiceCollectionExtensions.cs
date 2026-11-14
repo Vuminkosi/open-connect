@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Agents;
 
 namespace OpenConnect.LiveUI.Blazor;
 
@@ -12,10 +13,12 @@ public static class LiveUIBlazorServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddOpenConnectLiveUI(configure);
+        services.AddOpenConnectLiveUIAgentTools();
         services.TryAddScoped<LiveUIManifestState>();
         services.TryAddScoped<ILiveUIManifestProvider>(provider => provider.GetRequiredService<LiveUIManifestState>());
         services.TryAddScoped<ILiveUIRuntime, LiveUIBrowserRuntime>();
         services.TryAddScoped<ILiveUIActionAuthorizer, DenyLiveUIActionAuthorizer>();
+        services.TryAddScoped<ILiveUIAgentContextAccessor, BlazorLiveUIAgentContextAccessor>();
         return services;
     }
 }
