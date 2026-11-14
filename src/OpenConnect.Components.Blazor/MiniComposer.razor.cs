@@ -46,6 +46,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private int _spokenResponseCharacters;
     private int _beingSpokenStart = -1;
     private int _beingSpokenEnd = -1;
+    private string _speechDisplayText = string.Empty;
 
     private sealed record SpeechSegment(string Text, int StartCursor, int EndCursor);
 
@@ -119,7 +120,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                     if (current is not null) exchanges.Add(current);
                     current = new List<ComposerMessage>();
                 }
-                current?.Add(message);
+                if (current is not null && (current.Count == 0 || current[^1].Role != message.Role || !string.Equals(current[^1].Text, message.Text, StringComparison.Ordinal)))
+                    current.Add(message);
             }
             if (current is not null) exchanges.Add(current);
             return exchanges.TakeLast(2).SelectMany(exchange => exchange).ToList();
@@ -189,6 +191,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return new MarkupString(output.ToString());
     }
 
+    private bool ShouldRenderLiveResponse() =>
+        !string.Equals(Session?.StreamingText, Session?.Messages.LastOrDefault(message => message.Role == "assistant")?.Text, StringComparison.Ordinal);
+
+    private bool ShouldRenderSpeechProgress(ComposerMessage message) =>
+        _speechOn && string.Equals(message.Text, _speechDisplayText, StringComparison.Ordinal) &&
+        (_beingSpokenStart >= 0 || _spokenResponseCharacters < message.Text.Length);
+
     private MarkupString RenderSpeechProgress(string source)
     {
         var spoken = Math.Clamp(_spokenResponseCharacters, 0, source.Length);
@@ -227,6 +236,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             var response = Session.Connection == ComposerConnectionState.Streaming
                 ? Session.StreamingText
                 : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(response)) _speechDisplayText = response;
             QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
         }
 
@@ -495,6 +505,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         _sending = true;
         _speechCursor = 0;
         _spokenResponseCharacters = 0;
+        _speechDisplayText = string.Empty;
         _beingSpokenStart = -1;
         _beingSpokenEnd = -1;
         lock (_speechQueue) _speechQueue.Clear();

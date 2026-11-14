@@ -146,7 +146,7 @@
             </div>
 
             <!-- Live streaming response -->
-            @if (!string.IsNullOrWhiteSpace(Session?.StreamingText))
+            @if (!string.IsNullOrWhiteSpace(Session?.StreamingText) && ShouldRenderLiveResponse())
             {
                 <MudText Typo="Typo.caption" Class="oc-bubble__response" aria-live="polite">
                     @RenderSpeechProgress(Session.StreamingText)
@@ -169,7 +169,7 @@
                     {
                         <div class="oc-message @(message.Role == "user" ? "oc-message-user" : "oc-message-assistant")">
                             <span class="oc-message-role">@(message.Role == "user" ? "You" : AssistantName)</span>
-                            <div class="oc-message-text">@RenderMarkdown(message.Text)</div>
+                            <div class="oc-message-text">@(message.Role == "assistant" && ShouldRenderSpeechProgress(message) ? RenderSpeechProgress(message.Text) : RenderMarkdown(message.Text))</div>
                         </div>
                     }
                     @if (Session?.Proposals is not null)
