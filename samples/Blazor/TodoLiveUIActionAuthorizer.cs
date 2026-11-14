@@ -42,6 +42,10 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
                 target.Label is "todo-list" or "Task list" or "todo-progress" => Allow("todo_visual_guidance"),
             LiveUIActionType.WaitForState when target.Kind == LiveUITargetKind.Tab &&
                 context.Action.Parameters.StateName == "selected" && target.Label is "All" or "Active" or "Completed" => Allow("todo_filter_verification"),
+            LiveUIActionType.WaitForState when (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Region) &&
+                (target.Label is "todo-list" or "Task list") &&
+                (context.Action.Parameters.StateName is "textContains" or "textNotContains") &&
+                context.Action.Parameters.StateValue is { Length: <= 128 } => Allow("todo_search_verification"),
             _ => Deny()
         };
 

@@ -36,7 +36,8 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
                                                 target.Capabilities.Contains(LiveUICapability.Filter));
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Input && target.Label == "Search tasks..." &&
                                                 target.Capabilities.Contains(LiveUICapability.Filter));
-        Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.List && target.Label == "Task list" && target.Selector == ".mud-list");
+        Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.List && target.Label == "Task list" &&
+                                                target.Selector == ".mud-list" && target.Capabilities.Contains(LiveUICapability.WaitForState));
         Assert.DoesNotContain(route.Targets, target => target.Label == "Secret");
         Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
         Assert.True(File.Exists(output));

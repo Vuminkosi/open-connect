@@ -56,12 +56,14 @@ public sealed class LiveUIAgentToolsTests
 
         Assert.NotNull(page);
         Assert.Equal("todo.home", page.RouteId);
-        Assert.Equal(2, page.Targets.Count);
+        Assert.Equal(3, page.Targets.Count);
         var search = Assert.Single(page.Targets, target => target.TargetId == "todo.search");
         Assert.Contains(LiveUICapability.Highlight, search.Capabilities);
         Assert.DoesNotContain(LiveUICapability.SetValue, search.Capabilities);
         var tab = Assert.Single(page.Targets, target => target.TargetId == "todo.completed");
         Assert.Contains(LiveUICapability.Activate, tab.Capabilities);
+        var list = Assert.Single(page.Targets, target => target.TargetId == "todo.list");
+        Assert.Contains(LiveUICapability.WaitForState, list.Capabilities);
         Assert.DoesNotContain(authorizer.Contexts, item => item.Action.SessionId != "trusted-session");
         Assert.Equal("todo.home", Assert.Single(page.NavigableRoutes, item => item.RouteId == "todo.home").RouteId);
         Assert.Contains(page.NavigableRoutes, item => item.RouteId == "todo.settings");
@@ -269,6 +271,8 @@ public sealed class LiveUIAgentToolsTests
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.SetValue }),
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
                     new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter }),
+                new LiveUITarget("todo.list", LiveUITargetKind.List, "Task list",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.WaitForState }),
             ]),
             new LiveUIRoute("todo.settings", "/settings", "Settings", [])
         ]);

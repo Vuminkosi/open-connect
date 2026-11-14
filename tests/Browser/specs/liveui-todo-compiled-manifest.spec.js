@@ -29,6 +29,25 @@ async function executeTarget(page, targetLabel, type, value) {
   }, { manifestData: manifest, route: todoRoute, targetData: target, actionType: type, actionValue: value });
 }
 
+async function waitForTargetState(page, targetLabel, stateName, stateValue) {
+  const target = todoRoute.targets.find((candidate) => candidate.label === targetLabel);
+  if (!target) throw new Error('The compiled manifest does not contain target: ' + targetLabel);
+
+  return page.evaluate(async ({ manifestData, route, targetData, name, value }) => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    return runtime.execute({
+      manifest: manifestData,
+      route,
+      target: targetData,
+      action: {
+        schemaVersion: manifestData.schemaVersion,
+        type: 'WaitForState',
+        parameters: { stateName: name, stateValue: value },
+      },
+    }, 5000, true);
+  }, { manifestData: manifest, route: todoRoute, targetData: target, name: stateName, value: stateValue });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Task Management' })).toBeVisible();
@@ -52,6 +71,17 @@ test('searches through the existing Todo search input and verifies rendered resu
   await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
   await expect(page.getByText('Draft the annual report', { exact: true })).toBeVisible();
   await expect(page.getByText('Gather feedback for report', { exact: true })).toBeVisible();
+  await expect(page.getByText('Prepare a launch checklist', { exact: true })).toHaveCount(0);
+});
+
+test('waits for the compiled task list to reflect the existing search control', async ({ page }) => {
+  const setValue = await executeTarget(page, 'Search tasks by title or description...', 'SetValue', 'report');
+  expect(setValue).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+
+  const receipt = await waitForTargetState(page, 'Task list', 'textContains', 'report');
+
+  expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
   await expect(page.getByText('Prepare a launch checklist', { exact: true })).toHaveCount(0);
 });
 

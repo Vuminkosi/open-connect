@@ -42,7 +42,8 @@ public sealed class LiveUIAgentTools(
                 .GroupBy(candidate => candidate.Action!.Value);
             foreach (var group in capabilityGroups)
             {
-                var candidate = CreateAction(context, manifest, route, target.Id, group.Key, new());
+                var candidate = CreateAction(context, manifest, route, target.Id, group.Key,
+                    GetCapabilityProbeParameters(target, group.Key));
                 var allowed = await IsAllowedAsync(
                     new LiveUIExecutionContext(manifest, route, target, candidate), cancellationToken).ConfigureAwait(false);
                 if (allowed) authorizedCapabilities.UnionWith(group.Select(item => item.Capability));
@@ -180,6 +181,11 @@ public sealed class LiveUIAgentTools(
         LiveUICapability.WaitForState => LiveUIActionType.WaitForState,
         _ => null
     };
+
+    private static LiveUIActionParameters GetCapabilityProbeParameters(LiveUITarget target, LiveUIActionType actionType) =>
+        actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table)
+            ? new(StateName: "textContains", StateValue: "probe")
+            : new();
 
     private async ValueTask<bool> IsAllowedAsync(LiveUIExecutionContext context, CancellationToken cancellationToken)
     {

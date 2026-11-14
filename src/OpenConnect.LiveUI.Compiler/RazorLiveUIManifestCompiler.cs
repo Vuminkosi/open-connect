@@ -248,12 +248,12 @@ public sealed class RazorLiveUIManifestCompiler
             case "ol":
             case "mudlist":
                 yield return new(LiveUITargetKind.List, string.IsNullOrWhiteSpace(label) ? "Task list" : label, "list",
-                    Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll), ".mud-list");
+                    Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState), ".mud-list");
                 yield break;
             case "table":
             case "mudtable":
             case "muddatagrid":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll));
+                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
                 yield break;
             case "details":
             case "mudexpansionpanel":
@@ -268,9 +268,9 @@ public sealed class RazorLiveUIManifestCompiler
             else if (tag.Equals("MudCheckBox", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(label))
                 yield return new(LiveUITargetKind.Checkbox, label, "checkbox", Caps(LiveUICapability.Select, LiveUICapability.Highlight));
             else if ((tag.Equals("MudTable", StringComparison.OrdinalIgnoreCase) || tag.Equals("MudDataGrid", StringComparison.OrdinalIgnoreCase)) && !string.IsNullOrWhiteSpace(label))
-                yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll));
+                yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
             else if (tag.Equals("MudList", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(label))
-                yield return new(LiveUITargetKind.List, label, "list", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll));
+                yield return new(LiveUITargetKind.List, label, "list", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
         }
     }
 
@@ -443,11 +443,11 @@ public sealed class RazorLiveUIManifestCompiler
             case "ul":
             case "ol":
                 if (!string.IsNullOrWhiteSpace(label))
-                    yield return new(LiveUITargetKind.List, label, "list", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll));
+                    yield return new(LiveUITargetKind.List, label, "list", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
                 break;
             case "table":
                 if (!string.IsNullOrWhiteSpace(label))
-                    yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll));
+                    yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
                 break;
         }
     }
