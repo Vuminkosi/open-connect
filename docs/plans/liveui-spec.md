@@ -70,7 +70,7 @@ Compiled lists, tables, and explicitly marked regions advertise `WaitForState` s
 
 Navigation is restricted to manifest routes and is complete only after route readiness is observed. Highlighting is non-modal, does not intentionally move focus, and respects reduced motion. Traditional Navigator tour behavior remains separate.
 
-The current runtime does not establish complete support for every MudBlazor or arbitrary custom component pattern. Unsupported, stale, hidden, or ambiguous targets must fail visibly. Native component adapters may be added where browser semantics alone cannot verify application state.
+The current runtime does not establish complete support for every MudBlazor or arbitrary custom component pattern. Unsupported, stale, hidden, or ambiguous targets must fail visibly. In the Todo flow, search verification uses the stable marked region: the list disappears in the empty state, and the broad `.mud-list` selector can become ambiguous when another visible component renders a matching list. Native component adapters may be added where browser semantics alone cannot verify application state.
 
 ## Speech and timeline
 
