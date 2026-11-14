@@ -34,7 +34,8 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
         Assert.Equal("/", route.Path);
         Assert.Equal("Task Management", route.Title);
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Tab && target.Label == "Completed" &&
-                                                target.Capabilities.Contains(LiveUICapability.Filter));
+                                                target.Capabilities.Contains(LiveUICapability.Filter) &&
+                                                target.Capabilities.Contains(LiveUICapability.WaitForState));
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Input && target.Label == "Search tasks..." &&
                                                 target.Capabilities.Contains(LiveUICapability.Filter));
         Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.List && target.Label == "Task list" &&

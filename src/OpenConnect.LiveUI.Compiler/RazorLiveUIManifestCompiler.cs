@@ -241,7 +241,7 @@ public sealed class RazorLiveUIManifestCompiler
                 if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Checkbox, label, "checkbox", Caps(LiveUICapability.Select, LiveUICapability.Highlight), RequiresConfirmation: requiresConfirmation);
                 yield break;
             case "mudtabspanel":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter));
+                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter, LiveUICapability.WaitForState));
                 yield break;
             case "mudtabs":
                 yield break;
@@ -271,7 +271,7 @@ public sealed class RazorLiveUIManifestCompiler
         if (tag.Length > 0 && char.IsUpper(tag[0]))
         {
             if (tag.Equals("MudTabPanel", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(label))
-                yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter));
+                yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter, LiveUICapability.WaitForState));
             else if (tag.Equals("MudCheckBox", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(label))
                 yield return new(LiveUITargetKind.Checkbox, label, "checkbox", Caps(LiveUICapability.Select, LiveUICapability.Highlight));
             else if ((tag.Equals("MudTable", StringComparison.OrdinalIgnoreCase) || tag.Equals("MudDataGrid", StringComparison.OrdinalIgnoreCase)) && !string.IsNullOrWhiteSpace(label))
