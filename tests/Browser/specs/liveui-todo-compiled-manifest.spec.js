@@ -139,10 +139,12 @@ test('combines the existing Completed tab and search controls while retaining fi
 
   const selectedReceipt = await waitForTargetState(page, 'Completed', 'selected', 'true');
   const resultsReceipt = await waitForTargetState(page, 'Task list', 'textContains', 'report');
+  const excludedReceipt = await waitForTargetState(page, 'Task list', 'textNotContains', 'Gather feedback for report');
   const highlightReceipt = await highlightTarget(page, 'todo-list');
 
   expect(selectedReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
   expect(resultsReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
+  expect(excludedReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, code: 'state_verified' });
   expect(highlightReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, verifiedState: 'highlighted' });
 
   await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
