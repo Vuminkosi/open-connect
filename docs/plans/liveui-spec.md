@@ -66,7 +66,7 @@ The in-memory session store currently backs the interaction broker registration.
 
 The Blazor runtime resolves compiled descriptors using known selectors, optional runtime IDs, and browser semantic queries. It rejects multiple matches. It supports the action subset implemented by the adapter, including focus, scroll, highlight, clearing highlights, value entry, selection, tab activation, inspection, route navigation, and bounded state waits.
 
-Compiled lists and tables advertise `WaitForState` so a host policy can permit verification after a supported control changes existing application state. The Todo sample allows bounded `textContains` and `textNotContains` checks on its task list; the browser acceptance test sets the existing search input, awaits the compiled list state, and verifies the rendered matching and excluded tasks.
+Compiled lists, tables, and explicitly marked regions advertise `WaitForState` so a host policy can permit verification after a supported control changes existing application state. The Todo sample allows bounded `textContains` and `textNotContains` checks on its task list and marked `todo-list` region. The stable region remains rendered when the list is replaced by the empty-state message, allowing that result to be verified after Blazor rerenders.
 
 Navigation is restricted to manifest routes and is complete only after route readiness is observed. Highlighting is non-modal, does not intentionally move focus, and respects reduced motion. Traditional Navigator tour behavior remains separate.
 
@@ -80,7 +80,7 @@ When speech is disabled or unavailable, UI action execution should remain functi
 
 ## Verification and performance
 
-Current evidence includes compiler-generated Todo manifest browser checks, browser checks for existing tabs/search/list-state verification/highlighting and composer audio lifecycle (7/7 passed in Development on 2026-11-14), focused agent/gateway tests, and an in-process correlated round-trip test. The hosting unit suite passed 153/153 on the current implementation before the latest list-state changes; focused compiler and agent suites passed 4/4 and 10/10 respectively after those changes. The Blazor sample Debug build passed with warnings treated as errors after those changes. Real model-provider acceptance for all six user journeys is not verified.
+Current evidence includes compiler-generated Todo manifest browser checks, browser checks for existing tabs/search/list-state and empty-state verification/highlighting and composer audio lifecycle (8/8 passed in Development on 2026-11-14), focused agent/gateway tests, and an in-process correlated round-trip test. The hosting unit suite passed 153/153 on the current implementation before the latest list-state changes; focused compiler and agent suites passed 4/4 and 10/10 respectively after those changes. The Blazor sample Debug build passed with warnings treated as errors after those changes. Real model-provider acceptance for all six user journeys is not verified.
 
 No latency or synchronization benchmark is claimed. Future measurements should separately record manifest load, target resolution, action execution, confirmed-state latency, playback/highlight offset, and target-resolution failure rate using representative applications and browser conditions.
 
