@@ -3,8 +3,10 @@
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
+@using OpenConnect.LiveUI.Agents
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
+@inject LiveUIAgentTools LiveUITools
 
 <MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" ObserveSystemThemeChange="true" />
 <MudPopoverProvider />
@@ -44,6 +46,7 @@
                           AssistantName="Ellai"
                           FabIcon="@Icons.Material.Filled.SmartToy"
                           Placeholder="Ask Ellai..."
+                          SpeechPlaybackChanged="OnSpeechPlaybackChanged"
                           CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
             <OpenConnectNavigatorProvider />
           </OpenConnectLiveUIProvider>
@@ -52,6 +55,12 @@
 </MudLayout>
 
 @code {
+    private async Task OnSpeechPlaybackChanged(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        if (playbackEvent.Stage is ComposerSpeechPlaybackStage.ResponseCompleted or ComposerSpeechPlaybackStage.Interrupted)
+            await LiveUITools.ClearHighlightAsync();
+    }
+
     private MudThemeProvider _mudThemeProvider = null!;
     private bool _isDarkMode = false;
     private bool _userExplicitlySetTheme = false;

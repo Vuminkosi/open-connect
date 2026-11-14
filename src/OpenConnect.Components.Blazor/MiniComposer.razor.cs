@@ -50,6 +50,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private string? _speechDisplayText;
     private string? _copiedResponse;
     private string? _lastNavigatorAction;
+    private (string? SessionId, int MessageCount, long Sequence)? _lastSpeechResponseCompleted;
 
     private sealed record SpeechSegment(string Text, int StartCursor, int EndCursor);
 
@@ -80,6 +81,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     /// <summary>Optional suggestion chips shown above the input.</summary>
     [Parameter] public IReadOnlyList<string>? Suggestions { get; set; }
+
+    /// <summary>Receives content-free playback lifecycle events from the client audio player.</summary>
+    [Parameter] public EventCallback<ComposerSpeechPlaybackEvent> SpeechPlaybackChanged { get; set; }
 
     /// <summary>Maximum input characters; clamped to the 8000 contract cap.</summary>
     [Parameter] public int MaxInputLength { get; set; } = 8000;
@@ -273,13 +277,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 _ = JS.InvokeVoidAsync("ocComposerNavigator.apply", navigatorAction.Action, navigatorAction.Route, navigatorAction.TargetId);
             }
         }
-        if (_speechOn && Session is not null)
+        if (Session is not null)
         {
             var response = Session.Connection == ComposerConnectionState.Streaming
                 ? Session.StreamingText
                 : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(response)) _speechDisplayText = response;
-            QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
+            if (_speechOn) QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
+            TryNotifySpeechResponseCompleted(response);
         }
 
         _ = InvokeAsync(StateHasChanged);
@@ -352,7 +357,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 if (!string.IsNullOrWhiteSpace(segment.Text)) await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
             }
         }
-        finally { _speechWorkerRunning = false; }
+        finally
+        {
+            _speechWorkerRunning = false;
+            if (Session is not null)
+            {
+                var response = Session.Connection == ComposerConnectionState.Streaming
+                    ? Session.StreamingText
+                    : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
+                TryNotifySpeechResponseCompleted(response);
+            }
+        }
     }
 
     private async Task SpeakResponseSegmentAsync(SpeechSegment segment)
@@ -371,7 +386,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _beingSpokenStart = segment.StartCursor;
             _beingSpokenEnd = segment.EndCursor;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
-            await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels, playbackEpoch).ConfigureAwait(false);
+            var dotNetReference = _dotNetRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels,
+                playbackEpoch, dotNetReference, segment.StartCursor, segment.EndCursor).ConfigureAwait(false);
             if (!Session.TryAcceptTtsAudioChunk(playbackEpoch)) return;
             _spokenResponseCharacters = Math.Max(_spokenResponseCharacters, segment.EndCursor);
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
@@ -387,6 +404,48 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
+    [JSInvokable]
+    public Task OnSpeechPlaybackStarted(long epoch, int startCharacter, int endCharacter, double durationSeconds) =>
+        NotifyClientSpeechEventAsync(epoch, startCharacter, endCharacter, ComposerSpeechPlaybackStage.Started, 0, durationSeconds);
+
+    [JSInvokable]
+    public Task OnSpeechPlaybackProgress(long epoch, int startCharacter, int endCharacter, double elapsedSeconds, double durationSeconds) =>
+        NotifyClientSpeechEventAsync(epoch, startCharacter, endCharacter, ComposerSpeechPlaybackStage.Progress, elapsedSeconds, durationSeconds);
+
+    [JSInvokable]
+    public Task OnSpeechPlaybackEnded(long epoch, int startCharacter, int endCharacter, double durationSeconds) =>
+        NotifyClientSpeechEventAsync(epoch, startCharacter, endCharacter, ComposerSpeechPlaybackStage.SegmentCompleted,
+            durationSeconds, durationSeconds);
+
+    private async Task NotifyClientSpeechEventAsync(long epoch, int startCharacter, int endCharacter,
+        ComposerSpeechPlaybackStage stage, double elapsedSeconds, double durationSeconds)
+    {
+        if (Session is null || !Session.TryAcceptTtsAudioChunk(epoch) || !double.IsFinite(elapsedSeconds) ||
+            !double.IsFinite(durationSeconds) || elapsedSeconds < 0 || durationSeconds < 0 ||
+            startCharacter < 0 || endCharacter < startCharacter) return;
+        await NotifySpeechPlaybackChangedAsync(new(epoch, startCharacter, endCharacter, stage,
+            Math.Min(elapsedSeconds, durationSeconds), durationSeconds)).ConfigureAwait(false);
+    }
+
+    private void TryNotifySpeechResponseCompleted(string response)
+    {
+        if (Session is null || Session.Connection == ComposerConnectionState.Streaming || string.IsNullOrEmpty(response)) return;
+        if (_speechOn && (_speechWorkerRunning || _speechQueue.Count != 0 || _speechCursor < response.Length)) return;
+
+        var completion = (Session.SessionId, Session.Messages.Count, Session.LastSequence);
+        if (_lastSpeechResponseCompleted == completion) return;
+        _lastSpeechResponseCompleted = completion;
+        _ = NotifySpeechPlaybackChangedAsync(new(Session.PlaybackEpoch, 0, response.Length,
+            ComposerSpeechPlaybackStage.ResponseCompleted));
+    }
+
+    private async Task NotifySpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        if (!SpeechPlaybackChanged.HasDelegate || _disposed) return;
+        try { await SpeechPlaybackChanged.InvokeAsync(playbackEvent).ConfigureAwait(false); }
+        catch (Exception) { }
+    }
+
     private async Task ToggleSpeechAsync()
     {
         _speechOn = !_speechOn;
@@ -396,6 +455,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             lock (_speechQueue) _speechQueue.Clear();
             Session.TriggerBargeIn();
             try { await JS.InvokeVoidAsync("ocComposerAudio.stop").ConfigureAwait(false); } catch (Exception) { }
+            await NotifySpeechPlaybackChangedAsync(new(Session.PlaybackEpoch, Math.Max(_beingSpokenStart, 0),
+                Math.Max(_beingSpokenEnd, 0), ComposerSpeechPlaybackStage.Interrupted)).ConfigureAwait(false);
         }
         else
         {

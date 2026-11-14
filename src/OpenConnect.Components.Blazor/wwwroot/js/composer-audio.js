@@ -4,6 +4,7 @@
     let source = null;
     let playbackEpoch = 0;
     let activeResolve = null;
+    let progressFrame = 0;
 
     function decodeBase64(value) {
         const binary = atob(value);
@@ -14,6 +15,8 @@
 
     function stop() {
         playbackEpoch++;
+        if (progressFrame) cancelAnimationFrame(progressFrame);
+        progressFrame = 0;
         if (activeResolve) {
             activeResolve();
             activeResolve = null;
@@ -25,7 +28,7 @@
         }
     }
 
-    async function playPcm(base64, sampleRate, channels, epoch) {
+    async function playPcm(base64, sampleRate, channels, epoch, dotnet, startCharacter, endCharacter) {
         if (!base64 || sampleRate !== 24000 || channels !== 1 || !epoch) return;
         const localEpoch = playbackEpoch;
         context = context || new AudioContext({ sampleRate });
@@ -41,13 +44,40 @@
         source = context.createBufferSource();
         source.buffer = buffer;
         source.connect(context.destination);
+        const activeSource = source;
+        const duration = buffer.duration;
         await new Promise(resolve => {
             activeResolve = resolve;
-            source.onended = () => {
-                if (source) { source.disconnect(); source = null; }
-                if (activeResolve) { activeResolve(); activeResolve = null; }
+            const startedAt = context.currentTime;
+            let lastProgressAt = 0;
+            const progress = (timestamp) => {
+                if (localEpoch !== playbackEpoch) return;
+                const elapsed = Math.min(context.currentTime - startedAt, duration);
+                if (timestamp - lastProgressAt >= 250) {
+                    lastProgressAt = timestamp;
+                    dotnet?.invokeMethodAsync("OnSpeechPlaybackProgress", epoch, startCharacter, endCharacter, elapsed, duration).catch(() => {});
+                }
+                if (elapsed < duration) progressFrame = requestAnimationFrame(progress);
             };
-            source.start();
+            activeSource.onended = async () => {
+                if (progressFrame) cancelAnimationFrame(progressFrame);
+                progressFrame = 0;
+                if (source === activeSource) { activeSource.disconnect(); source = null; }
+                const finish = activeResolve;
+                activeResolve = null;
+                if (localEpoch === playbackEpoch && dotnet) {
+                    try { await dotnet.invokeMethodAsync("OnSpeechPlaybackEnded", epoch, startCharacter, endCharacter, duration); }
+                    catch { }
+                }
+                finish?.();
+            };
+            activeSource.start();
+            void (async () => {
+                try {
+                    if (dotnet) await dotnet.invokeMethodAsync("OnSpeechPlaybackStarted", epoch, startCharacter, endCharacter, duration);
+                } catch { }
+                if (localEpoch === playbackEpoch) progressFrame = requestAnimationFrame(progress);
+            })();
         });
     }
 

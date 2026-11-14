@@ -36,6 +36,17 @@ public enum ComposerInputAction { LiveVoiceOrSend, SendOnly, RecordedVoiceOrSend
 public enum ComposerTaskPhase { Ready, Connecting, Sending, Thinking, ToolExecuting, AwaitingApproval, Streaming, Reconnecting, Completed, Cancelling, Cancelled, Failed }
 public enum ComposerMicrophoneState { Unavailable, Off, PermissionRequested, Recording, ListeningLive, Transcribing, Stopping, Failed }
 public enum ComposerSpeechState { Unavailable, Off, On, Buffering, Playing, Paused, Failed }
+
+/// <summary>Playback lifecycle notification from the actual client audio player. Contains no narration text.</summary>
+public sealed record ComposerSpeechPlaybackEvent(
+    long PlaybackEpoch,
+    int StartCharacter,
+    int EndCharacter,
+    ComposerSpeechPlaybackStage Stage,
+    double ElapsedSeconds = 0,
+    double DurationSeconds = 0);
+
+public enum ComposerSpeechPlaybackStage { Started, Progress, SegmentCompleted, ResponseCompleted, Interrupted }
 public enum ComposerHistoryPresentation { LatestOnly, OnDemandHistory }
 public enum ComposerUiIntegration { Floating, Attached }
 

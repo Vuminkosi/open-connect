@@ -71,6 +71,26 @@ OpenConnect.Components.Contracts.ComposerPlacement.Custom = 4 -> OpenConnect.Com
 OpenConnect.Components.Contracts.ComposerPlacement.LegacyViewport20Vh = 5 -> OpenConnect.Components.Contracts.ComposerPlacement
 OpenConnect.Components.Contracts.ComposerPlacement.TopLeft = 3 -> OpenConnect.Components.Contracts.ComposerPlacement
 OpenConnect.Components.Contracts.ComposerPlacement.TopRight = 2 -> OpenConnect.Components.Contracts.ComposerPlacement
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.ComposerSpeechPlaybackEvent(long PlaybackEpoch, int StartCharacter, int EndCharacter, OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage Stage, double ElapsedSeconds = 0, double DurationSeconds = 0) -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.DurationSeconds.get -> double
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.DurationSeconds.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.ElapsedSeconds.get -> double
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.ElapsedSeconds.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.EndCharacter.get -> int
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.EndCharacter.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.PlaybackEpoch.get -> long
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.PlaybackEpoch.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Stage.get -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Stage.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.StartCharacter.get -> int
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.StartCharacter.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.Interrupted = 4 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.Progress = 1 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.ResponseCompleted = 3 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.SegmentCompleted = 2 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.Started = 0 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
 OpenConnect.Components.Contracts.ComposerSpeechState
 OpenConnect.Components.Contracts.ComposerSpeechState.Buffering = 3 -> OpenConnect.Components.Contracts.ComposerSpeechState
 OpenConnect.Components.Contracts.ComposerSpeechState.Failed = 6 -> OpenConnect.Components.Contracts.ComposerSpeechState
