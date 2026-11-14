@@ -59,6 +59,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     [CascadingParameter] private ComposerSession Session { get; set; } = default!;
 
@@ -373,6 +374,20 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenSettingsDialogAsync()
+    {
+        var parameters = new DialogParameters<ComposerSettingsDialog>
+        {
+            { dialog => dialog.SpeechOn, _speechOn },
+            { dialog => dialog.MicrophoneOn, _micOn },
+            { dialog => dialog.Placement, Placement },
+            { dialog => dialog.CloseBehavior, CloseBehavior },
+            { dialog => dialog.MaxInputLength, EffectiveMaxLength },
+            { dialog => dialog.SessionId, Session?.SessionId }
+        };
+        await DialogService.ShowAsync<ComposerSettingsDialog>("Composer settings", parameters);
     }
 
     private async Task OnSpeechSwitchChanged(bool value)
