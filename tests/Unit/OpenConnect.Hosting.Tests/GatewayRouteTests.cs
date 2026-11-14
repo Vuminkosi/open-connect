@@ -178,6 +178,34 @@ public sealed class GatewayRouteTests
         Assert.Contains("Completed", result.PayloadJson);
     }
 
+    [Theory]
+    [InlineData("get_current_page", "page")]
+    [InlineData("execute", "action")]
+    [InlineData("navigate", "action")]
+    [InlineData("inspect", "action")]
+    [InlineData("await_state", "action")]
+    [InlineData("highlight", "action")]
+    [InlineData("clear_highlight", "action")]
+    public async Task Client_interaction_broker_accepts_each_connected_liveui_operation(
+        string operation, string resultKind)
+    {
+        await using var host = await CreateAppAsync();
+        var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), operation);
+        var pending = store.RequestAsync(session.Id, request, resultKind, TimeSpan.FromSeconds(2));
+
+        await WaitForRequestAsync(store, session.Id.Value);
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionResponse(request.CorrelationId, resultKind, "{}")));
+
+        var response = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.NotNull(response);
+        Assert.Equal(request.CorrelationId, response.CorrelationId);
+        Assert.Equal(resultKind, response.ResultKind);
+    }
+
     [Fact]
     public async Task Components_returns_registered_agent_descriptors()
     {

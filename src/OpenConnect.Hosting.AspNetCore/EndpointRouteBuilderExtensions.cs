@@ -720,10 +720,15 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var operationResultKind = request.Operation switch
+        {
+            "get_current_page" => "page",
+            "execute" or "navigate" or "inspect" or "await_state" or "highlight" or "clear_highlight" => "action",
+            _ => null
+        };
         if (sessionId.Value == default || !_sessions.ContainsKey(sessionId.Value) ||
             !Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
-            expectedResultKind is not ("page" or "action") ||
-            (request.Operation, expectedResultKind) is not (("get_current_page", "page") or ("execute", "action")) ||
+            expectedResultKind is not ("page" or "action") || operationResultKind != expectedResultKind ||
             timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
             throw new ArgumentException("The client interaction request is invalid.", nameof(request));
 
