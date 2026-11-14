@@ -17,11 +17,15 @@ public sealed record ClientInteractionResponse(
     string ResultKind,
     string PayloadJson);
 
+/// <summary>Cancels one pending connected-client interaction by its request correlation.</summary>
+public sealed record ClientInteractionCancellation(string CorrelationId);
+
 /// <summary>Event types used to correlate agent requests with connected-client results.</summary>
 public static class ClientInteractionEventTypes
 {
     public const string Request = "liveui.request";
     public const string Response = "liveui.response";
+    public const string Cancellation = "liveui.cancel";
 }
 
 /// <summary>Correlates trusted agent requests with responses from the authenticated client session.</summary>

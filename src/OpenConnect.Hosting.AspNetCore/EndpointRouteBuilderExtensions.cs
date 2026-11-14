@@ -762,5 +762,19 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         {
             return null;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Cancellation,
+                    JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), InteractionJsonOptions),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Preserve the caller's cancellation even if the session is already gone.
+            }
+            throw;
+        }
     }
 }

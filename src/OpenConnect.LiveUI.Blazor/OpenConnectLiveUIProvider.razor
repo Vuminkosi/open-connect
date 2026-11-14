@@ -4,6 +4,7 @@
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Client
 @using OpenConnect.Abstractions
+@using System.Collections.Concurrent
 @using System.Text.Json
 @inject LiveUIManifestState ManifestState
 @inject IServiceProvider Services
@@ -25,6 +26,7 @@
     private ComposerSession? _boundSession;
     private LiveUIAgentTools? _agentTools;
     private string? _lastRequestId;
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
 
     protected override void OnParametersSet()
     {
@@ -42,97 +44,128 @@
 
     private void OnComposerSessionChanged()
     {
+        var cancellationId = _boundSession?.PendingClientInteractionCancellationId;
+        if (cancellationId is not null && _activeInteractions.TryGetValue(cancellationId, out var active))
+        {
+            try { active.Cancel(); }
+            catch (ObjectDisposedException) { }
+        }
+
         var request = _boundSession?.PendingClientInteraction;
         if (request is null || request.CorrelationId == _lastRequestId ||
             Services.GetService(typeof(IOpenConnectClient)) is not IOpenConnectClient client)
             return;
 
         _lastRequestId = request.CorrelationId;
-        _ = InvokeAsync(() => ProcessClientInteractionAsync(request, client));
+        var cancellation = new CancellationTokenSource();
+        if (!_activeInteractions.TryAdd(request.CorrelationId, cancellation))
+        {
+            cancellation.Dispose();
+            return;
+        }
+        _ = InvokeAsync(() => ProcessClientInteractionAsync(request, client, cancellation));
     }
 
-    private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client)
+    private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client,
+        CancellationTokenSource interactionCancellation)
     {
-        var sessionText = _boundSession?.SessionId;
-        if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
-            string.IsNullOrWhiteSpace(sessionText))
-            return;
-        Ulid sessionId;
-        try { sessionId = Ulid.Parse(sessionText); }
-        catch (FormatException) { return; }
-
-        var responseKind = "action";
-        string payloadJson;
         try
         {
-            _agentTools ??= Services.GetService(typeof(LiveUIAgentTools)) as LiveUIAgentTools;
-            if (_agentTools is null) throw new InvalidOperationException("LiveUI agent tools are unavailable.");
+            var cancellationToken = interactionCancellation.Token;
+            var sessionText = _boundSession?.SessionId;
+            if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(sessionText))
+                return;
+            Ulid sessionId;
+            try { sessionId = Ulid.Parse(sessionText); }
+            catch (FormatException) { return; }
 
-            if (request.Operation == "get_current_page")
+            var responseKind = "action";
+            string payloadJson;
+            try
             {
-                responseKind = "page";
-                var page = await _agentTools.GetCurrentPageAsync();
-                payloadJson = page is null ? "{\"error\":\"page_unavailable\"}" : JsonSerializer.Serialize(page, JsonOptions);
-            }
-            else if (request.Operation == "navigate" && request.RouteId is { Length: > 0 and <= 128 })
-            {
-                var receipt = await _agentTools.NavigateAsync(request.RouteId);
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else if (request.Operation == "inspect" && request.TargetId is { Length: > 0 and <= 256 })
-            {
-                var receipt = await _agentTools.InspectAsync(request.TargetId);
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else if (request.Operation == "execute" &&
-                     request.TargetId is { Length: > 0 and <= 256 } &&
-                     request.Value is not { Length: > 2_000 } &&
-                     request.Action is { Length: > 0 and <= 32 })
-            {
-                var receipt = await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value);
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else if (request.Operation == "await_state" &&
-                     request.TargetId is { Length: > 0 and <= 256 } &&
-                     request.StateName is { Length: > 0 and <= 64 } &&
-                     request.StateValue is not { Length: > 256 })
-            {
-                var receipt = await _agentTools.AwaitStateAsync(request.TargetId, request.StateName, request.StateValue);
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else if (request.Operation == "highlight" && request.TargetId is { Length: > 0 and <= 256 })
-            {
-                var receipt = await _agentTools.HighlightAsync(request.TargetId);
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else if (request.Operation == "clear_highlight")
-            {
-                var receipt = await _agentTools.ClearHighlightAsync();
-                payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
-            }
-            else
-            {
-                throw new JsonException("The interaction request is invalid.");
-            }
-        }
-        catch (Exception)
-        {
-            payloadJson = JsonSerializer.Serialize(new { code = "client_interaction_failed" }, JsonOptions);
-        }
+                _agentTools ??= Services.GetService(typeof(LiveUIAgentTools)) as LiveUIAgentTools;
+                if (_agentTools is null) throw new InvalidOperationException("LiveUI agent tools are unavailable.");
 
-        try
-        {
+                if (request.Operation == "get_current_page")
+                {
+                    responseKind = "page";
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    payloadJson = page is null ? "{\"error\":\"page_unavailable\"}" : JsonSerializer.Serialize(page, JsonOptions);
+                }
+                else if (request.Operation == "navigate" && request.RouteId is { Length: > 0 and <= 128 })
+                {
+                    var receipt = await _agentTools.NavigateAsync(request.RouteId, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "inspect" && request.TargetId is { Length: > 0 and <= 256 })
+                {
+                    var receipt = await _agentTools.InspectAsync(request.TargetId, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "execute" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.Value is not { Length: > 2_000 } &&
+                         request.Action is { Length: > 0 and <= 32 })
+                {
+                    var receipt = await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "await_state" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.StateName is { Length: > 0 and <= 64 } &&
+                         request.StateValue is not { Length: > 256 })
+                {
+                    var receipt = await _agentTools.AwaitStateAsync(request.TargetId, request.StateName, request.StateValue, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "highlight" && request.TargetId is { Length: > 0 and <= 256 })
+                {
+                    var receipt = await _agentTools.HighlightAsync(request.TargetId, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "clear_highlight")
+                {
+                    var receipt = await _agentTools.ClearHighlightAsync(cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else
+                {
+                    throw new JsonException("The interaction request is invalid.");
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception)
+            {
+                payloadJson = JsonSerializer.Serialize(new { code = "client_interaction_failed" }, JsonOptions);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
             await client.PostClientInteractionResponseAsync(
-                new SessionId(sessionId), new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson));
+                new SessionId(sessionId), new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson), cancellationToken);
         }
+        catch (OperationCanceledException) when (interactionCancellation.IsCancellationRequested) { }
         catch (Exception)
         {
             // The gateway times out the correlated agent tool when the client cannot acknowledge it.
+        }
+        finally
+        {
+            _activeInteractions.TryRemove(request.CorrelationId, out _);
+            interactionCancellation.Dispose();
         }
     }
 
     public void Dispose()
     {
         if (_boundSession is not null) _boundSession.Changed -= OnComposerSessionChanged;
+        foreach (var active in _activeInteractions.Values)
+        {
+            try { active.Cancel(); }
+            catch (ObjectDisposedException) { }
+        }
     }
 }

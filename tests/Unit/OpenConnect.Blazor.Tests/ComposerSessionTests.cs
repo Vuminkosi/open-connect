@@ -1,4 +1,5 @@
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Components.Contracts;
 using Xunit;
@@ -46,6 +47,23 @@ public sealed class ComposerSessionTests
         session.TriggerBargeIn();
         Assert.False(session.EndSpeechPlayback(interruptedEpoch));
         Assert.Equal(ComposerSpeechState.On, session.SpeechState);
+    }
+
+    [Fact]
+    public void Client_interaction_cancellation_is_correlated_and_cleared_on_new_session()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("ALPHA");
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+        session.ApplyEvent(Event(1, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions())));
+
+        session.ApplyEvent(Event(2, ClientInteractionEventTypes.Cancellation,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), OpenConnectHttpJson.CreateOptions())));
+
+        Assert.Equal(request.CorrelationId, session.PendingClientInteractionCancellationId);
+        session.AttachSession("BETA");
+        Assert.Null(session.PendingClientInteractionCancellationId);
     }
 
     [Fact]

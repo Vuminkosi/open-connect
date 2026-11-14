@@ -170,6 +170,7 @@ OpenConnect.Abstractions.CanonicalAgentEvent.SessionId.get -> System.Guid
 OpenConnect.Abstractions.CanonicalAgentEvent.SessionId.init -> void
 OpenConnect.Abstractions.CanonicalEventMapper
 OpenConnect.Abstractions.ClientInteractionEventTypes
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
 const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
 const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
 OpenConnect.Abstractions.IClientInteractionBroker
@@ -193,6 +194,10 @@ OpenConnect.Abstractions.ClientInteractionRequest.TargetId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Value.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.Value.init -> void
 OpenConnect.Abstractions.ClientInteractionResponse
+OpenConnect.Abstractions.ClientInteractionCancellation
+OpenConnect.Abstractions.ClientInteractionCancellation.ClientInteractionCancellation(string! CorrelationId) -> void
+OpenConnect.Abstractions.ClientInteractionCancellation.CorrelationId.get -> string!
+OpenConnect.Abstractions.ClientInteractionCancellation.CorrelationId.init -> void
 OpenConnect.Abstractions.ClientInteractionResponse.ClientInteractionResponse(string! CorrelationId, string! ResultKind, string! PayloadJson) -> void
 OpenConnect.Abstractions.ClientInteractionResponse.CorrelationId.get -> string!
 OpenConnect.Abstractions.ClientInteractionResponse.CorrelationId.init -> void

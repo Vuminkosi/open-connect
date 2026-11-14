@@ -27,6 +27,45 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000006", "clear_highlight"), "ClearHighlight" }
     };
 
+    [Fact]
+    public async Task Provider_cancels_the_matching_browser_action_and_suppresses_a_stale_receipt()
+    {
+        using var context = new BunitContext();
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new CancellationAwareRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        await runtime.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 2, ClientInteractionEventTypes.Cancellation,
+            JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), OpenConnectHttpJson.CreateOptions()))));
+
+        await runtime.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(25);
+        Assert.Null(client.Response);
+    }
+
     [Theory]
     [MemberData(nameof(Requests))]
     public async Task Provider_executes_correlated_operations_and_posts_verified_receipts(
@@ -109,6 +148,28 @@ public sealed class LiveUIProviderClientInteractionTests
         {
             LastAction = context.Action.Type.ToString();
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "state_verified", true, "state_verified"));
+        }
+    }
+
+    private sealed class CancellationAwareRuntime : ILiveUIRuntime
+    {
+        public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Canceled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult(true);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "unexpected_completion", true);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                Canceled.TrySetResult(true);
+                throw;
+            }
         }
     }
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Hosting;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Core.Capabilities;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
@@ -204,6 +205,26 @@ public sealed class GatewayRouteTests
         Assert.NotNull(response);
         Assert.Equal(request.CorrelationId, response.CorrelationId);
         Assert.Equal(resultKind, response.ResultKind);
+    }
+
+    [Fact]
+    public async Task Client_interaction_broker_publishes_correlation_when_caller_cancels()
+    {
+        await using var host = await CreateAppAsync();
+        var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+        using var cancellation = new CancellationTokenSource();
+        var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(10), cancellation.Token);
+        await WaitForRequestAsync(store, session.Id.Value);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        var canceled = Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Cancellation);
+        var eventPayload = System.Text.Json.JsonSerializer.Deserialize<ClientInteractionCancellation>(
+            canceled.Data, OpenConnectHttpJson.CreateOptions());
+        Assert.Equal(request.CorrelationId, eventPayload!.CorrelationId);
     }
 
     [Fact]

@@ -82,6 +82,7 @@ public sealed class ComposerSession
     public ComposerNavigatorAction? PendingNavigatorAction { get; private set; }
 
     public ClientInteractionRequest? PendingClientInteraction { get; private set; }
+    public string? PendingClientInteractionCancellationId { get; private set; }
 
     public event Action? Changed;
 
@@ -106,6 +107,7 @@ public sealed class ComposerSession
             PlaybackEpoch++;
             PendingNavigatorAction = null;
             PendingClientInteraction = null;
+            PendingClientInteractionCancellationId = null;
         }
 
         Notify();
@@ -418,6 +420,16 @@ public sealed class ComposerSession
             {
                 try { PendingClientInteraction = JsonSerializer.Deserialize<ClientInteractionRequest>(record.Data ?? "{}", OpenConnectHttpJson.CreateOptions()); }
                 catch (JsonException) { PendingClientInteraction = null; }
+                PendingClientInteractionCancellationId = null;
+            }
+            else if (type.Equals(ClientInteractionEventTypes.Cancellation, StringComparison.Ordinal))
+            {
+                try
+                {
+                    var cancellation = JsonSerializer.Deserialize<ClientInteractionCancellation>(record.Data ?? "{}", OpenConnectHttpJson.CreateOptions());
+                    PendingClientInteractionCancellationId = cancellation?.CorrelationId;
+                }
+                catch (JsonException) { PendingClientInteractionCancellationId = null; }
             }
             else if (type.EndsWith("delta", StringComparison.OrdinalIgnoreCase)
                 || type.Equals("message", StringComparison.OrdinalIgnoreCase))
