@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Microsoft packages -->
+    <PackageVersion Include="Markdig" Version="1.6.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Harness" Version="1.27.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.27.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows.Declarative.Mcp" Version="1.27.0" />

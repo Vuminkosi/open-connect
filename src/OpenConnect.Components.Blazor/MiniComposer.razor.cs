@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Markdig;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -19,6 +20,7 @@ namespace OpenConnect.Components.Blazor;
 public partial class MiniComposer : ComponentBase, IAsyncDisposable
 {
     private const int MaxInputLengthHardCap = 8000;
+    private static readonly MarkdownPipeline SpeechMarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     private bool _open;
     private bool _openedOnce;
@@ -212,11 +214,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private static string StripMarkdown(string value)
     {
-        var text = Regex.Replace(value, @"\[([^\]]+)\]\([^\)]*\)", "$1", RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"<[^>]+>", string.Empty, RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"[*_#`~]", string.Empty, RegexOptions.CultureInvariant);
-        text = Regex.Replace(text, @"(^|\n)\s*[-+]\s+", "$1", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-        return Regex.Replace(text, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
+        var html = Markdown.ToHtml(value, SpeechMarkdownPipeline);
+        var text = Regex.Replace(html, @"<!--.*?-->|<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        return Regex.Replace(WebUtility.HtmlDecode(text), @"\s+", " ", RegexOptions.CultureInvariant).Trim();
     }
 
     private static string RenderInline(string value)
