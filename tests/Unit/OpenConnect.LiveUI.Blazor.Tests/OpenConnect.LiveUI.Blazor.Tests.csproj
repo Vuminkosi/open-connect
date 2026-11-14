@@ -14,4 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.LiveUI.Blazor/OpenConnect.LiveUI.Blazor.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures/compiled-manifest.json"
+                      LogicalName="OpenConnect.LiveUI.Blazor.Tests.openconnect.liveui.manifest.json" />
+  </ItemGroup>
 </Project>

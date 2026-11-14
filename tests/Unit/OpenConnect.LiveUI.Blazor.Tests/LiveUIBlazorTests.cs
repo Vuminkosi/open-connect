@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Collections;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Components;
 using OpenConnect.LiveUI;
@@ -27,6 +29,23 @@ public sealed class LiveUIBlazorTests
         Assert.Same(Manifest, await state.GetCurrentAsync());
         Assert.Throws<ArgumentException>(() => state.SetManifest(Manifest with { SchemaVersion = "unknown" }));
         Assert.Same(Manifest, await state.GetCurrentAsync());
+    }
+
+    [Fact]
+    public void CompiledManifestLoader_CachesValidatedBuildAndFreezesItsCollections()
+    {
+        var assembly = typeof(LiveUIBlazorTests).Assembly;
+
+        var first = LiveUICompiledManifestLoader.LoadFromEntryAssembly(assembly);
+        var second = LiveUICompiledManifestLoader.LoadFromEntryAssembly(assembly);
+
+        Assert.NotNull(first);
+        Assert.Same(first, second);
+        Assert.IsAssignableFrom<FrozenSet<LiveUICapability>>(first!.Routes[0].Targets[0].Capabilities);
+        Assert.True(((IList)first.Routes).IsReadOnly);
+        Assert.True(((IList)first.Routes[0].Targets).IsReadOnly);
+        Assert.Throws<NotSupportedException>(() => ((IList)first.Routes).Add(first.Routes[0]));
+        Assert.Throws<NotSupportedException>(() => ((IList)first.Routes[0].Targets).Clear());
     }
 
     [Fact]
