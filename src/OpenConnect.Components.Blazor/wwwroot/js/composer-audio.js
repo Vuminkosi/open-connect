@@ -74,7 +74,12 @@
             activeSource.start();
             void (async () => {
                 try {
-                    if (dotnet) await dotnet.invokeMethodAsync("OnSpeechPlaybackStarted", epoch, startCharacter, endCharacter, duration);
+                    if (dotnet) {
+                        await dotnet.invokeMethodAsync("OnSpeechPlaybackStarted", epoch, startCharacter, endCharacter, duration);
+                        const synchronizationOffsetMilliseconds = Math.max(0, (context.currentTime - startedAt) * 1000);
+                        await dotnet.invokeMethodAsync("OnSpeechPlaybackSynchronizationMeasured", epoch,
+                            startCharacter, endCharacter, synchronizationOffsetMilliseconds);
+                    }
                 } catch { }
                 if (localEpoch === playbackEpoch) progressFrame = requestAnimationFrame(progress);
             })();

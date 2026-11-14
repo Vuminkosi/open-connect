@@ -21,6 +21,7 @@
     private readonly SemaphoreSlim _speechCueGate = new(1, 1);
     private readonly List<LiveUISpeechCue> _speechCues = [];
     private readonly HashSet<string> _activeSpeechCueTargets = new(StringComparer.Ordinal);
+    private readonly HashSet<(long PlaybackEpoch, int StartCharacter, int EndCharacter)> _speechCueMeasurementsAwaitingAck = [];
     [Parameter]
     public LiveUIManifest? Manifest { get; set; }
 
@@ -96,6 +97,7 @@
         {
             _speechCues.Clear();
             _activeSpeechCueTargets.Clear();
+            _speechCueMeasurementsAwaitingAck.Clear();
             await ClearHighlightsCoreAsync();
         }
         finally { _speechCueGate.Release(); }
@@ -117,13 +119,24 @@
             {
                 _speechCues.Clear();
                 _activeSpeechCueTargets.Clear();
+                _speechCueMeasurementsAwaitingAck.Clear();
                 await ClearHighlightsCoreAsync();
                 return;
             }
 
             if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
                 playbackEvent.Stage == ComposerSpeechPlaybackStage.Started)
-                await ApplySpeechCuesAsync(playbackEvent);
+            {
+                if (await ApplySpeechCuesAsync(playbackEvent))
+                    _speechCueMeasurementsAwaitingAck.Add(GetSpeechSegmentKey(playbackEvent));
+            }
+            else if (playbackEvent.Stage == ComposerSpeechPlaybackStage.SynchronizationMeasured &&
+                     playbackEvent.SynchronizationOffsetMilliseconds is double offsetMilliseconds &&
+                     double.IsFinite(offsetMilliseconds) && offsetMilliseconds >= 0 &&
+                     _speechCueMeasurementsAwaitingAck.Remove(GetSpeechSegmentKey(playbackEvent)))
+            {
+                LiveUISpeechMetrics.SpeechHighlightOffset.Record(offsetMilliseconds);
+            }
         }
         finally { _speechCueGate.Release(); }
     }
@@ -138,9 +151,13 @@
         finally { _speechCueGate.Release(); }
     }
 
-    private async Task ApplySpeechCuesAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    private static (long PlaybackEpoch, int StartCharacter, int EndCharacter) GetSpeechSegmentKey(
+        ComposerSpeechPlaybackEvent playbackEvent) =>
+        (playbackEvent.PlaybackEpoch, playbackEvent.StartCharacter, playbackEvent.EndCharacter);
+
+    private async Task<bool> ApplySpeechCuesAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        if (_speechCues.Count == 0 || playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return;
+        if (_speechCues.Count == 0 || playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return false;
 
         var responseLength = GetCurrentAssistantResponseLength();
         var targets = _speechCues
@@ -149,11 +166,24 @@
                           cue.EndCharacter > playbackEvent.StartCharacter)
             .Select(cue => cue.TargetId)
             .ToHashSet(StringComparer.Ordinal);
-        if (_activeSpeechCueTargets.SetEquals(targets)) return;
+        if (targets.Count == 0)
+        {
+            if (_activeSpeechCueTargets.Count > 0)
+            {
+                await ClearHighlightsCoreAsync();
+                _activeSpeechCueTargets.Clear();
+            }
+            return false;
+        }
+        if (_activeSpeechCueTargets.SetEquals(targets))
+        {
+            LiveUISpeechMetrics.SpeechHighlightOffset.Record(0);
+            return false;
+        }
 
         await ClearHighlightsCoreAsync();
         _activeSpeechCueTargets.Clear();
-        if (_agentTools is null) return;
+        if (_agentTools is null) return false;
 
         foreach (var targetId in targets.Order(StringComparer.Ordinal))
         {
@@ -161,6 +191,8 @@
             if (receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
                 _activeSpeechCueTargets.Add(targetId);
         }
+
+        return _activeSpeechCueTargets.SetEquals(targets);
     }
 
     private int GetCurrentAssistantResponseLength()

@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Bunit;
 using Microsoft.AspNetCore.Components;
@@ -176,6 +177,22 @@ public sealed class LiveUIProviderClientInteractionTests
     [Fact]
     public async Task Provider_switches_authorized_targets_at_their_audio_segment_character_ranges()
     {
+        var synchronizationOffsets = new List<double>();
+        using var meterListener = new MeterListener
+        {
+            InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == "OpenConnect.LiveUI")
+                    listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.SetMeasurementEventCallback<double>((instrument, measurement, _, _) =>
+        {
+            if (instrument.Name == "openconnect.liveui.speech.highlight.offset")
+                synchronizationOffsets.Add(measurement);
+        });
+        meterListener.Start();
+
         await using var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
         context.Services.AddMudServices();
@@ -223,7 +240,7 @@ public sealed class LiveUIProviderClientInteractionTests
         var responseText = "Tasks completed: report and cleanup.";
         var firstSegmentEnd = responseText.IndexOf("report", StringComparison.Ordinal);
         await SendHighlightCueAsync("todo.list", 0, firstSegmentEnd, 1);
-        await SendHighlightCueAsync("todo.region", firstSegmentEnd, responseText.Length, 2);
+        await SendHighlightCueAsync("todo.region", firstSegmentEnd + 2, responseText.Length, 2);
 
         composerSession.BeginSend("Explain the completed tasks.");
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
@@ -233,11 +250,27 @@ public sealed class LiveUIProviderClientInteractionTests
         var firstEpoch = composerSession.BeginSpeechPlayback();
         await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(firstEpoch, 0, firstSegmentEnd, 1));
         Assert.Equal("todo.list", runtime.LastTargetId);
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackSynchronizationMeasured(
+            firstEpoch, 0, firstSegmentEnd, 42.5));
+        Assert.Equal(42.5, Assert.Single(synchronizationOffsets));
 
         Assert.True(composerSession.EndSpeechPlayback(firstEpoch));
+        var clearCountBeforeUnmatchedSegment = runtime.ClearHighlightCount;
+        var unmatchedEpoch = composerSession.BeginSpeechPlayback();
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(unmatchedEpoch, firstSegmentEnd, firstSegmentEnd + 2, 1));
+        Assert.Equal("ClearHighlight", runtime.LastAction);
+        Assert.Equal(clearCountBeforeUnmatchedSegment + 1, runtime.ClearHighlightCount);
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackSynchronizationMeasured(
+            unmatchedEpoch, firstSegmentEnd, firstSegmentEnd + 2, 18));
+        Assert.Single(synchronizationOffsets);
+
+        Assert.True(composerSession.EndSpeechPlayback(unmatchedEpoch));
         var secondEpoch = composerSession.BeginSpeechPlayback();
-        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(secondEpoch, firstSegmentEnd, responseText.Length, 1));
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(secondEpoch, firstSegmentEnd + 2, responseText.Length, 1));
         Assert.Equal("todo.region", runtime.LastTargetId);
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackSynchronizationMeasured(
+            secondEpoch, firstSegmentEnd + 2, responseText.Length, 71.25));
+        Assert.Equal(new[] { 42.5, 71.25 }, synchronizationOffsets);
 
         Assert.True(composerSession.EndSpeechPlayback(secondEpoch));
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(

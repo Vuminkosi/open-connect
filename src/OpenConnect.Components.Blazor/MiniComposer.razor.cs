@@ -417,6 +417,25 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         NotifyClientSpeechEventAsync(epoch, startCharacter, endCharacter, ComposerSpeechPlaybackStage.SegmentCompleted,
             durationSeconds, durationSeconds);
 
+    [JSInvokable]
+    public Task OnSpeechPlaybackSynchronizationMeasured(
+        long epoch, int startCharacter, int endCharacter, double synchronizationOffsetMilliseconds)
+    {
+        if (Session is null || !Session.TryAcceptTtsAudioChunk(epoch) ||
+            !double.IsFinite(synchronizationOffsetMilliseconds) || synchronizationOffsetMilliseconds < 0 ||
+            startCharacter < 0 || endCharacter <= startCharacter)
+            return Task.CompletedTask;
+
+        return NotifySpeechPlaybackChangedAsync(new ComposerSpeechPlaybackEvent(
+            epoch,
+            startCharacter,
+            endCharacter,
+            ComposerSpeechPlaybackStage.SynchronizationMeasured)
+        {
+            SynchronizationOffsetMilliseconds = synchronizationOffsetMilliseconds
+        });
+    }
+
     private async Task NotifyClientSpeechEventAsync(long epoch, int startCharacter, int endCharacter,
         ComposerSpeechPlaybackStage stage, double elapsedSeconds, double durationSeconds)
     {

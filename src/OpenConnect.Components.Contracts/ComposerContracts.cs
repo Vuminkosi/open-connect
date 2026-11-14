@@ -44,9 +44,13 @@ public sealed record ComposerSpeechPlaybackEvent(
     int EndCharacter,
     ComposerSpeechPlaybackStage Stage,
     double ElapsedSeconds = 0,
-    double DurationSeconds = 0);
+    double DurationSeconds = 0)
+{
+    /// <summary>Client audio-timeline delay until the playback-start callback completed with the cue highlight verified.</summary>
+    public double? SynchronizationOffsetMilliseconds { get; init; }
+}
 
-public enum ComposerSpeechPlaybackStage { Started, Progress, SegmentCompleted, ResponseCompleted, Interrupted }
+public enum ComposerSpeechPlaybackStage { Started, Progress, SegmentCompleted, ResponseCompleted, Interrupted, SynchronizationMeasured }
 public enum ComposerHistoryPresentation { LatestOnly, OnDemandHistory }
 public enum ComposerUiIntegration { Floating, Attached }
 

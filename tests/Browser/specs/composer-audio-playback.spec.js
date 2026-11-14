@@ -21,9 +21,13 @@ test('MiniComposer audio player reports real playback progress and completion wi
   });
 
   expect(events.map((event) => event.method)).toContain('OnSpeechPlaybackStarted');
+  expect(events.map((event) => event.method)).toContain('OnSpeechPlaybackSynchronizationMeasured');
   expect(events.map((event) => event.method)).toContain('OnSpeechPlaybackProgress');
   expect(events.map((event) => event.method)).toContain('OnSpeechPlaybackEnded');
   expect(events[0]).toMatchObject({ method: 'OnSpeechPlaybackStarted', args: [42, 12, 48, expect.any(Number)] });
+  const synchronization = events.find((event) => event.method === 'OnSpeechPlaybackSynchronizationMeasured');
+  expect(synchronization.args).toEqual([42, 12, 48, expect.any(Number)]);
+  expect(synchronization.args[3]).toBeGreaterThanOrEqual(0);
   const ended = events.find((event) => event.method === 'OnSpeechPlaybackEnded');
   expect(ended.args).toEqual([42, 12, 48, expect.any(Number)]);
   expect(events.every((event) => !JSON.stringify(event).includes('narration'))).toBe(true);

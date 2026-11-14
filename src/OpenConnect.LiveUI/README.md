@@ -20,5 +20,6 @@ The package publishes metrics through the `OpenConnect.LiveUI` meter. Duration i
 - `openconnect.liveui.browser.action.duration`: browser action time after resolution.
 - `openconnect.liveui.action.execution.duration`: orchestrator action time through the runtime receipt.
 - `openconnect.liveui.confirmed.state.duration`: request-to-receipt time for verified `WaitForState` actions.
+- `openconnect.liveui.speech.highlight.offset`: browser audio timeline segment start to verified cue highlight; records zero when the cue target is already active at the segment boundary.
 
-Browser timing fields are accepted only when finite and within the runtime's 120-second maximum. Hosts can collect these instruments with `System.Diagnostics.Metrics` listeners or their OpenTelemetry meter provider. Playback/highlight synchronization offset is not currently measured.
+Browser timing fields are accepted only when finite and within the runtime's 120-second maximum. Hosts can collect these instruments with `System.Diagnostics.Metrics` listeners or their OpenTelemetry meter provider. Speech offset measures until the Blazor start callback returns after the matched browser action receipt is verified. It does not measure acoustic output latency or word-level alignment.
