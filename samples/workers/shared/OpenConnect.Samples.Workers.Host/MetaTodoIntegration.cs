@@ -117,6 +117,14 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
         {
             var tools = new List<AITool>();
             var coreRequest = RequiresTodoTools(task.Message);
+            var navigatorRequest = RequiresNavigatorTools(task.Message);
+            if (navigatorRequest)
+            {
+                tools.Add(AIFunctionFactory.Create((string route, CancellationToken ct) => EmitNavigatorActionAsync("navigate", route, null, task, ct), "navigator.navigate", "Navigate to an internal application route."));
+                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("highlight", null, targetId, task, ct), "navigator.highlight", "Highlight and scroll to a registered page target."));
+                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("focus", null, targetId, task, ct), "navigator.focus", "Focus a registered page target."));
+                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("scroll", null, targetId, task, ct), "navigator.scroll", "Scroll to a registered page target."));
+            }
             if (coreRequest)
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", InitialAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
@@ -150,6 +158,22 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
             throw;
         }
+    }
+
+    private async Task<string> EmitNavigatorActionAsync(string action, string? route, string? targetId, HostTaskExecution task, CancellationToken cancellationToken)
+    {
+        if (action == "navigate" && (string.IsNullOrWhiteSpace(route) || !route.StartsWith('/') || route.StartsWith("//") || route.Contains("..", StringComparison.Ordinal)))
+            throw new ArgumentException("Only internal application routes are allowed.", nameof(route));
+        if (action != "navigate" && (string.IsNullOrWhiteSpace(targetId) || !System.Text.RegularExpressions.Regex.IsMatch(targetId, "^[a-zA-Z0-9_-]{1,80}$")))
+            throw new ArgumentException("A registered target id is required.", nameof(targetId));
+        await sessions.AppendEventAsync(task.SessionId.Value, "navigator.action", JsonSerializer.Serialize(new { action, route, targetId }), cancellationToken).ConfigureAwait(false);
+        return $"Navigator action '{action}' was sent to the Todo sample.";
+    }
+
+    private static bool RequiresNavigatorTools(string message)
+    {
+        var value = message.ToLowerInvariant();
+        return value.Contains("navigate") || value.Contains("go to") || value.Contains("take me") || value.Contains("highlight") || value.Contains("focus") || value.Contains("scroll") || value.Contains("show me where");
     }
 
     private static string InitialAcknowledgement(string message)

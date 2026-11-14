@@ -102,3 +102,10 @@ body {
     height: auto !important;
     overflow: visible !important;
 }
+
+.oc-navigator-highlight {
+    outline: 3px solid #2563eb !important;
+    outline-offset: 4px;
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18);
+    transition: outline 120ms ease, box-shadow 120ms ease;
+}

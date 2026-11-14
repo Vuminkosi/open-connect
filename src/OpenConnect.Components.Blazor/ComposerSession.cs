@@ -1,9 +1,12 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using OpenConnect.Components.Contracts;
 
 namespace OpenConnect.Components.Blazor;
+
+public sealed record ComposerNavigatorAction(string Action, string? Route = null, string? TargetId = null);
 
 /// <summary>
 /// UI-agnostic session state machine. Pure C# with no Blazor dependencies so it
@@ -75,6 +78,8 @@ public sealed class ComposerSession
         get { lock (_gate) { return _livePartialTranscript; } }
     }
 
+    public ComposerNavigatorAction? PendingNavigatorAction { get; private set; }
+
     public event Action? Changed;
 
     public void AttachSession(string sessionId)
@@ -96,6 +101,7 @@ public sealed class ComposerSession
             SpeechState = ComposerSpeechState.Off;
             SpeechEpoch++;
             PlaybackEpoch++;
+            PendingNavigatorAction = null;
         }
 
         Notify();
@@ -385,7 +391,12 @@ public sealed class ComposerSession
             }
 
             var type = record.Type ?? string.Empty;
-            if (type.EndsWith("delta", StringComparison.OrdinalIgnoreCase)
+            if (type.Equals("navigator.action", StringComparison.OrdinalIgnoreCase))
+            {
+                try { PendingNavigatorAction = JsonSerializer.Deserialize<ComposerNavigatorAction>(record.Data ?? "{}"); }
+                catch (JsonException) { PendingNavigatorAction = null; }
+            }
+            else if (type.EndsWith("delta", StringComparison.OrdinalIgnoreCase)
                 || type.Equals("message", StringComparison.OrdinalIgnoreCase))
             {
                 _streamingText += record.Data ?? string.Empty;

@@ -48,7 +48,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private int _spokenResponseCharacters;
     private int _beingSpokenStart = -1;
     private int _beingSpokenEnd = -1;
-    private string _speechDisplayText = string.Empty;
+    private string? _speechDisplayText;
+    private string? _copiedResponse;
+    private string? _lastNavigatorAction;
 
     private sealed record SpeechSegment(string Text, int StartCursor, int EndCursor);
 
@@ -193,6 +195,25 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return new MarkupString(output.ToString());
     }
 
+    private async Task CopyResponseAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try
+        {
+            var copied = await JS.InvokeAsync<bool>("ocComposerInput.copy", text).ConfigureAwait(false);
+            if (!copied) return;
+            _copiedResponse = text;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(1.5)).ConfigureAwait(false);
+            if (string.Equals(_copiedResponse, text, StringComparison.Ordinal))
+            {
+                _copiedResponse = null;
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+    }
+
     private bool ShouldRenderLiveResponse() =>
         !string.Equals(Session?.StreamingText, Session?.Messages.LastOrDefault(message => message.Role == "assistant")?.Text, StringComparison.Ordinal);
 
@@ -240,6 +261,15 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private void OnSessionChanged()
     {
+        if (Session?.PendingNavigatorAction is { } navigatorAction)
+        {
+            var key = $"{navigatorAction.Action}|{navigatorAction.Route}|{navigatorAction.TargetId}";
+            if (!string.Equals(_lastNavigatorAction, key, StringComparison.Ordinal))
+            {
+                _lastNavigatorAction = key;
+                _ = JS.InvokeVoidAsync("ocComposerNavigator.apply", navigatorAction.Action, navigatorAction.Route, navigatorAction.TargetId);
+            }
+        }
         if (_speechOn && Session is not null)
         {
             var response = Session.Connection == ComposerConnectionState.Streaming

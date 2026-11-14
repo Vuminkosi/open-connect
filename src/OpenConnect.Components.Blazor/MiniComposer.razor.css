@@ -222,6 +222,16 @@
     word-break: break-word;
 }
 
+.oc-message-copy {
+    align-self: flex-start;
+    opacity: 0.65;
+}
+
+.oc-message-copy:hover,
+.oc-message-copy:focus-visible {
+    opacity: 1;
+}
+
 .oc-message-user {
     align-items: flex-end;
     text-align: right;

@@ -70,6 +70,30 @@
         } catch (e) { /* noop */ }
     };
 
+    window.ocComposerInput.copy = async function (text) {
+        if (!text) return false;
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                await navigator.clipboard.writeText(String(text));
+                return true;
+            }
+        } catch (e) { /* use the compatibility fallback below */ }
+        try {
+            var area = document.createElement("textarea");
+            area.value = String(text);
+            area.setAttribute("readonly", "");
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.appendChild(area);
+            area.select();
+            var copied = document.execCommand("copy");
+            document.body.removeChild(area);
+            return copied;
+        } catch (e) {
+            return false;
+        }
+    };
+
     window.ocComposerInput.focus = function (el) {
         var target = resolveInput(el);
         if (target && typeof target.focus === "function") {
