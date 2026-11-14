@@ -38,7 +38,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
-    private bool _sessionCreationStarted;
+    private Task? _sessionCreationTask;
     private int _inputRenderKey;
     private MudMenu? _settingsMenu;
     private int _speechCursor;
@@ -714,8 +714,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 try
                 {
-                    var createdSession = await Client.CreateSessionAsync(token).ConfigureAwait(false);
-                    Session.AttachSession(createdSession.Id.Value.ToString());
+                    await EnsureSessionAsync().ConfigureAwait(false);
                 }
                 catch (OpenConnectClientException ex) when (ex.StatusCodeValue is 401 or 403 or 404)
                 {
@@ -846,19 +845,21 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         Provider?.Reconnect();
     }
 
-    private async Task EnsureSessionAsync()
+    private Task EnsureSessionAsync()
     {
-        if (_sessionCreationStarted || !string.IsNullOrWhiteSpace(Session.SessionId)) return;
-        _sessionCreationStarted = true;
-        try
+        if (!string.IsNullOrWhiteSpace(Session.SessionId)) return Task.CompletedTask;
+        if (_sessionCreationTask is { IsCompleted: false } pendingCreation) return pendingCreation;
+        return _sessionCreationTask ??= CreateSessionAsync();
+    }
+
+    private async Task CreateSessionAsync()
+    {
+        var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+        await InvokeAsync(() =>
         {
-            var created = await Client.CreateSessionAsync().ConfigureAwait(false);
-            await InvokeAsync(() => Session.AttachSession(created.Id.Value.ToString()));
-        }
-        catch (Exception ex)
-        {
-            await InvokeAsync(() => Session.MarkError(FriendlyError(ex)));
-        }
+            if (string.IsNullOrWhiteSpace(Session.SessionId))
+                Session.AttachSession(created.Id.Value.ToString());
+        });
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -866,7 +867,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         // Server prerendering has no JS interop: only attach once interactive.
         if ((_open || IsAttached) && !_disposed)
         {
-            await EnsureSessionAsync().ConfigureAwait(false);
+            try
+            {
+                await EnsureSessionAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await InvokeAsync(() => Session.MarkError(FriendlyError(ex)));
+            }
             await AttachJsAsync().ConfigureAwait(false);
             await AutosizeAsync().ConfigureAwait(false);
 
