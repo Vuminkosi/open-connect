@@ -57,6 +57,48 @@ public sealed class MiniComposerSessionCreationTests
         Assert.Equal(client.SessionId.ToString(), request.SessionId);
     }
 
+    [Fact]
+    public async Task Stopping_send_does_not_wait_for_the_shared_session_creation()
+    {
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IKeyInterceptorService, NoopKeyInterceptorService>();
+        context.Services.AddSingleton(new OpenConnectComponentRegistry());
+        var client = new DelayedSessionClient();
+        context.Services.AddSingleton<IOpenConnectClient>(client);
+        var session = new ComposerSession();
+
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<MudThemeProvider>(0);
+                builder.CloseComponent();
+                builder.OpenComponent<MudPopoverProvider>(1);
+                builder.CloseComponent();
+                builder.OpenComponent<MudDialogProvider>(2);
+                builder.CloseComponent();
+                builder.OpenComponent<MudSnackbarProvider>(3);
+                builder.CloseComponent();
+                builder.OpenComponent<MiniComposer>(4);
+                builder.AddAttribute(5, nameof(MiniComposer.StartOpen), true);
+                builder.AddAttribute(6, nameof(MiniComposer.AssistantName), "Ellai");
+                builder.CloseComponent();
+            }));
+
+        await client.SessionCreationStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await rendered.Find("input").InputAsync("Show completed tasks.");
+        var send = rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+        await rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+        await send.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Empty(client.TaskRequests);
+        client.CompleteSessionCreation();
+        rendered.WaitForAssertion(() => Assert.Equal(client.SessionId.ToString(), session.SessionId));
+        Assert.Equal(1, client.SessionCreationCount);
+    }
+
     private sealed class DelayedSessionClient : IOpenConnectClient
     {
         private readonly TaskCompletionSource<SessionRecord> _sessionCreation =

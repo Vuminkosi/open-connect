@@ -714,7 +714,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 try
                 {
-                    await EnsureSessionAsync().ConfigureAwait(false);
+                    await EnsureSessionAsync().WaitAsync(token).ConfigureAwait(false);
                 }
                 catch (OpenConnectClientException ex) when (ex.StatusCodeValue is 401 or 403 or 404)
                 {
