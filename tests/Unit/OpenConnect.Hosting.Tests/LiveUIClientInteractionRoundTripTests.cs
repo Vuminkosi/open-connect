@@ -84,10 +84,14 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var highlightToolCall = highlight.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments(new Dictionary<string, object?>
         {
             ["targetId"] = "todo.completed",
-            ["durationMilliseconds"] = 1_500
+            ["durationMilliseconds"] = 1_500,
+            ["speechStartCharacter"] = 24,
+            ["speechEndCharacter"] = 40
         })).AsTask();
         var highlightRequest = await WaitForRequestAsync(sessions, session.Id.Value, "highlight");
         Assert.Equal(1_500, highlightRequest.HighlightDurationMilliseconds);
+        Assert.Equal(24, highlightRequest.SpeechStartCharacter);
+        Assert.Equal(40, highlightRequest.SpeechEndCharacter);
 
         var highlightReceipt = await hostTools.HighlightAsync(
             highlightRequest.TargetId!, durationMilliseconds: highlightRequest.HighlightDurationMilliseconds);
