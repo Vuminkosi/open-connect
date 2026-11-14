@@ -186,19 +186,19 @@
     flex-direction: column;
     gap: 6px;
     max-height: 14rem;
-    height: 14rem;
+    height: auto;
 }
 
-.oc-speech-spoken {
+.oc-bubble__response ::deep .oc-speech-spoken {
     color: var(--mud-palette-text-primary);
 }
 
-.oc-speech-speaking {
+.oc-bubble__response ::deep .oc-speech-speaking {
     color: var(--mud-palette-primary);
     font-weight: 600;
 }
 
-.oc-speech-pending {
+.oc-bubble__response ::deep .oc-speech-pending {
     color: var(--mud-palette-text-disabled);
     opacity: 0.55;
 }
