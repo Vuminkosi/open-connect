@@ -26,7 +26,7 @@ public static class LiveUIClientAgentToolFactory
         return
         [
             AIFunctionFactory.Create(tools.GetCurrentPageAsync, "liveui_get_current_page",
-                "Returns authorized compiled targets and supported actions on the user's current page."),
+                "Returns authorized current-page targets and routes the host permits this session to navigate to."),
             AIFunctionFactory.Create(tools.NavigateAsync, "liveui_navigate",
                 "Navigates to a route from the compiled application manifest and verifies readiness."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",

@@ -56,7 +56,7 @@ Timeout and caller cancellation bound the wait. The browser response path is asy
 
 ## Authorization and privacy boundaries
 
-The model chooses among tool operations and supplied target identifiers. It cannot choose the session, principal, tenant, current route, manifest hash, or arbitrary script. Those values come from trusted .NET context. The host authorizer remains the authority for every action.
+The model chooses among tool operations, authorized targets, and the session's authorized route catalog. It cannot choose the session, principal, tenant, current route, manifest hash, or arbitrary script. Those values come from trusted .NET context. The host authorizer remains the authority for every action.
 
 Current sample policy allows only the explicitly listed Todo read/navigation/filter/highlight behaviors. It does not grant general-purpose CRUD. Sensitive input types are excluded from compiler discovery and the runtime denies password/sensitive value entry. UI labels and inspected text remain untrusted content.
 

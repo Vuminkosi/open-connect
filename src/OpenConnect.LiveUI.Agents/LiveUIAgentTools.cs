@@ -52,7 +52,21 @@ public sealed class LiveUIAgentTools(
                 targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation));
         }
 
-        return new(route.Id, route.Path, route.Title, manifest.BuildId, manifest.ContentHash, targets);
+        var navigableRoutes = new List<LiveUIAgentRoute>();
+        foreach (var destination in manifest.Routes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var navigationAction = CreateAction(context, manifest, route, null, LiveUIActionType.Navigate,
+                new(DestinationRouteId: destination.Id));
+            if (await IsAllowedAsync(new LiveUIExecutionContext(manifest, route, null, navigationAction), cancellationToken)
+                    .ConfigureAwait(false))
+                navigableRoutes.Add(new(destination.Id, destination.Path, destination.Title));
+        }
+
+        return new LiveUIAgentPage(route.Id, route.Path, route.Title, manifest.BuildId, manifest.ContentHash, targets)
+        {
+            NavigableRoutes = navigableRoutes
+        };
     }
 
     /// <summary>Navigates only to a route present in the current compiled manifest.</summary>
@@ -194,7 +208,14 @@ public sealed record LiveUIAgentPage(
     string? Title,
     string BuildId,
     string ContentHash,
-    IReadOnlyList<LiveUIAgentTarget> Targets);
+    IReadOnlyList<LiveUIAgentTarget> Targets)
+{
+    /// <summary>Routes the current host policy permits this session to navigate to.</summary>
+    public IReadOnlyList<LiveUIAgentRoute> NavigableRoutes { get; init; } = [];
+}
+
+/// <summary>A manifest route that the current host policy permits the agent to navigate to.</summary>
+public sealed record LiveUIAgentRoute(string RouteId, string Path, string? Title);
 
 /// <summary>A compiled target with only the fields needed to propose a governed action.</summary>
 public sealed record LiveUIAgentTarget(

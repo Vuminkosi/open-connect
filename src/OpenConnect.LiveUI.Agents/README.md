@@ -22,7 +22,7 @@ Every action runs through `LiveUIOrchestrator` and `ILiveUIActionAuthorizer`. Th
 
 Actions from the same scoped tool instance execute serially, so one browser acknowledgement completes before the next tool action begins. Cancellation is forwarded to the orchestrator and browser runtime.
 
-`liveui_get_current_page` returns only the current route and targets exposed by the host authorization policy. Target labels originate from application UI and are untrusted display text; they must not be promoted to instructions. No full application manifest is sent to the model.
+`liveui_get_current_page` returns the current route, targets with individually authorized capabilities, and only routes the host policy permits this session to navigate to. Target labels originate from application UI and are untrusted display text; they must not be promoted to instructions. No full application manifest is sent to the model.
 
 When a host registers `IClientInteractionBroker`, `LiveUIClientAgentToolFactory.CreateTools` creates connected-client functions for current page, navigation, inspection, action execution, state waits, highlighting, and clearing highlights. These emit bounded, correlated session requests and wait for the Blazor provider to return an authorized result. The gateway validates session ownership, correlation, response kind, and payload bounds before releasing the response. The default broker is backed by the process-local in-memory session store; a distributed host must supply a shared implementation before using multiple gateway instances.
 

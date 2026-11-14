@@ -63,6 +63,22 @@ public sealed class LiveUIAgentToolsTests
         var tab = Assert.Single(page.Targets, target => target.TargetId == "todo.completed");
         Assert.Contains(LiveUICapability.Activate, tab.Capabilities);
         Assert.DoesNotContain(authorizer.Contexts, item => item.Action.SessionId != "trusted-session");
+        Assert.Equal("todo.home", Assert.Single(page.NavigableRoutes, item => item.RouteId == "todo.home").RouteId);
+        Assert.Contains(page.NavigableRoutes, item => item.RouteId == "todo.settings");
+    }
+
+    [Fact]
+    public async Task Current_page_omits_routes_denied_by_navigation_policy()
+    {
+        var authorizer = new RecordingAuthorizer((_, context) =>
+            context.Action.Type != LiveUIActionType.Navigate || context.Action.Parameters.DestinationRouteId != "todo.settings");
+        var service = CreateTools(authorizer, new RecordingRuntime());
+
+        var page = await service.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.Single(page.NavigableRoutes);
+        Assert.DoesNotContain(page.NavigableRoutes, item => item.RouteId == "todo.settings");
     }
 
     [Fact]
