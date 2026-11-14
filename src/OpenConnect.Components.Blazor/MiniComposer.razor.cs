@@ -18,7 +18,6 @@ namespace OpenConnect.Components.Blazor;
 /// </summary>
 public partial class MiniComposer : ComponentBase, IAsyncDisposable
 {
-    private const int MaxRenderedMessages = 4;
     private const int MaxInputLengthHardCap = 8000;
 
     private bool _open;
@@ -111,7 +110,19 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         get
         {
             var all = Session?.Messages ?? Array.Empty<ComposerMessage>();
-            return all.Count <= MaxRenderedMessages ? all : all.Skip(all.Count - MaxRenderedMessages).ToList();
+            var exchanges = new List<List<ComposerMessage>>();
+            List<ComposerMessage>? current = null;
+            foreach (var message in all)
+            {
+                if (message.Role == "user")
+                {
+                    if (current is not null) exchanges.Add(current);
+                    current = new List<ComposerMessage>();
+                }
+                current?.Add(message);
+            }
+            if (current is not null) exchanges.Add(current);
+            return exchanges.TakeLast(2).SelectMany(exchange => exchange).ToList();
         }
     }
 
@@ -184,9 +195,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         var activeStart = Math.Clamp(_beingSpokenStart, spoken, source.Length);
         var activeEnd = Math.Clamp(_beingSpokenEnd, activeStart, source.Length);
         var output = new StringBuilder();
-        if (spoken > 0) output.Append("<span class=\"oc-speech-spoken\">").Append(RenderInline(WebUtility.HtmlEncode(source[..spoken]))).Append("</span>");
-        if (activeEnd > activeStart) output.Append("<span class=\"oc-speech-speaking\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeStart..activeEnd]))).Append("</span>");
-        if (activeEnd < source.Length) output.Append("<span class=\"oc-speech-pending\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeEnd..]))).Append("</span>");
+        if (spoken > 0) output.Append("<span class=\"oc-speech-spoken\" style=\"color:var(--mud-palette-text-primary)\">").Append(RenderInline(WebUtility.HtmlEncode(source[..spoken]))).Append("</span>");
+        if (activeEnd > activeStart) output.Append("<span class=\"oc-speech-speaking\" style=\"color:var(--mud-palette-primary);font-weight:600\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeStart..activeEnd]))).Append("</span>");
+        if (activeEnd < source.Length) output.Append("<span class=\"oc-speech-pending\" style=\"color:var(--mud-palette-text-disabled);opacity:.55\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeEnd..]))).Append("</span>");
         return new MarkupString(output.ToString());
     }
 
