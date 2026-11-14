@@ -119,7 +119,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             var coreRequest = RequiresTodoTools(task.Message);
             if (coreRequest)
             {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", "I’ll check that for you. ", cancellationToken).ConfigureAwait(false);
+                await sessions.AppendEventAsync(task.SessionId.Value, "message", InitialAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
                 tools.Add(AIFunctionFactory.Create((CancellationToken ct) => RunToolAsync("checking your Todo list", todo.ListAsync, task, ct), "todo.list", "List the current tenant's Todo records."));
             }
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
@@ -138,7 +138,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 "You are the OpenConnect assistant. Handle ordinary conversation naturally. Use Todo tools only when the user explicitly asks to view or change Todo records. Never claim that a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
             if (coreRequest)
             {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", "I’ve finished checking. ", cancellationToken).ConfigureAwait(false);
+                await sessions.AppendEventAsync(task.SessionId.Value, "message", CompletionAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
             }
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
@@ -150,6 +150,26 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
             logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
             throw;
         }
+    }
+
+    private static string InitialAcknowledgement(string message)
+    {
+        var value = message.ToLowerInvariant();
+        if (value.Contains("delete") || value.Contains("remove")) return "I’ll remove that task for you. ";
+        if (value.Contains("complete") || value.Contains("finish") || value.Contains("mark")) return "I’ll update that task’s status. ";
+        if (value.Contains("create") || value.Contains("add") || value.Contains("remind")) return "I’ll add that reminder to your list. ";
+        if (value.Contains("update") || value.Contains("change") || value.Contains("edit")) return "I’ll update that task for you. ";
+        return "I’ll look through your tasks now. ";
+    }
+
+    private static string CompletionAcknowledgement(string message)
+    {
+        var value = message.ToLowerInvariant();
+        if (value.Contains("delete") || value.Contains("remove")) return "That task has been removed. ";
+        if (value.Contains("complete") || value.Contains("finish") || value.Contains("mark")) return "That task status has been updated. ";
+        if (value.Contains("create") || value.Contains("add") || value.Contains("remind")) return "Your reminder request is ready. ";
+        if (value.Contains("update") || value.Contains("change") || value.Contains("edit")) return "That task update is ready. ";
+        return "I found the relevant tasks. ";
     }
 
     private async Task<T> RunToolAsync<T>(string description, Func<CancellationToken, Task<T>> operation, HostTaskExecution task, CancellationToken cancellationToken)
