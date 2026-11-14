@@ -201,6 +201,41 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(0, runtime.Calls);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(30_001)]
+    public async Task ExecuteAsync_RejectsTemporaryHighlightDurationsOutsideTheBound(int durationMilliseconds)
+    {
+        var runtime = new RecordingRuntime();
+        var action = Action() with
+        {
+            Type = LiveUIActionType.Highlight,
+            Parameters = new LiveUIActionParameters(HighlightDurationMilliseconds: durationMilliseconds)
+        };
+
+        var receipt = await Create(runtime: runtime).ExecuteAsync(action);
+
+        Assert.Equal(LiveUIActionOutcome.Failed, receipt.Outcome);
+        Assert.Equal("invalid_action", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RejectsHighlightDurationOnAnUnrelatedAction()
+    {
+        var runtime = new RecordingRuntime();
+        var action = Action() with
+        {
+            Parameters = new LiveUIActionParameters(HighlightDurationMilliseconds: 1)
+        };
+
+        var receipt = await Create(runtime: runtime).ExecuteAsync(action);
+
+        Assert.Equal(LiveUIActionOutcome.Failed, receipt.Outcome);
+        Assert.Equal("invalid_action", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
     [Fact]
     public async Task ExecuteAsync_RejectsDuplicateSessionActionId()
     {
