@@ -199,13 +199,14 @@
                                 <span class="oc-message-text">@(message.Role == "assistant" && ShouldRenderSpeechProgress(message) ? RenderSpeechProgress(message.Text) : RenderMarkdown(message.Text))</span>
                                 @if (message.Role == "assistant")
                                 {
-                                    <MudIcon Icon="@(_copiedResponse == message.Text ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
-                                             Class="oc-message-copy"
-                                             @onclick="@(() => CopyResponseAsync(message.Text))"
-                                             role="button"
-                                             tabindex="0"
-                                             aria-label="@(_copiedResponse == message.Text ? "Response copied" : "Copy response to clipboard")"
-                                             title="@(_copiedResponse == message.Text ? "Copied" : "Copy response")" />
+                                    <span class="oc-message-copy"
+                                          @onclick="@(() => CopyResponseAsync(message.Text))"
+                                          role="button"
+                                          tabindex="0"
+                                          aria-label="@(_copiedResponse == message.Text ? "Response copied" : "Copy response to clipboard")"
+                                          title="@(_copiedResponse == message.Text ? "Copied" : "Copy response)">
+                                        @(_copiedResponse == message.Text ? "Copied" : "copy")
+                                    </span>
                                 }
                             </span>
                         </div>

@@ -231,22 +231,16 @@
 
 .oc-message-copy {
     display: inline-block;
-    width: 0.9rem;
-    height: 0.9rem;
+    width: auto;
+    height: auto;
     margin: 0 0.1rem 0 0.15rem;
-    padding: 0;
     color: var(--mud-palette-text-secondary);
     cursor: pointer;
-    opacity: 0.65;
-    vertical-align: baseline;
+    font-size: 0.68rem;
     line-height: 1;
-}
-
-.oc-message-copy svg,
-.oc-message-copy .mud-icon-root {
-    width: 0.8rem;
-    height: 0.8rem;
-    font-size: 0.8rem !important;
+    vertical-align: baseline;
+    opacity: 0.65;
+    user-select: none;
 }
 
 .oc-message-copy:hover,
