@@ -41,9 +41,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private bool _sessionCreationStarted;
     private int _inputRenderKey;
     private int _speechCursor;
-    private readonly Queue<string> _speechQueue = new();
+    private readonly Queue<SpeechSegment> _speechQueue = new();
     private CancellationTokenSource? _speechCts;
     private bool _speechWorkerRunning;
+    private int _spokenResponseCharacters;
+    private int _beingSpokenStart = -1;
+    private int _beingSpokenEnd = -1;
+
+    private sealed record SpeechSegment(string Text, int StartCursor, int EndCursor);
 
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
@@ -173,6 +178,18 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return new MarkupString(output.ToString());
     }
 
+    private MarkupString RenderSpeechProgress(string source)
+    {
+        var spoken = Math.Clamp(_spokenResponseCharacters, 0, source.Length);
+        var activeStart = Math.Clamp(_beingSpokenStart, spoken, source.Length);
+        var activeEnd = Math.Clamp(_beingSpokenEnd, activeStart, source.Length);
+        var output = new StringBuilder();
+        if (spoken > 0) output.Append("<span class=\"oc-speech-spoken\">").Append(RenderInline(WebUtility.HtmlEncode(source[..spoken]))).Append("</span>");
+        if (activeEnd > activeStart) output.Append("<span class=\"oc-speech-speaking\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeStart..activeEnd]))).Append("</span>");
+        if (activeEnd < source.Length) output.Append("<span class=\"oc-speech-pending\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeEnd..]))).Append("</span>");
+        return new MarkupString(output.ToString());
+    }
+
     private static string RenderInline(string value)
     {
         value = Regex.Replace(value, @"\[([^\]]+)\]\((https?://[^\s)]+)\)", "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>", RegexOptions.CultureInvariant);
@@ -213,7 +230,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             var boundary = FindSpeechBoundary(response, start, flush);
             if (boundary <= start) break;
-            _speechQueue.Enqueue(response[start..boundary].Trim());
+            _speechQueue.Enqueue(new SpeechSegment(response[start..boundary].Trim(), start, boundary));
             start = boundary;
         }
         _speechCursor = start;
@@ -237,31 +254,42 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             while (_speechOn && !_disposed)
             {
-                string? segment;
+                SpeechSegment? segment;
                 lock (_speechQueue)
                 {
                     if (_speechQueue.Count == 0) break;
                     segment = _speechQueue.Dequeue();
                 }
-                if (!string.IsNullOrWhiteSpace(segment)) await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(segment.Text)) await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
             }
         }
         finally { _speechWorkerRunning = false; }
     }
 
-    private async Task SpeakResponseSegmentAsync(string text)
+    private async Task SpeakResponseSegmentAsync(SpeechSegment segment)
     {
         try
         {
             _speechCts?.Dispose();
             _speechCts = new CancellationTokenSource();
             var result = await Client.SynthesizeSpeechAsync(
-                new SpeechSynthesisRequest(text, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
+                new SpeechSynthesisRequest(segment.Text, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
                 _speechCts.Token).ConfigureAwait(false);
             var epoch = Session.BeginSpeechPlayback();
+            _beingSpokenStart = segment.StartCursor;
+            _beingSpokenEnd = segment.EndCursor;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels, epoch).ConfigureAwait(false);
+            _beingSpokenStart = -1;
+            _beingSpokenEnd = -1;
+            _spokenResponseCharacters = Math.Max(_spokenResponseCharacters, segment.EndCursor);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException) { }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException)
+        {
+            _beingSpokenStart = -1;
+            _beingSpokenEnd = -1;
+        }
     }
 
     private async Task ToggleSpeechAsync()
@@ -277,6 +305,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         else
         {
             _speechCursor = 0;
+            _spokenResponseCharacters = 0;
+            _beingSpokenStart = -1;
+            _beingSpokenEnd = -1;
             OnSessionChanged();
         }
 
@@ -452,6 +483,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         _sending = true;
         _speechCursor = 0;
+        _spokenResponseCharacters = 0;
+        _beingSpokenStart = -1;
+        _beingSpokenEnd = -1;
         lock (_speechQueue) _speechQueue.Clear();
         _speechCts?.Cancel();
         _pendingIdempotencyKey = Guid.NewGuid().ToString("N");

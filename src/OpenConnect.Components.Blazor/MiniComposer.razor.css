@@ -145,7 +145,7 @@
     transition: box-shadow 90ms ease-out;
 }
 
-/* Captions: Sent Message, Response Text, Live Transcript (no scrolling or height limits) */
+/* Captions and conversation timeline stay compact while long text scrolls inside its region. */
 .oc-bubble__sent-message {
     margin-block: 0.5rem 0.25rem;
     padding-inline-start: 0.5rem;
@@ -160,9 +160,9 @@
 
 .oc-bubble__response {
     margin-block: 0.5rem;
-    max-block-size: none;
-    max-height: none;
-    overflow: visible;
+    max-block-size: 9rem;
+    max-height: 9rem;
+    overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
     color: var(--mud-palette-text-primary);
@@ -180,13 +180,27 @@
 }
 
 .oc-bubble-messages {
-    overflow: visible;
+    overflow-y: auto;
     padding: 6px 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: none;
-    height: auto;
+    max-height: 14rem;
+    height: 14rem;
+}
+
+.oc-speech-spoken {
+    color: var(--mud-palette-text-primary);
+}
+
+.oc-speech-speaking {
+    color: var(--mud-palette-primary);
+    font-weight: 600;
+}
+
+.oc-speech-pending {
+    color: var(--mud-palette-text-disabled);
+    opacity: 0.55;
 }
 
 .oc-message {

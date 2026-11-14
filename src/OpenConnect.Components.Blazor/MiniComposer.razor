@@ -149,7 +149,7 @@
             @if (!string.IsNullOrWhiteSpace(Session?.StreamingText))
             {
                 <MudText Typo="Typo.caption" Class="oc-bubble__response" aria-live="polite">
-                    @RenderMarkdown(Session.StreamingText)
+                    @RenderSpeechProgress(Session.StreamingText)
                 </MudText>
             }
 
