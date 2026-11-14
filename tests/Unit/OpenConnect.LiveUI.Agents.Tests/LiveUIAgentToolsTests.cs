@@ -146,6 +146,7 @@ public sealed class LiveUIAgentToolsTests
             new Dictionary<string, object?>
             {
                 ["targetId"] = "todo.list",
+                ["matchText"] = "Review the quarterly report",
                 ["speechStartCharacter"] = 10,
                 ["speechEndCharacter"] = 20
             }));
@@ -159,10 +160,31 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("selected", waitRequest.StateName);
         var highlightRequest = Assert.Single(broker.Requests, item => item.Operation == "highlight");
         Assert.Equal("todo.list", highlightRequest.TargetId);
+        Assert.Equal("Review the quarterly report", highlightRequest.Value);
         Assert.Equal(10, highlightRequest.SpeechStartCharacter);
         Assert.Equal(20, highlightRequest.SpeechEndCharacter);
         Assert.Single(broker.Requests, item => item.Operation == "clear_highlight");
         Assert.All(broker.Requests, item => Assert.True(Guid.TryParseExact(item.CorrelationId, "D", out _)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("x")]
+    public async Task Client_highlight_tool_rejects_invalid_match_text(string matchText)
+    {
+        var broker = new RecordingInteractionBroker((_, request, resultKind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind, "{}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var highlight = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
+        var value = matchText == "x" ? new string('x', 257) : matchText;
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await highlight.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.list", ["matchText"] = value })));
+
+        Assert.Equal("invalid_request", result.GetProperty("error").GetString());
+        Assert.Empty(broker.Requests);
     }
 
     [Fact]
@@ -280,6 +302,42 @@ public sealed class LiveUIAgentToolsTests
 
         Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
         Assert.Equal(1_500, runtime.LastContext!.Action.Parameters.HighlightDurationMilliseconds);
+    }
+
+    [Fact]
+    public async Task Highlight_text_targets_the_authorized_list_and_preserves_the_match_text()
+    {
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var tools = CreateTools(authorizer, runtime);
+
+        var receipt = await tools.HighlightTextAsync("todo.list", "Review the quarterly report");
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(LiveUIActionType.Highlight, runtime.LastContext!.Action.Type);
+        Assert.Equal("todo.list", runtime.LastContext.Target!.Id);
+        Assert.Equal("Review the quarterly report", runtime.LastContext.Action.Parameters.Value);
+        Assert.Contains(authorizer.Contexts, context => context.Target?.Id == "todo.list" &&
+            context.Action.Type == LiveUIActionType.Highlight);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("x")]
+    public async Task Highlight_text_rejects_blank_or_oversized_match_without_authorization(string matchText)
+    {
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var tools = CreateTools(authorizer, runtime);
+        var value = matchText == "x" ? new string('x', 257) : matchText;
+
+        var receipt = await tools.HighlightTextAsync("todo.list", value);
+
+        Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal("invalid_highlight_match_text", receipt.Code);
+        Assert.Empty(authorizer.Contexts);
+        Assert.Null(runtime.LastContext);
     }
 
     [Fact]

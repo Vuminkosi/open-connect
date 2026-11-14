@@ -212,8 +212,10 @@
         ClientInteractionRequest request,
         CancellationToken cancellationToken)
     {
-        var receipt = await _agentTools!.HighlightAsync(
-            request.TargetId!, cancellationToken, request.HighlightDurationMilliseconds);
+        var receipt = request.Value is null
+            ? await _agentTools!.HighlightAsync(request.TargetId!, cancellationToken, request.HighlightDurationMilliseconds)
+            : await _agentTools!.HighlightTextAsync(
+                request.TargetId!, request.Value, cancellationToken, request.HighlightDurationMilliseconds);
         if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
             request.SpeechStartCharacter is int startCharacter &&
             request.SpeechEndCharacter is int endCharacter &&
@@ -278,6 +280,7 @@
                 else if (request.Operation == "highlight" &&
                          request.TargetId is { Length: > 0 and <= 256 } &&
                          request.HighlightDurationMilliseconds is >= 0 and <= 30_000 &&
+                         (request.Value is null || request.Value.Length is > 0 and <= 256 && !string.IsNullOrWhiteSpace(request.Value)) &&
                          IsValidSpeechRange(request))
                 {
                     var receipt = await HandleHighlightRequestAsync(request, cancellationToken);

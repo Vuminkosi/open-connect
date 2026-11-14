@@ -39,17 +39,26 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Scroll":
       element.scrollIntoView({ block: parameters.scrollAlignment || "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
       return measured(waitForVisibility(element, timeout));
-    case "Highlight":
-      addHighlight(element);
-      element.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    case "Highlight": {
+      let highlightTarget = element;
+      if (parameters.value !== undefined && parameters.value !== null) {
+        const match = resolveTextMatchTarget(element, target, parameters.value);
+        if (match.status === "ambiguous") return measured(result("Ambiguous", "text_match_ambiguous"));
+        if (match.status === "unsupported") return measured(result("Failed", "text_match_unsupported"));
+        if (match.status !== "resolved") return measured(result("MissingTarget", "text_match_missing"));
+        highlightTarget = match.element;
+      }
+      addHighlight(highlightTarget);
+      highlightTarget.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
       const highlightDuration = Number(parameters.highlightDurationMilliseconds);
       if (Number.isInteger(highlightDuration) && highlightDuration > 0) {
-        const previousTimer = highlightTimers.get(element);
+        const previousTimer = highlightTimers.get(highlightTarget);
         if (previousTimer) clearTimeout(previousTimer);
-        highlightTimers.set(element, setTimeout(() => clearHighlight(element), Math.min(highlightDuration, 30_000)));
+        highlightTimers.set(highlightTarget, setTimeout(() => clearHighlight(highlightTarget), Math.min(highlightDuration, 30_000)));
         return measured(result("Completed", "highlight_temporary", true, "highlighted"));
       }
       return measured(result("Completed", "highlight_active", true, "highlighted"));
+    }
     case "SetValue": return measured(setValue(element, parameters.value));
     case "Select": return measured(selectValue(element, parameters.value));
     case "SelectTab":
@@ -61,6 +70,22 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
       return measured(waitForState(element, parameters.stateName, parameters.stateValue, timeout));
     default: return measured(result("Failed", "action_unsupported"));
   }
+}
+
+function resolveTextMatchTarget(container, target, matchText) {
+  if (target?.kind !== "List" && target?.kind !== "Table") return { status: "unsupported" };
+  if (typeof matchText !== "string" || !matchText.trim() || matchText.length > 256) return { status: "missing" };
+  const selector = target.kind === "Table" ? "tr" : "li, [role='listitem'], .mud-list-item";
+  const query = normalize(matchText);
+  const matches = [...container.querySelectorAll(selector)]
+    .filter(isVisible)
+    .filter((item) => normalize(item.innerText || "").includes(query));
+  const mostSpecificMatches = matches.filter((item) =>
+    !matches.some((candidate) => candidate !== item && item.contains(candidate)));
+  if (mostSpecificMatches.length > 1) return { status: "ambiguous" };
+  return mostSpecificMatches.length === 1
+    ? { status: "resolved", element: mostSpecificMatches[0] }
+    : { status: "missing" };
 }
 
 export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback) {

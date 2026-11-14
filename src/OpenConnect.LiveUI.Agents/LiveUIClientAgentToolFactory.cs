@@ -36,7 +36,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared. When the host enables speech synchronization, playback lifecycle events control cleanup and the duration is ignored. To switch targets with narration, supply both speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range in the next assistant response; the target is highlighted when its audio segment starts."),
+                "Highlights a compiled target without opening a Navigator tour popup. For an authorized list or table, optionally provide matchText to highlight the unique visible row containing that text; an ambiguous or missing match fails. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight. When speech synchronization is enabled, playback lifecycle events control cleanup. To switch targets with narration, supply both speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range in the next assistant response."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];
@@ -81,15 +81,18 @@ public static class LiveUIClientAgentToolFactory
         public Task<JsonElement> HighlightAsync(
             string targetId,
             int durationMilliseconds = 0,
+            string? matchText = null,
             int? speechStartCharacter = null,
             int? speechEndCharacter = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
                 durationMilliseconds is < 0 or > 30_000 ||
+                matchText is not null && (string.IsNullOrWhiteSpace(matchText) || matchText.Length > 256) ||
                 !IsValidSpeechRange(speechStartCharacter, speechEndCharacter))
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
             var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
+                Value: matchText,
                 HighlightDurationMilliseconds: durationMilliseconds)
             {
                 SpeechStartCharacter = speechStartCharacter,

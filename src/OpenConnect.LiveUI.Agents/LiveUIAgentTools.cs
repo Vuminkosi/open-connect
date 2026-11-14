@@ -118,6 +118,21 @@ public sealed class LiveUIAgentTools(
             new(HighlightDurationMilliseconds: effectiveDuration), cancellationToken);
     }
 
+    /// <summary>Highlights the unique visible row containing the supplied text inside an authorized list or table target.</summary>
+    public ValueTask<LiveUIActionReceipt> HighlightTextAsync(
+        string targetId,
+        string matchText,
+        CancellationToken cancellationToken = default,
+        int durationMilliseconds = 0)
+    {
+        if (string.IsNullOrWhiteSpace(matchText) || matchText.Length > 256)
+            return ValueTask.FromResult(Rejected("invalid_highlight_match_text"));
+
+        var effectiveDuration = options.Value.Narration.SynchronizeWithSpeech ? 0 : durationMilliseconds;
+        return ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Highlight,
+            new(Value: matchText, HighlightDurationMilliseconds: effectiveDuration), cancellationToken);
+    }
+
     /// <summary>Clears LiveUI highlights without opening a Navigator tour.</summary>
     public ValueTask<LiveUIActionReceipt> ClearHighlightAsync(CancellationToken cancellationToken = default) =>
         ExecuteOnCurrentRouteAsync(null, LiveUIActionType.ClearHighlight, new(), cancellationToken);

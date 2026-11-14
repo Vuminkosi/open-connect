@@ -214,3 +214,47 @@ test('resolves the compiled MudBlazor task list and highlights it without a popu
   await expect(page.locator('.mud-list[data-openconnect-liveui-highlight=\"true\"]')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('highlights the unique visible task row selected by its exact title', async ({ page }) => {
+  const target = todoRoute.targets.find((candidate) => candidate.kind === 'List' && candidate.label === 'Task list');
+  const title = 'Review the quarterly report';
+  const receipt = await page.evaluate(async ({ manifestData, route, targetData, text }) => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    return runtime.execute({
+      manifest: manifestData,
+      route,
+      target: targetData,
+      action: { schemaVersion: manifestData.schemaVersion, type: 'Highlight', parameters: { value: text } },
+    }, 5000, true);
+  }, { manifestData: manifest, route: todoRoute, targetData: target, text: title });
+
+  expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true, verifiedState: 'highlighted' });
+  const highlighted = page.locator('.mud-list [data-openconnect-liveui-highlight="true"]');
+  await expect(highlighted).toHaveCount(1);
+  await expect(highlighted).toContainText(title);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('does not highlight when the visible task title matches multiple rows', async ({ page }) => {
+  const target = todoRoute.targets.find((candidate) => candidate.kind === 'List' && candidate.label === 'Task list');
+  const title = 'Review the quarterly report';
+  await page.locator('.mud-list-item').filter({ hasText: title }).first().evaluate((item) => {
+    const duplicate = item.cloneNode(true);
+    duplicate.querySelector('[data-openconnect-liveui-highlight]')?.removeAttribute('data-openconnect-liveui-highlight');
+    item.parentElement.append(duplicate);
+  });
+
+  const receipt = await page.evaluate(async ({ manifestData, route, targetData, text }) => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    return runtime.execute({
+      manifest: manifestData,
+      route,
+      target: targetData,
+      action: { schemaVersion: manifestData.schemaVersion, type: 'Highlight', parameters: { value: text } },
+    }, 5000, true);
+  }, { manifestData: manifest, route: todoRoute, targetData: target, text: title });
+
+  expect(receipt).toMatchObject({ outcome: 'Ambiguous', code: 'text_match_ambiguous' });
+  await expect(page.locator('.mud-list [data-openconnect-liveui-highlight="true"]')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});

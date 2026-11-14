@@ -23,7 +23,7 @@ public static class LiveUIAgentToolFactory
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight; omit it to keep the highlight until cleared. When the host enables speech synchronization, playback lifecycle events control cleanup and the duration is ignored."),
+                "Highlights a compiled target without opening a Navigator tour popup. For an authorized list or table, optionally provide matchText to highlight the unique visible row containing that text; an ambiguous or missing match fails. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight. When speech synchronization is enabled, playback lifecycle events control cleanup."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];

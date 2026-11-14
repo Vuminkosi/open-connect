@@ -27,6 +27,9 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000003", "execute", TargetId: "todo.completed", Action: "SelectTab"), "SelectTab" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000004", "await_state", TargetId: "todo.completed", StateName: "selected"), "WaitForState" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000005", "highlight", TargetId: "todo.list", HighlightDurationMilliseconds: 1_250), "Highlight" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000009", "highlight", TargetId: "todo.list", Value: "Review the quarterly report"), "Highlight" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000010", "highlight", TargetId: "todo.list", Value: " "), "invalid" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000011", "highlight", TargetId: "todo.list", Value: new string('x', 257)), "invalid" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000006", "clear_highlight"), "ClearHighlight" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000007", "await_state", TargetId: "todo.region", StateName: "textContains", StateValue: "No tasks to display"), "WaitForState" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000008", "highlight", TargetId: "todo.list")
@@ -341,6 +344,8 @@ public sealed class LiveUIProviderClientInteractionTests
         }
 
         Assert.Equal(expectedAction, runtime.LastAction);
+        if (request.Operation == "highlight" && request.Value is not null)
+            Assert.Equal(request.Value, runtime.LastParameters!.Value);
         if (request.Operation == "highlight")
             Assert.Equal(request.HighlightDurationMilliseconds, runtime.LastParameters!.HighlightDurationMilliseconds);
         Assert.Equal("Completed", receipt.RootElement.GetProperty("outcome").GetString());
