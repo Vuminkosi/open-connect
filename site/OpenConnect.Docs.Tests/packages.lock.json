@@ -1043,6 +1043,7 @@
       "openconnect.components.blazor": {
         "type": "Project",
         "dependencies": {
+          "Markdig": "[1.6.0, )",
           "MudBlazor": "[8.15.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Client": "[1.0.0, )",
@@ -1190,6 +1191,12 @@
           "NATS.Net": "[3.3.2, )",
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
+      },
+      "Markdig": {
+        "type": "CentralTransitive",
+        "requested": "[1.6.0, )",
+        "resolved": "1.6.0",
+        "contentHash": "rJEpDfPM8wrfXUgkNejjg2bJN9bciy44uVyRwKUI+92CnSmbaLeJTLPYcCdvgM4RFsKrhs8d2H2hO78yZpMl3g=="
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
