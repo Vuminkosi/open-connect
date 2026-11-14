@@ -304,10 +304,36 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         for (var i = start; i < text.Length; i++)
         {
-            if (text[i] is '.' or '!' or '?' or ';' or ':' or '\n') return i + 1;
-            if (i - start >= 240) return i + 1;
+            if (text[i] is '.' or '!' or '?' or ';' or ':' or '\n'
+                && !IsInsideMarkdownSpan(text, i)) return i + 1;
+            if (i - start >= 240 && !IsInsideMarkdownSpan(text, i)) return i + 1;
         }
         return flush ? text.Length : start;
+    }
+
+    private static bool IsInsideMarkdownSpan(string text, int position)
+    {
+        var inCode = false;
+        var inStrong = false;
+
+        for (var i = 0; i < position; i++)
+        {
+            if (text[i] == '`')
+            {
+                inCode = !inCode;
+                continue;
+            }
+
+            if (inCode || i + 1 >= position) continue;
+            if ((text[i] == '*' && text[i + 1] == '*')
+                || (text[i] == '_' && text[i + 1] == '_'))
+            {
+                inStrong = !inStrong;
+                i++;
+            }
+        }
+
+        return inCode || inStrong;
     }
 
     private async Task DrainSpeechQueueAsync()
