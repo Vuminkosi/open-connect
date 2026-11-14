@@ -66,19 +66,21 @@ The in-memory session store currently backs the interaction broker registration.
 
 The Blazor runtime resolves compiled descriptors using known selectors, optional runtime IDs, and browser semantic queries. It rejects multiple matches. It supports the action subset implemented by the adapter, including focus, scroll, highlight, clearing highlights, value entry, selection, tab activation, inspection, route navigation, and bounded state waits.
 
+Compiled lists and tables advertise `WaitForState` so a host policy can permit verification after a supported control changes existing application state. The Todo sample allows bounded `textContains` and `textNotContains` checks on its task list; the browser acceptance test sets the existing search input, awaits the compiled list state, and verifies the rendered matching and excluded tasks.
+
 Navigation is restricted to manifest routes and is complete only after route readiness is observed. Highlighting is non-modal, does not intentionally move focus, and respects reduced motion. Traditional Navigator tour behavior remains separate.
 
 The current runtime does not establish complete support for every MudBlazor or arbitrary custom component pattern. Unsupported, stale, hidden, or ambiguous targets must fail visibly. Native component adapters may be added where browser semantics alone cannot verify application state.
 
 ## Speech and timeline
 
-Speech remains on the existing composer/TTS path. Browser playback lifecycle events are surfaced to the Blazor sample, which clears highlights when playback ends or is interrupted. This proves lifecycle integration for the sample; it does not prove word-level speech/highlight alignment or measured synchronization offset. Those require additional playback-position signals and browser acceptance evidence.
+Speech remains on the existing composer/TTS path. Browser playback lifecycle events are surfaced to the Blazor sample, which clears highlights when playback ends or is interrupted. This proves lifecycle integration for the sample; it does not prove word-level or action-segment speech/highlight alignment or measured synchronization offset. Those require additional playback-position signals and browser acceptance evidence.
 
 When speech is disabled or unavailable, UI action execution should remain functional. Disconnect, cancellation, and playback epoch changes must clear transient highlighting and prevent stale narration from being treated as current.
 
 ## Verification and performance
 
-Current evidence includes compiler-generated Todo manifest browser checks, browser checks for existing tabs/search/highlighting, composer audio lifecycle checks, focused agent/gateway tests, and an in-process correlated round-trip test. Real model-provider acceptance for all six user journeys is not verified. The complete hosting unit suite currently has failures in minimal API parameter inference (`IHttpClientFactory` reported as unknown); focused LiveUI hosting route tests pass.
+Current evidence includes compiler-generated Todo manifest browser checks, browser checks for existing tabs/search/list-state verification/highlighting and composer audio lifecycle (7/7 passed in Development on 2026-11-14), focused agent/gateway tests, and an in-process correlated round-trip test. The hosting unit suite passed 153/153 on the current implementation before the latest list-state changes; focused compiler and agent suites passed 4/4 and 10/10 respectively after those changes. The Blazor sample Debug build passed with warnings treated as errors after those changes. Real model-provider acceptance for all six user journeys is not verified.
 
 No latency or synchronization benchmark is claimed. Future measurements should separately record manifest load, target resolution, action execution, confirmed-state latency, playback/highlight offset, and target-resolution failure rate using representative applications and browser conditions.
 
