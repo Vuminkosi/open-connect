@@ -203,8 +203,8 @@
                                           @onclick="@(() => CopyResponseAsync(message.Text))"
                                           role="button"
                                           tabindex="0"
-                                          aria-label="@(_copiedResponse == message.Text ? "Response copied" : "Copy response to clipboard")"
-                                          title="@(_copiedResponse == message.Text ? "Copied" : "Copy response)">
+                                          aria-label="@CopyAriaLabel(message.Text)"
+                                          title="@CopyTitle(message.Text)">
                                         @(_copiedResponse == message.Text ? "Copied" : "copy")
                                     </span>
                                 }

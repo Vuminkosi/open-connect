@@ -195,6 +195,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return new MarkupString(output.ToString());
     }
 
+    private string CopyAriaLabel(string text) => _copiedResponse == text ? "Response copied" : "Copy response to clipboard";
+    private string CopyTitle(string text) => _copiedResponse == text ? "Copied" : "Copy response";
+
     private async Task CopyResponseAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
