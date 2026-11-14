@@ -2,6 +2,8 @@ using System.Text.Json;
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor;
+using MudBlazor.Services;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Client;
@@ -105,6 +107,68 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await runtime.HighlightCleared.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(1, runtime.ClearHighlightCount);
+    }
+
+    [Fact]
+    public async Task Provider_clears_highlight_from_actual_composer_response_completion_without_host_callback()
+    {
+        await using var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.Services.AddMudServices();
+        context.Services.AddSingleton(new OpenConnectComponentRegistry());
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.AddAttribute(2, nameof(OpenConnectLiveUIProvider.ChildContent), (RenderFragment)(childBuilder =>
+                {
+                    childBuilder.OpenComponent<MudThemeProvider>(0);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudPopoverProvider>(1);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudDialogProvider>(2);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MudSnackbarProvider>(3);
+                    childBuilder.CloseComponent();
+                    childBuilder.OpenComponent<MiniComposer>(4);
+                    childBuilder.AddAttribute(5, nameof(MiniComposer.StartOpen), true);
+                    childBuilder.CloseComponent();
+                }));
+                builder.CloseComponent();
+            }));
+
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        Assert.Equal("Highlight", runtime.LastAction);
+
+        await rendered.InvokeAsync(() => rendered.Find(".oc-bubble__speech-action .oc-speech-item").Click());
+        await runtime.HighlightCleared.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, runtime.ClearHighlightCount);
+        composerSession.BeginSend("Explain the completed tasks.");
+        await rendered.InvokeAsync(() =>
+        {
+            composerSession.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 2, "message.delta", "The list shows completed tasks."));
+            composerSession.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 3, "message.completed", string.Empty));
+        });
+
+        rendered.WaitForAssertion(() => Assert.Equal(2, runtime.ClearHighlightCount));
     }
 
     [Theory]

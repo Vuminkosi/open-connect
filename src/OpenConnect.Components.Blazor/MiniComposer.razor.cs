@@ -441,7 +441,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task NotifySpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        if (!SpeechPlaybackChanged.HasDelegate || _disposed) return;
+        if (_disposed) return;
+        if (Session is not null)
+            await Session.PublishSpeechPlaybackChangedAsync(playbackEvent).ConfigureAwait(false);
+        if (!SpeechPlaybackChanged.HasDelegate) return;
         try { await SpeechPlaybackChanged.InvokeAsync(playbackEvent).ConfigureAwait(false); }
         catch (Exception) { }
     }

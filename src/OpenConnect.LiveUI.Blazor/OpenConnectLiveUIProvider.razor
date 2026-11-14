@@ -2,6 +2,7 @@
 @using OpenConnect.LiveUI
 @using OpenConnect.LiveUI.Agents
 @using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
 @using OpenConnect.Client
 @using OpenConnect.Abstractions
 @using System.Collections.Concurrent
@@ -14,6 +15,7 @@
 
 @code {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly LiveUISpeechPlaybackFence _speechPlaybackFence = new();
     [Parameter]
     public LiveUIManifest? Manifest { get; set; }
 
@@ -33,9 +35,17 @@
     {
         if (!ReferenceEquals(_boundSession, ComposerSession))
         {
-            if (_boundSession is not null) _boundSession.Changed -= OnComposerSessionChanged;
+            if (_boundSession is not null)
+            {
+                _boundSession.Changed -= OnComposerSessionChanged;
+                _boundSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
+            }
             _boundSession = ComposerSession;
-            if (_boundSession is not null) _boundSession.Changed += OnComposerSessionChanged;
+            if (_boundSession is not null)
+            {
+                _boundSession.Changed += OnComposerSessionChanged;
+                _boundSession.SpeechPlaybackChanged += OnSpeechPlaybackChangedAsync;
+            }
         }
 
         var manifest = Manifest ?? LiveUICompiledManifestLoader.LoadFromEntryAssembly()
@@ -77,6 +87,13 @@
     {
         try { await _agentTools!.ClearHighlightAsync(); }
         catch (Exception) { }
+    }
+
+    private Task OnSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        return _speechPlaybackFence.ShouldClearHighlights(playbackEvent)
+            ? InvokeAsync(ClearHighlightsAfterCancellationAsync)
+            : Task.CompletedTask;
     }
 
     private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client,
@@ -177,7 +194,11 @@
 
     public void Dispose()
     {
-        if (_boundSession is not null) _boundSession.Changed -= OnComposerSessionChanged;
+        if (_boundSession is not null)
+        {
+            _boundSession.Changed -= OnComposerSessionChanged;
+            _boundSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
+        }
         foreach (var active in _activeInteractions.Values)
         {
             try { active.Cancel(); }

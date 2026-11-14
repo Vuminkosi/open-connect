@@ -86,6 +86,21 @@ public sealed class ComposerSession
 
     public event Action? Changed;
 
+    /// <summary>Raised for playback lifecycle events emitted by the composer audio player.</summary>
+    public event Func<ComposerSpeechPlaybackEvent, Task>? SpeechPlaybackChanged;
+
+    internal async Task PublishSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        var handlers = SpeechPlaybackChanged;
+        if (handlers is null) return;
+
+        foreach (var handler in handlers.GetInvocationList().Cast<Func<ComposerSpeechPlaybackEvent, Task>>())
+        {
+            try { await handler(playbackEvent).ConfigureAwait(false); }
+            catch (Exception) { }
+        }
+    }
+
     public void AttachSession(string sessionId)
     {
         lock (_gate)
