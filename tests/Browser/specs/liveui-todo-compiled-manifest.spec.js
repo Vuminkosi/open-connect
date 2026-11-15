@@ -63,6 +63,36 @@ async function highlightTarget(page, targetLabel) {
   }, { manifestData: manifest, route: todoRoute, targetData: target });
 }
 
+test('blocks SetValue and Select for fields marked sensitive by accessible metadata', async ({ page }) => {
+  const receipts = await page.evaluate(async ({ manifestData, route }) => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    const input = document.createElement('input');
+    input.id = 'liveui-sensitive-api-key';
+    input.setAttribute('aria-label', 'API key');
+    input.value = 'preserve-me';
+    document.body.append(input);
+    const select = document.createElement('select');
+    select.id = 'liveui-sensitive-card';
+    select.setAttribute('autocomplete', 'cc-number');
+    select.innerHTML = '<option value="safe">safe</option><option value="changed">changed</option>';
+    document.body.append(select);
+    const run = (target, type, value) => runtime.execute({
+      manifest: manifestData,
+      route,
+      target,
+      action: { schemaVersion: manifestData.schemaVersion, type, parameters: { value } },
+    }, 5000, true);
+    const inputReceipt = await run({ id: 'sensitive-input', kind: 'Input', role: 'textbox', label: 'API key', selector: '#liveui-sensitive-api-key', capabilities: ['SetValue'] }, 'SetValue', 'overwrite');
+    const selectReceipt = await run({ id: 'sensitive-select', kind: 'Select', role: 'combobox', label: 'Card', selector: '#liveui-sensitive-card', capabilities: ['Select'] }, 'Select', 'changed');
+    return { inputReceipt, selectReceipt, inputValue: input.value, selectValue: select.value };
+  }, { manifestData: manifest, route: todoRoute });
+
+  expect(receipts.inputReceipt).toMatchObject({ outcome: 'Denied', code: 'sensitive_input_blocked' });
+  expect(receipts.selectReceipt).toMatchObject({ outcome: 'Denied', code: 'sensitive_input_blocked' });
+  expect(receipts.inputValue).toBe('preserve-me');
+  expect(receipts.selectValue).toBe('safe');
+});
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Task Management' })).toBeVisible();

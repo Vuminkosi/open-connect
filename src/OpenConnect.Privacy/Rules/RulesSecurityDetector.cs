@@ -15,7 +15,7 @@ public sealed record CustomDetectorRule(string EntityType, Regex Pattern);
 public sealed class RulesSecurityDetector : ISecurityDetector
 {
     private static readonly Regex EmailRegex = new(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", RegexOptions.Compiled);
-    private static readonly Regex PhoneRegex = new(@"(?:\+?\d{1,3}[-.\s])?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b", RegexOptions.Compiled);
+    private static readonly Regex PhoneRegex = new(@"(?<![\w+])\+?(?:\d{1,3}[-.\s])?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b", RegexOptions.Compiled);
     private static readonly Regex PotentialCardRegex = new(@"\b(?:\d[ -]*?){13,19}\b", RegexOptions.Compiled);
     private static readonly Regex SecretRegex = new(@"(?i)\b(?:bearer\s+[a-z0-9_\-\.]{20,}|ghp_[a-z0-9]{36}|sk-[a-z0-9]{20,}|xox[baprs]-[0-9a-z]{10,}|-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----)", RegexOptions.Compiled);
 

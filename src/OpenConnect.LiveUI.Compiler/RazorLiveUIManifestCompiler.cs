@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Reflection;
 using System.Net;
@@ -19,6 +20,9 @@ public sealed record LiveUIManifestCompilationResult(bool Success, LiveUIManifes
 public sealed class RazorLiveUIManifestCompiler
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateCompilerJsonOptions();
+    private static readonly Regex SensitiveFieldPattern = new(
+        "password|passwd|secret|token|api[\\s_-]?key|\\bssn\\b|social[\\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\\s._-]?key|\\bpin\\b|\\bpin[\\s_-]?(?:code|number)\\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public LiveUIManifestCompilationResult Compile(string projectDirectory, string outputPath, string? buildId = null)
     {
@@ -217,8 +221,10 @@ public sealed class RazorLiveUIManifestCompiler
             case "input":
             case "textarea":
             case "mudtextfield":
-                var inputType = First(attributes, "type")?.ToLowerInvariant();
-                if (inputType is "password" or "email" or "tel" or "number" or "hidden" or "file") yield break;
+                var rawInputType = First(attributes, "type", "InputType");
+                if (HasUnresolvedInputType(attributes)) yield break;
+                var inputType = NormalizeInputType(rawInputType);
+                if (IsSensitiveInput(inputType, label, attributes)) yield break;
                 if (inputType == "checkbox")
                 {
                     if (!string.IsNullOrWhiteSpace(label))
@@ -421,8 +427,9 @@ public sealed class RazorLiveUIManifestCompiler
                 break;
             case "input":
             case "textarea":
-                var type = First(element.Attributes, "type")?.ToLowerInvariant();
-                if (type is "password" or "email" or "tel" or "number" or "hidden" or "file") break;
+                var type = NormalizeInputType(First(element.Attributes, "type"));
+                if (type?.StartsWith('@') == true) break;
+                if (IsSensitiveInput(type, label, element.Attributes)) break;
                 if (type == "checkbox")
                 {
                     if (!string.IsNullOrWhiteSpace(label))
@@ -504,6 +511,33 @@ public sealed class RazorLiveUIManifestCompiler
 
     private static string? First(IReadOnlyDictionary<string, string?> attributes, params string[] names) =>
         names.Select(name => attributes.TryGetValue(name, out var value) ? value : null).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static bool IsSensitiveInput(string? inputType, string? label, IReadOnlyDictionary<string, string?> attributes)
+    {
+        var normalizedType = NormalizeInputType(inputType);
+        if (normalizedType is "password" or "email" or "tel" or "number" or "hidden" or "file")
+            return true;
+
+        var autocomplete = First(attributes, "autocomplete");
+        if (autocomplete?.StartsWith("cc-", StringComparison.OrdinalIgnoreCase) == true ||
+            string.Equals(autocomplete, "current-password", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(autocomplete, "new-password", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(autocomplete, "one-time-code", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var metadata = string.Join(" ", label, First(attributes,
+            "name", "id", "aria-label", "aria-labelledby", "placeholder", "title", "label", "autocomplete"));
+        return SensitiveFieldPattern.IsMatch(metadata);
+    }
+
+    private static string? NormalizeInputType(string? inputType) =>
+        inputType?.Split('.').Last().ToLowerInvariant();
+
+    private static bool HasUnresolvedInputType(IReadOnlyDictionary<string, string?> attributes) =>
+        attributes.Any(attribute =>
+            (attribute.Key.Equals("type", StringComparison.OrdinalIgnoreCase) ||
+             attribute.Key.Equals("InputType", StringComparison.OrdinalIgnoreCase)) &&
+            (attribute.Value is null || attribute.Value.TrimStart().StartsWith('@')));
 
     private static IReadOnlySet<LiveUICapability> Caps(params LiveUICapability[] capabilities) => new SortedSet<LiveUICapability>(capabilities);
 

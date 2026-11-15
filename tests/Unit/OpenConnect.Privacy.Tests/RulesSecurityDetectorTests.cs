@@ -34,6 +34,22 @@ public sealed class RulesSecurityDetectorTests
     }
 
     [Fact]
+    public async Task InternationalPhoneTokenIncludesCountryPrefix()
+    {
+        const string phone = "+1-555-867-5309";
+        using var vault = new TokenVault(new byte[32]);
+        var detector = new RulesSecurityDetector(vault);
+
+        var result = await detector.DetectAndSanitizeAsync($"Call {phone}", Context);
+        var token = Regex.Match(result.SanitizedContent, @"\[OC_[A-F0-9]{32}\]").Value;
+
+        Assert.NotEmpty(token);
+        Assert.DoesNotContain("+1-", result.SanitizedContent, StringComparison.Ordinal);
+        Assert.Equal(phone, await vault.ResolveAsync(token,
+            new PrivacyScope(Context.Tenant, Context.Principal, Context.Session, "redaction")));
+    }
+
+    [Fact]
     public async Task RejectsInvalidLuhnCardFromCardClassification()
     {
         var detector = new RulesSecurityDetector();

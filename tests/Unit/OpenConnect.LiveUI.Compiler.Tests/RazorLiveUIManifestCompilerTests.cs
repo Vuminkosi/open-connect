@@ -63,6 +63,27 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
     }
 
     [Fact]
+    public void Compile_ExcludesSensitiveInputsFromLabelsMetadataAndDynamicTypes()
+    {
+        Write("Pages/Home.razor", """
+            @page "/"
+            <MudTextField Label="API key" />
+            <MudTextField Label="Account PIN" />
+            <MudTextField Label="Password entry" InputType="InputType.Password" />
+            <MudTextField Label="Shipping address" />
+            <input name="api_token" aria-label="Account" />
+            <input autocomplete="cc-number" aria-label="Card entry" />
+            <input type="@dynamicType" aria-label="Dynamic input" />
+            """);
+
+        var result = new RazorLiveUIManifestCompiler().Compile(_root, Path.Combine(_root, "manifest.json"));
+        var targets = Assert.Single(Assert.IsType<LiveUIManifest>(result.Manifest).Routes).Targets;
+
+        Assert.DoesNotContain(targets, target => target.Label is "API key" or "Account PIN" or "Password entry" or "api_token" or "Card entry" or "Dynamic input");
+        Assert.Contains(targets, target => target.Label == "Shipping address" && target.Kind == LiveUITargetKind.Input);
+    }
+
+    [Fact]
     public void Compile_IsDeterministicAndReportsAmbiguousRepeatedTargets()
     {
         Write("Home.razor", "@page \"/\"\n<button>Refresh</button><button>Refresh</button>");
