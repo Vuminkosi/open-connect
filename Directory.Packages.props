@@ -66,7 +66,7 @@
     <!-- Roslyn public-API tracking pilot (CF-IMP-005a): single Shipped/Unshipped pair under
          src/OpenConnect.Abstractions, identical inputs for net8.0/net9.0/net10.0 (parity enforced
          by the build itself); other libs follow the same pattern. Single version for all TFMs. -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
     <!-- SourceLink (OC-G5-FIX02): 10.0.403, SDK-aligned (global.json 10.0.403).
          Fixes GHSA-23fw (CVSS 5.9M): transitive Microsoft.Build.Tasks.Git 8.0.0
          advisory resolved in the 10.0.1xx line (>=10.0.111); 10.0.403 verified
