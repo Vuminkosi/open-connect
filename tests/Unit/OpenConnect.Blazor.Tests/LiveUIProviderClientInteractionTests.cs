@@ -72,6 +72,8 @@ public sealed class LiveUIProviderClientInteractionTests
         Assert.Equal(interaction.CorrelationId, client.Response!.CorrelationId);
         Assert.Equal("plan", client.Response.ResultKind);
         Assert.Equal(Session, router.Request!.SessionId);
+        Assert.Equal(interaction.CorrelationId, router.Request.RequestId);
+        Assert.False(string.IsNullOrWhiteSpace(router.Request.ExecutionId));
         Assert.Equal("todo.home", router.Request.RouteId);
         Assert.Contains(router.Request.Capabilities, item => item.TargetId == "todo.completed" && item.Actions.Contains("activate"));
         using var payload = JsonDocument.Parse(client.Response.PayloadJson);

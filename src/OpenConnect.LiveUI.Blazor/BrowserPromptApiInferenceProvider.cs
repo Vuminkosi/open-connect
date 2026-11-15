@@ -48,9 +48,26 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
                 options.Value.Browser.Provider.ToString(), options.Value.Browser.EnableStructuredOutput).ConfigureAwait(false);
             if (availability.Status != LiveUIInferenceAvailabilityStatus.Available)
                 return new(Kind, null, availability.Reason ?? availability.Status.ToString(), availability.Browser);
-            var plan = await module.InvokeAsync<LiveUIActionPlan>("generate", cancellationToken,
-                request, options.Value.Browser.EnableStructuredOutput);
-            return new(Kind, plan, "completed");
+            var browserRequest = new LiveUIBrowserInferenceRequest(
+                request.RequestId,
+                request.ExecutionId,
+                request.SessionId,
+                request.SchemaVersion,
+                request.ManifestHash,
+                request.Intent,
+                request.RouteId,
+                request.Capabilities);
+            var response = await module.InvokeAsync<LiveUIBrowserInferenceResponse>("generate", cancellationToken,
+                browserRequest, options.Value.Browser.EnableStructuredOutput);
+            if (response is null ||
+                !string.Equals(response.RequestId, request.RequestId, StringComparison.Ordinal) ||
+                !string.Equals(response.ExecutionId, request.ExecutionId, StringComparison.Ordinal) ||
+                !string.Equals(response.SessionId, request.SessionId, StringComparison.Ordinal) ||
+                !string.Equals(response.SchemaVersion, request.SchemaVersion, StringComparison.Ordinal) ||
+                !string.Equals(response.ManifestHash, request.ManifestHash, StringComparison.Ordinal) ||
+                response.Plan is null)
+                return new(Kind, null, "browser_response_mismatch");
+            return new(Kind, response.Plan, "completed");
         }
         catch (OperationCanceledException)
         {
@@ -97,3 +114,21 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
         catch (JSDisconnectedException) { }
     }
 }
+
+public sealed record LiveUIBrowserInferenceRequest(
+    string RequestId,
+    string ExecutionId,
+    string SessionId,
+    string SchemaVersion,
+    string ManifestHash,
+    string Intent,
+    string RouteId,
+    IReadOnlyList<LiveUIInferenceCapability> Capabilities);
+
+public sealed record LiveUIBrowserInferenceResponse(
+    string RequestId,
+    string ExecutionId,
+    string SessionId,
+    string SchemaVersion,
+    string ManifestHash,
+    LiveUIActionPlan Plan);

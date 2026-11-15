@@ -322,7 +322,11 @@
                             .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])))
                             .ToArray();
                         var inferenceRequest = new LiveUIInferenceRequest(request.Value, sessionText, page.RouteId,
-                            manifest.SchemaVersion, capabilities, manifest.ContentHash);
+                            manifest.SchemaVersion, capabilities, manifest.ContentHash)
+                        {
+                            RequestId = request.CorrelationId,
+                            ExecutionId = Guid.NewGuid().ToString("N")
+                        };
                         var result = await router.GeneratePlanAsync(inferenceRequest, cancellationToken);
                         payloadJson = JsonSerializer.Serialize(result, JsonOptions);
                     }

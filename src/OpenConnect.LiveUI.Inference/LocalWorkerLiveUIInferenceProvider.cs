@@ -41,7 +41,7 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
         cancellationToken.ThrowIfCancellationRequested();
         var body = new
         {
-            requestId = Guid.NewGuid().ToString("N"),
+            requestId = request.RequestId,
             schemaVersion = request.SchemaVersion,
             intent = request.Intent,
             context = new

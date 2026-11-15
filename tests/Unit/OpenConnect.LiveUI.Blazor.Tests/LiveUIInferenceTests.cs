@@ -216,6 +216,29 @@ public sealed class LiveUIInferenceTests
         Assert.Equal("browser_prompt_api_unavailable", availability.Reason);
     }
 
+    [Theory]
+    [InlineData(false, "completed")]
+    [InlineData(true, "browser_response_mismatch")]
+    public async Task BrowserProvider_RequiresResponseToMatchSessionExecutionAndManifest(
+        bool mismatchRequestId, string expectedOutcome)
+    {
+        var request = Request with
+        {
+            ManifestHash = "manifest-hash",
+            RequestId = "request-id",
+            ExecutionId = "execution-id"
+        };
+        var provider = new BrowserPromptApiInferenceProvider(
+            new BrowserInferenceJavaScriptRuntime(mismatchRequestId), Options.Create(new LiveUIInferenceOptions()));
+
+        var result = await provider.GeneratePlanAsync(request);
+
+        Assert.Equal(expectedOutcome, result.Outcome);
+        Assert.Equal(expectedOutcome == "completed", result.Plan is not null);
+        if (result.Plan is not null)
+            Assert.Equal("todo.tab.completed", Assert.Single(result.Plan.Actions).TargetId);
+    }
+
     [Fact]
     public async Task BrowserFirst_UsesLocalWorkerBeforeNormalGatewayInference()
     {
@@ -305,12 +328,14 @@ public sealed class LiveUIInferenceTests
     [Fact]
     public async Task LocalWorkerProvider_UsesPrivateEndpointAndMapsVersionedStructuredPlan()
     {
+        var inferenceRequest = Request with { RequestId = "session-request-id", ExecutionId = "execution-id" };
         var handler = new RecordingHttpMessageHandler(request =>
         {
             Assert.Equal("Bearer worker-secret", request.Headers.Authorization?.ToString());
             Assert.Equal("v1/liveui/inference/plan", request.RequestUri!.PathAndQuery.TrimStart('/'));
             using var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
             var requestId = body.RootElement.GetProperty("requestId").GetString();
+            Assert.Equal(inferenceRequest.RequestId, requestId);
             var schemaVersion = body.RootElement.GetProperty("schemaVersion").GetString();
             var responseJson = JsonSerializer.Serialize(new
             {
@@ -336,7 +361,7 @@ public sealed class LiveUIInferenceTests
             BearerToken = "worker-secret"
         }));
 
-        var result = await provider.GeneratePlanAsync(Request);
+        var result = await provider.GeneratePlanAsync(inferenceRequest);
 
         Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
         Assert.Equal("completed", result.Outcome);
@@ -413,5 +438,44 @@ public sealed class LiveUIInferenceTests
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
             ValueTask.FromException<TValue>(new JSException("Browser interop is unavailable."));
+    }
+
+    private sealed class BrowserInferenceJavaScriptRuntime(bool mismatchRequestId) : IJSRuntime
+    {
+        private readonly BrowserInferenceJavaScriptModule _module = new(mismatchRequestId);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
+            ValueTask.FromResult((TValue)(object)_module);
+    }
+
+    private sealed class BrowserInferenceJavaScriptModule(bool mismatchRequestId) : IJSObjectReference
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            object value = identifier switch
+            {
+                "getAvailability" or "initialize" => new LiveUIInferenceAvailability(
+                    LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Available),
+                "generate" => CreateResponse((LiveUIBrowserInferenceRequest)args![0]!),
+                _ => throw new InvalidOperationException($"Unexpected JavaScript call '{identifier}'.")
+            };
+            return ValueTask.FromResult((TValue)value);
+        }
+
+        private LiveUIBrowserInferenceResponse CreateResponse(LiveUIBrowserInferenceRequest request) => new(
+            mismatchRequestId ? "stale-request-id" : request.RequestId,
+            request.ExecutionId,
+            request.SessionId,
+            request.SchemaVersion,
+            request.ManifestHash,
+            new LiveUIActionPlan(request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

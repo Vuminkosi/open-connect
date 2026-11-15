@@ -123,6 +123,8 @@ export function unbindUserGestureInitializer(button) {
 
 export async function generate(request, enableStructuredOutput = true) {
     if (!modelSession) throw new Error("model_not_initialized");
+    if (!request?.requestId || !request?.executionId || !request?.sessionId || !request?.schemaVersion || !request?.manifestHash)
+        throw new Error("inference_correlation_missing");
     if (activeController) throw new Error("inference_in_progress");
     activeController = new AbortController();
     const prompt = `Return a JSON object with schemaVersion and actions. Use only the supplied target IDs and action capabilities. Do not invent targets.\nRequest: ${request.intent}\nRoute: ${request.routeId}\nSchema: ${request.schemaVersion}\nCapabilities: ${JSON.stringify(request.capabilities)}`;
@@ -134,7 +136,14 @@ export async function generate(request, enableStructuredOutput = true) {
         const response = await modelSession.prompt(prompt, promptOptions);
         const value = typeof response === "string" ? JSON.parse(response) : response;
         if (!value || typeof value !== "object" || !Array.isArray(value.actions)) throw new Error("invalid_plan_shape");
-        return value;
+        return {
+            requestId: request.requestId,
+            executionId: request.executionId,
+            sessionId: request.sessionId,
+            schemaVersion: request.schemaVersion,
+            manifestHash: request.manifestHash,
+            plan: value
+        };
     } finally {
         activeController = undefined;
     }

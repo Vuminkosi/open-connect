@@ -28,7 +28,16 @@ public sealed record LiveUIInferenceRequest(
     string RouteId,
     string SchemaVersion,
     IReadOnlyList<LiveUIInferenceCapability> Capabilities,
-    string ManifestHash = "");
+    string ManifestHash = "")
+{
+    /// <summary>Correlation ID shared with the authenticated client interaction.</summary>
+    [JsonIgnore]
+    public string RequestId { get; init; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>Unique ID for this inference execution.</summary>
+    [JsonIgnore]
+    public string ExecutionId { get; init; } = Guid.NewGuid().ToString("N");
+}
 public sealed record LiveUIPlannedAction(string Type, string TargetId, string? Value = null);
 public sealed record LiveUIActionPlan(string SchemaVersion, IReadOnlyList<LiveUIPlannedAction> Actions);
 public sealed record LiveUIInferenceResult(
