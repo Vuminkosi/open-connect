@@ -255,6 +255,33 @@ public sealed class LiveUIInferenceTests
         Assert.Equal(1, gateway.GenerateCalls);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task WorkerAuthorizationFailureDuringReadinessStopsProviderFallback(HttpStatusCode statusCode)
+    {
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(statusCode));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
+        }));
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions();
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => router.GeneratePlanAsync(Request));
+
+        Assert.Equal(0, gateway.GetAvailabilityCalls);
+        Assert.Equal(0, gateway.GenerateCalls);
+    }
+
     [Fact]
     public async Task PrivacyDenialStopsFallbackToOtherProviders()
     {

@@ -22,6 +22,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
         try
         {
             using var response = await SendAsync(HttpMethod.Get, "health/ready", null, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+                throw new UnauthorizedAccessException("The LiveUI worker rejected server authorization.");
             return new(Kind, response.IsSuccessStatusCode ? LiveUIInferenceAvailabilityStatus.Available : LiveUIInferenceAvailabilityStatus.Unavailable,
                 SupportsStructuredOutput: true, SupportsCancellation: true,
                 Reason: response.IsSuccessStatusCode ? null : "worker_not_ready");
