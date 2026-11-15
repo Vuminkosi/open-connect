@@ -29,6 +29,6 @@
                       LogicalName="$(AssemblyName).openconnect.liveui.manifest.json" />
   </ItemGroup>
   <Target Name="GenerateOpenConnectLiveUIManifest" BeforeTargets="PrepareResourceNames">
-    <Exec Command="dotnet &quot;$(MSBuildThisFileDirectory)..\..\src\OpenConnect.LiveUI.Compiler\bin\$(Configuration)\net8.0\OpenConnect.LiveUI.Compiler.dll&quot; --root &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(IntermediateOutputPath)openconnect.liveui.manifest.json&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildThisFileDirectory)../../src/OpenConnect.LiveUI.Compiler/bin/$(Configuration)/net8.0/OpenConnect.LiveUI.Compiler.dll&quot; --root &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(IntermediateOutputPath)openconnect.liveui.manifest.json&quot;" />
   </Target>
 </Project>
