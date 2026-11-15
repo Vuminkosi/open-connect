@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using OpenConnect.Privacy;
 
@@ -15,6 +16,74 @@ public sealed class LiveUIInferenceRouter(
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        var startedAt = Stopwatch.GetTimestamp();
+        var outcome = "failed";
+        var metricProvider = "none";
+        var failureRecorded = false;
+        void RecordFailure(string errorType)
+        {
+            if (failureRecorded) return;
+            LiveUIInferenceMetrics.Failures.Add(1,
+                new KeyValuePair<string, object?>("provider", metricProvider),
+                new KeyValuePair<string, object?>("error.type", errorType));
+            failureRecorded = true;
+        }
+
+        try
+        {
+            var result = await GeneratePlanCoreAsync(request, cancellationToken,
+                provider => metricProvider = LiveUIInferenceMetrics.Provider(provider)).ConfigureAwait(false);
+            outcome = result.Plan is not null
+                ? "completed"
+                : result.Outcome == "invalid_plan" ? "invalid_plan" : "inference_unavailable";
+            if (result.Plan is null) RecordFailure(outcome);
+            return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            outcome = "cancelled";
+            throw;
+        }
+        catch (TimeoutException)
+        {
+            outcome = "timeout";
+            RecordFailure("timeout");
+            throw;
+        }
+        catch (PrivacyBlockedException)
+        {
+            outcome = "privacy_blocked";
+            RecordFailure("privacy_blocked");
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            outcome = "authorization_denied";
+            RecordFailure("authorization_denied");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            outcome = "failed";
+            RecordFailure(ErrorType(exception));
+            throw;
+        }
+        finally
+        {
+            LiveUIInferenceMetrics.Requests.Add(1,
+                new KeyValuePair<string, object?>("provider", metricProvider),
+                new KeyValuePair<string, object?>("outcome", outcome));
+            LiveUIInferenceMetrics.Duration.Record(Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
+                new KeyValuePair<string, object?>("provider", metricProvider),
+                new KeyValuePair<string, object?>("outcome", outcome));
+        }
+    }
+
+    private async Task<LiveUIInferenceResult> GeneratePlanCoreAsync(
+        LiveUIInferenceRequest request,
+        CancellationToken cancellationToken,
+        Action<LiveUIInferenceProviderKind> providerSelected)
+    {
         var settings = options.Value;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(settings.Planning.Timeout);
@@ -26,6 +95,7 @@ public sealed class LiveUIInferenceRouter(
             _ => new[] { LiveUIInferenceProviderKind.Browser, LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceProviderKind.Gateway }
         };
         Exception? lastFailure = null;
+        var lastErrorType = "inference_unavailable";
         foreach (var kind in order)
         {
             if (kind != order[0] && settings.Gateway.FallbackPolicy == LiveUIFallbackPolicy.Disabled) continue;
@@ -33,12 +103,24 @@ public sealed class LiveUIInferenceRouter(
             if (kind == LiveUIInferenceProviderKind.LocalWorker && !settings.Worker.Enabled) continue;
             if (kind == LiveUIInferenceProviderKind.Gateway && (!settings.Gateway.Enabled || settings.Mode == LiveUIInferenceMode.BrowserOnly)) continue;
             if (!_providers.TryGetValue(kind, out var provider)) continue;
+            providerSelected(kind);
+            var providerTag = LiveUIInferenceMetrics.Provider(kind);
+            if (kind != order[0])
+            {
+                LiveUIInferenceMetrics.Fallbacks.Add(1,
+                    new KeyValuePair<string, object?>("provider", providerTag),
+                    new KeyValuePair<string, object?>("reason", lastErrorType));
+            }
             try
             {
                 var availability = await provider.GetAvailabilityAsync(timeout.Token).ConfigureAwait(false);
+                LiveUIInferenceMetrics.ModelAvailability.Add(1,
+                    new KeyValuePair<string, object?>("provider", providerTag),
+                    new KeyValuePair<string, object?>("status", AvailabilityStatus(availability.Status)));
                 if (availability.Status != LiveUIInferenceAvailabilityStatus.Available)
                 {
                     lastFailure = new InvalidOperationException("inference_unavailable");
+                    lastErrorType = "inference_unavailable";
                     if (settings.Gateway.FallbackPolicy is LiveUIFallbackPolicy.OnFailure or LiveUIFallbackPolicy.OnUnavailable) continue;
                     continue;
                 }
@@ -46,6 +128,9 @@ public sealed class LiveUIInferenceRouter(
                 if (result.Plan is null || !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
                 {
                     lastFailure = new InvalidOperationException("invalid_plan");
+                    lastErrorType = "invalid_plan";
+                    LiveUIInferenceMetrics.InvalidPlans.Add(1,
+                        new KeyValuePair<string, object?>("provider", providerTag));
                     if (settings.Gateway.FallbackPolicy == LiveUIFallbackPolicy.OnFailure) continue;
                     break;
                 }
@@ -58,6 +143,7 @@ public sealed class LiveUIInferenceRouter(
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 lastFailure = exception;
+                lastErrorType = ErrorType(exception);
                 if (settings.Gateway.FallbackPolicy == LiveUIFallbackPolicy.OnFailure) continue;
                 break;
             }
@@ -67,6 +153,22 @@ public sealed class LiveUIInferenceRouter(
         return new LiveUIInferenceResult(LiveUIInferenceProviderKind.Browser, null,
             lastFailure?.Message == "invalid_plan" ? "invalid_plan" : "inference_unavailable");
     }
+
+    private static string AvailabilityStatus(LiveUIInferenceAvailabilityStatus status) => status switch
+    {
+        LiveUIInferenceAvailabilityStatus.Available => "available",
+        LiveUIInferenceAvailabilityStatus.Downloadable => "downloadable",
+        LiveUIInferenceAvailabilityStatus.Downloading => "downloading",
+        _ => "unavailable"
+    };
+
+    private static string ErrorType(Exception exception) => exception switch
+    {
+        TimeoutException => "timeout",
+        PrivacyBlockedException => "privacy_blocked",
+        UnauthorizedAccessException => "authorization_denied",
+        _ => "provider_failure"
+    };
 }
 
 public sealed class LiveUIActionPlanValidator

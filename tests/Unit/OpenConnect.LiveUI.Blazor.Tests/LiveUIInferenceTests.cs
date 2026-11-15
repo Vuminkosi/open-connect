@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -100,6 +101,107 @@ public sealed class LiveUIInferenceTests
 
         Assert.Equal(LiveUIInferenceProviderKind.Gateway, result.Provider);
         Assert.Equal(1, gateway.GenerateCalls);
+    }
+
+    [Fact]
+    public async Task Router_RecordsProviderAvailabilityFallbackAndDurationWithoutUserContentTags()
+    {
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var worker = new FakeProvider(LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions();
+        settings.Worker.Enabled = true;
+        var router = new LiveUIInferenceRouter([browser, worker], new LiveUIActionPlanValidator(), Options.Create(settings));
+        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == "OpenConnect.LiveUI.Inference")
+                    meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+            measurements.Add((instrument.Name, tags.ToArray())));
+        listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) =>
+            measurements.Add((instrument.Name, tags.ToArray())));
+        listener.Start();
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.requests" &&
+            measurement.Tags.Any(tag => tag.Key == "provider" && Equals(tag.Value, "local_worker")) &&
+            measurement.Tags.Any(tag => tag.Key == "outcome" && Equals(tag.Value, "completed")));
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.duration");
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.fallbacks" &&
+            measurement.Tags.Any(tag => tag.Key == "reason" && Equals(tag.Value, "inference_unavailable")));
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.model_availability" &&
+            measurement.Tags.Any(tag => tag.Key == "status" && Equals(tag.Value, "unavailable")));
+
+        var serializedTags = string.Join(" ", measurements.SelectMany(measurement => measurement.Tags)
+            .Select(tag => $"{tag.Key}={tag.Value}"));
+        Assert.DoesNotContain(Request.Intent, serializedTags, StringComparison.Ordinal);
+        Assert.DoesNotContain("todo.tab.completed", serializedTags, StringComparison.Ordinal);
+        Assert.DoesNotContain(Request.SessionId, serializedTags, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Router_RecordsInvalidPlanAndFailureClassification()
+    {
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "invented.target")]));
+        var router = new LiveUIInferenceRouter([browser], new LiveUIActionPlanValidator(), Options.Create(new LiveUIInferenceOptions()));
+        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == "OpenConnect.LiveUI.Inference")
+                    meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+            measurements.Add((instrument.Name, tags.ToArray())));
+        listener.Start();
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal("invalid_plan", result.Outcome);
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.invalid_plans");
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.failures" &&
+            measurement.Tags.Any(tag => tag.Key == "error.type" && Equals(tag.Value, "invalid_plan")));
+    }
+
+    [Fact]
+    public async Task Router_RecordsCallerCancellationWithoutClassifyingItAsFailure()
+    {
+        var provider = new WaitingProvider();
+        var router = new LiveUIInferenceRouter([provider], new LiveUIActionPlanValidator(), Options.Create(new LiveUIInferenceOptions()));
+        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == "OpenConnect.LiveUI.Inference")
+                    meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+            measurements.Add((instrument.Name, tags.ToArray())));
+        listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) =>
+            measurements.Add((instrument.Name, tags.ToArray())));
+        listener.Start();
+        using var cancellation = new CancellationTokenSource();
+
+        var pending = router.GeneratePlanAsync(Request, cancellation.Token);
+        await provider.AvailabilityRequested;
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.Contains(measurements, measurement => measurement.Name == "openconnect.liveui.inference.requests" &&
+            measurement.Tags.Any(tag => tag.Key == "outcome" && Equals(tag.Value, "cancelled")));
+        Assert.DoesNotContain(measurements, measurement => measurement.Name == "openconnect.liveui.inference.failures");
     }
 
     [Fact]
@@ -249,6 +351,25 @@ public sealed class LiveUIInferenceTests
             if (failure is not null) throw failure;
             return Task.FromResult(new LiveUIInferenceResult(kind, plan, "completed"));
         }
+    }
+
+    private sealed class WaitingProvider : ILiveUIInferenceProvider
+    {
+        private readonly TaskCompletionSource<bool> _availabilityRequested =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task AvailabilityRequested => _availabilityRequested.Task;
+        public LiveUIInferenceProviderKind Kind => LiveUIInferenceProviderKind.Browser;
+
+        public async Task<LiveUIInferenceAvailability> GetAvailabilityAsync(CancellationToken cancellationToken = default)
+        {
+            _availabilityRequested.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new(Kind, LiveUIInferenceAvailabilityStatus.Unavailable);
+        }
+
+        public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class RecordingHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)

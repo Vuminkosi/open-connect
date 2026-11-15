@@ -12,6 +12,21 @@ The default is `BrowserFirst`, with browser inference enabled and the `OnUnavail
 
 The gateway contract is host-owned because only the host has the authenticated identity and egress policy needed to enforce safe remote inference. A gateway implementation must not infer that browser failure authorizes sending client UI context remotely.
 
+## Metrics
+
+Inference routing publishes the `OpenConnect.LiveUI.Inference` meter:
+
+| Instrument | Type and unit | Meaning |
+| --- | --- | --- |
+| `openconnect.liveui.inference.requests` | Counter | Completed, unavailable, invalid-plan, cancelled, timed-out, or failed planning requests. |
+| `openconnect.liveui.inference.duration` | Histogram, milliseconds | Total provider routing and planning duration. |
+| `openconnect.liveui.inference.failures` | Counter | Requests ending with a safe error classification. Caller cancellations are not failures. |
+| `openconnect.liveui.inference.fallbacks` | Counter | Attempts to use a provider after the preferred provider. |
+| `openconnect.liveui.inference.invalid_plans` | Counter | Provider responses rejected by plan validation. |
+| `openconnect.liveui.inference.model_availability` | Counter | Availability checks by provider and availability state. |
+
+Metric attributes use bounded provider names, outcome/error classifications, and availability states. They never include prompts, DOM content, session or request identifiers, target IDs, labels, or user-entered values. Hosts can collect the meter through their existing .NET metrics or OpenTelemetry configuration.
+
 ## Blazor Prompt API lifecycle
 
 `BrowserPromptApiInferenceProvider.GetAvailabilityAsync` checks secure context and browser API availability without creating a model session. `InitializeFromUserGestureAsync` is the explicit model creation entry point. The JS module checks availability, creates a browser-managed session, relays download progress, generates constrained JSON, aborts active generation when asked, and destroys the session on disposal or page shutdown. Session initialization is scoped to the Blazor provider instance.
