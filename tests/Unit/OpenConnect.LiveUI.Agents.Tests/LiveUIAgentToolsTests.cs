@@ -30,6 +30,7 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("todo.home", pageResult.GetProperty("routeId").GetString());
 
         var navigate = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_navigate"));
+        Assert.Contains("call liveui_get_current_page again", navigate.Description, StringComparison.Ordinal);
         var response = await navigate.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
         {
             ["routeId"] = "todo.settings"
@@ -124,6 +125,8 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("todo.home", page.GetProperty("routeId").GetString());
 
         var executeFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        Assert.Contains("SelectTab", executeFunction.Description, StringComparison.Ordinal);
+        Assert.Contains("no verified postcondition", executeFunction.Description, StringComparison.Ordinal);
         var receipt = Assert.IsType<System.Text.Json.JsonElement>(await executeFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
         Assert.Equal("Completed", receipt.GetProperty("outcome").GetString());
@@ -133,6 +136,7 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("SelectTab", request.Action);
 
         var navigateFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_navigate"));
+        Assert.Contains("call liveui_get_current_page again", navigateFunction.Description, StringComparison.Ordinal);
         _ = await navigateFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["routeId"] = "todo.home" }));
         var inspectFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_inspect"));

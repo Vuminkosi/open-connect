@@ -28,15 +28,15 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.GetCurrentPageAsync, "liveui_get_current_page",
                 "Returns authorized current-page targets and routes the host permits this session to navigate to."),
             AIFunctionFactory.Create(tools.NavigateAsync, "liveui_navigate",
-                "Navigates to a route from the compiled application manifest and verifies readiness."),
+                "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",
                 "Inspects a compiled target and returns a privacy-safe verified receipt."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
-                "Highlights a compiled target without opening a Navigator tour popup. For an authorized list or table, optionally provide matchText to highlight the unique visible row containing that text; an ambiguous or missing match fails. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight. When speech synchronization is enabled, playback lifecycle events control cleanup. To switch targets with narration, supply both speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range in the next assistant response."),
+                "Use this function whenever the user requests a highlight. It highlights a compiled target without opening a Navigator tour popup. For an authorized list or table, optionally provide matchText to highlight the unique visible row containing that text; an ambiguous or missing match fails. Report success only when the receipt outcome is Completed and postconditionVerified is true. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight. When speech synchronization is enabled, playback lifecycle events control cleanup. To switch targets with narration, supply both speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range in the next assistant response."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];

@@ -20,9 +20,12 @@ using OpenConnect.Samples.Shared;
 var builder = WebApplication.CreateBuilder(args);
 
 // Persist Data Protection keys so antiforgery tokens remain valid across restarts
-var keysDir = Directory.Exists("/data")
-    ? "/data/dataprotection-keys"
-    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".openconnect", "keys");
+var configuredKeysDirectory = builder.Configuration["OPENCONNECT_BLAZOR_DATA_PROTECTION_KEYS_PATH"];
+var keysDir = !string.IsNullOrWhiteSpace(configuredKeysDirectory)
+    ? Path.GetFullPath(configuredKeysDirectory)
+    : Directory.Exists("/data")
+        ? "/data/dataprotection-keys"
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".openconnect", "keys");
 Directory.CreateDirectory(keysDir);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysDir))
