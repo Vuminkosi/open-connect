@@ -87,6 +87,48 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Tenant_policy_denies_every_liveui_tool_for_a_session_owned_by_another_tenant()
+    {
+        var sessionTenants = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["tenant-a-session"] = "tenant-a",
+            ["tenant-b-session"] = "tenant-b"
+        };
+        var authorizer = new RecordingAuthorizer((_, context) =>
+            sessionTenants.TryGetValue(context.Action.SessionId, out var ownerTenant) && ownerTenant == "tenant-a");
+        var runtime = new RecordingRuntime();
+        var tools = new LiveUIAgentTools(
+            new ContextAccessor(new LiveUIAgentContext("tenant-b-session", "todo.home")),
+            new ManifestProvider(Manifest), authorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(authorizer, runtime), Options.Create(new LiveUIOptions()));
+
+        var page = await tools.GetCurrentPageAsync();
+        var receipts = new[]
+        {
+            await tools.NavigateAsync("todo.settings"),
+            await tools.InspectAsync("todo.list"),
+            await tools.ExecuteAsync("todo.completed", "SelectTab"),
+            await tools.AwaitStateAsync("todo.list", "textContains", "Report"),
+            await tools.HighlightAsync("todo.list"),
+            await tools.ClearHighlightAsync()
+        };
+
+        Assert.NotNull(page);
+        Assert.Empty(page.Targets);
+        Assert.Empty(page.NavigableRoutes);
+        Assert.All(receipts, receipt => Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome));
+        Assert.NotEmpty(authorizer.Contexts);
+        Assert.All(authorizer.Contexts, context => Assert.Equal("tenant-b-session", context.Action.SessionId));
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.Navigate);
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.Inspect);
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.SelectTab);
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.WaitForState);
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.Highlight);
+        Assert.Contains(authorizer.Contexts, context => context.Action.Type == LiveUIActionType.ClearHighlight);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
     public async Task Current_page_returns_safe_navigation_catalog_when_current_route_is_not_inspectable()
     {
         var authorizer = new RecordingAuthorizer((_, context) =>
@@ -453,8 +495,10 @@ public sealed class LiveUIAgentToolsTests
     private sealed class RecordingRuntime : ILiveUIRuntime
     {
         public LiveUIExecutionContext? LastContext { get; private set; }
+        public int Calls { get; private set; }
         public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default)
         {
+            Calls++;
             LastContext = context;
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "verified", true));
         }
