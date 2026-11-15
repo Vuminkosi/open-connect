@@ -6,9 +6,21 @@ namespace OpenConnect.LiveUI.Blazor;
 /// <summary>Resolves session correlation and the current compiled route from the active Blazor circuit.</summary>
 public sealed class BlazorLiveUIAgentContextAccessor(
     NavigationManager navigationManager,
-    ILiveUIManifestProvider manifestProvider) : ILiveUIAgentContextAccessor
+    ILiveUIManifestProvider manifestProvider) : ILiveUIAgentContextAccessor, ILiveUIAgentContextSessionBinder
 {
-    private readonly string _sessionId = Guid.NewGuid().ToString("N");
+    private readonly string _circuitSessionId = Guid.NewGuid().ToString("N");
+    private readonly AsyncLocal<string?> _boundSessionId = new();
+
+    public IDisposable BindSession(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        if (sessionId.Length > 128)
+            throw new ArgumentOutOfRangeException(nameof(sessionId));
+
+        var previousSessionId = _boundSessionId.Value;
+        _boundSessionId.Value = sessionId;
+        return new SessionBinding(() => _boundSessionId.Value = previousSessionId);
+    }
 
     public async ValueTask<LiveUIAgentContext?> GetCurrentAsync(CancellationToken cancellationToken = default)
     {
@@ -20,6 +32,13 @@ public sealed class BlazorLiveUIAgentContextAccessor(
         var route = manifest.Routes.SingleOrDefault(candidate =>
             string.Equals(navigationManager.ToAbsoluteUri(candidate.Path).AbsolutePath, currentPath,
                 StringComparison.OrdinalIgnoreCase));
-        return route is null ? null : new LiveUIAgentContext(_sessionId, route.Id);
+        return route is null ? null : new LiveUIAgentContext(_boundSessionId.Value ?? _circuitSessionId, route.Id);
+    }
+
+    private sealed class SessionBinding(Action restore) : IDisposable
+    {
+        private Action? _restore = restore;
+
+        public void Dispose() => Interlocked.Exchange(ref _restore, null)?.Invoke();
     }
 }

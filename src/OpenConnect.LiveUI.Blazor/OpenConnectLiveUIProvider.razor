@@ -32,6 +32,7 @@
     private ComposerSession? ComposerSession { get; set; }
 
     private ComposerSession? _boundSession;
+    private string? _observedSessionId;
     private LiveUIAgentTools? _agentTools;
     private string? _lastRequestId;
     private string? _lastHandledCancellationId;
@@ -42,16 +43,24 @@
     {
         if (!ReferenceEquals(_boundSession, ComposerSession))
         {
-            if (_boundSession is not null)
+            var previousSession = _boundSession;
+            if (previousSession is not null)
             {
-                _boundSession.Changed -= OnComposerSessionChanged;
-                _boundSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
+                CancelActiveInteractions();
+                previousSession.Changed -= OnComposerSessionChanged;
+                previousSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
             }
             _boundSession = ComposerSession;
+            _observedSessionId = _boundSession?.SessionId;
             if (_boundSession is not null)
             {
                 _boundSession.Changed += OnComposerSessionChanged;
                 _boundSession.SpeechPlaybackChanged += OnSpeechPlaybackChangedAsync;
+            }
+            if (previousSession is not null && _agentTools is not null)
+            {
+                var newSessionId = _boundSession?.SessionId;
+                _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(newSessionId));
             }
         }
 
@@ -62,7 +71,16 @@
 
     private void OnComposerSessionChanged()
     {
-        var cancellationId = _boundSession?.PendingClientInteractionCancellationId;
+        var session = _boundSession;
+        var sessionId = session?.SessionId;
+        if (!string.Equals(_observedSessionId, sessionId, StringComparison.Ordinal))
+        {
+            _observedSessionId = sessionId;
+            CancelActiveInteractions();
+            if (_agentTools is not null) _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(sessionId));
+        }
+
+        var cancellationId = session?.PendingClientInteractionCancellationId;
         if (cancellationId is not null && cancellationId != _lastHandledCancellationId)
         {
             _lastHandledCancellationId = cancellationId;
@@ -72,10 +90,10 @@
                 catch (ObjectDisposedException) { }
             }
 
-            if (_agentTools is not null) _ = InvokeAsync(ClearHighlightsAfterCancellationAsync);
+            if (_agentTools is not null) _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(sessionId));
         }
 
-        var request = _boundSession?.PendingClientInteraction;
+        var request = session?.PendingClientInteraction;
         if (request is null || request.CorrelationId == _lastRequestId ||
             Services.GetService(typeof(IOpenConnectClient)) is not IOpenConnectClient client)
             return;
@@ -87,10 +105,19 @@
             cancellation.Dispose();
             return;
         }
-        _ = InvokeAsync(() => ProcessClientInteractionAsync(request, client, cancellation));
+        _ = InvokeAsync(() => ProcessClientInteractionAsync(session!, request, client, cancellation));
     }
 
-    private async Task ClearHighlightsAfterCancellationAsync()
+    private void CancelActiveInteractions()
+    {
+        foreach (var active in _activeInteractions.Values)
+        {
+            try { active.Cancel(); }
+            catch (ObjectDisposedException) { }
+        }
+    }
+
+    private async Task ClearHighlightsAfterCancellationAsync(string? sessionId = null)
     {
         await _speechCueGate.WaitAsync();
         try
@@ -98,6 +125,10 @@
             _speechCues.Clear();
             _activeSpeechCueTargets.Clear();
             _speechCueMeasurementsAwaitingAck.Clear();
+            using var sessionBinding = sessionId is not null &&
+                Services.GetService(typeof(ILiveUIAgentContextAccessor)) is ILiveUIAgentContextSessionBinder binder
+                    ? binder.BindSession(sessionId)
+                    : null;
             await ClearHighlightsCoreAsync();
         }
         finally { _speechCueGate.Release(); }
@@ -224,19 +255,25 @@
         return receipt;
     }
 
-    private async Task ProcessClientInteractionAsync(ClientInteractionRequest request, IOpenConnectClient client,
+    private async Task ProcessClientInteractionAsync(ComposerSession originatingSession,
+        ClientInteractionRequest request, IOpenConnectClient client,
         CancellationTokenSource interactionCancellation)
     {
         try
         {
             var cancellationToken = interactionCancellation.Token;
-            var sessionText = _boundSession?.SessionId;
+            var sessionText = originatingSession.SessionId;
             if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
                 string.IsNullOrWhiteSpace(sessionText))
                 return;
             Ulid sessionId;
             try { sessionId = Ulid.Parse(sessionText); }
             catch (FormatException) { return; }
+            if (!IsCurrentSession(originatingSession, sessionText)) return;
+
+            using var sessionBinding = Services.GetService(typeof(ILiveUIAgentContextAccessor)) is ILiveUIAgentContextSessionBinder binder
+                ? binder.BindSession(sessionText)
+                : null;
 
             var responseKind = "action";
             string payloadJson;
@@ -306,6 +343,7 @@
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentSession(originatingSession, sessionText)) return;
             await client.PostClientInteractionResponseAsync(
                 new SessionId(sessionId), new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson), cancellationToken);
         }
@@ -321,6 +359,10 @@
         }
     }
 
+    private bool IsCurrentSession(ComposerSession originatingSession, string sessionId) =>
+        ReferenceEquals(_boundSession, originatingSession) &&
+        string.Equals(originatingSession.SessionId, sessionId, StringComparison.Ordinal);
+
     public void Dispose()
     {
         if (_boundSession is not null)
@@ -328,10 +370,6 @@
             _boundSession.Changed -= OnComposerSessionChanged;
             _boundSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
         }
-        foreach (var active in _activeInteractions.Values)
-        {
-            try { active.Cancel(); }
-            catch (ObjectDisposedException) { }
-        }
+        CancelActiveInteractions();
     }
 }

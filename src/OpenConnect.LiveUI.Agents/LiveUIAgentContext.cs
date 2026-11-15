@@ -8,3 +8,9 @@ public interface ILiveUIAgentContextAccessor
 {
     ValueTask<LiveUIAgentContext?> GetCurrentAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>Optionally binds a trusted host session to the current asynchronous tool invocation.</summary>
+public interface ILiveUIAgentContextSessionBinder
+{
+    IDisposable BindSession(string sessionId);
+}

@@ -18,6 +18,8 @@ var response = await mafFactory.RunAsync(agentId, prompt, tools, cancellationTok
 
 Blazor registration supplies a scoped context accessor that binds the active circuit to an exact compiled route path. Dynamic route parameters are not inferred. Other .NET hosts call `AddOpenConnectLiveUI()` and `AddOpenConnectLiveUIAgentTools()`, implement `ILiveUIAgentContextAccessor`, and resolve the session and route from trusted host state. Tool arguments cannot supply a session ID, current route, manifest hash, or action ID.
 
+The Blazor provider binds each connected-client operation to the originating `ComposerSession` ID through the optional `ILiveUIAgentContextSessionBinder` contract. Hosts that use their own context accessor can implement this binder to scope trusted session identity to an asynchronous operation. Session replacement cancels in-flight actions and suppresses stale receipts.
+
 Every action runs through `LiveUIOrchestrator` and `ILiveUIActionAuthorizer`. The default Blazor policy denies all actions until the host registers its own authorization policy. Bind that policy to authenticated principal, tenant, current session, and the application's action rules. Missing or failing policy denies the tool operation. A dispatched action is reported as complete only when the browser runtime verifies its postcondition.
 
 Actions from the same scoped tool instance execute serially, so one browser acknowledgement completes before the next tool action begins. Cancellation is forwarded to the orchestrator and browser runtime.

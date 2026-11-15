@@ -77,6 +77,75 @@ public sealed class LiveUIProviderClientInteractionTests
     }
 
     [Fact]
+    public async Task Provider_binds_browser_action_to_the_originating_composer_session()
+    {
+        using var context = new BunitContext();
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        using var receipt = JsonDocument.Parse(client.Response!.PayloadJson);
+        Assert.Equal(Session, receipt.RootElement.GetProperty("sessionId").GetString());
+        Assert.Equal(Session, runtime.LastSessionId);
+    }
+
+    [Fact]
+    public async Task Provider_cancels_interaction_when_composer_session_changes()
+    {
+        using var context = new BunitContext();
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var runtime = new CancellationAwareRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        await runtime.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await rendered.InvokeAsync(() => composerSession.AttachSession("01ARZ3NDEKTSV4RRFFQ69G5FAW"));
+
+        await runtime.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await runtime.HighlightCleared.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Null(client.Response);
+    }
+
+    [Fact]
     public async Task Provider_clears_highlight_when_cancellation_arrives_after_the_action_receipt()
     {
         using var context = new BunitContext();
@@ -386,6 +455,7 @@ public sealed class LiveUIProviderClientInteractionTests
     {
         public string? LastAction { get; private set; }
         public string? LastTargetId { get; private set; }
+        public string? LastSessionId { get; private set; }
         public LiveUIActionParameters? LastParameters { get; private set; }
         public int ClearHighlightCount { get; private set; }
         public TaskCompletionSource<bool> HighlightCleared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -395,6 +465,7 @@ public sealed class LiveUIProviderClientInteractionTests
         {
             LastAction = context.Action.Type.ToString();
             LastTargetId = context.Target?.Id;
+            LastSessionId = context.Action.SessionId;
             LastParameters = context.Action.Parameters;
             if (context.Action.Type == LiveUIActionType.ClearHighlight)
             {

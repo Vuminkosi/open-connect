@@ -6,6 +6,7 @@
     "install:browsers": "playwright install chromium",
     "test": "playwright test",
     "test:ci": "playwright test --reporter=line",
+    "test:liveui-connected": "playwright test --config=playwright.liveui-connected.config.js",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
     "trace": "playwright show-trace test-results"

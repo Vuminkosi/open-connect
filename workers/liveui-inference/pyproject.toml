@@ -1,0 +1,25 @@
+[project]
+name = "openconnect-liveui-inference-worker"
+version = "0.1.0"
+description = "Optional local inference worker for OpenConnect LiveUI plans"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.163.0",
+  "llama-cpp-python==0.3.36",
+  "pydantic==2.14.3",
+  "uvicorn[standard]==0.54.0",
+]
+
+[dependency-groups]
+dev = ["httpx==0.28.1", "pytest==9.2.0", "pytest-asyncio==1.5.0", "ruff==0.11.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
