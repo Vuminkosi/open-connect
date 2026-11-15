@@ -6,6 +6,13 @@ namespace OpenConnect.Samples.Blazor;
 public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
 {
     private const string SearchLabel = "Search tasks by title or description...";
+    private const string AllTabId = "route.root.components-todolistcomponent-razor-tab-all";
+    private const string ActiveTabId = "route.root.components-todolistcomponent-razor-tab-active";
+    private const string CompletedTabId = "route.root.components-todolistcomponent-razor-tab-completed";
+    private const string SearchInputId = "route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description";
+    private const string TaskListId = "route.root.components-todolistcomponent-razor-list-task-list";
+    private const string TodoRegionId = "route.root.components-todolistcomponent-razor-region-todo-list";
+    private const string ProgressRegionId = "route.root.components-todoprogresscomponent-razor-region-todo-progress";
 
     public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(
         LiveUIExecutionContext context,
@@ -31,19 +38,16 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
         var target = context.Target;
         var decision = context.Action.Type switch
         {
-            LiveUIActionType.SelectTab when target.Kind == LiveUITargetKind.Tab &&
+            LiveUIActionType.SelectTab when IsTab(target) &&
                 target.Label is "All" or "Active" or "Completed" => Allow("todo_status_filter"),
-            LiveUIActionType.SetValue when target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel &&
+            LiveUIActionType.SetValue when target.Id == SearchInputId && target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel &&
                 context.Action.Parameters.Value is { Length: <= 2_000 } => Allow("todo_search_filter"),
-            LiveUIActionType.Focus when target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel => Allow("todo_search_focus"),
-            LiveUIActionType.Inspect when (target.Kind is LiveUITargetKind.Region or LiveUITargetKind.List) &&
-                target.Label is "todo-list" or "Task list" => Allow("todo_list_inspection"),
-            LiveUIActionType.Highlight or LiveUIActionType.Scroll when (target.Kind is LiveUITargetKind.Region or LiveUITargetKind.List) &&
-                target.Label is "todo-list" or "Task list" or "todo-progress" => Allow("todo_visual_guidance"),
-            LiveUIActionType.WaitForState when target.Kind == LiveUITargetKind.Tab &&
+            LiveUIActionType.Focus when target.Id == SearchInputId && target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel => Allow("todo_search_focus"),
+            LiveUIActionType.Inspect when IsTaskList(target) => Allow("todo_list_inspection"),
+            LiveUIActionType.Highlight or LiveUIActionType.Scroll when IsTaskList(target) || IsProgressRegion(target) => Allow("todo_visual_guidance"),
+            LiveUIActionType.WaitForState when IsTab(target) &&
                 context.Action.Parameters.StateName == "selected" && target.Label is "All" or "Active" or "Completed" => Allow("todo_filter_verification"),
-            LiveUIActionType.WaitForState when (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Region) &&
-                (target.Label is "todo-list" or "Task list") &&
+            LiveUIActionType.WaitForState when IsTaskList(target) &&
                 (context.Action.Parameters.StateName is "textContains" or "textNotContains") &&
                 context.Action.Parameters.StateValue is { Length: <= 128 } => Allow("todo_search_verification"),
             _ => Deny()
@@ -51,6 +55,22 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
 
         return decision;
     }
+
+    private static bool IsTab(LiveUITarget target) =>
+        target.Kind == LiveUITargetKind.Tab && target.Id switch
+        {
+            AllTabId => target.Label == "All",
+            ActiveTabId => target.Label == "Active",
+            CompletedTabId => target.Label == "Completed",
+            _ => false
+        };
+
+    private static bool IsTaskList(LiveUITarget target) =>
+        (target.Id == TaskListId && target.Kind == LiveUITargetKind.List && target.Label == "Task list") ||
+        (target.Id == TodoRegionId && target.Kind == LiveUITargetKind.Region && target.Label == "todo-list");
+
+    private static bool IsProgressRegion(LiveUITarget target) =>
+        target.Id == ProgressRegionId && target.Kind == LiveUITargetKind.Region && target.Label == "todo-progress";
 
     private static ValueTask<LiveUIAuthorizationDecision> Allow(string code) =>
         ValueTask.FromResult(new LiveUIAuthorizationDecision(true, code));
