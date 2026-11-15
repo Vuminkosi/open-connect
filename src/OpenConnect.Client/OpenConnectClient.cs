@@ -47,7 +47,7 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         ArgumentNullException.ThrowIfNull(response);
         if (string.IsNullOrWhiteSpace(response.CorrelationId) || response.CorrelationId.Length > 64)
             throw new ArgumentException("A bounded interaction correlation ID is required.", nameof(response));
-        if (response.ResultKind is not ("page" or "action"))
+        if (response.ResultKind is not ("page" or "plan" or "action"))
             throw new ArgumentException("The interaction result kind is unsupported.", nameof(response));
         if (string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
             throw new ArgumentException("The interaction result payload must contain 1 to 65536 characters.", nameof(response));

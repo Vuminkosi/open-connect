@@ -1,6 +1,7 @@
 @namespace OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
 @using OpenConnect.LiveUI.Agents
+@using OpenConnect.LiveUI.Inference
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Components.Contracts
 @using OpenConnect.Client
@@ -8,9 +9,11 @@
 @using System.Collections.Concurrent
 @using System.Text.Json
 @using Microsoft.Extensions.Options
+@using Microsoft.Extensions.Logging
 @inject LiveUIManifestState ManifestState
 @inject IServiceProvider Services
 @inject IOptions<LiveUIOptions> LiveUIOptions
+@inject ILogger<OpenConnectLiveUIProvider> Logger
 @implements IDisposable
 
 @ChildContent
@@ -223,7 +226,13 @@
                 _activeSpeechCueTargets.Add(targetId);
         }
 
-        return _activeSpeechCueTargets.SetEquals(targets);
+        if (_activeSpeechCueTargets.SetEquals(targets)) return true;
+
+        // A timeline segment is valid only when every requested target is highlighted.
+        // Remove any successful subset so narration cannot continue with a misleading partial cue.
+        await ClearHighlightsCoreAsync();
+        _activeSpeechCueTargets.Clear();
+        return false;
     }
 
     private int GetCurrentAssistantResponseLength()
@@ -238,6 +247,17 @@
         request.SpeechStartCharacter is >= 0 and < 32_000 &&
         request.SpeechEndCharacter is > 0 and <= 32_000 &&
         request.SpeechStartCharacter < request.SpeechEndCharacter;
+
+    private static IEnumerable<string> ToInferenceActions(LiveUICapability capability) => capability switch
+    {
+        LiveUICapability.Activate => ["activate"],
+        LiveUICapability.Filter or LiveUICapability.SetValue => ["setValue"],
+        LiveUICapability.Select => ["select"],
+        LiveUICapability.Highlight => ["highlight"],
+        LiveUICapability.Focus => ["focus"],
+        LiveUICapability.Scroll => ["scroll"],
+        _ => []
+    };
 
     private async Task<LiveUIActionReceipt> HandleHighlightRequestAsync(
         ClientInteractionRequest request,
@@ -282,7 +302,32 @@
                 _agentTools ??= Services.GetService(typeof(LiveUIAgentTools)) as LiveUIAgentTools;
                 if (_agentTools is null) throw new InvalidOperationException("LiveUI agent tools are unavailable.");
 
-                if (request.Operation == "get_current_page")
+                if (request.Operation == "infer_plan" && request.Value is { Length: > 0 and <= 8_000 })
+                {
+                    responseKind = "plan";
+                    var router = Services.GetService(typeof(ILiveUIInferenceRouter)) as ILiveUIInferenceRouter;
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
+                    if (router is null || page is null || manifest is null ||
+                        page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion)
+                    {
+                        payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", plan = (LiveUIActionPlan?)null }, JsonOptions);
+                    }
+                    else
+                    {
+                        var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
+                                target.TargetId,
+                                target.Capabilities.SelectMany(ToInferenceActions).Distinct(StringComparer.Ordinal).ToArray()))
+                            .Where(capability => capability.Actions.Count > 0)
+                            .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])))
+                            .ToArray();
+                        var inferenceRequest = new LiveUIInferenceRequest(request.Value, sessionText, page.RouteId,
+                            manifest.SchemaVersion, capabilities, manifest.ContentHash);
+                        var result = await router.GeneratePlanAsync(inferenceRequest, cancellationToken);
+                        payloadJson = JsonSerializer.Serialize(result, JsonOptions);
+                    }
+                }
+                else if (request.Operation == "get_current_page")
                 {
                     responseKind = "page";
                     var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
@@ -337,8 +382,10 @@
             {
                 return;
             }
-            catch (Exception)
+            catch (Exception exception)
             {
+                Logger.LogError("LiveUI interaction failed for operation {Operation} ({CorrelationId}); exception type {ExceptionType}. Stack: {StackTrace}",
+                    request.Operation, request.CorrelationId, exception.GetType().FullName, exception.StackTrace);
                 payloadJson = JsonSerializer.Serialize(new { code = "client_interaction_failed" }, JsonOptions);
             }
 

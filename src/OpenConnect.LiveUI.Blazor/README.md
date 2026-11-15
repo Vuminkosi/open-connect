@@ -28,6 +28,29 @@ Embedded manifests are cached in-process by application assembly name, module ve
 
 `AddOpenConnectLiveUIBlazor` also registers the .NET MAF tool adapter and a scoped context accessor for the current circuit route. Create functions for an agent invocation with `LiveUIAgentToolFactory.CreateTools(scopedServices.GetRequiredService<LiveUIAgentTools>())`. Register a host `ILiveUIActionAuthorizer`; without one, the adapter denies actions. See the `OpenConnect.LiveUI.Agents` package documentation for tool names, authorization, and context requirements.
 
+For .NET-first local inference, `AddOpenConnectLiveUIBlazor` registers the browser provider and local-first inference router. Composer messages continue to be submitted to the server. When the server agent identifies a LiveUI request, its `liveui_infer_plan` tool sends a correlated `infer_plan` interaction to the connected Blazor client; the server initiates that client inference request. The client builds context from its current authorized manifest and returns a validated plan. The server agent then executes through the existing per-action LiveUI tools. Ordinary requests remain on the normal server response path. Browser-first is the default; after browser and worker providers are unavailable, the router can use the host's explicitly registered guarded chat client.
+
+An already available browser model is initialized when the server requests a plan. If a browser-managed model requires downloading, use the scoped `BrowserPromptApiInferenceProvider.InitializeFromUserGestureAsync` from a user action; startup and availability checks never start a download. See [the LiveUI inference requirements](../../docs/plans/liveui-inference-requirements.md) for gateway privacy and browser limitations.
+
+The server-side inference router falls back in this order: browser, optional Gateway-hosted CPU worker, then the existing guarded chat client when the local providers are unavailable. The default fallback policy is `OnUnavailable`; no LLM call occurs unless the host explicitly registers `AddFirewallGuardedLiveUIGatewayInference`, which rejects unguarded `IChatClient` registrations. Register `AddLiveUILocalWorkerInferenceProvider` in the Blazor Server host with its private worker endpoint and credential, then set `Worker.Enabled = true`. Worker and LLM endpoints and credentials are never sent to the browser. `BrowserOnly` disables both server fallbacks.
+
+```csharp
+builder.Services.AddOpenConnectLiveUIInference(options =>
+{
+    options.Mode = LiveUIInferenceMode.BrowserFirst;
+    options.Worker.Enabled = true;
+    options.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
+});
+builder.Services.AddFirewallGuardedLiveUIGatewayInference();
+builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
+{
+    options.Endpoint = new Uri(configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"]!);
+    options.BearerToken = configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
+});
+```
+
+The optional `liveui-inference` Compose profile runs the worker without publishing a host port. It uses a persistent model volume and accepts model repository, pinned revision, filename and SHA-256 through `LIVEUI_MODEL_*` settings; replacing the configured model does not change SDK contracts or the LiveUI action schema. Configure `LIVEUI_WORKER_TOKEN` as a deployment secret before starting that profile. Example: `docker compose -f docker-compose-all.yml --profile liveui-inference up -d --build liveui-inference`.
+
 For a browser action requested by an agent, the provider captures the originating `ComposerSession`, binds its trusted session ID to the scoped LiveUI context for that asynchronous operation, invokes `LiveUIAgentTools`, and posts the result through `IOpenConnectClient`. If the composer session changes while an action is running, the provider cancels it and suppresses its stale receipt. The authenticated gateway binds accepted responses to the owned session and a matching pending request. The current default broker uses the in-memory session store, so the correlation is process-local.
 
 ## Runtime behavior

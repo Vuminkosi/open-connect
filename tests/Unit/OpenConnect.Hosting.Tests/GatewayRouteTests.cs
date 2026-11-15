@@ -181,6 +181,7 @@ public sealed class GatewayRouteTests
 
     [Theory]
     [InlineData("get_current_page", "page")]
+    [InlineData("infer_plan", "plan")]
     [InlineData("execute", "action")]
     [InlineData("navigate", "action")]
     [InlineData("inspect", "action")]

@@ -12,6 +12,7 @@ using OpenConnect.Components.Blazor;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.LiveUI.Blazor;
+using OpenConnect.LiveUI.Inference;
 using Xunit;
 
 namespace OpenConnect.Blazor.Tests;
@@ -35,6 +36,48 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000008", "highlight", TargetId: "todo.list")
             { SpeechStartCharacter = 1 }, "invalid" }
     };
+
+    [Fact]
+    public async Task Server_dispatched_inference_uses_current_authorized_manifest_and_returns_plan()
+    {
+        using var context = new BunitContext();
+        var manifest = CreateManifest();
+        var client = new RecordingClient();
+        var router = new RecordingInferenceRouter();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIInferenceRouter>(_ => router);
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => new RecordingRuntime());
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var interaction = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: "Show completed tasks");
+
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(interaction, OpenConnectHttpJson.CreateOptions()))));
+
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        Assert.Equal(interaction.CorrelationId, client.Response!.CorrelationId);
+        Assert.Equal("plan", client.Response.ResultKind);
+        Assert.Equal(Session, router.Request!.SessionId);
+        Assert.Equal("todo.home", router.Request.RouteId);
+        Assert.Contains(router.Request.Capabilities, item => item.TargetId == "todo.completed" && item.Actions.Contains("activate"));
+        using var payload = JsonDocument.Parse(client.Response.PayloadJson);
+        Assert.Equal("completed", payload.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("todo.completed", payload.RootElement.GetProperty("plan").GetProperty("actions")[0].GetProperty("targetId").GetString());
+    }
 
     [Fact]
     public async Task Provider_cancels_the_matching_browser_action_and_suppresses_a_stale_receipt()
@@ -312,16 +355,17 @@ public sealed class LiveUIProviderClientInteractionTests
         var responseText = "Tasks completed: report and cleanup.";
         var firstSegmentEnd = responseText.IndexOf("report", StringComparison.Ordinal);
         await SendHighlightCueAsync("todo.list", 0, firstSegmentEnd, 1);
-        await SendHighlightCueAsync("todo.region", firstSegmentEnd + 2, responseText.Length, 2);
+        await SendHighlightCueAsync("todo.region", 0, firstSegmentEnd, 2);
+        await SendHighlightCueAsync("todo.region", firstSegmentEnd + 2, responseText.Length, 3);
 
         composerSession.BeginSend("Explain the completed tasks.");
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
-            new SessionId(Ulid.Parse(Session)), 3, "message.delta", responseText)));
+            new SessionId(Ulid.Parse(Session)), 4, "message.delta", responseText)));
         var composer = rendered.FindComponent<MiniComposer>().Instance;
 
         var firstEpoch = composerSession.BeginSpeechPlayback();
         await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(firstEpoch, 0, firstSegmentEnd, 1));
-        Assert.Equal("todo.list", runtime.LastTargetId);
+        Assert.Equal(new[] { "todo.list", "todo.region" }, runtime.ActiveHighlightTargets.Order(StringComparer.Ordinal));
         await rendered.InvokeAsync(() => composer.OnSpeechPlaybackSynchronizationMeasured(
             firstEpoch, 0, firstSegmentEnd, 42.5));
         Assert.Equal(42.5, Assert.Single(synchronizationOffsets));
@@ -345,8 +389,19 @@ public sealed class LiveUIProviderClientInteractionTests
         Assert.Equal(new[] { 42.5, 71.25 }, synchronizationOffsets);
 
         Assert.True(composerSession.EndSpeechPlayback(secondEpoch));
+
+        await SendHighlightCueAsync("todo.completed-highlight", firstSegmentEnd + 2, responseText.Length, 5);
+        runtime.FailedHighlightTargets.Add("todo.completed-highlight");
+        var clearCountBeforePartialCue = runtime.ClearHighlightCount;
+        var partialCueEpoch = composerSession.BeginSpeechPlayback();
+        await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(
+            partialCueEpoch, firstSegmentEnd + 2, responseText.Length, 1));
+        Assert.Empty(runtime.ActiveHighlightTargets);
+        Assert.Equal(clearCountBeforePartialCue + 2, runtime.ClearHighlightCount);
+
+        Assert.True(composerSession.EndSpeechPlayback(partialCueEpoch));
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
-            new SessionId(Ulid.Parse(Session)), 4, "message.completed", string.Empty)));
+            new SessionId(Ulid.Parse(Session)), 5, "message.completed", string.Empty)));
         rendered.WaitForAssertion(() => Assert.Equal("ClearHighlight", runtime.LastAction));
 
         async Task SendHighlightCueAsync(string targetId, int startCharacter, int endCharacter, long sequence)
@@ -429,6 +484,8 @@ public sealed class LiveUIProviderClientInteractionTests
             [
                 new LiveUITarget("todo.completed", LiveUITargetKind.Tab, "Completed",
                     new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Filter, LiveUICapability.WaitForState }),
+                new LiveUITarget("todo.completed-highlight", LiveUITargetKind.Region, "Completed task cue",
+                    new HashSet<LiveUICapability> { LiveUICapability.Highlight }),
                 new LiveUITarget("todo.list", LiveUITargetKind.List, "Task list",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight }),
                 new LiveUITarget("todo.region", LiveUITargetKind.Region, "todo-list",
@@ -436,6 +493,18 @@ public sealed class LiveUIProviderClientInteractionTests
             ])
         ]);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+    }
+
+    private sealed class RecordingInferenceRouter : ILiveUIInferenceRouter
+    {
+        public LiveUIInferenceRequest? Request { get; private set; }
+
+        public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(new LiveUIInferenceResult(LiveUIInferenceProviderKind.Browser,
+                new LiveUIActionPlan(request.SchemaVersion, [new("activate", "todo.completed")]), "completed"));
+        }
     }
 
     private sealed class AllowAuthorizer : ILiveUIActionAuthorizer
@@ -458,6 +527,8 @@ public sealed class LiveUIProviderClientInteractionTests
         public string? LastSessionId { get; private set; }
         public LiveUIActionParameters? LastParameters { get; private set; }
         public int ClearHighlightCount { get; private set; }
+        public HashSet<string> ActiveHighlightTargets { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> FailedHighlightTargets { get; } = new(StringComparer.Ordinal);
         public TaskCompletionSource<bool> HighlightCleared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
@@ -470,7 +541,15 @@ public sealed class LiveUIProviderClientInteractionTests
             if (context.Action.Type == LiveUIActionType.ClearHighlight)
             {
                 ClearHighlightCount++;
+                ActiveHighlightTargets.Clear();
                 HighlightCleared.TrySetResult(true);
+            }
+            else if (context.Action.Type == LiveUIActionType.Highlight && context.Target is { } target)
+            {
+                if (FailedHighlightTargets.Contains(target.Id))
+                    return ValueTask.FromResult(new LiveUIRuntimeResult(
+                        LiveUIActionOutcome.Failed, "fixture_highlight_failed", false));
+                ActiveHighlightTargets.Add(target.Id);
             }
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "state_verified", true, "state_verified"));
         }

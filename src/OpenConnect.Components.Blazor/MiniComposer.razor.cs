@@ -49,6 +49,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private int _beingSpokenStart = -1;
     private int _beingSpokenEnd = -1;
     private string? _speechDisplayText;
+    private string? _speechError;
     private string? _copiedResponse;
     private string? _lastNavigatorAction;
     private (string? SessionId, int MessageCount, long Sequence)? _lastSpeechResponseCompleted;
@@ -394,8 +395,20 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _spokenResponseCharacters = Math.Max(_spokenResponseCharacters, segment.EndCursor);
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException or HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (
+            ex is InvalidOperationException or
+                JSException or
+                JSDisconnectedException or
+                HttpRequestException or
+                TaskCanceledException or
+                NotSupportedException)
         {
+            if (!_disposed && _speechOn && ex is not OperationCanceledException)
+            {
+                await ToggleSpeechAsync().ConfigureAwait(false);
+                _speechError = "Voice output is unavailable. The text response is still available.";
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -483,6 +496,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
         else
         {
+            _speechError = null;
             _speechCursor = 0;
             _spokenResponseCharacters = 0;
             _beingSpokenStart = -1;
@@ -701,12 +715,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         _sendCts = new CancellationTokenSource();
         var token = _sendCts.Token;
 
-        Session.BeginSend(text);
         _draft = string.Empty;
         _inputRenderKey++;
         await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         await ClearInputAsync().ConfigureAwait(true);
         await AutosizeAsync().ConfigureAwait(false);
+        Session.BeginSend(text);
 
         try
         {

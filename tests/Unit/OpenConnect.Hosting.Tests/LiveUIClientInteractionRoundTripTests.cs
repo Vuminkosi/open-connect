@@ -16,7 +16,9 @@ namespace OpenConnect.Hosting.Tests;
 public sealed class LiveUIClientInteractionRoundTripTests
 {
     private const string Tenant = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    private const string OtherTenant = "01ARZ3NDEKTSV4RRFFQ69G5FAX";
     private const string Principal = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+    private const string OtherPrincipal = "01ARZ3NDEKTSV4RRFFQ69G5FAY";
 
     [Theory]
     [InlineData(false, 1_500)]
@@ -111,6 +113,251 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.True(highlightModelResult.GetProperty("postconditionVerified").GetBoolean());
     }
 
+    [Fact]
+    public async Task Every_liveui_action_is_bound_to_the_authenticated_session_tenant_and_principal()
+    {
+        var sessions = new InMemorySessionStore();
+        var ownerSession = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var foreignTenantSession = sessions.Create(new TenantId(Ulid.Parse(OtherTenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var foreignPrincipalSession = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(OtherPrincipal)));
+        var unsignedManifest = CreateManifest();
+        var fullCapabilityRoute = unsignedManifest.Routes[0] with
+        {
+            Targets = unsignedManifest.Routes[0].Targets.Select(target => target with
+            {
+                Capabilities = Enum.GetValues<LiveUICapability>().ToHashSet()
+            }).ToArray()
+        };
+        var unhashedManifest = unsignedManifest with { Routes = [fullCapabilityRoute], ContentHash = string.Empty };
+        var manifest = unhashedManifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(unhashedManifest) };
+        var options = Options.Create(new LiveUIOptions());
+        var validator = new LiveUIManifestValidator();
+
+        var ownedManifestProvider = new TestManifestProvider(manifest);
+        var discoveryOwnedAuthorizer = new SessionScopeAuthorizer(sessions, AuthenticatedUser(Tenant, Principal));
+        var discoveryOwnedOrchestrator = new LiveUIOrchestrator(
+            ownedManifestProvider, discoveryOwnedAuthorizer, new RecordingRuntime(), options, validator);
+        using var ownedTools = new LiveUIAgentTools(
+            new TestContextAccessor(new LiveUIAgentContext(ownerSession.Id.Value.ToString(), "todo.home")),
+            ownedManifestProvider, discoveryOwnedAuthorizer, validator, discoveryOwnedOrchestrator, options);
+        var ownedPage = await ownedTools.GetCurrentPageAsync();
+        Assert.NotNull(ownedPage);
+        Assert.NotEmpty(ownedPage.Targets);
+        Assert.Contains(ownedPage.NavigableRoutes, route => route.RouteId == "todo.home");
+
+        var foreignManifestProvider = new TestManifestProvider(manifest);
+        var discoveryForeignAuthorizer = new SessionScopeAuthorizer(sessions, AuthenticatedUser(Tenant, Principal));
+        var discoveryForeignOrchestrator = new LiveUIOrchestrator(
+            foreignManifestProvider, discoveryForeignAuthorizer, new RecordingRuntime(), options, validator);
+        using var foreignTools = new LiveUIAgentTools(
+            new TestContextAccessor(new LiveUIAgentContext(foreignTenantSession.Id.Value.ToString(), "todo.home")),
+            foreignManifestProvider, discoveryForeignAuthorizer, validator, discoveryForeignOrchestrator, options);
+        var foreignPage = await foreignTools.GetCurrentPageAsync();
+        Assert.NotNull(foreignPage);
+        Assert.Empty(foreignPage.Targets);
+        Assert.Empty(foreignPage.NavigableRoutes);
+
+        foreach (var actionType in Enum.GetValues<LiveUIActionType>())
+        {
+            var parameters = actionType switch
+            {
+                LiveUIActionType.Navigate => new LiveUIActionParameters(DestinationRouteId: "todo.home"),
+                LiveUIActionType.SetValue or LiveUIActionType.Select => new LiveUIActionParameters(Value: "value"),
+                LiveUIActionType.WaitForState => new LiveUIActionParameters(StateName: "visible", StateValue: "true"),
+                _ => new LiveUIActionParameters()
+            };
+            var targetId = actionType is LiveUIActionType.Navigate or LiveUIActionType.ClearHighlight
+                ? null
+                : "todo.completed";
+
+            var ownedRuntime = new RecordingRuntime();
+            var ownedAuthorizer = new SessionScopeAuthorizer(sessions, AuthenticatedUser(Tenant, Principal));
+            var ownedOrchestrator = new LiveUIOrchestrator(
+                new TestManifestProvider(manifest), ownedAuthorizer, ownedRuntime, options, validator);
+            var ownedAction = new LiveUIAction(Guid.NewGuid().ToString("N"), LiveUISchema.CurrentVersion,
+                ownerSession.Id.Value.ToString(), manifest.ContentHash, "todo.home", targetId, actionType, parameters,
+                TimeSpan.FromSeconds(5));
+
+            var ownedReceipt = await ownedOrchestrator.ExecuteAsync(ownedAction);
+
+            Assert.Equal(LiveUIActionOutcome.Completed, ownedReceipt.Outcome);
+            Assert.Equal(1, ownedRuntime.Calls);
+
+            foreach (var foreignSession in new[] { foreignTenantSession, foreignPrincipalSession })
+            {
+                var foreignRuntime = new RecordingRuntime();
+                var foreignAuthorizer = new SessionScopeAuthorizer(sessions, AuthenticatedUser(Tenant, Principal));
+                var foreignOrchestrator = new LiveUIOrchestrator(
+                    new TestManifestProvider(manifest), foreignAuthorizer, foreignRuntime, options, validator);
+                var foreignAction = ownedAction with
+                {
+                    ActionId = Guid.NewGuid().ToString("N"),
+                    SessionId = foreignSession.Id.Value.ToString()
+                };
+
+                var foreignReceipt = await foreignOrchestrator.ExecuteAsync(foreignAction);
+
+                Assert.Equal(LiveUIActionOutcome.Denied, foreignReceipt.Outcome);
+                Assert.Equal("session_scope_mismatch", foreignReceipt.Code);
+                Assert.Equal(0, foreignRuntime.Calls);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_rejects_a_different_principal()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        var response = VerifiedResponse(correlationId);
+
+        var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider, Tenant, OtherPrincipal), store);
+        var httpResponse = await ExecuteAsync(result, serviceProvider);
+
+        Assert.Equal(StatusCodes.Status404NotFound, httpResponse.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0),
+            item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_rejects_a_different_tenant()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+
+        var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), VerifiedResponse(correlationId),
+            AuthenticatedContext(serviceProvider, OtherTenant, Principal), store);
+        var httpResponse = await ExecuteAsync(result, serviceProvider);
+
+        Assert.Equal(StatusCodes.Status404NotFound, httpResponse.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0),
+            item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_cannot_use_another_sessions_pending_correlation()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var ownerSession = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var otherSession = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, ownerSession.Id.Value, correlationId);
+
+        var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            otherSession.Id.Value.ToString(), VerifiedResponse(correlationId), AuthenticatedContext(serviceProvider), store);
+        var httpResponse = await ExecuteAsync(result, serviceProvider);
+
+        Assert.Equal(StatusCodes.Status409Conflict, httpResponse.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(otherSession.Id.Value, 0),
+            item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_is_rejected_after_correlated_cancellation()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Cancellation,
+            JsonSerializer.Serialize(new ClientInteractionCancellation(correlationId), OpenConnectHttpJson.CreateOptions()));
+
+        var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), VerifiedResponse(correlationId), AuthenticatedContext(serviceProvider), store);
+        var httpResponse = await ExecuteAsync(result, serviceProvider);
+
+        Assert.Equal(StatusCodes.Status409Conflict, httpResponse.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0),
+            item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Client_interaction_response_rejects_a_conflicting_replay()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        var response = VerifiedResponse(correlationId);
+
+        var first = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider), store);
+        var conflict = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response with { PayloadJson = "{\"outcome\":\"Failed\"}" },
+            AuthenticatedContext(serviceProvider), store);
+
+        Assert.Equal(StatusCodes.Status200OK, (await ExecuteAsync(first, serviceProvider)).StatusCode);
+        Assert.Equal(StatusCodes.Status409Conflict, (await ExecuteAsync(conflict, serviceProvider)).StatusCode);
+        Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    [Fact]
+    public async Task Concurrent_client_interaction_responses_are_idempotent_per_correlation()
+    {
+        using var serviceProvider = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlationId = Guid.NewGuid().ToString("D");
+        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        const int submissions = 32;
+        var ready = new CountdownEvent(submissions);
+
+        var posts = Enumerable.Range(0, submissions).Select(index => Task.Run(async () =>
+        {
+            ready.Signal();
+            await start.Task;
+            var response = VerifiedResponse(correlationId) with
+            {
+                PayloadJson = JsonSerializer.Serialize(new { outcome = "Completed", receipt = index })
+            };
+            var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+                session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider), store);
+            return (response, Result: await ExecuteAsync(result, serviceProvider));
+        })).ToArray();
+
+        Assert.True(ready.Wait(TimeSpan.FromSeconds(5)), "Response submissions did not reach the concurrency barrier.");
+        start.SetResult();
+        var results = await Task.WhenAll(posts);
+
+        Assert.Single(results, item => item.Result.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(submissions - 1, results.Count(item => item.Result.StatusCode == StatusCodes.Status409Conflict));
+        Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+    }
+
+    private static Task AppendPendingRequestAsync(InMemorySessionStore store, Ulid sessionId, string correlationId) =>
+        store.AppendEventAsync(sessionId, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(new ClientInteractionRequest(correlationId, "execute", "todo.completed", "SelectTab"),
+                OpenConnectHttpJson.CreateOptions()));
+
+    private static ClientInteractionResponse VerifiedResponse(string correlationId) =>
+        new(correlationId, "action", "{\"outcome\":\"Completed\",\"postconditionVerified\":true}");
+
+    private static bool TryParseUlid(string value, out Ulid id)
+    {
+        try
+        {
+            id = Ulid.Parse(value);
+            return id != default && string.Equals(id.ToString(), value, StringComparison.Ordinal);
+        }
+        catch (FormatException)
+        {
+            id = default;
+            return false;
+        }
+    }
+
     private static LiveUIManifest CreateManifest()
     {
         var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build-1", string.Empty,
@@ -139,15 +386,21 @@ public sealed class LiveUIClientInteractionRoundTripTests
         throw new TimeoutException("The LiveUI MAF tool did not append a client request.");
     }
 
-    private static DefaultHttpContext AuthenticatedContext(IServiceProvider services) => new()
+    private static DefaultHttpContext AuthenticatedContext(
+        IServiceProvider services,
+        string tenant = Tenant,
+        string principal = Principal) => new()
     {
         RequestServices = services,
-        User = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("tenant_id", Tenant),
-            new Claim(ClaimTypes.NameIdentifier, Principal)
-        ], "test"))
+        User = AuthenticatedUser(tenant, principal)
     };
+
+    private static ClaimsPrincipal AuthenticatedUser(string tenant, string principal) =>
+        new(new ClaimsIdentity(
+        [
+            new Claim("tenant_id", tenant),
+            new Claim(ClaimTypes.NameIdentifier, principal)
+        ], "test"));
 
     private static async Task<(int StatusCode, byte[] Body)> ExecuteAsync(IResult result, IServiceProvider services)
     {
@@ -175,13 +428,34 @@ public sealed class LiveUIClientInteractionRoundTripTests
             ValueTask.FromResult(new LiveUIAuthorizationDecision(true, "test_allowed"));
     }
 
+    private sealed class SessionScopeAuthorizer(InMemorySessionStore sessions, ClaimsPrincipal user)
+        : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var session = TryParseUlid(context.Action.SessionId, out var sessionId) ? sessions.Get(sessionId) : null;
+            var tenant = user.FindFirstValue("tenant_id");
+            var principal = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+            var allowed = session is not null && tenant is not null && principal is not null &&
+                TryParseUlid(tenant, out var tenantId) && TryParseUlid(principal, out var principalId) &&
+                session.TenantId.Value == tenantId &&
+                session.PrincipalId.Value == principalId;
+            return ValueTask.FromResult(new LiveUIAuthorizationDecision(allowed,
+                allowed ? "session_scope_allowed" : "session_scope_mismatch"));
+        }
+    }
+
     private sealed class RecordingRuntime : ILiveUIRuntime
     {
         public LiveUIExecutionContext? LastContext { get; private set; }
+        public int Calls { get; private set; }
 
         public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default)
         {
+            Calls++;
             LastContext = context;
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "selected", true, "selected"));
         }

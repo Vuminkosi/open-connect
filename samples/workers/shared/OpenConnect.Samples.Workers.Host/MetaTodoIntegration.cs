@@ -10,6 +10,8 @@ using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI.Agents;
+using OpenConnect.Privacy;
+using OpenConnect.Privacy.Gates;
 
 namespace OpenConnect.Samples.Workers.Host;
 
@@ -108,8 +110,9 @@ public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
     }
 }
 
-public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServiceClient todo, InMemorySessionStore sessions,
-    IClientInteractionBroker interactionBroker, IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
+public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry, IChatClient chatClient, IEgressGate egressGate,
+    TodoServiceClient todo, InMemorySessionStore sessions, IClientInteractionBroker interactionBroker,
+    IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
 {
     private readonly MetaCloudOptions _options = options.Value;
 
@@ -145,12 +148,15 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
                 tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("deleting that Todo", innerCt => todo.DeleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.delete", "Delete a Todo by id."));
             }
 
+            var egressContext = new EgressContext(task.TenantId, task.PrincipalId, task.SessionId, EgressDestination.ExternalModel);
+            var factory = new MafRealAgentFactory(agentRegistry, chatClient, egressGate,
+                new FixedEgressContextProvider(egressContext));
             var response = await factory.RunAsync(
                 new AgentId("worker-sample-direct"),
                 task.Message,
                 tools,
                 cancellationToken,
-                "You are the OpenConnect assistant. Handle ordinary conversation naturally. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. For UI navigation, filtering, search, highlighting, or explanation requests, call liveui_get_current_page first and use only its returned target IDs and capabilities. Use liveui_navigate for manifest routes, then call liveui_get_current_page again before any target action. For tabs, use liveui_execute with action=SelectTab, never Click; for text inputs use action=SetValue, and for selection controls use action=Select. Click has no verified postcondition by itself. When the user requests a highlight, you must call liveui_highlight with a target ID from the current-page result; for a task row use the exact visible title as matchText. Do not claim a highlight succeeded unless that tool returns outcome=Completed and postconditionVerified=true; if it fails, report that. Use liveui_await_state with stateName=selected after changing a status tab and stateName=textContains/stateValue=<visible result text> on the stable todo-list region after searching, including the empty-state message when no tasks match, liveui_inspect for privacy-safe target state, and liveui_clear_highlight for popup-free guidance. Wait for each verified receipt before dependent actions or claims. To recommend a task or answer which task should be worked on, use todo.list as read-only source data. Priority values are TodoPriority enum values: Urgent=3, High=2, Medium=1, Low=0. Exclude records with IsCompleted=true and recommend only a unique highest-priority remaining record; if none exists or multiple records tie for highest priority, ask the user to clarify. Explain the selection criterion. When asked to highlight that recommendation, use its exact visible title as matchText on the authorized Task list target; claim success only after a verified receipt. Use Todo tools for other viewing or changes only when explicitly requested. Never mutate Todo data without an explicit request, and never claim a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
+                "You are the OpenConnect assistant. Handle ordinary conversation naturally on the server and do not call LiveUI tools for non-UI requests. The runtime may already emit an acknowledgement before your response, so do not repeat that acknowledgement or add a greeting; begin directly with the requested result. When the user asks for a tour, introduction, or to be walked through the app, make it interactive: perform only the first relevant action, explain that one area briefly, and ask whether they want to continue. Do not provide a static feature overview or list every step at once. Treat requests to pull up, show, or view active/completed/all tasks as requests to change the visible UI; a todo.list text summary alone does not satisfy them. For UI filtering, search, or highlight requests, first call liveui_infer_plan. When it returns a valid plan, use only its validated targets and actions. If browser and worker inference are unavailable or return no plan, continue with the normal server model: call liveui_get_current_page, then choose only an exact target and capability returned for the current page. Execute through the LiveUI tools and verify each result with its receipt and liveui_await_state. Never invent target IDs/capabilities or claim UI state changed without a verified receipt; if no authorized target is available, explain that and ask how to proceed. For requests to explain the current view, use liveui_get_current_page and liveui_inspect for relevant privacy-safe state; these deterministic reads do not require a generated action plan. For navigation, get the current page, use only its returned manifest routes, and call liveui_navigate; after navigation get the current page again before any target action. The browser inference tool only proposes a plan; the server remains responsible for orchestration, validation and authorization, and each action still requires a verified receipt. For tabs, use liveui_execute with action=SelectTab, never Click; for text inputs use action=SetValue, and for selection controls use action=Select. Click has no verified postcondition by itself. When the user requests a highlight, use liveui_highlight with a target available in the validated plan or authorized current-page result; for a task row use the exact visible title as matchText. Do not claim a highlight succeeded unless that tool returns outcome=Completed and postconditionVerified=true; if it fails, report that. Use liveui_await_state with stateName=selected after changing a status tab and stateName=textContains/stateValue=<visible result text> on the stable todo-list region after searching, including the empty-state message when no tasks match, liveui_clear_highlight for popup-free guidance. Wait for each verified receipt before dependent actions or claims. To recommend a task or answer which task should be worked on, use todo.list as read-only source data. Priority values are TodoPriority enum values: Urgent=3, High=2, Medium=1, Low=0. Exclude records with IsCompleted=true and recommend only a unique highest-priority remaining record; if none exists or multiple records tie for highest priority, ask the user to clarify. Explain the selection criterion. When asked to highlight that recommendation, use its exact visible title as matchText on the authorized Task list target; claim success only after a verified receipt. Use Todo tools for other viewing or changes only when explicitly requested. Never mutate Todo data without an explicit request, and never claim a Todo was created, changed, completed, or deleted unless a tool confirms it.").ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
                 await sessions.AppendEventAsync(task.SessionId.Value, "message", response.Text, cancellationToken).ConfigureAwait(false);
@@ -182,7 +188,7 @@ public sealed class MetaTodoTaskExecutor(MafRealAgentFactory factory, TodoServic
     private static bool RequiresLiveUI(string message)
     {
         var value = message.ToLowerInvariant();
-        string[] terms = ["completed tasks", "active tasks", "show all tasks", "filter", "search", "find tasks", "highlight", "focus", "scroll", "navigate", "go to", "take me", "open page", "explain what", "what am i looking at", "todo list", "task list"];
+        string[] terms = ["completed tasks", "active tasks", "show all tasks", "pull up", "show my", "view my", "list my", "recent tasks", "recent todos", "my tasks", "my todos", "filter", "search", "find tasks", "highlight", "focus", "scroll", "navigate", "go to", "take me", "open page", "explain what", "what am i looking at", "todo list", "task list"];
         return terms.Any(value.Contains);
     }
 
@@ -226,6 +232,7 @@ public static class MetaCloudRegistration
     public static IServiceCollection AddMetaTodoIntegration(this IServiceCollection services, IConfiguration configuration)
     {
         var options = MetaCloudOptions.FromConfiguration(configuration);
+        services.AddOpenConnectRulesDetector();
         services.AddSingleton(Options.Create(options));
         services.AddHttpClient<TodoServiceClient>(client => client.BaseAddress = new Uri(options.TodoServiceUrl.TrimEnd('/') + "/internal/openconnect/todos/"));
         services.AddSingleton<IChatClient>(_ =>
@@ -233,7 +240,6 @@ public static class MetaCloudRegistration
             var chat = new ChatClient(options.Model, new ApiKeyCredential(options.ApiKey), new OpenAIClientOptions { Endpoint = new Uri(options.Endpoint) });
             return chat.AsIChatClient();
         });
-        services.AddSingleton<MafRealAgentFactory>();
         services.AddSingleton<IHostTaskExecutionAuthorizer, SampleTodoTaskAuthorizer>();
         services.AddSingleton<IHostTaskExecutor, MetaTodoTaskExecutor>();
         return services;

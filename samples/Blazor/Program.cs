@@ -10,6 +10,7 @@ using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
+using OpenConnect.LiveUI.Inference;
 using OpenConnect.Samples.Workers.Host;using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
@@ -86,6 +87,21 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
     options.Interaction.EnableFiltering = true;
     options.Interaction.EnableHighlighting = true;
 });
+var liveUiWorkerToken = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
+if (!string.IsNullOrWhiteSpace(liveUiWorkerToken))
+{
+    var liveUiWorkerEndpoint = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"]
+        ?? "http://liveui-inference:8080";
+    if (!Uri.TryCreate(liveUiWorkerEndpoint, UriKind.Absolute, out var workerEndpoint))
+        throw new InvalidOperationException("OpenConnect:LiveUI:Inference:Worker:Endpoint must be an absolute HTTP endpoint.");
+
+    builder.Services.Configure<LiveUIInferenceOptions>(options => options.Worker.Enabled = true);
+    builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
+    {
+        options.Endpoint = workerEndpoint;
+        options.BearerToken = liveUiWorkerToken;
+    });
+}
 builder.Services.AddOpenConnectComposer(options =>
 {
     options.Position = ComposerPosition.BottomRight;

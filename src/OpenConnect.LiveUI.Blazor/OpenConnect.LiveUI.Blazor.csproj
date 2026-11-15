@@ -14,5 +14,26 @@
     <ProjectReference Include="../OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../OpenConnect.LiveUI/OpenConnect.LiveUI.csproj" />
     <ProjectReference Include="../OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
+    <ProjectReference Include="../OpenConnect.LiveUI.Inference/OpenConnect.LiveUI.Inference.csproj" />
+    <ProjectReference Include="../OpenConnect.LiveUI.Compiler/OpenConnect.LiveUI.Compiler.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="buildTransitive/OpenConnect.LiveUI.Blazor.targets"
+          Pack="true"
+          PackagePath="buildTransitive/" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeOpenConnectLiveUICompiler</TargetsForTfmSpecificContentInPackage>
+    <LiveUICompilerOutputDirectory>$(MSBuildThisFileDirectory)..\OpenConnect.LiveUI.Compiler\bin\$(Configuration)\net8.0</LiveUICompilerOutputDirectory>
+  </PropertyGroup>
+  <Target Name="IncludeOpenConnectLiveUICompiler" Condition="'$(TargetFramework)' == 'net8.0'">
+    <Error Condition="!Exists('$(LiveUICompilerOutputDirectory)\OpenConnect.LiveUI.Compiler.dll')"
+           Text="The LiveUI Razor compiler was not built and cannot be included in the Blazor package." />
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(LiveUICompilerOutputDirectory)\**\*"
+                               Exclude="$(LiveUICompilerOutputDirectory)\**\*.pdb;$(LiveUICompilerOutputDirectory)\**\*.xml">
+        <PackagePath>tools/liveui-compiler/net8.0/%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 </Project>

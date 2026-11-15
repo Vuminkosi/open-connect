@@ -27,6 +27,8 @@ public static class LiveUIClientAgentToolFactory
         [
             AIFunctionFactory.Create(tools.GetCurrentPageAsync, "liveui_get_current_page",
                 "Returns authorized current-page targets and routes the host permits this session to navigate to."),
+            AIFunctionFactory.Create(tools.InferPlanAsync, "liveui_infer_plan",
+                "For an interactive UI request, asks the connected Blazor client to use its configured local-first LiveUI inference router and returns a validated structured plan. If browser and worker inference are unavailable, the normal server model may continue by reading liveui_get_current_page and choosing only an exact target and capability returned there; each action still passes host authorization and requires a verified receipt. A missing plan is not an action. Never invent target IDs or claim UI state changed without a verified receipt. This tool does not execute actions. Do not call it for ordinary conversation."),
             AIFunctionFactory.Create(tools.NavigateAsync, "liveui_navigate",
                 "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",
@@ -46,6 +48,14 @@ public static class LiveUIClientAgentToolFactory
     {
         public Task<JsonElement> GetCurrentPageAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page"), "page", cancellationToken);
+
+        public Task<JsonElement> InferPlanAsync(string intent, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(intent) || intent.Length > 8_000)
+                return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
+            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent),
+                "plan", cancellationToken);
+        }
 
         public Task<JsonElement> NavigateAsync(string routeId, CancellationToken cancellationToken = default)
         {

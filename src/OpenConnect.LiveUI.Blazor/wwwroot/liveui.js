@@ -2,7 +2,8 @@ const highlights = new Set();
 const highlightTimers = new Map();
 const idAttribute = "data-openconnect-liveui-id";
 const highlightAttribute = "data-openconnect-liveui-highlight";
-const sensitiveFieldPattern = /passw|passwd|secret|token|api[-_]?key|ssn|social.security|credit|card|cvv|cvc|credential|private.key|pin/i;
+const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
+const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
 export function execute(context, timeoutMs, enableRuntimeFallback) {
   const { manifest, route, target, action } = context;
@@ -189,8 +190,7 @@ function isVisible(element) {
 
 function setValue(element, value) {
   if (typeof value !== "string" || !("value" in element)) return result("Failed", "value_not_supported");
-  if (element.type === "password" || element.hasAttribute("data-sensitive") ||
-      sensitiveFieldPattern.test((element.name || "") + " " + (element.id || ""))) {
+  if (isSensitiveField(element)) {
     return result("Denied", "sensitive_input_blocked");
   }
   const prototype = element.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -203,6 +203,7 @@ function setValue(element, value) {
 }
 
 function selectValue(element, value) {
+  if (isSensitiveField(element)) return result("Denied", "sensitive_input_blocked");
   if (!(element instanceof HTMLSelectElement) || typeof value !== "string") return result("Failed", "select_not_supported");
   const option = [...element.options].find((item) => item.value === value || normalize(item.label) === normalize(value));
   if (!option) return result("MissingTarget", "option_missing");
@@ -210,6 +211,23 @@ function selectValue(element, value) {
   element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
   return element.value === option.value ? result("Completed", "selection_verified", true, "selected") : result("Uncertain", "selection_unverified");
+}
+
+function isSensitiveField(element) {
+  if (element.hasAttribute("data-sensitive") ||
+      ["password", "email", "tel", "number", "hidden", "file"].includes(String(element.type || "").toLowerCase())) {
+    return true;
+  }
+
+  const autocomplete = element.getAttribute("autocomplete") || "";
+  if (sensitiveAutocompletePattern.test(autocomplete)) return true;
+
+  const labelledBy = (element.getAttribute("aria-labelledby") || "").split(/\s+/)
+    .map((id) => document.getElementById(id)?.textContent || "").join(" ");
+  const labels = element.labels ? [...element.labels].map((label) => label.textContent || "").join(" ") : "";
+  const metadata = [element.name, element.id, element.getAttribute("aria-label"), labelledBy,
+    element.getAttribute("placeholder"), element.getAttribute("title"), autocomplete, labels].join(" ");
+  return sensitiveFieldPattern.test(metadata);
 }
 
 function inspect(element) {

@@ -190,10 +190,26 @@ public static class EndpointRouteBuilderExtensions
         if (!response.IsSuccessStatusCode)
             return Results.Problem(statusCode: (int)response.StatusCode, title: "Kokoro speech synthesis failed.");
 
-        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false), cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!document.RootElement.TryGetProperty("result", out var result))
+        JsonDocument document;
+        try
+        {
+            document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
             return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
-        return Results.Json(result.Clone());
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("result", out var result) ||
+                result.ValueKind != JsonValueKind.Object)
+                return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
+            return Results.Json(result.Clone());
+        }
     }
 
     private sealed record SpeechRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0, string? IdempotencyKey = null);
@@ -333,7 +349,7 @@ public static class EndpointRouteBuilderExtensions
             ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
     }
 
-    internal static async Task<IResult> HandlePostClientInteractionResponseAsync(
+    internal static Task<IResult> HandlePostClientInteractionResponseAsync(
         string id,
         ClientInteractionResponse response,
         HttpContext context,
@@ -342,66 +358,41 @@ public static class EndpointRouteBuilderExtensions
     {
         if (!UlidTryParse(id, out var value) ||
             !Guid.TryParseExact(response.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
-            response.ResultKind is not ("page" or "action") ||
+            response.ResultKind is not ("page" or "plan" or "action") ||
             string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid.");
+            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid."));
         try
         {
             using var payload = JsonDocument.Parse(response.PayloadJson);
             if (payload.RootElement.ValueKind != JsonValueKind.Object)
-                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+                return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid."));
         }
         catch (JsonException)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid."));
         }
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!TryIdentity(context, out var tenant, out var principal)) return Task.FromResult(IdentityError());
         var session = store.Get(value);
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
-            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
-
-        var sessionEvents = store.GetEvents(value, 0);
-        var hasMatchingRequest = sessionEvents.Any(item =>
-        {
-            if (!item.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal)) return false;
-            try
-            {
-                var pending = JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, JsonOptions);
-                var expectedKind = pending?.Operation switch
-                {
-                    "get_current_page" => "page",
-                    "execute" => "action",
-                    "navigate" => "action",
-                    "inspect" => "action",
-                    "await_state" => "action",
-                    "highlight" => "action",
-                    "clear_highlight" => "action",
-                    _ => null
-                };
-                return pending?.CorrelationId == response.CorrelationId && expectedKind == response.ResultKind;
-            }
-            catch (JsonException) { return false; }
-        });
-        if (!hasMatchingRequest)
-            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "No matching client interaction request exists.");
+            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."));
 
         var eventData = JsonSerializer.Serialize(response, JsonOptions);
-        foreach (var existing in sessionEvents.Where(item =>
-                     item.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)))
+        var appendResult = store.TryAppendClientInteractionResponse(value, response, eventData);
+        var result = appendResult switch
         {
-            try
-            {
-                var prior = JsonSerializer.Deserialize<ClientInteractionResponse>(existing.Data, JsonOptions);
-                if (prior?.CorrelationId != response.CorrelationId) continue;
-                return prior == response
-                    ? Results.Ok(new { response.CorrelationId, accepted = true })
-                    : Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "A different response already exists for this interaction.");
-            }
-            catch (JsonException) { }
-        }
-
-        await store.AppendEventAsync(value, ClientInteractionEventTypes.Response, eventData, cancellationToken).ConfigureAwait(false);
-        return Results.Ok(new { response.CorrelationId, accepted = true });
+            ClientInteractionResponseAppendResult.Accepted or ClientInteractionResponseAppendResult.Duplicate =>
+                Results.Ok(new { response.CorrelationId, accepted = true }),
+            ClientInteractionResponseAppendResult.RequestNotFound =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "No matching client interaction request exists."),
+            ClientInteractionResponseAppendResult.ConflictingResponse =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "A different response already exists for this interaction."),
+            ClientInteractionResponseAppendResult.Cancelled =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The client interaction request was cancelled."),
+            ClientInteractionResponseAppendResult.SessionNotFound =>
+                Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."),
+            _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError)
+        };
+        return Task.FromResult(result);
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
@@ -704,6 +695,15 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
     internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
 
+    internal ClientInteractionResponseAppendResult TryAppendClientInteractionResponse(
+        Ulid id,
+        ClientInteractionResponse response,
+        string eventData)
+    {
+        if (!_sessions.ContainsKey(id)) return ClientInteractionResponseAppendResult.SessionNotFound;
+        return _journal.TryAppendClientInteractionResponse(new SessionId(id), response, eventData);
+    }
+
     internal long AppendEvent(Ulid id, string type, string data)
     {
         if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
@@ -723,12 +723,13 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         var operationResultKind = request.Operation switch
         {
             "get_current_page" => "page",
+            "infer_plan" => "plan",
             "execute" or "navigate" or "inspect" or "await_state" or "highlight" or "clear_highlight" => "action",
             _ => null
         };
         if (sessionId.Value == default || !_sessions.ContainsKey(sessionId.Value) ||
             !Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
-            expectedResultKind is not ("page" or "action") || operationResultKind != expectedResultKind ||
+            expectedResultKind is not ("page" or "plan" or "action") || operationResultKind != expectedResultKind ||
             timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
             throw new ArgumentException("The client interaction request is invalid.", nameof(request));
 
