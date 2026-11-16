@@ -129,6 +129,86 @@ public sealed class LiveUIOrchestratorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_RequiresHostAuthorizationForEveryActionType()
+    {
+        var allCapabilities = Enum.GetValues<LiveUICapability>().ToHashSet();
+        var route = Manifest.Routes[0] with
+        {
+            Targets = [Manifest.Routes[0].Targets[0] with { Capabilities = allCapabilities }]
+        };
+        var manifest = Manifest with { Routes = [route] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var authorizer = new RecordingAuthorizer(false);
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(manifest), authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+
+        foreach (var actionType in Enum.GetValues<LiveUIActionType>())
+        {
+            var parameters = actionType switch
+            {
+                LiveUIActionType.Navigate => new LiveUIActionParameters(DestinationRouteId: route.Id),
+                LiveUIActionType.SetValue or LiveUIActionType.Select => new LiveUIActionParameters(Value: "value"),
+                LiveUIActionType.WaitForState => new LiveUIActionParameters(StateName: "visible", StateValue: "true"),
+                _ => new LiveUIActionParameters()
+            };
+            var targetId = actionType is LiveUIActionType.Navigate or LiveUIActionType.ClearHighlight
+                ? null
+                : route.Targets[0].Id;
+            var action = new LiveUIAction($"action-{actionType}", LiveUISchema.CurrentVersion, "session-001",
+                manifest.ContentHash, route.Id, targetId, actionType, parameters, TimeSpan.FromSeconds(5));
+
+            var receipt = await orchestrator.ExecuteAsync(action);
+
+            Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+            Assert.Equal("policy_denied", receipt.Code);
+        }
+
+        Assert.Equal(Enum.GetValues<LiveUIActionType>().Length, authorizer.Calls);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AllActionTypesRequireAndHonorHostAuthorizationBeforeExecution()
+    {
+        var allCapabilities = Enum.GetValues<LiveUICapability>().ToHashSet();
+        var route = Manifest.Routes[0] with
+        {
+            Targets = [Manifest.Routes[0].Targets[0] with { Capabilities = allCapabilities }]
+        };
+        var manifest = Manifest with { Routes = [route] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var authorizer = new RecordingAuthorizer(true);
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(manifest), authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+
+        foreach (var actionType in Enum.GetValues<LiveUIActionType>())
+        {
+            var parameters = actionType switch
+            {
+                LiveUIActionType.Navigate => new LiveUIActionParameters(DestinationRouteId: route.Id),
+                LiveUIActionType.SetValue or LiveUIActionType.Select => new LiveUIActionParameters(Value: "value"),
+                LiveUIActionType.WaitForState => new LiveUIActionParameters(StateName: "visible", StateValue: "true"),
+                _ => new LiveUIActionParameters()
+            };
+            var targetId = actionType is LiveUIActionType.Navigate or LiveUIActionType.ClearHighlight
+                ? null
+                : route.Targets[0].Id;
+            var action = new LiveUIAction($"allowed-{actionType}", LiveUISchema.CurrentVersion, "session-allowed",
+                manifest.ContentHash, route.Id, targetId, actionType, parameters, TimeSpan.FromSeconds(5));
+
+            var receipt = await orchestrator.ExecuteAsync(action);
+
+            Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+            Assert.True(receipt.PostconditionVerified);
+        }
+
+        Assert.Equal(Enum.GetValues<LiveUIActionType>().Length, authorizer.Calls);
+        Assert.Equal(Enum.GetValues<LiveUIActionType>().Length, runtime.Calls);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_RejectsStaleManifestBeforeAuthorization()
     {
         var authorizer = new RecordingAuthorizer(true);

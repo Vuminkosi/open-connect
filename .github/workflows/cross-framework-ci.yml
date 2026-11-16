@@ -346,7 +346,8 @@ jobs:
         run: dotnet restore OpenConnect.slnx --locked-mode
 
       - name: Pack Release (no push; PR builds must not publish)
-        run: dotnet pack OpenConnect.slnx -c Release --no-restore -o ./artifacts/packages
+        shell: pwsh
+        run: ./build/scripts/pack-packable-projects.ps1 -Configuration Release -NoRestore -OutputDirectory ./artifacts/packages
 
       - name: Verify every eligible nupkg carries net8.0+net9.0+net10.0 lib assets
         shell: pwsh
@@ -400,7 +401,8 @@ jobs:
           dotnet fsi --noninteractive $fsx
 
       - name: Pack libraries (local feed only; no push)
-        run: dotnet pack OpenConnect.slnx -c Release -o ./artifacts/packages
+        shell: pwsh
+        run: ./build/scripts/pack-packable-projects.ps1 -Configuration Release -OutputDirectory ./artifacts/packages
 
       # Minimal external consumer: a fresh console app per TFM that restores
       # OpenConnect.Abstractions from the locally packed feed and runs.
@@ -430,3 +432,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Set-Content -Path (Join-Path $work 'Program.cs') -Value 'Console.WriteLine($"consumer-ok:{typeof(global::OpenConnect.Abstractions.IOpenConnectClient).FullName}:{System.Environment.Version}");'
           dotnet run --project $work -c Release --no-restore
+
+      - name: LiveUI Blazor package consumer on ${{ matrix.tfm }}
+        shell: pwsh
+        run: ./build/scripts/verify-liveui-package-consumer.ps1 -PackageDirectory ./artifacts/packages -Framework '${{ matrix.tfm }}'

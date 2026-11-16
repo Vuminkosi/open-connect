@@ -532,6 +532,19 @@
           "Microsoft.Extensions.Logging.Abstractions": "10.0.14"
         }
       },
+      "Microsoft.Extensions.Http": {
+        "type": "Transitive",
+        "resolved": "10.0.14",
+        "contentHash": "IDsXLGGz7nJMsqspWnErsP18WyAVf6V9Ixl4p47/8/95Jak3ZA1YWhQ0iesMVwubVhkVZGoO9m9ADUnK0m6HLw==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.14",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Diagnostics": "10.0.14",
+          "Microsoft.Extensions.Logging": "10.0.14",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.14",
+          "Microsoft.Extensions.Options": "10.0.14"
+        }
+      },
       "Microsoft.Extensions.Localization": {
         "type": "Transitive",
         "resolved": "9.0.1",
@@ -1098,7 +1111,18 @@
           "OpenConnect.Client": "[1.0.0, )",
           "OpenConnect.Components.Blazor": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )",
-          "OpenConnect.LiveUI.Agents": "[1.0.0, )"
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )",
+          "OpenConnect.LiveUI.Inference": "[1.0.0, )"
+        }
+      },
+      "openconnect.liveui.inference": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Http": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )",
+          "OpenConnect.Agents": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
         }
       },
       "openconnect.navigator": {
@@ -1194,6 +1218,7 @@
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
           "OpenConnect.LiveUI.Agents": "[1.0.0, )",
+          "OpenConnect.LiveUI.Inference": "[1.0.0, )",
           "OpenConnect.Navigator": "[1.0.0, )",
           "OpenConnect.Navigator.AspNetCore": "[1.0.0, )",
           "OpenConnect.Navigator.Operational": "[1.0.0, )",

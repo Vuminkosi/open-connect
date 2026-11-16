@@ -46,6 +46,12 @@ public sealed record LiveUIInferenceResult(
     string Outcome,
     string? Browser = null);
 
+/// <summary>Authenticated Gateway request envelope preserving inference correlation over HTTP.</summary>
+public sealed record GatewayLiveUIInferenceRequest(string RequestId, string ExecutionId, LiveUIInferenceRequest Request);
+
+/// <summary>Authenticated Gateway response envelope preserving inference correlation over HTTP.</summary>
+public sealed record GatewayLiveUIInferenceResponse(string RequestId, string ExecutionId, LiveUIInferenceResult Result);
+
 public interface ILiveUIInferenceProvider
 {
     LiveUIInferenceProviderKind Kind { get; }

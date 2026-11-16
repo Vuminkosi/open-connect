@@ -109,9 +109,10 @@ jobs:
           Write-Host "Resolved package version $version (source: $source)."
 
       - name: Pack Release (OpenConnect.* only)
+        shell: pwsh
         env:
           PKG_VERSION: ${{ steps.resolve-version.outputs.version }}
-        run: dotnet pack OpenConnect.slnx -c Release --no-restore -warnaserror -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=$PKG_VERSION
+        run: ./build/scripts/pack-packable-projects.ps1 -Configuration Release -NoRestore -OutputDirectory ./artifacts/packages -Version $env:PKG_VERSION
 
       - name: Verify package file names match OpenConnect.*
         shell: pwsh

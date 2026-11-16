@@ -32,7 +32,7 @@ For .NET-first local inference, `AddOpenConnectLiveUIBlazor` registers the brows
 
 An already available browser model is initialized when the server requests a plan. If a browser-managed model requires downloading, use the scoped `BrowserPromptApiInferenceProvider.InitializeFromUserGestureAsync` from a user action; startup and availability checks never start a download. See [the LiveUI inference requirements](../../docs/plans/liveui-inference-requirements.md) for gateway privacy and browser limitations.
 
-The server-side inference router falls back in this order: browser, optional Gateway-hosted CPU worker, then the existing guarded chat client when the local providers are unavailable. The default fallback policy is `OnUnavailable`; no LLM call occurs unless the host explicitly registers `AddFirewallGuardedLiveUIGatewayInference`, which rejects unguarded `IChatClient` registrations. Register `AddLiveUILocalWorkerInferenceProvider` in the Blazor Server host with its private worker endpoint and credential, then set `Worker.Enabled = true`. Worker and LLM endpoints and credentials are never sent to the browser. `BrowserOnly` disables both server fallbacks.
+The server-side inference router falls back in this order: browser, optional Gateway-hosted CPU worker, then the existing guarded chat client when the local providers are unavailable. The default fallback policy is `OnUnavailable`; no LLM call occurs unless the host explicitly registers `AddFirewallGuardedLiveUIGatewayInference`, which rejects unguarded `IChatClient` registrations. In an external Gateway deployment, Blazor sends the correlated fallback request to the authenticated Gateway inference endpoint; the Gateway owns the private worker endpoint and credential, verifies the tenant-owned session, applies the privacy firewall, rate limits requests, and validates the worker plan. The Blazor host never receives worker credentials. When the Gateway and Blazor server are deliberately embedded in one process, that process may register the worker directly. `BrowserOnly` disables both server fallbacks.
 
 ```csharp
 builder.Services.AddOpenConnectLiveUIInference(options =>
@@ -42,12 +42,9 @@ builder.Services.AddOpenConnectLiveUIInference(options =>
     options.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
 });
 builder.Services.AddFirewallGuardedLiveUIGatewayInference();
-builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
-{
-    options.Endpoint = new Uri(configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"]!);
-    options.BearerToken = configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
-});
 ```
+
+Configure `OpenConnect:LiveUI:Inference:Worker:Endpoint` and `OpenConnect:LiveUI:Inference:Worker:Token` only in the Gateway process. The Blazor server calls the Gateway through its existing authenticated API client; it does not configure or connect to the private worker itself.
 
 The optional `liveui-inference` Compose profile runs the worker without publishing a host port. It uses a persistent model volume and accepts model repository, pinned revision, filename and SHA-256 through `LIVEUI_MODEL_*` settings; replacing the configured model does not change SDK contracts or the LiveUI action schema. Configure `LIVEUI_WORKER_TOKEN` as a deployment secret before starting that profile. Example: `docker compose -f docker-compose-all.yml --profile liveui-inference up -d --build liveui-inference`.
 

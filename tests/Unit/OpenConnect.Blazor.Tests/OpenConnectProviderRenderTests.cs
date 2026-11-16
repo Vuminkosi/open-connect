@@ -21,12 +21,12 @@ namespace OpenConnect.Blazor.Tests;
 /// OpenConnectBlazorServiceCollectionExtensions, which never registers them);
 /// these tests supply Mud services only.
 /// </summary>
-public sealed class OpenConnectProviderRenderTests : BunitContext
+public sealed class OpenConnectProviderRenderTests : OpenConnectBunitContext
 {
     public OpenConnectProviderRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddOpenConnectMudServices();
         // No-op keyboard-interception stub (see MiniComposerRenderTests): keeps bUnit sync teardown clean.
         Services.AddSingleton<IKeyInterceptorService, NoopKeyInterceptorService>();
         Services.AddSingleton<IOpenConnectClient>(new FakeOpenConnectClient());
@@ -61,15 +61,16 @@ public sealed class OpenConnectProviderRenderTests : BunitContext
     }
 
     [Fact]
-    public void Provider_disposes_cleanly_with_active_subscribe_loop()
+    public async Task Provider_disposes_cleanly_with_active_subscribe_loop()
     {
-        using var context = new BunitContext();
+        var context = new OpenConnectBunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
-        context.Services.AddMudServices();
+        context.Services.AddOpenConnectMudServices();
         context.Services.AddSingleton<IKeyInterceptorService, NoopKeyInterceptorService>();
         context.Services.AddSingleton<IOpenConnectClient>(new FakeOpenConnectClient());
         context.Services.AddSingleton(new OpenConnectComponentRegistry());
         context.Services.AddSingleton(NewSession());
+        context.AddPopoverHost();
 
         var cut = context.Render<OpenConnectProvider>(parameters => parameters
             .Add(p => p.SessionId, Ulid.NewUlid().ToString())
@@ -79,7 +80,7 @@ public sealed class OpenConnectProviderRenderTests : BunitContext
 
         Assert.Single(cut.FindAll(".oc-bubble"));
 
-        var ex = Record.Exception(() => context.Dispose());
+        var ex = await Record.ExceptionAsync(async () => await context.DisposeAsync());
         Assert.Null(ex);
     }
 
@@ -95,6 +96,7 @@ public sealed class OpenConnectProviderRenderTests : BunitContext
         string? sessionId = null,
         bool autoSubscribe = false)
     {
+        this.AddPopoverHost();
         return Render<OpenConnectProvider>(parameters => parameters
             .Add(p => p.SessionId, sessionId)
             .Add(p => p.AutoSubscribe, autoSubscribe)

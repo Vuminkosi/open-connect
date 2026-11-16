@@ -124,8 +124,13 @@ class InferenceEngine:
                     "Return exactly maxActions actions or fewer, never more. For a single UI operation, "
                     "return exactly one action. Never return alternative targets or activate multiple "
                     "tabs for one request. Match the target "
-                    "to the requested state. For a search request, set the value to only the search "
-                    "term, not the instruction, and do not add focus unless the user asks for focus. "
+                    "to the requested state. For tab or status requests, map completed, finished, and "
+                    "done to the Completed tab; map active, incomplete, and pending to the Active tab. "
+                    "Choose the matching tab capability with activate or select. Never focus or set a "
+                    "search field for a tab or status request. For a search request, set the value to "
+                    "only the search term, not the instruction, and add focus only when explicitly requested. "
+                    "Include value only for setValue actions; omit it for activate, navigate, select, "
+                    "highlight, focus, and scroll actions. "
                     "Copy schemaVersion exactly. If no action fits, return an empty actions array."
                 ),
             },
@@ -138,8 +143,11 @@ class InferenceEngine:
                     "content": (
                         "You map UI intent to a minimal action plan. Return one allowed action when the "
                     "intent requests one UI operation, even when several alternatives are available. "
-                    "Never return a list of alternative tabs or controls. Copy the target and action "
-                        "exactly. Do not reason about unrelated tasks. /no_think"
+                    "For tab and status requests, use the tab matching the requested state; completed, "
+                    "finished, and done mean Completed. Never choose a search field or focus action for "
+                    "a tab request. Include value only for setValue actions. Never return a list of "
+                    "alternative tabs or controls. Copy the target "
+                    "and action exactly. Do not reason about unrelated tasks. /no_think"
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -150,7 +158,17 @@ class InferenceEngine:
             top_p=1,
         )
         content = result["choices"][0]["message"]["content"]
-        plan = ActionPlan.model_validate_json(content)
+        generated_plan = json.loads(content)
+        if not isinstance(generated_plan, dict):
+            raise ValueError("Generated plan must be a JSON object")
+        actions = generated_plan.get("actions")
+        if isinstance(actions, list):
+            for action in actions:
+                if isinstance(action, dict) and action.get("type") != "setValue":
+                    # Small local models sometimes emit an irrelevant value despite
+                    # the constrained schema. It has no meaning for these actions.
+                    action.pop("value", None)
+        plan = ActionPlan.model_validate(generated_plan)
         if (
             plan.schemaVersion != request.schemaVersion
             or not plan.actions
@@ -160,6 +178,12 @@ class InferenceEngine:
         allowed = {(item.target, item.action) for item in request.context.availableActions}
         if any((action.target, action.type) not in allowed for action in plan.actions):
             raise ValueError("Generated plan contains an unavailable capability")
+        if any(
+            (action.type == "setValue" and action.value is None)
+            or (action.type != "setValue" and action.value is not None)
+            for action in plan.actions
+        ):
+            raise ValueError("Generated plan contains an unsupported action value")
         return plan, "qwen3-0.6b"
 
 

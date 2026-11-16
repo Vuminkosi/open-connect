@@ -128,7 +128,11 @@ def test_structured_model_plan_is_checked_against_authorized_actions():
     )
 
     class FakeModel:
-        def create_chat_completion(self, **_):
+        def create_chat_completion(self, **kwargs):
+            system_prompt = kwargs["messages"][0]["content"]
+            assert "finished, and done mean Completed" in system_prompt
+            assert "Never choose a search field or focus action for a tab request" in system_prompt
+            assert "Include value only for setValue actions" in system_prompt
             return {
                 "choices": [
                     {
@@ -147,6 +151,67 @@ def test_structured_model_plan_is_checked_against_authorized_actions():
     plan, provider = InferenceEngine(FakeModel(), settings_for(Path("model.gguf"), "0" * 64)).generate(request)
     assert provider == "qwen3-0.6b"
     assert [(action.type, action.target) for action in plan.actions] == [("activate", "todo.completed")]
+
+
+def test_structured_worker_plan_discards_irrelevant_values_for_non_set_value_actions():
+    request = PlanRequest.model_validate(
+        {
+            "requestId": "request-invalid-action-value",
+            "schemaVersion": "openconnect.liveui/v1",
+            "intent": "Switch to the tab showing finished work",
+            "context": {
+                "route": "todo.home",
+                "availableActions": [{"target": "todo.completed", "action": "activate"}],
+            },
+        }
+    )
+
+    class InvalidModel:
+        def create_chat_completion(self, **_):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "schemaVersion": request.schemaVersion,
+                                    "actions": [
+                                        {"type": "activate", "target": "todo.completed", "value": "Completed"}
+                                    ],
+                                }
+                            )
+                        }
+                    }
+                ]
+            }
+
+    plan, provider = InferenceEngine(InvalidModel(), settings_for(Path("model.gguf"), "0" * 64)).generate(request)
+
+    assert provider == "qwen3-0.6b"
+    assert [(action.type, action.target, action.value) for action in plan.actions] == [
+        ("activate", "todo.completed", None)
+    ]
+
+
+def test_structured_worker_plan_rejects_non_object_json():
+    request = PlanRequest.model_validate(
+        {
+            "requestId": "request-non-object-plan",
+            "schemaVersion": "openconnect.liveui/v1",
+            "intent": "Choose a task tab",
+            "context": {
+                "route": "todo.home",
+                "availableActions": [{"target": "todo.completed", "action": "activate"}],
+            },
+        }
+    )
+
+    class InvalidModel:
+        def create_chat_completion(self, **_):
+            return {"choices": [{"message": {"content": "[]"}}]}
+
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        InferenceEngine(InvalidModel(), settings_for(Path("model.gguf"), "0" * 64)).generate(request)
 
 
 def test_single_operation_schema_allows_only_one_action_and_rejects_alternatives():

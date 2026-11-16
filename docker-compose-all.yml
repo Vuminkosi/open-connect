@@ -131,6 +131,8 @@ services:
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
       Workers__Playwright__Endpoint: http://worker-playwright:8080
       OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OpenConnect__LiveUI__Inference__Worker__Endpoint: ${LIVEUI_WORKER_ENDPOINT:-http://liveui-inference:8080}
+      OpenConnect__LiveUI__Inference__Worker__Token: ${LIVEUI_WORKER_TOKEN:-}
       # Forward cloud model settings to gateway
       OpenConnect__ApiKey: ${OpenConnect__ApiKey:-}
       OpenConnect__ApiUrl: ${OpenConnect__ApiUrl:-}
@@ -204,6 +206,40 @@ services:
       - oc_inference_models:/models
     networks:
       - oc-network
+
+  liveui-inference:
+    profiles: ["liveui-inference"]
+    build:
+      context: ./workers/liveui-inference
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-liveui-inference:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-worker-liveui-inference
+    environment:
+      MODEL_ENABLED: "true"
+      MODEL_ID: ${LIVEUI_MODEL_ID:-bartowski/Qwen_Qwen3-0.6B-GGUF}
+      MODEL_REVISION: ${LIVEUI_MODEL_REVISION:-60b85c0e3d8fe0f6474f406922a26d12aca4550d}
+      MODEL_FILENAME: ${LIVEUI_MODEL_FILENAME:-Qwen_Qwen3-0.6B-Q4_K_M.gguf}
+      MODEL_SHA256: ${LIVEUI_MODEL_SHA256:-9acfc1e001311f34b4252001b626f2e466d592a42065f66571bff3790d4e1b14}
+      MODEL_PATH: /models/liveui.gguf
+      MODEL_CONTEXT_SIZE: ${LIVEUI_MODEL_CONTEXT_SIZE:-2048}
+      MODEL_THREADS: ${LIVEUI_MODEL_THREADS:-4}
+      MAX_CONCURRENT_INFERENCES: ${LIVEUI_MAX_CONCURRENT_INFERENCES:-1}
+      QUEUE_CAPACITY: ${LIVEUI_QUEUE_CAPACITY:-4}
+      REQUEST_TIMEOUT_SECONDS: ${LIVEUI_REQUEST_TIMEOUT_SECONDS:-30}
+      OPENCONNECT_WORKER_TOKEN: ${LIVEUI_WORKER_TOKEN:-}
+    volumes:
+      - oc_liveui_models:/models
+    cpus: 4
+    mem_limit: 2g
+    restart: unless-stopped
+    networks:
+      - oc-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 600s
 
   worker-transcription:
     build:
@@ -318,3 +354,4 @@ volumes:
   oc_inference_models:
   oc_transcription_models:
   oc_kokoro_models:
+  oc_liveui_models:

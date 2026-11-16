@@ -375,3 +375,7 @@ docs/*
 
 # Generated documentation output is rebuilt by scripts/generate-docs-api.ps1.
 /site/OpenConnect.Docs/generated/
+/tests/Browser/node_modules/
+/tests/Browser/artifacts/
+/tests/Browser/playwright-report/
+/tests/Browser/test-results*/

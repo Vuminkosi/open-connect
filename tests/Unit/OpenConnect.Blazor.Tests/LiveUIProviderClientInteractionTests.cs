@@ -358,7 +358,7 @@ public sealed class LiveUIProviderClientInteractionTests
         var firstSegmentEnd = responseText.IndexOf("report", StringComparison.Ordinal);
         await SendHighlightCueAsync("todo.list", 0, firstSegmentEnd, 1);
         await SendHighlightCueAsync("todo.region", 0, firstSegmentEnd, 2);
-        await SendHighlightCueAsync("todo.region", firstSegmentEnd + 2, responseText.Length, 3);
+        await SendHighlightCueWithMatchAsync("todo.list", "report", firstSegmentEnd + 2, responseText.Length, 3);
 
         composerSession.BeginSend("Explain the completed tasks.");
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
@@ -385,7 +385,8 @@ public sealed class LiveUIProviderClientInteractionTests
         Assert.True(composerSession.EndSpeechPlayback(unmatchedEpoch));
         var secondEpoch = composerSession.BeginSpeechPlayback();
         await rendered.InvokeAsync(() => composer.OnSpeechPlaybackStarted(secondEpoch, firstSegmentEnd + 2, responseText.Length, 1));
-        Assert.Equal("todo.region", runtime.LastTargetId);
+        Assert.Equal("todo.list", runtime.LastTargetId);
+        Assert.Equal("report", runtime.LastParameters!.Value);
         await rendered.InvokeAsync(() => composer.OnSpeechPlaybackSynchronizationMeasured(
             secondEpoch, firstSegmentEnd + 2, responseText.Length, 71.25));
         Assert.Equal(new[] { 42.5, 71.25 }, synchronizationOffsets);
@@ -406,9 +407,13 @@ public sealed class LiveUIProviderClientInteractionTests
             new SessionId(Ulid.Parse(Session)), 5, "message.completed", string.Empty)));
         rendered.WaitForAssertion(() => Assert.Equal("ClearHighlight", runtime.LastAction));
 
-        async Task SendHighlightCueAsync(string targetId, int startCharacter, int endCharacter, long sequence)
+        async Task SendHighlightCueAsync(string targetId, int startCharacter, int endCharacter, long sequence) =>
+            await SendHighlightCueWithMatchAsync(targetId, null, startCharacter, endCharacter, sequence);
+
+        async Task SendHighlightCueWithMatchAsync(string targetId, string? matchText, int startCharacter, int endCharacter, long sequence)
         {
             var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", targetId,
+                Value: matchText,
                 HighlightDurationMilliseconds: 2_000)
             {
                 SpeechStartCharacter = startCharacter,

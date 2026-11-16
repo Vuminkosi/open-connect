@@ -67,6 +67,74 @@ test('connected Scenario F completes with voice output enabled', async ({ page, 
   await expectVerifiedFixtureRun(request);
 });
 
+test('task lookup plays a narrated visual timeline from the list to the exact task row', async ({ page, request }) => {
+  await openComposer(page, true);
+  await page.evaluate(() => {
+    window.__liveuiHighlightTimeline = [];
+    const record = () => {
+      const highlighted = [...document.querySelectorAll('[data-openconnect-liveui-highlight="true"]')]
+        .map((element) => element.innerText?.trim() || element.tagName)
+        .sort();
+      const previous = window.__liveuiHighlightTimeline.at(-1);
+      if (JSON.stringify(previous) !== JSON.stringify(highlighted)) window.__liveuiHighlightTimeline.push(highlighted);
+    };
+    new MutationObserver(record).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-openconnect-liveui-highlight'],
+      subtree: true,
+    });
+  });
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Pull up my tasks to find the most recent one.');
+  await page.getByRole('button', { name: /send to ellai/i }).click();
+
+  const title = 'Prepare a launch checklist';
+  await expect(page.getByRole('log', { name: 'Conversation' }))
+    .toContainText(`I opened your task list so you can see the available work. The most recently created task is ${title}. I brought its row into focus while I explained it.`, { timeout: 90_000 });
+  await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue(title);
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.locator('.oc-bubble__live-speak')).toHaveClass(/--active/);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.length), { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+  const timeline = await page.evaluate(() => window.__liveuiHighlightTimeline);
+  expect(timeline[0]).toEqual(expect.arrayContaining([expect.stringContaining('Workflows & Tasks')]));
+  expect(timeline.at(-1)).toEqual(expect.arrayContaining([expect.stringContaining(title)]));
+
+  const run = await expectVerifiedFixtureRun(request, [
+    'todo.list', 'liveui_infer_plan', 'liveui_get_current_page', 'liveui_execute',
+    'liveui_await_state', 'liveui_execute', 'liveui_await_state',
+    'liveui_highlight', 'liveui_highlight', 'liveui_highlight',
+  ]);
+  expect(run.scenarioName).toBe('most_recent_task');
+  expect(run.results[0].evidence).toMatchObject({ title });
+  expect(run.results[1].evidence).toMatchObject({ fallback: 'server-model' });
+  const titleStart = run.answer.indexOf(title);
+  expect(run.results.at(-3).arguments).toMatchObject({
+    targetId: 'route.root.components-todolistcomponent-razor-region-todo-list',
+    speechStartCharacter: 0,
+    speechEndCharacter: run.answer.indexOf('.') + 1,
+  });
+  expect(run.results.at(-2).arguments).toMatchObject({
+    targetId: 'route.root.components-todolistcomponent-razor-list-task-list',
+    matchText: title,
+    speechStartCharacter: titleStart,
+    speechEndCharacter: titleStart + title.length + 1,
+  });
+  const rowHighlight = run.results.at(-1);
+  expect(rowHighlight.arguments).toMatchObject({
+    matchText: title,
+    speechStartCharacter: run.answer.indexOf('I brought its row'),
+    speechEndCharacter: run.answer.length,
+  });
+  expect(rowHighlight.evidence).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  await expect.poll(async () => {
+    const response = await request.get('http://127.0.0.1:5110/__acceptance/speech');
+    const speech = await response.json();
+    return speech.calls.filter((call) => call.voiceId === 'af_heart').map((call) => call.text);
+  }, { timeout: 15_000 }).toEqual(expect.arrayContaining([
+    expect.stringContaining('I opened your task list'), expect.stringContaining(title), expect.stringContaining('I brought its row'),
+  ]));
+});
+
 test('connected Scenario A navigates to the compiled Todo route and highlights its ready task region', async ({ page, request }) => {
   await openComposer(page, true, '/workspace-guide');
   await expect(page.getByRole('heading', { name: 'Workspace guide' })).toBeVisible();
@@ -91,16 +159,58 @@ test('connected Scenario A navigates to the compiled Todo route and highlights i
   });
 });
 
-test('connected Scenario B selects and verifies the existing Completed tab', async ({ page, request }) => {
+test('asking which tasks are completed opens the Completed tab and narrates each visible row', async ({ page, request }) => {
   await openComposer(page, true);
-  await page.getByRole('textbox', { name: /message ellai/i }).fill('Show my completed tasks.');
+  await page.evaluate(() => {
+    window.__liveuiHighlightTimeline = [];
+    const record = () => {
+      const highlighted = [...document.querySelectorAll('[data-openconnect-liveui-highlight="true"]')]
+        .map((element) => element.innerText?.trim() || element.tagName)
+        .sort();
+      const previous = window.__liveuiHighlightTimeline.at(-1);
+      if (JSON.stringify(previous) !== JSON.stringify(highlighted)) window.__liveuiHighlightTimeline.push(highlighted);
+    };
+    new MutationObserver(record).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-openconnect-liveui-highlight'],
+      subtree: true,
+    });
+  });
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Which task is completed?');
   await page.getByRole('button', { name: /send to ellai/i }).click();
-  await expect(page.getByRole('log', { name: 'Conversation' })).toContainText('The Completed tab is selected and shows the completed tasks.', { timeout: 90_000 });
+  await expect(page.getByRole('log', { name: 'Conversation' })).toContainText(
+    'I opened the Completed tab so you can see the finished work. One completed task is Review the quarterly report. Another is Draft the annual report.',
+    { timeout: 90_000 });
   await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Review the quarterly report', { exact: true })).toBeVisible();
   await expect(page.getByText('Draft the annual report', { exact: true })).toBeVisible();
   await expect(page.getByText('Gather feedback for report', { exact: true })).toHaveCount(0);
-  await expectVerifiedFixtureRun(request, ['liveui_get_current_page', 'liveui_execute', 'liveui_await_state'], { verifiedState: 'state_verified' });
+  await expect(page.locator('.oc-bubble__live-speak')).toHaveClass(/--active/);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.length), { timeout: 15_000 }).toBeGreaterThanOrEqual(5);
+  const timeline = await page.evaluate(() => window.__liveuiHighlightTimeline);
+  expect(timeline[0]).toEqual(expect.arrayContaining([expect.stringContaining('Workflows & Tasks')]));
+  expect(timeline.at(-1)).toEqual(expect.arrayContaining([expect.stringContaining('Draft the annual report')]));
+
+  const run = await expectVerifiedFixtureRun(request, [
+    'todo.list', 'liveui_infer_plan', 'liveui_get_current_page', 'liveui_execute',
+    'liveui_await_state', 'liveui_highlight', 'liveui_highlight', 'liveui_highlight',
+  ]);
+  expect(run.scenarioName).toBe('completed_task_lookup');
+  expect(run.results[0].evidence.titles).toEqual(['Review the quarterly report', 'Draft the annual report']);
+  expect(run.results.at(-2).arguments.matchText).toBe('Review the quarterly report');
+  expect(run.results.at(-1).arguments.matchText).toBe('Draft the annual report');
+  await expect.poll(async () => {
+    const speech = await (await request.get('http://127.0.0.1:5110/__acceptance/speech')).json();
+    return speech.calls.filter((call) => call.voiceId === 'af_heart').map((call) => call.text);
+  }, { timeout: 15_000 }).toEqual(expect.arrayContaining([
+    expect.stringContaining('Review the quarterly report'), expect.stringContaining('Draft the annual report'),
+  ]));
+  if (process.env.OPENCONNECT_LIVEUI_REAL_KOKORO_WORKER) {
+    const speech = await (await request.get('http://127.0.0.1:5110/__acceptance/speech')).json();
+    const kokoroCalls = speech.calls.filter((call) => call.voiceId === 'af_heart' && call.provider === 'kokoro');
+    expect(kokoroCalls.length).toBeGreaterThanOrEqual(2);
+    expect(kokoroCalls.every((call) => call.audioBytes > 0)).toBe(true);
+  }
 });
 
 test('connected active-task request selects the existing Active tab instead of answering with a task summary', async ({ page, request }) => {
@@ -190,6 +300,92 @@ test('connected Scenario E inspects and explains the current task region without
   await expect(page.locator('.mud-overlay')).toHaveCount(0);
 
   await expectVerifiedFixtureRun(request, ['liveui_get_current_page', 'liveui_inspect', 'liveui_highlight']);
+});
+
+test('a status highlight request uses the visible task region and verifies its receipt without asking for a row title', async ({ page, request }) => {
+  await openComposer(page, true);
+  await page.evaluate(() => {
+    window.__liveuiHighlightTimeline = [];
+    const record = () => {
+      const highlighted = [...document.querySelectorAll('[data-openconnect-liveui-highlight="true"]')]
+        .map((element) => element.innerText?.trim() || element.tagName)
+        .sort();
+      const previous = window.__liveuiHighlightTimeline.at(-1);
+      if (JSON.stringify(previous) !== JSON.stringify(highlighted)) window.__liveuiHighlightTimeline.push(highlighted);
+    };
+    new MutationObserver(record).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-openconnect-liveui-highlight'],
+      subtree: true,
+    });
+  });
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Highlight the task status.');
+  await page.getByRole('button', { name: /send to ellai/i }).click();
+  const response = page.getByRole('log', { name: 'Conversation' });
+  await expect(response).toContainText(
+    'I highlighted the Todo task list so you can see the current task statuses.',
+    { timeout: 90_000 },
+  );
+  await expect(response).not.toContainText(/which task|exact task title|what should i highlight/i);
+  await expect(page.locator('.oc-bubble__live-speak')).toHaveClass(/--active/);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.length), { timeout: 15_000 }).toBeGreaterThan(1);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.some((entry) =>
+    entry.some((text) => text.includes('Prepare a launch checklist'))))).toBe(true);
+
+  const run = await expectVerifiedFixtureRun(request, ['liveui_get_current_page', 'liveui_highlight']);
+  expect(run.scenarioName).toBe('status_highlight');
+  expect(run.results.at(-1)).toMatchObject({
+    arguments: { targetId: 'route.root.components-todolistcomponent-razor-region-todo-list' },
+    evidence: { outcome: 'Completed', postconditionVerified: true, verifiedState: 'highlighted' },
+  });
+  await expect.poll(async () => {
+    const speech = await (await request.get('http://127.0.0.1:5110/__acceptance/speech')).json();
+    return speech.calls.some((call) => call.voiceId === 'af_heart' && call.text.includes('I highlighted the Todo task list'));
+  }, { timeout: 15_000 }).toBe(true);
+});
+
+test('a failed highlight is retried against the visible task region without asking for a row title', async ({ page, request }) => {
+  await openComposer(page, true);
+  await page.evaluate(() => {
+    window.__liveuiHighlightTimeline = [];
+    const record = () => {
+      const highlighted = [...document.querySelectorAll('[data-openconnect-liveui-highlight="true"]')]
+        .map((element) => element.innerText?.trim() || element.tagName)
+        .sort();
+      const previous = window.__liveuiHighlightTimeline.at(-1);
+      if (JSON.stringify(previous) !== JSON.stringify(highlighted)) window.__liveuiHighlightTimeline.push(highlighted);
+    };
+    new MutationObserver(record).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-openconnect-liveui-highlight'],
+      subtree: true,
+    });
+  });
+  await page.getByRole('textbox', { name: /message ellai/i }).fill(
+    "That highlight didn't come through. The Task list and todo-list region are visible and can be highlighted. Retry highlighting the task list.",
+  );
+  await page.getByRole('button', { name: /send to ellai/i }).click();
+  const response = page.getByRole('log', { name: 'Conversation' });
+  await expect(response).toContainText(
+    'I retried the highlight and highlighted the Todo task list so you can see the task statuses.',
+    { timeout: 90_000 },
+  );
+  await expect(response).not.toContainText(/which task|exact task title|what should i highlight/i);
+  await expect(page.locator('.oc-bubble__live-speak')).toHaveClass(/--active/);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.length), { timeout: 15_000 }).toBeGreaterThan(1);
+  await expect.poll(() => page.evaluate(() => window.__liveuiHighlightTimeline.some((entry) =>
+    entry.some((text) => text.includes('Prepare a launch checklist'))))).toBe(true);
+
+  const run = await expectVerifiedFixtureRun(request, ['liveui_get_current_page', 'liveui_highlight']);
+  expect(run.scenarioName).toBe('highlight_retry');
+  expect(run.results.at(-1)).toMatchObject({
+    arguments: { targetId: 'route.root.components-todolistcomponent-razor-region-todo-list' },
+    evidence: { outcome: 'Completed', postconditionVerified: true, verifiedState: 'highlighted' },
+  });
+  await expect.poll(async () => {
+    const speech = await (await request.get('http://127.0.0.1:5110/__acceptance/speech')).json();
+    return speech.calls.some((call) => call.voiceId === 'af_heart' && call.text.includes('I retried the highlight'));
+  }, { timeout: 15_000 }).toBe(true);
 });
 
 test('connected Todo policy hides and denies Add Task activation before browser execution', async ({ page, request }) => {

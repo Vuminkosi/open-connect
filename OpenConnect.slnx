@@ -27,6 +27,7 @@
     <Project Path="src/OpenConnect.Navigator.OperationalBrowser/OpenConnect.Navigator.OperationalBrowser.csproj" />
     <Project Path="src/OpenConnect.LiveUI/OpenConnect.LiveUI.csproj" />
     <Project Path="src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Inference/OpenConnect.LiveUI.Inference.csproj" />
     <Project Path="src/OpenConnect.LiveUI.Blazor/OpenConnect.LiveUI.Blazor.csproj" />
     <Project Path="src/OpenConnect.LiveUI.Compiler/OpenConnect.LiveUI.Compiler.csproj" />
     <Project Path="src/OpenConnect.Observability/OpenConnect.Observability.csproj" />

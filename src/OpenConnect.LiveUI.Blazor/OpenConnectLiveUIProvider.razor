@@ -23,7 +23,7 @@
     private readonly LiveUISpeechPlaybackFence _speechPlaybackFence = new();
     private readonly SemaphoreSlim _speechCueGate = new(1, 1);
     private readonly List<LiveUISpeechCue> _speechCues = [];
-    private readonly HashSet<string> _activeSpeechCueTargets = new(StringComparer.Ordinal);
+    private readonly HashSet<(string TargetId, string? MatchText)> _activeSpeechCueTargets = [];
     private readonly HashSet<(long PlaybackEpoch, int StartCharacter, int EndCharacter)> _speechCueMeasurementsAwaitingAck = [];
     [Parameter]
     public LiveUIManifest? Manifest { get; set; }
@@ -40,7 +40,7 @@
     private string? _lastRequestId;
     private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
-    private sealed record LiveUISpeechCue(string TargetId, int StartCharacter, int EndCharacter);
+    private sealed record LiveUISpeechCue(string TargetId, string? MatchText, int StartCharacter, int EndCharacter);
 
     protected override void OnParametersSet()
     {
@@ -175,12 +175,12 @@
         finally { _speechCueGate.Release(); }
     }
 
-    private async Task RegisterSpeechCueAsync(string targetId, int startCharacter, int endCharacter)
+    private async Task RegisterSpeechCueAsync(string targetId, string? matchText, int startCharacter, int endCharacter)
     {
         await _speechCueGate.WaitAsync();
         try
         {
-            _speechCues.Add(new LiveUISpeechCue(targetId, startCharacter, endCharacter));
+            _speechCues.Add(new LiveUISpeechCue(targetId, matchText, startCharacter, endCharacter));
         }
         finally { _speechCueGate.Release(); }
     }
@@ -198,8 +198,8 @@
             .Where(cue => cue.EndCharacter <= responseLength &&
                           cue.StartCharacter < playbackEvent.EndCharacter &&
                           cue.EndCharacter > playbackEvent.StartCharacter)
-            .Select(cue => cue.TargetId)
-            .ToHashSet(StringComparer.Ordinal);
+            .Select(cue => (cue.TargetId, cue.MatchText))
+            .ToHashSet();
         if (targets.Count == 0)
         {
             if (_activeSpeechCueTargets.Count > 0)
@@ -219,11 +219,14 @@
         _activeSpeechCueTargets.Clear();
         if (_agentTools is null) return false;
 
-        foreach (var targetId in targets.Order(StringComparer.Ordinal))
+        foreach (var (targetId, matchText) in targets.OrderBy(target => target.TargetId, StringComparer.Ordinal)
+                     .ThenBy(target => target.MatchText, StringComparer.Ordinal))
         {
-            var receipt = await _agentTools.HighlightAsync(targetId);
+            var receipt = matchText is null
+                ? await _agentTools.HighlightAsync(targetId)
+                : await _agentTools.HighlightTextAsync(targetId, matchText);
             if (receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
-                _activeSpeechCueTargets.Add(targetId);
+                _activeSpeechCueTargets.Add((targetId, matchText));
         }
 
         if (_activeSpeechCueTargets.SetEquals(targets)) return true;
@@ -271,7 +274,7 @@
             request.SpeechStartCharacter is int startCharacter &&
             request.SpeechEndCharacter is int endCharacter &&
             receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
-            await RegisterSpeechCueAsync(request.TargetId!, startCharacter, endCharacter);
+            await RegisterSpeechCueAsync(request.TargetId!, request.Value, startCharacter, endCharacter);
         return receipt;
     }
 

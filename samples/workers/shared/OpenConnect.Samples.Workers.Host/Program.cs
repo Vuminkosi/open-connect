@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,6 +13,7 @@ using OpenConnect.Agents.Templates;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.LiveUI.Inference;
 using OpenConnect.Navigator.AspNetCore;
 using OpenConnect.Samples.Workers.Contracts;
 
@@ -73,6 +76,22 @@ public static class SampleWorkerHostApp
             .AddAuthentication(SampleTestAuthHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, SampleTestAuthHandler>(SampleTestAuthHandler.SchemeName, _ => { });
         builder.Services.AddAuthorization();
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("liveui-inference", context =>
+            {
+                var tenant = context.User.FindFirst("tenant_id")?.Value ?? "anonymous";
+                var principal = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? context.User.FindFirst("sub")?.Value ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter($"{tenant}:{principal}", _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                });
+            });
+        });
 
         builder.Services.AddOpenConnect(options =>
         {
@@ -86,6 +105,21 @@ public static class SampleWorkerHostApp
         builder.Services.AddMafHostTaskExecutor();
         builder.Services.AddOpenConnectNavigator();
 
+        var liveUiWorkerToken = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
+        if (!string.IsNullOrWhiteSpace(liveUiWorkerToken))
+        {
+            var liveUiWorkerEndpoint = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"]
+                ?? "http://liveui-inference:8080";
+            if (!Uri.TryCreate(liveUiWorkerEndpoint, UriKind.Absolute, out var workerEndpoint))
+                throw new InvalidOperationException("OpenConnect:LiveUI:Inference:Worker:Endpoint must be an absolute HTTP endpoint.");
+
+            builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
+            {
+                options.Endpoint = workerEndpoint;
+                options.BearerToken = liveUiWorkerToken;
+            });
+        }
+
         var coordinator = new SampleGatewayCoordinator();
         builder.Services.AddSingleton(coordinator);
         builder.Services.AddSingleton(coordinator.CapabilityRegistry);
@@ -95,9 +129,11 @@ public static class SampleWorkerHostApp
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
         app.UseWebSockets();
 
         app.MapOpenConnect();
+        app.MapOpenConnectLiveUIInference();
 
         app.MapGet("/sample-harness/workers", () => Results.Ok(CanonicalWorkers.All));
 

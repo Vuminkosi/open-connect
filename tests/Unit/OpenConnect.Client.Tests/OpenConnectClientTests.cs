@@ -82,6 +82,23 @@ public sealed class OpenConnectClientTests
 
         await new OpenConnectClient(http).PostClientInteractionResponseAsync(sessionId, response);
     }
+
+    [Fact]
+    public async Task PostClientInteractionResponse_accepts_correlated_inference_plan()
+    {
+        var sessionId = new SessionId(Ulid.NewUlid());
+        var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "plan",
+            "{\"provider\":\"Browser\",\"plan\":{\"schemaVersion\":\"1.0\",\"actions\":[]},\"outcome\":\"completed\"}");
+        var handler = new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.EndsWith($"/sessions/{sessionId.Value}/liveui/responses", request.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/openconnect/v1/") };
+
+        await new OpenConnectClient(http).PostClientInteractionResponseAsync(sessionId, response);
+    }
     [Fact]
     public async Task SubscribeEvents_rejects_negative_cursor_before_request()
     {

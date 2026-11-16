@@ -240,6 +240,28 @@ public sealed class LiveUIInferenceTests
     }
 
     [Fact]
+    public async Task BrowserProvider_CancellationCancelsPendingPromptAndRethrows()
+    {
+        var request = Request with
+        {
+            ManifestHash = "manifest-hash",
+            RequestId = "request-id",
+            ExecutionId = "execution-id"
+        };
+        var runtime = new CancellationAwareBrowserInferenceRuntime();
+        var provider = new BrowserPromptApiInferenceProvider(runtime, Options.Create(new LiveUIInferenceOptions()));
+        using var cancellation = new CancellationTokenSource();
+
+        var pending = provider.GeneratePlanAsync(request, cancellation.Token);
+        await runtime.Module.GenerateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.True(runtime.Module.GenerateCancellationObserved);
+        Assert.Equal(1, runtime.Module.CancelCalls);
+    }
+
+    [Fact]
     public async Task BrowserFirst_UsesLocalWorkerBeforeNormalGatewayInference()
     {
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
@@ -256,6 +278,50 @@ public sealed class LiveUIInferenceTests
         var result = await router.GeneratePlanAsync(Request);
 
         Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
+        Assert.Equal(1, worker.GenerateCalls);
+        Assert.Equal(0, gateway.GenerateCalls);
+    }
+
+    [Fact]
+    public async Task DisabledExternalFallbackStillAllowsEnabledLocalWorkerFallback()
+    {
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var worker = new FakeProvider(LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions();
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.Disabled;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
+        Assert.Equal(1, worker.GenerateCalls);
+        Assert.Equal(0, gateway.GetAvailabilityCalls);
+        Assert.Equal(0, gateway.GenerateCalls);
+    }
+
+    [Fact]
+    public async Task BrowserModelThatRequiresDownloadFallsBackToWorkerWithoutInvokingBrowserInference()
+    {
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Downloadable, null);
+        var worker = new FakeProvider(LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions();
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
+        Assert.Equal(0, browser.GenerateCalls);
         Assert.Equal(1, worker.GenerateCalls);
         Assert.Equal(0, gateway.GenerateCalls);
     }
@@ -475,6 +541,58 @@ public sealed class LiveUIInferenceTests
             request.SchemaVersion,
             request.ManifestHash,
             new LiveUIActionPlan(request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class CancellationAwareBrowserInferenceRuntime : IJSRuntime
+    {
+        public CancellationAwareBrowserInferenceModule Module { get; } = new();
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
+            ValueTask.FromResult((TValue)(object)Module);
+    }
+
+    private sealed class CancellationAwareBrowserInferenceModule : IJSObjectReference
+    {
+        private readonly TaskCompletionSource<bool> _generateStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> GenerateStarted => _generateStarted;
+        public bool GenerateCancellationObserved { get; private set; }
+        public int CancelCalls { get; private set; }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier is "getAvailability" or "initialize")
+                return (TValue)(object)new LiveUIInferenceAvailability(
+                    LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Available);
+            if (identifier == "cancel")
+            {
+                CancelCalls++;
+                return default!;
+            }
+            if (identifier != "generate")
+                throw new InvalidOperationException($"Unexpected JavaScript call '{identifier}'.");
+
+            Assert.True(cancellationToken.CanBeCanceled);
+            _generateStarted.TrySetResult(true);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                throw new InvalidOperationException("The cancelled prompt unexpectedly completed.");
+            }
+            catch (OperationCanceledException)
+            {
+                GenerateCancellationObserved = true;
+                throw;
+            }
+        }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

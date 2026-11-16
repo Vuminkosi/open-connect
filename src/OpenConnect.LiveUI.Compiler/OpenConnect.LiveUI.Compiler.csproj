@@ -4,6 +4,8 @@
     <AssemblyName>OpenConnect.LiveUI.Compiler</AssemblyName>
     <RootNamespace>OpenConnect.LiveUI.Compiler</RootNamespace>
     <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RollForward>Major</RollForward>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>$(NoWarn);1591</NoWarn>

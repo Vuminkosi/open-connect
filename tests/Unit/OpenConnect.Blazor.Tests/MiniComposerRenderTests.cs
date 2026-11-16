@@ -1,3 +1,4 @@
+using System.Net;
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -19,21 +20,21 @@ namespace OpenConnect.Blazor.Tests;
 /// behaviour, settings disclosure, disposal and JS hydration fallback.
 /// bUnit <see cref="BunitContext"/> with Loose JSInterop; no network, Docker, or real JS.
 /// </summary>
-public sealed class MiniComposerRenderTests : BunitContext
+public sealed class MiniComposerRenderTests : OpenConnectBunitContext
 {
     public MiniComposerRenderTests()
     {
         Configure(this);
     }
 
-    private static void Configure(BunitContext context)
+    private static void Configure(BunitContext context, IOpenConnectClient? client = null)
     {
         context.JSInterop.Mode = JSRuntimeMode.Loose;
-        context.Services.AddMudServices();
+        context.Services.AddOpenConnectMudServices();
         // No-op keyboard-interception stub: the real KeyInterceptorService needs live JS and
         // only implements IAsyncDisposable, which breaks bUnit sync teardown. Chips render identically.
         context.Services.AddSingleton<IKeyInterceptorService, NoopKeyInterceptorService>();
-        context.Services.AddSingleton<IOpenConnectClient>(new FakeOpenConnectClient());
+        context.Services.AddSingleton<IOpenConnectClient>(client ?? new FakeOpenConnectClient());
         context.Services.AddSingleton(new OpenConnectComponentRegistry());
     }
 
@@ -50,8 +51,8 @@ public sealed class MiniComposerRenderTests : BunitContext
     [Fact]
     public void Closed_render_makes_no_composer_js_calls()
     {
-        using var strict = new BunitContext();
-        strict.Services.AddMudServices();
+        using var strict = new OpenConnectBunitContext();
+        strict.Services.AddOpenConnectMudServices();
         strict.Services.AddSingleton<IOpenConnectClient>(new FakeOpenConnectClient());
         strict.Services.AddSingleton(new OpenConnectComponentRegistry());
 
@@ -112,17 +113,41 @@ public sealed class MiniComposerRenderTests : BunitContext
     }
 
     [Fact]
-    public void Settings_toggle_discloses_placement_and_limits()
+    public void Settings_toggle_discloses_current_composer_controls()
     {
         var cut = RenderMiniComposer(this, NewSession(), startOpen: true);
 
-        Assert.Empty(cut.FindAll(".oc-bubble-settings"));
+        Assert.Empty(cut.FindAll(".oc-settings-menu"));
 
-        cut.Find("button[aria-label='Composer settings']").Click();
+        cut.Find("div[aria-label='Composer settings'] button").Click();
 
-        var settings = cut.Find(".oc-bubble-settings");
-        Assert.Contains("BottomRight", settings.TextContent, StringComparison.Ordinal);
-        Assert.Contains("8000", settings.TextContent, StringComparison.Ordinal);
+        var settings = cut.Find(".oc-settings-menu");
+        Assert.Contains("Composer settings", settings.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Voice output", settings.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Microphone", settings.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Speech_synthesis_failure_disables_voice_and_keeps_text_response_available()
+    {
+        using var context = new OpenConnectBunitContext();
+        var client = new FakeOpenConnectClient { SpeechSynthesisFailure = new HttpRequestException() };
+        Configure(context, client);
+        var session = NewSession();
+        var cut = RenderMiniComposer(context, session, startOpen: true);
+        var sessionId = new SessionId(Ulid.NewUlid());
+
+        session.BeginSend("Show my tasks.");
+        session.ApplyEvent(new EventRecord(sessionId, 1, "message.delta", "Your task list is ready."));
+        session.ApplyEvent(new EventRecord(sessionId, 2, "message.completed", string.Empty));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Voice output is unavailable. The text response is still available.", cut.Markup, StringComparison.Ordinal);
+            Assert.Contains("Your task list is ready.", cut.Markup, StringComparison.Ordinal);
+            Assert.DoesNotContain("oc-bubble__live-speak--active", cut.Markup, StringComparison.Ordinal);
+        });
+        Assert.Equal(1, client.SpeechSynthesisCallCount);
     }
 
     [Fact]
@@ -145,7 +170,7 @@ public sealed class MiniComposerRenderTests : BunitContext
 
         session.Changed += () => notifications++;
 
-        using (var ctx = new BunitContext())
+        using (var ctx = new OpenConnectBunitContext())
 
         {
 
@@ -184,14 +209,18 @@ public sealed class MiniComposerRenderTests : BunitContext
         ComposerPlacement placement = ComposerPlacement.BottomRight,
         IReadOnlyList<string>? suggestions = null)
     {
+        context.JSInterop.SetupVoid("mudPopover.dispose").SetVoidResult();
+        context.JSInterop.Setup<int>("mudpopoverHelper.countProviders").SetResult(1);
         return context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(p => p.Value, session)
             .Add(p => p.ChildContent, (RenderFragment)(builder =>
             {
-                builder.OpenComponent<MiniComposer>(0);
-                builder.AddAttribute(1, nameof(MiniComposer.StartOpen), startOpen);
-                builder.AddAttribute(2, nameof(MiniComposer.Placement), placement);
-                builder.AddAttribute(3, nameof(MiniComposer.Suggestions), suggestions);
+                builder.OpenComponent<MudPopoverProvider>(0);
+                builder.CloseComponent();
+                builder.OpenComponent<MiniComposer>(1);
+                builder.AddAttribute(2, nameof(MiniComposer.StartOpen), startOpen);
+                builder.AddAttribute(3, nameof(MiniComposer.Placement), placement);
+                builder.AddAttribute(4, nameof(MiniComposer.Suggestions), suggestions);
                 builder.CloseComponent();
             })));
     }
@@ -224,6 +253,16 @@ public sealed class MiniComposerRenderTests : BunitContext
     private sealed class FakeOpenConnectClient : IOpenConnectClient
     {
         public List<string> CreatedTaskMessages { get; } = new();
+        public Exception? SpeechSynthesisFailure { get; init; }
+        public int SpeechSynthesisCallCount { get; private set; }
+
+        public Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
+        {
+            SpeechSynthesisCallCount++;
+            return SpeechSynthesisFailure is null
+                ? Task.FromResult(new SpeechSynthesisResult("af_heart", "pcm", 24_000, 1, string.Empty))
+                : Task.FromException<SpeechSynthesisResult>(SpeechSynthesisFailure);
+        }
 
         public Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
         {
@@ -285,4 +324,5 @@ public sealed class MiniComposerRenderTests : BunitContext
             yield break;
         }
     }
+
 }

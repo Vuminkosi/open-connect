@@ -53,6 +53,7 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
     builder.Services.AddOpenConnectTaskExecution();
     builder.Services.AddOpenConnectAgent("worker-sample-direct");
     builder.Services.AddMetaTodoIntegration(builder.Configuration);
+    RegisterSameHostLiveUIWorker(builder.Services, builder.Configuration);
     builder.Services.AddOpenConnectClient(options =>
     {
         options.AllowInsecureHttp = true;
@@ -86,21 +87,22 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
     options.Interaction.EnableNavigation = true;
     options.Interaction.EnableFiltering = true;
     options.Interaction.EnableHighlighting = true;
+    options.Narration.Enabled = true;
+    options.Narration.SynchronizeWithSpeech = true;
 });
-var liveUiWorkerToken = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
-if (!string.IsNullOrWhiteSpace(liveUiWorkerToken))
+if (gatewayOptions.Mode == TodoGatewayMode.ExternalGateway)
 {
-    var liveUiWorkerEndpoint = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"]
-        ?? "http://liveui-inference:8080";
-    if (!Uri.TryCreate(liveUiWorkerEndpoint, UriKind.Absolute, out var workerEndpoint))
-        throw new InvalidOperationException("OpenConnect:LiveUI:Inference:Worker:Endpoint must be an absolute HTTP endpoint.");
-
     builder.Services.Configure<LiveUIInferenceOptions>(options => options.Worker.Enabled = true);
-    builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
+    builder.Services.AddHttpClient<GatewayWorkerLiveUIInferenceProvider>((services, client) =>
     {
-        options.Endpoint = workerEndpoint;
-        options.BearerToken = liveUiWorkerToken;
+        var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;
+        client.BaseAddress = gatewayClientOptions.ApiBaseAddress;
+        foreach (var header in gatewayClientOptions.WebSocketHeaders)
+            client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+        client.Timeout = Timeout.InfiniteTimeSpan;
     });
+    builder.Services.AddScoped<ILiveUIInferenceProvider>(services =>
+        services.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
 }
 builder.Services.AddOpenConnectComposer(options =>
 {
@@ -119,6 +121,10 @@ builder.Services.AddOpenConnectComponent<TodoProgressComponent>();
 // Todo store
 var useAcceptanceTodoData = builder.Configuration.GetValue<bool>("OpenConnect:Todo:AcceptanceData") ||
     bool.TryParse(Environment.GetEnvironmentVariable("OPENCONNECT_BLAZOR_ACCEPTANCE_DATA"), out var acceptanceDataEnabled) && acceptanceDataEnabled;
+var exposeLiveUIMetricsForAcceptance = builder.Environment.IsDevelopment() && useAcceptanceTodoData;
+if (exposeLiveUIMetricsForAcceptance)
+    builder.Services.AddSingleton<LiveUIMetricsAcceptanceRecorder>();
+
 builder.Services.AddSingleton<ITodoStore>(_ => useAcceptanceTodoData
     ? InMemoryTodoStore.CreateAcceptanceStore()
     : new InMemoryTodoStore());
@@ -170,9 +176,25 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapTodoInternalApi();
+if (exposeLiveUIMetricsForAcceptance)
+{
+    app.MapGet("/__acceptance/liveui-metrics", (LiveUIMetricsAcceptanceRecorder recorder) => Results.Ok(new
+    {
+        framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        operatingSystem = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+        measurements = recorder.Snapshot()
+    }));
+    app.MapPost("/__acceptance/liveui-metrics/reset", (LiveUIMetricsAcceptanceRecorder recorder) =>
+    {
+        recorder.Reset();
+        return Results.NoContent();
+    });
+}
+
 if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
     app.MapOpenConnect();
+    app.MapOpenConnectLiveUIInference();
 }
 else if (builder.Environment.IsDevelopment())
 {
@@ -183,3 +205,21 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+static void RegisterSameHostLiveUIWorker(IServiceCollection services, IConfiguration configuration)
+{
+    var token = configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
+    if (string.IsNullOrWhiteSpace(token))
+        return;
+
+    var endpoint = configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"] ?? "http://liveui-inference:8080";
+    if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var workerEndpoint))
+        throw new InvalidOperationException("OpenConnect:LiveUI:Inference:Worker:Endpoint must be an absolute HTTP endpoint.");
+
+    services.AddLiveUILocalWorkerInferenceProvider(options =>
+    {
+        options.Endpoint = workerEndpoint;
+        options.BearerToken = token;
+    });
+    services.Configure<LiveUIInferenceOptions>(options => options.Worker.Enabled = true);
+}

@@ -13,12 +13,12 @@ using Xunit;
 
 namespace OpenConnect.Blazor.Tests;
 
-public sealed class BlazorRegistrationAndProviderTests : BunitContext
+public sealed class BlazorRegistrationAndProviderTests : OpenConnectBunitContext
 {
     public BlazorRegistrationAndProviderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddOpenConnectMudServices();
         Services.AddSingleton<IKeyInterceptorService, NoopKeyInterceptorService>();
     }
 
@@ -125,6 +125,7 @@ public sealed class BlazorRegistrationAndProviderTests : BunitContext
         Services.AddSingleton<IOpenConnectClient>(new FakeOpenConnectClient());
 
         var sessionId = Ulid.NewUlid().ToString();
+        this.AddPopoverHost();
         var cut = Render<OpenConnectProvider>(parameters => parameters
             .Add(p => p.SessionId, sessionId)
             .Add(p => p.AutoSubscribe, false)
@@ -202,6 +203,7 @@ public sealed class BlazorRegistrationAndProviderTests : BunitContext
         Services.AddOpenConnectComposer();
         Services.AddSingleton<IOpenConnectClient>(fakeClient);
 
+        this.AddPopoverHost();
         var cut = Render<OpenConnectProvider>(parameters => parameters
             .Add(p => p.SessionId, sessionUlid.ToString())
             .Add(p => p.AutoSubscribe, true)

@@ -685,6 +685,7 @@
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
           "OpenConnect.LiveUI.Agents": "[1.0.0, )",
+          "OpenConnect.LiveUI.Inference": "[1.0.0, )",
           "OpenConnect.Navigator": "[1.0.0, )",
           "OpenConnect.Navigator.AspNetCore": "[1.0.0, )",
           "OpenConnect.Navigator.Operational": "[1.0.0, )",
