@@ -336,6 +336,94 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
     }
 
+    [Fact]
+    public async Task Broker_ignores_wrong_correlation_and_response_in_another_session()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var other = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlation = Guid.NewGuid().ToString("D");
+        var pending = store.RequestAsync(new SessionId(session.Id.Value),
+            new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab"),
+            "action", TimeSpan.FromSeconds(2));
+        await WaitForRequestAsync(store, session.Id.Value, "execute");
+
+        var wrongSessionResponse = VerifiedResponse(correlation) with
+        {
+            PayloadJson = "{\"outcome\":\"WrongSession\"}"
+        };
+        await store.AppendEventAsync(other.Id.Value, ClientInteractionEventTypes.Response,
+            JsonSerializer.Serialize(wrongSessionResponse, OpenConnectHttpJson.CreateOptions()));
+        var wrongCorrelationResponse = VerifiedResponse(Guid.NewGuid().ToString("D")) with
+        {
+            PayloadJson = "{\"outcome\":\"WrongCorrelation\"}"
+        };
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            JsonSerializer.Serialize(wrongCorrelationResponse, OpenConnectHttpJson.CreateOptions()));
+
+        var expectedResponse = VerifiedResponse(correlation) with
+        {
+            PayloadJson = "{\"outcome\":\"CorrectResponse\",\"receipt\":\"expected\"}"
+        };
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            JsonSerializer.Serialize(expectedResponse, OpenConnectHttpJson.CreateOptions()));
+        var actualResponse = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.NotNull(actualResponse);
+        Assert.Equal(expectedResponse.CorrelationId, actualResponse.CorrelationId);
+        Assert.Equal(expectedResponse.ResultKind, actualResponse.ResultKind);
+        Assert.Equal(expectedResponse.PayloadJson, actualResponse.PayloadJson);
+        Assert.DoesNotContain("WrongSession", actualResponse.PayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("WrongCorrelation", actualResponse.PayloadJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Concurrent_broker_requests_receive_only_their_correlated_responses()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlations = Enumerable.Range(0, 2).Select(_ => Guid.NewGuid().ToString("D")).ToArray();
+        Assert.Equal(2, correlations.Distinct(StringComparer.Ordinal).Count());
+        var requests = correlations.Select(correlation => store.RequestAsync(new SessionId(session.Id.Value),
+            new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab"),
+            "action", TimeSpan.FromSeconds(2))).ToArray();
+        await WaitForRequestsAsync(store, session.Id.Value, correlations);
+
+        foreach (var correlation in correlations.Reverse())
+            await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+                JsonSerializer.Serialize(VerifiedResponse(correlation), OpenConnectHttpJson.CreateOptions()));
+
+        var responses = await Task.WhenAll(requests.Select(request => request.WaitAsync(TimeSpan.FromSeconds(2))));
+        Assert.Equal(correlations, responses.Select(response => response!.CorrelationId));
+    }
+
+    [Fact]
+    public async Task Cancelled_broker_request_does_not_accept_a_late_response()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var correlation = Guid.NewGuid().ToString("D");
+        using var cancellation = new CancellationTokenSource();
+        var pending = store.RequestAsync(new SessionId(session.Id.Value),
+            new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab"),
+            "action", TimeSpan.FromSeconds(2), cancellation.Token);
+        await WaitForRequestAsync(store, session.Id.Value, "execute");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+
+        using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var lateResponse = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), VerifiedResponse(correlation), AuthenticatedContext(services), store);
+        Assert.Equal(StatusCodes.Status409Conflict,
+            (await ExecuteAsync(lateResponse, services)).StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0),
+            item => item.Type == ClientInteractionEventTypes.Response);
+        Assert.Contains(store.GetEvents(session.Id.Value, 0), item =>
+            item.Type == ClientInteractionEventTypes.Cancellation &&
+            JsonSerializer.Deserialize<ClientInteractionCancellation>(item.Data, OpenConnectHttpJson.CreateOptions())!
+                .CorrelationId == correlation);
+    }
+
     private static Task AppendPendingRequestAsync(InMemorySessionStore store, Ulid sessionId, string correlationId) =>
         store.AppendEventAsync(sessionId, ClientInteractionEventTypes.Request,
             JsonSerializer.Serialize(new ClientInteractionRequest(correlationId, "execute", "todo.completed", "SelectTab"),
@@ -384,6 +472,25 @@ public sealed class LiveUIClientInteractionRoundTripTests
             await Task.Delay(10);
         }
         throw new TimeoutException("The LiveUI MAF tool did not append a client request.");
+    }
+
+    private static async Task WaitForRequestsAsync(
+        InMemorySessionStore sessions, Ulid sessionId, IReadOnlyCollection<string> correlations)
+    {
+        for (var attempt = 0; attempt < 10_000; attempt++)
+        {
+            var registered = sessions.GetEvents(sessionId, 0)
+                .Where(item => item.Type == ClientInteractionEventTypes.Request)
+                .Select(item => JsonSerializer.Deserialize<ClientInteractionRequest>(
+                    item.Data, OpenConnectHttpJson.CreateOptions()))
+                .Where(item => item is not null)
+                .Select(item => item!.CorrelationId)
+                .ToHashSet(StringComparer.Ordinal);
+            if (correlations.All(registered.Contains)) return;
+            await Task.Yield();
+        }
+
+        throw new TimeoutException("Both correlated client requests were not registered in the session event stream.");
     }
 
     private static DefaultHttpContext AuthenticatedContext(
