@@ -1,6 +1,7 @@
 using Microsoft.JSInterop;
 using Microsoft.Extensions.Options;
 using OpenConnect.LiveUI.Inference;
+using System.Diagnostics;
 
 namespace OpenConnect.LiveUI.Blazor;
 
@@ -8,8 +9,13 @@ namespace OpenConnect.LiveUI.Blazor;
 public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOptions<LiveUIInferenceOptions> options) : ILiveUIInferenceProvider, IAsyncDisposable
 {
     private const string ModulePath = "./_content/OpenConnect.LiveUI.Blazor/liveui-inference.js";
+    private const int CompletedCorrelationLimit = 1024;
+    private static readonly TimeSpan CompletedCorrelationLifetime = TimeSpan.FromMinutes(10);
     private IJSObjectReference? _module;
     private bool _disposed;
+    private readonly object _completedCorrelationsLock = new();
+    private readonly Dictionary<string, long> _completedCorrelations = new(StringComparer.Ordinal);
+    private readonly Queue<(string RequestId, long CompletedAt)> _completedCorrelationOrder = new();
     public LiveUIInferenceProviderKind Kind => LiveUIInferenceProviderKind.Browser;
 
     /// <summary>Initializes a browser model from a user gesture. This is the only API that may start a model download.</summary>
@@ -58,7 +64,7 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
                 request.RouteId,
                 request.Capabilities);
             var response = await module.InvokeAsync<LiveUIBrowserInferenceResponse>("generate", cancellationToken,
-                browserRequest, options.Value.Browser.EnableStructuredOutput);
+                browserRequest, options.Value.Browser.EnableStructuredOutput).ConfigureAwait(false);
             if (response is null ||
                 !string.Equals(response.RequestId, request.RequestId, StringComparison.Ordinal) ||
                 !string.Equals(response.ExecutionId, request.ExecutionId, StringComparison.Ordinal) ||
@@ -67,6 +73,13 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
                 !string.Equals(response.ManifestHash, request.ManifestHash, StringComparison.Ordinal) ||
                 response.Plan is null)
                 return new(Kind, null, "browser_response_mismatch");
+
+            var completionStatus = TryMarkCorrelationCompleted(request.RequestId);
+            if (completionStatus == CorrelationCompletionStatus.Replay)
+                return new(Kind, null, "browser_response_replay");
+            if (completionStatus == CorrelationCompletionStatus.CapacityExceeded)
+                return new(Kind, null, "browser_response_replay_cache_full");
+
             return new(Kind, response.Plan, "completed");
         }
         catch (OperationCanceledException)
@@ -87,6 +100,46 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
         {
             return new(Kind, null, "browser_prompt_api_unavailable");
         }
+    }
+
+    private CorrelationCompletionStatus TryMarkCorrelationCompleted(string requestId)
+    {
+        lock (_completedCorrelationsLock)
+        {
+            var now = Stopwatch.GetTimestamp();
+            PruneCompletedCorrelations(now);
+            if (_completedCorrelations.ContainsKey(requestId))
+                return CorrelationCompletionStatus.Replay;
+
+            if (_completedCorrelations.Count >= CompletedCorrelationLimit)
+                return CorrelationCompletionStatus.CapacityExceeded;
+
+            _completedCorrelations.Add(requestId, now);
+            _completedCorrelationOrder.Enqueue((requestId, now));
+            return CorrelationCompletionStatus.Completed;
+        }
+    }
+
+    private enum CorrelationCompletionStatus
+    {
+        Completed,
+        Replay,
+        CapacityExceeded
+    }
+
+    private void PruneCompletedCorrelations(long now)
+    {
+        var lifetimeTicks = (long)(CompletedCorrelationLifetime.TotalSeconds * Stopwatch.Frequency);
+        while (_completedCorrelationOrder.TryPeek(out var entry) && now - entry.CompletedAt >= lifetimeTicks)
+            RemoveOldestCompletedCorrelation();
+    }
+
+    private void RemoveOldestCompletedCorrelation()
+    {
+        var entry = _completedCorrelationOrder.Dequeue();
+        if (_completedCorrelations.TryGetValue(entry.RequestId, out var completedAt) &&
+            completedAt == entry.CompletedAt)
+            _completedCorrelations.Remove(entry.RequestId);
     }
 
     private ValueTask<IJSObjectReference> GetModuleAsync(CancellationToken cancellationToken)

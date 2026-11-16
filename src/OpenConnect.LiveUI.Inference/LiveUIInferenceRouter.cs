@@ -98,7 +98,11 @@ public sealed class LiveUIInferenceRouter(
         var lastErrorType = "inference_unavailable";
         foreach (var kind in order)
         {
-            if (kind != order[0] && settings.Gateway.FallbackPolicy == LiveUIFallbackPolicy.Disabled) continue;
+            // Gateway fallback is independently controlled. An enabled local worker remains
+            // a permitted privacy-local fallback even when external inference is disabled.
+            if (kind == LiveUIInferenceProviderKind.Gateway &&
+                kind != order[0] &&
+                settings.Gateway.FallbackPolicy == LiveUIFallbackPolicy.Disabled) continue;
             if (kind == LiveUIInferenceProviderKind.Browser && !settings.Browser.Enabled) continue;
             if (kind == LiveUIInferenceProviderKind.LocalWorker && !settings.Worker.Enabled) continue;
             if (kind == LiveUIInferenceProviderKind.Gateway && (!settings.Gateway.Enabled || settings.Mode == LiveUIInferenceMode.BrowserOnly)) continue;
@@ -125,6 +129,12 @@ public sealed class LiveUIInferenceRouter(
                     continue;
                 }
                 var result = await provider.GeneratePlanAsync(request, timeout.Token).ConfigureAwait(false);
+                if (result.Outcome == "browser_response_replay_cache_full")
+                {
+                    // Replay protection saturation is a security boundary, not a provider
+                    // failure that may be bypassed by trying another inference provider.
+                    return result;
+                }
                 if (result.Plan is null || !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
                 {
                     lastFailure = new InvalidOperationException("invalid_plan");
