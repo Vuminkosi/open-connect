@@ -102,13 +102,14 @@ test('real provider grounds its recommendation and highlights the unique highest
   await turn.waitForCompletion();
 });
 
-test('real provider explains the current screen from inspected state without an onboarding popup', async ({ page }) => {
+test('real provider explains the current screen and highlights the task area', async ({ page }) => {
   await openComposer(page);
   const turn = await sendPrompt(page, "Explain what I'm looking at and highlight the task area.");
 
   await expect(page.getByRole('heading', { name: 'Workflows & Tasks' })).toBeVisible();
   await expectHighlightActivation(page, { text: 'Prepare a launch checklist' });
-  await expect(turn.response).toContainText(/workflows|tasks/i);
+  await expect(turn.response).toContainText(/\b(?:workflows|tasks?|todos?)\b/i);
+  await expect(turn.response).toContainText(/\b(?:search|filter|progress|tabs?)\b/i);
   await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toHaveCount(1);
   await expect(page.locator('.mud-overlay')).toHaveCount(0);
   await turn.waitForCompletion();
