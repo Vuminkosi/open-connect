@@ -97,3 +97,32 @@ for (const scenario of cases) {
     await verifyWorkerPlan(page, request, scenario.actions);
   });
 }
+
+
+test('real conversation does not substitute a Todo action for an unsupported account request', async ({ page, request }) => {
+  await page.goto('/');
+  await page.locator('.oc-anchored-fab').click();
+  await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
+  const voice = page.locator('.oc-bubble__live-speak');
+  if (await voice.evaluate((element) => element.classList.contains('oc-bubble__live-speak--active'))) {
+    await page.locator('.oc-bubble__header-actions button').first().click();
+    await page.getByText('Voice output', { exact: true }).click();
+  }
+  await expect(page.locator('.oc-status__text')).toHaveText('Ready');
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Change my account password on this page.');
+  await page.getByRole('button', { name: /send to ellai/i }).click();
+  await expect(page.locator('.oc-status__text')).toHaveText(/Replying/, { timeout: 30_000 });
+  await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
+  await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
+  await page.locator('.oc-bubble__header-actions button').first().click();
+  const sessionText = await page.getByText(/^Session:/).textContent();
+  const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
+  expect(sessionId).toBeTruthy();
+  const response = await request.get(`http://127.0.0.1:5120/openconnect/v1/sessions/${sessionId}/events`, {
+    headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
+  });
+  expect(response.status()).toBe(200);
+  const operations = (await response.json()).filter((event) => event.type === 'liveui.request')
+    .map((event) => JSON.parse(event.data).operation);
+  expect(operations.filter((operation) => ['execute', 'navigate', 'highlight'].includes(operation))).toEqual([]);
+});
