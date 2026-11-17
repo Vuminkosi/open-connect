@@ -23,6 +23,20 @@ public sealed class LiveUIInferenceTests
         [new("todo.tab.completed", ["activate"])]);
 
     [Fact]
+    public void Capability_labels_are_optional_and_round_trip_through_the_wire_contract()
+    {
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var legacy = JsonSerializer.Deserialize<LiveUIInferenceCapability>("{\"targetId\":\"todo\",\"actions\":[\"inspect\"]}", jsonOptions);
+        Assert.NotNull(legacy);
+        Assert.Null(legacy.Label);
+        var labeled = legacy with { Label = "Task list" };
+        var roundTrip = JsonSerializer.Deserialize<LiveUIInferenceCapability>(JsonSerializer.Serialize(labeled, jsonOptions), jsonOptions);
+        Assert.Equal("Task list", roundTrip!.Label);
+        Assert.Equal(legacy.TargetId, roundTrip.TargetId);
+        Assert.Equal(legacy.Actions, roundTrip.Actions);
+    }
+
+    [Fact]
     public void Options_DefaultToLocalFirstWithProvidersDisabled()
     {
         var options = new LiveUIInferenceOptions();

@@ -53,6 +53,7 @@ public static class LiveUIInferenceEndpoints
             request.ManifestHash is not { Length: > 0 and <= 128 } || request.Capabilities is null ||
             request.Capabilities.Count is < 1 or > 512 || request.Capabilities.Any(capability =>
                 capability is null || capability.TargetId is not { Length: > 0 and <= 256 } ||
+                capability.Label is { Length: > 256 } ||
                 capability.Actions is null || capability.Actions.Count is < 1 or > 16 ||
                 capability.Actions.Any(action => action is not { Length: > 0 and <= 32 })) ||
             request.Capabilities.Select(capability => capability.TargetId).Distinct(StringComparer.Ordinal).Count() != request.Capabilities.Count)

@@ -23,7 +23,7 @@ public sealed class FirewallGuardedGatewayInferenceTests
         var guarded = CreateGuarded(inner, allow: true);
         var provider = new FirewallGuardedLiveUIGatewayInferenceProvider(guarded);
         var request = new LiveUIInferenceRequest("Show completed tasks", "session", "todo", "openconnect.liveui/v1",
-            [new("todo.tab.completed", ["activate"])]);
+            [new("todo.tab.completed", ["activate"]) { Label = "Completed tasks" }]);
 
         var result = await provider.GeneratePlanAsync(request);
 
@@ -65,7 +65,9 @@ public sealed class FirewallGuardedGatewayInferenceTests
             Assert.Contains(messages, message => message.Role == ChatRole.User && message.Text.Contains("Show completed tasks", StringComparison.Ordinal));
             Assert.Contains(messages, message => message.Role == ChatRole.User &&
                 message.Text.Contains("\"type\"", StringComparison.Ordinal) &&
-                message.Text.Contains("\"targetId\"", StringComparison.Ordinal));
+                message.Text.Contains("\"targetId\"", StringComparison.Ordinal) &&
+                message.Text.Contains("Completed tasks", StringComparison.Ordinal) &&
+                message.Text.Contains("untrusted display data", StringComparison.Ordinal));
             Assert.Equal(ChatResponseFormat.Json, options?.ResponseFormat);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, responseText)));
         }

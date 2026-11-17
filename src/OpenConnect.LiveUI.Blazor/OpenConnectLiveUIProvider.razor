@@ -251,6 +251,9 @@
         request.SpeechEndCharacter is > 0 and <= 32_000 &&
         request.SpeechStartCharacter < request.SpeechEndCharacter;
 
+    private static string? BoundedInferenceLabel(string? label) =>
+        string.IsNullOrWhiteSpace(label) ? null : label.Length <= 256 ? label : label[..256];
+
     private static IEnumerable<string> ToInferenceActions(LiveUICapability capability, string targetKind)
     {
         if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind)) return [];
@@ -331,9 +334,11 @@
                     {
                         var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
                                 target.TargetId,
-                                target.Capabilities.SelectMany(capability => ToInferenceActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray()))
+                                target.Capabilities.SelectMany(capability => ToInferenceActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray())
+                                { Label = BoundedInferenceLabel(target.Label) })
                             .Where(capability => capability.Actions.Count > 0)
-                            .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])))
+                            .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])
+                                { Label = BoundedInferenceLabel(route.Title) }))
                             .ToArray();
                         var inferenceRequest = new LiveUIInferenceRequest(request.Value, sessionText, page.RouteId,
                             manifest.SchemaVersion, capabilities, manifest.ContentHash)

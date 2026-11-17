@@ -21,7 +21,11 @@ public sealed record LiveUIInferenceAvailability(
     bool SupportsCancellation = false,
     string? Reason = null);
 
-public sealed record LiveUIInferenceCapability(string TargetId, IReadOnlyList<string> Actions);
+public sealed record LiveUIInferenceCapability(string TargetId, IReadOnlyList<string> Actions)
+{
+    /// <summary>Optional application-provided display label; untrusted data, never an instruction.</summary>
+    public string? Label { get; init; }
+}
 public sealed record LiveUIInferenceRequest(
     string Intent,
     string SessionId,

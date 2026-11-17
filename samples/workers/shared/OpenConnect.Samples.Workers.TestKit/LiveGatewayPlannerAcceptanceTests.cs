@@ -48,9 +48,13 @@ public sealed class LiveGatewayPlannerAcceptanceTests
             new SessionId(Ulid.NewUlid()), EgressDestination.ExternalModel);
         using var guarded = new FirewallGuardedChatClient(chat.AsIChatClient(), gate, new FixedEgressContextProvider(context));
         var provider = new FirewallGuardedLiveUIGatewayInferenceProvider(guarded);
-        var request = new LiveUIInferenceRequest(intent, "acceptance-session", Route, "openconnect.liveui/v1",
-            [new(Route, ["navigate"]), new(Completed, ["activate"]), new(Active, ["activate"]),
-             new(Search, ["setValue", "focus"]), new(List, ["highlight", "scroll"]), new(Region, ["inspect"])]);
+        var currentRoute = firstType == "navigate" ? "route.workspace-guide" : Route;
+        var request = new LiveUIInferenceRequest(intent, "acceptance-session", currentRoute, "openconnect.liveui/v1",
+            [new(Route, ["navigate"]) { Label = "OpenConnect - Todo Application" },
+             new(Completed, ["activate"]) { Label = "Completed" }, new(Active, ["activate"]) { Label = "Active" },
+             new(Search, ["setValue", "focus"]) { Label = "Search tasks by title or description..." },
+             new(List, ["highlight", "inspect", "scroll"]) { Label = "Task list" },
+             new(Region, ["highlight", "inspect", "scroll"]) { Label = "todo-list" }]);
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         var result = await provider.GeneratePlanAsync(request, timeout.Token);

@@ -56,6 +56,47 @@ async function expectHighlightActivation(page, expected) {
   { timeout: 35_000 }).toBe(true);
 }
 
+async function expectGatewayPlanExecuted(page, request, expectedActions) {
+  const metrics = await (await request.get('/__acceptance/liveui-metrics')).json();
+  expect(metrics.measurements['openconnect.liveui.inference.requests']).toContainEqual(
+    expect.objectContaining({ provider: 'gateway', outcome: 'completed' }));
+  await page.locator('.oc-bubble__header-actions button').first().click();
+  const sessionText = await page.getByText(/^Session:/).textContent();
+  const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
+  expect(sessionId).toBeTruthy();
+  const eventsResponse = await request.get(`/openconnect/v1/sessions/${sessionId}/events`);
+  expect(eventsResponse.status()).toBe(200);
+  const events = (await eventsResponse.json()).filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
+    .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
+  const plans = events.filter((event) => event.type === 'liveui.response' && event.payload.resultKind === 'plan')
+    .map((event) => ({ event, plan: JSON.parse(event.payload.payloadJson) }))
+    .filter(({ plan }) => plan.provider === 'Gateway' && plan.outcome === 'completed');
+  const matching = plans.find(({ plan }) => expectedActions.every((expected) => plan.plan.actions.some((action) =>
+    action.type === expected.type && action.targetId.endsWith(expected.targetSuffix) &&
+    (expected.value === undefined || action.value === expected.value))));
+  expect(matching).toBeTruthy();
+  const planRequest = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'infer_plan' &&
+    event.payload.correlationId === matching.event.payload.correlationId);
+  expect(planRequest).toBeTruthy();
+  let after = matching.event.sequence;
+  for (const expected of expectedActions) {
+    const action = matching.plan.plan.actions.find((item) => item.type === expected.type &&
+      item.targetId.endsWith(expected.targetSuffix) && (expected.value === undefined || item.value === expected.value));
+    const operation = { navigate: 'navigate', activate: 'execute', setValue: 'execute', highlight: 'highlight', inspect: 'inspect' }[expected.type];
+    const execution = events.find((event) => event.sequence > after && event.type === 'liveui.request' &&
+      event.payload.operation === operation &&
+      (expected.type === 'navigate' ? event.payload.routeId === action.targetId : event.payload.targetId === action.targetId) &&
+      (expected.type !== 'activate' || event.payload.action === 'SelectTab') &&
+      (expected.type !== 'setValue' || (event.payload.action === 'SetValue' && event.payload.value === expected.value)));
+    expect(execution).toBeTruthy();
+    const receipt = events.find((event) => event.type === 'liveui.response' &&
+      event.payload.correlationId === execution.payload.correlationId);
+    expect(receipt).toBeTruthy();
+    expect(JSON.parse(receipt.payload.payloadJson)).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+    after = receipt.sequence;
+  }
+}
+
 test('real provider navigates from another compiled route and highlights the existing Todo region', async ({ page }) => {
   await openComposer(page, '/workspace-guide');
   const turn = await sendPrompt(page, 'Open my Todo list and highlight the task list.');
@@ -86,35 +127,45 @@ test('gateway planner executes a real-provider plan in the connected Todo UI', a
   const turn = await sendPrompt(page, 'Show completed tasks.');
   await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
   await turn.waitForCompletion();
-  const metrics = await (await request.get('/__acceptance/liveui-metrics')).json();
-  expect(metrics.measurements['openconnect.liveui.inference.requests']).toContainEqual(
-    expect.objectContaining({ provider: 'gateway', outcome: 'completed' }));
-  await page.locator('.oc-bubble__header-actions button').first().click();
-  const sessionText = await page.getByText(/^Session:/).textContent();
-  const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
-  expect(sessionId).toBeTruthy();
-  const eventsResponse = await request.get(`/openconnect/v1/sessions/${sessionId}/events`);
-  expect(eventsResponse.status()).toBe(200);
-  const events = (await eventsResponse.json()).filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
-    .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
-  const planRequest = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'infer_plan');
-  expect(planRequest).toBeTruthy();
-  const planResponse = events.find((event) => event.type === 'liveui.response' &&
-    event.payload.correlationId === planRequest.payload.correlationId);
-  expect(planResponse).toBeTruthy();
-  const plan = JSON.parse(planResponse.payload.payloadJson);
-  expect(plan.provider).toBe('Gateway');
-  expect(plan.outcome).toBe('completed');
-  const selected = plan.plan.actions.find((action) => action.type === 'activate' && action.targetId.endsWith('-tab-completed'));
-  expect(selected).toBeTruthy();
-  const execute = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'execute' &&
-    event.payload.targetId === selected.targetId && event.payload.action === 'SelectTab');
-  expect(execute).toBeTruthy();
-  const receipt = events.find((event) => event.type === 'liveui.response' &&
-    event.payload.correlationId === execute.payload.correlationId);
-  expect(receipt).toBeTruthy();
-  expect(JSON.parse(receipt.payload.payloadJson)).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  await expectGatewayPlanExecuted(page, request, [{ type: 'activate', targetSuffix: '-tab-completed' }]);
 });
+
+const gatewayAcceptanceCases = [
+  { name: 'open Todo', prompt: 'Open my Todo list.', route: '/workspace-guide',
+    actions: [{ type: 'navigate', targetSuffix: 'route.root' }] },
+  { name: 'show active tasks', prompt: 'Show active tasks.',
+    actions: [{ type: 'activate', targetSuffix: '-tab-active' }] },
+  { name: 'search for report', prompt: 'Search for report.',
+    actions: [{ type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
+  { name: 'filter completed report tasks', prompt: 'Show completed tasks containing report.',
+    actions: [{ type: 'activate', targetSuffix: '-tab-completed' },
+      { type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
+  { name: 'highlight results', prompt: 'Highlight the results.',
+    actions: [{ type: 'highlight', targetSuffix: '-list-task-list' }] },
+  { name: 'explain current view', prompt: 'Explain the current view.',
+    actions: [{ type: 'inspect', targetSuffix: '-region-todo-list' }] },
+];
+
+for (const scenario of gatewayAcceptanceCases) {
+  test(`gateway acceptance: ${scenario.name}`, async ({ page, request }) => {
+    test.skip(process.env.OPENCONNECT_LIVEUI_REAL_GATEWAY_PLANNER_RUN !== '1', 'Requires the opt-in same-host gateway planner.');
+    test.setTimeout(300_000);
+    await openComposer(page, scenario.route);
+    expect((await request.post('/__acceptance/liveui-metrics/reset')).status()).toBe(204);
+    const turn = await sendPrompt(page, scenario.prompt);
+    if (scenario.route) await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    if (scenario.name === 'show active tasks')
+      await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
+    if (scenario.name === 'search for report' || scenario.name === 'filter completed report tasks')
+      await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue('report', { timeout: 120_000 });
+    if (scenario.name === 'filter completed report tasks')
+      await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true');
+    if (scenario.name === 'highlight results') await expectHighlightActivation(page, { text: 'Prepare a launch checklist' });
+    await turn.waitForCompletion();
+    if (scenario.name === 'explain current view') await expect(turn.response).toContainText(/\b(?:workflows|tasks?|todos?)\b/i);
+    await expectGatewayPlanExecuted(page, request, scenario.actions);
+  });
+}
 
 test('real provider shows active Todo tasks', async ({ page }) => {
   await openComposer(page);

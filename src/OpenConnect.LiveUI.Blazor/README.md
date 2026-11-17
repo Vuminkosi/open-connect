@@ -34,6 +34,8 @@ An already available browser model is initialized when the server requests a pla
 
 Inference plans can request inspection of a target only when the current application manifest and authorization policy expose its `Inspect` capability. Inspection uses the existing privacy-safe LiveUI receipt; an agent must ground any explanation in the information actually returned by its tools.
 
+The inference capability context includes bounded display labels for authorized targets and permitted navigation routes when available. These application-provided labels are untrusted data for identifying targets, not instructions; they do not grant capabilities or bypass action authorization. Hosts must apply their privacy policy before sending this context to a remote provider.
+
 The server-side inference router falls back in this order: browser, optional Gateway-hosted CPU worker, then the existing guarded chat client when the local providers are unavailable. The default fallback policy is `OnUnavailable`; no LLM call occurs unless the host explicitly registers `AddFirewallGuardedLiveUIGatewayInference`, which rejects unguarded `IChatClient` registrations. In an external Gateway deployment, Blazor sends the correlated fallback request to the authenticated Gateway inference endpoint; the Gateway owns the private worker endpoint and credential, verifies the tenant-owned session, applies the privacy firewall, rate limits requests, and validates the worker plan. The Blazor host never receives worker credentials. When the Gateway and Blazor server are deliberately embedded in one process, that process may register the worker directly. `BrowserOnly` disables both server fallbacks.
 
 ```csharp
