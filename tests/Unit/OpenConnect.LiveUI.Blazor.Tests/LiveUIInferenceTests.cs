@@ -541,17 +541,18 @@ public sealed class LiveUIInferenceTests
     }
 
     [Theory]
-    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, false)]
-    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, true)]
-    [InlineData(LiveUIFallbackPolicy.Disabled, false, false)]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, false, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, false, HttpStatusCode.BadGateway)]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, true, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(LiveUIFallbackPolicy.Disabled, false, false, HttpStatusCode.ServiceUnavailable)]
     public async Task WorkerUnavailableDuringGenerationFollowsFallbackPolicy(
-        LiveUIFallbackPolicy policy, bool fallsBack, bool networkFailure)
+        LiveUIFallbackPolicy policy, bool fallsBack, bool networkFailure, HttpStatusCode failureStatus)
     {
         var handler = new RecordingHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Get) return new HttpResponseMessage(HttpStatusCode.OK);
             if (networkFailure) throw new HttpRequestException("connection failed");
-            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            return new HttpResponseMessage(failureStatus);
         });
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
         var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions

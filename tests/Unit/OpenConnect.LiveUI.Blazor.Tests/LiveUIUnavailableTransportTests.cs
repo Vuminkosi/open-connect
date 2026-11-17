@@ -11,9 +11,11 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class LiveUIUnavailableTransportTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ConnectionLossAfterReadinessUsesConfiguredFallback(bool viaGateway)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task WorkerUnavailableAfterReadinessUsesConfiguredFallback(bool viaGateway, bool badGateway)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -24,7 +26,7 @@ public sealed class LiveUIUnavailableTransportTests
                 LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available),
                 new JsonSerializerOptions(JsonSerializerDefaults.Web))
             : "{}";
-        var server = RespondOnceAndStopAsync(listener, readiness, timeout.Token);
+        var server = RespondAndStopAsync(listener, readiness, badGateway, timeout.Token);
         using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{endpoint.Port}/") };
         ILiveUIInferenceProvider worker = viaGateway
             ? new GatewayWorkerLiveUIInferenceProvider(client)
@@ -55,15 +57,24 @@ public sealed class LiveUIUnavailableTransportTests
         }
     }
 
-    private static async Task RespondOnceAndStopAsync(TcpListener listener, string body, CancellationToken cancellationToken)
+    private static async Task RespondAndStopAsync(
+        TcpListener listener, string body, bool badGateway, CancellationToken cancellationToken)
+    {
+        await RespondAsync(listener, "200 OK", body, !badGateway, cancellationToken);
+        if (badGateway)
+            await RespondAsync(listener, "502 Bad Gateway", "{}", true, cancellationToken);
+    }
+
+    private static async Task RespondAsync(
+        TcpListener listener, string status, string body, bool stop, CancellationToken cancellationToken)
     {
         using var connection = await listener.AcceptTcpClientAsync(cancellationToken);
         await using var stream = connection.GetStream();
         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
         while (await reader.ReadLineAsync(cancellationToken) is { Length: > 0 }) { }
-        listener.Stop();
+        if (stop) listener.Stop();
         var payload = Encoding.UTF8.GetBytes(body);
-        var headers = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+        var headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(headers, cancellationToken);
         await stream.WriteAsync(payload, cancellationToken);
         await stream.FlushAsync(cancellationToken);

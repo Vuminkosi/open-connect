@@ -53,7 +53,7 @@ public sealed class GatewayWorkerLiveUIInferenceProvider(HttpClient httpClient) 
                 throw new UnauthorizedAccessException("The OpenConnect Gateway rejected LiveUI inference authorization.");
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 return new(Kind, null, "rate_limited");
-            if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+            if (response.StatusCode is System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.BadGateway)
                 return new(Kind, null, "gateway_worker_unavailable");
             if (!response.IsSuccessStatusCode)
                 return new(Kind, null, "gateway_worker_inference_failed");

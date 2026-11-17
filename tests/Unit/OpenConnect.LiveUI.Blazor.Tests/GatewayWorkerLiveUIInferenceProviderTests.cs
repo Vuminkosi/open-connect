@@ -143,9 +143,11 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GatewayWorkerUnavailableDuringGeneration_UsesUnavailableFallback(bool networkFailure)
+    [InlineData(true, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, HttpStatusCode.BadGateway)]
+    public async Task GatewayWorkerUnavailableDuringGeneration_UsesUnavailableFallback(
+        bool networkFailure, HttpStatusCode failureStatus)
     {
         using var client = new HttpClient(new StubHandler(request =>
         {
@@ -156,7 +158,7 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
                         LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
                 });
             if (networkFailure) throw new HttpRequestException("connection failed");
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            return Task.FromResult(new HttpResponseMessage(failureStatus));
         })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var fallback = new SuccessfulGateway();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
