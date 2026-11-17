@@ -205,8 +205,14 @@ function setValue(element, value) {
 function selectValue(element, value) {
   if (isSensitiveField(element)) return result("Denied", "sensitive_input_blocked");
   if (!(element instanceof HTMLSelectElement) || typeof value !== "string") return result("Failed", "select_not_supported");
-  const option = [...element.options].find((item) => item.value === value || normalize(item.label) === normalize(value));
-  if (!option) return result("MissingTarget", "option_missing");
+  if (element.matches(":disabled")) return result("Denied", "select_disabled");
+  const options = [...element.options];
+  const exactValues = options.filter((item) => item.value === value);
+  const matches = exactValues.length ? exactValues : options.filter((item) => normalize(item.label) === normalize(value));
+  if (matches.length === 0) return result("MissingTarget", "option_missing");
+  if (matches.length > 1) return result("Ambiguous", "option_ambiguous");
+  const option = matches[0];
+  if (option.disabled || option.parentElement?.matches("optgroup:disabled")) return result("Denied", "option_disabled");
   element.value = option.value;
   element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
