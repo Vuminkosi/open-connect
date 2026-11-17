@@ -78,6 +78,25 @@ test('real provider selects and verifies the existing Completed tab', async ({ p
   await turn.waitForCompletion();
 });
 
+test('real provider shows active Todo tasks', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Show active tasks.');
+
+  await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true');
+  const taskList = page.locator('[data-oc-target="todo-list"]');
+  await expect(taskList.getByText('Prepare a launch checklist', { exact: true })).toBeVisible();
+  await expect(taskList.getByText('Review the quarterly report', { exact: true })).toHaveCount(0);
+  await turn.waitForCompletion();
+});
+
+test('real provider highlights the displayed Todo results', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Highlight the results.');
+
+  await expectHighlightActivation(page, { text: 'Prepare a launch checklist' });
+  await turn.waitForCompletion();
+});
+
 test('real provider uses the existing search control and verifies rendered results', async ({ page }) => {
   await openComposer(page);
   const turn = await sendPrompt(page, 'Find tasks containing report.');
