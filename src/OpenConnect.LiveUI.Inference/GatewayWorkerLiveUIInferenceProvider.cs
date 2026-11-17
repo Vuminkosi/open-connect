@@ -17,6 +17,8 @@ public sealed class GatewayWorkerLiveUIInferenceProvider(HttpClient httpClient) 
             using var response = await httpClient.GetAsync("liveui/inference/worker/availability", cancellationToken).ConfigureAwait(false);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 throw new UnauthorizedAccessException("The OpenConnect Gateway rejected LiveUI inference authorization.");
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new(Kind, LiveUIInferenceAvailabilityStatus.Blocked, Reason: "rate_limited");
             if (!response.IsSuccessStatusCode)
                 return new(Kind, LiveUIInferenceAvailabilityStatus.Unavailable, SupportsStructuredOutput: true,
                     SupportsCancellation: true, Reason: "gateway_worker_unavailable");
@@ -49,6 +51,8 @@ public sealed class GatewayWorkerLiveUIInferenceProvider(HttpClient httpClient) 
                 .ConfigureAwait(false);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 throw new UnauthorizedAccessException("The OpenConnect Gateway rejected LiveUI inference authorization.");
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new(Kind, null, "rate_limited");
             if (!response.IsSuccessStatusCode)
                 return new(Kind, null, "gateway_worker_inference_failed");
 

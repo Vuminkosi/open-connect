@@ -110,6 +110,51 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => provider.GetAvailabilityAsync());
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RateLimit_StopsFallbackAndPreservesOutcome(bool limitAvailability)
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (!limitAvailability && request.Method == HttpMethod.Get)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                        LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
+                });
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests));
+        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        var fallback = new CountingGateway();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var router = new LiveUIInferenceRouter([new GatewayWorkerLiveUIInferenceProvider(client), fallback],
+            new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("Show completed tasks", "session", "todo", "openconnect.liveui/v1",
+            [new("completed-tab", ["activate"])]);
+
+        var result = await router.GeneratePlanAsync(request);
+
+        Assert.Equal("rate_limited", result.Outcome);
+        Assert.Null(result.Plan);
+        Assert.Equal(0, fallback.Calls);
+    }
+
+    private sealed class CountingGateway : ILiveUIInferenceProvider
+    {
+        public int Calls { get; private set; }
+        public LiveUIInferenceProviderKind Kind => LiveUIInferenceProviderKind.Gateway;
+        public Task<LiveUIInferenceAvailability> GetAvailabilityAsync(CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new LiveUIInferenceAvailability(Kind, LiveUIInferenceAvailabilityStatus.Available));
+        }
+        public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Rate-limited requests must not fall back.");
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => handler(request);

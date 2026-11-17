@@ -35,7 +35,7 @@ public sealed class LiveUIInferenceRouter(
                 provider => metricProvider = LiveUIInferenceMetrics.Provider(provider)).ConfigureAwait(false);
             outcome = result.Plan is not null
                 ? "completed"
-                : result.Outcome == "invalid_plan" ? "invalid_plan" : "inference_unavailable";
+                : result.Outcome is "invalid_plan" or "rate_limited" ? result.Outcome : "inference_unavailable";
             if (result.Plan is null) RecordFailure(outcome);
             return result;
         }
@@ -124,6 +124,8 @@ public sealed class LiveUIInferenceRouter(
                 LiveUIInferenceMetrics.ModelAvailability.Add(1,
                     new KeyValuePair<string, object?>("provider", providerTag),
                     new KeyValuePair<string, object?>("status", AvailabilityStatus(availability.Status)));
+                if (availability.Status == LiveUIInferenceAvailabilityStatus.Blocked && availability.Reason == "rate_limited")
+                    return new LiveUIInferenceResult(kind, null, "rate_limited");
                 if (availability.Status != LiveUIInferenceAvailabilityStatus.Available)
                 {
                     lastFailure = new InvalidOperationException("inference_unavailable");
@@ -132,10 +134,9 @@ public sealed class LiveUIInferenceRouter(
                     continue;
                 }
                 var result = await provider.GeneratePlanAsync(request, timeout.Token).ConfigureAwait(false);
-                if (result.Outcome == "browser_response_replay_cache_full")
+                if (result.Outcome is "browser_response_replay_cache_full" or "rate_limited")
                 {
-                    // Replay protection saturation is a security boundary, not a provider
-                    // failure that may be bypassed by trying another inference provider.
+                    // Security boundaries and quotas must not be bypassed by fallback.
                     return result;
                 }
                 if (result.Plan is null || !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
@@ -172,6 +173,7 @@ public sealed class LiveUIInferenceRouter(
         LiveUIInferenceAvailabilityStatus.Available => "available",
         LiveUIInferenceAvailabilityStatus.Downloadable => "downloadable",
         LiveUIInferenceAvailabilityStatus.Downloading => "downloading",
+        LiveUIInferenceAvailabilityStatus.Blocked => "blocked",
         _ => "unavailable"
     };
 
