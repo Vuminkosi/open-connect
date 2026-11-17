@@ -137,6 +137,22 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Gateway_cancellation_finishes_stream_and_preserves_partial_reply()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        session.BeginSend("question");
+        session.ApplyEvent(Event(1, "message.delta", "partial"));
+
+        Assert.True(session.ApplyEvent(Event(2, "task.cancelled", "{}")));
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
+        Assert.Contains(session.Messages, static message => message.Text == "partial" && message.State == ComposerMessageState.Cancelled);
+        Assert.False(session.ApplyEvent(Event(2, "task.cancelled", "{}")));
+        Assert.Single(session.Messages, static message => message.State == ComposerMessageState.Cancelled);
+    }
+
+    [Fact]
     public void Unknown_event_types_are_ignored_without_render_change()
     {
         var session = new ComposerSession();

@@ -478,6 +478,10 @@ public sealed class ComposerSession
                 _streamingText += record.Data ?? string.Empty;
                 Connection = ComposerConnectionState.Streaming;
             }
+            else if (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                CancelStreamingCore();
+            }
             else if (type.EndsWith("completed", StringComparison.OrdinalIgnoreCase)
                 || type.EndsWith("done", StringComparison.OrdinalIgnoreCase))
             {
@@ -631,20 +635,25 @@ public sealed class ComposerSession
     {
         lock (_gate)
         {
-            if (_streamingText.Length > 0 || _streamingRole is not null)
-            {
-                _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, LastSequence, ComposerMessageState.Cancelled));
-            }
-
-            _streamingText = string.Empty;
-            _streamingRole = null;
-            if (Connection == ComposerConnectionState.Streaming)
-            {
-                Connection = ComposerConnectionState.Idle;
-            }
+            CancelStreamingCore();
         }
 
         Notify();
+    }
+
+    private void CancelStreamingCore()
+    {
+        if (_streamingText.Length > 0 || _streamingRole is not null)
+        {
+            _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, LastSequence, ComposerMessageState.Cancelled));
+        }
+
+        _streamingText = string.Empty;
+        _streamingRole = null;
+        if (Connection == ComposerConnectionState.Streaming)
+        {
+            Connection = ComposerConnectionState.Idle;
+        }
     }
 
     /// <summary>
