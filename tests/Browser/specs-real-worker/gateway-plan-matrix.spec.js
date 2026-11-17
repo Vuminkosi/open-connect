@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
-test('the authenticated gateway validates the seven Todo plans from its private worker', async ({ request }) => {
+test('the authenticated gateway validates Todo plans from its private worker', async ({ request }) => {
   const authorization = `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}`;
   const gateway = 'http://127.0.0.1:5120/openconnect/v1';
   expect((await request.post(`${gateway}/sessions`, { data: { name: 'Acceptance' } })).status()).toBe(401);
@@ -22,11 +22,13 @@ test('the authenticated gateway validates the seven Todo plans from its private 
   ];
   const cases = [
     ['Open my tasks', [{ type: 'navigate', targetId: route }]],
+    ['Open my Todo list.', [{ type: 'navigate', targetId: route }]],
     ['Show completed tasks', [{ type: 'activate', targetId: completed }]],
     ['Show active tasks', [{ type: 'activate', targetId: active }]],
     ['Show all tasks', [{ type: 'activate', targetId: all }]],
     ['Search for report', [{ type: 'setValue', targetId: search, value: 'report' }]],
     ['Highlight the tasks', [{ type: 'highlight', targetId: list }]],
+    ['Highlight the results.', [{ type: 'highlight', targetId: list }]],
     ['Show completed tasks containing report', [
       { type: 'activate', targetId: completed }, { type: 'setValue', targetId: search, value: 'report' },
     ]],

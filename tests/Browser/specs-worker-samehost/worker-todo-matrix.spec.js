@@ -9,11 +9,13 @@ const list = 'route.root.components-todolistcomponent-razor-list-task-list';
 
 const cases = [
   ['Open my tasks', [{ type: 'navigate', targetId: route, value: null }]],
+  ['Open my Todo list.', [{ type: 'navigate', targetId: route, value: null }]],
   ['Show completed tasks', [{ type: 'activate', targetId: completed, value: null }]],
   ['Show active tasks', [{ type: 'activate', targetId: active, value: null }]],
   ['Show all tasks', [{ type: 'activate', targetId: all, value: null }]],
   ['Search for report', [{ type: 'setValue', targetId: search, value: 'report' }]],
   ['Highlight the tasks', [{ type: 'highlight', targetId: list, value: null }]],
+  ['Highlight the results.', [{ type: 'highlight', targetId: list, value: null }]],
   ['Show completed tasks containing report', [
     { type: 'activate', targetId: completed, value: null }, { type: 'setValue', targetId: search, value: 'report' },
   ]],

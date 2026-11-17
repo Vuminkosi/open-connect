@@ -222,7 +222,7 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
             return ActionPlan(schemaVersion=request.schemaVersion, actions=[tab_action])
     if re.search(r"\bhighlight\b", intent):
         candidates = [capability for capability in request.context.availableActions if capability.action == "highlight"]
-        if re.fullmatch(r"\s*highlight\s+(?:the\s+)?tasks\s*[?.!]*\s*", intent):
+        if re.fullmatch(r"\s*highlight\s+(?:the\s+)?(?:tasks|results)\s*[?.!]*\s*", intent):
             task_lists = [item for item in candidates if re.search(r"(?:^|[._-])task-list$", item.target.casefold())]
             if len(task_lists) == 1:
                 return ActionPlan(schemaVersion=request.schemaVersion,

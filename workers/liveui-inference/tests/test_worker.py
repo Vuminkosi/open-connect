@@ -109,9 +109,10 @@ def test_highlight_request_uses_the_unique_authorized_highlight_target():
     assert [(action.type, action.target, action.value) for action in plan.actions] == [("highlight", "todo.list", None)]
 
 
-def test_highlight_tasks_selects_only_a_unique_compiled_task_list():
+@pytest.mark.parametrize("intent", ["Highlight the tasks", "Highlight the results."])
+def test_highlight_tasks_selects_only_a_unique_compiled_task_list(intent):
     request = PlanRequest.model_validate({
-        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Highlight the tasks",
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
         "context": {"route": "route.root", "availableActions": [
             {"target": "route.root.list-task-list", "action": "highlight"},
             {"target": "route.root.region-todo-list", "action": "highlight"},

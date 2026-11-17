@@ -781,8 +781,8 @@ const server = http.createServer(async (request, response) => {
       const navigation = /open my todo list|open the todo list/i.test(normalizedUserText);
       const tour = /show me around|walk me through/i.test(normalizedUserText);
       const workerMatrix = realLiveUIWorkerContainer && [
-        'Open my tasks', 'Show completed tasks', 'Show active tasks', 'Show all tasks',
-        'Search for report', 'Highlight the tasks', 'Show completed tasks containing report',
+        'Open my tasks', 'Open my Todo list.', 'Show completed tasks', 'Show active tasks', 'Show all tasks',
+        'Search for report', 'Highlight the tasks', 'Highlight the results.', 'Show completed tasks containing report',
       ].includes(normalizedUserText);
       const scenarioName = workerMatrix ? 'worker_matrix'
         : deniedWrite ? 'denied_write'
