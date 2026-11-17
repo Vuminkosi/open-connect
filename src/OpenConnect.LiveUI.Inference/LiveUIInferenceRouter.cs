@@ -140,7 +140,7 @@ public sealed class LiveUIInferenceRouter(
                     return result;
                 }
                 if (result.Plan is null && result.Outcome is "inference_unavailable" or "worker_unavailable" or
-                    "gateway_unavailable" or "gateway_worker_unavailable" or "browser_disconnected" or
+                    "gateway_unavailable" or "gateway_worker_unavailable" or "gateway_planner_unavailable" or "browser_disconnected" or
                     "browser_prompt_api_unavailable")
                 {
                     lastFailure = new InvalidOperationException("inference_unavailable");

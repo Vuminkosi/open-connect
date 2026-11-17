@@ -46,6 +46,9 @@ builder.Services.AddRazorComponents()
 // OpenConnect Client, Composer, and Component Discovery
 var gatewayOptions = TodoGatewayOptions.FromConfiguration(builder.Configuration, builder.Environment);
 var sameHostGatewayPlanner = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:SameHostGatewayPlanner");
+var externalGatewayPlanner = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:ExternalGatewayPlanner");
+if (externalGatewayPlanner && gatewayOptions.Mode != TodoGatewayMode.ExternalGateway)
+    throw new InvalidOperationException("The external gateway planner requires ExternalGateway mode.");
 var sameHostWorkerConfigured = gatewayOptions.Mode == TodoGatewayMode.SameHostGateway &&
     !string.IsNullOrWhiteSpace(builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Token"]);
 if (sameHostGatewayPlanner && (gatewayOptions.Mode != TodoGatewayMode.SameHostGateway || !builder.Environment.IsDevelopment()))
@@ -142,7 +145,7 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
 builder.Services.Configure<LiveUIInferenceOptions>(options =>
 {
     options.Worker.Enabled = !sameHostGatewayPlanner || sameHostWorkerConfigured;
-    options.Gateway.Enabled = sameHostGatewayPlanner;
+    options.Gateway.Enabled = sameHostGatewayPlanner || externalGatewayPlanner;
     if (sameHostGatewayPlanner && !sameHostWorkerConfigured) options.Mode = LiveUIInferenceMode.GatewayOnly;
 });
 if (sameHostGatewayPlanner)
@@ -157,6 +160,20 @@ var gatewayWorkerClient = builder.Services.AddHttpClient<GatewayWorkerLiveUIInfe
 });
 if (!string.IsNullOrEmpty(localGatewayBearer))
     gatewayWorkerClient.ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
+if (externalGatewayPlanner)
+{
+    var gatewayPlannerClient = builder.Services.AddHttpClient<GatewayPlannerLiveUIInferenceProvider>((services, client) =>
+    {
+        var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;
+        client.BaseAddress = gatewayClientOptions.ApiBaseAddress;
+        foreach (var header in gatewayClientOptions.WebSocketHeaders)
+            client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    });
+    if (!string.IsNullOrEmpty(localGatewayBearer))
+        gatewayPlannerClient.ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
+    builder.Services.AddLiveUIGatewayInferenceProvider<GatewayPlannerLiveUIInferenceProvider>();
+}
 builder.Services.AddScoped<ILiveUIInferenceProvider>(services =>
     services.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
 builder.Services.AddOpenConnectComposer(options =>
