@@ -195,11 +195,19 @@ public sealed class LiveUIActionPlanValidator
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(plan);
         if (plan.SchemaVersion != request.SchemaVersion) { reason = "schema_version_mismatch"; return false; }
-        if (plan.Actions.Count == 0 || plan.Actions.Count > maximumActions) { reason = "action_count_invalid"; return false; }
-        var targets = request.Capabilities.ToDictionary(capability => capability.TargetId, StringComparer.Ordinal);
+        if (plan.Actions is null || plan.Actions.Count == 0 || plan.Actions.Count > maximumActions) { reason = "action_count_invalid"; return false; }
+        if (request.Capabilities is null) { reason = "invalid_capabilities"; return false; }
+        var targets = new Dictionary<string, LiveUIInferenceCapability>(StringComparer.Ordinal);
+        foreach (var capability in request.Capabilities)
+        {
+            if (capability is null || string.IsNullOrEmpty(capability.TargetId) || capability.Actions is null ||
+                !targets.TryAdd(capability.TargetId, capability))
+            { reason = "invalid_capabilities"; return false; }
+        }
         foreach (var action in plan.Actions)
         {
-            if (!AllowedActions.Contains(action.Type) || !targets.TryGetValue(action.TargetId, out var target) || !target.Actions.Contains(action.Type, StringComparer.Ordinal))
+            if (action is null || string.IsNullOrEmpty(action.Type) || string.IsNullOrEmpty(action.TargetId) ||
+                !AllowedActions.Contains(action.Type) || !targets.TryGetValue(action.TargetId, out var target) || !target.Actions.Contains(action.Type, StringComparer.Ordinal))
             { reason = "capability_not_allowed"; return false; }
             if (action.Type == "setValue" && (action.Value is null || action.Value.Length > 256))
             { reason = "parameter_invalid"; return false; }

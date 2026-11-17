@@ -76,6 +76,23 @@ public sealed class LiveUIInferenceTests
     }
 
     [Fact]
+    public void Validator_RejectsMalformedProviderPlansAndAmbiguousCapabilities()
+    {
+        var validator = new LiveUIActionPlanValidator();
+        var validPlan = new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]);
+        var duplicate = Request with { Capabilities = [new("todo.tab.completed", ["activate"]), new("todo.tab.completed", ["highlight"])] };
+        Assert.False(validator.Validate(duplicate, validPlan, 8, out _));
+        Assert.False(validator.Validate(Request with { Capabilities = null! }, validPlan, 8, out _));
+        Assert.False(validator.Validate(Request with { Capabilities = [null!] }, validPlan, 8, out _));
+        Assert.False(validator.Validate(Request with { Capabilities = [new(null!, ["activate"])] }, validPlan, 8, out _));
+        Assert.False(validator.Validate(Request with { Capabilities = [new("todo.tab.completed", null!)] }, validPlan, 8, out _));
+        Assert.False(validator.Validate(Request, new LiveUIActionPlan(Request.SchemaVersion, null!), 8, out _));
+        Assert.False(validator.Validate(Request, new LiveUIActionPlan(Request.SchemaVersion, [null!]), 8, out _));
+        Assert.False(validator.Validate(Request, new LiveUIActionPlan(Request.SchemaVersion, [new(null!, "todo.tab.completed")]), 8, out _));
+        Assert.False(validator.Validate(Request, new LiveUIActionPlan(Request.SchemaVersion, [new("activate", null!)]), 8, out _));
+    }
+
+    [Fact]
     public void InspectionPlan_RequiresAuthorizedCapabilityAndMapsToInspection()
     {
         var request = new LiveUIInferenceRequest("Explain the current view", "session-1", "todo", "openconnect.liveui/v1",
