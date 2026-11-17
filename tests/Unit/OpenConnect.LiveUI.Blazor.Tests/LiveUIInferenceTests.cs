@@ -125,6 +125,25 @@ public sealed class LiveUIInferenceTests
     }
 
     [Fact]
+    public void SelectPlanRequiresAndPreservesTheRequestedOption()
+    {
+        var request = new LiveUIInferenceRequest("Choose urgent priority", "session-1", "todo", "openconnect.liveui/v1",
+            [new("todo.priority", ["select"])], ManifestHash: "hash");
+        var manifest = new LiveUIManifest(request.SchemaVersion, "build", "hash", [new LiveUIRoute("todo", "/", null,
+            [new LiveUITarget("todo.priority", LiveUITargetKind.Select, "Priority", new HashSet<LiveUICapability> { LiveUICapability.Select })])]);
+        var validator = new LiveUIActionPlanValidator();
+        var plan = new LiveUIActionPlan(request.SchemaVersion, [new("select", "todo.priority", "urgent")]);
+
+        Assert.True(validator.Validate(request, plan, 8, out _));
+        var action = Assert.Single(new LiveUIInferenceActionMapper(validator).Map(request, plan, manifest, TimeSpan.FromSeconds(5)));
+        Assert.Equal(LiveUIActionType.Select, action.Type);
+        Assert.Equal("urgent", action.Parameters.Value);
+        Assert.False(validator.Validate(request, new LiveUIActionPlan(request.SchemaVersion, [new("select", "todo.priority")]), 8, out _));
+        Assert.False(validator.Validate(request, new LiveUIActionPlan(request.SchemaVersion, [new("select", "todo.priority", new string('x', 257))]), 8, out _));
+        Assert.False(validator.Validate(request with { Capabilities = [new("todo.priority", ["inspect"])] }, plan, 8, out _));
+    }
+
+    [Fact]
     public void Mapper_ConvertsValidatedTabActivationToExistingLiveUIAction()
     {
         var manifest = new LiveUIManifest(Request.SchemaVersion, "build", "hash", [new LiveUIRoute("todo", "/", null,

@@ -238,9 +238,9 @@ public sealed class LiveUIActionPlanValidator
             if (action is null || string.IsNullOrEmpty(action.Type) || string.IsNullOrEmpty(action.TargetId) ||
                 !AllowedActions.Contains(action.Type) || !targets.TryGetValue(action.TargetId, out var target) || !target.Actions.Contains(action.Type, StringComparer.Ordinal))
             { reason = "capability_not_allowed"; return false; }
-            if (action.Type == "setValue" && (action.Value is null || action.Value.Length > 256))
+            if ((action.Type is "setValue" or "select") && (action.Value is null || action.Value.Length > 256))
             { reason = "parameter_invalid"; return false; }
-            if (action.Type != "setValue" && action.Value is not null)
+            if (action.Type is not ("setValue" or "select") && action.Value is not null)
             { reason = "parameter_invalid"; return false; }
         }
         reason = "valid";

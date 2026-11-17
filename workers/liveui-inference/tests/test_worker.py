@@ -287,7 +287,7 @@ def test_structured_model_plan_is_checked_against_authorized_actions():
             system_prompt = kwargs["messages"][0]["content"]
             assert "finished, and done mean Completed" in system_prompt
             assert "Never choose a search field or focus action for a tab request" in system_prompt
-            assert "Include value only for setValue actions" in system_prompt
+            assert "Include value for setValue and select actions" in system_prompt
             return {
                 "choices": [
                     {
@@ -306,6 +306,43 @@ def test_structured_model_plan_is_checked_against_authorized_actions():
     plan, provider = InferenceEngine(FakeModel(), settings_for(Path("model.gguf"), "0" * 64)).generate(request)
     assert provider == "qwen3-0.6b"
     assert [(action.type, action.target) for action in plan.actions] == [("activate", "todo.completed")]
+
+
+@pytest.mark.parametrize("value", ["urgent", None])
+def test_model_select_requires_and_preserves_option_value(value):
+    request = PlanRequest.model_validate({
+        "requestId": "select-option", "schemaVersion": "openconnect.liveui/v1",
+        "intent": "Choose urgent priority", "context": {
+            "route": "todo.home", "availableActions": [{"target": "todo.priority", "action": "select"}],
+        },
+    })
+
+    class Model:
+        def create_chat_completion(self, **_):
+            action = {"type": "select", "target": "todo.priority"}
+            if value is not None:
+                action["value"] = value
+            return {"choices": [{"message": {"content": json.dumps({
+                "schemaVersion": request.schemaVersion, "actions": [action],
+            })}}]}
+
+    engine = InferenceEngine(Model(), settings_for(Path("model.gguf"), "0" * 64))
+    if value is None:
+        with pytest.raises(ValueError):
+            engine.generate(request)
+    else:
+        plan, _ = engine.generate(request)
+        assert [(item.type, item.target, item.value) for item in plan.actions] == [("select", "todo.priority", value)]
+
+
+def test_status_shortcut_does_not_treat_a_select_control_as_a_tab():
+    request = PlanRequest.model_validate({
+        "requestId": "select-status", "schemaVersion": "openconnect.liveui/v1",
+        "intent": "Show completed tasks", "context": {
+            "route": "todo.home", "availableActions": [{"target": "todo.completed", "action": "select"}],
+        },
+    })
+    assert deterministic_plan(request) is None
 
 
 def test_structured_worker_plan_discards_irrelevant_values_for_non_set_value_actions():

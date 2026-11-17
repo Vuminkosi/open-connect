@@ -177,10 +177,10 @@ class InferenceEngine:
                     "tabs for one request. Match the target "
                     "to the requested state. For tab or status requests, map completed, finished, and "
                     "done to the Completed tab; map active, incomplete, and pending to the Active tab. "
-                    "Choose the matching tab capability with activate or select. Never focus or set a "
+                    "Choose the matching tab capability with activate. Never focus or set a "
                     "search field for a tab or status request. For a search request, set the value to "
                     "only the search term, not the instruction, and add focus only when explicitly requested. "
-                    "Include value only for setValue actions; omit it for activate, navigate, select, "
+                    "Include value for setValue and select actions; omit it for activate, navigate, "
                     "highlight, focus, scroll, and inspect actions. "
                     "Copy schemaVersion exactly. If no action fits, return an empty actions array."
                 ),
@@ -199,7 +199,7 @@ class InferenceEngine:
                         "alternatives are available. "
                         "For tab and status requests, use the tab matching the requested state; completed, "
                         "finished, and done mean Completed. Never choose a search field or focus action for "
-                        "a tab request. Include value only for setValue actions. Never return a list of "
+                        "a tab request. Include value for setValue and select actions. Never return a list of "
                         "alternative tabs or controls. Copy the target "
                         "and action exactly. Do not reason about unrelated tasks. /no_think"
                     ),
@@ -218,7 +218,7 @@ class InferenceEngine:
         actions = generated_plan.get("actions")
         if isinstance(actions, list):
             for action in actions:
-                if isinstance(action, dict) and action.get("type") != "setValue":
+                if isinstance(action, dict) and action.get("type") not in {"setValue", "select"}:
                     # Small local models sometimes emit an irrelevant value despite
                     # the constrained schema. It has no meaning for these actions.
                     action.pop("value", None)
@@ -238,8 +238,8 @@ class InferenceEngine:
         if any((action.target, action.type) not in allowed for action in plan.actions):
             raise ValueError("Generated plan contains an unavailable capability")
         if any(
-            (action.type == "setValue" and action.value is None)
-            or (action.type != "setValue" and action.value is not None)
+            (action.type in {"setValue", "select"} and action.value is None)
+            or (action.type not in {"setValue", "select"} and action.value is not None)
             for action in plan.actions
         ):
             raise ValueError("Generated plan contains an unsupported action value")
@@ -367,14 +367,12 @@ def find_status_action(request: PlanRequest, status: str) -> PlannedAction | Non
     candidates = [
         capability
         for capability in request.context.availableActions
-        if capability.action in {"activate", "select"}
+        if capability.action == "activate"
         and any(re.search(rf"\b{re.escape(term)}\b", capability.target.casefold()) for term in equivalent)
     ]
     if len(candidates) != 1:
         return None
-    selected = candidates[0]
-    action_type = "select" if selected.action == "select" else "activate"
-    return PlannedAction(type=action_type, target=selected.target)
+    return PlannedAction(type="activate", target=candidates[0].target)
 
 
 def find_search_action(request: PlanRequest, search_value: str) -> PlannedAction | None:
