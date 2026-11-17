@@ -2,7 +2,7 @@ import http from 'node:http';
 
 let readinessCalls = 0;
 let planCalls = 0;
-let mode = 'unavailable';
+let mode = process.env.OPENCONNECT_LIVEUI_TEST_INVALID_PLAN === '1' ? 'invalid' : 'unavailable';
 const token = 'liveui-fallback-acceptance-token';
 http.createServer((request, response) => {
   if (request.method === 'POST' && request.url === '/__healthy') {
@@ -14,7 +14,7 @@ http.createServer((request, response) => {
   }
   if (request.url === '/__stats') {
     response.writeHead(200, { 'content-type': 'application/json' });
-    return response.end(JSON.stringify({ readinessCalls, planCalls }));
+    return response.end(JSON.stringify({ readinessCalls, planCalls, mode }));
   }
   if (request.headers.authorization !== `Bearer ${token}`) {
     response.writeHead(401);
@@ -27,9 +27,9 @@ http.createServer((request, response) => {
   }
   if (request.method === 'POST' && request.url === '/v1/liveui/inference/plan') {
     planCalls++;
-    if (mode === 'unavailable') {
+    if (mode === 'unavailable' || mode === 'invalid') {
       request.resume();
-      response.writeHead(503);
+      response.writeHead(mode === 'invalid' ? 422 : 503);
       return response.end();
     }
     let body = '';

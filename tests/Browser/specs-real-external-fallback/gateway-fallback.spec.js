@@ -31,6 +31,7 @@ test('external gateway rejects unauthorized planning and executes guarded fallba
   await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
   const stats = await (await request.get('http://127.0.0.1:5311/__stats')).json();
   expect(stats.planCalls).toBeGreaterThan(0);
+  expect(stats.mode).toBe(process.env.OPENCONNECT_LIVEUI_TEST_INVALID_PLAN === '1' ? 'invalid' : 'unavailable');
   await page.locator('.oc-bubble__header-actions button').first().click();
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];

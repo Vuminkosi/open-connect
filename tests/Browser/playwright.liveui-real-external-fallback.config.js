@@ -25,6 +25,7 @@ export default defineConfig({
       url: 'http://127.0.0.1:5311/__stats',
       timeout: 30_000,
       reuseExistingServer: false,
+      env: { OPENCONNECT_LIVEUI_TEST_INVALID_PLAN: process.env.OPENCONNECT_LIVEUI_TEST_INVALID_PLAN ?? '0' },
     },
     {
       command: 'dotnet run --no-launch-profile --project samples/workers/shared/OpenConnect.Samples.Workers.Host/OpenConnect.Samples.Workers.Host.csproj -c Release',
@@ -56,6 +57,8 @@ export default defineConfig({
       GATEWAY_URL: `${gatewayUrl}/openconnect/v1/`,
       OpenConnect__Gateway__LocalServiceBearer: bearer,
       OpenConnect__LiveUI__ExternalGatewayPlanner: 'true',
+      OpenConnect__LiveUI__Inference__Gateway__FallbackPolicy:
+        process.env.OPENCONNECT_LIVEUI_TEST_INVALID_PLAN === '1' ? 'OnFailure' : 'OnUnavailable',
       TODO_INTERNAL_TOKEN: 'local-acceptance-todo-internal-token',
       TODO_INTERNAL_TENANT: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
     } },
