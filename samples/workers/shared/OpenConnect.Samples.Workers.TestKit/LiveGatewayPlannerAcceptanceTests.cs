@@ -122,6 +122,77 @@ public sealed class LiveGatewayPlannerAcceptanceTests
         }
     }
 
+    [LiveWorkerAndGatewayFact]
+    [Trait("Category", "LiveInference")]
+    public async Task Invalid_real_worker_plan_falls_back_to_real_guarded_gateway()
+    {
+        var endpoint = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_ENDPOINT")!;
+        var apiKey = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY")!;
+        var model = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL")!;
+        var workerText = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_ENDPOINT")!;
+        var workerToken = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_TOKEN")!;
+        if (!Uri.TryCreate(workerText, UriKind.Absolute, out var workerEndpoint) ||
+            workerEndpoint.Scheme != Uri.UriSchemeHttp || !IPAddress.TryParse(workerEndpoint.Host, out var address) ||
+            !IPAddress.IsLoopback(address) || !string.IsNullOrEmpty(workerEndpoint.UserInfo) ||
+            !string.IsNullOrEmpty(workerEndpoint.Query) || !string.IsNullOrEmpty(workerEndpoint.Fragment))
+            throw new InvalidOperationException("Live acceptance requires a credential-free loopback worker endpoint.");
+        var chat = new ChatClient(model, new ApiKeyCredential(apiKey), new OpenAIClientOptions { Endpoint = new Uri(endpoint) });
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new CountingEgressGate(new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault)))));
+        var context = new EgressContext(new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()),
+            new SessionId(Ulid.NewUlid()), EgressDestination.ExternalModel);
+        using var guarded = new FirewallGuardedChatClient(chat.AsIChatClient(), gate, new FixedEgressContextProvider(context));
+        var gateway = new FirewallGuardedLiveUIGatewayInferenceProvider(guarded);
+        var recorder = new WorkerResponseRecorder { InnerHandler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false } };
+        using var workerHttp = new HttpClient(recorder) { BaseAddress = new Uri(workerEndpoint.AbsoluteUri.TrimEnd('/') + "/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(workerHttp, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = workerEndpoint, BearerToken = workerToken
+        }));
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
+        settings.Planning.Timeout = TimeSpan.FromMinutes(2);
+        var router = new LiveUIInferenceRouter([worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("View finished tasks containing report - show completed tasks filtered by report", "acceptance-session", "todo.home",
+            "openconnect.liveui/v1", [new("todo.tab.completed", ["activate"]) { Label = "Completed" },
+                new("todo.tab.active", ["activate"]) { Label = "Active" },
+                new("todo.search", ["setValue"]) { Label = "Search tasks" }]);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        var noFallback = await router.GeneratePlanAsync(request, timeout.Token);
+        Assert.Null(noFallback.Plan);
+        Assert.Equal("invalid_plan", noFallback.Outcome);
+        Assert.Equal(0, gate.Calls);
+        Assert.Contains(HttpStatusCode.UnprocessableEntity, recorder.Statuses);
+
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var result = await router.GeneratePlanAsync(request, timeout.Token);
+
+        Assert.True(recorder.Statuses.Count(status => status == HttpStatusCode.UnprocessableEntity) >= 2);
+        Assert.Equal(LiveUIInferenceProviderKind.Gateway, result.Provider);
+        Assert.Equal("completed", result.Outcome);
+        Assert.True(gate.Calls > 0);
+        Assert.Equal(EgressDestination.ExternalModel, gate.LastDestination);
+        Assert.NotNull(result.Plan);
+        Assert.Equal(2, result.Plan!.Actions.Count);
+        Assert.Contains(new LiveUIPlannedAction("activate", "todo.tab.completed"), result.Plan.Actions);
+        Assert.Contains(new LiveUIPlannedAction("setValue", "todo.search", "report"), result.Plan.Actions);
+    }
+
+    private sealed class WorkerResponseRecorder : DelegatingHandler
+    {
+        public List<HttpStatusCode> Statuses { get; } = [];
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            Statuses.Add(response.StatusCode);
+            return response;
+        }
+    }
+
     private sealed class CountingEgressGate(IEgressGate inner) : IEgressGate
     {
         public int Calls { get; private set; }
@@ -163,6 +234,20 @@ public sealed class LiveGatewayPlannerFactAttribute : FactAttribute
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY")) ||
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL")))
             Skip = "Set the explicit real-provider acceptance configuration to run live gateway planning.";
+    }
+}
+
+public sealed class LiveWorkerAndGatewayFactAttribute : FactAttribute
+{
+    public LiveWorkerAndGatewayFactAttribute()
+    {
+        if (Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_RUN") != "1" ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_ENDPOINT")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_ENDPOINT")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_TOKEN")))
+            Skip = "Set explicit real-provider and loopback worker acceptance configuration.";
     }
 }
 
