@@ -251,16 +251,23 @@
         request.SpeechEndCharacter is > 0 and <= 32_000 &&
         request.SpeechStartCharacter < request.SpeechEndCharacter;
 
-    private static IEnumerable<string> ToInferenceActions(LiveUICapability capability) => capability switch
+    private static IEnumerable<string> ToInferenceActions(LiveUICapability capability, string targetKind)
+    {
+        if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind)) return [];
+        return capability switch
     {
         LiveUICapability.Activate => ["activate"],
-        LiveUICapability.Filter or LiveUICapability.SetValue => ["setValue"],
+        LiveUICapability.Filter when kind == LiveUITargetKind.Tab => ["activate"],
+        LiveUICapability.Filter when kind == LiveUITargetKind.Select => ["select"],
+        LiveUICapability.Filter when kind is LiveUITargetKind.Input or LiveUITargetKind.Checkbox => ["setValue"],
+        LiveUICapability.SetValue => ["setValue"],
         LiveUICapability.Select => ["select"],
         LiveUICapability.Highlight => ["highlight"],
         LiveUICapability.Focus => ["focus"],
         LiveUICapability.Scroll => ["scroll"],
         _ => []
-    };
+        };
+    }
 
     private async Task<LiveUIActionReceipt> HandleHighlightRequestAsync(
         ClientInteractionRequest request,
@@ -286,8 +293,11 @@
         {
             var cancellationToken = interactionCancellation.Token;
             var sessionText = originatingSession.SessionId;
+            var connectionId = originatingSession.ConnectionId;
+            var connectionGeneration = originatingSession.ConnectionGeneration;
             if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
-                string.IsNullOrWhiteSpace(sessionText))
+                string.IsNullOrWhiteSpace(sessionText) || string.IsNullOrWhiteSpace(connectionId) ||
+                !string.Equals(request.ConnectionId, connectionId, StringComparison.Ordinal))
                 return;
             Ulid sessionId;
             try { sessionId = Ulid.Parse(sessionText); }
@@ -320,7 +330,7 @@
                     {
                         var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
                                 target.TargetId,
-                                target.Capabilities.SelectMany(ToInferenceActions).Distinct(StringComparer.Ordinal).ToArray()))
+                                target.Capabilities.SelectMany(capability => ToInferenceActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray()))
                             .Where(capability => capability.Actions.Count > 0)
                             .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])))
                             .ToArray();
@@ -397,9 +407,14 @@
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (!IsCurrentSession(originatingSession, sessionText)) return;
+            if (!IsCurrentSession(originatingSession, sessionText) ||
+                !IsCurrentConnection(originatingSession, connectionId, connectionGeneration)) return;
+            var response = new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson)
+            {
+                ConnectionId = connectionId
+            };
             await client.PostClientInteractionResponseAsync(
-                new SessionId(sessionId), new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson), cancellationToken);
+                new SessionId(sessionId), response, cancellationToken);
         }
         catch (OperationCanceledException) when (interactionCancellation.IsCancellationRequested) { }
         catch (Exception)
@@ -416,6 +431,10 @@
     private bool IsCurrentSession(ComposerSession originatingSession, string sessionId) =>
         ReferenceEquals(_boundSession, originatingSession) &&
         string.Equals(originatingSession.SessionId, sessionId, StringComparison.Ordinal);
+
+    private static bool IsCurrentConnection(ComposerSession session, string connectionId, long generation) =>
+        session.ConnectionGeneration == generation &&
+        string.Equals(session.ConnectionId, connectionId, StringComparison.Ordinal);
 
     public void Dispose()
     {

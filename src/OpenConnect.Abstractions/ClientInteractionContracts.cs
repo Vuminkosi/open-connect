@@ -26,13 +26,20 @@ public sealed record ClientInteractionRequest(
 
     /// <summary>Optional exclusive range end; both range values must be supplied and no greater than 32,000.</summary>
     public int? SpeechEndCharacter { get; init; }
+
+    /// <summary>Optional opaque identifier for the authenticated client connection bound to this interaction.</summary>
+    public string? ConnectionId { get; init; }
 }
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>
 public sealed record ClientInteractionResponse(
     string CorrelationId,
     string ResultKind,
-    string PayloadJson);
+    string PayloadJson)
+{
+    /// <summary>Optional opaque identifier for the authenticated client connection bound to this response.</summary>
+    public string? ConnectionId { get; init; }
+}
 
 /// <summary>Cancels one pending connected-client interaction by its request correlation.</summary>
 public sealed record ClientInteractionCancellation(string CorrelationId);

@@ -1,5 +1,8 @@
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using OpenConnect.Agents.Templates;
@@ -11,7 +14,8 @@ using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
-using OpenConnect.Samples.Workers.Host;using OpenConnect.Persistence.EFCore.Configuration;
+using OpenConnect.Samples.Workers.Host;
+using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
 using OpenConnect.Samples.Blazor.Components;
@@ -43,6 +47,9 @@ builder.Services.AddRazorComponents()
 var gatewayOptions = TodoGatewayOptions.FromConfiguration(builder.Configuration, builder.Environment);
 builder.Services.AddSingleton(gatewayOptions);
 builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(gatewayOptions));
+var localGatewayBearer = gatewayOptions.Mode == TodoGatewayMode.ExternalGateway
+    ? builder.Configuration["OpenConnect:Gateway:LocalServiceBearer"]
+    : null;
 
 if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
@@ -50,6 +57,23 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
         .AddAuthentication(SameHostDevelopmentAuthenticationHandler.SchemeName)
         .AddScheme<AuthenticationSchemeOptions, SameHostDevelopmentAuthenticationHandler>(SameHostDevelopmentAuthenticationHandler.SchemeName, _ => { });
     builder.Services.AddAuthorization();
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddPolicy("liveui-inference", context =>
+        {
+            var tenant = context.User.FindFirst("tenant_id")?.Value ?? "anonymous";
+            var principal = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? context.User.FindFirst("sub")?.Value ?? "anonymous";
+            return RateLimitPartition.GetFixedWindowLimiter($"{tenant}:{principal}", _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+        });
+    });
     builder.Services.AddOpenConnectTaskExecution();
     builder.Services.AddOpenConnectAgent("worker-sample-direct");
     builder.Services.AddMetaTodoIntegration(builder.Configuration);
@@ -71,13 +95,33 @@ else
     var gatewayApiBase = gatewayBase.EndsWith("/openconnect/v1", StringComparison.OrdinalIgnoreCase)
         ? gatewayBase + "/"
         : gatewayBase + "/openconnect/v1/";
+    if (!string.IsNullOrEmpty(localGatewayBearer))
+    {
+        if (!builder.Environment.IsDevelopment() || !Uri.TryCreate(gatewayApiBase, UriKind.Absolute, out var localGateway) ||
+            !System.Net.IPAddress.TryParse(localGateway.Host.Trim('[', ']'), out var gatewayAddress) ||
+            !System.Net.IPAddress.IsLoopback(gatewayAddress.IsIPv4MappedToIPv6 ? gatewayAddress.MapToIPv4() : gatewayAddress))
+            throw new InvalidOperationException("A local gateway service credential requires a loopback gateway in Development.");
+        try
+        {
+            if (Convert.FromBase64String(localGatewayBearer).Length != 32 || Convert.ToBase64String(Convert.FromBase64String(localGatewayBearer)) != localGatewayBearer)
+                throw new FormatException();
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException("The local gateway service credential is invalid.");
+        }
+    }
     builder.Services.AddOpenConnectClient(options =>
     {
         options.AllowInsecureHttp = true;
         options.ApiBaseAddress = new Uri(gatewayApiBase);
-        options.WebSocketHeaders["X-OpenConnect-Test-Tenant"] = gatewayOptions.TenantId;
-        options.WebSocketHeaders["X-OpenConnect-Test-Principal"] = gatewayOptions.PrincipalId;
+        if (!string.IsNullOrEmpty(localGatewayBearer))
+            options.WebSocketHeaders["Authorization"] = $"Bearer {localGatewayBearer}";
     });
+    if (!string.IsNullOrEmpty(localGatewayBearer))
+        builder.Services.AddHttpClient(nameof(IOpenConnectClient), client =>
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", localGatewayBearer))
+            .ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
 }
 builder.Services.AddOpenConnectComponents();
 builder.Services.AddScoped<ILiveUIActionAuthorizer, TodoLiveUIActionAuthorizer>();
@@ -90,20 +134,23 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
     options.Narration.Enabled = true;
     options.Narration.SynchronizeWithSpeech = true;
 });
-if (gatewayOptions.Mode == TodoGatewayMode.ExternalGateway)
+builder.Services.Configure<LiveUIInferenceOptions>(options =>
 {
-    builder.Services.Configure<LiveUIInferenceOptions>(options => options.Worker.Enabled = true);
-    builder.Services.AddHttpClient<GatewayWorkerLiveUIInferenceProvider>((services, client) =>
-    {
-        var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;
-        client.BaseAddress = gatewayClientOptions.ApiBaseAddress;
-        foreach (var header in gatewayClientOptions.WebSocketHeaders)
-            client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
-        client.Timeout = Timeout.InfiniteTimeSpan;
-    });
-    builder.Services.AddScoped<ILiveUIInferenceProvider>(services =>
-        services.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
-}
+    options.Worker.Enabled = true;
+    options.Gateway.Enabled = false;
+});
+var gatewayWorkerClient = builder.Services.AddHttpClient<GatewayWorkerLiveUIInferenceProvider>((services, client) =>
+{
+    var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;
+    client.BaseAddress = gatewayClientOptions.ApiBaseAddress;
+    foreach (var header in gatewayClientOptions.WebSocketHeaders)
+        client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+    client.Timeout = Timeout.InfiniteTimeSpan;
+});
+if (!string.IsNullOrEmpty(localGatewayBearer))
+    gatewayWorkerClient.ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
+builder.Services.AddScoped<ILiveUIInferenceProvider>(services =>
+    services.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
 builder.Services.AddOpenConnectComposer(options =>
 {
     options.Position = ComposerPosition.BottomRight;
@@ -151,6 +198,8 @@ builder.Services.AddOpenConnectEntityFramework<BlazorDbContext>(options =>
 
 var app = builder.Build();
 
+LocalAcceptanceGuard.UseIfEnabled(app);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -163,6 +212,7 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
 {
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseRateLimiter();
 }
 
 app.UseHttpsRedirection();
@@ -206,6 +256,13 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
+static HttpMessageHandler CreateLocalGatewayTransport() => new SocketsHttpHandler
+{
+    AllowAutoRedirect = false,
+    UseProxy = false,
+    UseCookies = false
+};
+
 static void RegisterSameHostLiveUIWorker(IServiceCollection services, IConfiguration configuration)
 {
     var token = configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
@@ -220,6 +277,6 @@ static void RegisterSameHostLiveUIWorker(IServiceCollection services, IConfigura
     {
         options.Endpoint = workerEndpoint;
         options.BearerToken = token;
-    });
+    }, registerRouterProvider: false);
     services.Configure<LiveUIInferenceOptions>(options => options.Worker.Enabled = true);
 }

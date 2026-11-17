@@ -52,6 +52,13 @@ public static class EndpointRouteBuilderExtensions
                     ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
                     : await HandleCreateTaskAsync(context, request, store, cancellationToken);
             }).RequireAuthorization();
+            group.MapPost("/minicomposer/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+            {
+                var store = context.RequestServices.GetService<InMemoryTaskStore>();
+                return store is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured.")
+                    : await HandleCreateTaskAsync(context, request, store, cancellationToken, HostTaskOrigin.MiniComposer);
+            }).RequireAuthorization();
             group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
             group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
             group.MapGet("/tasks/{id}/tools/{invocationId}", (string id, string invocationId, HttpContext context, IServiceProvider services) =>
@@ -214,7 +221,7 @@ public static class EndpointRouteBuilderExtensions
 
     private sealed record SpeechRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0, string? IdempotencyKey = null);
 
-    internal static async Task<IResult> HandleCreateTaskAsync(HttpContext context, TaskRequest request, InMemoryTaskStore store, CancellationToken cancellationToken)
+    internal static async Task<IResult> HandleCreateTaskAsync(HttpContext context, TaskRequest request, InMemoryTaskStore store, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.ClientTaskId) || request.ClientTaskId.Length > 128)
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["clientTaskId"] = ["A client task ID of at most 128 characters is required."] });
@@ -237,11 +244,23 @@ public static class EndpointRouteBuilderExtensions
         if (services.GetService<IHostTaskExecutionDispatcher>() is not { } dispatcher ||
             services.GetService<IHostTaskExecutionAuthorizer>() is null || services.GetService<IHostTaskExecutor>() is null)
             return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register an executor and authorizer to enable task submission.");
+        if (origin == HostTaskOrigin.MiniComposer && request.SessionId is null)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["sessionId"] = ["An existing session is required."] });
+        if (origin == HostTaskOrigin.MiniComposer && string.IsNullOrWhiteSpace(request.ClientConnectionId))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["clientConnectionId"] = ["An active client connection is required."] });
         if (request.SessionId is not null && (!UlidTryParse(request.SessionId, out var sessionId) ||
             services.GetService<InMemorySessionStore>()?.Get(sessionId) is not { } session || session.TenantId.Value != tenant || session.PrincipalId.Value != principal))
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
-        var result = await dispatcher.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
+        using var presenceClaim = origin == HostTaskOrigin.MiniComposer
+            ? services.GetService<InMemorySessionStore>()?.TryClaimSoleConnection(new SessionId(Ulid.Parse(request.SessionId!)))
+            : null;
+        if (origin == HostTaskOrigin.MiniComposer &&
+            (presenceClaim is null || !string.Equals(presenceClaim.ConnectionId, request.ClientConnectionId, StringComparison.Ordinal)))
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Exactly one active session connection is required.", type: "https://openconnect.dev/problems/session-presence");
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{(int)origin}\n{request.ClientTaskId}\n{request.Message}\n{request.SessionId}\n{presenceClaim?.ConnectionId}")));
+        var boundRequest = request with { BoundConnectionId = presenceClaim?.ConnectionId };
+        var result = await dispatcher.AcceptAsync(boundRequest, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken, origin);
         return result.Status switch
         {
             ExecutionAdmissionStatus.Conflict => Results.Problem(statusCode: 409, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict"),
@@ -376,12 +395,16 @@ public static class EndpointRouteBuilderExtensions
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
             return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."));
 
+        if (string.IsNullOrWhiteSpace(response.ConnectionId))
+            return Task.FromResult<IResult>(Results.Problem(statusCode: 400, title: "The client interaction response is invalid."));
         var eventData = JsonSerializer.Serialize(response, JsonOptions);
-        var appendResult = store.TryAppendClientInteractionResponse(value, response, eventData);
+        var appendResult = store.TryAppendClientInteractionResponse(value, response.ConnectionId, response, eventData);
         var result = appendResult switch
         {
-            ClientInteractionResponseAppendResult.Accepted or ClientInteractionResponseAppendResult.Duplicate =>
+            ClientInteractionResponseAppendResult.Accepted =>
                 Results.Ok(new { response.CorrelationId, accepted = true }),
+            ClientInteractionResponseAppendResult.Duplicate =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The client interaction response was already completed."),
             ClientInteractionResponseAppendResult.RequestNotFound =>
                 Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "No matching client interaction request exists."),
             ClientInteractionResponseAppendResult.ConflictingResponse =>
@@ -624,7 +647,12 @@ public static class EndpointRouteBuilderExtensions
 }
 
 /// <summary>Task submission body. Tenant and principal are always taken from authenticated claims.</summary>
-public sealed record TaskRequest(string ClientTaskId, string? Message = null, string? SessionId = null);
+public sealed record TaskRequest(string ClientTaskId, string? Message = null, string? SessionId = null)
+{
+    /// <summary>Untrusted connection identifier checked against the authenticated session.</summary>
+    public string? ClientConnectionId { get; init; }
+    internal string? BoundConnectionId { get; init; }
+}
 public sealed record SessionRequest(string? Name = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);
 
@@ -694,14 +722,21 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
     internal int Count => _sessions.Count;
     internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
+    internal int GetConnectionCount(SessionId id) => _journal.GetConnectionCount(id);
+    internal InMemoryEventJournal.BoundConnectionRegistration? RegisterBoundConnection(SessionRecord session) =>
+        _journal.TryRegisterBoundConnection(session.Id, session.TenantId, session.PrincipalId);
+    internal bool IsInteractionEventForConnection(EventRecord record, string connectionId) =>
+        _journal.IsInteractionEventForConnection(record, connectionId);
+    internal bool TryExpirePendingInteraction(SessionId sessionId, string correlationId) =>
+        _journal.TryExpirePendingInteraction(sessionId, correlationId);
+    internal InMemoryEventJournal.ConnectionClaim? TryClaimSoleConnection(SessionId id) => _journal.TryClaimSoleConnection(id);
 
     internal ClientInteractionResponseAppendResult TryAppendClientInteractionResponse(
-        Ulid id,
-        ClientInteractionResponse response,
-        string eventData)
+        Ulid id, string connectionId, ClientInteractionResponse response, string eventData)
     {
-        if (!_sessions.ContainsKey(id)) return ClientInteractionResponseAppendResult.SessionNotFound;
-        return _journal.TryAppendClientInteractionResponse(new SessionId(id), response, eventData);
+        if (!_sessions.TryGetValue(id, out var session)) return ClientInteractionResponseAppendResult.SessionNotFound;
+        return _journal.TryAppendBoundClientInteractionResponse(connectionId, session.Id, session.TenantId,
+            session.PrincipalId, response, eventData);
     }
 
     internal long AppendEvent(Ulid id, string type, string data)
@@ -733,6 +768,11 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
             timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
             throw new ArgumentException("The client interaction request is invalid.", nameof(request));
 
+        var session = _sessions[sessionId.Value];
+        var connectionId = _journal.TryClaimAndBindPendingInteraction(sessionId, session.TenantId,
+            session.PrincipalId, request.CorrelationId, request.ConnectionId);
+        if (connectionId is null) return null;
+        request = request with { ConnectionId = connectionId };
         var requestSequence = await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Request,
             JsonSerializer.Serialize(request, InteractionJsonOptions), cancellationToken).ConfigureAwait(false);
         using var responseTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -761,10 +801,24 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            if (!_journal.TryExpirePendingInteraction(sessionId, request.CorrelationId))
+            {
+                var response = GetEvents(sessionId.Value, requestSequence)
+                    .Where(record => record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal))
+                    .Select(record =>
+                    {
+                        try { return JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                        catch (JsonException) { return null; }
+                    })
+                    .FirstOrDefault(response => response?.CorrelationId == request.CorrelationId &&
+                                                response.ResultKind == expectedResultKind);
+                if (response is not null) return response;
+            }
             return null;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            _journal.TryExpirePendingInteraction(sessionId, request.CorrelationId);
             try
             {
                 await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Cancellation,

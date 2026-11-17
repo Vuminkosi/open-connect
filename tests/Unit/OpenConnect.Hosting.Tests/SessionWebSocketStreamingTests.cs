@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
+using OpenConnect.Client;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore.Streaming;
@@ -23,6 +24,33 @@ public sealed class SessionWebSocketStreamingTests
     private const string Tenant = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
     private const string Principal = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
     private const string OtherPrincipal = "01ARZ3NDEKTSV4RRFFQ69G5FAX";
+
+    [Fact]
+    public async Task Sdk_receives_registration_and_serialized_session_events()
+    {
+        await using var server = await HostFixture.StartAsync();
+        var store = server.App.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        await store.AppendEventAsync(session.Id.Value, "message.delta", "hello");
+        var largeMessage = new string('x', 70_000);
+        await store.AppendEventAsync(session.Id.Value, "message.delta", largeMessage);
+        using var http = new HttpClient { BaseAddress = new Uri(server.BaseUri, "/openconnect/v1/") };
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(FixtureScheme, $"{Tenant}:{Principal}");
+        var sdk = new OpenConnectClient(http);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var events = sdk.SubscribeEventsWebSocketAsync(session.Id, 0, cancellation.Token).GetAsyncEnumerator();
+
+        Assert.True(await events.MoveNextAsync());
+        Assert.Equal("registered", events.Current.Type);
+        using var registration = JsonDocument.Parse(events.Current.Data);
+        Assert.Equal(session.Id.Value.ToString(), registration.RootElement.GetProperty("sessionId").GetString());
+        using (var claim = store.TryClaimSoleConnection(session.Id)) Assert.NotNull(claim);
+        Assert.True(await events.MoveNextAsync());
+        Assert.Equal("message.delta", events.Current.Type);
+        Assert.Equal("hello", events.Current.Data);
+        Assert.True(await events.MoveNextAsync());
+        Assert.Equal(largeMessage, events.Current.Data);
+    }
 
     [Fact]
     public async Task WebSocket_streams_historical_and_live_events_with_cursor_resume()
@@ -39,6 +67,15 @@ public sealed class SessionWebSocketStreamingTests
 
         // Connect with afterSequence = 1 (should only receive event 2 and subsequent live events)
         using var client = await server.ConnectWebSocketAsync(session.Id.Value.ToString(), afterSequence: 1, Tenant, Principal);
+
+        using (var registration = await ReceiveJsonAsync(client))
+        {
+            Assert.Equal("registered", registration.RootElement.GetProperty("type").GetString());
+            Assert.Equal(session.Id.Value.ToString(), registration.RootElement.GetProperty("sessionId").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(registration.RootElement.GetProperty("connectionId").GetString()));
+        }
+        using (var presence = sessionStore.TryClaimSoleConnection(session.Id))
+            Assert.NotNull(presence);
 
         // Read event 2
         var frame1 = await ReceiveJsonAsync(client);
@@ -78,6 +115,9 @@ public sealed class SessionWebSocketStreamingTests
         await sessionStore.AppendEventAsync(session.Id.Value, "agent.step", eventData);
 
         using var client = await server.ConnectWebSocketAsync(sessionUuid.ToString("D"), afterSequence: 0, Tenant, Principal);
+
+        using (var registration = await ReceiveJsonAsync(client))
+            Assert.Equal("registered", registration.RootElement.GetProperty("type").GetString());
 
         var frame = await ReceiveJsonAsync(client);
         Assert.NotNull(frame);

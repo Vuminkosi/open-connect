@@ -19,6 +19,31 @@ namespace OpenConnect.Samples.Workers.TestKit;
 
 public sealed class MetaTodoPrivacyEgressTests
 {
+    [Theory]
+    [InlineData(HostTaskOrigin.MiniComposer, true)]
+    [InlineData(HostTaskOrigin.NonInteractive, false)]
+    public async Task Interactive_tools_follow_trusted_origin_not_keywords(HostTaskOrigin origin, bool expected)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            "Navigate to the Completed tab.", "interactive-origin") { Origin = origin, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.Equal(expected, chat.ToolNames.Contains("liveui_infer_plan"));
+        Assert.DoesNotContain(chat.ToolNames, name => name.StartsWith("navigator.", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Todo_agent_uses_task_scope_and_tokenizes_canaries_before_chat_provider_egress()
     {
@@ -34,11 +59,12 @@ public sealed class MetaTodoPrivacyEgressTests
         var gate = new EgressGate(new PrivacyFirewall(
             Options.Create(new PrivacyOptions()), new PolicyEngine(detector)));
         var chatClient = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
         var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") },
-            Options.Create(new MetaCloudOptions()));
+            options);
         var executor = new MetaTodoTaskExecutor(
             new TestAgentRegistry(), chatClient, gate, todo, sessions, new NoopInteractionBroker(),
-            Options.Create(new MetaCloudOptions()), NullLogger<MetaTodoTaskExecutor>.Instance);
+            options, NullLogger<MetaTodoTaskExecutor>.Instance);
 
         await executor.ExecuteAsync(new HostTaskExecution(
             new TaskId(Ulid.NewUlid()), tenant, principal, session,
@@ -84,12 +110,14 @@ public sealed class MetaTodoPrivacyEgressTests
     private sealed class CapturingChatClient : IChatClient
     {
         public List<ChatMessage> OutboundMessages { get; private set; } = [];
+        public List<string> ToolNames { get; private set; } = [];
 
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             OutboundMessages = messages.ToList();
+            ToolNames = options?.Tools?.OfType<AIFunction>().Select(tool => tool.Name).ToList() ?? [];
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "Handled safely.")));
         }
 

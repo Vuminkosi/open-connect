@@ -96,7 +96,7 @@
                                    Size="Size.Small"
                                    Color="Color.Error"
                                    OnClick="StopSending"
-                                   Disabled="@(!IsLoading)"
+                                   Disabled="@(!IsLoading && !_sending)"
                                    aria-label="Stop reply"
                                    title="Stop reply" />
                     <MudIconButton Icon="@Icons.Material.Filled.Close"

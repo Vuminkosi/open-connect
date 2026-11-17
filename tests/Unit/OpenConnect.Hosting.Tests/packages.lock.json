@@ -423,6 +423,12 @@
           "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
       "openconnect.core": {
         "type": "Project",
         "dependencies": {
@@ -1035,6 +1041,12 @@
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
       "openconnect.core": {
@@ -1659,6 +1671,12 @@
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.client": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
       "openconnect.core": {

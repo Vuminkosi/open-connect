@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import connectedConfig from './playwright.liveui-connected.config.js';
+import { randomBytes } from 'node:crypto';
 
 const endpointText = process.env.OPENCONNECT_LIVEUI_WORKER_ENDPOINT;
 const bearerToken = process.env.OPENCONNECT_LIVEUI_WORKER_TOKEN;
@@ -22,6 +23,8 @@ if (endpoint.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includ
 
 const [fixtureServer, appServer] = connectedConfig.webServer;
 const gatewayUrl = 'http://127.0.0.1:5120';
+const localGatewayBearer = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER ?? randomBytes(32).toString('base64');
+process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER = localGatewayBearer;
 const gatewayEnvironment = {
   ...appServer.env,
   ASPNETCORE_URLS: gatewayUrl,
@@ -32,11 +35,16 @@ const gatewayEnvironment = {
   TODO_INTERNAL_TENANT: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
   TODO_ALLOW_MUTATIONS: 'false',
   TODO_MUTATION_APPROVAL: 'not-approved',
+  OC_LOCAL_SERVICE_AUTH_ENABLED: '1',
+  OC_LOCAL_SERVICE_AUTH_SECRET: localGatewayBearer,
+  OC_LOCAL_SERVICE_AUTH_TENANT_ID: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+  OC_LOCAL_SERVICE_AUTH_PRINCIPAL_ID: '01ARZ3NDEKTSV4RRFFQ69G5FB0',
 };
 const appEnvironment = {
   ...appServer.env,
   OpenConnect__Gateway__Mode: 'ExternalGateway',
   GATEWAY_URL: `${gatewayUrl}/openconnect/v1/`,
+  OpenConnect__Gateway__LocalServiceBearer: localGatewayBearer,
   TODO_INTERNAL_TOKEN: 'local-acceptance-todo-internal-token',
   TODO_INTERNAL_TENANT: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
 };

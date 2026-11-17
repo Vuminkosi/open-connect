@@ -3,6 +3,9 @@ namespace OpenConnect.Client;
 public interface IOpenConnectClient
 {
     Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Creates a task through the authenticated MiniComposer route, bound to an existing session.</summary>
+    Task<TaskRecord> CreateMiniComposerTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("MiniComposer task submission is not supported by this client implementation.");
     Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
     Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
     Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException("Session creation is not supported by this client implementation.");
@@ -41,7 +44,11 @@ public interface IOpenConnectClient
     /// </exception>
     IAsyncEnumerable<CanonicalAgentEvent> ReplayEventsAsync(Guid sessionId, long afterSequence = 0, CancellationToken cancellationToken = default);
 }
-public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null);
+public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null)
+{
+    /// <summary>Server-issued connection identity for an interactive MiniComposer submission.</summary>
+    public string? ClientConnectionId { get; init; }
+}
 public sealed record SpeechSynthesisRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0);
 public sealed record SpeechSynthesisResult(string VoiceId, string Format, int SampleRateHz, int Channels, string AudioBase64);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);

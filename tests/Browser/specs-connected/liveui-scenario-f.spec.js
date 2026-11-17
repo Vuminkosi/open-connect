@@ -67,6 +67,18 @@ test('connected Scenario F completes with voice output enabled', async ({ page, 
   await expectVerifiedFixtureRun(request);
 });
 
+test('a guided tour highlights the first area and asks before continuing', async ({ page, request }) => {
+  await openComposer(page, false);
+  await page.getByRole('textbox', { name: /message ellai/i }).fill('Please show me around.');
+  await page.getByRole('button', { name: /send to ellai/i }).click();
+  await expect(page.getByRole('log', { name: 'Conversation' })).toContainText(
+    'This task region shows your work and its filters. Would you like to continue the tour?', { timeout: 90_000 });
+  const run = await expectVerifiedFixtureRun(request,
+    ['liveui_infer_plan', 'liveui_get_current_page', 'liveui_highlight']);
+  expect(run.scenarioName).toBe('tour');
+  expect(run.results.at(-1).evidence).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+});
+
 test('task lookup plays a narrated visual timeline from the list to the exact task row', async ({ page, request }) => {
   await openComposer(page, true);
   await page.evaluate(() => {

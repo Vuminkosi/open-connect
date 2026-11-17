@@ -11,6 +11,190 @@ public sealed class InMemoryEventJournal : IEventJournal
     private const int EventLimit = 1000;
     private static readonly JsonSerializerOptions ClientInteractionJsonOptions = OpenConnectHttpJson.CreateOptions();
     private readonly ConcurrentDictionary<Ulid, SessionEvents> _sessions = new();
+    private readonly HashSet<Ulid> _claims = new();
+    private readonly object _bindingGate = new();
+    private readonly Dictionary<string, BoundConnection> _boundConnections = new(StringComparer.Ordinal);
+    private readonly Dictionary<(Ulid Session, string Correlation), PendingInteraction> _pendingInteractions = new();
+    private readonly HashSet<string> _usedConnectionIds = new(StringComparer.Ordinal);
+
+    // These APIs form the connection-bound LiveUI state primitive. All decisions that
+    // depend on both connection and pending-interaction state share one lock.
+    internal BoundConnectionRegistration? TryRegisterBoundConnection(
+        SessionId sessionId, TenantId tenantId, PrincipalId principalId)
+    {
+        lock (_bindingGate)
+        {
+            var connectionId = Ulid.NewUlid().ToString();
+            while (!_usedConnectionIds.Add(connectionId)) connectionId = Ulid.NewUlid().ToString();
+            var connection = new BoundConnection(connectionId, sessionId, tenantId, principalId);
+            _boundConnections.Add(connectionId, connection);
+            return new BoundConnectionRegistration(this, connection);
+        }
+    }
+
+    internal string? TryClaimSoleBoundConnection(SessionId sessionId, TenantId tenantId, PrincipalId principalId)
+    {
+        lock (_bindingGate)
+        {
+            var matches = _boundConnections.Values.Where(connection =>
+                connection.SessionId == sessionId && connection.TenantId == tenantId &&
+                connection.PrincipalId == principalId).Take(2).ToArray();
+            return matches.Length == 1 ? matches[0].ConnectionId : null;
+        }
+    }
+
+    internal string? TryClaimAndBindPendingInteraction(
+        SessionId sessionId, TenantId tenantId, PrincipalId principalId, string correlationId, string? expectedConnectionId = null)
+    {
+        lock (_bindingGate)
+        {
+            var matches = _boundConnections.Values.Where(connection =>
+                connection.SessionId == sessionId && connection.TenantId == tenantId &&
+                connection.PrincipalId == principalId &&
+                (expectedConnectionId is null || connection.ConnectionId == expectedConnectionId)).Take(2).ToArray();
+            if (matches.Length != 1) return null;
+            var connection = matches[0];
+            var key = (sessionId.Value, correlationId);
+            if (_pendingInteractions.ContainsKey(key) ||
+                !_boundConnections.TryGetValue(connection.ConnectionId, out var active) || active != connection)
+                return null;
+            _pendingInteractions.Add(key, new PendingInteraction(connection));
+            return connection.ConnectionId;
+        }
+    }
+
+    internal bool TryBindPendingInteraction(string connectionId, string correlationId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+        lock (_bindingGate)
+        {
+            if (!_boundConnections.TryGetValue(connectionId, out var connection)) return false;
+            var key = (connection.SessionId.Value, correlationId);
+            if (_pendingInteractions.ContainsKey(key)) return false;
+            _pendingInteractions.Add(key, new PendingInteraction(connection));
+            return true;
+        }
+    }
+
+    internal bool TryExpirePendingInteraction(SessionId sessionId, string correlationId)
+    {
+        lock (_bindingGate)
+        {
+            var key = (sessionId.Value, correlationId);
+            if (!_pendingInteractions.TryGetValue(key, out var pending) || pending.Completed)
+                return false;
+
+            _pendingInteractions[key] = pending with { Completed = true };
+            return true;
+        }
+    }
+
+    internal bool IsInteractionEventForConnection(EventRecord record, string connectionId)
+    {
+        lock (_bindingGate)
+        {
+            if (record.Type == ClientInteractionEventTypes.Request)
+            {
+                try
+                {
+                    var request = JsonSerializer.Deserialize<ClientInteractionRequest>(record.Data, ClientInteractionJsonOptions);
+                    return request?.ConnectionId == connectionId;
+                }
+                catch (JsonException) { return false; }
+            }
+            if (record.Type == ClientInteractionEventTypes.Cancellation)
+            {
+                try
+                {
+                    var cancellation = JsonSerializer.Deserialize<ClientInteractionCancellation>(record.Data, ClientInteractionJsonOptions);
+                    return cancellation is not null &&
+                           _pendingInteractions.TryGetValue((record.SessionId.Value, cancellation.CorrelationId), out var pending) &&
+                           pending.Connection.ConnectionId == connectionId;
+                }
+                catch (JsonException) { return false; }
+            }
+            return true;
+        }
+    }
+
+    internal ClientInteractionResponseAppendResult TryAppendBoundClientInteractionResponse(
+        string connectionId, SessionId sessionId, TenantId tenantId, PrincipalId principalId,
+        ClientInteractionResponse response, string eventData)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        lock (_bindingGate)
+        {
+            if (!_boundConnections.TryGetValue(connectionId, out var connection) ||
+                connection.SessionId != sessionId || connection.TenantId != tenantId ||
+                connection.PrincipalId != principalId || response.ConnectionId != connectionId)
+                return ClientInteractionResponseAppendResult.RequestNotFound;
+            var key = (sessionId.Value, response.CorrelationId);
+            if (!_pendingInteractions.TryGetValue(key, out var pending) ||
+                pending.Connection.ConnectionId != connectionId || pending.Completed)
+                return ClientInteractionResponseAppendResult.RequestNotFound;
+            if (!_sessions.TryGetValue(sessionId.Value, out var events))
+                return ClientInteractionResponseAppendResult.SessionNotFound;
+            var result = events.TryAppendClientInteractionResponse(response,
+                new EventRecord(sessionId, 0, ClientInteractionEventTypes.Response, eventData), EventLimit);
+            if (result == ClientInteractionResponseAppendResult.Accepted)
+                _pendingInteractions[key] = pending with { Completed = true };
+            return result;
+        }
+    }
+
+    private void DisconnectBoundConnection(BoundConnection connection)
+    {
+        lock (_bindingGate)
+        {
+            if (!_boundConnections.TryGetValue(connection.ConnectionId, out var active) || active != connection) return;
+            _boundConnections.Remove(connection.ConnectionId);
+            foreach (var key in _pendingInteractions
+                         .Where(pair => pair.Value.Connection.ConnectionId == connection.ConnectionId)
+                         .Select(pair => pair.Key).ToArray())
+                _pendingInteractions[key] = _pendingInteractions[key] with { Completed = true };
+        }
+    }
+
+    internal sealed record BoundConnection(string ConnectionId, SessionId SessionId, TenantId TenantId, PrincipalId PrincipalId);
+    private sealed record PendingInteraction(BoundConnection Connection, bool Completed = false);
+
+    internal sealed class BoundConnectionRegistration(InMemoryEventJournal journal, BoundConnection connection) : IDisposable
+    {
+        private int _disposed;
+        internal string ConnectionId => connection.ConnectionId;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0) journal.DisconnectBoundConnection(connection);
+        }
+    }
+
+    internal int GetConnectionCount(SessionId sessionId)
+    {
+        lock (_bindingGate)
+            return _boundConnections.Values.Count(connection => connection.SessionId == sessionId);
+    }
+
+    internal ConnectionClaim? TryClaimSoleConnection(SessionId sessionId)
+    {
+        lock (_bindingGate)
+        {
+            var matches = _boundConnections.Values.Where(connection => connection.SessionId == sessionId).Take(2).ToArray();
+            if (matches.Length != 1 ||
+                !_claims.Add(sessionId.Value)) return null;
+            return new ConnectionClaim(this, sessionId.Value, matches[0].ConnectionId);
+        }
+    }
+
+    internal sealed class ConnectionClaim(InMemoryEventJournal journal, Ulid sessionId, string connectionId) : IDisposable
+    {
+        internal string ConnectionId => connectionId;
+        private int _disposed;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            lock (journal._bindingGate) journal._claims.Remove(sessionId);
+        }
+    }
 
     internal long Append(EventRecord @event)
     {

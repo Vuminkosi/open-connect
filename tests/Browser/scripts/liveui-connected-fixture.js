@@ -52,6 +52,12 @@ const navigationSteps = [
   },
 ];
 
+const tourSteps = [
+  { name: 'liveui_infer_plan', arguments: { intent: 'Highlight the task list for an introductory tour.' }, kind: 'unavailable_plan' },
+  { name: 'liveui_get_current_page', arguments: {}, kind: 'page' },
+  { name: 'liveui_highlight', arguments: { targetId: 'route.root.components-todolistcomponent-razor-region-todo-list' }, kind: 'receipt' },
+];
+
 const statusSteps = [
   { name: 'liveui_get_current_page', arguments: {}, kind: 'page' },
   {
@@ -117,7 +123,7 @@ const unavailableLocalInferenceSteps = [
 ];
 
 const workerInferenceSteps = [
-  { name: 'liveui_infer_plan', arguments: { intent: 'Activate the tab named Completed.' }, kind: 'worker_plan' },
+  { name: 'liveui_infer_plan', arguments: { intent: 'Switch to the tab showing finished work.' }, kind: 'worker_plan' },
   { name: 'liveui_execute', arguments: {}, kind: 'receipt' },
   {
     name: 'liveui_await_state',
@@ -508,11 +514,35 @@ function receiptIsDenied(receipt) {
   return receipt?.outcome === 'Denied' && receipt?.postconditionVerified === false;
 }
 
+function workerMatrixActions(receipt) {
+  if (receipt?.provider !== 'LocalWorker' || receipt.outcome !== 'completed' ||
+      !Array.isArray(receipt.plan?.actions) || receipt.plan.actions.length === 0) {
+    throw new Error(`The local worker did not return a validated plan: ${JSON.stringify(receipt)}`);
+  }
+  return receipt.plan.actions.map(action => ({ type: action.type, targetId: action.targetId, value: action.value ?? null }));
+}
+
+function workerMatrixSteps(actions) {
+  return actions.map(action => {
+    if (action.type === 'navigate') return { name: 'liveui_navigate', arguments: { routeId: action.targetId }, kind: 'receipt' };
+    if (action.type === 'activate') return { name: 'liveui_execute', arguments: { targetId: action.targetId, action: 'SelectTab' }, kind: 'receipt' };
+    if (action.type === 'setValue') return { name: 'liveui_execute', arguments: { targetId: action.targetId, action: 'SetValue', value: action.value }, kind: 'receipt' };
+    if (action.type === 'highlight') return { name: 'liveui_highlight', arguments: { targetId: action.targetId }, kind: 'receipt' };
+    throw new Error(`Worker matrix plan contains an unsupported action: ${action.type}`);
+  });
+}
+
 function checkPreviousToolResult(run, toolMessages) {
   if (run.results.length === 0) return;
   const priorMessage = toolMessages.at(-1);
   const receipt = parseToolResult(priorMessage);
   const step = run.results.at(-1);
+  if (step.kind === 'worker_matrix_plan') {
+    const actions = workerMatrixActions(receipt);
+    step.evidence = { provider: receipt.provider, actions };
+    run.steps.push(...workerMatrixSteps(actions));
+    return;
+  }
   if (step.kind === 'plan') {
     const actions = receipt?.plan?.actions;
     if (receipt?.provider !== 'Browser' || !Array.isArray(actions) || actions.length !== 1) {
@@ -749,7 +779,13 @@ const server = http.createServer(async (request, response) => {
       const status = /completed tasks/i.test(normalizedUserText);
       const search = /find tasks|search tasks|tasks containing report/i.test(normalizedUserText);
       const navigation = /open my todo list|open the todo list/i.test(normalizedUserText);
-      const scenarioName = deniedWrite ? 'denied_write'
+      const tour = /show me around|walk me through/i.test(normalizedUserText);
+      const workerMatrix = realLiveUIWorkerContainer && [
+        'Open my tasks', 'Show completed tasks', 'Show active tasks', 'Show all tasks',
+        'Search for report', 'Highlight the tasks', 'Show completed tasks containing report',
+      ].includes(normalizedUserText);
+      const scenarioName = workerMatrix ? 'worker_matrix'
+        : deniedWrite ? 'denied_write'
         : highlightRetry ? 'highlight_retry'
         : statusHighlight ? 'status_highlight'
         : completedTaskLookup ? 'completed_task_lookup'
@@ -764,9 +800,12 @@ const server = http.createServer(async (request, response) => {
         : status ? 'status'
         : search ? 'search'
         : navigation ? 'navigation'
+        : tour ? 'tour'
         : 'combined';
       const answers = {
         navigation: 'I opened the Todo page, verified it was ready, and highlighted the task region.',
+        tour: 'This task region shows your work and its filters. Would you like to continue the tour?',
+        worker_matrix: 'The requested task view is ready.',
         highlight_retry: 'I retried the highlight and highlighted the Todo task list so you can see the task statuses.',
         status_highlight: 'I highlighted the Todo task list so you can see the current task statuses.',
         status: 'The Completed tab is selected and shows the completed tasks.',
@@ -786,6 +825,8 @@ const server = http.createServer(async (request, response) => {
         scenarioName,
         steps: {
           navigation: navigationSteps,
+          tour: tourSteps,
+          worker_matrix: [{ name: 'liveui_infer_plan', arguments: { intent: normalizedUserText }, kind: 'worker_matrix_plan' }],
           highlight_retry: statusHighlightSteps,
           status_highlight: statusHighlightSteps,
           status: statusSteps,
@@ -847,7 +888,9 @@ const server = http.createServer(async (request, response) => {
     for (const [index, message] of toolMessages.entries()) {
       const step = run.results[index];
       const result = parseToolResult(message);
-      if (step.kind === 'plan') {
+      if (step.kind === 'worker_matrix_plan') {
+        step.evidence = { provider: result?.provider, actions: workerMatrixActions(result) };
+      } else if (step.kind === 'plan') {
         const action = result?.plan?.actions?.[0];
         if (result?.provider !== 'Browser' || !action ||
             (action.targetId ?? action.TargetId) !== 'route.root.components-todolistcomponent-razor-tab-completed' ||

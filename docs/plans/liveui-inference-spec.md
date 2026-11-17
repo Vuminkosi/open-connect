@@ -12,6 +12,8 @@ The default is `BrowserFirst`, with browser, worker, and gateway inference disab
 
 The gateway contract is host-owned because only the host has the authenticated identity and egress policy needed to enforce safe remote inference. A gateway implementation must not infer that browser failure authorizes sending client UI context remotely.
 
+MiniComposer submits interactive tasks with the server-issued connection identifier received on its authenticated session socket. The host validates that identifier against the active session at admission and retains it for the task. Subsequent client interactions are delivered only to that connection; if it disconnects, a replacement connection cannot inherit the task's pending actions. Clients using `CreateMiniComposerTaskAsync` must provide both the existing session ID and its active connection ID. The ordinary task endpoint remains available for non-interactive work.
+
 ## Metrics
 
 Inference routing publishes the `OpenConnect.LiveUI.Inference` meter:

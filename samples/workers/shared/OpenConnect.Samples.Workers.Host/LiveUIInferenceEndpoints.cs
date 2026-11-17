@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.LiveUI;
@@ -41,8 +42,9 @@ public static class LiveUIInferenceEndpoints
         CancellationToken cancellationToken)
     {
         if (envelope is null || envelope.Request is null ||
-            !Guid.TryParseExact(envelope.RequestId, "D", out _) ||
-            !Guid.TryParseExact(envelope.ExecutionId, "N", out _))
+            (!(Guid.TryParseExact(envelope.RequestId, "D", out var requestId) ||
+               Guid.TryParseExact(envelope.RequestId, "N", out requestId)) || requestId == Guid.Empty) ||
+            !Guid.TryParseExact(envelope.ExecutionId, "N", out var executionId) || executionId == Guid.Empty)
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = ["The inference correlation envelope is invalid."] });
 
         var request = envelope.Request with { RequestId = envelope.RequestId, ExecutionId = envelope.ExecutionId };
@@ -52,7 +54,8 @@ public static class LiveUIInferenceEndpoints
             request.Capabilities.Count is < 1 or > 512 || request.Capabilities.Any(capability =>
                 capability is null || capability.TargetId is not { Length: > 0 and <= 256 } ||
                 capability.Actions is null || capability.Actions.Count is < 1 or > 16 ||
-                capability.Actions.Any(action => action is not { Length: > 0 and <= 32 })))
+                capability.Actions.Any(action => action is not { Length: > 0 and <= 32 })) ||
+            request.Capabilities.Select(capability => capability.TargetId).Distinct(StringComparer.Ordinal).Count() != request.Capabilities.Count)
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = ["The inference request is invalid."] });
 
         if (!TryParseIdentity(context.User, out var tenant, out var principal))
@@ -74,13 +77,15 @@ public static class LiveUIInferenceEndpoints
         if (!egress.Allowed || egress.SanitizedContent is null)
             return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Privacy policy blocked LiveUI worker inference.", type: "https://openconnect.dev/problems/privacy-blocked");
 
-        var sanitizedRequest = request with { Intent = egress.SanitizedContent };
         var worker = services.GetService<LocalWorkerLiveUIInferenceProvider>();
         if (worker is null)
             return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "The LiveUI worker is not configured.");
-
+        var sanitizedRequest = request with { Intent = egress.SanitizedContent };
         var result = await worker.GeneratePlanAsync(sanitizedRequest, cancellationToken).ConfigureAwait(false);
-        if (result.Plan is not null && !new LiveUIActionPlanValidator().Validate(sanitizedRequest, result.Plan, 8, out _))
+
+        if (result.Plan is { } plan &&
+            (plan.Actions is null || plan.Actions.Any(action => action is null || action.Type is null || action.TargetId is null) ||
+             !new LiveUIActionPlanValidator().Validate(sanitizedRequest, plan, 8, out _)))
             result = new(LiveUIInferenceProviderKind.LocalWorker, null, "invalid_plan");
 
         return Results.Ok(new GatewayLiveUIInferenceResponse(envelope.RequestId, envelope.ExecutionId, result));

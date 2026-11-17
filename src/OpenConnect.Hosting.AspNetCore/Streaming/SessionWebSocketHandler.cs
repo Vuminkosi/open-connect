@@ -189,6 +189,20 @@ internal static class SessionWebSocketHandler
         }
 
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync(agreedSubProtocol).ConfigureAwait(false);
+        var authenticatedSession = sessionStore.Get(sessionUlid)!;
+        using var connection = sessionStore.RegisterBoundConnection(authenticatedSession);
+        if (connection is null)
+        {
+            await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unable to register session connection.", CancellationToken.None).ConfigureAwait(false);
+            return;
+        }
+        var registered = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            type = "registered",
+            connectionId = connection.ConnectionId,
+            sessionId = sessionIdOrUuid
+        }, OpenConnectHttpJson.CreateOptions());
+        await webSocket.SendAsync(new ArraySegment<byte>(registered), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
 
         var logger = context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(SessionWebSocketHandler));
         using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
@@ -203,6 +217,11 @@ internal static class SessionWebSocketHandler
             foreach (var record in initialRecords)
             {
                 token.ThrowIfCancellationRequested();
+                if (!sessionStore.IsInteractionEventForConnection(record, connection.ConnectionId))
+                {
+                    lastSentSequence = Math.Max(lastSentSequence, record.Sequence);
+                    continue;
+                }
                 var sent = await SendRecordAsync(webSocket, record, isUuid, sessionUuid, token).ConfigureAwait(false);
                 if (!sent) return;
                 if (record.Sequence > lastSentSequence)
@@ -246,6 +265,11 @@ internal static class SessionWebSocketHandler
                 foreach (var record in nextRecords)
                 {
                     token.ThrowIfCancellationRequested();
+                    if (!sessionStore.IsInteractionEventForConnection(record, connection.ConnectionId))
+                    {
+                        lastSentSequence = Math.Max(lastSentSequence, record.Sequence);
+                        continue;
+                    }
                     var sent = await SendRecordAsync(webSocket, record, isUuid, sessionUuid, token).ConfigureAwait(false);
                     if (!sent) return;
                     if (record.Sequence > lastSentSequence)

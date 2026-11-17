@@ -48,7 +48,7 @@ internal sealed class ExecutionRuntimeState
 
 internal interface IHostTaskExecutionDispatcher
 {
-    Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken);
+    Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive);
     Task<TaskRecord?> CancelAsync(Ulid taskId, CancellationToken cancellationToken);
 }
 

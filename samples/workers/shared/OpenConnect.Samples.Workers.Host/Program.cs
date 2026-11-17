@@ -33,30 +33,15 @@ public sealed class SampleTestAuthHandler : AuthenticationHandler<Authentication
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var tenantHeader = Request.Headers["X-OpenConnect-Test-Tenant"].FirstOrDefault();
-        var principalHeader = Request.Headers["X-OpenConnect-Test-Principal"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(tenantHeader) || string.IsNullOrWhiteSpace(principalHeader))
-        {
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
+        var identity = Context.RequestServices.GetService<LocalServiceIdentity>();
+        return Task.FromResult(identity?.Authenticate(Context, SchemeName) ?? AuthenticateResult.NoResult());
+    }
 
-        var claims = new List<Claim>
-        {
-            new("tenant_id", tenantHeader),
-            new(ClaimTypes.NameIdentifier, principalHeader),
-            new("sub", principalHeader)
-        };
-
-        var identityMode = Request.Headers["X-OpenConnect-Test-Identity-Mode"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(identityMode))
-        {
-            claims.Add(new Claim("identity_mode", identityMode));
-        }
-
-        var identity = new ClaimsIdentity(claims, SchemeName);
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, SchemeName);
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = StatusCodes.Status401Unauthorized;
+        Response.Headers.WWWAuthenticate = "Bearer";
+        return Task.CompletedTask;
     }
 }
 
@@ -71,6 +56,9 @@ public static class SampleWorkerHostApp
         SampleGatewayCoordinator.ValidateHostingExclusivity(embeddedOps, standaloneOps, embeddedOutbox, standaloneOutbox);
 
         var builder = WebApplication.CreateBuilder(args);
+        var localServiceIdentity = LocalServiceIdentity.FromEnvironment(builder.Environment);
+        if (localServiceIdentity is not null)
+            builder.Services.AddSingleton(localServiceIdentity);
         builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = TimeSpan.FromSeconds(60));
         builder.Services
             .AddAuthentication(SampleTestAuthHandler.SchemeName)

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using System.ClientModel;
 using Microsoft.Extensions.AI;
@@ -23,6 +24,7 @@ public sealed class MetaCloudOptions
     public string TodoServiceUrl { get; init; } = string.Empty;
     public string TodoInternalToken { get; init; } = string.Empty;
     public string TodoTenant { get; init; } = string.Empty;
+    public string LocalGuardCredential { get; init; } = string.Empty;
     public bool AllowMutations { get; init; }
     public bool MutationApprovalGranted { get; init; }
 
@@ -34,12 +36,17 @@ public sealed class MetaCloudOptions
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
         var todoUrl = configuration["TODO_SERVICE_URL"] ??
             (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) ? "http://127.0.0.1:5000" : string.Empty);
-        var todoToken = configuration["TODO_INTERNAL_TOKEN"] ??
-            (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) ? "e2e-todo-internal-do-not-use-in-prod" : string.Empty);
-        var tenant = configuration["TODO_INTERNAL_TENANT"] ?? "01ARZ3NDEKTSV4RRFFQ69G5FAV";
-        if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(todoToken, "e2e-todo-internal-do-not-use-in-prod", StringComparison.Ordinal))
-            throw new InvalidOperationException("TODO_INTERNAL_TOKEN must be replaced outside Development.");
+        var todoToken = configuration["TODO_INTERNAL_TOKEN"] ?? string.Empty;
+        var tenant = configuration["TODO_INTERNAL_TENANT"] ?? string.Empty;
+        var guardEnabled = configuration.GetValue<bool>("OpenConnect:LocalAcceptance:Enabled");
+        var guardCredential = guardEnabled ? configuration["OpenConnect:LocalAcceptance:ServiceBearer"] : null;
+        if (guardEnabled && (guardCredential is null || guardCredential.Length != 43 ||
+            guardCredential.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_')))
+            throw new InvalidOperationException("A valid local acceptance service bearer is required.");
+        if (guardEnabled && (string.IsNullOrWhiteSpace(configuration["TODO_SERVICE_URL"]) || !IsLoopbackAuthority(todoUrl)))
+            throw new InvalidOperationException("TODO_SERVICE_URL must be an exact loopback authority in local acceptance mode.");
+        if (guardEnabled && string.Equals(guardCredential, todoToken, StringComparison.Ordinal))
+            throw new InvalidOperationException("The local guard and Todo credentials must be distinct.");
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) throw new InvalidOperationException("OpenConnect:ApiUrl must be an absolute Meta-compatible endpoint.");
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(todoUrl) || string.IsNullOrWhiteSpace(todoToken) || string.IsNullOrWhiteSpace(tenant))
             throw new InvalidOperationException("Meta inference and internal Todo service configuration are required.");
@@ -51,9 +58,34 @@ public sealed class MetaCloudOptions
             TodoServiceUrl = todoUrl,
             TodoInternalToken = todoToken,
             TodoTenant = tenant,
+            LocalGuardCredential = guardCredential ?? string.Empty,
             AllowMutations = configuration.GetValue("TODO_ALLOW_MUTATIONS", false),
             MutationApprovalGranted = string.Equals(configuration["TODO_MUTATION_APPROVAL"], "approved", StringComparison.Ordinal)
         };
+    }
+    internal static bool IsLoopbackAuthority(string value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        uri.UserInfo.Length == 0 && uri.AbsolutePath == "/" &&
+        uri.Query.Length == 0 && uri.Fragment.Length == 0 &&
+        IPAddress.TryParse(uri.Host.Trim('[', ']'), out var address) &&
+        IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address) &&
+        string.Equals(value.TrimEnd('/'), uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+
+    internal bool IsConfiguredTenant(TenantId tenantId)
+    {
+        if (tenantId == default || string.IsNullOrWhiteSpace(TodoTenant))
+            return false;
+
+        try
+        {
+            var configuredTenant = new TenantId(Ulid.Parse(TodoTenant));
+            return configuredTenant != default && tenantId == configuredTenant;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }
 
@@ -88,23 +120,62 @@ public sealed class TodoServiceClient(HttpClient httpClient, IOptions<MetaCloudO
 
     private async Task<HttpResponseMessage> SendResponseAsync(HttpMethod method, string suffix, object? payload, CancellationToken cancellationToken)
     {
+        if (suffix.Length != 0 && !Guid.TryParseExact(suffix, "D", out _))
+            throw new InvalidOperationException("Invalid Todo request path.");
+        var baseAddress = httpClient.BaseAddress;
+        if (_options.LocalGuardCredential.Length != 0 &&
+            (_options.LocalGuardCredential.Length != 43 ||
+             _options.LocalGuardCredential.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') ||
+             string.IsNullOrWhiteSpace(_options.TodoInternalToken) ||
+             string.Equals(_options.LocalGuardCredential, _options.TodoInternalToken, StringComparison.Ordinal)))
+            throw new InvalidOperationException("Invalid local Todo service credentials.");
+        if (_options.LocalGuardCredential.Length != 0 &&
+            (baseAddress is null || !MetaCloudOptions.IsLoopbackAuthority(_options.TodoServiceUrl) ||
+             !string.Equals(baseAddress.GetLeftPart(UriPartial.Authority), new Uri(_options.TodoServiceUrl).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase) ||
+             !string.Equals(baseAddress.AbsolutePath, "/internal/openconnect/todos/", StringComparison.Ordinal) ||
+             baseAddress.Query.Length != 0 || baseAddress.Fragment.Length != 0 || baseAddress.UserInfo.Length != 0))
+            throw new InvalidOperationException("Invalid local Todo service destination.");
         using var request = new HttpRequestMessage(method, suffix);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.TodoInternalToken);
+        if (_options.LocalGuardCredential.Length != 0)
+            request.Headers.Add("X-OpenConnect-Local-Guard", _options.LocalGuardCredential);
         request.Headers.Add("X-OpenConnect-Tenant", _options.TodoTenant);
         request.Headers.Add("X-OpenConnect-Principal", "gateway-workload");
         if (payload is not null) request.Content = JsonContent.Create(payload);
+        if (_options.LocalGuardCredential.Length != 0)
+        {
+            // A supplied HttpClient can hide an auto-redirecting handler. Never send
+            // guarded credentials through a handler whose redirect policy is unknown.
+            using var guardedClient = new HttpClient(new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseProxy = false,
+                UseCookies = false
+            });
+            request.RequestUri = new Uri(baseAddress!, suffix);
+            return await guardedClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
         return await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 }
 
 public sealed record TodoServiceRecord(Guid Id, string Title, string? Description, bool IsCompleted, int Priority, DateTime CreatedAtUtc, DateTime? DueDateUtc);
 
-public sealed class SampleTodoTaskAuthorizer : IHostTaskExecutionAuthorizer
+internal sealed class ConnectionBoundInteractionBroker(IClientInteractionBroker inner, string connectionId) : IClientInteractionBroker
+{
+    public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+        string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default) =>
+        inner.RequestAsync(sessionId, request with { ConnectionId = connectionId }, expectedResultKind, timeout, cancellationToken);
+}
+
+public sealed class SampleTodoTaskAuthorizer(IOptions<MetaCloudOptions> options) : IHostTaskExecutionAuthorizer
 {
     public Task AuthorizeAsync(HostTaskExecution task, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (task.TenantId == default || task.PrincipalId == default) throw new UnauthorizedAccessException("Missing trusted task scope.");
+        if (!options.Value.IsConfiguredTenant(task.TenantId))
+            throw new UnauthorizedAccessException("This task is not authorized for the Todo service.");
         if (string.IsNullOrWhiteSpace(task.Message)) throw new UnauthorizedAccessException("Task message is empty.");
         return Task.CompletedTask;
     }
@@ -118,22 +189,20 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
 
     public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
     {
+        if (!_options.IsConfiguredTenant(task.TenantId))
+            throw new UnauthorizedAccessException("This task is not authorized for the Todo service.");
+
         try
         {
             var tools = new List<AITool>();
             var coreRequest = RequiresTodoTools(task.Message);
-            var navigatorRequest = RequiresNavigatorTools(task.Message);
-            var liveUIRequest = RequiresLiveUI(task.Message);
+            var liveUIRequest = task.Origin == HostTaskOrigin.MiniComposer;
             if (liveUIRequest)
             {
-                tools.AddRange(LiveUIClientAgentToolFactory.CreateTools(interactionBroker, task.SessionId));
-            }
-            if (navigatorRequest && !liveUIRequest)
-            {
-                tools.Add(AIFunctionFactory.Create((string route, CancellationToken ct) => EmitNavigatorActionAsync("navigate", route, null, task, ct), "navigator.navigate", "Navigate to an internal application route."));
-                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("highlight", null, targetId, task, ct), "navigator.highlight", "Highlight and scroll to a registered page target."));
-                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("focus", null, targetId, task, ct), "navigator.focus", "Focus a registered page target."));
-                tools.Add(AIFunctionFactory.Create((string targetId, CancellationToken ct) => EmitNavigatorActionAsync("scroll", null, targetId, task, ct), "navigator.scroll", "Scroll to a registered page target."));
+                if (string.IsNullOrWhiteSpace(task.ClientConnectionId))
+                    throw new InvalidOperationException("An interactive task requires its original client connection.");
+                tools.AddRange(LiveUIClientAgentToolFactory.CreateTools(
+                    new ConnectionBoundInteractionBroker(interactionBroker, task.ClientConnectionId), task.SessionId));
             }
             if (coreRequest)
             {
@@ -169,16 +238,6 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         }
     }
 
-    private async Task<string> EmitNavigatorActionAsync(string action, string? route, string? targetId, HostTaskExecution task, CancellationToken cancellationToken)
-    {
-        if (action == "navigate" && (string.IsNullOrWhiteSpace(route) || !route.StartsWith('/') || route.StartsWith("//") || route.Contains("..", StringComparison.Ordinal)))
-            throw new ArgumentException("Only internal application routes are allowed.", nameof(route));
-        if (action != "navigate" && (string.IsNullOrWhiteSpace(targetId) || !System.Text.RegularExpressions.Regex.IsMatch(targetId, "^[a-zA-Z0-9_-]{1,80}$")))
-            throw new ArgumentException("A registered target id is required.", nameof(targetId));
-        await sessions.AppendEventAsync(task.SessionId.Value, "navigator.action", JsonSerializer.Serialize(new { action, route, targetId }), cancellationToken).ConfigureAwait(false);
-        return $"Navigator action '{action}' was sent to the Todo sample.";
-    }
-
     private const string AgentInstructions = """
         You are the OpenConnect assistant. Handle ordinary conversation naturally on the server; do not call LiveUI or browser-inference tools for non-UI requests. The runtime may already have sent an acknowledgement, so do not repeat it or add a greeting; begin with the requested result. When the user asks for a tour, introduction, or walkthrough, make it interactive: perform only the first relevant UI action, explain that area while narrating, and ask whether the user wants to continue. Do not replace an interactive walkthrough with a static feature overview.
 
@@ -196,19 +255,6 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
 
         For a task recommendation, use todo.list as read-only data. Exclude completed records and recommend only a unique highest-priority remaining task (Urgent=3, High=2, Medium=1, Low=0); ask for clarification if there is no unique choice. Never create, update, complete, or delete a Todo unless the user explicitly requests that mutation, and never claim one changed without tool confirmation.
         """;
-
-    private static bool RequiresNavigatorTools(string message)
-    {
-        var value = message.ToLowerInvariant();
-        return value.Contains("navigate") || value.Contains("go to") || value.Contains("take me") || value.Contains("highlight") || value.Contains("focus") || value.Contains("scroll") || value.Contains("show me where") || value.Contains("tour") || value.Contains("walk me through") || value.Contains("walk me around") || value.Contains("show me around") || value.Contains("introduce me") || value.Contains("guide me");
-    }
-
-    private static bool RequiresLiveUI(string message)
-    {
-        var value = message.ToLowerInvariant();
-        string[] terms = ["completed tasks", "which task is completed", "which tasks are completed", "what task is completed", "what tasks are completed", "active tasks", "show all tasks", "pull up", "show my", "view my", "list my", "recent tasks", "recent todos", "most recent", "latest task", "last task", "my tasks", "my todos", "filter", "search", "find tasks", "highlight", "focus", "scroll", "navigate", "go to", "take me", "open page", "explain what", "what am i looking at", "todo list", "task list"];
-        return terms.Any(value.Contains);
-    }
 
     private static string InitialAcknowledgement(string message)
     {
@@ -252,7 +298,8 @@ public static class MetaCloudRegistration
         var options = MetaCloudOptions.FromConfiguration(configuration);
         services.AddOpenConnectRulesDetector();
         services.AddSingleton(Options.Create(options));
-        services.AddHttpClient<TodoServiceClient>(client => client.BaseAddress = new Uri(options.TodoServiceUrl.TrimEnd('/') + "/internal/openconnect/todos/"));
+        services.AddHttpClient<TodoServiceClient>(client => client.BaseAddress = new Uri(options.TodoServiceUrl.TrimEnd('/') + "/internal/openconnect/todos/"))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<IChatClient>(_ =>
         {
             var chat = new ChatClient(options.Model, new ApiKeyCredential(options.ApiKey), new OpenAIClientOptions { Endpoint = new Uri(options.Endpoint) });

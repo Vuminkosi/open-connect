@@ -123,10 +123,8 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
         Session.MarkConnecting();
         var failures = 0;
-        // The current gateway exposes the durable HTTP event snapshot contract. Keep the
-        // optional WebSocket transport available to explicit callers, but use the snapshot
-        // contract for the provider so a socket that closes without replay cannot strand UI state.
-        var webSocketUnavailable = true;
+        var webSocketUnavailable = false;
+        string? activeConnectionId = null;
         try
         {
             while (!token.IsCancellationRequested)
@@ -140,9 +138,25 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                         {
                             await foreach (var record in realtimeClient.SubscribeEventsWebSocketAsync(sessionId, cursor, token).ConfigureAwait(false))
                             {
-                                Session.ApplyEvent(record);
+                                if (record.Type.Equals("registered", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    using var registration = System.Text.Json.JsonDocument.Parse(record.Data);
+                                    var root = registration.RootElement;
+                                    var connectionId = root.TryGetProperty("connectionId", out var connection) ? connection.GetString() : null;
+                                    var registeredSession = root.TryGetProperty("sessionId", out var registered) ? registered.GetString() : null;
+                                    if (!Session.RegisterConnection(connectionId ?? string.Empty, registeredSession ?? string.Empty))
+                                        throw new WebSocketException("The event socket registration did not match the active session.");
+                                    activeConnectionId = connectionId;
+                                    Session.MarkIdle();
+                                    continue;
+                                }
+
+                                if (activeConnectionId is not null)
+                                    Session.ApplyConnectionEvent(record, activeConnectionId);
                             }
 
+                            Session.DisconnectConnection(activeConnectionId);
+                            activeConnectionId = null;
                             failures = 0;
                             await InvokeAsync(StateHasChanged);
                             await Task.Delay(PollInterval, token).ConfigureAwait(false);
@@ -150,9 +164,11 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                         }
                         catch (WebSocketException)
                         {
-                            // The HTTP API remains the authoritative event source when the
-                            // deployment has not exposed the optional session event socket.
-                            webSocketUnavailable = true;
+                            // A socket that had registered can reconnect after a transient drop.
+                            // An endpoint that never registered falls back to HTTP snapshots.
+                            webSocketUnavailable = activeConnectionId is null;
+                            Session.DisconnectConnection(activeConnectionId);
+                            activeConnectionId = null;
                         }
                     }
 
@@ -160,7 +176,11 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                     await foreach (var record in Client.SubscribeEventsAsync(sessionId, Session.LastSequence, token).ConfigureAwait(false))
                     {
                         receivedEvent = true;
-                        Session.ApplyEvent(record);
+                        // HTTP snapshots remain useful for ordinary conversation state, but
+                        // cannot establish a connection identity or authorize LiveUI actions.
+                        if (!record.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal) &&
+                            !record.Type.Equals(ClientInteractionEventTypes.Cancellation, StringComparison.Ordinal))
+                            Session.ApplyEvent(record);
                     }
 
                     if (!receivedEvent)
@@ -183,10 +203,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
+                    Session.DisconnectConnection(activeConnectionId);
                     break;
                 }
                 catch (Exception ex) when (!token.IsCancellationRequested)
                 {
+                    Session.DisconnectConnection(activeConnectionId);
+                    activeConnectionId = null;
                     failures++;
                     if (!reconnectEnabled)
                     {

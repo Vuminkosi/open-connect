@@ -26,7 +26,7 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
     public HostTaskExecutionDispatcher(ExecutionQueue queue, InMemoryTaskStore store, ITaskLifecycleStore lifecycle, InMemorySessionStore sessions, IServiceScopeFactory scopeFactory, ExecutionRuntimeState runtime, OpenConnectTaskExecutionOptions options)
     { _queue = queue; _store = store; _lifecycle = lifecycle; _sessions = sessions; _scopeFactory = scopeFactory; _runtime = runtime; _options = options; }
 
-    public Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
+    public Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var scopedKey = $"{tenant.Value}:{principal.Value}:{key}";
@@ -49,7 +49,11 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
             {
                 var session = createdSession?.Id ?? new SessionId(Ulid.Parse(request.SessionId!));
                 record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Accepted);
-                var input = new HostTaskExecution(record.Id, tenant, principal, session, request.Message ?? string.Empty, key);
+                var input = new HostTaskExecution(record.Id, tenant, principal, session, request.Message ?? string.Empty, key)
+                {
+                    Origin = origin,
+                    ClientConnectionId = request.BoundConnectionId
+                };
                 work = new ExecutionWork(input, record, new CancellationTokenSource());
                 _store.Put(record);
                 _sessions.AppendEvent(session.Value, "task.accepted", JsonSerializer.Serialize(new { taskId = record.Id.Value.ToString(), state = "accepted" }));

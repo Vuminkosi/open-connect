@@ -49,6 +49,8 @@ OpenConnect.Client.ClientVadSession.TotalSourceSamples.get -> long
 OpenConnect.Client.CreateTaskRequest
 OpenConnect.Client.CreateTaskRequest.ClientTaskId.get -> string!
 OpenConnect.Client.CreateTaskRequest.ClientTaskId.init -> void
+OpenConnect.Client.CreateTaskRequest.ClientConnectionId.get -> string?
+OpenConnect.Client.CreateTaskRequest.ClientConnectionId.init -> void
 OpenConnect.Client.CreateTaskRequest.CreateTaskRequest(string! ClientTaskId, string! IdempotencyKey, string? Message = null, string? SessionId = null) -> void
 OpenConnect.Client.CreateTaskRequest.IdempotencyKey.get -> string!
 OpenConnect.Client.CreateTaskRequest.IdempotencyKey.init -> void
@@ -90,6 +92,7 @@ OpenConnect.Client.INavigatorClientService.StartGuidedTour(string! tourId, Syste
 OpenConnect.Client.INavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.IOpenConnectClient
 OpenConnect.Client.IOpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.IOpenConnectClient.CreateMiniComposerTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
 OpenConnect.Client.IOpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
@@ -157,6 +160,7 @@ OpenConnect.Client.NavigatorClientService.StartGuidedTour(string! tourId, System
 OpenConnect.Client.NavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.OpenConnectClient
 OpenConnect.Client.OpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.CreateMiniComposerTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
 OpenConnect.Client.OpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!

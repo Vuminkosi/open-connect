@@ -33,12 +33,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private string _draft = string.Empty;
     private string _editorId = $"oc-editor-{Guid.NewGuid():N}";
     private string? _pendingIdempotencyKey;
+    private string? _pendingTaskId;
+    private string? _pendingSubmissionDraft;
+    private string? _pendingSubmissionSessionId;
+    private bool _pendingSubmissionDisplayed;
     private CancellationTokenSource? _sendCts;
     private ElementReference _panelRef;
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
     private Task? _sessionCreationTask;
+    private bool _sessionCreationFailed;
     private int _inputRenderKey;
     private MudMenu? _settingsMenu;
     private int _speechCursor;
@@ -700,70 +705,138 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             text = text[..EffectiveMaxLength];
         }
 
+        var session = Session ?? throw new InvalidOperationException("MiniComposer requires a composer session.");
         _sending = true;
-        _speechCursor = 0;
-        _spokenResponseCharacters = 0;
-        _speechDisplayText = string.Empty;
-        _beingSpokenStart = -1;
-        _beingSpokenEnd = -1;
-        lock (_speechQueue) _speechQueue.Clear();
-        _speechCts?.Cancel();
-        _pendingIdempotencyKey = Guid.NewGuid().ToString("N");
-
-        _sendCts?.Cancel();
-        _sendCts?.Dispose();
-        _sendCts = new CancellationTokenSource();
-        var token = _sendCts.Token;
-
-        _draft = string.Empty;
-        _inputRenderKey++;
-        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
-        await ClearInputAsync().ConfigureAwait(true);
-        await AutosizeAsync().ConfigureAwait(false);
-        Session.BeginSend(text);
+        var sendCts = new CancellationTokenSource();
+        _sendCts = sendCts;
+        var token = sendCts.Token;
+        var draftCleared = false;
+        var sendStarted = false;
 
         try
         {
-            if (string.IsNullOrWhiteSpace(Session.SessionId))
+            await InvokeAsync(StateHasChanged);
+            if (string.IsNullOrWhiteSpace(session.SessionId))
             {
-                try
+                // An explicit send can retry a previously failed session creation.
+                if (_sessionCreationFailed)
                 {
-                    await EnsureSessionAsync().WaitAsync(token).ConfigureAwait(false);
+                    _sessionCreationFailed = false;
+                    _sessionCreationTask = null;
                 }
-                catch (OpenConnectClientException ex) when (ex.StatusCodeValue is 401 or 403 or 404)
-                {
-                    // External gateways may require an independently authenticated session.
-                    // Preserve the existing null-session task fallback in that mode.
-                }
+
+                await EnsureSessionAsync().WaitAsync(token);
+
+                if (string.IsNullOrWhiteSpace(session.SessionId)) return;
             }
 
-            try
+            token.ThrowIfCancellationRequested();
+            if (Client is IRealtimeOpenConnectClient)
+                await WaitForConnectionAsync(session, session.SessionId!, token);
+            _speechCursor = 0;
+            _spokenResponseCharacters = 0;
+            _speechDisplayText = string.Empty;
+            _beingSpokenStart = -1;
+            _beingSpokenEnd = -1;
+            lock (_speechQueue) _speechQueue.Clear();
+            _speechCts?.Cancel();
+            var sessionId = session.SessionId;
+            if (!string.Equals(_pendingSubmissionDraft, text, StringComparison.Ordinal) ||
+                !string.Equals(_pendingSubmissionSessionId, sessionId, StringComparison.Ordinal) ||
+                _pendingIdempotencyKey is null ||
+                _pendingTaskId is null)
             {
-                await Client.CreateTaskAsync(
-                    new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, Session.SessionId),
-                    token).ConfigureAwait(false);
+                _pendingSubmissionDraft = text;
+                _pendingSubmissionSessionId = sessionId;
+                _pendingIdempotencyKey = Guid.NewGuid().ToString("N");
+                _pendingTaskId = Guid.NewGuid().ToString("N");
+                _pendingSubmissionDisplayed = false;
             }
-            catch (OpenConnectClientException ex) when (ex.StatusCodeValue == 404)
+
+            _draft = string.Empty;
+            draftCleared = true;
+            _inputRenderKey++;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+            await ClearInputAsync().ConfigureAwait(true);
+            await AutosizeAsync();
+            token.ThrowIfCancellationRequested();
+            if (_pendingSubmissionDisplayed)
+                session.ResumeSend();
+            else
             {
-                // Stale or uninitialized session on gateway: retry with null sessionId so gateway auto-creates the session
-                await Client.CreateTaskAsync(
-                    new CreateTaskRequest(Guid.NewGuid().ToString("N"), _pendingIdempotencyKey, text, null),
-                    token).ConfigureAwait(false);
+                session.BeginSend(text);
+                _pendingSubmissionDisplayed = true;
             }
+            sendStarted = true;
+            token.ThrowIfCancellationRequested();
+            await Client.CreateMiniComposerTaskAsync(
+                new CreateTaskRequest(_pendingTaskId, _pendingIdempotencyKey, text, sessionId)
+                {
+                    ClientConnectionId = session.ConnectionId
+                },
+                token);
+            ClearPendingSubmissionIdentity();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            await InvokeAsync(Session.CancelStreaming).ConfigureAwait(true);
+            if (draftCleared && string.IsNullOrEmpty(_draft))
+            {
+                _draft = text;
+                _inputRenderKey++;
+            }
+            if (sendStarted) await InvokeAsync(session.CancelStreaming).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
-            await InvokeAsync(() => Session.MarkError(FriendlyError(ex))).ConfigureAwait(true);
+            // Keep the user's message available for a deliberate retry. In
+            // particular, never turn a failed session-bound send into a
+            // detached task by clearing or replacing the current session.
+            if (draftCleared && string.IsNullOrEmpty(_draft))
+            {
+                _draft = text;
+                _inputRenderKey++;
+            }
+            await InvokeAsync(() => session.MarkError(FriendlyError(ex))).ConfigureAwait(true);
         }
         finally
         {
             _sending = false;
-            _pendingIdempotencyKey = null;
+            if (ReferenceEquals(_sendCts, sendCts)) _sendCts = null;
+            sendCts.Dispose();
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+    }
+
+    private void ClearPendingSubmissionIdentity()
+    {
+        _pendingIdempotencyKey = null;
+        _pendingTaskId = null;
+        _pendingSubmissionDraft = null;
+        _pendingSubmissionSessionId = null;
+        _pendingSubmissionDisplayed = false;
+    }
+
+    private static async Task WaitForConnectionAsync(ComposerSession session, string sessionId, CancellationToken cancellationToken)
+    {
+        var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged()
+        {
+            if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal) ||
+                !string.IsNullOrWhiteSpace(session.ConnectionId))
+                changed.TrySetResult();
+        }
+
+        session.Changed += OnChanged;
+        try
+        {
+            OnChanged();
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal))
+                throw new InvalidOperationException("The active session changed while connecting.");
+        }
+        finally
+        {
+            session.Changed -= OnChanged;
         }
     }
 
@@ -862,18 +935,29 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private Task EnsureSessionAsync()
     {
         if (!string.IsNullOrWhiteSpace(Session.SessionId)) return Task.CompletedTask;
+        if (_sessionCreationFailed) return Task.CompletedTask;
         if (_sessionCreationTask is { IsCompleted: false } pendingCreation) return pendingCreation;
         return _sessionCreationTask ??= CreateSessionAsync();
     }
 
     private async Task CreateSessionAsync()
     {
-        var created = await Client.CreateSessionAsync().ConfigureAwait(false);
-        await InvokeAsync(() =>
+        try
         {
-            if (string.IsNullOrWhiteSpace(Session.SessionId))
-                Session.AttachSession(created.Id.Value.ToString());
-        });
+            var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                if (string.IsNullOrWhiteSpace(Session.SessionId))
+                    Session.AttachSession(created.Id.Value.ToString());
+            });
+        }
+        catch
+        {
+            // A completed failed task remains cached until an explicit action
+            // (Send) retries, so each render cannot recreate the same failure.
+            _sessionCreationFailed = true;
+            throw;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -980,9 +1064,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private static string FriendlyError(Exception ex) => ex switch
     {
-        OpenConnectClientException clientEx => string.IsNullOrWhiteSpace(clientEx.Message)
-            ? "The assistant could not complete the request. Try again."
-            : clientEx.Message,
+        OpenConnectClientException { StatusCodeValue: 400 } => "Your message could not be submitted. Check it and try again.",
+        OpenConnectClientException { StatusCodeValue: 403 } => "You don't have access to submit a message in this conversation.",
+        OpenConnectClientException { StatusCodeValue: 404 } => "This conversation is no longer available. Reopen it before trying again.",
+        OpenConnectClientException { StatusCodeValue: 409 } => "This message conflicts with a request already in progress. Wait a moment, then try again.",
+        OpenConnectClientException { StatusCodeValue: 503 } => "The assistant is at capacity. Your draft is saved; try again shortly.",
+        OpenConnectClientException => "The assistant could not accept your message. Your draft is saved; try again.",
+        TimeoutException => "The assistant is still connecting. Your draft is saved; try again shortly.",
         HttpRequestException => "Could not reach the assistant service. Check your connection and retry.",
         _ => "Something went wrong sending your message. Try again.",
     };

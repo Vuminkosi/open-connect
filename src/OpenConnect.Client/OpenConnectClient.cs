@@ -32,6 +32,23 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await ReadAsync<TaskRecord>(response, cancellationToken).ConfigureAwait(false);
     }
+    public async Task<TaskRecord> CreateMiniComposerTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.ClientTaskId) || request.ClientTaskId.Length > 128) throw new ArgumentException("A client task ID of 1 to 128 characters is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || request.IdempotencyKey.Length > 256) throw new ArgumentException("An idempotency key of 1 to 256 characters is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.SessionId)) throw new ArgumentException("An existing session ID is required for MiniComposer task submission.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.ClientConnectionId)) throw new ArgumentException("An active client connection is required for MiniComposer task submission.", nameof(request));
+        using var activity = ActivitySource.StartActivity("openconnect.task.create", ActivityKind.Client);
+        using var message = new HttpRequestMessage(HttpMethod.Post, "minicomposer/tasks")
+        {
+            Content = JsonContent.Create(new { clientTaskId = request.ClientTaskId, message = request.Message, sessionId = request.SessionId, clientConnectionId = request.ClientConnectionId }, options: JsonOptions)
+        };
+        message.Headers.TryAddWithoutValidation("Idempotency-Key", request.IdempotencyKey);
+        using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<TaskRecord>(response, cancellationToken).ConfigureAwait(false);
+    }
     public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Post, $"tasks/{taskId.Value}/cancel", cancellationToken);
     public Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Get, $"tasks/{taskId.Value}", cancellationToken);
     public async Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default)
@@ -84,7 +101,7 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         using var activity = ActivitySource.StartActivity("openconnect.events.subscribe", ActivityKind.Client);
         using var response = await _httpClient.GetAsync($"sessions/{sessionId.Value}/events?after={afterSequence.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
-        var events = await response.Content.ReadFromJsonAsync<List<EventRecord>>(EventJsonOptions, cancellationToken).ConfigureAwait(false)
+        var events = await response.Content.ReadFromJsonAsync<List<EventRecord>>(JsonOptions, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException("The OpenConnect service returned an empty response.");
         foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
     }

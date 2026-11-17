@@ -1,72 +1,35 @@
-# Blazor sample (`samples/Blazor`)
+# Blazor Todo sample
 
-A runnable Blazor Server page proving provider-neutral consumption of the hardened
-EFCore adapter against the simplest store (SQLite file). The single screen is organized
-around user jobs — not a data dump:
+The Blazor Server sample combines a Todo interface with MiniComposer and LiveUI. An interactive request stays in its existing OpenConnect session; the server can discover authorized UI capabilities, request a validated plan, execute actions on the connected page, and report verified receipts. The Todo list uses an in-memory store. The sample's EF Core infrastructure uses its own SQLite database and applies its migrations at startup.
 
-1. **Deliveries waiting** — pending outbox items via `IOutboxStore.GetPendingAsync`;
-   confirm one as handled (`MarkDeliveredAsync`) or refresh the queue.
-2. **Session history** — replay a session's recorded steps via `IEventJournal.ReplayAsync`
-   from a pasted session reference, oldest first.
-3. **Local store health** — reachability, stored record-type count, and applied vs.
-   pending updates through the provider-neutral EF Core API, with an idempotent
-   "apply pending updates" action (`MigrateAsync` over this sample's own history).
+The sample supports a development-only `SameHostGateway` and an `ExternalGateway`. The external mode requires a gateway with authentication configured by its host. The sample's optional local service credential is restricted to Development and a loopback gateway; it is not a production user-identity mechanism.
 
-Same owned-migration discipline as the Minimal console sample: own `BlazorDbContext`,
-own migrations + history table (`__BlazorMigrationsHistory`) in this sample's own
-SQLite file. The sample seeds no data.
+## Configuration
 
-## Configuration (environment, no production credentials)
+Set configuration through environment variables or another ASP.NET Core configuration provider. Supply secrets through a secret store or environment, not source control.
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `OPENCONNECT_BLAZOR_SQLITE_PATH` | Absolute SQLite file path | `<appdir>/blazor-sample.db` |
-| `ASPNETCORE_ENVIRONMENT` | Host environment | `Production` |
+| Setting | Purpose |
+| --- | --- |
+| `OpenConnect__Gateway__Mode` | `ExternalGateway` (default) or `SameHostGateway` (Development only). |
+| `GATEWAY_URL` | External gateway base URL when using `ExternalGateway`. |
+| `OpenConnect__Gateway__SameHostBaseUrl` | Sample base URL used by the same-host client. |
+| `OpenConnect__Gateway__LocalServiceBearer` | Optional 32-byte base64 local service credential for a Development loopback gateway. |
+| `TODO_INTERNAL_TOKEN` | Required credential for the internal Todo API and its server-side caller. |
+| `TODO_INTERNAL_TENANT` | Tenant allowed by the internal Todo API. |
+| `OpenConnect__ApiUrl`, `OpenConnect__ApiKey`, `OpenConnect__ReasoningModel` | Model endpoint, credential, and model used by the same-host agent or sample gateway. |
+| `OpenConnect__LiveUI__Inference__Worker__Endpoint`, `OpenConnect__LiveUI__Inference__Worker__Token` | Optional private worker endpoint and server-side credential. |
+| `OPENCONNECT_BLAZOR_SQLITE_PATH` | Optional SQLite database path. |
 
-No other configuration is required. Connection values are never logged.
-
-## Startup commands (from the repository root)
+For same-host development, configure the model settings, Todo credential, gateway mode, and sample base URL, then run:
 
 ```powershell
-# 1. Generate this sample's own migration (verification lane owns execution).
-#    Creates Migrations/<timestamp>_Initial.cs (+ Designer/snapshot) scoped to
-#    BlazorDbContext with history table __BlazorMigrationsHistory.
-dotnet ef migrations add Initial `
-  --project samples/Blazor/OpenConnect.Samples.Blazor.csproj `
-  --context OpenConnect.Samples.Blazor.BlazorDbContext `
-  --output-dir Migrations
-
-# 2. Run the sample (startup applies this sample's own migrations, idempotent).
 dotnet run --project samples/Blazor/OpenConnect.Samples.Blazor.csproj
-
-# 3. Open the work overview (default profile): http://localhost:5199
 ```
 
-## Migrate / verify steps
+For an isolated external-gateway development setup, configure matching `OC_LOCAL_SERVICE_AUTH_ENABLED`, `OC_LOCAL_SERVICE_AUTH_SECRET`, `OC_LOCAL_SERVICE_AUTH_TENANT_ID`, and `OC_LOCAL_SERVICE_AUTH_PRINCIPAL_ID` on the gateway, and supply the secret as `OpenConnect__Gateway__LocalServiceBearer` to the sample. The gateway accepts this credential only on loopback in Development. Production deployments need their own authenticated identity and credential propagation.
 
-- Startup calls `Database.MigrateAsync()` through this sample's pipeline only
-  (`BlazorDbContext`, `MigrationsAssembly` = this sample, dedicated history table).
-- Restart-idempotent: re-running against an existing database file is a no-op for
-  already-applied migrations.
-- Manual check without the UI: point `OPENCONNECT_BLAZOR_SQLITE_PATH` at the same
-  file and run the Minimal sample's `verify` verb to confirm zero pending migrations.
+The optional worker is described in [its README](../../workers/liveui-inference/README.md). Worker plans are proposals: the application still authorizes each action and checks its receipt. If no permitted planner is available, the server agent can use the authorized page manifest and governed tools to continue.
 
-## Ownership
+## Verification
 
-- Own DbContext: `BlazorDbContext` (`BlazorDbContext.cs`).
-- Own migrations: `Migrations/` — created ONLY via the `dotnet ef migrations add`
-  command above (hand-authored migrations prohibited).
-- Own history: `__BlazorMigrationsHistory` in this sample's database file only.
-- Design-time factory: `BlazorDbContextFactory` (supports `dotnet ef migrations add`).
-- No `src/**` changes; no shared components, styles, or tokens added or changed;
-  `wwwroot/sample.css` and the `*.razor.css` files are sample-local.
-
-## Proposed verification (verification lane owns execution — NOT RUN by this task)
-
-```powershell
-dotnet ef migrations add Initial --project samples/Blazor/OpenConnect.Samples.Blazor.csproj --context OpenConnect.Samples.Blazor.BlazorDbContext --output-dir Migrations
-dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release
-dotnet run --project samples/Blazor/OpenConnect.Samples.Blazor.csproj
-# Browse http://localhost:5199: confirm queue empty state, store "Ready",
-# history validation message for a blank reference; restart and re-open (idempotent).
-```
+Run `dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release` to build the sample. The connected browser suite is `npm run test:liveui-connected` from `tests/Browser`; it uses scripted inference. The opt-in real-worker lane requires a configured private worker and must be reported separately from scripted tests.

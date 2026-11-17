@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 
 namespace OpenConnect.Client;
 
@@ -52,13 +53,29 @@ public partial class OpenConnectClient : IRealtimeOpenConnectClient
 
         await socket.ConnectAsync(builder.Uri, cancellationToken).ConfigureAwait(false);
         var buffer = new byte[64 * 1024];
+        const int maximumMessageBytes = 1024 * 1024;
         while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
         {
-            var result = await socket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
-            if (result.MessageType == WebSocketMessageType.Close) yield break;
-            if (result.MessageType != WebSocketMessageType.Text || !result.EndOfMessage) continue;
+            using var message = new MemoryStream();
+            ValueWebSocketReceiveResult result;
+            do
+            {
+                result = await socket.ReceiveAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+                if (result.MessageType == WebSocketMessageType.Close) yield break;
+                if (message.Length + result.Count > maximumMessageBytes)
+                    throw new WebSocketException("The session event exceeds the maximum message size.");
+                message.Write(buffer, 0, result.Count);
+            } while (!result.EndOfMessage);
+            if (result.MessageType != WebSocketMessageType.Text) continue;
 
-            var record = JsonSerializer.Deserialize<EventRecord>(buffer.AsSpan(0, result.Count), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            using var document = JsonDocument.Parse(message.GetBuffer().AsMemory(0, (int)message.Length));
+            if (document.RootElement.TryGetProperty("type", out var type) &&
+                type.ValueKind == JsonValueKind.String && type.GetString() == "registered")
+            {
+                yield return new EventRecord(sessionId, 0, "registered", document.RootElement.GetRawText());
+                continue;
+            }
+            var record = document.RootElement.Deserialize<EventRecord>(OpenConnectHttpJson.CreateOptions());
             if (record is not null)
                 yield return record;
         }

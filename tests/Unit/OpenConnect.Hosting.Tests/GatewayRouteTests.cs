@@ -36,6 +36,33 @@ public sealed class GatewayRouteTests
     }
 
     [Fact]
+    public async Task MiniComposer_admission_binds_execution_to_its_registered_connection()
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var sessions = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = sessions.RegisterBoundConnection(session)!;
+        var context = Context(app);
+        context.Request.Headers["Idempotency-Key"] = Guid.NewGuid().ToString("N");
+        var request = new TaskRequest(Guid.NewGuid().ToString("N"), "Show the tasks", session.Id.Value.ToString())
+        {
+            ClientConnectionId = "another-connection"
+        };
+        var rejected = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(
+            context, request, app.Services.GetRequiredService<InMemoryTaskStore>(), CancellationToken.None, HostTaskOrigin.MiniComposer);
+        Assert.Equal(409, (await ExecuteAsync(rejected, app.Services)).StatusCode);
+        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(
+            context, request with { ClientConnectionId = connection.ConnectionId },
+            app.Services.GetRequiredService<InMemoryTaskStore>(), CancellationToken.None, HostTaskOrigin.MiniComposer);
+        Assert.Equal(202, (await ExecuteAsync(result, app.Services)).StatusCode);
+        var executor = app.Services.GetRequiredService<TestExecutor>();
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(HostTaskOrigin.MiniComposer, executor.Input!.Origin);
+        Assert.Equal(connection.ConnectionId, executor.Input.ClientConnectionId);
+    }
+
+    [Fact]
     public async Task Session_events_after_position_returns_empty_success()
     {
         await using var host = await CreateAppAsync();
@@ -67,16 +94,16 @@ public sealed class GatewayRouteTests
     }
 
     [Fact]
-    public async Task Client_interaction_response_is_tenant_scoped_and_idempotent()
+    public async Task Client_interaction_response_is_tenant_scoped_and_rejects_replay()
     {
         await using var host = await CreateAppAsync();
         var app = host.App;
         var store = app.Services.GetRequiredService<InMemorySessionStore>();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "action",
-            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}");
-        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Request,
-            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionRequest(response.CorrelationId, "execute", "todo-list", "Highlight")));
+            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}") { ConnectionId = connection.ConnectionId };
+        var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(response.CorrelationId, "execute", "todo-list", "Highlight"), "action", TimeSpan.FromSeconds(2));
 
         var first = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, Context(app), store), app.Services);
@@ -84,7 +111,8 @@ public sealed class GatewayRouteTests
             session.Id.Value.ToString(), response, Context(app), store), app.Services);
 
         Assert.Equal(200, first.StatusCode);
-        Assert.Equal(200, duplicate.StatusCode);
+        Assert.Equal(409, duplicate.StatusCode);
+        Assert.NotNull(await pending);
         var stored = Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
         Assert.Equal(ClientInteractionEventTypes.Response, stored.Type);
         Assert.Contains(response.CorrelationId, stored.Data);
@@ -119,9 +147,10 @@ public sealed class GatewayRouteTests
         var app = host.App;
         var store = app.Services.GetRequiredService<InMemorySessionStore>();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
 
         var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-            session.Id.Value.ToString(), new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "{}"),
+            session.Id.Value.ToString(), new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "{}") { ConnectionId = connection.ConnectionId },
             Context(app), store), app.Services);
 
         Assert.Equal(409, result.StatusCode);
@@ -140,16 +169,17 @@ public sealed class GatewayRouteTests
         var app = host.App;
         var store = app.Services.GetRequiredService<InMemorySessionStore>();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var correlation = Guid.NewGuid().ToString("D");
-        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Request,
-            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionRequest(correlation, operation)));
+        var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(correlation, operation), "action", TimeSpan.FromSeconds(2));
 
         var result = await ExecuteAsync(
             await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-                session.Id.Value.ToString(), new ClientInteractionResponse(correlation, "action", "{}"), Context(app), store),
+                session.Id.Value.ToString(), new ClientInteractionResponse(correlation, "action", "{}") { ConnectionId = connection.ConnectionId }, Context(app), store),
             app.Services);
 
         Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(await pending);
         Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
     }
 
@@ -160,6 +190,7 @@ public sealed class GatewayRouteTests
         var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
         Assert.Same(store, host.App.Services.GetRequiredService<IClientInteractionBroker>());
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo-list", "Highlight");
         var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(2));
 
@@ -194,6 +225,7 @@ public sealed class GatewayRouteTests
         await using var host = await CreateAppAsync();
         var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), operation);
         var pending = store.RequestAsync(session.Id, request, resultKind, TimeSpan.FromSeconds(2));
 
@@ -214,6 +246,7 @@ public sealed class GatewayRouteTests
         await using var host = await CreateAppAsync();
         var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
         using var cancellation = new CancellationTokenSource();
         var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(10), cancellation.Token);
@@ -415,12 +448,14 @@ public sealed class GatewayRouteTests
 
     private sealed class TestExecutor : IHostTaskExecutor
     {
+        public HostTaskExecution? Input { get; private set; }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource ReleaseAfterCancellation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
         {
+            Input = task;
             Started.TrySetResult();
             try { await Task.Delay(Timeout.Infinite, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

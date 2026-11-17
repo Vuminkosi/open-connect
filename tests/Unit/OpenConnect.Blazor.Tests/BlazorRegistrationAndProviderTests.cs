@@ -229,6 +229,27 @@ public sealed class BlazorRegistrationAndProviderTests : OpenConnectBunitContext
     }
 
     [Fact]
+    public void OpenConnectProvider_ReconnectsAnEstablishedSocketAndReplacesItsConnectionIdentity()
+    {
+        var sessionId = Ulid.NewUlid();
+        var client = new ReconnectingClient();
+        Services.AddOpenConnectClient(options => options.ApiBaseAddress = new Uri("https://gateway.example.test/openconnect/v1/"));
+        Services.AddOpenConnectComposer();
+        Services.AddSingleton<IOpenConnectClient>(client);
+        var cut = Render<OpenConnectProvider>(parameters => parameters
+            .Add(p => p.SessionId, sessionId.ToString())
+            .Add(p => p.PollInterval, TimeSpan.FromMilliseconds(10)));
+
+        var session = Services.GetRequiredService<ComposerSession>();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(client.Connections >= 2);
+            Assert.Equal("connection-2", session.ConnectionId);
+            Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        }, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void ComposerSession_DistinguishesLiveSttFromRecordedVoice_AndFencesSpeechEpochs()
     {
         var session = new ComposerSession();
@@ -329,7 +350,7 @@ public sealed class BlazorRegistrationAndProviderTests : OpenConnectBunitContext
         }
     }
 
-    private sealed class CursorTrackingOpenConnectClient(Func<SessionId, long, IEnumerable<EventRecord>> onSubscribe) : IOpenConnectClient
+    private class CursorTrackingOpenConnectClient(Func<SessionId, long, IEnumerable<EventRecord>> onSubscribe) : IOpenConnectClient
     {
         public Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
             => Task.FromResult(new TaskRecord(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), AgentRunState.Accepted));
@@ -366,6 +387,25 @@ public sealed class BlazorRegistrationAndProviderTests : OpenConnectBunitContext
         {
             await Task.CompletedTask.ConfigureAwait(false);
             yield break;
+        }
+    }
+
+    private sealed class ReconnectingClient() : CursorTrackingOpenConnectClient((_, _) => []), IRealtimeOpenConnectClient
+    {
+        public int Connections;
+
+        public async IAsyncEnumerable<EventRecord> SubscribeEventsWebSocketAsync(SessionId sessionId, long afterSequence = 0,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var attempt = Interlocked.Increment(ref Connections);
+            var data = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                connectionId = $"connection-{attempt}",
+                sessionId = sessionId.Value.ToString()
+            });
+            yield return new EventRecord(sessionId, 0, "registered", data);
+            if (attempt == 1) throw new System.Net.WebSockets.WebSocketException("Disconnected");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
     }
 }

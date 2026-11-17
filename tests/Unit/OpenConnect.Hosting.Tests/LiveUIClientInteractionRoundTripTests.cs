@@ -32,6 +32,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         using var serviceProvider = services.BuildServiceProvider();
         var sessions = serviceProvider.GetRequiredService<InMemorySessionStore>();
         var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = sessions.RegisterBoundConnection(session)!;
 
         var manifest = CreateManifest();
         var manifestProvider = new TestManifestProvider(manifest);
@@ -70,7 +71,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Equal(LiveUIActionType.SelectTab, runtime.LastContext!.Action.Type);
 
         var response = new ClientInteractionResponse(request.CorrelationId, "action",
-            JsonSerializer.Serialize(browserReceipt, OpenConnectHttpJson.CreateOptions()));
+            JsonSerializer.Serialize(browserReceipt, OpenConnectHttpJson.CreateOptions())) { ConnectionId = connection.ConnectionId };
         var httpContext = AuthenticatedContext(serviceProvider);
         var endpointResult = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, httpContext, sessions);
@@ -102,7 +103,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Equal(expectedHighlightDuration, runtime.LastContext.Action.Parameters.HighlightDurationMilliseconds);
 
         var highlightResponse = new ClientInteractionResponse(highlightRequest.CorrelationId, "action",
-            JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions()));
+            JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions())) { ConnectionId = connection.ConnectionId };
         var highlightEndpointResult = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), highlightResponse, AuthenticatedContext(serviceProvider), sessions);
         var highlightHttpResponse = await ExecuteAsync(highlightEndpointResult, serviceProvider);
@@ -211,8 +212,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
-        var response = VerifiedResponse(correlationId);
+        using var pending = StartPendingRequest(store, session, correlationId);
+        var response = VerifiedResponse(correlationId) with { ConnectionId = pending.ConnectionId };
 
         var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider, Tenant, OtherPrincipal), store);
@@ -230,10 +231,10 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        using var pending = StartPendingRequest(store, session, correlationId);
 
         var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-            session.Id.Value.ToString(), VerifiedResponse(correlationId),
+            session.Id.Value.ToString(), VerifiedResponse(correlationId) with { ConnectionId = pending.ConnectionId },
             AuthenticatedContext(serviceProvider, OtherTenant, Principal), store);
         var httpResponse = await ExecuteAsync(result, serviceProvider);
 
@@ -250,10 +251,10 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var ownerSession = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var otherSession = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, ownerSession.Id.Value, correlationId);
+        using var pending = StartPendingRequest(store, ownerSession, correlationId);
 
         var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-            otherSession.Id.Value.ToString(), VerifiedResponse(correlationId), AuthenticatedContext(serviceProvider), store);
+            otherSession.Id.Value.ToString(), VerifiedResponse(correlationId) with { ConnectionId = pending.ConnectionId }, AuthenticatedContext(serviceProvider), store);
         var httpResponse = await ExecuteAsync(result, serviceProvider);
 
         Assert.Equal(StatusCodes.Status409Conflict, httpResponse.StatusCode);
@@ -268,12 +269,13 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        using var pending = StartPendingRequest(store, session, correlationId);
+        Assert.True(store.TryExpirePendingInteraction(session.Id, correlationId));
         await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Cancellation,
             JsonSerializer.Serialize(new ClientInteractionCancellation(correlationId), OpenConnectHttpJson.CreateOptions()));
 
         var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-            session.Id.Value.ToString(), VerifiedResponse(correlationId), AuthenticatedContext(serviceProvider), store);
+            session.Id.Value.ToString(), VerifiedResponse(correlationId) with { ConnectionId = pending.ConnectionId }, AuthenticatedContext(serviceProvider), store);
         var httpResponse = await ExecuteAsync(result, serviceProvider);
 
         Assert.Equal(StatusCodes.Status409Conflict, httpResponse.StatusCode);
@@ -288,8 +290,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
-        var response = VerifiedResponse(correlationId);
+        using var pending = StartPendingRequest(store, session, correlationId);
+        var response = VerifiedResponse(correlationId) with { ConnectionId = pending.ConnectionId };
 
         var first = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider), store);
@@ -309,7 +311,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var correlationId = Guid.NewGuid().ToString("D");
-        await AppendPendingRequestAsync(store, session.Id.Value, correlationId);
+        using var pending = StartPendingRequest(store, session, correlationId);
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         const int submissions = 32;
         var ready = new CountdownEvent(submissions);
@@ -320,7 +322,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
             await start.Task;
             var response = VerifiedResponse(correlationId) with
             {
-                PayloadJson = JsonSerializer.Serialize(new { outcome = "Completed", receipt = index })
+                PayloadJson = JsonSerializer.Serialize(new { outcome = "Completed", receipt = index }),
+                ConnectionId = pending.ConnectionId
             };
             var result = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
                 session.Id.Value.ToString(), response, AuthenticatedContext(serviceProvider), store);
@@ -342,6 +345,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         var other = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var correlation = Guid.NewGuid().ToString("D");
         var pending = store.RequestAsync(new SessionId(session.Id.Value),
             new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab"),
@@ -382,6 +386,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
     {
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var correlations = Enumerable.Range(0, 2).Select(_ => Guid.NewGuid().ToString("D")).ToArray();
         Assert.Equal(2, correlations.Distinct(StringComparer.Ordinal).Count());
         var requests = correlations.Select(correlation => store.RequestAsync(new SessionId(session.Id.Value),
@@ -402,6 +407,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
     {
         var store = new InMemorySessionStore();
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
         var correlation = Guid.NewGuid().ToString("D");
         using var cancellation = new CancellationTokenSource();
         var pending = store.RequestAsync(new SessionId(session.Id.Value),
@@ -413,7 +419,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
 
         using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
         var lateResponse = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
-            session.Id.Value.ToString(), VerifiedResponse(correlation), AuthenticatedContext(services), store);
+            session.Id.Value.ToString(), VerifiedResponse(correlation) with { ConnectionId = connection.ConnectionId }, AuthenticatedContext(services), store);
         Assert.Equal(StatusCodes.Status409Conflict,
             (await ExecuteAsync(lateResponse, services)).StatusCode);
         Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0),
@@ -424,10 +430,29 @@ public sealed class LiveUIClientInteractionRoundTripTests
                 .CorrelationId == correlation);
     }
 
-    private static Task AppendPendingRequestAsync(InMemorySessionStore store, Ulid sessionId, string correlationId) =>
-        store.AppendEventAsync(sessionId, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(new ClientInteractionRequest(correlationId, "execute", "todo.completed", "SelectTab"),
-                OpenConnectHttpJson.CreateOptions()));
+    private static PendingRequest StartPendingRequest(InMemorySessionStore store, SessionRecord session, string correlationId)
+    {
+        var connection = store.RegisterBoundConnection(session)!;
+        var cancellation = new CancellationTokenSource();
+        var task = store.RequestAsync(session.Id,
+            new ClientInteractionRequest(correlationId, "execute", "todo.completed", "SelectTab"),
+            "action", TimeSpan.FromSeconds(10), cancellation.Token);
+        return new PendingRequest(connection, cancellation, task);
+    }
+
+    private sealed class PendingRequest(InMemoryEventJournal.BoundConnectionRegistration connection,
+        CancellationTokenSource cancellation, Task<ClientInteractionResponse?> task) : IDisposable
+    {
+        public string ConnectionId => connection.ConnectionId;
+        public void Dispose()
+        {
+            cancellation.Cancel();
+            try { task.GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) { }
+            cancellation.Dispose();
+            connection.Dispose();
+        }
+    }
 
     private static ClientInteractionResponse VerifiedResponse(string correlationId) =>
         new(correlationId, "action", "{\"outcome\":\"Completed\",\"postconditionVerified\":true}");

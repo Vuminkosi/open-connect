@@ -40,6 +40,12 @@ public sealed class ComposerSession
 
     public string? SessionId { get; private set; }
 
+    /// <summary>Server-issued identity of the currently registered event socket.</summary>
+    public string? ConnectionId { get; private set; }
+
+    private long _connectionGeneration;
+    public long ConnectionGeneration { get { lock (_gate) { return _connectionGeneration; } } }
+
     public ComposerConnectionState Connection { get; private set; } = ComposerConnectionState.Idle;
 
     public ComposerMicrophoneState MicrophoneState { get; private set; } = ComposerMicrophoneState.Off;
@@ -109,6 +115,8 @@ public sealed class ComposerSession
                 ? _messages.LastOrDefault(message => message.Role == "user")
                 : null;
             SessionId = sessionId;
+            ConnectionId = null;
+            _connectionGeneration++;
             Connection = pendingInitialUserMessage is null
                 ? ComposerConnectionState.Idle
                 : ComposerConnectionState.Streaming;
@@ -146,6 +154,17 @@ public sealed class ComposerSession
             Connection = ComposerConnectionState.Streaming;
         }
 
+        Notify();
+    }
+
+    internal void ResumeSend()
+    {
+        lock (_gate)
+        {
+            _streamingRole = "assistant";
+            _streamingText = string.Empty;
+            Connection = ComposerConnectionState.Streaming;
+        }
         Notify();
     }
 
@@ -508,6 +527,54 @@ public sealed class ComposerSession
         }
 
         return notify;
+    }
+
+    /// <summary>
+    /// Registers a newly connected event socket. Registration is accepted only for
+    /// the currently attached gateway session; each accepted registration fences
+    /// any work started by an earlier socket.
+    /// </summary>
+    public bool RegisterConnection(string connectionId, string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(connectionId) || string.IsNullOrWhiteSpace(sessionId))
+            return false;
+        lock (_gate)
+        {
+            if (!string.Equals(SessionId, sessionId, StringComparison.Ordinal))
+                return false;
+            ConnectionId = connectionId;
+            _connectionGeneration++;
+            PendingClientInteraction = null;
+            PendingClientInteractionCancellationId = null;
+        }
+        Notify();
+        return true;
+    }
+
+    /// <summary>Invalidates socket identity and pending LiveUI work on disconnect.</summary>
+    public void DisconnectConnection(string? connectionId)
+    {
+        lock (_gate)
+        {
+            if (ConnectionId is null || connectionId is not null &&
+                !string.Equals(ConnectionId, connectionId, StringComparison.Ordinal))
+                return;
+            ConnectionId = null;
+            _connectionGeneration++;
+            PendingClientInteraction = null;
+            PendingClientInteractionCancellationId = null;
+        }
+        Notify();
+    }
+
+    public bool ApplyConnectionEvent(EventRecord record, string connectionId)
+    {
+        lock (_gate)
+        {
+            if (!string.Equals(ConnectionId, connectionId, StringComparison.Ordinal))
+                return false;
+        }
+        return ApplyEvent(record);
     }
 
     public void MarkIdle()

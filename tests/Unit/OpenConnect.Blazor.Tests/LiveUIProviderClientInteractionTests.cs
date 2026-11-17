@@ -54,6 +54,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -66,7 +67,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(interaction, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(interaction with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
 
         rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
         Assert.Equal(interaction.CorrelationId, client.Response!.CorrelationId);
@@ -97,6 +98,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -109,7 +111,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
         await runtime.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 2, ClientInteractionEventTypes.Cancellation,
@@ -135,6 +137,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -147,7 +150,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
 
         rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
         using var receipt = JsonDocument.Parse(client.Response!.PayloadJson);
@@ -169,6 +172,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -181,7 +185,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
         await runtime.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await rendered.InvokeAsync(() => composerSession.AttachSession("01ARZ3NDEKTSV4RRFFQ69G5FAW"));
 
@@ -206,6 +210,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -218,7 +223,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
         rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
         await Task.Delay(25);
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
@@ -248,6 +253,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -274,7 +280,7 @@ public sealed class LiveUIProviderClientInteractionTests
         var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
         rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
         Assert.Equal("Highlight", runtime.LastAction);
 
@@ -330,6 +336,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -421,7 +428,7 @@ public sealed class LiveUIProviderClientInteractionTests
             };
             await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
                 new SessionId(Ulid.Parse(Session)), sequence, ClientInteractionEventTypes.Request,
-                JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+                JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
             rendered.WaitForAssertion(() => Assert.Equal(request.CorrelationId, client.Response?.CorrelationId));
             Assert.Equal(0, runtime.LastParameters!.HighlightDurationMilliseconds);
         }
@@ -445,6 +452,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         var composerSession = new ComposerSession();
         composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
         var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
             .Add(component => component.Value, composerSession)
             .Add(component => component.ChildContent, builder =>
@@ -456,7 +464,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
-            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+            JsonSerializer.Serialize(request with { ConnectionId = "test-connection" }, OpenConnectHttpJson.CreateOptions()))));
 
         rendered.WaitForAssertion(() =>
         {

@@ -55,6 +55,8 @@ export default defineConfig({
         Workers__Kokoro__Endpoint: fixtureUrl,
         OPENCONNECT_WORKER_TOKEN: 'local-acceptance-kokoro-token',
         TODO_SERVICE_URL: appUrl,
+        TODO_INTERNAL_TOKEN: 'local-acceptance-todo-internal-token',
+        TODO_INTERNAL_TENANT: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
       },
     },
   ],
