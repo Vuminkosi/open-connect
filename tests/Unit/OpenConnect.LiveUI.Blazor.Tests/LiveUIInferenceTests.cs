@@ -455,6 +455,33 @@ public sealed class LiveUIInferenceTests
     }
 
     [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task WorkerAuthorizationFailureDuringGenerationStopsProviderFallback(HttpStatusCode statusCode)
+    {
+        var handler = new RecordingHttpMessageHandler(request => new HttpResponseMessage(
+            request.Method == HttpMethod.Get ? HttpStatusCode.OK : statusCode));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+        }));
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => router.GeneratePlanAsync(Request));
+
+        Assert.Equal(0, gateway.GetAvailabilityCalls);
+        Assert.Equal(0, gateway.GenerateCalls);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task WorkerRateLimitStopsProviderFallback(bool duringReadiness)
@@ -510,6 +537,39 @@ public sealed class LiveUIInferenceTests
         var result = await router.GeneratePlanAsync(Request);
 
         Assert.Equal(fallsBack ? "completed" : "invalid_plan", result.Outcome);
+        Assert.Equal(fallsBack ? 1 : 0, gateway.GenerateCalls);
+    }
+
+    [Theory]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, false)]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, true, true)]
+    [InlineData(LiveUIFallbackPolicy.Disabled, false, false)]
+    public async Task WorkerUnavailableDuringGenerationFollowsFallbackPolicy(
+        LiveUIFallbackPolicy policy, bool fallsBack, bool networkFailure)
+    {
+        var handler = new RecordingHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get) return new HttpResponseMessage(HttpStatusCode.OK);
+            if (networkFailure) throw new HttpRequestException("connection failed");
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        });
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+        }));
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = policy;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(fallsBack ? "completed" : "inference_unavailable", result.Outcome);
         Assert.Equal(fallsBack ? 1 : 0, gateway.GenerateCalls);
     }
 

@@ -139,6 +139,14 @@ public sealed class LiveUIInferenceRouter(
                     // Security boundaries and quotas must not be bypassed by fallback.
                     return result;
                 }
+                if (result.Plan is null && result.Outcome is "inference_unavailable" or "worker_unavailable" or
+                    "gateway_unavailable" or "gateway_worker_unavailable" or "browser_disconnected" or
+                    "browser_prompt_api_unavailable")
+                {
+                    lastFailure = new InvalidOperationException("inference_unavailable");
+                    lastErrorType = "inference_unavailable";
+                    continue;
+                }
                 if (result.Plan is null || !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
                 {
                     lastFailure = new InvalidOperationException("invalid_plan");

@@ -64,6 +64,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
                 throw new UnauthorizedAccessException("The LiveUI worker rejected server authorization.");
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 return new(Kind, null, "rate_limited");
+            if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                return new(Kind, null, "worker_unavailable");
             if (!response.IsSuccessStatusCode) return new(Kind, null, "worker_inference_failed");
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);

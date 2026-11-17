@@ -145,6 +145,52 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public async Task GatewayWorkerUnavailableDuringGeneration_UsesUnavailableFallback(bool networkFailure)
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                        LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
+                });
+            if (networkFailure) throw new HttpRequestException("connection failed");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        var fallback = new SuccessfulGateway();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
+        var router = new LiveUIInferenceRouter([new GatewayWorkerLiveUIInferenceProvider(client), fallback],
+            new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("Show completed tasks", "session", "todo", "openconnect.liveui/v1",
+            [new("completed-tab", ["activate"])]);
+
+        var result = await router.GeneratePlanAsync(request);
+
+        Assert.Equal("completed", result.Outcome);
+        Assert.Equal(1, fallback.Calls);
+    }
+
+    private sealed class SuccessfulGateway : ILiveUIInferenceProvider
+    {
+        public int Calls { get; private set; }
+        public LiveUIInferenceProviderKind Kind => LiveUIInferenceProviderKind.Gateway;
+        public Task<LiveUIInferenceAvailability> GetAvailabilityAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LiveUIInferenceAvailability(Kind, LiveUIInferenceAvailabilityStatus.Available));
+        public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new LiveUIInferenceResult(Kind,
+                new LiveUIActionPlan(request.SchemaVersion, [new("activate", "completed-tab")]), "completed"));
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task WorkerRateLimitEnvelope_StopsFallback(bool limitAvailability)
     {
         using var client = new HttpClient(new StubHandler(async request =>
