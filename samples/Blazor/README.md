@@ -33,3 +33,5 @@ The optional worker is described in [its README](../../workers/liveui-inference/
 ## Verification
 
 Run `dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release` to build the sample. The connected browser suite is `npm run test:liveui-connected` from `tests/Browser`; it uses scripted inference. The opt-in real-worker lane requires a configured private worker and must be reported separately from scripted tests.
+
+The gateway planner's real-provider acceptance tests require `OPENCONNECT_LIVEUI_REAL_PROVIDER_RUN=1` and the `OPENCONNECT_LIVEUI_REAL_PROVIDER_ENDPOINT`, `OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY`, and `OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL` settings. Run `dotnet test samples/workers/shared/OpenConnect.Samples.Workers.TestKit/OpenConnect.Samples.Workers.TestKit.csproj -c Release --filter FullyQualifiedName~LiveGatewayPlannerAcceptanceTests`. These tests send synthetic requests to the configured provider and verify proposed plans; they do not execute the plans in a browser.

@@ -63,6 +63,9 @@ public sealed class FirewallGuardedGatewayInferenceTests
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;
             Assert.Contains(messages, message => message.Role == ChatRole.User && message.Text.Contains("Show completed tasks", StringComparison.Ordinal));
+            Assert.Contains(messages, message => message.Role == ChatRole.User &&
+                message.Text.Contains("\"type\"", StringComparison.Ordinal) &&
+                message.Text.Contains("\"targetId\"", StringComparison.Ordinal));
             Assert.Equal(ChatResponseFormat.Json, options?.ResponseFormat);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, responseText)));
         }

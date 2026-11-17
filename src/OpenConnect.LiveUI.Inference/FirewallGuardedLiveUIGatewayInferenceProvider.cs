@@ -37,8 +37,14 @@ public sealed class FirewallGuardedLiveUIGatewayInferenceProvider : ILiveUIGatew
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         var context = JsonSerializer.Serialize(request, JsonOptions);
-        var prompt = "Produce a LiveUI action plan as JSON with properties schemaVersion and actions. " +
-            "Only use target IDs and action names from the supplied capabilities. Return an empty actions array if the request is not a supported UI action. " +
+        var prompt = "Produce a LiveUI action plan as JSON: " +
+            "{\"schemaVersion\":\"...\",\"actions\":[{\"type\":\"...\",\"targetId\":\"...\"}]}. " +
+            "For each action, the required property names are exactly type and targetId; never use action or target instead. " +
+            "Copy type from an action in the selected capability's actions list, and copy targetId exactly from that capability. " +
+            "For setValue include the property value with the requested input; omit value for all other actions. " +
+            "Copy schemaVersion from the request. Return an empty actions array if the request is not a supported UI action. " +
+            "When asked to open a page or view, use an available navigate action for that route. " +
+            "Use the fewest actions that satisfy the request, in execution order. " +
             "Do not include explanations, code, URLs, or additional properties.\n" + context;
         try
         {
