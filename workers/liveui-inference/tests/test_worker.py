@@ -28,24 +28,44 @@ def settings_for(path: Path, checksum: str) -> Settings:
     )
 
 
-def test_exact_status_request_uses_one_matching_authorized_action():
+@pytest.mark.parametrize(
+    ("intent", "target"), [("Show completed tasks", "todo.completed"), ("Show all tasks", "todo.all")]
+)
+def test_exact_status_request_uses_one_matching_authorized_action(intent: str, target: str):
     request = PlanRequest.model_validate(
         {
             "requestId": "request-1",
             "schemaVersion": "openconnect.liveui/v1",
-            "intent": "Show completed tasks",
+            "intent": intent,
             "context": {
                 "route": "todo.home",
                 "availableActions": [
                     {"target": "todo.completed", "action": "activate"},
                     {"target": "todo.active", "action": "activate"},
+                    {"target": "todo.all", "action": "activate"},
                 ],
             },
         }
     )
     plan = deterministic_plan(request)
     assert plan is not None
-    assert [(action.type, action.target) for action in plan.actions] == [("activate", "todo.completed")]
+    assert [(action.type, action.target) for action in plan.actions] == [("activate", target)]
+
+
+def test_open_my_tasks_uses_the_current_authorized_todo_route_without_filling_search():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Open my tasks",
+        "context": {"route": "route.root", "availableActions": [
+            {"target": "route.root", "action": "navigate"},
+            {"target": "route.root.list-task-list", "action": "highlight"},
+            {"target": "route.root.search", "action": "setValue"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target, action.value) for action in plan.actions] == [("navigate", "route.root", None)]
+    request.context.availableActions.pop(1)
+    assert deterministic_plan(request) is None
 
 
 def test_simple_search_extracts_only_the_requested_value():
@@ -87,6 +107,24 @@ def test_highlight_request_uses_the_unique_authorized_highlight_target():
     plan = deterministic_plan(request)
     assert plan is not None
     assert [(action.type, action.target, action.value) for action in plan.actions] == [("highlight", "todo.list", None)]
+
+
+def test_highlight_tasks_selects_only_a_unique_compiled_task_list():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Highlight the tasks",
+        "context": {"route": "route.root", "availableActions": [
+            {"target": "route.root.list-task-list", "action": "highlight"},
+            {"target": "route.root.region-todo-list", "action": "highlight"},
+            {"target": "route.root.region-progress", "action": "highlight"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target) for action in plan.actions] == [("highlight", "route.root.list-task-list")]
+    request.context.availableActions.append(
+        request.context.availableActions[0].model_copy(update={"target": "other-task-list"})
+    )
+    assert deterministic_plan(request) is None
 
 
 def test_compound_status_search_builds_a_bounded_plan_from_available_actions():

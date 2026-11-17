@@ -205,6 +205,14 @@ def load_model(settings: Settings, path: Path) -> InferenceEngine:
 
 def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
     intent = request.intent.casefold()
+    if re.fullmatch(r"\s*open\s+(?:my\s+)?(?:tasks|task list|todo list)\s*[?.!]*\s*", intent):
+        current_route = [item for item in request.context.availableActions
+                         if item.action == "navigate" and item.target == request.context.route]
+        has_task_target = any(re.search(r"(?:^|[._-])(?:todo|tasks?)(?:[._-]|$)", item.target.casefold())
+                              for item in request.context.availableActions if item.action != "navigate")
+        if len(current_route) == 1 and has_task_target:
+            return ActionPlan(schemaVersion=request.schemaVersion,
+                              actions=[PlannedAction(type="navigate", target=current_route[0].target)])
     if re.search(r"\b(focus|scroll|navigate)\b", intent):
         return None
     tab_request = re.search(r"\bactivate\s+(?:the\s+)?tab\s+(?:named\s+)?(all|active|completed)\b", intent)
@@ -214,13 +222,18 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
             return ActionPlan(schemaVersion=request.schemaVersion, actions=[tab_action])
     if re.search(r"\bhighlight\b", intent):
         candidates = [capability for capability in request.context.availableActions if capability.action == "highlight"]
+        if re.fullmatch(r"\s*highlight\s+(?:the\s+)?tasks\s*[?.!]*\s*", intent):
+            task_lists = [item for item in candidates if re.search(r"(?:^|[._-])task-list$", item.target.casefold())]
+            if len(task_lists) == 1:
+                return ActionPlan(schemaVersion=request.schemaVersion,
+                                  actions=[PlannedAction(type="highlight", target=task_lists[0].target)])
         if len(candidates) == 1:
             return ActionPlan(
                 schemaVersion=request.schemaVersion,
                 actions=[PlannedAction(type="highlight", target=candidates[0].target)],
             )
     match = re.search(
-        r"\b(show|display|open|filter)\s+(?:my\s+)?(completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)\b",
+        r"\b(show|display|open|filter)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)\b",
         intent,
     )
     compound_search = re.search(r"\b(?:containing|contains|matching|with)\s+(.+?)\s*$", request.intent, re.IGNORECASE)
