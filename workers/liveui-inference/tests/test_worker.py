@@ -68,6 +68,21 @@ def test_open_my_tasks_uses_the_current_authorized_todo_route_without_filling_se
     assert deterministic_plan(request) is None
 
 
+def test_explain_view_inspects_only_a_unique_authorized_todo_region():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Explain the current view.",
+        "context": {"route": "route.root", "availableActions": [
+            {"target": "route.root.region-todo-list", "action": "inspect"},
+            {"target": "route.root.list-task-list", "action": "inspect"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target) for action in plan.actions] == [("inspect", "route.root.region-todo-list")]
+    request.context.availableActions.pop(0)
+    assert deterministic_plan(request) is None
+
+
 def test_simple_search_extracts_only_the_requested_value():
     request = PlanRequest.model_validate(
         {

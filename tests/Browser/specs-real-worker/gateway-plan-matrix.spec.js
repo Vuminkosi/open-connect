@@ -15,10 +15,12 @@ test('the authenticated gateway validates Todo plans from its private worker', a
   const completed = 'route.root.components-todolistcomponent-razor-tab-completed';
   const search = 'route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description';
   const list = 'route.root.components-todolistcomponent-razor-list-task-list';
+  const region = 'route.root.components-todolistcomponent-razor-region-todo-list';
   const capabilities = [
     { targetId: route, actions: ['navigate'] }, { targetId: all, actions: ['activate'] },
     { targetId: active, actions: ['activate'] }, { targetId: completed, actions: ['activate'] },
     { targetId: search, actions: ['setValue', 'focus'] }, { targetId: list, actions: ['highlight', 'scroll'] },
+    { targetId: region, actions: ['inspect'] },
   ];
   const cases = [
     ['Open my tasks', [{ type: 'navigate', targetId: route }]],
@@ -29,6 +31,7 @@ test('the authenticated gateway validates Todo plans from its private worker', a
     ['Search for report', [{ type: 'setValue', targetId: search, value: 'report' }]],
     ['Highlight the tasks', [{ type: 'highlight', targetId: list }]],
     ['Highlight the results.', [{ type: 'highlight', targetId: list }]],
+    ['Explain the current view.', [{ type: 'inspect', targetId: region }]],
     ['Show completed tasks containing report', [
       { type: 'activate', targetId: completed }, { type: 'setValue', targetId: search, value: 'report' },
     ]],

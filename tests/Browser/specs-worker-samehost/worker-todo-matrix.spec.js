@@ -6,6 +6,7 @@ const active = 'route.root.components-todolistcomponent-razor-tab-active';
 const completed = 'route.root.components-todolistcomponent-razor-tab-completed';
 const search = 'route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description';
 const list = 'route.root.components-todolistcomponent-razor-list-task-list';
+const region = 'route.root.components-todolistcomponent-razor-region-todo-list';
 
 const cases = [
   ['Open my tasks', [{ type: 'navigate', targetId: route, value: null }]],
@@ -16,6 +17,7 @@ const cases = [
   ['Search for report', [{ type: 'setValue', targetId: search, value: 'report' }]],
   ['Highlight the tasks', [{ type: 'highlight', targetId: list, value: null }]],
   ['Highlight the results.', [{ type: 'highlight', targetId: list, value: null }]],
+  ['Explain the current view.', [{ type: 'inspect', targetId: region, value: null }]],
   ['Show completed tasks containing report', [
     { type: 'activate', targetId: completed, value: null }, { type: 'setValue', targetId: search, value: 'report' },
   ]],
@@ -28,7 +30,8 @@ for (const [intent, expected] of cases) {
     await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
     await page.getByRole('textbox', { name: /message ellai/i }).fill(intent);
     await page.getByRole('button', { name: /send to ellai/i }).click();
-    await expect(page.getByRole('log', { name: 'Conversation' })).toContainText('The requested task view is ready.', { timeout: 90_000 });
+    const answer = intent === 'Explain the current view.' ? 'The task region is visible.' : 'The requested task view is ready.';
+    await expect(page.getByRole('log', { name: 'Conversation' })).toContainText(answer, { timeout: 90_000 });
     const result = await (await request.get('http://127.0.0.1:5110/__acceptance/runs')).json();
     expect(result.error).toBeNull();
     const run = result.runs.at(-1);

@@ -24,7 +24,9 @@ PLAN_SCHEMA = {
                 "properties": {
                     "type": {
                         "type": "string",
-                        "enum": ["activate", "navigate", "setValue", "select", "highlight", "focus", "scroll"],
+                        "enum": [
+                            "activate", "navigate", "setValue", "select", "highlight", "focus", "scroll", "inspect"
+                        ],
                     },
                     "target": {"type": "string"},
                     "value": {"type": "string"},
@@ -39,7 +41,7 @@ PLAN_SCHEMA = {
 }
 
 UI_OPERATION = re.compile(
-    r"\b(?:show|display|open|filter|activate|select|switch|search|find|set|enter|highlight|focus|scroll|navigate)\b",
+    r"\b(?:show|display|open|filter|activate|select|switch|search|find|set|enter|highlight|focus|scroll|navigate|inspect|explain)\b",
     re.IGNORECASE,
 )
 
@@ -130,7 +132,7 @@ class InferenceEngine:
                     "search field for a tab or status request. For a search request, set the value to "
                     "only the search term, not the instruction, and add focus only when explicitly requested. "
                     "Include value only for setValue actions; omit it for activate, navigate, select, "
-                    "highlight, focus, and scroll actions. "
+                    "highlight, focus, scroll, and inspect actions. "
                     "Copy schemaVersion exactly. If no action fits, return an empty actions array."
                 ),
             },
@@ -205,6 +207,12 @@ def load_model(settings: Settings, path: Path) -> InferenceEngine:
 
 def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
     intent = request.intent.casefold()
+    if re.fullmatch(r"\s*explain\s+(?:the\s+)?current\s+view\s*[?.!]*\s*", intent):
+        regions = [item for item in request.context.availableActions
+                   if item.action == "inspect" and re.search(r"(?:^|[._-])region-todo-list$", item.target.casefold())]
+        if len(regions) == 1:
+            return ActionPlan(schemaVersion=request.schemaVersion,
+                              actions=[PlannedAction(type="inspect", target=regions[0].target)])
     if re.fullmatch(r"\s*open\s+(?:my\s+)?(?:tasks|task list|todo list)\s*[?.!]*\s*", intent):
         current_route = [item for item in request.context.availableActions
                          if item.action == "navigate" and item.target == request.context.route]

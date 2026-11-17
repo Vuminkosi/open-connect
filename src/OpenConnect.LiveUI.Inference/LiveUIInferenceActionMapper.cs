@@ -41,6 +41,7 @@ public sealed class LiveUIInferenceActionMapper(LiveUIActionPlanValidator valida
                 "highlight" => LiveUIActionType.Highlight,
                 "focus" => LiveUIActionType.Focus,
                 "scroll" => LiveUIActionType.Scroll,
+                "inspect" => LiveUIActionType.Inspect,
                 _ => throw new ArgumentException("The plan contains an unsupported action.", nameof(plan))
             };
             return new LiveUIAction(Guid.NewGuid().ToString("N"), plan.SchemaVersion, request.SessionId,

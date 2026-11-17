@@ -528,6 +528,7 @@ function workerMatrixSteps(actions) {
     if (action.type === 'activate') return { name: 'liveui_execute', arguments: { targetId: action.targetId, action: 'SelectTab' }, kind: 'receipt' };
     if (action.type === 'setValue') return { name: 'liveui_execute', arguments: { targetId: action.targetId, action: 'SetValue', value: action.value }, kind: 'receipt' };
     if (action.type === 'highlight') return { name: 'liveui_highlight', arguments: { targetId: action.targetId }, kind: 'receipt' };
+    if (action.type === 'inspect') return { name: 'liveui_inspect', arguments: { targetId: action.targetId }, kind: 'receipt' };
     throw new Error(`Worker matrix plan contains an unsupported action: ${action.type}`);
   });
 }
@@ -783,6 +784,7 @@ const server = http.createServer(async (request, response) => {
       const workerMatrix = realLiveUIWorkerContainer && [
         'Open my tasks', 'Open my Todo list.', 'Show completed tasks', 'Show active tasks', 'Show all tasks',
         'Search for report', 'Highlight the tasks', 'Highlight the results.', 'Show completed tasks containing report',
+        'Explain the current view.',
       ].includes(normalizedUserText);
       const scenarioName = workerMatrix ? 'worker_matrix'
         : deniedWrite ? 'denied_write'
@@ -805,7 +807,8 @@ const server = http.createServer(async (request, response) => {
       const answers = {
         navigation: 'I opened the Todo page, verified it was ready, and highlighted the task region.',
         tour: 'This task region shows your work and its filters. Would you like to continue the tour?',
-        worker_matrix: 'The requested task view is ready.',
+        worker_matrix: normalizedUserText === 'Explain the current view.'
+          ? 'The task region is visible.' : 'The requested task view is ready.',
         highlight_retry: 'I retried the highlight and highlighted the Todo task list so you can see the task statuses.',
         status_highlight: 'I highlighted the Todo task list so you can see the current task statuses.',
         status: 'The Completed tab is selected and shows the completed tasks.',

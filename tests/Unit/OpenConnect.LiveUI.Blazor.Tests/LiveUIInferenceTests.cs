@@ -76,6 +76,24 @@ public sealed class LiveUIInferenceTests
     }
 
     [Fact]
+    public void InspectionPlan_RequiresAuthorizedCapabilityAndMapsToInspection()
+    {
+        var request = new LiveUIInferenceRequest("Explain the current view", "session-1", "todo", "openconnect.liveui/v1",
+            [new("todo.region", ["inspect"])], ManifestHash: "hash");
+        var manifest = new LiveUIManifest(request.SchemaVersion, "build", "hash", [new LiveUIRoute("todo", "/", null,
+            [new LiveUITarget("todo.region", LiveUITargetKind.Region, "Tasks", new HashSet<LiveUICapability> { LiveUICapability.Inspect })])]);
+        var plan = new LiveUIActionPlan(request.SchemaVersion, [new("inspect", "todo.region")]);
+        var validator = new LiveUIActionPlanValidator();
+
+        Assert.True(validator.Validate(request, plan, 8, out _));
+        Assert.Equal(LiveUIActionType.Inspect, Assert.Single(new LiveUIInferenceActionMapper(validator)
+            .Map(request, plan, manifest, TimeSpan.FromSeconds(5))).Type);
+        var denied = request with { Capabilities = [new("todo.region", ["highlight"])] };
+        Assert.False(validator.Validate(denied, plan, 8, out var reason));
+        Assert.Equal("capability_not_allowed", reason);
+    }
+
+    [Fact]
     public void Mapper_ConvertsValidatedTabActivationToExistingLiveUIAction()
     {
         var manifest = new LiveUIManifest(Request.SchemaVersion, "build", "hash", [new LiveUIRoute("todo", "/", null,

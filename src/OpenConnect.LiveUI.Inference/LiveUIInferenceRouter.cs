@@ -188,7 +188,7 @@ public sealed class LiveUIInferenceRouter(
 
 public sealed class LiveUIActionPlanValidator
 {
-    private static readonly HashSet<string> AllowedActions = ["activate", "navigate", "setValue", "select", "highlight", "focus", "scroll"];
+    private static readonly HashSet<string> AllowedActions = ["activate", "navigate", "setValue", "select", "highlight", "focus", "scroll", "inspect"];
 
     public bool Validate(LiveUIInferenceRequest request, LiveUIActionPlan plan, int maximumActions, out string reason)
     {
