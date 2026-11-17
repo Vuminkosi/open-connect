@@ -46,10 +46,37 @@ UI_OPERATION = re.compile(
 )
 
 
+def expected_status_and_text_filter(request: PlanRequest) -> tuple[PlannedAction, PlannedAction] | None:
+    """Resolve a status and literal text filter only when both controls are unambiguous."""
+    match = re.search(
+        r"^\s*(?:list|show|display|open|filter|view)\s+(?:my\s+)?"
+        r"(all|completed|done|finished|active|incomplete|pending)\s+"
+        r"(?:todo\s+)?(?:tasks|items|todos)\s+(?:containing|matching)\s+(.+?)\s*[?.!]*\s*$",
+        request.intent,
+        re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    raw_text = match.group(2).strip()
+    quoted = len(raw_text) >= 2 and raw_text[0] in "\"'" and raw_text[-1] == raw_text[0]
+    text = raw_text.strip(" \"'?.!")
+    if not quoted and re.search(
+        r"\b(?:and|then)\s+(?:then\s+)?"
+        r"(?:show|display|open|filter|activate|select|switch|search|find|set|enter|highlight|"
+        r"focus|scroll|navigate|inspect|explain|delete|remove|create|add|update|edit|save|submit|send|export|download)\b",
+        text, re.IGNORECASE,
+    ):
+        return None
+    status = find_status_action(request, match.group(1).casefold())
+    query = find_search_action(request, text)
+    return (status, query) if status is not None and query is not None else None
+
+
 def max_actions_for_intent(request: PlanRequest) -> int:
     """Keep one-operation requests to one action; allow bounded explicit UI sequences."""
     operation_count = len(UI_OPERATION.findall(request.intent))
-    return request.generation.maxActions if operation_count > 1 else 1
+    has_compound_filter = expected_status_and_text_filter(request) is not None
+    return request.generation.maxActions if operation_count > 1 or has_compound_filter else 1
 
 
 def plan_schema(max_actions: int) -> dict[str, Any]:
@@ -112,7 +139,11 @@ class InferenceEngine:
         if deterministic is not None:
             return deterministic, "deterministic"
 
+        expected_filter = expected_status_and_text_filter(request)
+        compound_filter = expected_filter is not None
         maximum_actions = max_actions_for_intent(request)
+        if compound_filter and maximum_actions < 2:
+            raise ValueError("A status and text filter requires at least two actions")
         capability_list = [{"target": item.target, "action": item.action} for item in request.context.availableActions]
         prompt = json.dumps(
             {
@@ -125,7 +156,9 @@ class InferenceEngine:
                     "If the request cannot be fulfilled by availableActions, return an empty actions array. "
                     "Never substitute an unrelated action. Return only actions explicitly available, "
                     "with IDs from availableActions. "
-                    "Return at most maxActions actions. For a single UI operation, "
+                    + ("A status and text filter requires both the status control and the search value. "
+                       if compound_filter else "")
+                    + "Return at most maxActions actions. For a single UI operation, "
                     "return exactly one action when an available capability matches. Never return "
                     "alternative targets or activate multiple "
                     "tabs for one request. Match the target "
@@ -183,6 +216,11 @@ class InferenceEngine:
             or len(plan.actions) > maximum_actions
         ):
             raise ValueError("Generated plan does not match request constraints")
+        if expected_filter is not None:
+            expected = {(action.type, action.target, action.value) for action in expected_filter}
+            actual = {(action.type, action.target, action.value) for action in plan.actions}
+            if len(plan.actions) != len(expected_filter) or actual != expected:
+                raise ValueError("Generated plan does not match the requested filters")
         allowed = {(item.target, item.action) for item in request.context.availableActions}
         if any((action.target, action.type) not in allowed for action in plan.actions):
             raise ValueError("Generated plan contains an unavailable capability")
@@ -258,7 +296,7 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
                 actions=[PlannedAction(type="highlight", target=candidates[0].target)],
             )
     match = re.fullmatch(
-        r"\s*(show|display|open|filter)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
+        r"\s*(show|display|open|filter|list)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
         request.intent,
         re.IGNORECASE,
     )

@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.inference import InferenceEngine, deterministic_plan, ensure_model
+from app.inference import InferenceEngine, deterministic_plan, ensure_model, expected_status_and_text_filter
 from app.main import app
 from app.schemas import PlanRequest
 from app.settings import Settings
@@ -210,12 +210,15 @@ def test_deterministic_shortcut_does_not_drop_negation_or_other_operations(inten
     assert deterministic_plan(request) is None
 
 
-def test_compound_status_search_builds_a_bounded_plan_from_available_actions():
+@pytest.mark.parametrize("intent", [
+    "Show completed tasks containing report", "List finished tasks containing report"
+])
+def test_compound_status_search_builds_a_bounded_plan_from_available_actions(intent):
     request = PlanRequest.model_validate(
         {
             "requestId": "request-1",
             "schemaVersion": "openconnect.liveui/v1",
-            "intent": "Show completed tasks containing report",
+            "intent": intent,
             "context": {
                 "route": "todo.home",
                 "availableActions": [
@@ -420,6 +423,65 @@ def test_activate_named_tab_uses_one_exact_worker_action_without_model_generatio
 
     assert plan is not None
     assert [(action.type, action.target) for action in plan.actions] == [("activate", "todo.tab.completed")]
+
+
+
+@pytest.mark.parametrize("intent", ["View finished tasks containing report", 'View finished tasks containing "report"'])
+@pytest.mark.parametrize("actions, succeeds", [
+    ([{"type": "activate", "target": "todo.completed"}], False),
+    ([{"type": "activate", "target": "todo.completed"},
+      {"type": "setValue", "target": "todo.search", "value": "Report"}], False),
+    ([{"type": "activate", "target": "todo.completed"},
+      {"type": "activate", "target": "todo.completed"},
+      {"type": "setValue", "target": "todo.search", "value": "report"}], False),
+    ([{"type": "activate", "target": "todo.completed"},
+      {"type": "setValue", "target": "todo.search", "value": "report"}], True),
+])
+def test_paraphrased_status_and_search_does_not_return_partial_plan(intent, actions, succeeds):
+    request = PlanRequest.model_validate({
+        "requestId": "compound-paraphrase", "schemaVersion": "openconnect.liveui/v1",
+        "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+        "generation": {"maxActions": 4, "maxOutputTokens": 128},
+    })
+
+    class Model:
+        def create_chat_completion(self, **kwargs):
+            assert kwargs["response_format"]["schema"]["properties"]["actions"]["maxItems"] >= 2
+            return {"choices": [{"message": {"content": json.dumps({
+                "schemaVersion": request.schemaVersion, "actions": actions,
+            })}}]}
+
+    engine = InferenceEngine(Model(), settings_for(Path("model.gguf"), "0" * 64))
+    if succeeds:
+        plan, provider = engine.generate(request)
+        assert provider == "qwen3-0.6b"
+        assert [(item.type, item.target, item.value) for item in plan.actions] == [
+            ("activate", "todo.completed", None), ("setValue", "todo.search", "report")
+        ]
+    else:
+        with pytest.raises(ValueError):
+            engine.generate(request)
+
+
+
+@pytest.mark.parametrize("intent", [
+    "Do not view finished tasks containing report",
+    "View finished tasks containing report and highlight the results",
+    "View finished tasks containing report and edit the results",
+])
+def test_compound_filter_validation_does_not_assume_an_ambiguous_request(intent):
+    request = PlanRequest.model_validate({
+        "requestId": "ambiguous-filter", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+    })
+    assert expected_status_and_text_filter(request) is None
 
 
 def test_explicit_multi_control_request_keeps_configured_action_limit():
