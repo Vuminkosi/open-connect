@@ -454,6 +454,65 @@ public sealed class LiveUIInferenceTests
         Assert.Equal(0, gateway.GenerateCalls);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkerRateLimitStopsProviderFallback(bool duringReadiness)
+    {
+        var handler = new RecordingHttpMessageHandler(request =>
+            new HttpResponseMessage(duringReadiness || request.Method == HttpMethod.Post
+                ? HttpStatusCode.TooManyRequests : HttpStatusCode.OK));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
+        }));
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal("rate_limited", result.Outcome);
+        Assert.Null(result.Plan);
+        Assert.Equal(0, gateway.GetAvailabilityCalls);
+        Assert.Equal(0, gateway.GenerateCalls);
+    }
+
+    [Theory]
+    [InlineData(LiveUIFallbackPolicy.OnFailure, true)]
+    [InlineData(LiveUIFallbackPolicy.OnUnavailable, false)]
+    public async Task WorkerInvalidPlanFollowsConfiguredFallbackPolicy(LiveUIFallbackPolicy policy, bool fallsBack)
+    {
+        var handler = new RecordingHttpMessageHandler(request => new HttpResponseMessage(
+            request.Method == HttpMethod.Get ? HttpStatusCode.OK : HttpStatusCode.UnprocessableEntity));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
+        }));
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = policy;
+        var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(fallsBack ? "completed" : "invalid_plan", result.Outcome);
+        Assert.Equal(fallsBack ? 1 : 0, gateway.GenerateCalls);
+    }
+
     [Fact]
     public async Task PrivacyDenialStopsFallbackToOtherProviders()
     {

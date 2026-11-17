@@ -142,6 +142,45 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
         Assert.Equal(0, fallback.Calls);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkerRateLimitEnvelope_StopsFallback(bool limitAvailability)
+    {
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            if (request.Method == HttpMethod.Get)
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                        LiveUIInferenceProviderKind.LocalWorker,
+                        limitAvailability ? LiveUIInferenceAvailabilityStatus.Blocked : LiveUIInferenceAvailabilityStatus.Available,
+                        Reason: limitAvailability ? "rate_limited" : null))
+                };
+            var envelope = await request.Content!.ReadFromJsonAsync<GatewayLiveUIInferenceRequest>();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(envelope!.RequestId, envelope.ExecutionId,
+                    new LiveUIInferenceResult(LiveUIInferenceProviderKind.LocalWorker, null, "rate_limited")))
+            };
+        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        var fallback = new CountingGateway();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var router = new LiveUIInferenceRouter([new GatewayWorkerLiveUIInferenceProvider(client), fallback],
+            new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("Show completed tasks", "session", "todo", "openconnect.liveui/v1",
+            [new("completed-tab", ["activate"])]);
+
+        var result = await router.GeneratePlanAsync(request);
+
+        Assert.Equal("rate_limited", result.Outcome);
+        Assert.Null(result.Plan);
+        Assert.Equal(0, fallback.Calls);
+    }
+
     private sealed class CountingGateway : ILiveUIInferenceProvider
     {
         public int Calls { get; private set; }

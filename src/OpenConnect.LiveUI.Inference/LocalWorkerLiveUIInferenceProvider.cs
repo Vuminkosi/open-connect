@@ -24,6 +24,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
             using var response = await SendAsync(HttpMethod.Get, "health/ready", null, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 throw new UnauthorizedAccessException("The LiveUI worker rejected server authorization.");
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new(Kind, LiveUIInferenceAvailabilityStatus.Blocked, Reason: "rate_limited");
             return new(Kind, response.IsSuccessStatusCode ? LiveUIInferenceAvailabilityStatus.Available : LiveUIInferenceAvailabilityStatus.Unavailable,
                 SupportsStructuredOutput: true, SupportsCancellation: true,
                 Reason: response.IsSuccessStatusCode ? null : "worker_not_ready");
@@ -60,6 +62,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
             using var response = await SendAsync(HttpMethod.Post, "v1/liveui/inference/plan", body, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 throw new UnauthorizedAccessException("The LiveUI worker rejected server authorization.");
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new(Kind, null, "rate_limited");
             if (!response.IsSuccessStatusCode) return new(Kind, null, "worker_inference_failed");
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);

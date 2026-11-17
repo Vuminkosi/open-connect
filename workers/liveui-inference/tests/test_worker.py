@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 from pathlib import Path
@@ -599,6 +600,33 @@ async def test_readiness_and_model_disabled_behavior(monkeypatch):
                 "generation": {"maxActions": 2, "maxOutputTokens": 64},
             }
             assert (await client.post("/v1/liveui/inference/plan", json=request)).status_code == 401
+
+
+
+@pytest.mark.asyncio
+async def test_full_inference_queue_returns_http_429(monkeypatch):
+    monkeypatch.setenv("MODEL_ENABLED", "false")
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "worker-test-token")
+    async with app.router.lifespan_context(app):
+        app.state.ready = True
+        app.state.engine = object()
+        app.state.slots = asyncio.Semaphore(0)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://worker") as client:
+            response = await client.post(
+                "/v1/liveui/inference/plan",
+                headers={"Authorization": "Bearer worker-test-token"},
+                json={
+                    "requestId": "queue-full", "schemaVersion": "openconnect.liveui/v1",
+                    "intent": "Show completed tasks", "context": {
+                        "route": "todo.home", "availableActions": [
+                            {"target": "todo.completed", "action": "activate"}
+                        ],
+                    },
+                },
+            )
+    assert response.status_code == 429
+    assert response.json() == {"detail": "inference_queue_full"}
 
 
 def test_model_configuration_requires_pinned_revision_and_digest(tmp_path):
