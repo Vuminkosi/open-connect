@@ -29,7 +29,11 @@ def settings_for(path: Path, checksum: str) -> Settings:
 
 
 @pytest.mark.parametrize(
-    ("intent", "target"), [("Show completed tasks", "todo.completed"), ("Show all tasks", "todo.all")]
+    ("intent", "target"), [
+        ("Show completed tasks", "todo.completed"),
+        ("Show all tasks", "todo.all"),
+        ("Show COMPLETED tasks", "todo.completed"),
+    ]
 )
 def test_exact_status_request_uses_one_matching_authorized_action(intent: str, target: str):
     request = PlanRequest.model_validate(
@@ -129,6 +133,7 @@ def test_simple_search_extracts_only_the_requested_value():
     ("Search for report using the search input", "report"),
     ('Search for "report tasks using the search input"', "report tasks using the search input"),
     ("Search for tasks using time", "tasks using time"),
+    ('Search for "focus and delete the results"', "focus and delete the results"),
 ])
 def test_search_distinguishes_control_instructions_from_query_text(intent, expected):
     request = PlanRequest.model_validate({
@@ -177,6 +182,31 @@ def test_highlight_tasks_selects_only_a_unique_compiled_task_list(intent):
     request.context.availableActions.append(
         request.context.availableActions[0].model_copy(update={"target": "other-task-list"})
     )
+    assert deterministic_plan(request) is None
+
+
+@pytest.mark.parametrize("intent", [
+    "Do not show completed tasks",
+    "Show completed tasks and then highlight the results",
+    "Do not activate the tab named Completed",
+    "Activate the tab named Completed and show all tasks",
+    "Do not highlight the results",
+    "Highlight the results and show completed tasks",
+    "Search for report and highlight the results",
+    "Search for report and delete the results",
+    "Search for report and do not highlight the results",
+    "Show completed tasks containing report and highlight the results",
+])
+def test_deterministic_shortcut_does_not_drop_negation_or_other_operations(intent):
+    request = PlanRequest.model_validate({
+        "requestId": "request-ambiguous", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.all", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+            {"target": "todo.list", "action": "highlight"},
+        ]},
+    })
     assert deterministic_plan(request) is None
 
 

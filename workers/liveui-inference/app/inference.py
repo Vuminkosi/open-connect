@@ -207,6 +207,15 @@ def load_model(settings: Settings, path: Path) -> InferenceEngine:
 
 def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
     intent = request.intent.casefold()
+    # Do not silently reduce a sequence to one action. Quoted search terms may
+    # contain words that look like commands and are treated as literal text.
+    unquoted = re.sub(r'"[^"\n]*"|\'[^\'\n]*\'', ' ', intent)
+    if re.search(
+        r"\b(?:and|then|afterwards|before)\s+(?:then\s+)?(?:please\s+)?(?:do\s+not\s+|don't\s+)?"
+        r"(?:show|display|open|filter|activate|select|switch|search|find|set|enter|highlight|focus|scroll|navigate|inspect|explain|delete|remove|create|add|update|edit|save|submit|send|export|download)\b",
+        unquoted,
+    ):
+        return None
     if re.fullmatch(r"\s*explain\s+(?:the\s+)?current\s+view\s*[?.!]*\s*", intent):
         regions = [item for item in request.context.availableActions
                    if item.action == "inspect"
@@ -222,36 +231,37 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
         if len(current_route) == 1 and has_task_target:
             return ActionPlan(schemaVersion=request.schemaVersion,
                               actions=[PlannedAction(type="navigate", target=current_route[0].target)])
-    if re.search(r"\b(focus|scroll|navigate)\b", intent):
+    if re.search(r"\b(focus|scroll|navigate)\b", unquoted):
         return None
-    tab_request = re.search(r"\bactivate\s+(?:the\s+)?tab\s+(?:named\s+)?(all|active|completed)\b", intent)
+    tab_request = re.fullmatch(
+        r"\s*activate\s+(?:the\s+)?tab\s+(?:named\s+)?(all|active|completed)\s*[?.!]*\s*", intent
+    )
     if tab_request is not None:
         tab_action = find_status_action(request, tab_request.group(1))
         if tab_action is not None:
             return ActionPlan(schemaVersion=request.schemaVersion, actions=[tab_action])
-    if re.search(r"\bhighlight\b", intent):
+    if re.fullmatch(r"\s*highlight\s+(?:the\s+)?(?:tasks|results)\s*[?.!]*\s*", intent):
         candidates = [capability for capability in request.context.availableActions if capability.action == "highlight"]
-        if re.fullmatch(r"\s*highlight\s+(?:the\s+)?(?:tasks|results)\s*[?.!]*\s*", intent):
-            task_lists = [item for item in candidates if re.search(r"(?:^|[._-])task-list$", item.target.casefold())]
-            if len(task_lists) == 1:
-                return ActionPlan(schemaVersion=request.schemaVersion,
-                                  actions=[PlannedAction(type="highlight", target=task_lists[0].target)])
+        task_lists = [item for item in candidates if re.search(r"(?:^|[._-])task-list$", item.target.casefold())]
+        if len(task_lists) == 1:
+            return ActionPlan(schemaVersion=request.schemaVersion,
+                              actions=[PlannedAction(type="highlight", target=task_lists[0].target)])
         if len(candidates) == 1:
             return ActionPlan(
                 schemaVersion=request.schemaVersion,
                 actions=[PlannedAction(type="highlight", target=candidates[0].target)],
             )
-    match = re.search(
-        r"\b(show|display|open|filter)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)\b",
-        intent,
+    match = re.fullmatch(
+        r"\s*(show|display|open|filter)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
+        request.intent,
+        re.IGNORECASE,
     )
-    compound_search = re.search(r"\b(?:containing|contains|matching|with)\s+(.+?)\s*$", request.intent, re.IGNORECASE)
-    simple_search = re.search(
-        r"\b(?:search|find)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*[?.!]*$", request.intent, re.IGNORECASE
+    simple_search = re.fullmatch(
+        r"\s*(?:search|find)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*[?.!]*\s*", request.intent, re.IGNORECASE
     )
-    if match is not None and compound_search is not None:
-        status = match.group(2)
-        search_value = compound_search.group(1).strip().strip(" \"'?.!")
+    if match is not None and match.group(3) is not None:
+        status = match.group(2).casefold()
+        search_value = match.group(3).strip().strip(" \"'?.!")
         status_action = find_status_action(request, status)
         search_action = find_search_action(request, search_value)
         if status_action is None or search_action is None or request.generation.maxActions < 2:
@@ -276,7 +286,7 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
             return ActionPlan(schemaVersion=request.schemaVersion, actions=[search_action])
     if match is None:
         return None
-    status_action = find_status_action(request, match.group(2))
+    status_action = find_status_action(request, match.group(2).casefold())
     return (
         ActionPlan(schemaVersion=request.schemaVersion, actions=[status_action]) if status_action is not None else None
     )
