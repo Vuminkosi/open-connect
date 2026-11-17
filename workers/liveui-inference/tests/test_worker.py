@@ -267,6 +267,43 @@ def test_compound_status_search_builds_a_bounded_plan_from_available_actions(int
     ]
 
 
+@pytest.mark.parametrize("intent", [
+    "Show completed tasks containing report by selecting Completed tab and searching for report",
+    'Show completed tasks containing "Report?!" by selecting Completed tab and searching for "Report?!".',
+])
+def test_compound_filter_ignores_matching_execution_explanation(intent):
+    request = PlanRequest.model_validate({
+        "requestId": "explained-filter", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.value) for action in plan.actions] == [
+        ("activate", None), ("setValue", "Report?!" if '"' in intent else "report"),
+    ]
+
+
+@pytest.mark.parametrize("intent", [
+    "Show completed tasks containing report by selecting Active tab and searching for report",
+    "Show completed tasks containing report by selecting Completed tab and searching for invoice",
+])
+def test_conflicting_execution_explanation_is_rejected(intent):
+    request = PlanRequest.model_validate({
+        "requestId": "conflicting-filter", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+    })
+    assert deterministic_plan(request) is None
+    engine = InferenceEngine(None, settings_for(Path("model.gguf"), "0" * 64))
+    with pytest.raises(ValueError, match="Conflicting"):
+        engine.generate(request)
+
+
 def test_structured_model_plan_is_checked_against_authorized_actions():
     request = PlanRequest.model_validate(
         {

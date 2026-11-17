@@ -58,6 +58,27 @@ def parse_search_literal(raw_text: str) -> tuple[str, bool] | None:
     return text, False
 
 
+def normalize_explained_filter(intent: str) -> tuple[bool, str | None]:
+    """Remove only a matching, redundant description of a status and search operation."""
+    match = re.fullmatch(
+        r"\s*(?P<request>(?:show|display|open|filter|list)\s+(?:my\s+)?"
+        r"(?P<status>all|completed|done|finished|active|incomplete|pending)\s+"
+        r"(?:todo\s+)?(?:tasks|items|todos)\s+(?:containing|matching)\s+"
+        r"(?P<query>\"[^\"]*\"|'[^']*'|.+?))\s+by\s+selecting\s+(?:the\s+)?"
+        r"(?P<tab>all|completed|done|finished|active|incomplete|pending)\s+tab\s+and\s+"
+        r"searching\s+for\s+(?P<repeat>\"[^\"]*\"|'[^']*'|.+?)\s*[?.!]*\s*",
+        intent, re.IGNORECASE,
+    )
+    if match is None:
+        return False, None
+    original = parse_search_literal(match.group("query"))
+    repeated = parse_search_literal(match.group("repeat"))
+    if (match.group("status").casefold() != match.group("tab").casefold()
+            or original is None or repeated is None or original[0] != repeated[0]):
+        return True, None
+    return True, match.group("request")
+
+
 def expected_status_and_text_filter(request: PlanRequest) -> tuple[PlannedAction, PlannedAction] | None:
     """Resolve a status and literal text filter only when both controls are unambiguous."""
     match = re.search(
@@ -148,6 +169,11 @@ class InferenceEngine:
         self._settings = settings
 
     def generate(self, request: PlanRequest) -> tuple[ActionPlan, str]:
+        explained, normalized = normalize_explained_filter(request.intent)
+        if explained:
+            if normalized is None:
+                raise ValueError("Conflicting filter execution explanation")
+            request = request.model_copy(update={"intent": normalized})
         deterministic = deterministic_plan(request)
         if deterministic is not None:
             return deterministic, "deterministic"
@@ -263,6 +289,11 @@ def load_model(settings: Settings, path: Path) -> InferenceEngine:
 
 
 def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
+    explained, normalized = normalize_explained_filter(request.intent)
+    if explained:
+        if normalized is None:
+            return None
+        request = request.model_copy(update={"intent": normalized})
     intent = request.intent.casefold()
     # Do not silently reduce a sequence to one action. Quoted search terms may
     # contain words that look like commands and are treated as literal text.
