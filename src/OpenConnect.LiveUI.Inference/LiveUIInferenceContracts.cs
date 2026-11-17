@@ -56,6 +56,14 @@ public sealed record GatewayLiveUIInferenceRequest(string RequestId, string Exec
 /// <summary>Authenticated Gateway response envelope preserving inference correlation over HTTP.</summary>
 public sealed record GatewayLiveUIInferenceResponse(string RequestId, string ExecutionId, LiveUIInferenceResult Result);
 
+/// <summary>Produces untrusted action plan proposals for a configured inference source.</summary>
+/// <remarks>
+/// Only a <c>completed</c> outcome may carry a usable plan. Providers signal privacy and authorization
+/// denials by throwing <see cref="OpenConnect.Privacy.PrivacyBlockedException"/> or
+/// <see cref="UnauthorizedAccessException"/>, or by returning <c>privacy_blocked</c> or
+/// <c>authorization_denied</c>. These denials stop provider fallback. Rate-limited and replay-cache-full
+/// outcomes and cancellation also stop fallback and never carry a usable plan.
+/// </remarks>
 public interface ILiveUIInferenceProvider
 {
     LiveUIInferenceProviderKind Kind { get; }

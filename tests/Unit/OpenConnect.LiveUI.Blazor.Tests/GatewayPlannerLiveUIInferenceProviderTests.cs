@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using OpenConnect.LiveUI.Inference;
 using Microsoft.Extensions.Options;
+using OpenConnect.Privacy;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
@@ -109,6 +110,38 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
         Assert.Equal("completed", result.Outcome);
         Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
         Assert.Equal(1, worker.Calls);
+    }
+
+    [Theory]
+    [InlineData("privacy_blocked")]
+    [InlineData("authorization_denied")]
+    public async Task DenialEnvelopeCannotReturnAPlanOrFallBack(string outcome)
+    {
+        using var client = new HttpClient(new Handler(async message =>
+        {
+            if (message.Method == HttpMethod.Get)
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                    LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available)) };
+            var envelope = await message.Content!.ReadFromJsonAsync<GatewayLiveUIInferenceRequest>();
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(
+                envelope!.RequestId, envelope.ExecutionId, new LiveUIInferenceResult(LiveUIInferenceProviderKind.Gateway,
+                    new LiveUIActionPlan(envelope.Request.SchemaVersion, [new("activate", "completed")]), outcome))) };
+        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        var worker = new LocalFallback();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.GatewayFirst };
+        settings.Gateway.Enabled = true;
+        settings.Worker.Enabled = true;
+        settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
+        var router = new LiveUIInferenceRouter([new GatewayPlannerLiveUIInferenceProvider(client), worker],
+            new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("Show completed", "session", "route", "openconnect.liveui/v1",
+            [new("completed", ["activate"])]);
+
+        if (outcome == "privacy_blocked")
+            await Assert.ThrowsAsync<PrivacyBlockedException>(() => router.GeneratePlanAsync(request));
+        else
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => router.GeneratePlanAsync(request));
+        Assert.Equal(0, worker.Calls);
     }
 
     private sealed class LocalFallback : ILiveUIInferenceProvider

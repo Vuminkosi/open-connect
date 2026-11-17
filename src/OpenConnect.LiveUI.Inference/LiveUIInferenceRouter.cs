@@ -35,8 +35,8 @@ public sealed class LiveUIInferenceRouter(
                 provider => metricProvider = LiveUIInferenceMetrics.Provider(provider)).ConfigureAwait(false);
             outcome = result.Plan is not null
                 ? "completed"
-                : result.Outcome is "invalid_plan" or "rate_limited" ? result.Outcome : "inference_unavailable";
-            if (result.Plan is null) RecordFailure(outcome);
+                : result.Outcome is "invalid_plan" or "rate_limited" or "cancelled" ? result.Outcome : "inference_unavailable";
+            if (result.Plan is null && outcome != "cancelled") RecordFailure(outcome);
             return result;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -124,6 +124,12 @@ public sealed class LiveUIInferenceRouter(
                 LiveUIInferenceMetrics.ModelAvailability.Add(1,
                     new KeyValuePair<string, object?>("provider", providerTag),
                     new KeyValuePair<string, object?>("status", AvailabilityStatus(availability.Status)));
+                ThrowIfDenied(availability.Reason);
+                if (availability.Reason is "cancelled" or "canceled")
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return new LiveUIInferenceResult(kind, null, "cancelled");
+                }
                 if (availability.Status == LiveUIInferenceAvailabilityStatus.Blocked && availability.Reason == "rate_limited")
                     return new LiveUIInferenceResult(kind, null, "rate_limited");
                 if (availability.Status != LiveUIInferenceAvailabilityStatus.Available)
@@ -134,10 +140,16 @@ public sealed class LiveUIInferenceRouter(
                     continue;
                 }
                 var result = await provider.GeneratePlanAsync(request, timeout.Token).ConfigureAwait(false);
+                ThrowIfDenied(result.Outcome);
+                if (result.Outcome is "cancelled" or "canceled")
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return new LiveUIInferenceResult(kind, null, "cancelled", result.Browser);
+                }
                 if (result.Outcome is "browser_response_replay_cache_full" or "rate_limited")
                 {
-                    // Security boundaries and quotas must not be bypassed by fallback.
-                    return result;
+                    // Security boundaries and quotas must not be bypassed by fallback or carry a plan.
+                    return new LiveUIInferenceResult(kind, null, result.Outcome, result.Browser);
                 }
                 if (result.Plan is null && result.Outcome is "inference_unavailable" or "worker_unavailable" or
                     "gateway_unavailable" or "gateway_worker_unavailable" or "gateway_planner_unavailable" or "browser_disconnected" or
@@ -147,7 +159,8 @@ public sealed class LiveUIInferenceRouter(
                     lastErrorType = "inference_unavailable";
                     continue;
                 }
-                if (result.Plan is null || !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
+                if (result.Outcome != "completed" || result.Plan is null ||
+                    !validator.Validate(request, result.Plan, settings.Planning.MaxActions, out _))
                 {
                     lastFailure = new InvalidOperationException("invalid_plan");
                     lastErrorType = "invalid_plan";
@@ -174,6 +187,14 @@ public sealed class LiveUIInferenceRouter(
         if (timeout.IsCancellationRequested) throw new TimeoutException("LiveUI inference timed out.");
         return new LiveUIInferenceResult(LiveUIInferenceProviderKind.Browser, null,
             lastFailure?.Message == "invalid_plan" ? "invalid_plan" : "inference_unavailable");
+    }
+
+    private static void ThrowIfDenied(string? outcome)
+    {
+        if (outcome == "privacy_blocked")
+            throw new PrivacyBlockedException("LiveUI inference was blocked by privacy policy.");
+        if (outcome is "authorization_denied" or "unauthorized" or "forbidden")
+            throw new UnauthorizedAccessException("LiveUI inference was not authorized.");
     }
 
     private static string AvailabilityStatus(LiveUIInferenceAvailabilityStatus status) => status switch
