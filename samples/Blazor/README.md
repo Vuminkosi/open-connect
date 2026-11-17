@@ -18,7 +18,7 @@ Set configuration through environment variables or another ASP.NET Core configur
 | `TODO_INTERNAL_TENANT` | Tenant allowed by the internal Todo API. |
 | `OpenConnect__ApiUrl`, `OpenConnect__ApiKey`, `OpenConnect__ReasoningModel` | Model endpoint, credential, and model used by the same-host agent or sample gateway. |
 | `OpenConnect__LiveUI__Inference__Worker__Endpoint`, `OpenConnect__LiveUI__Inference__Worker__Token` | Optional private worker endpoint and server-side credential. |
-| `OpenConnect__LiveUI__SameHostGatewayPlanner` | Explicitly enable gateway-only planning in Development same-host mode using the configured model and session-scoped privacy gate. |
+| `OpenConnect__LiveUI__SameHostGatewayPlanner` | Explicitly enable guarded gateway planning in Development same-host mode. With a worker configured, it is used before the gateway planner; without one, planning uses the gateway directly. |
 | `OPENCONNECT_BLAZOR_SQLITE_PATH` | Optional SQLite database path. |
 
 For same-host development, configure the model settings, Todo credential, gateway mode, and sample base URL, then run:
@@ -38,5 +38,7 @@ Run `dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release` t
 The gateway planner's real-provider acceptance tests require `OPENCONNECT_LIVEUI_REAL_PROVIDER_RUN=1` and the `OPENCONNECT_LIVEUI_REAL_PROVIDER_ENDPOINT`, `OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY`, and `OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL` settings. Run `dotnet test samples/workers/shared/OpenConnect.Samples.Workers.TestKit/OpenConnect.Samples.Workers.TestKit.csproj -c Release --filter FullyQualifiedName~LiveGatewayPlannerAcceptanceTests`. These tests send synthetic requests to the configured provider and verify proposed plans; they do not execute the plans in a browser.
 
 The opt-in `Unavailable_worker_falls_back_to_real_firewall_guarded_gateway_planner` test in the same project checks a worker HTTP 503 followed by the configured real provider. It verifies the plan and confirms the external-model request passed through the privacy gate; the worker response is supplied by a disposable loopback server.
+
+The opt-in connected fallback lane requires the real-provider settings above and `OPENCONNECT_LIVEUI_REAL_GATEWAY_PLANNER_RUN=1`. From `tests/Browser`, run `npx playwright test --config=playwright.liveui-real-fallback.config.js`. A disposable loopback worker reports unavailable after readiness; the test verifies the real guarded planner, the Todo action, and its receipt.
 
 The combined real-provider and real-worker browser acceptance lane runs the specified Todo requests through the connected application and checks correlated action receipts. Set the real-provider settings above plus `OPENCONNECT_LIVEUI_REAL_WORKER_RUN=1`, `OPENCONNECT_LIVEUI_WORKER_ENDPOINT` (a loopback HTTP endpoint), `OPENCONNECT_LIVEUI_WORKER_TOKEN`, and `OPENCONNECT_LIVEUI_REAL_WORKER_CONTAINER` for a configured private worker. From `tests/Browser`, run `npx playwright test --config=playwright.liveui-real-gateway-worker.config.js`. This lane sends synthetic requests to the configured provider and may incur provider charges.
