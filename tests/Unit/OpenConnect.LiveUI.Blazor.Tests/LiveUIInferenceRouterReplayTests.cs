@@ -15,6 +15,8 @@ public sealed class LiveUIInferenceRouterReplayTests
         var worker = new StubProvider(LiveUIInferenceProviderKind.LocalWorker, SuccessfulResult());
         var gateway = new StubProvider(LiveUIInferenceProviderKind.Gateway, SuccessfulResult());
         var options = new LiveUIInferenceOptions();
+        options.Mode = LiveUIInferenceMode.BrowserFirst;
+        options.Browser.Enabled = true;
         options.Worker.Enabled = true;
         options.Gateway.Enabled = true;
         options.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
@@ -49,6 +51,8 @@ public sealed class LiveUIInferenceRouterReplayTests
         var worker = new StubProvider(LiveUIInferenceProviderKind.LocalWorker, SuccessfulResult());
         var gateway = new StubProvider(LiveUIInferenceProviderKind.Gateway, SuccessfulResult());
         var options = new LiveUIInferenceOptions();
+        options.Mode = LiveUIInferenceMode.BrowserFirst;
+        options.Browser.Enabled = true;
         options.Worker.Enabled = true;
         options.Gateway.Enabled = true;
         options.Gateway.FallbackPolicy = LiveUIFallbackPolicy.Disabled;

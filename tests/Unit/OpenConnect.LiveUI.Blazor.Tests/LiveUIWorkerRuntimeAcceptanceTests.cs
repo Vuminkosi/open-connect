@@ -12,6 +12,48 @@ public sealed class LiveUIWorkerRuntimeAcceptanceTests
 {
     [LiveWorkerFact]
     [Trait("Category", "LiveInference")]
+    public async Task Configured_worker_plans_the_todo_acceptance_requests()
+    {
+        var endpoint = new Uri(Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_ENDPOINT")!.TrimEnd('/') + "/");
+        var token = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_TOKEN")!;
+        using var client = new HttpClient { BaseAddress = endpoint, Timeout = TimeSpan.FromSeconds(90) };
+        var provider = new LocalWorkerLiveUIInferenceProvider(client,
+            Options.Create(new LiveUIWorkerClientOptions { Endpoint = endpoint, BearerToken = token }));
+        const string route = "route.root";
+        const string all = "route.root.components-todolistcomponent-razor-tab-all";
+        const string active = "route.root.components-todolistcomponent-razor-tab-active";
+        const string completed = "route.root.components-todolistcomponent-razor-tab-completed";
+        const string search = "route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description";
+        const string list = "route.root.components-todolistcomponent-razor-list-task-list";
+        LiveUIInferenceCapability[] capabilities = [
+            new(route, ["navigate"]), new(all, ["activate"]), new(active, ["activate"]),
+            new(completed, ["activate"]), new(search, ["setValue", "focus"]), new(list, ["highlight", "scroll"])
+        ];
+        var cases = new (string Intent, LiveUIPlannedAction[] Expected)[]
+        {
+            ("Open my tasks", [new("navigate", route)]),
+            ("Show completed tasks", [new("activate", completed)]),
+            ("Show active tasks", [new("activate", active)]),
+            ("Show all tasks", [new("activate", all)]),
+            ("Search for report", [new("setValue", search, "report")]),
+            ("Highlight the tasks", [new("highlight", list)]),
+            ("Show completed tasks containing report", [new("activate", completed), new("setValue", search, "report")])
+        };
+        var failures = new List<string>();
+        foreach (var item in cases)
+        {
+            var request = new LiveUIInferenceRequest(item.Intent, "acceptance-session", route,
+                "openconnect.liveui/v1", capabilities);
+            var result = await provider.GeneratePlanAsync(request);
+            if (result.Plan is null || !new LiveUIActionPlanValidator().Validate(request, result.Plan, 8, out _) ||
+                !result.Plan.Actions.SequenceEqual(item.Expected))
+                failures.Add($"{item.Intent}: {result.Outcome} {JsonSerializer.Serialize(result.Plan)}");
+        }
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [LiveWorkerFact]
+    [Trait("Category", "LiveInference")]
     public async Task Configured_worker_accepts_and_returns_a_server_requested_plan()
     {
         var endpointText = Environment.GetEnvironmentVariable("OPENCONNECT_LIVEUI_WORKER_ENDPOINT");

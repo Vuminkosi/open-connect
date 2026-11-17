@@ -18,13 +18,14 @@ public sealed class LiveUIInferenceTests
         [new("todo.tab.completed", ["activate"])]);
 
     [Fact]
-    public void Options_DefaultToBrowserFirstAndAllowConfiguredGatewayOnProviderUnavailability()
+    public void Options_DefaultToLocalFirstWithProvidersDisabled()
     {
         var options = new LiveUIInferenceOptions();
 
         Assert.Equal(LiveUIInferenceMode.BrowserFirst, options.Mode);
-        Assert.True(options.Browser.Enabled);
-        Assert.True(options.Gateway.Enabled);
+        Assert.False(options.Browser.Enabled);
+        Assert.False(options.Worker.Enabled);
+        Assert.False(options.Gateway.Enabled);
         Assert.Equal(LiveUIFallbackPolicy.OnUnavailable, options.Gateway.FallbackPolicy);
         Assert.Equal(TimeSpan.FromSeconds(35), options.Planning.Timeout);
     }
@@ -103,13 +104,35 @@ public sealed class LiveUIInferenceTests
         Assert.Equal(1, gateway.GenerateCalls);
     }
 
+    [Theory]
+    [InlineData(LiveUIInferenceMode.Automatic)]
+    [InlineData(LiveUIInferenceMode.GatewayFirst)]
+    public async Task AutomaticAndDefaultGatewayFirst_TryGatewayBeforeBrowser(LiveUIInferenceMode mode)
+    {
+        var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
+            new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
+        var settings = new LiveUIInferenceOptions { Mode = mode };
+        settings.Browser.Enabled = true;
+        settings.Gateway.Enabled = true;
+        var router = new LiveUIInferenceRouter([browser, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
+
+        var result = await router.GeneratePlanAsync(Request);
+
+        Assert.Equal(LiveUIInferenceProviderKind.Gateway, result.Provider);
+        Assert.Equal(1, gateway.GenerateCalls);
+        Assert.Equal(0, browser.GetAvailabilityCalls);
+    }
+
     [Fact]
     public async Task Router_RecordsProviderAvailabilityFallbackAndDurationWithoutUserContentTags()
     {
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var worker = new FakeProvider(LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Browser.Enabled = true;
         settings.Worker.Enabled = true;
         var router = new LiveUIInferenceRouter([browser, worker], new LiveUIActionPlanValidator(), Options.Create(settings));
         var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
@@ -151,7 +174,9 @@ public sealed class LiveUIInferenceTests
     {
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "invented.target")]));
-        var router = new LiveUIInferenceRouter([browser], new LiveUIActionPlanValidator(), Options.Create(new LiveUIInferenceOptions()));
+        var browserSettings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        browserSettings.Browser.Enabled = true;
+        var router = new LiveUIInferenceRouter([browser], new LiveUIActionPlanValidator(), Options.Create(browserSettings));
         var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
         using var listener = new MeterListener
         {
@@ -177,7 +202,9 @@ public sealed class LiveUIInferenceTests
     public async Task Router_RecordsCallerCancellationWithoutClassifyingItAsFailure()
     {
         var provider = new WaitingProvider();
-        var router = new LiveUIInferenceRouter([provider], new LiveUIActionPlanValidator(), Options.Create(new LiveUIInferenceOptions()));
+        var browserSettings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        browserSettings.Browser.Enabled = true;
+        var router = new LiveUIInferenceRouter([provider], new LiveUIActionPlanValidator(), Options.Create(browserSettings));
         var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
         using var listener = new MeterListener
         {
@@ -269,7 +296,7 @@ public sealed class LiveUIInferenceTests
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
         settings.Gateway.Enabled = true;
         settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
@@ -290,7 +317,7 @@ public sealed class LiveUIInferenceTests
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
         settings.Gateway.Enabled = true;
         settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.Disabled;
@@ -312,7 +339,7 @@ public sealed class LiveUIInferenceTests
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
         settings.Gateway.Enabled = true;
         settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnUnavailable;
@@ -327,14 +354,15 @@ public sealed class LiveUIInferenceTests
     }
 
     [Fact]
-    public async Task BrowserFirst_UsesConfiguredNormalInferenceByDefaultWhenBrowserAndWorkerAreUnavailable()
+    public async Task BrowserFirst_UsesExplicitGatewayWhenBrowserAndWorkerAreUnavailable()
     {
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var worker = new FakeProvider(LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
+        settings.Gateway.Enabled = true;
         var router = new LiveUIInferenceRouter([browser, worker, gateway], new LiveUIActionPlanValidator(), Options.Create(settings));
 
         var result = await router.GeneratePlanAsync(Request);
@@ -359,7 +387,8 @@ public sealed class LiveUIInferenceTests
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
             new LiveUIActionPlan(Request.SchemaVersion, [new("activate", "todo.tab.completed")]));
-        var settings = new LiveUIInferenceOptions();
+        var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
+        settings.Browser.Enabled = true;
         settings.Worker.Enabled = true;
         settings.Gateway.Enabled = true;
         settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;

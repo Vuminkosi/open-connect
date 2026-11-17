@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Options;
 using OpenConnect.LiveUI.Inference;
 using Xunit;
 
@@ -33,6 +34,8 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
 
         var result = await provider.GeneratePlanAsync(inferenceRequest);
 
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, provider.Kind);
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
         Assert.NotNull(sentEnvelope);
         Assert.Equal(inferenceRequest.RequestId, sentEnvelope.RequestId);
         Assert.Equal(inferenceRequest.ExecutionId, sentEnvelope.ExecutionId);
@@ -40,6 +43,59 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
         Assert.Equal(plan.SchemaVersion, result.Plan?.SchemaVersion);
         Assert.Equal(plan.Actions, result.Plan?.Actions);
         Assert.Equal("completed", result.Outcome);
+    }
+
+    [Fact]
+    public async Task Router_UsesAuthenticatedGatewayForTheLocalWorker()
+    {
+        var plan = new LiveUIActionPlan("openconnect.liveui/v1", [new("activate", "completed-tab")]);
+        var availabilityRequests = 0;
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (path.EndsWith("/liveui/inference/worker/availability", StringComparison.Ordinal))
+            {
+                availabilityRequests++;
+                Assert.Equal("/openconnect/v1/liveui/inference/worker/availability", path);
+                Assert.Equal(HttpMethod.Get, request.Method);
+                Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+                Assert.Equal("test-token", request.Headers.Authorization?.Parameter);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                        LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
+                };
+            }
+
+            Assert.EndsWith("/liveui/inference/plan", path, StringComparison.Ordinal);
+            Assert.Equal(HttpMethod.Post, request.Method);
+            var envelope = await request.Content!.ReadFromJsonAsync<GatewayLiveUIInferenceRequest>();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(
+                    envelope!.RequestId,
+                    envelope.ExecutionId,
+                    new LiveUIInferenceResult(LiveUIInferenceProviderKind.LocalWorker, plan, "completed")))
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://gateway.example/openconnect/v1/")
+        };
+        client.DefaultRequestHeaders.Authorization = new("Bearer", "test-token");
+        var provider = new GatewayWorkerLiveUIInferenceProvider(client);
+        var options = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.GatewayFirst };
+        options.Gateway.Enabled = false;
+        options.Browser.Enabled = false;
+        options.Worker.Enabled = true;
+        var router = new LiveUIInferenceRouter([provider], new LiveUIActionPlanValidator(), Options.Create(options));
+        var inferenceRequest = new LiveUIInferenceRequest("Show completed tasks", "session", "todo",
+            "openconnect.liveui/v1", [new("completed-tab", ["activate"])]);
+
+        var result = await router.GeneratePlanAsync(inferenceRequest);
+
+        Assert.Equal(1, availabilityRequests);
+        Assert.Equal(LiveUIInferenceProviderKind.LocalWorker, result.Provider);
+        Assert.Equal(plan.Actions, result.Plan?.Actions);
     }
 
     [Fact]

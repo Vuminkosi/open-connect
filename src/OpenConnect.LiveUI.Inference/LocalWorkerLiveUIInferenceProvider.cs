@@ -113,7 +113,11 @@ public static class LiveUIWorkerServiceCollectionExtensions
 {
     /// <summary>Registers the Gateway's private CPU worker client. The endpoint and credential remain server-side.</summary>
     public static IServiceCollection AddLiveUILocalWorkerInferenceProvider(
-        this IServiceCollection services, Action<LiveUIWorkerClientOptions> configure)
+        this IServiceCollection services, Action<LiveUIWorkerClientOptions> configure) =>
+        AddLiveUILocalWorkerInferenceProvider(services, configure, registerRouterProvider: true);
+
+    public static IServiceCollection AddLiveUILocalWorkerInferenceProvider(
+        this IServiceCollection services, Action<LiveUIWorkerClientOptions> configure, bool registerRouterProvider)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
@@ -130,7 +134,8 @@ public static class LiveUIWorkerServiceCollectionExtensions
             client.BaseAddress = settings.Endpoint is null ? null : new Uri(settings.Endpoint.AbsoluteUri.TrimEnd('/') + "/");
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
-        services.AddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<LocalWorkerLiveUIInferenceProvider>());
+        if (registerRouterProvider)
+            services.AddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<LocalWorkerLiveUIInferenceProvider>());
         return services;
     }
 }

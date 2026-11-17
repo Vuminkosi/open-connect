@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace OpenConnect.LiveUI.Inference;
@@ -12,6 +13,7 @@ public static class LiveUIInferenceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddScoped<TProvider>();
         services.AddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<TProvider>());
+        services.AddSingleton<GatewayProviderRegistration>();
         return services;
     }
 
@@ -21,6 +23,7 @@ public static class LiveUIInferenceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddScoped<FirewallGuardedLiveUIGatewayInferenceProvider>();
         services.AddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<FirewallGuardedLiveUIGatewayInferenceProvider>());
+        services.AddSingleton<GatewayProviderRegistration>();
         return services;
     }
 
@@ -38,6 +41,42 @@ public static class LiveUIInferenceServiceCollectionExtensions
         services.TryAddSingleton<LiveUIActionPlanValidator>();
         services.TryAddSingleton<LiveUIInferenceActionMapper>();
         services.TryAddScoped<ILiveUIInferenceRouter, LiveUIInferenceRouter>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LiveUIGatewayProviderStartupValidator>());
         return services;
     }
+}
+
+internal sealed class LiveUIGatewayProviderStartupValidator(
+    IEnumerable<GatewayProviderRegistration> registrations,
+    IOptionsMonitor<LiveUIInferenceOptions> options) : IHostedService
+{
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        var settings = options.CurrentValue;
+        if (!settings.Gateway.Enabled || settings.Mode == LiveUIInferenceMode.BrowserOnly)
+        {
+            return Task.CompletedTask;
+        }
+
+        var gatewayProviderCount = registrations.Count();
+
+        if (gatewayProviderCount != 1)
+        {
+            var guidance = gatewayProviderCount == 0
+                ? "Register exactly one Gateway provider with AddLiveUIGatewayInferenceProvider<TProvider>() or AddFirewallGuardedLiveUIGatewayInference()."
+                : "Only one Gateway provider can be registered. Remove either the guarded chat-client provider or the external Gateway provider.";
+            throw new InvalidOperationException(
+                $"LiveUI inference mode '{settings.Mode}' requires exactly one Gateway provider, but {gatewayProviderCount} were registered. {guidance}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+}
+
+internal sealed class GatewayProviderRegistration
+{
+    public GatewayProviderRegistration() { }
 }

@@ -84,14 +84,14 @@ public sealed class LiveUILocalWorkerOptions
 
 public sealed class LiveUIBrowserOptions
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
     public LiveUIBrowserProvider Provider { get; set; } = LiveUIBrowserProvider.Auto;
     public bool EnableStructuredOutput { get; set; } = true;
 }
 
 public sealed class LiveUIGatewayOptions
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
     public LiveUIFallbackPolicy FallbackPolicy { get; set; } = LiveUIFallbackPolicy.OnUnavailable;
 }
 

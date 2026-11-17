@@ -87,12 +87,15 @@ public sealed class LiveUIInferenceRouter(
         var settings = options.Value;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(settings.Planning.Timeout);
-        var order = settings.Mode switch
+        LiveUIInferenceProviderKind[] order = settings.Mode switch
         {
             LiveUIInferenceMode.GatewayOnly => [LiveUIInferenceProviderKind.Gateway],
-            LiveUIInferenceMode.GatewayFirst => new[] { LiveUIInferenceProviderKind.Gateway, LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceProviderKind.Browser },
+            LiveUIInferenceMode.GatewayFirst or LiveUIInferenceMode.Automatic =>
+                [LiveUIInferenceProviderKind.Gateway, LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceProviderKind.Browser],
             LiveUIInferenceMode.BrowserOnly => [LiveUIInferenceProviderKind.Browser],
-            _ => new[] { LiveUIInferenceProviderKind.Browser, LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceProviderKind.Gateway }
+            LiveUIInferenceMode.BrowserFirst =>
+                [LiveUIInferenceProviderKind.Browser, LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceProviderKind.Gateway],
+            _ => [LiveUIInferenceProviderKind.Gateway]
         };
         Exception? lastFailure = null;
         var lastErrorType = "inference_unavailable";
