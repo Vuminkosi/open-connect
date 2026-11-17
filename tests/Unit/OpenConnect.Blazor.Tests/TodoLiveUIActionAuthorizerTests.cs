@@ -84,7 +84,12 @@ public sealed class TodoLiveUIActionAuthorizerTests
                 LiveUICapability.WaitForState
             }
         };
-        var route = new LiveUIRoute("route.root", "/", "Todo", [addTask, completedTab]);
+        var search = Target("route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description",
+            LiveUITargetKind.Input, "Search tasks by title or description...") with
+        {
+            Capabilities = new HashSet<LiveUICapability> { LiveUICapability.SetValue, LiveUICapability.Focus }
+        };
+        var route = new LiveUIRoute("route.root", "/", "Todo", [addTask, completedTab, search]);
         var unsignedManifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build-1", string.Empty, [route]);
         var manifest = unsignedManifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(unsignedManifest) };
         var runtime = new RecordingRuntime();
@@ -104,6 +109,8 @@ public sealed class TodoLiveUIActionAuthorizerTests
         Assert.DoesNotContain(page.Targets, target => target.TargetId == addTask.Id);
         Assert.Contains(page.Targets, target => target.TargetId == completedTab.Id &&
             target.Capabilities.Contains(LiveUICapability.Activate));
+        Assert.Contains(page.Targets, target => target.TargetId == search.Id &&
+            target.Capabilities.Contains(LiveUICapability.SetValue));
         Assert.Equal(LiveUIActionOutcome.Denied, deniedReceipt.Outcome);
         Assert.Equal("todo_action_not_allowed", deniedReceipt.Code);
         Assert.False(deniedReceipt.PostconditionVerified);

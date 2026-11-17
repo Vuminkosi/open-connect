@@ -208,9 +208,11 @@ public sealed class LiveUIAgentTools(
     };
 
     private static LiveUIActionParameters GetCapabilityProbeParameters(LiveUITarget target, LiveUIActionType actionType) =>
-        actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table or LiveUITargetKind.Region)
-            ? new(StateName: "textContains", StateValue: "probe")
-            : new();
+        actionType == LiveUIActionType.SetValue
+            ? new(Value: string.Empty)
+            : actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table or LiveUITargetKind.Region)
+                ? new(StateName: "textContains", StateValue: "probe")
+                : new();
 
     private async ValueTask<bool> IsAllowedAsync(LiveUIExecutionContext context, CancellationToken cancellationToken)
     {
