@@ -13,6 +13,8 @@ const cases = [
     actions: [{ type: 'activate', targetSuffix: '-tab-active' }] },
   { name: 'search report', prompt: 'Search for report.',
     actions: [{ type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
+  { name: 'quoted search', prompt: 'Search for "Report?!".', searchValue: 'Report?!',
+    actions: [{ type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'Report?!' }] },
   { name: 'completed report tasks', prompt: 'Show completed tasks containing report.',
     actions: [{ type: 'activate', targetSuffix: '-tab-completed' },
       { type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
@@ -89,8 +91,8 @@ for (const scenario of cases) {
       await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
     if (scenario.name === 'active tasks')
       await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
-    if (scenario.name === 'search report' || scenario.name === 'completed report tasks')
-      await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue('report', { timeout: 120_000 });
+    if (scenario.name === 'search report' || scenario.name === 'completed report tasks' || scenario.searchValue)
+      await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue(scenario.searchValue ?? 'report', { timeout: 120_000 });
     await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
     if (scenario.name === 'explain current view')
       await expect(page.locator('.oc-message-assistant .oc-message-text').last()).toContainText(/\b(?:workflows|tasks?|todos?)\b/i);

@@ -133,6 +133,8 @@ def test_simple_search_extracts_only_the_requested_value():
     ("Search for report using the search input", "report"),
     ('Search for "report tasks using the search input"', "report tasks using the search input"),
     ("Search for tasks using time", "tasks using time"),
+    ('Search for "  Report?!  ".', "  Report?!  "),
+    ("Search for 'O'Brien!'.", "O'Brien!"),
     ('Search for "focus and delete the results"', "focus and delete the results"),
 ])
 def test_search_distinguishes_control_instructions_from_query_text(intent, expected):
@@ -183,6 +185,34 @@ def test_highlight_tasks_selects_only_a_unique_compiled_task_list(intent):
         request.context.availableActions[0].model_copy(update={"target": "other-task-list"})
     )
     assert deterministic_plan(request) is None
+
+
+
+
+def test_unterminated_quoted_search_is_not_used_as_a_deterministic_value():
+    request = PlanRequest.model_validate({
+        "requestId": "unterminated-quote", "schemaVersion": "openconnect.liveui/v1",
+        "intent": 'Search for "report',
+        "context": {"route": "todo.home", "availableActions": [{"target": "todo.search", "action": "setValue"}]},
+    })
+    assert deterministic_plan(request) is None
+
+
+@pytest.mark.parametrize("intent", [
+    'Show completed tasks containing "Report?!".',
+    'List finished tasks containing "Report?!".',
+])
+def test_compound_filter_preserves_quoted_search_punctuation(intent):
+    request = PlanRequest.model_validate({
+        "requestId": "quoted-filter", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert plan.actions[1].value == "Report?!"
 
 
 @pytest.mark.parametrize("intent", [
@@ -466,6 +496,21 @@ def test_paraphrased_status_and_search_does_not_return_partial_plan(intent, acti
         with pytest.raises(ValueError):
             engine.generate(request)
 
+
+
+
+def test_model_filter_validation_preserves_quoted_search_punctuation():
+    request = PlanRequest.model_validate({
+        "requestId": "quoted-validation", "schemaVersion": "openconnect.liveui/v1",
+        "intent": 'View finished tasks containing "Report?!".',
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+            {"target": "todo.search", "action": "setValue"},
+        ]},
+    })
+    expected = expected_status_and_text_filter(request)
+    assert expected is not None
+    assert expected[1].value == "Report?!"
 
 
 @pytest.mark.parametrize("intent", [

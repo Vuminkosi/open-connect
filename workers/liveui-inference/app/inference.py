@@ -46,6 +46,18 @@ UI_OPERATION = re.compile(
 )
 
 
+def parse_search_literal(raw_text: str) -> tuple[str, bool] | None:
+    """Preserve the contents of a quoted query, excluding punctuation around it."""
+    text = raw_text.strip()
+    if not text:
+        return None
+    if text[0] in "\"'":
+        if len(text) < 2 or text[-1] != text[0]:
+            return None
+        return text[1:-1], True
+    return text, False
+
+
 def expected_status_and_text_filter(request: PlanRequest) -> tuple[PlannedAction, PlannedAction] | None:
     """Resolve a status and literal text filter only when both controls are unambiguous."""
     match = re.search(
@@ -57,9 +69,10 @@ def expected_status_and_text_filter(request: PlanRequest) -> tuple[PlannedAction
     )
     if match is None:
         return None
-    raw_text = match.group(2).strip()
-    quoted = len(raw_text) >= 2 and raw_text[0] in "\"'" and raw_text[-1] == raw_text[0]
-    text = raw_text.strip(" \"'?.!")
+    parsed_text = parse_search_literal(match.group(2))
+    if parsed_text is None:
+        return None
+    text, quoted = parsed_text
     if not quoted and re.search(
         r"\b(?:and|then)\s+(?:then\s+)?"
         r"(?:show|display|open|filter|activate|select|switch|search|find|set|enter|highlight|"
@@ -301,11 +314,14 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
         re.IGNORECASE,
     )
     simple_search = re.fullmatch(
-        r"\s*(?:search|find)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*[?.!]*\s*", request.intent, re.IGNORECASE
+        r"\s*(?:search|find)\s+(?:for\s+)?(.+?)\s*[?.!]*\s*", request.intent, re.IGNORECASE
     )
     if match is not None and match.group(3) is not None:
         status = match.group(2).casefold()
-        search_value = match.group(3).strip().strip(" \"'?.!")
+        parsed_text = parse_search_literal(match.group(3))
+        if parsed_text is None:
+            return None
+        search_value, _ = parsed_text
         status_action = find_status_action(request, status)
         search_action = find_search_action(request, search_value)
         if status_action is None or search_action is None or request.generation.maxActions < 2:
@@ -314,9 +330,11 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
     if match is not None and re.search(r"\b(search|find)\b", intent):
         return None
     if match is None and simple_search is not None:
-        search_value = simple_search.group(1).strip().strip(" \"'?.!")
-        quoted_query = re.search(r"\b(?:search|find)\s+(?:for\s+)?[\"']", request.intent, re.IGNORECASE)
-        if quoted_query is None:
+        parsed_text = parse_search_literal(simple_search.group(1))
+        if parsed_text is None:
+            return None
+        search_value, quoted_query = parsed_text
+        if not quoted_query:
             instruction = re.fullmatch(
                 r"(.+?)(?:\s+(?:tasks?|todos?|items?))?\s+(?:using|with|via|in)\s+"
                 r"(?:the\s+)?(?:search\s+)?(?:input|field|box|control)",
