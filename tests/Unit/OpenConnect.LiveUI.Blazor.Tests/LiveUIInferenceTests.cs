@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using System.Diagnostics.Metrics;
@@ -12,6 +13,10 @@ using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
 
+[CollectionDefinition("LiveUI inference metrics", DisableParallelization = true)]
+public sealed class LiveUIInferenceMetricsCollection;
+
+[Collection("LiveUI inference metrics")]
 public sealed class LiveUIInferenceTests
 {
     private static LiveUIInferenceRequest Request => new("Show completed tasks", "session-1", "todo", "openconnect.liveui/v1",
@@ -135,7 +140,7 @@ public sealed class LiveUIInferenceTests
         settings.Browser.Enabled = true;
         settings.Worker.Enabled = true;
         var router = new LiveUIInferenceRouter([browser, worker], new LiveUIActionPlanValidator(), Options.Create(settings));
-        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        var measurements = new ConcurrentQueue<(string Name, KeyValuePair<string, object?>[] Tags)>();
         using var listener = new MeterListener
         {
             InstrumentPublished = (instrument, meterListener) =>
@@ -145,9 +150,9 @@ public sealed class LiveUIInferenceTests
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
-            measurements.Add((instrument.Name, tags.ToArray())));
+            measurements.Enqueue((instrument.Name, tags.ToArray())));
         listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) =>
-            measurements.Add((instrument.Name, tags.ToArray())));
+            measurements.Enqueue((instrument.Name, tags.ToArray())));
         listener.Start();
 
         var result = await router.GeneratePlanAsync(Request);
@@ -177,7 +182,7 @@ public sealed class LiveUIInferenceTests
         var browserSettings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         browserSettings.Browser.Enabled = true;
         var router = new LiveUIInferenceRouter([browser], new LiveUIActionPlanValidator(), Options.Create(browserSettings));
-        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        var measurements = new ConcurrentQueue<(string Name, KeyValuePair<string, object?>[] Tags)>();
         using var listener = new MeterListener
         {
             InstrumentPublished = (instrument, meterListener) =>
@@ -187,7 +192,7 @@ public sealed class LiveUIInferenceTests
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
-            measurements.Add((instrument.Name, tags.ToArray())));
+            measurements.Enqueue((instrument.Name, tags.ToArray())));
         listener.Start();
 
         var result = await router.GeneratePlanAsync(Request);
@@ -205,7 +210,7 @@ public sealed class LiveUIInferenceTests
         var browserSettings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         browserSettings.Browser.Enabled = true;
         var router = new LiveUIInferenceRouter([provider], new LiveUIActionPlanValidator(), Options.Create(browserSettings));
-        var measurements = new List<(string Name, KeyValuePair<string, object?>[] Tags)>();
+        var measurements = new ConcurrentQueue<(string Name, KeyValuePair<string, object?>[] Tags)>();
         using var listener = new MeterListener
         {
             InstrumentPublished = (instrument, meterListener) =>
@@ -215,9 +220,9 @@ public sealed class LiveUIInferenceTests
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
-            measurements.Add((instrument.Name, tags.ToArray())));
+            measurements.Enqueue((instrument.Name, tags.ToArray())));
         listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) =>
-            measurements.Add((instrument.Name, tags.ToArray())));
+            measurements.Enqueue((instrument.Name, tags.ToArray())));
         listener.Start();
         using var cancellation = new CancellationTokenSource();
 
