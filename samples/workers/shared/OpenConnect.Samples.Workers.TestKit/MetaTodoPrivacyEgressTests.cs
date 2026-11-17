@@ -20,6 +20,31 @@ namespace OpenConnect.Samples.Workers.TestKit;
 public sealed class MetaTodoPrivacyEgressTests
 {
     [Theory]
+    [InlineData("Highlight the Add Task button.")]
+    [InlineData("Show me how to delete a task.")]
+    [InlineData("Can I complete a task later?")]
+    public async Task Initial_acknowledgement_does_not_promise_a_mutation(string message)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), new CapturingChatClient(), gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            message, "acknowledgement") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" },
+            CancellationToken.None);
+
+        Assert.Equal("I’ll check your request. ", sessions.GetEvents(session.Value, 0).First(item => item.Type == "message").Data);
+    }
+
+    [Theory]
     [InlineData(HostTaskOrigin.MiniComposer, true)]
     [InlineData(HostTaskOrigin.NonInteractive, false)]
     public async Task Interactive_tools_follow_trusted_origin_not_keywords(HostTaskOrigin origin, bool expected)

@@ -206,7 +206,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             }
             if (coreRequest)
             {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", InitialAcknowledgement(task.Message), cancellationToken).ConfigureAwait(false);
+                await sessions.AppendEventAsync(task.SessionId.Value, "message", "I’ll check your request. ", cancellationToken).ConfigureAwait(false);
                 tools.Add(AIFunctionFactory.Create((CancellationToken ct) => RunToolAsync("checking your Todo list", todo.ListAsync, task, ct), "todo.list", "List the current tenant's Todo records."));
             }
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
@@ -255,22 +255,6 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
 
         For a task recommendation, use todo.list as read-only data. Exclude completed records and recommend only a unique highest-priority remaining task (Urgent=3, High=2, Medium=1, Low=0); ask for clarification if there is no unique choice. Never create, update, complete, or delete a Todo unless the user explicitly requests that mutation, and never claim one changed without tool confirmation.
         """;
-
-    private static string InitialAcknowledgement(string message)
-    {
-        var value = message.ToLowerInvariant();
-        if (ContainsIntent(value, "delete", "remove")) return "I’ll remove that task for you. ";
-        if (ContainsIntent(value, "complete", "finish", "mark")) return "I’ll update that task’s status. ";
-        if (ContainsIntent(value, "create", "add", "remind")) return "I’ll add that reminder to your list. ";
-        if (ContainsIntent(value, "update", "change", "edit")) return "I’ll update that task for you. ";
-        return "I’ll look through your tasks now. ";
-    }
-
-    private static bool ContainsIntent(string message, params string[] intents) =>
-        intents.Any(intent => System.Text.RegularExpressions.Regex.IsMatch(
-            message,
-            $@"\b{System.Text.RegularExpressions.Regex.Escape(intent)}\b",
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant));
 
     private async Task<T> RunToolAsync<T>(string description, Func<CancellationToken, Task<T>> operation, HostTaskExecution task, CancellationToken cancellationToken)
     {
