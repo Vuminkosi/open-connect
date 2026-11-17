@@ -8,6 +8,21 @@ const search = 'route.root.components-todolistcomponent-razor-input-search-tasks
 const list = 'route.root.components-todolistcomponent-razor-list-task-list';
 const region = 'route.root.components-todolistcomponent-razor-region-todo-list';
 
+async function waitForGatewayQuota(request) {
+  const gatewayBearer = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER;
+  if (!gatewayBearer) return;
+  // The real gateway shares a bounded per-principal quota across availability and plan calls.
+  // The matrix consumes this quota before the final navigation journey. Wait for replenishment.
+  await expect.poll(async () => {
+    const response = await request.get('http://127.0.0.1:5120/openconnect/v1/liveui/inference/worker/availability', {
+      headers: { authorization: `Bearer ${gatewayBearer}` },
+    });
+    if (response.status() !== 200 && response.status() !== 429)
+      throw new Error(`Gateway availability check returned ${response.status()}`);
+    return response.status();
+  }, { timeout: 75_000, intervals: [2_000] }).toBe(200);
+}
+
 const cases = [
   ['Open my tasks', [{ type: 'navigate', targetId: route, value: null }]],
   ['Open my Todo list.', [{ type: 'navigate', targetId: route, value: null }]],
@@ -53,6 +68,7 @@ for (const [intent, expected] of cases) {
 }
 
 test('worker-backed navigation opens Todo from another route', async ({ page, request }) => {
+  await waitForGatewayQuota(request);
   await page.goto('/workspace-guide');
   await expect(page.getByRole('heading', { name: 'Workspace guide' })).toBeVisible();
   await page.locator('.oc-anchored-fab').click();
