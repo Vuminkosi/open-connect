@@ -14,6 +14,8 @@ Set `MODEL_ID`, `MODEL_REVISION`, `MODEL_FILENAME`, and `MODEL_SHA256` to replac
 
 The API is `POST /v1/liveui/inference/plan`; readiness is `/health/ready` and liveness is `/health/live`. Requests include only the current intent, route, allowed target/action pairs, schema version and output limits. Exact status, search, and unambiguous highlight commands use bounded deterministic routing; the response provider is `deterministic`. Other requests use the configured model and report its configured provider ID. The worker uses an explicit ChatML format and does not evaluate the model file's embedded Jinja template. It constrains output with llama.cpp's JSON schema response mode and rejects plans with unknown capabilities. OpenConnect validates the result again and authorizes each action before execution. Worker errors use HTTP 401, 422, 429, 503 and 504 for authentication, invalid plans, queue saturation, unavailable inference and timeout respectively.
 
+The model can return an available but unrelated action when no capability matches the request. Schema and capability validation cannot establish that an action expresses the user's intent. Applications must treat plans as proposals and apply their own authorization and confirmation requirements before consequential actions; an empty model plan is rejected as an invalid plan.
+
 ## Compose
 
 The root `docker-compose-all.yml` includes the optional `liveui-inference` profile and persistent `oc_liveui_models` volume. Set `LIVEUI_WORKER_TOKEN` before starting:

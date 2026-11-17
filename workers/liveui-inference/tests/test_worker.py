@@ -314,6 +314,28 @@ def test_structured_worker_plan_discards_irrelevant_values_for_non_set_value_act
     ]
 
 
+
+def test_model_can_return_no_action_for_an_unsupported_request():
+    request = PlanRequest.model_validate({
+        "requestId": "unsupported-request", "schemaVersion": "openconnect.liveui/v1",
+        "intent": "Change my account password",
+        "context": {"route": "todo.home", "availableActions": [
+            {"target": "todo.completed", "action": "activate"},
+        ]},
+    })
+
+    class NoMatchingActionModel:
+        def create_chat_completion(self, **kwargs):
+            actions_schema = kwargs["response_format"]["schema"]["properties"]["actions"]
+            assert actions_schema.get("minItems", 0) == 0
+            return {"choices": [{"message": {"content": json.dumps({
+                "schemaVersion": request.schemaVersion, "actions": [],
+            })}}]}
+
+    with pytest.raises(ValueError, match="Generated plan does not match request constraints"):
+        InferenceEngine(NoMatchingActionModel(), settings_for(Path("model.gguf"), "0" * 64)).generate(request)
+
+
 def test_structured_worker_plan_rejects_non_object_json():
     request = PlanRequest.model_validate(
         {

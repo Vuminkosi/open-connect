@@ -54,7 +54,7 @@ def max_actions_for_intent(request: PlanRequest) -> int:
 
 def plan_schema(max_actions: int) -> dict[str, Any]:
     schema = copy.deepcopy(PLAN_SCHEMA)
-    schema["properties"]["actions"]["minItems"] = 1
+    schema["properties"]["actions"]["minItems"] = 0
     schema["properties"]["actions"]["maxItems"] = max_actions
     return schema
 
@@ -122,9 +122,12 @@ class InferenceEngine:
                 "availableActions": capability_list,
                 "maxActions": maximum_actions,
                 "constraints": (
-                    "Return only actions explicitly available. Use no IDs outside availableActions. "
-                    "Return exactly maxActions actions or fewer, never more. For a single UI operation, "
-                    "return exactly one action. Never return alternative targets or activate multiple "
+                    "If the request cannot be fulfilled by availableActions, return an empty actions array. "
+                    "Never substitute an unrelated action. Return only actions explicitly available, "
+                    "with IDs from availableActions. "
+                    "Return at most maxActions actions. For a single UI operation, "
+                    "return exactly one action when an available capability matches. Never return "
+                    "alternative targets or activate multiple "
                     "tabs for one request. Match the target "
                     "to the requested state. For tab or status requests, map completed, finished, and "
                     "done to the Completed tab; map active, incomplete, and pending to the Active tab. "
@@ -143,13 +146,16 @@ class InferenceEngine:
                 {
                     "role": "system",
                     "content": (
-                        "You map UI intent to a minimal action plan. Return one allowed action when the "
-                    "intent requests one UI operation, even when several alternatives are available. "
-                    "For tab and status requests, use the tab matching the requested state; completed, "
-                    "finished, and done mean Completed. Never choose a search field or focus action for "
-                    "a tab request. Include value only for setValue actions. Never return a list of "
-                    "alternative tabs or controls. Copy the target "
-                    "and action exactly. Do not reason about unrelated tasks. /no_think"
+                        "You map UI intent to a minimal action plan. If no available action matches the user request, "
+                        "return an empty actions array. Never select an unrelated action. "
+                        "Return one allowed action when the "
+                        "intent requests one UI operation with a matching capability, even when several "
+                        "alternatives are available. "
+                        "For tab and status requests, use the tab matching the requested state; completed, "
+                        "finished, and done mean Completed. Never choose a search field or focus action for "
+                        "a tab request. Include value only for setValue actions. Never return a list of "
+                        "alternative tabs or controls. Copy the target "
+                        "and action exactly. Do not reason about unrelated tasks. /no_think"
                     ),
                 },
                 {"role": "user", "content": prompt},
