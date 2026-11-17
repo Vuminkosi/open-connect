@@ -148,3 +148,46 @@ test('real provider combines completed filtering and report search while retaini
   await expect(turn.response).toContainText(/annual report/i);
   await turn.waitForCompletion();
 });
+
+test('acceptance wording: open my Todo list', async ({ page }) => {
+  await openComposer(page, '/workspace-guide');
+  const turn = await sendPrompt(page, 'Open my Todo list.');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+  await expect(page.getByRole('heading', { name: 'Task Management' })).toBeVisible();
+  await turn.waitForCompletion();
+});
+
+test('acceptance wording: show completed tasks', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Show completed tasks.');
+  await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-oc-target="todo-list"]').getByText('Review the quarterly report', { exact: true })).toBeVisible();
+  await turn.waitForCompletion();
+});
+
+test('acceptance wording: search for report', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Search for report.');
+  await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue('report');
+  await expect(page.locator('[data-oc-target="todo-list"]').getByText('Gather feedback for report', { exact: true })).toBeVisible();
+  await turn.waitForCompletion();
+});
+
+test('acceptance wording: completed tasks containing report', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Show completed tasks containing report.');
+  await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue('report');
+  const taskList = page.locator('[data-oc-target="todo-list"]');
+  await expect(taskList.getByText('Review the quarterly report', { exact: true })).toBeVisible();
+  await expect(taskList.getByText('Gather feedback for report', { exact: true })).toHaveCount(0);
+  await turn.waitForCompletion();
+});
+
+test('acceptance wording: explain the current view', async ({ page }) => {
+  await openComposer(page);
+  const turn = await sendPrompt(page, 'Explain the current view.');
+  await turn.waitForCompletion();
+  await expect(turn.response).toContainText(/\b(?:workflows|tasks?|todos?)\b/i);
+  await expect(turn.response).toContainText(/\b(?:search|filter|progress|tabs?)\b/i);
+});
