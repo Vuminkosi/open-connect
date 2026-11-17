@@ -3,6 +3,10 @@ import { expect, test } from '@playwright/test';
 const cases = [
   { name: 'open Todo', prompt: 'Open my Todo list.', route: '/workspace-guide',
     actions: [{ type: 'navigate', targetSuffix: 'route.root' }] },
+  { name: 'open tasks', prompt: 'Open my tasks.', route: '/workspace-guide',
+    actions: [{ type: 'navigate', targetSuffix: 'route.root' }] },
+  { name: 'all tasks', prompt: 'Show all tasks.', initiallyActive: true,
+    actions: [{ type: 'activate', targetSuffix: '-tab-all' }] },
   { name: 'completed tasks', prompt: 'Show completed tasks.',
     actions: [{ type: 'activate', targetSuffix: '-tab-completed' }] },
   { name: 'active tasks', prompt: 'Show active tasks.',
@@ -12,6 +16,8 @@ const cases = [
   { name: 'completed report tasks', prompt: 'Show completed tasks containing report.',
     actions: [{ type: 'activate', targetSuffix: '-tab-completed' },
       { type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
+  { name: 'highlight tasks', prompt: 'Highlight the tasks.',
+    actions: [{ type: 'highlight', targetSuffix: '-list-task-list' }] },
   { name: 'highlight results', prompt: 'Highlight the results.',
     actions: [{ type: 'highlight', targetSuffix: '-list-task-list' }] },
   { name: 'explain current view', prompt: 'Explain the current view.',
@@ -61,6 +67,10 @@ async function verifyWorkerPlan(page, request, expectedActions) {
 for (const scenario of cases) {
   test(`real conversation and worker: ${scenario.name}`, async ({ page, request }) => {
     await page.goto(scenario.route ?? '/');
+    if (scenario.initiallyActive) {
+      await page.getByRole('tab', { name: 'Active' }).click();
+      await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true');
+    }
     await page.locator('.oc-anchored-fab').click();
     await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
     const voice = page.locator('.oc-bubble__live-speak');
@@ -75,6 +85,8 @@ for (const scenario of cases) {
     if (scenario.route) await expect.poll(() => new URL(page.url()).pathname, { timeout: 120_000 }).toBe('/');
     if (scenario.name === 'completed tasks' || scenario.name === 'completed report tasks')
       await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
+    if (scenario.name === 'all tasks')
+      await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
     if (scenario.name === 'active tasks')
       await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
     if (scenario.name === 'search report' || scenario.name === 'completed report tasks')
