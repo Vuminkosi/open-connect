@@ -32,6 +32,8 @@ public sealed class FixedEgressContextProvider : IEgressContextProvider
 /// <summary>Firewall-decorated <see cref="IChatClient"/> that guards outbound model content fail-closed.</summary>
 /// <remarks>Message text and structured function arguments and results are evaluated through the egress gate
 /// before reaching the inner client; sanitized content is forwarded and denials throw without echoing content.
+/// Function arguments are materialized as JSON-compatible values. String results remain strings; other
+/// structured results are forwarded as sanitized JSON values rather than their original CLR instances.
 /// Service resolution and disposal delegate to the inner client via <see cref="DelegatingChatClient"/>.</remarks>
 public sealed class FirewallGuardedChatClient : DelegatingChatClient
 {
@@ -119,10 +121,11 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
                     var safeArguments = await SanitizeJsonAsync(call.Arguments, context, cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        var arguments = JsonSerializer.Deserialize<Dictionary<string, object?>>(safeArguments) ?? throw FailClosed();
+                        using var document = JsonDocument.Parse(safeArguments);
+                        var arguments = ReadJsonValue(document.RootElement) as Dictionary<string, object?> ?? throw FailClosed();
                         contents.Add(new FunctionCallContent(call.CallId, call.Name, arguments) { InformationalOnly = call.InformationalOnly });
                     }
-                    catch (JsonException) { throw FailClosed(); }
+                    catch (Exception exception) when (exception is JsonException or ArgumentException) { throw FailClosed(); }
                 }
                 else if (content is FunctionResultContent result && result.Result is not null)
                 {
@@ -130,7 +133,10 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
                     try
                     {
                         using var document = JsonDocument.Parse(safeResult);
-                        contents.Add(new FunctionResultContent(result.CallId, document.RootElement.Clone()));
+                        object? safeValue = result.Result is string
+                            ? document.RootElement.ValueKind == JsonValueKind.String ? document.RootElement.GetString() : throw FailClosed()
+                            : document.RootElement.Clone();
+                        contents.Add(new FunctionResultContent(result.CallId, safeValue));
                     }
                     catch (JsonException) { throw FailClosed(); }
                 }
@@ -143,6 +149,22 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
 
         return guarded;
     }
+
+    private static object? ReadJsonValue(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name,
+            property => ReadJsonValue(property.Value), StringComparer.Ordinal),
+        JsonValueKind.Array => element.EnumerateArray().Select(ReadJsonValue).ToList(),
+        JsonValueKind.String => element.GetString(),
+        JsonValueKind.Number when element.TryGetInt32(out var value) => value,
+        JsonValueKind.Number when element.TryGetInt64(out var value) => value,
+        JsonValueKind.Number when element.TryGetDecimal(out var value) => value,
+        JsonValueKind.Number => element.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Null => null,
+        _ => throw new JsonException("Unsupported JSON value.")
+    };
 
     private async Task<string> SanitizeJsonAsync(object value, EgressContext context, CancellationToken cancellationToken)
     {

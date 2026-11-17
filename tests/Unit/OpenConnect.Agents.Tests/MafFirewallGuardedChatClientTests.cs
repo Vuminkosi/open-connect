@@ -123,6 +123,39 @@ public sealed class MafFirewallGuardedChatClientTests
     }
 
     [Fact]
+    public async Task Allowed_tool_content_preserves_argument_and_result_types()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        const string payload = "visible";
+        var assistant = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["limit"] = 3 })]);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", payload)]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), assistant, tool]);
+
+        var call = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionCallContent>());
+        var result = Assert.Single(inner.LastMessages[2].Contents.OfType<FunctionResultContent>());
+        Assert.Equal(3, Assert.IsType<int>(call.Arguments!["limit"]));
+        Assert.Equal(payload, Assert.IsType<string>(result.Result));
+    }
+
+    [Fact]
+    public async Task Redacted_string_tool_result_remains_a_string()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(content =>
+            Allow(content.Replace("SYNTH-PRIVATE-0001", "[REDACTED]", StringComparison.Ordinal))), Provider);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", "SYNTH-PRIVATE-0001")]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), tool]);
+
+        var result = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionResultContent>());
+        Assert.Equal("[REDACTED]", Assert.IsType<string>(result.Result));
+    }
+
+
+    [Fact]
     public async Task Rules_firewall_redacts_sensitive_tool_data_before_model_egress()
     {
         const string email = "tool.canary@example.test";
