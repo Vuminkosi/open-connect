@@ -209,7 +209,8 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
     intent = request.intent.casefold()
     if re.fullmatch(r"\s*explain\s+(?:the\s+)?current\s+view\s*[?.!]*\s*", intent):
         regions = [item for item in request.context.availableActions
-                   if item.action == "inspect" and re.search(r"(?:^|[._-])region-todo-list$", item.target.casefold())]
+                   if item.action == "inspect"
+                   and re.search(r"(?:^|[._-])region-[a-z0-9][a-z0-9_-]*$", item.target.casefold())]
         if len(regions) == 1:
             return ActionPlan(schemaVersion=request.schemaVersion,
                               actions=[PlannedAction(type="inspect", target=regions[0].target)])

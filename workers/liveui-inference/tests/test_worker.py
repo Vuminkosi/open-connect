@@ -83,6 +83,25 @@ def test_explain_view_inspects_only_a_unique_authorized_todo_region():
     assert deterministic_plan(request) is None
 
 
+def test_explain_view_supports_a_unique_authorized_region_in_another_application():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Explain the current view.",
+        "context": {"route": "route.orders", "availableActions": [
+            {"target": "route.orders.region-order-summary", "action": "inspect"},
+            {"target": "route.orders.tab-pending", "action": "inspect"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target) for action in plan.actions] == [
+        ("inspect", "route.orders.region-order-summary")
+    ]
+    request.context.availableActions.append(
+        request.context.availableActions[0].model_copy(update={"target": "route.orders.region-other"})
+    )
+    assert deterministic_plan(request) is None
+
+
 def test_simple_search_extracts_only_the_requested_value():
     request = PlanRequest.model_validate(
         {
