@@ -45,6 +45,9 @@ builder.Services.AddRazorComponents()
 
 // OpenConnect Client, Composer, and Component Discovery
 var gatewayOptions = TodoGatewayOptions.FromConfiguration(builder.Configuration, builder.Environment);
+var sameHostGatewayPlanner = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:SameHostGatewayPlanner");
+if (sameHostGatewayPlanner && (gatewayOptions.Mode != TodoGatewayMode.SameHostGateway || !builder.Environment.IsDevelopment()))
+    throw new InvalidOperationException("The same-host gateway planner requires SameHostGateway in Development.");
 builder.Services.AddSingleton(gatewayOptions);
 builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(gatewayOptions));
 var localGatewayBearer = gatewayOptions.Mode == TodoGatewayMode.ExternalGateway
@@ -136,9 +139,12 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
 });
 builder.Services.Configure<LiveUIInferenceOptions>(options =>
 {
-    options.Worker.Enabled = true;
-    options.Gateway.Enabled = false;
+    options.Worker.Enabled = !sameHostGatewayPlanner;
+    options.Gateway.Enabled = sameHostGatewayPlanner;
+    if (sameHostGatewayPlanner) options.Mode = LiveUIInferenceMode.GatewayOnly;
 });
+if (sameHostGatewayPlanner)
+    builder.Services.AddLiveUIGatewayInferenceProvider<SameHostGatewayPlanner>();
 var gatewayWorkerClient = builder.Services.AddHttpClient<GatewayWorkerLiveUIInferenceProvider>((services, client) =>
 {
     var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;

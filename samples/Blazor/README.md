@@ -18,6 +18,7 @@ Set configuration through environment variables or another ASP.NET Core configur
 | `TODO_INTERNAL_TENANT` | Tenant allowed by the internal Todo API. |
 | `OpenConnect__ApiUrl`, `OpenConnect__ApiKey`, `OpenConnect__ReasoningModel` | Model endpoint, credential, and model used by the same-host agent or sample gateway. |
 | `OpenConnect__LiveUI__Inference__Worker__Endpoint`, `OpenConnect__LiveUI__Inference__Worker__Token` | Optional private worker endpoint and server-side credential. |
+| `OpenConnect__LiveUI__SameHostGatewayPlanner` | Explicitly enable gateway-only planning in Development same-host mode using the configured model and session-scoped privacy gate. |
 | `OPENCONNECT_BLAZOR_SQLITE_PATH` | Optional SQLite database path. |
 
 For same-host development, configure the model settings, Todo credential, gateway mode, and sample base URL, then run:

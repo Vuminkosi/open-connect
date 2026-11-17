@@ -72,6 +72,7 @@ export default defineConfig({
       OpenConnect__ApiUrl: providerEndpoint,
       OpenConnect__ApiKey: providerApiKey,
       OpenConnect__ReasoningModel: providerModel,
+      OpenConnect__LiveUI__SameHostGatewayPlanner: process.env.OPENCONNECT_LIVEUI_REAL_GATEWAY_PLANNER_RUN === '1' ? 'true' : 'false',
       OPENCONNECT_BLAZOR_ACCEPTANCE_DATA: 'true',
       OPENCONNECT_BLAZOR_SQLITE_PATH: path.join(isolatedDataDirectory, 'acceptance.db'),
       OPENCONNECT_BLAZOR_DATA_PROTECTION_KEYS_PATH: path.join(isolatedDataDirectory, 'data-protection-keys'),

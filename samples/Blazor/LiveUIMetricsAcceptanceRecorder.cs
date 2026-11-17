@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 
 namespace OpenConnect.Samples.Blazor;
 
-internal sealed record LiveUIMetricAcceptanceSample(double Value, string? Outcome);
+internal sealed record LiveUIMetricAcceptanceSample(double Value, string? Outcome, string? Provider);
 
 internal sealed class LiveUIMetricsAcceptanceRecorder : IDisposable
 {
@@ -15,7 +15,8 @@ internal sealed class LiveUIMetricsAcceptanceRecorder : IDisposable
         "openconnect.liveui.browser.action.duration",
         "openconnect.liveui.action.execution.duration",
         "openconnect.liveui.confirmed.state.duration",
-        "openconnect.liveui.speech.highlight.offset"
+        "openconnect.liveui.speech.highlight.offset",
+        "openconnect.liveui.inference.requests"
     };
 
     private readonly object _gate = new();
@@ -28,7 +29,8 @@ internal sealed class LiveUIMetricsAcceptanceRecorder : IDisposable
         {
             InstrumentPublished = (instrument, listener) =>
             {
-                if (instrument.Meter.Name == CoreMeterName && MetricNames.Contains(instrument.Name))
+                if ((instrument.Meter.Name == CoreMeterName || instrument.Meter.Name == "OpenConnect.LiveUI.Inference") &&
+                    MetricNames.Contains(instrument.Name))
                     listener.EnableMeasurementEvents(instrument);
             }
         };
@@ -57,20 +59,22 @@ internal sealed class LiveUIMetricsAcceptanceRecorder : IDisposable
         where T : struct, IConvertible
     {
         string? outcome = null;
+        string? provider = null;
         foreach (var tag in tags)
         {
             if (tag.Key == "outcome" && tag.Value is string value)
             {
                 outcome = value;
-                break;
+                continue;
             }
+            if (tag.Key == "provider" && tag.Value is string providerValue) provider = providerValue;
         }
 
         lock (_gate)
         {
             if (!_samples.TryGetValue(instrument.Name, out var values))
                 _samples[instrument.Name] = values = [];
-            values.Add(new LiveUIMetricAcceptanceSample(measurement.ToDouble(null), outcome));
+            values.Add(new LiveUIMetricAcceptanceSample(measurement.ToDouble(null), outcome, provider));
         }
     }
 }

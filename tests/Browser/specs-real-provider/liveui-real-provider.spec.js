@@ -78,6 +78,44 @@ test('real provider selects and verifies the existing Completed tab', async ({ p
   await turn.waitForCompletion();
 });
 
+test('gateway planner executes a real-provider plan in the connected Todo UI', async ({ page, request }) => {
+  test.skip(process.env.OPENCONNECT_LIVEUI_REAL_GATEWAY_PLANNER_RUN !== '1', 'Requires the opt-in same-host gateway planner.');
+  test.setTimeout(300_000);
+  await openComposer(page);
+  expect((await request.post('/__acceptance/liveui-metrics/reset')).status()).toBe(204);
+  const turn = await sendPrompt(page, 'Show completed tasks.');
+  await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
+  await turn.waitForCompletion();
+  const metrics = await (await request.get('/__acceptance/liveui-metrics')).json();
+  expect(metrics.measurements['openconnect.liveui.inference.requests']).toContainEqual(
+    expect.objectContaining({ provider: 'gateway', outcome: 'completed' }));
+  await page.locator('.oc-bubble__header-actions button').first().click();
+  const sessionText = await page.getByText(/^Session:/).textContent();
+  const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
+  expect(sessionId).toBeTruthy();
+  const eventsResponse = await request.get(`/openconnect/v1/sessions/${sessionId}/events`);
+  expect(eventsResponse.status()).toBe(200);
+  const events = (await eventsResponse.json()).filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
+    .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
+  const planRequest = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'infer_plan');
+  expect(planRequest).toBeTruthy();
+  const planResponse = events.find((event) => event.type === 'liveui.response' &&
+    event.payload.correlationId === planRequest.payload.correlationId);
+  expect(planResponse).toBeTruthy();
+  const plan = JSON.parse(planResponse.payload.payloadJson);
+  expect(plan.provider).toBe('Gateway');
+  expect(plan.outcome).toBe('completed');
+  const selected = plan.plan.actions.find((action) => action.type === 'activate' && action.targetId.endsWith('-tab-completed'));
+  expect(selected).toBeTruthy();
+  const execute = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'execute' &&
+    event.payload.targetId === selected.targetId && event.payload.action === 'SelectTab');
+  expect(execute).toBeTruthy();
+  const receipt = events.find((event) => event.type === 'liveui.response' &&
+    event.payload.correlationId === execute.payload.correlationId);
+  expect(receipt).toBeTruthy();
+  expect(JSON.parse(receipt.payload.payloadJson)).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+});
+
 test('real provider shows active Todo tasks', async ({ page }) => {
   await openComposer(page);
   const turn = await sendPrompt(page, 'Show active tasks.');
