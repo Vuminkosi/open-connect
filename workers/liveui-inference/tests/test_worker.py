@@ -124,6 +124,24 @@ def test_simple_search_extracts_only_the_requested_value():
     ]
 
 
+@pytest.mark.parametrize(("intent", "expected"), [
+    ("Search for report tasks using the search input", "report"),
+    ("Search for report using the search input", "report"),
+    ('Search for "report tasks using the search input"', "report tasks using the search input"),
+    ("Search for tasks using time", "tasks using time"),
+])
+def test_search_distinguishes_control_instructions_from_query_text(intent, expected):
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": intent,
+        "context": {"route": "todo.home", "availableActions": [{"target": "todo.search", "action": "setValue"}]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target, action.value) for action in plan.actions] == [
+        ("setValue", "todo.search", expected)
+    ]
+
+
 def test_highlight_request_uses_the_unique_authorized_highlight_target():
     request = PlanRequest.model_validate(
         {

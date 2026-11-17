@@ -261,6 +261,16 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
         return None
     if match is None and simple_search is not None:
         search_value = simple_search.group(1).strip().strip(" \"'?.!")
+        quoted_query = re.search(r"\b(?:search|find)\s+(?:for\s+)?[\"']", request.intent, re.IGNORECASE)
+        if quoted_query is None:
+            instruction = re.fullmatch(
+                r"(.+?)(?:\s+(?:tasks?|todos?|items?))?\s+(?:using|with|via|in)\s+"
+                r"(?:the\s+)?(?:search\s+)?(?:input|field|box|control)",
+                search_value,
+                re.IGNORECASE,
+            )
+            if instruction is not None:
+                search_value = instruction.group(1).strip()
         search_action = find_search_action(request, search_value)
         if search_action is not None:
             return ActionPlan(schemaVersion=request.schemaVersion, actions=[search_action])
