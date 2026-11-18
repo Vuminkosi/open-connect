@@ -100,3 +100,27 @@ test('text postconditions require meaningful visible text', async ({ page }) => 
   expect(results.absent).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(results.visible).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
 });
+
+test('waits for property-only checkbox changes without accepting a different route', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<input type="checkbox" aria-label="Complete">' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'complete', kind: 'Checkbox', label: 'Complete' };
+    const run = () => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'WaitForState', parameters: { stateName: 'checked', stateValue: 'true' } },
+    }, 300, true);
+    const checkbox = document.querySelector('input');
+    setTimeout(() => { checkbox.checked = true; }, 20);
+    const checked = await run();
+    checkbox.checked = false;
+    setTimeout(() => { history.pushState({}, '', '/other'); checkbox.checked = true; }, 20);
+    const navigated = await run();
+    return { checked, navigated };
+  });
+  expect(results.checked).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.navigated).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+});

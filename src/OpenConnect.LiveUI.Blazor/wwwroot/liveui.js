@@ -457,12 +457,16 @@ function waitUntil(predicate, timeoutMs, successCode, timeoutCode) {
     let finished = false;
     const observer = new MutationObserver(check);
     const timer = setTimeout(() => finish(false), timeoutMs);
+    // Some observable state (for example, input.checked and scroll position)
+    // changes without generating a DOM mutation.
+    const poll = setInterval(check, 50);
     function check() { if (predicate()) finish(true); }
     function finish(verified) {
       if (finished) return;
       finished = true;
       observer.disconnect();
       clearTimeout(timer);
+      clearInterval(poll);
       resolve(verified ? result("Completed", successCode, true, successCode) : result("Uncertain", timeoutCode));
     }
     observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true, characterData: true });
