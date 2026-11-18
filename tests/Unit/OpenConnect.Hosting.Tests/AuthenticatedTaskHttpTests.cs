@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
+using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
+using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using Xunit;
@@ -152,6 +154,54 @@ public sealed class AuthenticatedTaskHttpTests
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(Ulid.Parse(TenantA), fetched.TenantId.Value);
         Assert.Equal(Ulid.Parse(PrincipalA), fetched.PrincipalId.Value);
+    }
+
+    [Fact]
+    public async Task Lost_admission_response_can_be_retried_after_real_gateway_execution()
+    {
+        await using var host = await HttpFixture.StartAsync();
+        using var client = new HttpClient(new DropFirstAdmissionResponseHandler())
+        {
+            BaseAddress = new Uri(host.Client.BaseAddress!, "/openconnect/v1/")
+        };
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(FixtureScheme, $"{TenantA}:{PrincipalA}");
+        var sdk = new OpenConnectClient(client);
+        var session = await sdk.CreateSessionAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var events = sdk.SubscribeEventsWebSocketAsync(session.Id, cancellationToken: timeout.Token).GetAsyncEnumerator();
+        Assert.True(await events.MoveNextAsync());
+        using var registration = JsonDocument.Parse(events.Current.Data);
+        var connectionId = registration.RootElement.GetProperty("connectionId").GetString();
+        var request = new CreateTaskRequest("client-task", "idempotency-key", "Show tasks", session.Id.Value.ToString())
+        { ClientConnectionId = connectionId };
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => sdk.CreateMiniComposerTaskAsync(request, timeout.Token));
+        await host.Executor.Started.Task.WaitAsync(timeout.Token);
+        var admitted = Assert.Single(host.Services.GetRequiredService<InMemoryTaskStore>().All());
+        await host.Services.GetRequiredService<InMemorySessionStore>().AppendTaskEventAsync(
+            session.Id.Value, admitted.Id, "message", "Task list ready", timeout.Token);
+        host.Executor.Release();
+        TaskRecord? state = null;
+        while (state?.State != AgentRunState.Completed)
+        {
+            state = await sdk.GetTaskAsync(admitted.Id, timeout.Token);
+            if (state.State != AgentRunState.Completed) await Task.Delay(20, timeout.Token);
+        }
+
+        var seenMessage = false;
+        var seenCompletion = false;
+        while (!seenMessage || !seenCompletion)
+        {
+            Assert.True(await events.MoveNextAsync());
+            if (events.Current.Type == "message")
+                seenMessage = events.Current.TaskId == admitted.Id.Value.ToString() && events.Current.Data == "Task list ready";
+            if (events.Current.Type == "task.completed") seenCompletion = true;
+        }
+        var retried = await sdk.CreateMiniComposerTaskAsync(request, timeout.Token);
+        Assert.Equal(admitted.Id, retried.Id);
+        Assert.Equal(AgentRunState.Completed, retried.State);
+        Assert.Equal(1, host.Executor.Calls);
+        Assert.Equal(1, host.TaskCount);
     }
 
     [Theory]
@@ -339,6 +389,7 @@ public sealed class AuthenticatedTaskHttpTests
             var app = builder.Build();
             try
             {
+                app.UseWebSockets();
                 app.UseAuthentication();
                 app.UseAuthorization();
                 app.MapOpenConnect();
@@ -377,6 +428,24 @@ public sealed class AuthenticatedTaskHttpTests
             Executor.Release();
             try { await StopBoundedAsync(_app); }
             finally { await _app.DisposeAsync(); }
+        }
+    }
+
+    private sealed class DropFirstAdmissionResponseHandler : DelegatingHandler
+    {
+        private int _dropped;
+        public DropFirstAdmissionResponseHandler() : base(new HttpClientHandler()) { }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken);
+            if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/minicomposer/tasks", StringComparison.Ordinal) == true &&
+                response.StatusCode == HttpStatusCode.Accepted && Interlocked.Exchange(ref _dropped, 1) == 0)
+            {
+                response.Dispose();
+                throw new HttpRequestException("Simulated lost admission response after gateway acceptance.");
+            }
+            return response;
         }
     }
 
