@@ -184,22 +184,27 @@ function matchingRouteHeadings(title) {
     .filter((heading) => accessibleNames(heading).some((name) => normalize(name) === label));
 }
 
-function matchingRouteLinks(route) {
+function matchingRouteLinks(route, parentLabel = null) {
   return [...document.querySelectorAll("a[href]")].filter((link) => {
     if (!isVisible(link) || isDisabled(link) || !isAllowedLinkActivation(link) || link.closest("pre, code")) return false;
+    if (parentLabel) {
+      const section = link.closest("section");
+      if (!section || !isVisible(section) || !accessibleNames(section).some((name) => normalize(name) === normalize(parentLabel))) return false;
+    }
     const destination = new URL(link.getAttribute("href"), document.baseURI);
     return !destination.search && !destination.hash && destination.pathname === route.path &&
       accessibleNames(link).some((name) => normalize(name) === normalize(route.title));
   });
 }
 
-export function prepareRoute(route) {
+export function prepareRoute(route, parentLabel = null) {
   if (!route?.id?.startsWith("oc.runtime.route.") || typeof route.title !== "string" || !route.title.trim() || pendingRoutes.size >= 32) return null;
-  if (matchingRouteLinks(route).length !== 1) return null;
+  if (parentLabel !== null && (typeof parentLabel !== "string" || !parentLabel.trim() || parentLabel.length > 120)) return null;
+  if (matchingRouteLinks(route, parentLabel).length !== 1) return null;
   const token = String(++nextRouteObservation);
   const timer = setTimeout(() => pendingRoutes.delete(token), 120000);
   pendingRoutes.set(token, { routeId: route.id, path: route.path, title: route.title,
-    sourcePath: location.pathname, dispatched: false, previousHeadings: new Set(matchingRouteHeadings(route.title)), timer });
+    sourcePath: location.pathname, parentLabel, dispatched: false, previousHeadings: new Set(matchingRouteHeadings(route.title)), timer });
   return token;
 }
 
@@ -207,7 +212,7 @@ export function followRoute(route, observationToken) {
   const observation = pendingRoutes.get(observationToken);
   if (!observation || observation.dispatched || observation.sourcePath !== location.pathname ||
       observation.routeId !== route?.id || observation.path !== route.path || observation.title !== route.title) return false;
-  const links = matchingRouteLinks(route);
+  const links = matchingRouteLinks(route, observation.parentLabel);
   if (links.length !== 1) return false;
   observation.dispatched = true;
   links[0].click();

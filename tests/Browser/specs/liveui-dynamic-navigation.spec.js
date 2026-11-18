@@ -58,3 +58,25 @@ test('dynamic navigation requires a newly rendered matching heading', async ({ p
   expect(results.ambiguous).toBeNull();
   expect(results.clickCount).toBe(2);
 });
+
+test('section-scoped link becomes stale when its source section changes', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<a href="/docs/v1/install">Installation</a><section><h2>Guides</h2><a href="/docs/v1/install">Installation</a></section>' }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { prepareRoute, followRoute } = await import('/liveui.js');
+    const route = { id: 'oc.runtime.route.test', path: '/docs/v1/install', title: 'Installation', targets: [] };
+    const ambiguous = prepareRoute(route);
+    const scoped = prepareRoute(route, 'Guides');
+    let clicks = 0;
+    document.addEventListener('click', (event) => { clicks++; event.preventDefault(); });
+    document.querySelector('section h2').innerText = 'Other';
+    return { ambiguous, scoped, followed: followRoute(route, scoped), clicks };
+  });
+  expect(result.ambiguous).toBeNull();
+  expect(result.scoped).not.toBeNull();
+  expect(result.followed).toBe(false);
+  expect(result.clicks).toBe(0);
+});

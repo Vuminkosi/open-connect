@@ -18,14 +18,15 @@ public sealed class LiveUIRuntimeDiscoveryTests
     {
         const string observations = "[" +
             "{\"kind\":\"Link\",\"label\":\"Installation\",\"role\":\"link\",\"path\":\"/docs/v1/install\"}," +
+            "{\"kind\":\"Link\",\"label\":\"Installation\",\"role\":\"link\",\"path\":\"/docs/v1/install\",\"parentLabel\":\"Guides\"}," +
             "{\"kind\":\"Link\",\"label\":\"Query\",\"role\":\"link\",\"path\":\"/docs/v1/install?key=value\"}," +
             "{\"kind\":\"Link\",\"label\":\"Unknown\",\"role\":\"link\",\"path\":\"/unknown\"}]";
         var navigation = new Navigation();
+        var browser = new Browser(false, observations, () => navigation.MoveTo("https://example.test/docs/v1/install"));
         var services = new ServiceCollection();
         services.AddOpenConnectLiveUIBlazor();
         services.AddScoped<NavigationManager>(_ => navigation);
-        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations,
-            () => navigation.MoveTo("https://example.test/docs/v1/install")));
+        services.AddScoped<IJSRuntime>(_ => browser);
         services.AddScoped<ILiveUIActionAuthorizer>(_ => new NavigationAuthorizer(allowNavigation));
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -62,6 +63,7 @@ public sealed class LiveUIRuntimeDiscoveryTests
             navigation.MoveTo("https://example.test/");
             var receipt = await tools.NavigateAsync(discovered[0].RouteId);
             Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+            Assert.Equal("Guides", browser.PreparedParent);
             Assert.Equal("https://example.test/docs/v1/install", navigation.Uri);
             Assert.Equal(discovered[0].RouteId, (await tools.GetCurrentPageAsync())!.RouteId);
             Assert.Null(await tools.GetCurrentPageForDirectAgentAsync());
@@ -242,11 +244,16 @@ public sealed class LiveUIRuntimeDiscoveryTests
 
     private sealed class Browser(bool unavailable = false, string? observations = null, Action? onFollow = null) : IJSRuntime, IJSObjectReference
     {
+        public string? PreparedParent { get; private set; }
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
-            if (identifier == "prepareRoute") return ValueTask.FromResult((TValue)(object)"observation");
+            if (identifier == "prepareRoute")
+            {
+                PreparedParent = args?[1] as string;
+                return ValueTask.FromResult((TValue)(object)"observation");
+            }
             if (identifier == "followRoute") { onFollow?.Invoke(); return ValueTask.FromResult((TValue)(object)true); }
             if (identifier == "discoverTargets" && unavailable) throw new JSException("unavailable");
             var json = identifier == "discoverTargets"

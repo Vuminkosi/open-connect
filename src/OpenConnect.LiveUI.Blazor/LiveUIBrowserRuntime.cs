@@ -104,7 +104,11 @@ public sealed class LiveUIBrowserRuntime(
             string? observation = null;
             if (destination.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal))
             {
-                observation = await _module.InvokeAsync<string?>("prepareRoute", cancellationToken, destination).ConfigureAwait(false);
+                var current = new LiveUIAgentContext(context.Action.SessionId, context.Route.Id)
+                    { CurrentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath };
+                if (manifestState is null || !manifestState.TryGetRuntimeRouteContext(current, context.Manifest, destination.Id, out var parentLabel))
+                    return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "runtime_route_stale", false);
+                observation = await _module.InvokeAsync<string?>("prepareRoute", cancellationToken, destination, parentLabel).ConfigureAwait(false);
                 if (observation is null) return new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "route_observation_missing", false);
                 var dispatched = await _module.InvokeAsync<bool>("followRoute", cancellationToken, destination, observation).ConfigureAwait(false);
                 if (!dispatched) return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_link_stale", false);

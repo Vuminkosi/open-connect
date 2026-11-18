@@ -8,7 +8,7 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
     private readonly object _gate = new();
     private LiveUIManifest? _manifest;
     private readonly Dictionary<string, string> _runtimePaths = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, (string RouteId, string Path)> _runtimeDestinations = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string RouteId, string Path, string? ParentLabel)> _runtimeDestinations = new(StringComparer.Ordinal);
 
     public void SetManifest(LiveUIManifest manifest)
     {
@@ -30,7 +30,8 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
         lock (_gate) return ValueTask.FromResult(_manifest);
     }
 
-    internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement, string routeId, string path)
+    internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement, string routeId, string path,
+        IReadOnlyDictionary<string, string?> destinationParents)
     {
         if (validator.Validate(replacement).Count != 0) return false;
         lock (_gate)
@@ -41,17 +42,26 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
             _runtimeDestinations.Clear();
             foreach (var route in replacement.Routes.Where(route => route.Id != routeId &&
                 route.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)))
-                _runtimeDestinations[route.Id] = (routeId, path);
+                if (destinationParents.TryGetValue(route.Id, out var parentLabel))
+                    _runtimeDestinations[route.Id] = (routeId, path, parentLabel);
             return true;
         }
     }
 
     internal bool IsRuntimeRouteCurrent(LiveUIAgentContext context, LiveUIManifest manifest, string destinationId)
+        => TryGetRuntimeRouteContext(context, manifest, destinationId, out _);
+
+    internal bool TryGetRuntimeRouteContext(LiveUIAgentContext context, LiveUIManifest manifest, string destinationId, out string? parentLabel)
     {
         lock (_gate)
-            return ReferenceEquals(_manifest, manifest) && context.CurrentPath is not null &&
+        {
+            parentLabel = null;
+            if (!(ReferenceEquals(_manifest, manifest) && context.CurrentPath is not null &&
                 _runtimeDestinations.TryGetValue(destinationId, out var source) &&
-                source.RouteId == context.CurrentRouteId && string.Equals(source.Path, context.CurrentPath, StringComparison.Ordinal);
+                source.RouteId == context.CurrentRouteId && string.Equals(source.Path, context.CurrentPath, StringComparison.Ordinal))) return false;
+            parentLabel = source.ParentLabel;
+            return true;
+        }
     }
 
     internal bool IsRuntimeTargetCurrent(LiveUIAgentContext context, LiveUIManifest manifest, string targetId)

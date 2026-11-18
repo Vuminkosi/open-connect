@@ -61,19 +61,23 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
             var routes = manifest.Routes.Where(item => !item.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) || item.Id == route.Id)
                 .Select(item => item.Id == route.Id ? item with { Targets = existing.ToArray() } : item).ToList();
             var paths = routes.Select(item => item.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var candidate in observed.Take(maximum))
+            var destinationParents = new Dictionary<string, string?>(StringComparer.Ordinal);
+            foreach (var candidate in observed.Take(maximum).OrderByDescending(item => !string.IsNullOrWhiteSpace(item?.ParentLabel)))
             {
                 if (candidate is null || candidate.Kind != "Link" || candidate.Path is not { Length: > 0 and <= 2048 } path ||
-                    candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) || paths.Contains(path)) continue;
+                    candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) ||
+                    candidate.ParentLabel is { Length: > 120 } || paths.Contains(path)) continue;
                 var template = LiveUIRouteMatcher.Resolve(compiledRoutes, path);
                 if (template is null || !template.Path.Contains('{')) continue;
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(path));
-                routes.Add(new LiveUIRoute(LiveUIRuntimeRouteIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant(), path, label, []));
+                var routeId = LiveUIRuntimeRouteIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant();
+                routes.Add(new LiveUIRoute(routeId, path, label, []));
+                destinationParents[routeId] = string.IsNullOrWhiteSpace(candidate.ParentLabel) ? null : candidate.ParentLabel;
                 paths.Add(path);
             }
             var replacement = manifest with { Routes = routes, ContentHash = string.Empty };
             replacement = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
-            return state.TryReplace(manifest, replacement, route.Id, expectedPath);
+            return state.TryReplace(manifest, replacement, route.Id, expectedPath, destinationParents);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (JSException) { return false; }
