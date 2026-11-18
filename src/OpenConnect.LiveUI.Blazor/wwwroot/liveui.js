@@ -41,7 +41,7 @@ export function discoverTargets(maximumTargets) {
       tag === "input" || tag === "textarea" ? "Input" : null;
     if (!kind || kind === "Link" && !isAllowedLinkActivation(element)) continue;
     if (["Input", "Checkbox", "Select"].includes(kind) && isSensitiveField(element)) continue;
-    const label = accessibleNames(element).map((name) => String(name).replace(/\s+/g, " ").trim())
+    const label = accessibleNames(element, true).map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
     const parentLabel = regionLabels.get(element.closest("section"));
@@ -288,7 +288,8 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
     .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
-      accessibleNames(element).some((name) => normalize(name) === label));
+      accessibleNames(element, target.id?.startsWith("oc.runtime.") && target.requiresConfirmation === true)
+        .some((name) => normalize(name) === label));
   if (matches.length > 1) return { status: "ambiguous" };
   return matches.length === 1 ? { status: "resolved", element: matches[0] } : { status: "missing" };
 }
@@ -340,7 +341,7 @@ function roleOf(element) {
   return null;
 }
 
-function accessibleNames(element) {
+function accessibleNames(element, allowInferred = false) {
   const names = [];
   if (element.getAttribute("aria-label")) names.push(element.getAttribute("aria-label"));
   const labelledBy = element.getAttribute("aria-labelledby");
@@ -359,7 +360,29 @@ function accessibleNames(element) {
     if (value) names.push(value);
   }
   if (element.innerText || element.textContent) names.push(element.innerText || element.textContent);
+  if (allowInferred && element instanceof HTMLInputElement && element.type === "checkbox" && !names.some((name) => name.trim())) {
+    const nearby = nearbyCheckboxText(element);
+    if (nearby) names.push(nearby);
+  }
   return names;
+}
+
+// Infer only a single nearby paragraph in a small group containing no other controls.
+// Runtime-discovered controls remain subject to host authorization and confirmation.
+function nearbyCheckboxText(element) {
+  let container = element.parentElement;
+  for (let depth = 0; container && depth < 6; depth++, container = container.parentElement) {
+    if (container.matches("form, main, section, article, body, [role='list'], [role='listbox'], [role='grid'], [role='table']")) break;
+    const controls = container.querySelectorAll("input, select, textarea, button, [role='button'], [role='checkbox']");
+    if (controls.length !== 1 || controls[0] !== element) break;
+    const paragraphs = [...container.querySelectorAll("p")].filter(isVisible);
+    if (paragraphs.length > 1) break;
+    if (paragraphs.length === 1) {
+      const text = (paragraphs[0].innerText || "").replace(/\s+/g, " ").trim();
+      return text.length > 0 && text.length <= 120 ? text : null;
+    }
+  }
+  return null;
 }
 
 function isVisible(element) {

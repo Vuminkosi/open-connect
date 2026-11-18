@@ -5,6 +5,37 @@ import { fileURLToPath } from 'node:url';
 
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
+test('infers only unique nearby checkbox text and restricts resolution to confirmed runtime targets', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <div><label><input type="checkbox"></label><div><p>Review report</p><span>Details</span></div></div>
+      <div><input type="checkbox"><p>First</p><p>Second</p></div>
+      <div><input type="checkbox"><input type="checkbox"><p>Multiple controls</p></div>
+      <div><input type="checkbox"><p>Duplicate</p></div><div><input type="checkbox"><p>Duplicate</p></div>` }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { discoverTargets, execute } = await import('/liveui.js');
+    const targets = discoverTargets(50);
+    const observed = targets.find((target) => target.kind === 'Checkbox' && target.label === 'Review report');
+    const inspect = (id, requiresConfirmation) => {
+      const target = { ...observed, id, requiresConfirmation };
+      return execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+        action: { schemaVersion: 'openconnect.liveui/v1', type: 'Inspect', parameters: {} },
+      }, 100, true);
+    };
+    return { targets, runtime: await inspect('oc.runtime.example', true),
+      unconfirmed: await inspect('oc.runtime.example', false), compiled: await inspect('compiled.example', false) };
+  });
+  expect(result.targets.filter((target) => target.kind === 'Checkbox')).toEqual([
+    expect.objectContaining({ label: 'Review report' }),
+  ]);
+  expect(result.runtime).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(result.unconfirmed).toMatchObject({ outcome: 'MissingTarget' });
+  expect(result.compiled).toMatchObject({ outcome: 'MissingTarget' });
+});
+
 test('discovers unique visible semantic controls without exposing input values or code examples', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
