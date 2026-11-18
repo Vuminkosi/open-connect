@@ -222,14 +222,16 @@ public sealed class LiveUIRuntimeDiscoveryTests
         Assert.Equal(LiveUIActionOutcome.Denied, denied.Outcome);
     }
 
-    [Fact]
-    public async Task Discovered_checkbox_exposes_selection_only_when_authorized()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Discovered_checkbox_exposes_selection_only_when_authorized(bool confirmed)
     {
         var services = new ServiceCollection();
         services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
         services.AddScoped<NavigationManager>(_ => new Navigation());
         services.AddScoped<IJSRuntime>(_ => new Browser(false, "[{\"kind\":\"Checkbox\",\"label\":\"Complete task\",\"role\":\"checkbox\"}]"));
-        services.AddScoped<ILiveUIActionAuthorizer, CheckboxAuthorizer>();
+        services.AddScoped<ILiveUIActionAuthorizer>(_ => new CheckboxAuthorizer(confirmed));
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
@@ -240,9 +242,13 @@ public sealed class LiveUIRuntimeDiscoveryTests
         var page = await tools.GetCurrentPageAsync();
         var target = Assert.Single(page!.Targets);
         Assert.Equal("Complete task", target.Label);
+        Assert.True(target.LabelMayBeInferred);
+        Assert.True(target.RequiresConfirmation);
         Assert.Contains(LiveUICapability.Select, target.Capabilities);
         Assert.DoesNotContain(LiveUICapability.Focus, target.Capabilities);
-        Assert.Equal(LiveUIActionOutcome.Completed, (await tools.ExecuteAsync(target.TargetId, "Select", "true")).Outcome);
+        var receipt = await tools.ExecuteAsync(target.TargetId, "Select", "true");
+        Assert.Equal(confirmed ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Denied, receipt.Outcome);
+        if (!confirmed) Assert.Equal("approval_required", receipt.Code);
         Assert.Equal(LiveUIActionOutcome.Denied, (await tools.ExecuteAsync(target.TargetId, "Select", "false")).Outcome);
     }
 
@@ -259,11 +265,11 @@ public sealed class LiveUIRuntimeDiscoveryTests
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect, "policy"));
     }
 
-    private sealed class CheckboxAuthorizer : ILiveUIActionAuthorizer
+    private sealed class CheckboxAuthorizer(bool confirmed) : ILiveUIActionAuthorizer
     {
         public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect ||
-                context.Action.Type == LiveUIActionType.Select && context.Action.Parameters.Value == "true", "policy", UserConfirmed: true));
+                context.Action.Type == LiveUIActionType.Select && context.Action.Parameters.Value == "true", "policy", UserConfirmed: confirmed));
     }
 
     private sealed class NavigationAuthorizer(bool allowNavigation) : ILiveUIActionAuthorizer

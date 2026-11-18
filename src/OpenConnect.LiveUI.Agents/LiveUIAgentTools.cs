@@ -73,7 +73,11 @@ public sealed class LiveUIAgentTools(
             }
 
             if (authorizedCapabilities.Count > 0)
-                targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation));
+                targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation)
+                {
+                    LabelMayBeInferred = target.Kind == LiveUITargetKind.Checkbox &&
+                        target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)
+                });
         }
 
         var authorizedTargets = targets.ToDictionary(target => target.TargetId, StringComparer.Ordinal);
@@ -356,6 +360,9 @@ public sealed record LiveUIAgentTarget(
     IReadOnlySet<LiveUICapability> Capabilities,
     bool RequiresConfirmation)
 {
+    /// <summary>The label may be inferred from nearby page content rather than a semantic control label.</summary>
+    public bool LabelMayBeInferred { get; init; }
+
     /// <summary>Authorized parent context for disambiguating similarly named controls.</summary>
     public string? ParentLabel { get; init; }
 }
