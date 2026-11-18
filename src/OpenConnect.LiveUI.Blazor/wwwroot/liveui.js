@@ -423,6 +423,8 @@ function inspect(element) {
 }
 
 function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs) {
+  if ((name === "textContains" || name === "textNotContains") &&
+      (typeof expected !== "string" || !normalize(expected))) return result("Failed", "state_value_invalid");
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     const resolution = resolveTarget(target, enableRuntimeFallback, route);
@@ -434,8 +436,8 @@ function waitForState(target, route, enableRuntimeFallback, name, expected, time
       case "expanded": return element.getAttribute("aria-expanded") === (expected || "true");
       case "visible": return isVisible(element) === (expected !== "false");
       case "exists": return element.isConnected === (expected !== "false");
-      case "textContains": return typeof expected === "string" && normalize(element.innerText || element.textContent || "").includes(normalize(expected));
-      case "textNotContains": return typeof expected === "string" && !normalize(element.innerText || element.textContent || "").includes(normalize(expected));
+      case "textContains": return normalize(element.innerText ?? "").includes(normalize(expected));
+      case "textNotContains": return !normalize(element.innerText ?? "").includes(normalize(expected));
       default: return false;
     }
   };

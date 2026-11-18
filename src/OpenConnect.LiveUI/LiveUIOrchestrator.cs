@@ -146,6 +146,9 @@ public sealed class LiveUIOrchestrator(
         if (action.Parameters.StateName is not null &&
             action.Parameters.StateName is not ("selected" or "checked" or "expanded" or "visible" or "exists" or "textContains" or "textNotContains"))
             return false;
+        if (action.Parameters.StateName is "textContains" or "textNotContains" &&
+            string.IsNullOrWhiteSpace(action.Parameters.StateValue))
+            return false;
         if (action.Type == LiveUIActionType.Navigate && string.IsNullOrWhiteSpace(action.Parameters.DestinationRouteId))
             return false;
         if (action.Type is LiveUIActionType.SetValue or LiveUIActionType.Select &&

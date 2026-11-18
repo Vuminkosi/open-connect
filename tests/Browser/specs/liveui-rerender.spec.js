@@ -75,3 +75,28 @@ test('value and selection receipts do not verify detached controls after an inpu
     expect(changes).toBe(0);
   }
 });
+
+test('text postconditions require meaningful visible text', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<section aria-label="Results" style="min-height:20px"><span hidden>Saved</span></section>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'results', kind: 'Region', label: 'Results', role: 'region' };
+    const run = (stateName, stateValue) => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'WaitForState', parameters: { stateName, stateValue } },
+    }, 30, true);
+    const empty = await run('textContains', '  ');
+    const hidden = await run('textContains', 'Saved');
+    const absent = await run('textNotContains', 'Saved');
+    document.querySelector('span').hidden = false;
+    const visible = await run('textContains', 'Saved');
+    return { empty, hidden, absent, visible };
+  });
+  expect(results.empty).toMatchObject({ outcome: 'Failed', postconditionVerified: false });
+  expect(results.hidden).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+  expect(results.absent).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.visible).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+});

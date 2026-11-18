@@ -343,6 +343,25 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(0, runtime.Calls);
     }
 
+    [Theory]
+    [InlineData("textContains", null)]
+    [InlineData("textContains", " ")]
+    [InlineData("textNotContains", "")]
+    public async Task ExecuteAsync_RejectsEmptyTextPostconditions(string stateName, string? stateValue)
+    {
+        var runtime = new RecordingRuntime();
+        var action = Action() with
+        {
+            Type = LiveUIActionType.WaitForState,
+            Parameters = new LiveUIActionParameters(StateName: stateName, StateValue: stateValue)
+        };
+
+        var receipt = await Create(runtime: runtime).ExecuteAsync(action);
+
+        Assert.Equal("invalid_action", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
     [Fact]
     public async Task ExecuteAsync_EmitsLowCardinalityRuntimeMeasurements()
     {
