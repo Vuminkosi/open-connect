@@ -124,3 +124,31 @@ test('waits for property-only checkbox changes without accepting a different rou
   expect(results.checked).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(results.navigated).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
 });
+
+test('waits for a known target to render without accepting ambiguous or wrong-route matches', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<main></main>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'result', kind: 'Button', label: 'Open result', role: 'button' };
+    const run = () => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'WaitForState', parameters: { stateName: 'visible' } },
+    }, 150, true);
+    const main = document.querySelector('main');
+    setTimeout(() => { main.innerHTML = '<button>Open result</button>'; }, 20);
+    const rendered = await run();
+    main.innerHTML = '';
+    setTimeout(() => { main.innerHTML = '<button>Open result</button><button>Open result</button>'; }, 20);
+    const ambiguous = await run();
+    main.innerHTML = '';
+    setTimeout(() => { history.pushState({}, '', '/other'); main.innerHTML = '<button>Open result</button>'; }, 20);
+    const navigated = await run();
+    return { rendered, ambiguous, navigated };
+  });
+  expect(results.rendered).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.ambiguous).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+  expect(results.navigated).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+});

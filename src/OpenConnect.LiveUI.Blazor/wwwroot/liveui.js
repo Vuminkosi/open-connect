@@ -81,6 +81,12 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   const actionStartedAt = performance.now();
   const measured = (value) => withMeasurements(value, targetResolutionMilliseconds, actionStartedAt);
   if (resolution.status === "ambiguous") return measured(result("Ambiguous", "target_ambiguous"));
+  if (resolution.status !== "resolved" && action.type === "WaitForState") {
+    const parameters = action.parameters || {};
+    if (!parameters.stateName) return measured(result("Failed", "state_name_required"));
+    const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
+    return measured(waitForState(target, route, enableRuntimeFallback, parameters.stateName, parameters.stateValue, timeout));
+  }
   if (resolution.status !== "resolved") return measured(result("MissingTarget", "target_missing"));
 
   const element = resolution.element;
