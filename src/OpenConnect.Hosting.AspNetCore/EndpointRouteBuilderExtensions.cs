@@ -403,34 +403,11 @@ public static class EndpointRouteBuilderExtensions
         if (response.ResultKind == "page")
         {
             var gate = context.RequestServices.GetService<IEgressGate>();
-            if (gate is null) return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable.");
-            using var page = JsonDocument.Parse(response.PayloadJson);
-            var content = new StringBuilder();
-            var pendingValues = new Stack<JsonElement>();
-            pendingValues.Push(page.RootElement);
-            while (pendingValues.TryPop(out var item))
-            {
-                if (item.ValueKind == JsonValueKind.String) content.AppendLine(item.GetString());
-                else if (item.ValueKind == JsonValueKind.Array)
-                    foreach (var child in item.EnumerateArray()) pendingValues.Push(child);
-                else if (item.ValueKind == JsonValueKind.Object)
-                    foreach (var property in item.EnumerateObject())
-                    {
-                        content.AppendLine(property.Name);
-                        pendingValues.Push(property.Value);
-                    }
-            }
-            var decodedContent = content.ToString();
-            EgressDecision decision;
-            try
-            {
-                decision = await gate.EvaluateAsync(decodedContent,
-                    new EgressContext(session.TenantId, session.PrincipalId, session.Id, EgressDestination.Tool), cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch { return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable."); }
-            if (decision is null || !decision.Allowed || !string.Equals(decision.SanitizedContent, decodedContent, StringComparison.Ordinal))
+            var screen = await ClientPageEgressScreen.EvaluateAsync(response.PayloadJson, session, gate, cancellationToken)
+                .ConfigureAwait(false);
+            if (screen == ClientPageScreenResult.Unavailable)
+                return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable.");
+            if (screen == ClientPageScreenResult.Blocked)
                 return Results.Problem(statusCode: 403, title: "Page content was blocked by privacy policy.");
         }
         var eventData = JsonSerializer.Serialize(response, JsonOptions);

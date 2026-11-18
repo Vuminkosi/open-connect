@@ -204,6 +204,22 @@ public sealed class GatewayRouteTests
     }
 
     [Theory]
+    [InlineData("not json")]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public async Task Client_page_screen_rejects_invalid_or_non_object_snapshots(string payload)
+    {
+        await using var host = await CreateAppAsync();
+        var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var gate = host.App.Services.GetRequiredService<IEgressGate>();
+
+        var result = await ClientPageEgressScreen.EvaluateAsync(payload, session, gate, CancellationToken.None);
+
+        Assert.Equal(ClientPageScreenResult.Blocked, result);
+    }
+
+    [Theory]
     [InlineData("navigate")]
     [InlineData("inspect")]
     [InlineData("await_state")]
