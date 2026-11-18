@@ -173,7 +173,20 @@ function roleOf(element) {
   if (tag === "button") return "button";
   if (tag === "a" && element.hasAttribute("href")) return "link";
   if (/^h[1-6]$/.test(tag)) return "heading";
-  if (tag === "input") return element.type === "checkbox" ? "checkbox" : "textbox";
+  if (tag === "nav") return "navigation";
+  if (tag === "main") return "main";
+  if (tag === "article") return "article";
+  if (tag === "aside") return "complementary";
+  if (tag === "section" && (element.getAttribute("aria-label")?.trim() ||
+      element.getAttribute("aria-labelledby")?.split(/\s+/).some((id) => document.getElementById(id)?.textContent?.trim()))) return "region";
+  if (tag === "ul" || tag === "ol") return "list";
+  if (tag === "table") return "table";
+  if (tag === "input") {
+    if (element.type === "checkbox") return "checkbox";
+    if (element.type === "radio") return "radio";
+    if (element.type === "search") return "searchbox";
+    return "textbox";
+  }
   if (tag === "textarea") return "textbox";
   if (tag === "select") return "combobox";
   return null;
