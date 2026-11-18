@@ -46,14 +46,12 @@ openconnect/
 │   ├── OpenConnect.Core/          # Implementation and DI
 │   ├── OpenConnect.Agents/        # MAF integration
 │   ├── OpenConnect.Privacy/       # Privacy firewall
-│   ├── OpenConnect.Sessions/      # Session management
 │   ├── OpenConnect.Tools/         # Tool broker
 │   ├── OpenConnect.Transport.Nats/
-│   ├── OpenConnect.Persistence.Postgres/
+│   ├── OpenConnect.Persistence.EFCore/
 │   └── OpenConnect.Hosting.AspNetCore/
 ├── packages/
 │   └── client-ts/                 # TypeScript SDK
-│   └── client-blazor/                 # .Net Blazor SDK
 ├── workers/
 │   ├── security/                  # Privacy detection
 │   ├── classification/
@@ -68,7 +66,7 @@ openconnect/
 
 ## Requirements
 
-- .NET 8 SDK
+- .NET SDK from [global.json](global.json) (currently 10.0.404); libraries target .NET 8, 9, and 10, while executables and tests default to .NET 10
 - PostgreSQL 16+
 - NATS Server 2.10+ (with JetStream)
 - Python 3.12+ (for workers)
@@ -78,28 +76,41 @@ openconnect/
 
 ```bash
 # Restore dependencies
-dotnet restore --locked-mode
+dotnet restore OpenConnect.slnx --locked-mode
 
 # Build
-dotnet build
+dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
 
 # Run tests
-dotnet test
+dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
 # Start infrastructure (Docker)
-docker-compose -f infra/compose.yml up -d
+docker compose -f infra/compose.yml up -d
 ```
+
+### CI checks
+
+The [main CI workflow](.github/workflows/ci.yml) also checks formatting (`dotnet format OpenConnect.slnx --verify-no-changes --no-restore`) and runs security and contract checks through `scripts/verify.ps1`. Live NATS tests require an explicit broker and are excluded from the default test selection above.
+
+Reproduce one [worker contract leg](.github/workflows/worker-sample-e2e.yml) on Linux:
+
+```bash
+./samples/workers/shared/scripts/verify-no-build-models.sh classification
+./samples/workers/shared/scripts/run-one.sh classification --tier contract --provider sqlite
+```
+
+See [worker samples](samples/workers/README.md) for the full matrix and infrastructure/model prerequisites. The [documentation workflow](.github/workflows/docs-portal.yml) separately validates the [portal](site/OpenConnect.Docs/README.md). Local unit tests alone do not verify these workflows.
 
 ## Documentation
 
-- [Architecture](docs/architecture/README.md)
-- [Getting Started](docs/getting-started/README.md)
-- [API Reference](docs/api/README.md)
-- [Configuration](docs/configuration/README.md)
+- [Framework compatibility](docs/compatibility/framework-matrix.md)
+- [Getting Started](site/OpenConnect.Docs/Content/v1/getting-started.md)
+- [API Reference](site/OpenConnect.Docs/Content/v1/api-reference.md)
+- [Configuration](site/OpenConnect.Docs/Content/v1/configuration.md)
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please read the [development guide](AGENTS.md) for details.
 
 ## License
 

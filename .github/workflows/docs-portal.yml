@@ -25,6 +25,8 @@ jobs:
             Directory.Packages.props
             Directory.Build.props
             site/OpenConnect.Docs/packages.lock.json
+      - name: Restore repository-local tools
+        run: dotnet tool restore --tool-manifest dotnet-tools.json
       - name: Restore solution and portal
         run: |
           dotnet restore OpenConnect.slnx --locked-mode

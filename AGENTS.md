@@ -56,7 +56,8 @@ OpenConnect is an open-source, .NET-first, privacy-first, model-agnostic AI appl
 
 ### C#/.NET
 
-- Target Framework: .NET 8 LTS
+- SDK: use `global.json` (currently 10.0.404)
+- Libraries target `net8.0;net9.0;net10.0` via `build/supported-frameworks.props`; executables and tests default to `net10.0`
 - Language Version: C# 12
 - Nullable Reference Types: Enabled
 - Implicit Usings: Enabled
@@ -139,21 +140,28 @@ public static class OpenConnectServiceCollectionExtensions
 # .NET
 dotnet restore OpenConnect.slnx --locked-mode
 dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
-dotnet test OpenConnect.slnx -c Release --no-build
+dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
 # Python (in workers/{name})
 uv sync --locked
 uv run ruff check .
-uv run mypy src
+# Run mypy only where declared/configured in the worker pyproject.toml.
 uv run pytest -q
 
 # TypeScript (in packages/client-ts)
 npm ci
-npm run lint
 npm run typecheck
 npm test
 npm run build
 ```
+
+### CI-specific invariants
+
+- Match the applicable `.github/workflows/` checks, not just the solution build. Default CI excludes `Category=NatsLive`; live broker, container, and model tests require their documented infrastructure and explicit opt-in.
+- Directly invoked Linux shell scripts must retain Git executable mode (`100755`) and LF endings. Check `git ls-files -s <path>`; `sh script.sh` alone does not verify direct execution.
+- Keep public API baseline entries sorted and unique. Do not repeat existing signatures during analyzer reconciliation or disable analyzer enforcement to pass builds.
+- Run `dotnet tool restore` for the pinned repository-local DocFX tool before `scripts/generate-docs-api.ps1`; do not rely on a global installation. Follow `.github/workflows/docs-portal.yml` for the remaining portal checks.
+- `packages/client-ts` has no lint script. Python tooling varies by worker; check its `pyproject.toml` before running optional tools such as mypy.
 
 ## Testing Requirements
 
@@ -252,6 +260,12 @@ Use stable, documented error codes:
 - Never skip hooks (--no-verify) unless explicitly requested
 - Preserve existing staged/unstaged work
 - Prefer staging specific files over `git add .`
+
+### Linked issues
+
+- Read linked issues and verify their acceptance criteria against the changes and tests.
+- Use closing keywords such as `Fixes #123` only for fully resolved linked issues; reference partial work without closing keywords and state what remains.
+- Never close unrelated issues or assume a dependency/CI repair resolves a separately reported defect.
 
 ## Release Process
 
