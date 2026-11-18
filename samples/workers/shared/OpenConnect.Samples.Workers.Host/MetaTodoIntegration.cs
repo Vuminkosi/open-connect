@@ -226,19 +226,33 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             }
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
             {
-                switch (RequestedTodoMutation(task.Message))
+                var mutation = RequestedTodoMutation(task.Message);
+                var authorizedTarget = mutation is "complete" or "delete" or "update"
+                    ? await ResolveTodoMutationTargetAsync(task.Message, mutation, todo, cancellationToken).ConfigureAwait(false)
+                    : null;
+                if (mutation is "complete" or "delete" or "update" && authorizedTarget is null)
+                {
+                    var clarification = mutation == "update"
+                        ? "I could not identify a unique task and requested status. Specify its ID or exact quoted title and whether it should be completed or active."
+                        : "I could not identify a unique task. Specify its ID or exact unique title.";
+                    await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", clarification, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    conversation?.Append(task.Message, clarification, readTodoRequest);
+                    return;
+                }
+                switch (mutation)
                 {
                     case "create":
                         tools.Add(AIFunctionFactory.Create((string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => RunToolAsync("creating that Todo", innerCt => todo.CreateAsync(title, description, priority, dueDateUtc, innerCt), task, ct), "todo.create", "Create a Todo for the current tenant."));
                         break;
-                    case "complete":
-                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("completing that Todo", innerCt => todo.CompleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.complete", "Complete a Todo by id."));
+                    case "complete" when authorizedTarget is { } completeTarget:
+                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("completing that Todo", innerCt => todo.CompleteAsync(RequireAuthorizedTodoId(todoId, completeTarget.Id), innerCt), task, ct), "todo.complete", "Complete the explicitly requested Todo by id."));
                         break;
-                    case "update":
-                        tools.Add(AIFunctionFactory.Create((string todoId, bool isCompleted, CancellationToken ct) => RunToolAsync("updating that Todo", innerCt => todo.UpdateAsync(Guid.Parse(todoId), isCompleted, innerCt), task, ct), "todo.update", "Update Todo completion state."));
+                    case "update" when authorizedTarget is { Completed: not null } updateTarget:
+                        tools.Add(AIFunctionFactory.Create((string todoId, bool isCompleted, CancellationToken ct) => RunToolAsync("updating that Todo", innerCt => todo.UpdateAsync(RequireAuthorizedTodoId(todoId, updateTarget.Id), RequireAuthorizedTodoStatus(isCompleted, updateTarget.Completed!.Value), innerCt), task, ct), "todo.update", "Update the explicitly requested Todo completion state."));
                         break;
-                    case "delete":
-                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("deleting that Todo", innerCt => todo.DeleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.delete", "Delete a Todo by id."));
+                    case "delete" when authorizedTarget is { } deleteTarget:
+                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("deleting that Todo", innerCt => todo.DeleteAsync(RequireAuthorizedTodoId(todoId, deleteTarget.Id), innerCt), task, ct), "todo.delete", "Delete the explicitly requested Todo by id."));
                         break;
                 }
             }
@@ -362,6 +376,44 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             _ => null
         };
     }
+
+    private sealed record AuthorizedTodoTarget(Guid Id, bool? Completed);
+
+    private static async Task<AuthorizedTodoTarget?> ResolveTodoMutationTargetAsync(string message, string mutation,
+        TodoServiceClient todo, CancellationToken cancellationToken)
+    {
+        var match = Regex.Match(message,
+            @"^\s*(?:please\s+)?(?:complete|finish|delete|remove|update|change)\s+(?:(?:a|an|the|my|this)\s+)?(?:todo|to-do|task)\s+(?:(?:named|called)\s+)?(?<target>.+?)\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        if (!match.Success) return null;
+        var target = match.Groups["target"].Value.Trim();
+        bool? completed = null;
+        if (mutation == "update")
+        {
+            var update = Regex.Match(target,
+                @"^(?<target>""[^""]+""|'[^']+'|[0-9a-fA-F-]{36})\s+to\s+(?<status>completed|active|incomplete)$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+            if (!update.Success) return null;
+            target = update.Groups["target"].Value;
+            completed = string.Equals(update.Groups["status"].Value, "completed", StringComparison.OrdinalIgnoreCase);
+        }
+        if (target.Length >= 2 && (target[0] == '"' && target[^1] == '"' || target[0] == '\'' && target[^1] == '\''))
+            target = target[1..^1];
+        if (Guid.TryParseExact(target, "D", out var id))
+            return id == Guid.Empty ? null : new AuthorizedTodoTarget(id, completed);
+        if (string.IsNullOrWhiteSpace(target)) return null;
+        var matches = (await todo.ListAsync(cancellationToken).ConfigureAwait(false))
+            .Where(item => string.Equals(item.Title, target, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+        return matches.Length == 1 && matches[0].Id != Guid.Empty ? new AuthorizedTodoTarget(matches[0].Id, completed) : null;
+    }
+
+    private static Guid RequireAuthorizedTodoId(string suppliedId, Guid authorizedId) =>
+        Guid.TryParseExact(suppliedId, "D", out var id) && id == authorizedId
+            ? id : throw new UnauthorizedAccessException("The Todo target does not match the user request.");
+
+    private static bool RequireAuthorizedTodoStatus(bool suppliedStatus, bool authorizedStatus) =>
+        suppliedStatus == authorizedStatus
+            ? suppliedStatus : throw new UnauthorizedAccessException("The Todo status does not match the user request.");
 }
 
 public static class MetaCloudRegistration
