@@ -57,6 +57,38 @@ def test_exact_status_request_uses_one_matching_authorized_action(intent: str, t
     assert [(action.type, action.target) for action in plan.actions] == [("activate", target)]
 
 
+def test_opaque_targets_use_labels_only_when_the_matching_control_is_unique():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Show active tasks",
+        "context": {"route": "home", "availableActions": [
+            {"target": "oc.runtime.a", "action": "activate", "label": "Active"},
+            {"target": "oc.runtime.b", "action": "activate", "label": "Completed"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target) for action in plan.actions] == [("activate", "oc.runtime.a")]
+
+    request.context.availableActions.append(
+        request.context.availableActions[0].model_copy(update={"target": "oc.runtime.c"})
+    )
+    assert deterministic_plan(request) is None
+
+
+def test_opaque_search_target_uses_its_label_without_using_it_as_the_search_value():
+    request = PlanRequest.model_validate({
+        "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Search for report",
+        "context": {"route": "home", "availableActions": [
+            {"target": "oc.runtime.search1", "action": "setValue", "label": "Search tasks"},
+        ]},
+    })
+    plan = deterministic_plan(request)
+    assert plan is not None
+    assert [(action.type, action.target, action.value) for action in plan.actions] == [
+        ("setValue", "oc.runtime.search1", "report")
+    ]
+
+
 def test_open_my_tasks_uses_the_current_authorized_todo_route_without_filling_search():
     request = PlanRequest.model_validate({
         "requestId": "request-1", "schemaVersion": "openconnect.liveui/v1", "intent": "Open my tasks",
