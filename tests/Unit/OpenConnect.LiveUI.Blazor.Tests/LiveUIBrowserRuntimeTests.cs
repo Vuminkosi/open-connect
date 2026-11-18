@@ -58,6 +58,102 @@ public sealed class LiveUIBrowserRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_binds_parameterized_route_to_the_observed_concrete_path()
+    {
+        var target = new LiveUITarget("docs.heading", LiveUITargetKind.Heading, "Installation",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var manifest = CreateManifest() with { Routes = [new LiveUIRoute("docs", "/docs/{Version}/{Slug}", "Document", [target])] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var route = Assert.Single(manifest.Routes);
+        var action = new LiveUIAction("action-dynamic", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5))
+        { ExpectedPath = "/docs/v1/installation" };
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/docs/v1/installation");
+        var module = new TestJsModule("{}", """{"outcome":"Completed","code":"inspection_verified","postconditionVerified":true}""");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(module), navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, target, action));
+
+        Assert.Equal(LiveUIActionOutcome.Completed, result.Outcome);
+        var browserContext = Assert.IsType<LiveUIExecutionContext>(module.LastArguments![0]);
+        Assert.Equal("/docs/v1/installation", browserContext.Route.Path);
+        Assert.Equal("/docs/{Version}/{Slug}", browserContext.Manifest.Routes[0].Path);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_preserves_encoded_literal_route_support()
+    {
+        var manifest = CreateManifest() with { Routes = [new LiveUIRoute("cafe", "/caf\u00e9", "Cafe", [])] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var route = Assert.Single(manifest.Routes);
+        var action = new LiveUIAction("action-unicode", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, null, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/caf%C3%A9");
+        var module = new TestJsModule("{}", """{"outcome":"Completed","code":"inspection_verified","postconditionVerified":true}""");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(module), navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, null, action));
+
+        Assert.Equal(LiveUIActionOutcome.Completed, result.Outcome);
+    }
+
+    [Theory]
+    [InlineData(null, "/docs/v1/installation")]
+    [InlineData("/docs/v1/installation", "/docs/v1/security")]
+    [InlineData("/other/v1/installation", "/other/v1/installation")]
+    public async Task ExecuteAsync_rejects_missing_or_stale_dynamic_route_bindings(string? expectedPath, string actualPath)
+    {
+        var manifest = CreateManifest() with { Routes = [new LiveUIRoute("docs", "/docs/{Version}/{Slug}", "Document", [])] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var route = Assert.Single(manifest.Routes);
+        var action = new LiveUIAction("action-stale", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, null, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5)) { ExpectedPath = expectedPath };
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost" + actualPath);
+        var javascript = new TestJsRuntime(new TestJsModule("{}"));
+        await using var runtime = new LiveUIBrowserRuntime(javascript, navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, null, action));
+
+        Assert.Equal(LiveUIActionOutcome.Conflict, result.Outcome);
+        Assert.Null(javascript.ImportedModule);
+    }
+
+    [Fact]
+    public async Task NavigateAsync_rejects_a_stale_source_route_before_navigation()
+    {
+        var manifest = CreateManifest();
+        var route = manifest.Routes.Single(item => item.Id == "home");
+        var action = new LiveUIAction("action-stale-navigation", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, null, LiveUIActionType.Navigate, new LiveUIActionParameters(DestinationRouteId: "tasks"), TimeSpan.FromSeconds(5));
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/other");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(new TestJsModule("{}")), navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, null, action));
+
+        Assert.Equal(LiveUIActionOutcome.Conflict, result.Outcome);
+        Assert.Equal("https://localhost/other", navigation.Uri);
+    }
+
+    [Fact]
+    public async Task NavigateAsync_does_not_navigate_to_an_unresolved_route_template()
+    {
+        var manifest = CreateManifest() with { Routes = [
+            new LiveUIRoute("home", "/start", "Start", []),
+            new LiveUIRoute("docs", "/docs/{Version}/{Slug}", "Document", [])] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var route = manifest.Routes[0];
+        var action = new LiveUIAction("action-template", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, null, LiveUIActionType.Navigate, new LiveUIActionParameters(DestinationRouteId: "docs"), TimeSpan.FromSeconds(5));
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/start");
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(new TestJsModule("{}")), navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, null, action));
+
+        Assert.Equal(LiveUIActionOutcome.Denied, result.Outcome);
+        Assert.Equal("https://localhost/start", navigation.Uri);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_returns_validated_browser_measurements()
     {
         var manifest = CreateManifest([
@@ -140,6 +236,7 @@ public sealed class LiveUIBrowserRuntimeTests
     private sealed class TestJsModule(string routeResult, string actionResult = "{}") : IJSObjectReference
     {
         public string? LastIdentifier { get; private set; }
+        public object?[]? LastArguments { get; private set; }
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
             InvokeAsync<TValue>(identifier, CancellationToken.None, args);
@@ -147,6 +244,7 @@ public sealed class LiveUIBrowserRuntimeTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             LastIdentifier = identifier;
+            LastArguments = args;
             var response = identifier switch
             {
                 "awaitRoute" => routeResult,

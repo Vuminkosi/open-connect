@@ -41,7 +41,12 @@ public sealed record LiveUIAction(
     string? TargetId,
     LiveUIActionType Type,
     LiveUIActionParameters Parameters,
-    TimeSpan Timeout);
+    TimeSpan Timeout)
+{
+    /// <summary>The concrete path observed by the trusted host when creating this action.</summary>
+    [JsonIgnore]
+    public string? ExpectedPath { get; init; }
+}
 
 public sealed record LiveUIActionParameters(
     string? Value = null,

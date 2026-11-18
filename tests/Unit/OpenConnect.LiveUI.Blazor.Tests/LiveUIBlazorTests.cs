@@ -100,6 +100,67 @@ public sealed class LiveUIBlazorTests
         Assert.Equal(context.SessionId, (await accessor.GetCurrentAsync())?.SessionId);
     }
 
+    [Fact]
+    public async Task BlazorAgentContext_resolves_a_parameterized_document_route()
+    {
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/docs/v1/installation");
+        var state = new LiveUIManifestState(new LiveUIManifestValidator());
+        var manifest = Manifest with
+        {
+            Routes = [new LiveUIRoute("docs.page", "/docs/{Version}/{Slug}", "Document", [])]
+        };
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+        var accessor = new BlazorLiveUIAgentContextAccessor(navigation, state);
+
+        var context = await accessor.GetCurrentAsync();
+
+        Assert.NotNull(context);
+        Assert.Equal("docs.page", context.CurrentRouteId);
+        Assert.Equal("/docs/v1/installation", context.CurrentPath);
+    }
+
+    [Fact]
+    public void Concrete_path_is_not_exposed_in_action_serialization()
+    {
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", Manifest.ContentHash,
+            "home", null, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(1));
+        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+
+        Assert.DoesNotContain("expectedPath", System.Text.Json.JsonSerializer.Serialize(action, options), StringComparison.Ordinal);
+        Assert.DoesNotContain("expectedPath",
+            System.Text.Json.JsonSerializer.Serialize(action with { ExpectedPath = "/docs/v1/installation" }, options), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BlazorAgentContext_prefers_a_literal_route_over_a_parameter_route()
+    {
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/docs/search");
+        var state = new LiveUIManifestState(new LiveUIManifestValidator());
+        var manifest = Manifest with { Routes = [
+            new LiveUIRoute("docs.dynamic", "/docs/{Slug}", "Document", []),
+            new LiveUIRoute("docs.search", "/docs/search", "Search", [])] };
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        var context = await new BlazorLiveUIAgentContextAccessor(navigation, state).GetCurrentAsync();
+
+        Assert.Equal("docs.search", context?.CurrentRouteId);
+    }
+
+    [Theory]
+    [InlineData("/docs/{First}", "/docs/{Second}", "/docs/installation")]
+    [InlineData("/docs/{Slug:int}", "/other", "/docs/123")]
+    [InlineData("/docs/{Slug}", "/other", "/docs/one%2Ftwo")]
+    public async Task BlazorAgentContext_fails_closed_for_ambiguous_or_unsupported_routes(string first, string second, string path)
+    {
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost" + path);
+        var state = new LiveUIManifestState(new LiveUIManifestValidator());
+        var manifest = Manifest with { Routes = [
+            new LiveUIRoute("first", first, "First", []), new LiveUIRoute("second", second, "Second", [])] };
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        Assert.Null(await new BlazorLiveUIAgentContextAccessor(navigation, state).GetCurrentAsync());
+    }
+
     private sealed class TestNavigationManager : NavigationManager
     {
         public TestNavigationManager(string baseUri, string uri) => Initialize(baseUri, uri);

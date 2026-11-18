@@ -54,7 +54,8 @@ public sealed class LiveUIAgentTools(
         }
 
         var navigableRoutes = new List<LiveUIAgentRoute>();
-        foreach (var destination in manifest.Routes)
+        foreach (var destination in manifest.Routes.Where(destination =>
+            !destination.Path.Contains('{') && !destination.Path.Contains('}')))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var navigationAction = CreateAction(context, manifest, route, null, LiveUIActionType.Navigate,
@@ -184,7 +185,8 @@ public sealed class LiveUIAgentTools(
     private LiveUIAction CreateAction(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
         string? targetId, LiveUIActionType type, LiveUIActionParameters parameters) =>
         new(Guid.NewGuid().ToString("N"), LiveUISchema.CurrentVersion, context.SessionId, manifest.ContentHash,
-            route.Id, targetId, type, parameters, options.Value.Interaction.DefaultActionTimeout);
+            route.Id, targetId, type, parameters, options.Value.Interaction.DefaultActionTimeout)
+        { ExpectedPath = context.CurrentPath };
 
     private static LiveUIActionType? GetActionType(LiveUICapability capability, LiveUITargetKind kind) => capability switch
     {

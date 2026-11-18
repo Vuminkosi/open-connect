@@ -87,6 +87,33 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Current_page_keeps_concrete_path_private_and_omits_unresolved_navigation_templates()
+    {
+        var target = new LiveUITarget("docs.heading", LiveUITargetKind.Heading, "Installation",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "", [
+            new LiveUIRoute("docs.page", "/docs/{Version}/{Slug}", "Document", [target]),
+            new LiveUIRoute("docs.index", "/docs", "Documentation", [])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var provider = new ManifestProvider(manifest);
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+        var context = new LiveUIAgentContext("session", "docs.page") { CurrentPath = "/docs/v1/installation" };
+        using var tools = new LiveUIAgentTools(new ContextAccessor(context), provider, authorizer,
+            new LiveUIManifestValidator(), orchestrator, Options.Create(new LiveUIOptions()));
+
+        var page = await tools.GetCurrentPageAsync();
+        Assert.Equal("/docs/{Version}/{Slug}", page?.Path);
+        Assert.DoesNotContain(page!.NavigableRoutes, item => item.RouteId == "docs.page");
+        Assert.Contains(page.NavigableRoutes, item => item.RouteId == "docs.index");
+        var receipt = await tools.InspectAsync(target.Id);
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal("/docs/v1/installation", runtime.LastContext!.Action.ExpectedPath);
+    }
+
+    [Fact]
     public async Task Tenant_policy_denies_every_liveui_tool_for_a_session_owned_by_another_tenant()
     {
         var sessionTenants = new Dictionary<string, string>(StringComparer.Ordinal)

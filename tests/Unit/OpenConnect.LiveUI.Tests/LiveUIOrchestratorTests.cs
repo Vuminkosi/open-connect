@@ -128,6 +128,23 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(0, runtime.Calls);
     }
 
+    [Theory]
+    [InlineData("relative/path")]
+    [InlineData("//external.example/path")]
+    [InlineData("/docs?token=value")]
+    [InlineData("/docs#section")]
+    [InlineData("/docs\\other")]
+    public async Task ExecuteAsync_rejects_unsafe_concrete_path_before_browser_execution(string path)
+    {
+        var runtime = new RecordingRuntime();
+        var orchestrator = Create(authorizer: new RecordingAuthorizer(true), runtime: runtime);
+
+        var receipt = await orchestrator.ExecuteAsync(Action() with { ExpectedPath = path });
+
+        Assert.NotEqual(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(0, runtime.Calls);
+    }
+
     [Fact]
     public async Task ExecuteAsync_RequiresHostAuthorizationForEveryActionType()
     {

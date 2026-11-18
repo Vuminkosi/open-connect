@@ -130,6 +130,11 @@ public sealed class LiveUIOrchestrator(
             action.SchemaVersion != LiveUISchema.CurrentVersion || !Enum.IsDefined(action.Type) ||
             action.Parameters is null || action.Timeout <= TimeSpan.Zero || action.Timeout > TimeSpan.FromMinutes(2))
             return false;
+        if (action.ExpectedPath is { } expectedPath &&
+            (expectedPath.Length > 2048 || !expectedPath.StartsWith("/", StringComparison.Ordinal) ||
+             expectedPath.StartsWith("//", StringComparison.Ordinal) || expectedPath.Contains('\\') ||
+             expectedPath.Contains('?') || expectedPath.Contains('#')))
+            return false;
         if (action.Parameters.Value is { Length: > 10_000 } ||
             action.Parameters.DestinationRouteId is { Length: > 256 } ||
             action.Parameters.StateName is { Length: > 32 } ||

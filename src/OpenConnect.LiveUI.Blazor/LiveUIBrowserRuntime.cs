@@ -21,20 +21,24 @@ public sealed class LiveUIBrowserRuntime(
         ArgumentNullException.ThrowIfNull(context);
         if (_disposed) return Failed("runtime_disposed");
 
-        if (context.Action.Type == LiveUIActionType.Navigate)
-            return await NavigateAsync(context, cancellationToken).ConfigureAwait(false);
-
         var currentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath;
-        var expectedPath = navigationManager.ToAbsoluteUri(context.Route.Path).AbsolutePath;
+        var expectedPath = context.Action.ExpectedPath ?? navigationManager.ToAbsoluteUri(context.Route.Path).AbsolutePath;
+        if (context.Action.ExpectedPath is null && (context.Route.Path.Contains('{') || context.Route.Path.Contains('}')) ||
+            !LiveUIRouteMatcher.TryMatch(context.Route.Path, expectedPath, out _))
+            return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_mismatch", false);
         if (!string.Equals(currentPath, expectedPath, StringComparison.OrdinalIgnoreCase))
             return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_mismatch", false);
+
+        if (context.Action.Type == LiveUIActionType.Navigate)
+            return await NavigateAsync(context, cancellationToken).ConfigureAwait(false);
 
         try
         {
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>(
                 "import", cancellationToken, ModulePath).ConfigureAwait(false);
             var result = await _module.InvokeAsync<BrowserResult>(
-                "execute", cancellationToken, context, (int)context.Action.Timeout.TotalMilliseconds,
+                "execute", cancellationToken, context with { Route = context.Route with { Path = expectedPath } },
+                (int)context.Action.Timeout.TotalMilliseconds,
                 options.Value.Discovery.EnableRuntimeFallback).ConfigureAwait(false);
             if (!Enum.TryParse<LiveUIActionOutcome>(result.Outcome, ignoreCase: true, out var outcome))
                 return Failed("runtime_result_invalid");
@@ -73,7 +77,8 @@ public sealed class LiveUIBrowserRuntime(
         var destination = context.Manifest.Routes.SingleOrDefault(
             route => route.Id == context.Action.Parameters.DestinationRouteId);
         if (destination is null || !destination.Path.StartsWith("/", StringComparison.Ordinal) ||
-            destination.Path.StartsWith("//", StringComparison.Ordinal) || destination.Path.Contains('\\'))
+            destination.Path.StartsWith("//", StringComparison.Ordinal) || destination.Path.Contains('\\') ||
+            destination.Path.Contains('{') || destination.Path.Contains('}'))
             return new LiveUIRuntimeResult(LiveUIActionOutcome.Denied, "route_invalid", false);
 
         var expectedPath = navigationManager.ToAbsoluteUri(destination.Path).AbsolutePath;

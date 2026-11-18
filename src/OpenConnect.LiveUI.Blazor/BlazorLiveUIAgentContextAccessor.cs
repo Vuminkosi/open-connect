@@ -29,10 +29,9 @@ public sealed class BlazorLiveUIAgentContextAccessor(
         if (manifest is null) return null;
 
         var currentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath;
-        var route = manifest.Routes.SingleOrDefault(candidate =>
-            string.Equals(navigationManager.ToAbsoluteUri(candidate.Path).AbsolutePath, currentPath,
-                StringComparison.OrdinalIgnoreCase));
-        return route is null ? null : new LiveUIAgentContext(_boundSessionId.Value ?? _circuitSessionId, route.Id);
+        var route = LiveUIRouteMatcher.Resolve(manifest.Routes, currentPath);
+        return route is null ? null : new LiveUIAgentContext(_boundSessionId.Value ?? _circuitSessionId, route.Id)
+        { CurrentPath = currentPath };
     }
 
     private sealed class SessionBinding(Action restore) : IDisposable
