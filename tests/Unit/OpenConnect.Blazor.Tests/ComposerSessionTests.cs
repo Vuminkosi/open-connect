@@ -270,6 +270,25 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Retrying_ambiguous_admission_preserves_buffered_reply_and_completion()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "message", "The reply") with { TaskId = task.Value.ToString() });
+        session.ApplyEvent(Event(2, "task.completed", $$"""{"taskId":"{{task.Value}}"}"""));
+        session.MarkError("The admission response was lost.");
+
+        session.ResumeSend();
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Contains(session.Messages, static message => message.Text == "The reply");
+        Assert.Single(session.Messages, static message => message.Role == "user");
+    }
+
+    [Fact]
     public void Early_task_message_overflow_does_not_replay_a_partial_reply()
     {
         var session = new ComposerSession();
@@ -284,6 +303,23 @@ public sealed class ComposerSessionTests
         Assert.Equal(ComposerConnectionState.Error, session.Connection);
         Assert.Equal(string.Empty, session.StreamingText);
         Assert.Equal("The assistant could not reconcile task messages.", session.LastError);
+    }
+
+    [Fact]
+    public void Retrying_does_not_hide_an_early_message_buffer_overflow()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        for (var i = 1; i <= 257; i++)
+            session.ApplyEvent(Event(i, "message.delta", "x") with { TaskId = task.Value.ToString() });
+
+        session.ResumeSend();
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
     }
 
     [Fact]

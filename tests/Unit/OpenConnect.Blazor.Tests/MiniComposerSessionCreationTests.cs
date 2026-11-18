@@ -108,6 +108,29 @@ public sealed class MiniComposerSessionCreationTests
         Assert.Equal("Run a different report", edited.Message);
     }
 
+    [Fact]
+    public async Task Retry_after_lost_admission_response_keeps_early_reply()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, session) = await RenderComposerAsync(context, loseFirstTaskResponseAfterAdmission: true);
+        await rendered.Find("input").InputAsync("Run the report");
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+        var task = client.LastCreatedTaskId!.Value;
+        var eventSession = new SessionId(client.SessionId);
+        await rendered.InvokeAsync(() => session.ApplyEvent(
+            new EventRecord(eventSession, 1, "message", "Report ready") { TaskId = task.Value.ToString() }));
+        await rendered.InvokeAsync(() => session.ApplyEvent(
+            new EventRecord(eventSession, 2, "task.completed", $$"""{"taskId":"{{task.Value}}"}""")));
+        client.AdmissionState = AgentRunState.Completed;
+
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+
+        Assert.Equal(client.TaskRequests[0].IdempotencyKey, client.TaskRequests[1].IdempotencyKey);
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Single(session.Messages, message => message.Role == "user" && message.Text == "Run the report");
+        Assert.Single(session.Messages, message => message.Role == "assistant" && message.Text == "Report ready");
+    }
+
     private static async Task<(DelayedSessionClient Client, IRenderedComponent<MiniComposer> Rendered, ComposerSession Session)> RenderComposerAsync(
         BunitContext context,
         Exception? sessionCreationException = null,
@@ -412,10 +435,15 @@ public sealed class MiniComposerSessionCreationTests
             TaskSubmissionCount++;
             TaskRequests.Add(request);
             if ((LoseFirstTaskResponseAfterAdmission && TaskSubmissionCount == 1) || LoseTaskResponsesAfterAdmission)
+            {
+                LastCreatedTaskId = new TaskId(Ulid.NewUlid());
                 return Task.FromException<TaskRecord>(new HttpRequestException("Response was lost after admission."));
+            }
             if (TaskException is not null) return Task.FromException<TaskRecord>(TaskException);
-            LastCreatedTaskId = new TaskId(Ulid.NewUlid());
-            _pendingRecord = new TaskRecord(LastCreatedTaskId.Value, new TenantId(Ulid.NewUlid()),
+            if (!(LoseFirstTaskResponseAfterAdmission && TaskSubmissionCount == 2 &&
+                TaskRequests[0].IdempotencyKey == request.IdempotencyKey))
+                LastCreatedTaskId = new TaskId(Ulid.NewUlid());
+            _pendingRecord = new TaskRecord(LastCreatedTaskId ?? throw new InvalidOperationException("Missing task identity."), new TenantId(Ulid.NewUlid()),
                 new PrincipalId(Ulid.NewUlid()), AdmissionState);
             TaskAdmissionStarted.TrySetResult();
             return HoldTaskAdmission ? _taskAdmission.Task : Task.FromResult(_pendingRecord);

@@ -188,16 +188,22 @@ public sealed class ComposerSession
     {
         lock (_gate)
         {
-            _streamingRole = "assistant";
-            _streamingText = string.Empty;
-            _trackingTask = true;
-            _trackedTerminalHandled = false;
-            _trackedTaskId = null;
-            _earlyTaskTerminals.Clear();
-            _earlyTaskMessages.Clear();
-            _earlyTaskMessageCharacters = 0;
-            _earlyTaskBufferFailed = false;
-            Connection = ComposerConnectionState.Streaming;
+            if (!_trackingTask || _trackedTaskId is not null)
+            {
+                _streamingText = string.Empty;
+                _trackingTask = true;
+                _trackedTerminalHandled = false;
+                _trackedTaskId = null;
+                _earlyTaskTerminals.Clear();
+                _earlyTaskMessages.Clear();
+                _earlyTaskMessageCharacters = 0;
+                _earlyTaskBufferFailed = false;
+            }
+            if (!_earlyTaskBufferFailed)
+            {
+                _streamingRole = "assistant";
+                Connection = ComposerConnectionState.Streaming;
+            }
         }
         Notify();
     }
