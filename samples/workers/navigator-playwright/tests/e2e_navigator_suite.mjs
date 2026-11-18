@@ -19,9 +19,16 @@ function loadFixture(name) {
   return JSON.parse(fs.readFileSync(path.join(SAMPLE_DIR, 'fixtures', name), 'utf8'));
 }
 
+// Contract tier never resolves external hosts or launches Chromium. Only the
+// explicitly approved synthetic public origin gets a deterministic DNS answer.
+async function contractLookup(hostname) {
+  if (hostname === 'example.com') return [{ address: '93.184.216.34', family: 4 }];
+  throw Object.assign(new Error(`No contract DNS fixture for ${hostname}`), { code: 'ENOTFOUND' });
+}
+
 async function startWorker(envOverrides = {}) {
   Object.assign(process.env, envOverrides);
-  const srv = serverMod.createServer();
+  const srv = serverMod.createServer({ lookup: contractLookup });
   await new Promise((resolve) => srv.listen(0, '127.0.0.1', resolve));
   const { port } = srv.address();
   return {

@@ -1,138 +1,130 @@
 #!/usr/bin/env python3
-"""Executable E2E acceptance & contract suite for samples/workers/kokoro.
+"""Offline Kokoro contract checks, not evidence of model-live synthesis.
 
-Covers WSE2E-AT-045 through WSE2E-AT-051 plus the 12-scenario runtime model cache lifecycle.
+Exercise real encoding/validation code. Model output, host epoch disposal, and
+speech quality require the separately approved model-live/integration tiers.
 """
-
 from __future__ import annotations
 
-import base64
+import io
 import json
+from contextlib import nullcontext
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
+import wave
+
+import numpy as np
+from pydantic import ValidationError
 
 SAMPLE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = SAMPLE_DIR.parent.parent.parent
-WORKER_SRC = REPO_ROOT / "workers" / "kokoro" / "src"
-if str(WORKER_SRC) not in sys.path:
-    sys.path.insert(0, str(WORKER_SRC))
+sys.path.insert(0, str(REPO_ROOT / 'workers' / 'kokoro' / 'src'))
 
+from openconnect_kokoro.config import Settings  # noqa: E402
 from openconnect_kokoro.engine import (  # noqa: E402
-    FakeKokoroEngine,
-    VoiceUnknown,
+    KokoroEngine, ModelUnavailable, VoiceUnknown, _pcm16le, _wav,
 )
+from openconnect_kokoro.schemas import SynthesizePayload  # noqa: E402
 
-FIXTURES = SAMPLE_DIR / "fixtures"
+FIXTURES = SAMPLE_DIR / 'fixtures'
 
 
 class KokoroWorkerAcceptanceTests(unittest.TestCase):
-    """WSE2E-AT-045..051 acceptance tests for the Kokoro TTS worker."""
+    def setUp(self) -> None:
+        # Any unexpected attempt to provision a model fails the test immediately.
+        guard = patch('openconnect_kokoro.engine._ensure_artifacts',
+                      side_effect=AssertionError('contract tier must not provision models'))
+        guard.start()
+        self.addCleanup(guard.stop)
+        self.engine = KokoroEngine('/unused-contract-models')
 
-    def test_at_045_short_text_af_heart_synthesis(self) -> None:
-        """WSE2E-AT-045: Short text synthesized with af_heart at 24kHz mono."""
-        fx = json.loads((FIXTURES / "short-text-af-heart.json").read_text(encoding="utf-8"))
-        engine = FakeKokoroEngine()
-        inp = fx["input"]
-        res, is_cached = engine.synthesize(
-            text=inp["text"],
-            voice_id=inp["voiceId"],
-            locale=inp["locale"],
-            audio_format=inp["format"],
-            voices=("af_heart", "af_bella"),
-            model_ready=True,
-            require_model=False,
-            idempotency_key=None,
-        )
-        self.assertFalse(is_cached)
-        self.assertEqual(res["sampleRateHz"], 24000)
-        self.assertEqual(res["channels"], 1)
-        self.assertEqual(res["voiceId"], "af_heart")
-        audio_bytes = base64.b64decode(res["audioBase64"])
-        self.assertTrue(audio_bytes.startswith(b"FAKE-WAV-24KHZ-MONO|"))
+    def fixture(self, name: str) -> dict:
+        return json.loads((FIXTURES / f'{name}.json').read_text(encoding='utf-8'))
+
+    def synthesize(self, **changes):
+        args = dict(text='Hello', voice_id='af_heart', locale='en',
+                    audio_format='wav', idempotency_key=None)
+        args.update(changes)
+        return self.engine.synthesize(**args)
+
+    def test_at_045_audio_encoding_contract_not_model_synthesis(self) -> None:
+        """Actual WAV/PCM codecs produce valid 24kHz mono 16-bit audio containers."""
+        expected = self.fixture('short-text-af-heart')['expectedBehavior']
+        samples = np.array([-2, -1, 0, 1, 2], dtype=np.float32)
+        pcm = _pcm16le(samples)
+        self.assertEqual(np.frombuffer(pcm, dtype='<i2').tolist(),
+                         [-32767, -32767, 0, 32767, 32767])
+        with wave.open(io.BytesIO(_wav(samples)), 'rb') as audio:
+            self.assertEqual(audio.getframerate(), expected['expectedSampleRateHz'])
+            self.assertEqual(audio.getnchannels(), expected['expectedChannels'])
+            self.assertEqual(audio.getsampwidth(), 2)
+            self.assertEqual(audio.getnframes(), len(samples))
+            self.assertEqual(audio.readframes(len(samples)), pcm)
 
     def test_at_046_excessive_text_bounds(self) -> None:
-        """WSE2E-AT-046: Input exceeding max length rejected."""
-        fx = json.loads((FIXTURES / "excessive-text.json").read_text(encoding="utf-8"))
-        max_chars = fx["maxChars"]
-        oversized = fx["oversizedInput"]["repeatUnit"] * fx["oversizedInput"]["repeatCount"]
-        self.assertGreater(len(oversized), max_chars)
+        limit = self.fixture('excessive-text')['maxChars']
+        with patch.object(self.engine, 'ready', side_effect=ModelUnavailable('not provisioned')) as ready:
+            with self.assertRaisesRegex(ValueError, '1-2000 characters'):
+                self.synthesize(text='a' * (limit + 1))
+            ready.assert_not_called()
+            with self.assertRaises(ModelUnavailable):
+                self.synthesize(text='a' * limit)
+            ready.assert_called_once()
 
     def test_at_047_invalid_voice_rejection(self) -> None:
-        """WSE2E-AT-047: Unknown voice ID rejected with VoiceUnknown."""
-        fx = json.loads((FIXTURES / "invalid-voice.json").read_text(encoding="utf-8"))
-        engine = FakeKokoroEngine()
-        inp = fx["input"]
-        with self.assertRaises(VoiceUnknown):
-            engine.synthesize(
-                text=inp["text"],
-                voice_id=inp["voiceId"],
-                locale=inp["locale"],
-                audio_format=inp["format"],
-                voices=("af_heart",),
-                model_ready=True,
-                require_model=False,
-                idempotency_key=None,
-            )
+        with patch.object(self.engine, 'ready') as ready:
+            with self.assertRaises(VoiceUnknown):
+                self.synthesize(voice_id=self.fixture('invalid-voice')['input']['voiceId'])
+            ready.assert_not_called()
 
     def test_at_048_empty_text_rejection(self) -> None:
-        """WSE2E-AT-048: Whitespace-only input rejected."""
-        fx = json.loads((FIXTURES / "empty-text.json").read_text(encoding="utf-8"))
-        self.assertEqual(fx["input"]["text"].strip(), "")
+        with patch.object(self.engine, 'ready') as ready:
+            for text in ('', self.fixture('empty-text')['input']['text']):
+                with self.subTest(text=text), self.assertRaisesRegex(ValueError, '1-2000'):
+                    self.synthesize(text=text)
+            ready.assert_not_called()
 
-    def test_at_049_interrupted_stream_epoch(self) -> None:
-        """WSE2E-AT-049: Interrupted stream epoch discards residual audio."""
-        fx = json.loads((FIXTURES / "interrupted-stream-epoch.json").read_text(encoding="utf-8"))
-        self.assertLess(fx["presentedEpoch"], fx["currentSessionEpoch"])
-        self.assertTrue(fx["expectedBehavior"]["remainingChunksDiscarded"])
+    def test_at_049_epoch_schema_passthrough_not_stream_disposal(self) -> None:
+        """Worker accepts epoch metadata; downstream stale-chunk disposal is not tested here."""
+        epoch = self.fixture('interrupted-stream-epoch')['presentedEpoch']
+        body = SynthesizePayload(schemaVersion='openconnect.v1', text='Hello', speechEpoch=epoch)
+        self.assertEqual(body.speechEpoch, epoch)
+        with self.assertRaises(ValidationError):
+            SynthesizePayload(schemaVersion='openconnect.v1', text='Hello', speechEpoch=-1)
 
-    def test_at_050_malformed_markup_is_literal_text(self) -> None:
-        """WSE2E-AT-050: SSML/XML tags treated as literal characters without exploitation."""
-        fx = json.loads((FIXTURES / "malformed-markup.json").read_text(encoding="utf-8"))
-        engine = FakeKokoroEngine()
-        res, _ = engine.synthesize(
-            text=fx["input"]["text"],
-            voice_id=fx["input"]["voiceId"],
-            locale="en",
-            audio_format="wav",
-            voices=("af_heart",),
-            model_ready=True,
-            require_model=False,
-            idempotency_key=None,
-        )
-        self.assertEqual(res["text"], fx["input"]["text"])
+    def test_at_050_markup_passed_literally_and_empty_output_fails_closed(self) -> None:
+        text = self.fixture('malformed-markup')['input']['text']
+        pipeline = Mock(return_value=[])
+        self.engine._pipeline = pipeline
+        self.engine._voice_file = Path('/unused-contract-models/voices/af_heart.pt')
+        # No torch/model import or fabricated successful speech. Only an empty
+        # pipeline double is used to observe exact arguments and fail-closed output.
+        with patch.dict(sys.modules, {'torch': SimpleNamespace(inference_mode=nullcontext)}):
+            with self.assertRaisesRegex(ModelUnavailable, 'produced no audio'):
+                self.synthesize(text=text)
+        pipeline.assert_called_once_with(text, voice=str(self.engine._voice_file), speed=0.95)
 
-    def test_at_051_dynamic_voice_manifest_update(self) -> None:
-        """WSE2E-AT-051: Updating voice inventory allows previously rejected voice."""
-        fx = json.loads((FIXTURES / "changed-voice-manifest.json").read_text(encoding="utf-8"))
-        engine = FakeKokoroEngine()
-
-        # Voice rejected in initial inventory
+    def test_at_051_voice_inventory_cannot_expand_fixed_engine(self) -> None:
+        fx = self.fixture('changed-voice-manifest')
+        for voices, accepted in ((fx['initialVoices'], True), (fx['updatedVoices'], False)):
+            with self.subTest(voices=voices), patch.dict('os.environ', {'KOKORO_VOICES': ','.join(voices)}):
+                if accepted:
+                    self.assertEqual(Settings.from_environment().voices, ('af_heart',))
+                else:
+                    with self.assertRaisesRegex(ValueError, 'only af_heart'):
+                        Settings.from_environment()
         with self.assertRaises(VoiceUnknown):
-            engine.synthesize(
-                text="Test update",
-                voice_id="af_bella",
-                locale="en",
-                audio_format="wav",
-                voices=tuple(fx["initialVoices"]),
-                model_ready=True,
-                require_model=False,
-                idempotency_key=None,
-            )
+            self.synthesize(voice_id='af_bella')
 
-        # Voice accepted in updated inventory
-        res, _ = engine.synthesize(
-            text="Test update",
-            voice_id="af_bella",
-            locale="en",
-            audio_format="wav",
-            voices=tuple(fx["updatedVoices"]),
-            model_ready=True,
-            require_model=False,
-            idempotency_key=None,
-        )
-        self.assertEqual(res["voiceId"], "af_bella")
+    def test_mp3_rejected_before_model_loading(self) -> None:
+        with patch.object(self.engine, 'ready') as ready:
+            with self.assertRaisesRegex(ValueError, 'mp3 output is not supported'):
+                self.synthesize(audio_format='mp3')
+            ready.assert_not_called()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main(verbosity=2)

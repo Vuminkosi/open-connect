@@ -92,9 +92,10 @@ docker compose -f infra/compose.yml up -d
 
 The [main CI workflow](.github/workflows/ci.yml) also checks formatting (`dotnet format OpenConnect.slnx --verify-no-changes --no-restore`) and runs security and contract checks through `scripts/verify.ps1`. Live NATS tests require an explicit broker and are excluded from the default test selection above.
 
-Reproduce one [worker contract leg](.github/workflows/worker-sample-e2e.yml) on Linux:
+Reproduce one [worker contract leg](.github/workflows/worker-sample-e2e.yml) on Linux in an activated Python 3.12 virtual environment (Node 24 is also required for navigator; host suites require the SDK from `global.json`):
 
 ```bash
+python -m pip install -r samples/workers/shared/requirements-contract.txt
 ./samples/workers/shared/scripts/verify-no-build-models.sh classification
 ./samples/workers/shared/scripts/run-one.sh classification --tier contract --provider sqlite
 ```
