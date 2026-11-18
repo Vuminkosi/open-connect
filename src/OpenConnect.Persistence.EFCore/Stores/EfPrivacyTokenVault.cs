@@ -19,11 +19,15 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context, TimeProvid
         var createdUtc = _time.GetUtcNow().UtcDateTime;
         // Storing the same (tenant, principal/workload, token, session) again replaces the existing binding so the
         // unique index never rejects an idempotent re-store. Concurrent first writes still surface DbUpdateException.
-        var existing = await context.Set<PrivacyTokenEntity>()
+        var existing = await context.Set<PrivacyTokenEntity>().AsTracking()
             .FirstOrDefaultAsync(x => x.TenantScope == tenantScope && x.PrincipalOrWorkloadScope == scope
                 && x.SessionId == sessionId && x.TokenId == binding.TokenId, ct).ConfigureAwait(false);
         if (existing is not null)
         {
+            // SQL equality follows provider collation, which may ignore case or trailing spaces.
+            // Never overwrite a different exact key, even when the database considers it equal.
+            if (!HasExactKey(existing, tenantScope, scope, sessionId, binding.TokenId))
+                throw new InvalidOperationException("Privacy token key conflicts with the database collation.");
             existing.EntityType = binding.EntityType;
             existing.EncryptedValue = binding.EncryptedValue;
             existing.BindingDigest = digest;
@@ -70,10 +74,16 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context, TimeProvid
                 && x.ExpiresUtc > nowUtc)
             .OrderByDescending(x => x.CreatedUtc).ThenBy(x => x.Id)
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
-        return row is null ? null : new PrivacyTokenBinding(row.TokenId, tenantId, row.PrincipalOrWorkloadScope,
+        return row is null || !HasExactKey(row, tenantScope, principalOrWorkloadScope, session, tokenId) ? null : new PrivacyTokenBinding(row.TokenId, tenantId, row.PrincipalOrWorkloadScope,
             new SessionId(UlidGuidMapper.FromGuid(row.SessionId)), row.EntityType, row.EncryptedValue,
             new DateTimeOffset(DateTime.SpecifyKind(row.ExpiresUtc, DateTimeKind.Utc)));
     }
+
+    private static bool HasExactKey(PrivacyTokenEntity row, string tenantScope, string scope, Guid sessionId, string tokenId) =>
+        string.Equals(row.TenantScope, tenantScope, StringComparison.Ordinal)
+        && string.Equals(row.PrincipalOrWorkloadScope, scope, StringComparison.Ordinal)
+        && row.SessionId == sessionId
+        && string.Equals(row.TokenId, tokenId, StringComparison.Ordinal);
 
     public async Task DeleteExpiredAsync(DateTimeOffset nowUtc, CancellationToken ct = default)
     {

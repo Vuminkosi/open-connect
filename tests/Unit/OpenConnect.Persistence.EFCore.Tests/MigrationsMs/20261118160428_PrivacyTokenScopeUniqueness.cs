@@ -10,31 +10,24 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Existing rows may hold duplicate bindings because TurnId (always null) made the old key non-unique.
-            // Keep the newest binding per (tenant, principal, token, session) before enforcing uniqueness.
-            migrationBuilder.Sql(@"DELETE FROM [openconnect].[PrivacyTokens] WHERE [Id] IN (SELECT [Id] FROM (SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [TenantScope], [PrincipalOrWorkloadScope], [TokenId], [SessionId] ORDER BY [CreatedUtc] DESC, [Id] ASC) AS rn FROM [openconnect].[PrivacyTokens]) AS d WHERE d.rn > 1)");
-
-            migrationBuilder.DropIndex(
-                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId_TurnId",
-                schema: "openconnect",
-                table: "PrivacyTokens");
-
+            // Validate uniqueness before removing the existing index; never choose or delete bindings.
             migrationBuilder.CreateIndex(
                 name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId",
                 schema: "openconnect",
                 table: "PrivacyTokens",
                 columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId" },
                 unique: true);
+
+            migrationBuilder.DropIndex(
+                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId_TurnId",
+                schema: "openconnect",
+                table: "PrivacyTokens");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId",
-                schema: "openconnect",
-                table: "PrivacyTokens");
-
+            // Restore the old index before removing the new one; all bindings are preserved.
             migrationBuilder.CreateIndex(
                 name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId_TurnId",
                 schema: "openconnect",
@@ -42,6 +35,11 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                 columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId" },
                 unique: true,
                 filter: "[TurnId] IS NOT NULL");
+
+            migrationBuilder.DropIndex(
+                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId",
+                schema: "openconnect",
+                table: "PrivacyTokens");
         }
     }
 }

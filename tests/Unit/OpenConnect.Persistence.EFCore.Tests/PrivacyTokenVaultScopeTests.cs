@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Stores;
@@ -108,6 +110,90 @@ public sealed class PrivacyTokenVaultScopeTests
     }
 
     [Fact]
+    public async Task Dependency_injection_uses_registered_time_provider_for_expiry()
+    {
+        var (connection, db) = await OpenAsync();
+        await using var _ = connection;
+        await using var __ = db;
+        var clock = new TestClock(Start);
+        var services = new ServiceCollection();
+        services.AddSingleton(db);
+        services.AddSingleton<TimeProvider>(clock);
+        services.AddOpenConnectEntityFramework<RelationalPersistenceTests.ApplicationDbContext>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var vault = scope.ServiceProvider.GetRequiredService<IPrivacyTokenVault>();
+        await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddMinutes(5)));
+        Assert.NotNull(await vault.GetAsync("tok", TenantA, "alice", Session));
+        clock.Now = Start.AddMinutes(5);
+        Assert.Null(await vault.GetAsync("tok", TenantA, "alice", Session));
+    }
+
+    [Fact]
+    public async Task Restoring_binding_with_global_no_tracking_persists_replacement()
+    {
+        var (connection, db) = await OpenAsync();
+        await using var _ = connection;
+        await using var __ = db;
+        db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+        var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
+        await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
+        db.ChangeTracker.Clear();
+        await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 2, Start.AddHours(2)));
+        db.ChangeTracker.Clear();
+        var got = await vault.GetAsync("tok", TenantA, "alice", Session);
+        Assert.Equal([2], got!.EncryptedValue);
+        Assert.Equal(Start.AddHours(2), got.ExpiresAt);
+        Assert.Equal(1, await db.Set<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>().CountAsync());
+    }
+
+    [Theory]
+    [InlineData("TOK", "alice")]
+    [InlineData("tok ", "alice")]
+    [InlineData("tok", "ALICE")]
+    [InlineData("tok", "alice ")]
+    public async Task Collation_equivalent_but_nonidentical_keys_never_read_or_overwrite_binding(string token, string principal)
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        // Deliberately emulate case-insensitive, trailing-space-insensitive comparisons.
+        // This exercises the fail-closed guard, not SQL Server's full collation semantics.
+        connection.CreateCollation("SCOPE_TEST", (left, right) =>
+            StringComparer.OrdinalIgnoreCase.Compare(left.TrimEnd(' '), right.TrimEnd(' ')));
+        await using var db = new CollationDbContext(new DbContextOptionsBuilder<CollationDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var vault = new EfPrivacyTokenVault<CollationDbContext>(db, new TestClock(Start));
+        await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
+        db.ChangeTracker.Clear();
+        // Prove the database comparison admits the wrong key before checking the adapter.
+        Assert.Equal(1, await db.Set<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>()
+            .CountAsync(x => x.TokenId == token && x.PrincipalOrWorkloadScope == principal));
+        Assert.Null(await vault.GetAsync(token, TenantA, principal, Session));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            vault.StoreAsync(Binding(token, TenantA, principal, Session, 2, Start.AddHours(2))));
+        Assert.Equal("Privacy token key conflicts with the database collation.", error.Message);
+        // Even a subsequent save cannot persist an unauthorized mutation.
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var original = await vault.GetAsync("tok", TenantA, "alice", Session);
+        Assert.Equal([1], original!.EncryptedValue);
+        Assert.Equal(Start.AddHours(1), original.ExpiresAt);
+        Assert.Equal(1, await db.Set<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>().CountAsync());
+    }
+
+    private sealed class CollationDbContext(DbContextOptions<CollationDbContext> options) : DbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(modelBuilder);
+            var entity = modelBuilder.Entity<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>();
+            entity.Property(x => x.TenantScope).UseCollation("SCOPE_TEST");
+            entity.Property(x => x.PrincipalOrWorkloadScope).UseCollation("SCOPE_TEST");
+            entity.Property(x => x.TokenId).UseCollation("SCOPE_TEST");
+        }
+    }
+
+    [Fact]
     public async Task Unique_index_rejects_duplicate_rows_with_null_turn()
     {
         var (connection, db) = await OpenAsync();
@@ -116,40 +202,6 @@ public sealed class PrivacyTokenVaultScopeTests
         await InsertRawAsync(db, Guid.NewGuid(), 1);
         await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => InsertRawAsync(db, Guid.NewGuid(), 2));
     }
-
-    [Fact]
-    public async Task Dedupe_sql_keeps_newest_row_per_key_before_unique_index()
-    {
-        var (connection, db) = await OpenAsync();
-        await using var _ = connection;
-        await using var __ = db;
-        await db.Database.ExecuteSqlRawAsync("DROP INDEX IF EXISTS \"IX_oc_privacytokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId\"");
-        var older = Guid.NewGuid();
-        var newest = Guid.NewGuid();
-        var other = Guid.NewGuid();
-        await InsertRawAsync(db, older, 1, created: "2030-01-01 00:00:00");
-        await InsertRawAsync(db, newest, 2, created: "2030-01-02 00:00:00");
-        await InsertRawAsync(db, other, 3, token: "other", created: "2030-01-01 00:00:00");
-        await db.Database.ExecuteSqlRawAsync(SqliteDedupeSql);
-        var ids = await db.Set<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>().Select(x => x.Id).ToListAsync();
-        Assert.Equal(2, ids.Count);
-        Assert.Contains(newest, ids);
-        Assert.Contains(other, ids);
-    }
-
-    [Fact]
-    public void Ms_and_Pg_migrations_dedupe_before_creating_unique_index()
-    {
-        foreach (var ops in new[] { new MigrationsMs.PrivacyTokenScopeUniqueness().UpOperations, new MigrationsPg.PrivacyTokenScopeUniqueness().UpOperations })
-        {
-            var list = ops.ToList();
-            var sql = list.FindIndex(o => o is Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation s && s.Sql.Contains("ROW_NUMBER()", StringComparison.Ordinal));
-            var create = list.FindIndex(o => o is Microsoft.EntityFrameworkCore.Migrations.Operations.CreateIndexOperation { IsUnique: true });
-            Assert.True(sql >= 0 && create > sql);
-        }
-    }
-
-    private const string SqliteDedupeSql = "DELETE FROM \"oc_privacytokens\" WHERE \"Id\" IN (SELECT \"Id\" FROM (SELECT \"Id\", ROW_NUMBER() OVER (PARTITION BY \"TenantScope\", \"PrincipalOrWorkloadScope\", \"TokenId\", \"SessionId\" ORDER BY \"CreatedUtc\" DESC, \"Id\" ASC) AS rn FROM \"oc_privacytokens\") AS d WHERE d.rn > 1)";
 
     private static Task InsertRawAsync(RelationalPersistenceTests.ApplicationDbContext db, Guid id, byte value, string token = "tok", string created = "2030-01-01 00:00:00")
     {

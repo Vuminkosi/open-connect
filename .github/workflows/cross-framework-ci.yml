@@ -270,6 +270,67 @@ jobs:
           }
           'PostgresDocker: VERIFIED all eight tests against isolated disposable PostgreSQL containers; no production data or credentials used.' >> $env:GITHUB_STEP_SUMMARY
 
+
+      - name: Run real PostgreSQL privacy-token upgrades
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=PrivacyTokenMigrationPostgres"
+          --logger "trx;LogFileName=privacy-migrations-pg.trx" --results-directory artifacts/privacy-migrations-pg
+      - name: Require both PostgreSQL upgrade tests with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/privacy-migrations-pg/privacy-migrations-pg.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 2 -or [int]$counts.executed -ne 2 -or [int]$counts.passed -ne 2 -or [int]$counts.failed -ne 0) {
+            throw 'Both privacy-token PostgreSQL upgrade tests must execute and pass; skipped coverage is not accepted.'
+          }
+          'Privacy-token PostgreSQL upgrades: VERIFIED clean upgrade/rollback and duplicate rejection without row loss.' >> $env:GITHUB_STEP_SUMMARY
+
+
+  privacy-migrations-sqlserver:
+    name: SQL Server privacy-token upgrades (isolated LocalDB)
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      OPENCONNECT_REQUIRE_SQLSERVER_LOCALDB_TESTS: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Start isolated preinstalled SQL Server LocalDB
+        shell: pwsh
+        run: |
+          $localDb = Get-ChildItem "$env:ProgramFiles\Microsoft SQL Server\*\Tools\Binn\SqlLocalDB.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($null -eq $localDb) { throw 'Preinstalled SQL Server LocalDB is required; no skipped provider verification.' }
+          & $localDb.FullName create OpenConnectPrivacyMigration -s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "OPENCONNECT_LOCALDB_EXE=$($localDb.FullName)" >> $env:GITHUB_ENV
+      - name: Restore locked migration-test dependencies
+        run: dotnet restore tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj --locked-mode
+      - name: Run real SQL Server upgrade and exact-scope tests
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=PrivacyTokenMigrationSqlServer"
+          --logger "trx;LogFileName=privacy-migrations-ms.trx" --results-directory artifacts/privacy-migrations-ms
+      - name: Require all SQL Server provider tests with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/privacy-migrations-ms/privacy-migrations-ms.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 3 -or [int]$counts.executed -ne 3 -or [int]$counts.passed -ne 3 -or [int]$counts.failed -ne 0) {
+            throw 'All three SQL Server provider tests must execute and pass; skipped coverage is not accepted.'
+          }
+          'SQL Server LocalDB: VERIFIED clean token upgrade/rollback, duplicate rejection without row loss and collation-sensitive scope isolation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Stop isolated LocalDB instance
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:OPENCONNECT_LOCALDB_EXE) {
+            & $env:OPENCONNECT_LOCALDB_EXE stop OpenConnectPrivacyMigration -k
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
   contract:
     name: Contract + public API checks
     runs-on: ubuntu-latest

@@ -10,37 +10,47 @@ namespace OpenConnect.Samples.Persistence.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Existing rows may hold duplicate bindings because TurnId (always null) made the old key non-unique.
-            // Keep the newest binding per (tenant, principal, token, session) before enforcing uniqueness.
-            migrationBuilder.Sql(@"DELETE FROM ""openconnect"".""PrivacyTokens"" WHERE ""Id"" IN (SELECT ""Id"" FROM (SELECT ""Id"", ROW_NUMBER() OVER (PARTITION BY ""TenantScope"", ""PrincipalOrWorkloadScope"", ""TokenId"", ""SessionId"" ORDER BY ""CreatedUtc"" DESC, ""Id"" ASC) AS rn FROM ""openconnect"".""PrivacyTokens"") AS d WHERE d.rn > 1)");
+            // Validate uniqueness before removing the existing index; never choose or delete bindings.
+            migrationBuilder.CreateIndex(
+                name: "UX_PrivacyTokens_ScopeUpgrade",
+                schema: "openconnect",
+                table: "PrivacyTokens",
+                columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId" },
+                unique: true);
 
             migrationBuilder.DropIndex(
                 name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~",
                 schema: "openconnect",
                 table: "PrivacyTokens");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~",
+            migrationBuilder.RenameIndex(
+                name: "UX_PrivacyTokens_ScopeUpgrade",
                 schema: "openconnect",
                 table: "PrivacyTokens",
-                columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId" },
-                unique: true);
+                newName: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Restore the old index before removing the new one; all bindings are preserved.
+            migrationBuilder.CreateIndex(
+                name: "UX_PrivacyTokens_ScopeRollback",
+                schema: "openconnect",
+                table: "PrivacyTokens",
+                columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId" },
+                unique: true);
+
             migrationBuilder.DropIndex(
                 name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~",
                 schema: "openconnect",
                 table: "PrivacyTokens");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~",
+            migrationBuilder.RenameIndex(
+                name: "UX_PrivacyTokens_ScopeRollback",
                 schema: "openconnect",
                 table: "PrivacyTokens",
-                columns: new[] { "TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId" },
-                unique: true);
+                newName: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~");
         }
     }
 }
