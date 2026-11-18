@@ -4,6 +4,8 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 public interface IIdGenerator { Ulid NewUlid(); string NewCorrelationId(); }
 public interface IAgentDefinitionRegistry { AgentDefinition? Get(AgentId agentId); IReadOnlyList<AgentDefinition> GetAll(); void Register(AgentDefinition definition); }
 public interface IToolCatalog { ToolDescriptor? Get(ToolId toolId); IReadOnlyList<ToolDescriptor> GetForAgent(AgentId agentId); IReadOnlyList<ToolDescriptor> GetAuthorized(AgentId agentId, PrincipalId principal, TenantId tenant); }
+/// <summary>Policy-evaluated tool discovery for an authenticated tenant and principal. Implementations must fail closed.</summary>
+public interface IToolDiscovery { ValueTask<IReadOnlyList<ToolDescriptor>> DiscoverAsync(AgentId agent, PrincipalId principal, TenantId tenant, TaskId task, CancellationToken cancellationToken = default); }
 public interface ICapabilityRegistry { CapabilityDescriptor? Get(CapabilityId capabilityId); IReadOnlyList<CapabilityDescriptor> GetReady(CapabilityKind kind); void Register(CapabilityDescriptor descriptor); void MarkStale(CapabilityId capabilityId); }
 public interface ITaskStore { Task<TaskRecord> AcceptAsync(TaskAcceptance acceptance, CancellationToken cancellationToken = default); Task<TaskRecord?> GetAsync(TaskId taskId, CancellationToken cancellationToken = default); Task<TaskRecord?> GetByIdempotencyKeyAsync(string clientTaskId, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken = default); }
 public interface IEventJournal { Task<long> AppendAsync(EventRecord @event, CancellationToken cancellationToken = default); IAsyncEnumerable<EventRecord> ReplayAsync(SessionId sessionId, long afterSequence = 0, CancellationToken cancellationToken = default); }

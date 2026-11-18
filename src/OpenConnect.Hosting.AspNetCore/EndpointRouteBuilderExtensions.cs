@@ -150,13 +150,33 @@ public static class EndpointRouteBuilderExtensions
         if (!TryMarkMapped(endpoints, "mcp")) return endpoints;
 
         var group = endpoints.MapGroup("/openconnect/v1/mcp");
-        group.MapGet("/tools", (IServiceProvider services) =>
-        {
-            var catalog = services.GetService<IToolCatalog>();
-            return Results.Ok(catalog is not null ? catalog.GetForAgent(new AgentId("default")) : Array.Empty<ToolDescriptor>());
-        }).RequireAuthorization();
+        group.MapGet("/tools", (HttpContext context, string? agent, CancellationToken cancellationToken) =>
+            HandleListMcpToolsAsync(context, agent, cancellationToken)).RequireAuthorization();
 
         return endpoints;
+    }
+
+    internal static async Task<IResult> HandleListMcpToolsAsync(HttpContext context, string? agent, CancellationToken cancellationToken)
+    {
+        var tenantClaim = context.User.FindFirstValue("tenant_id");
+        var principalClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub");
+        if (!UlidTryParse(tenantClaim, out var tenant) || !UlidTryParse(principalClaim, out var principal))
+            return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The authenticated identity is missing required tenant or subject claims.");
+
+        var agentValue = string.IsNullOrWhiteSpace(agent) ? "default" : agent.Trim();
+        if (agentValue.Length > 128 || agentValue.Any(char.IsControl))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["agent"] = ["An agent ID of at most 128 printable characters is required."] });
+
+        var services = context.RequestServices;
+        var agentId = new AgentId(agentValue);
+        var tenantId = new TenantId(tenant);
+        var principalId = new PrincipalId(principal);
+        if (services.GetService<IToolDiscovery>() is { } discovery)
+            return Results.Ok(await discovery.DiscoverAsync(agentId, principalId, tenantId, new TaskId(default), cancellationToken).ConfigureAwait(false));
+
+        // Fail closed: without policy-evaluated discovery only the catalog's own authorized view is returned.
+        var catalog = services.GetService<IToolCatalog>();
+        return Results.Ok(catalog is not null ? catalog.GetAuthorized(agentId, principalId, tenantId) : Array.Empty<ToolDescriptor>());
     }
 
     private static async Task<IResult> HandleSpeechSynthesisAsync(
