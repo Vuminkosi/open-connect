@@ -12,6 +12,37 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class LiveUIRuntimeDiscoveryTests
 {
     [Fact]
+    public async Task Duplicate_headings_are_exposed_with_authorized_section_context()
+    {
+        const string observations = "[" +
+            "{\"kind\":\"Region\",\"label\":\"Desktop setup\",\"role\":\"region\"}," +
+            "{\"kind\":\"Region\",\"label\":\"Mobile setup\",\"role\":\"region\"}," +
+            "{\"kind\":\"Heading\",\"label\":\"Configuration\",\"role\":\"heading\",\"parentLabel\":\"Desktop setup\"}," +
+            "{\"kind\":\"Heading\",\"label\":\"Configuration\",\"role\":\"heading\",\"parentLabel\":\"Mobile setup\"}]";
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations));
+        services.AddScoped<ILiveUIActionAuthorizer, InspectOnlyAuthorizer>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        var page = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        var headings = page.Targets.Where(target => target.Label == "Configuration").ToArray();
+        Assert.Equal(2, headings.Length);
+        Assert.Equal(new[] { "Desktop setup", "Mobile setup" }, headings.Select(target => target.ParentLabel).Order(StringComparer.Ordinal));
+        Assert.NotEqual(headings[0].TargetId, headings[1].TargetId);
+        var currentManifest = (await state.GetCurrentAsync())!;
+        Assert.All(currentManifest.Routes[0].Targets.Where(target => target.Kind == LiveUITargetKind.Heading),
+            target => Assert.Contains(currentManifest.Routes[0].Targets, parent => parent.Id == target.ParentId && parent.Kind == LiveUITargetKind.Region));
+    }
+
+    [Fact]
     public async Task Duplicate_compiled_observations_do_not_exhaust_runtime_target_capacity()
     {
         var services = new ServiceCollection();

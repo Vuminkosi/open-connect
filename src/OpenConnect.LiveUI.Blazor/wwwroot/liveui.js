@@ -10,6 +10,19 @@ export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
   if (!limit) return [];
   const selector = "button, a[href], input, textarea, select, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading']";
+  const sections = document.querySelectorAll("section[aria-label], section[aria-labelledby]");
+  const regionCandidates = [];
+  for (let index = 0; index < Math.min(sections.length, 5000); index++) {
+    const section = sections[index];
+    if (!isVisible(section) || section.closest("pre, code") || roleOf(section) !== "region") continue;
+    const label = accessibleNames(section).map((name) => String(name).replace(/\s+/g, " ").trim())
+      .find((name) => name.length > 0 && name.length <= 120);
+    if (label && !sensitiveFieldPattern.test(label)) regionCandidates.push({ element: section, label });
+  }
+  const regionCounts = new Map();
+  for (const region of regionCandidates) regionCounts.set(normalize(region.label), (regionCounts.get(normalize(region.label)) || 0) + 1);
+  const regions = regionCandidates.filter((region) => regionCounts.get(normalize(region.label)) === 1).slice(0, limit);
+  const regionLabels = new Map(regions.map((region) => [region.element, region.label]));
   const candidates = [];
   const elements = document.querySelectorAll(selector);
   for (let index = 0; index < Math.min(elements.length, 5000); index++) {
@@ -27,15 +40,17 @@ export function discoverTargets(maximumTargets) {
     const label = accessibleNames(element).map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
-    candidates.push({ kind, label, role });
+    const parentLabel = regionLabels.get(element.closest("section[aria-label], section[aria-labelledby]"));
+    candidates.push(parentLabel ? { kind, label, role, parentLabel } : { kind, label, role });
   }
   const counts = new Map();
   for (const candidate of candidates) {
-    const key = `${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}`;
+    const key = `${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}\0${normalize(candidate.parentLabel || "")}`;
     counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return candidates.filter((candidate) =>
-    counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}`) === 1).slice(0, limit);
+  const unique = candidates.filter((candidate) =>
+    counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}\0${normalize(candidate.parentLabel || "")}`) === 1);
+  return [...regions.map((region) => ({ kind: "Region", label: region.label, role: "region" })), ...unique].slice(0, limit);
 }
 
 export function execute(context, timeoutMs, enableRuntimeFallback) {

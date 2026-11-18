@@ -14,6 +14,28 @@ public sealed class LiveUIAgentToolsTests
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
     [Fact]
+    public async Task Scoped_target_is_not_exposed_when_its_parent_is_unauthorized()
+    {
+        var parent = new LiveUITarget("parent", LiveUITargetKind.Region, "Private section",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var child = new LiveUITarget("child", LiveUITargetKind.Heading, "Configuration",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect }, ParentId: "parent");
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "", [new LiveUIRoute("home", "/", "Home", [parent, child])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var provider = new ManifestProvider(manifest);
+        var authorizer = new RecordingAuthorizer((_, context) => context.Target?.Id != "parent");
+        var options = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, new RecordingRuntime(), options, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "home")), provider,
+            authorizer, new LiveUIManifestValidator(), orchestrator, options);
+
+        var page = await tools.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.Empty(page.Targets);
+    }
+
+    [Fact]
     public async Task Failed_runtime_refresh_does_not_expose_stale_discovered_targets()
     {
         var stale = new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + "old", LiveUITargetKind.Heading, "Previous page",

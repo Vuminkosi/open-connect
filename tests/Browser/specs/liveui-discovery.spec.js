@@ -28,3 +28,34 @@ test('discovers unique visible semantic controls without exposing input values o
   for (const forbidden of ['private task value', 'secret', 'Password', 'Duplicate', 'Hidden', 'Fake action', 'External', 'Unsupported radio'])
     expect(serialized).not.toContain(forbidden);
 });
+
+test('discovers duplicate headings in distinct named sections without guessing between them', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <section aria-label="Desktop setup"><h2>Configuration</h2></section>
+      <section aria-label="Mobile setup"><h2>Configuration</h2></section>` }));
+  await page.goto('http://liveui.test/');
+  const { result, highlighted } = await page.evaluate(async () => {
+    const { discoverTargets, execute } = await import('/liveui.js');
+    const result = discoverTargets(20);
+    const targets = result.map((item, index) => ({ ...item, id: `runtime-${index}` }));
+    for (const target of targets)
+      if (target.parentLabel) target.parentId = targets.find((parent) => parent.kind === 'Region' && parent.label === target.parentLabel)?.id;
+    const target = targets.find((item) => item.kind === 'Heading' && item.parentLabel === 'Mobile setup');
+    const receipt = await execute({ manifest: {}, route: { path: '/', targets }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Highlight', parameters: {} },
+    }, 1000, true);
+    return { result, highlighted: { receipt, sections: [...document.querySelectorAll('section')].map((section) =>
+      section.querySelector('h2').hasAttribute('data-openconnect-liveui-highlight')) } };
+  });
+  expect(result).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'Region', label: 'Desktop setup', role: 'region' }),
+    expect.objectContaining({ kind: 'Region', label: 'Mobile setup', role: 'region' }),
+    expect.objectContaining({ kind: 'Heading', label: 'Configuration', parentLabel: 'Desktop setup' }),
+    expect.objectContaining({ kind: 'Heading', label: 'Configuration', parentLabel: 'Mobile setup' }),
+  ]));
+  expect(highlighted.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(highlighted.sections).toEqual([false, true]);
+});

@@ -76,6 +76,13 @@ public sealed class LiveUIAgentTools(
                 targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation));
         }
 
+        var authorizedTargets = targets.ToDictionary(target => target.TargetId, StringComparer.Ordinal);
+        var routeTargets = route.Targets.ToDictionary(target => target.Id, StringComparer.Ordinal);
+        targets = targets.Where(target => routeTargets[target.TargetId].ParentId is not { } parentId || authorizedTargets.ContainsKey(parentId))
+            .Select(target => routeTargets[target.TargetId].ParentId is { } parentId
+                ? target with { ParentLabel = authorizedTargets[parentId].Label }
+                : target).ToList();
+
         var navigableRoutes = new List<LiveUIAgentRoute>();
         foreach (var destination in manifest.Routes.Where(destination =>
             !destination.Path.Contains('{') && !destination.Path.Contains('}')))
@@ -336,4 +343,8 @@ public sealed record LiveUIAgentTarget(
     string Kind,
     string Label,
     IReadOnlySet<LiveUICapability> Capabilities,
-    bool RequiresConfirmation);
+    bool RequiresConfirmation)
+{
+    /// <summary>Authorized parent context for disambiguating similarly named controls.</summary>
+    public string? ParentLabel { get; init; }
+}
