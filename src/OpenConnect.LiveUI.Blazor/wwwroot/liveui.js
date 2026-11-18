@@ -38,6 +38,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Open":
     case "Close":
     case "Click":
+      if (!isAllowedLinkActivation(element)) return measured(result("Denied", "navigation_boundary"));
       element.click();
       if (parameters.stateName) return measured(verifyState(parameters.stateName, parameters.stateValue));
       if (action.type !== "Click") return measured(verifyState("expanded", action.type === "Open" ? "true" : "false"));
@@ -78,6 +79,20 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
       if (!parameters.stateName) return measured(result("Failed", "state_name_required"));
       return measured(verifyState(parameters.stateName, parameters.stateValue));
     default: return measured(result("Failed", "action_unsupported"));
+  }
+}
+
+function isAllowedLinkActivation(element) {
+  const link = element.closest("a[href]");
+  if (!link) return true;
+  if (link.hasAttribute("download")) return false;
+  const target = (link.getAttribute("target") || document.querySelector("base[target]")?.getAttribute("target") || "_self").trim().toLowerCase();
+  if (target !== "_self") return false;
+  try {
+    const destination = new URL(link.getAttribute("href"), document.baseURI);
+    return (destination.protocol === "http:" || destination.protocol === "https:") && destination.origin === location.origin;
+  } catch {
+    return false;
   }
 }
 
