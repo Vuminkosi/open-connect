@@ -1,24 +1,7 @@
-# OpenConnect docs site (SITE-001, Phases 1–2)
+# Historical Astro/Starlight documentation source
 
-Static Astro Starlight frontend in `docs/site`. **Static only** — usable without any backend, no provider credentials, no VoiceDesk.
+This directory is preserved during the migration to the official ASP.NET Core .NET 10 Blazor developer portal described in `docs/architecture/adr/ADR-006-blazor-developer-portal.md`.
 
-- Landing messaging: “Build AI applications. Not infrastructure.”
-- Navigation covers Introduction, Getting Started, Architecture, AI Firewall, Agents, API Reference (stubs).
-- Search: Starlight built-in Pagefind, generated at build time, works offline.
-- Architecture diagrams: `Mermaid.astro` renders source as readable text without JS and progressively enhances with the locally bundled `mermaid` package (no CDN).
-- Interactive MDX stubs: `ConfigExample`, `CliCommand`, `StatusPill` — display only, no code execution.
+The existing content and assets remain source material until an approved migration and parity review completes. It is not the official website host for the new portal. Do not delete this directory or its `package-lock.json` as part of portal implementation.
 
-## Commands
-
-```bash
-cd docs/site
-npm install
-npm run build     # must succeed with no credentials configured
-npm run check-links
-```
-
-## Deferred to later phases
-
-- Phase 3: DocFX .NET API generation, OpenAPI integration, metadata-to-MDX pipeline.
-- Phase 4: optional docs assistant via existing OpenConnect gateway/firewall/agents.
-- Phases 5–6: CI workflows, security hardening, deployment guides, full link/accessibility validation.
+The maintained Todo reference application is separate at `samples/Blazor` and is not hosted by or replaced with this site.

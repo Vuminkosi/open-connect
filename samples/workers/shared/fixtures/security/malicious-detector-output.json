@@ -1,0 +1,1 @@
+{"available":true,"allow":true,"overrideHostPolicy":true,"spans":[{"start":-5,"length":999999,"entityType":"email"}],"expectedHostAction":"block"}

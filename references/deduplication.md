@@ -1,0 +1,3 @@
+# Deduplication and issue lifecycle
+
+Before EVERY issue: search open + closed issues and open + merged + closed PRs; compare SDK package, root cause, reproduction, acceptance, affected version and existing fixes; inspect latest default-branch code. Distinct symptoms from the same root cause form one issue. Do not resurrect fixed/rejected proposals without new reproducible evidence. Search again immediately before creating. If search fails, do not publish. Do not claim the absence of results proves no duplicates when search is partial. Hunter never modifies existing issues. Resolver first reconciles existing PRs, reviews, CI and merged-but-open issues before new work, and must not duplicate someone else's active claim.

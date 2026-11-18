@@ -1,0 +1,454 @@
+@namespace OpenConnect.LiveUI.Blazor
+@using OpenConnect.LiveUI
+@using OpenConnect.LiveUI.Agents
+@using OpenConnect.LiveUI.Inference
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
+@using OpenConnect.Client
+@using OpenConnect.Abstractions
+@using System.Collections.Concurrent
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Microsoft.Extensions.Logging
+@inject LiveUIManifestState ManifestState
+@inject IServiceProvider Services
+@inject IOptions<LiveUIOptions> LiveUIOptions
+@inject ILogger<OpenConnectLiveUIProvider> Logger
+@implements IDisposable
+
+@ChildContent
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly LiveUISpeechPlaybackFence _speechPlaybackFence = new();
+    private readonly SemaphoreSlim _speechCueGate = new(1, 1);
+    private readonly List<LiveUISpeechCue> _speechCues = [];
+    private readonly HashSet<(string TargetId, string? MatchText)> _activeSpeechCueTargets = [];
+    private readonly HashSet<(long PlaybackEpoch, int StartCharacter, int EndCharacter)> _speechCueMeasurementsAwaitingAck = [];
+    [Parameter]
+    public LiveUIManifest? Manifest { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [CascadingParameter]
+    private ComposerSession? ComposerSession { get; set; }
+
+    private ComposerSession? _boundSession;
+    private string? _observedSessionId;
+    private LiveUIAgentTools? _agentTools;
+    private string? _lastRequestId;
+    private string? _lastHandledCancellationId;
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
+    private sealed record LiveUISpeechCue(string TargetId, string? MatchText, int StartCharacter, int EndCharacter);
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_boundSession, ComposerSession))
+        {
+            var previousSession = _boundSession;
+            if (previousSession is not null)
+            {
+                CancelActiveInteractions();
+                previousSession.Changed -= OnComposerSessionChanged;
+                previousSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
+            }
+            _boundSession = ComposerSession;
+            _observedSessionId = _boundSession?.SessionId;
+            if (_boundSession is not null)
+            {
+                _boundSession.Changed += OnComposerSessionChanged;
+                _boundSession.SpeechPlaybackChanged += OnSpeechPlaybackChangedAsync;
+            }
+            if (previousSession is not null && _agentTools is not null)
+            {
+                var newSessionId = _boundSession?.SessionId;
+                _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(newSessionId));
+            }
+        }
+
+        var manifest = Manifest ?? LiveUICompiledManifestLoader.LoadFromEntryAssembly()
+            ?? throw new InvalidOperationException("No embedded LiveUI manifest was found. Enable the LiveUI Razor compiler for this application.");
+        ManifestState.SetManifest(manifest);
+    }
+
+    private void OnComposerSessionChanged()
+    {
+        var session = _boundSession;
+        var sessionId = session?.SessionId;
+        if (!string.Equals(_observedSessionId, sessionId, StringComparison.Ordinal))
+        {
+            _observedSessionId = sessionId;
+            CancelActiveInteractions();
+            if (_agentTools is not null) _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(sessionId));
+        }
+
+        var cancellationId = session?.PendingClientInteractionCancellationId;
+        if (cancellationId is not null && cancellationId != _lastHandledCancellationId)
+        {
+            _lastHandledCancellationId = cancellationId;
+            if (_activeInteractions.TryGetValue(cancellationId, out var active))
+            {
+                try { active.Cancel(); }
+                catch (ObjectDisposedException) { }
+            }
+
+            if (_agentTools is not null) _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(sessionId));
+        }
+
+        var request = session?.PendingClientInteraction;
+        if (request is null || request.CorrelationId == _lastRequestId ||
+            Services.GetService(typeof(IOpenConnectClient)) is not IOpenConnectClient client)
+            return;
+
+        _lastRequestId = request.CorrelationId;
+        var cancellation = new CancellationTokenSource();
+        if (!_activeInteractions.TryAdd(request.CorrelationId, cancellation))
+        {
+            cancellation.Dispose();
+            return;
+        }
+        _ = InvokeAsync(() => ProcessClientInteractionAsync(session!, request, client, cancellation));
+    }
+
+    private void CancelActiveInteractions()
+    {
+        foreach (var active in _activeInteractions.Values)
+        {
+            try { active.Cancel(); }
+            catch (ObjectDisposedException) { }
+        }
+    }
+
+    private async Task ClearHighlightsAfterCancellationAsync(string? sessionId = null)
+    {
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            _speechCues.Clear();
+            _activeSpeechCueTargets.Clear();
+            _speechCueMeasurementsAwaitingAck.Clear();
+            using var sessionBinding = sessionId is not null &&
+                Services.GetService(typeof(ILiveUIAgentContextAccessor)) is ILiveUIAgentContextSessionBinder binder
+                    ? binder.BindSession(sessionId)
+                    : null;
+            await ClearHighlightsCoreAsync();
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private async Task ClearHighlightsCoreAsync()
+    {
+        if (_agentTools is null) return;
+        try { await _agentTools.ClearHighlightAsync(); }
+        catch (Exception) { }
+    }
+
+    private async Task OnSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            if (_speechPlaybackFence.ShouldClearHighlights(playbackEvent))
+            {
+                _speechCues.Clear();
+                _activeSpeechCueTargets.Clear();
+                _speechCueMeasurementsAwaitingAck.Clear();
+                await ClearHighlightsCoreAsync();
+                return;
+            }
+
+            if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
+                playbackEvent.Stage == ComposerSpeechPlaybackStage.Started)
+            {
+                if (await ApplySpeechCuesAsync(playbackEvent))
+                    _speechCueMeasurementsAwaitingAck.Add(GetSpeechSegmentKey(playbackEvent));
+            }
+            else if (playbackEvent.Stage == ComposerSpeechPlaybackStage.SynchronizationMeasured &&
+                     playbackEvent.SynchronizationOffsetMilliseconds is double offsetMilliseconds &&
+                     double.IsFinite(offsetMilliseconds) && offsetMilliseconds >= 0 &&
+                     _speechCueMeasurementsAwaitingAck.Remove(GetSpeechSegmentKey(playbackEvent)))
+            {
+                LiveUISpeechMetrics.SpeechHighlightOffset.Record(offsetMilliseconds);
+            }
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private async Task RegisterSpeechCueAsync(string targetId, string? matchText, int startCharacter, int endCharacter)
+    {
+        await _speechCueGate.WaitAsync();
+        try
+        {
+            _speechCues.Add(new LiveUISpeechCue(targetId, matchText, startCharacter, endCharacter));
+        }
+        finally { _speechCueGate.Release(); }
+    }
+
+    private static (long PlaybackEpoch, int StartCharacter, int EndCharacter) GetSpeechSegmentKey(
+        ComposerSpeechPlaybackEvent playbackEvent) =>
+        (playbackEvent.PlaybackEpoch, playbackEvent.StartCharacter, playbackEvent.EndCharacter);
+
+    private async Task<bool> ApplySpeechCuesAsync(ComposerSpeechPlaybackEvent playbackEvent)
+    {
+        if (_speechCues.Count == 0 || playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return false;
+
+        var responseLength = GetCurrentAssistantResponseLength();
+        var targets = _speechCues
+            .Where(cue => cue.EndCharacter <= responseLength &&
+                          cue.StartCharacter < playbackEvent.EndCharacter &&
+                          cue.EndCharacter > playbackEvent.StartCharacter)
+            .Select(cue => (cue.TargetId, cue.MatchText))
+            .ToHashSet();
+        if (targets.Count == 0)
+        {
+            if (_activeSpeechCueTargets.Count > 0)
+            {
+                await ClearHighlightsCoreAsync();
+                _activeSpeechCueTargets.Clear();
+            }
+            return false;
+        }
+        if (_activeSpeechCueTargets.SetEquals(targets))
+        {
+            LiveUISpeechMetrics.SpeechHighlightOffset.Record(0);
+            return false;
+        }
+
+        await ClearHighlightsCoreAsync();
+        _activeSpeechCueTargets.Clear();
+        if (_agentTools is null) return false;
+
+        foreach (var (targetId, matchText) in targets.OrderBy(target => target.TargetId, StringComparer.Ordinal)
+                     .ThenBy(target => target.MatchText, StringComparer.Ordinal))
+        {
+            var receipt = matchText is null
+                ? await _agentTools.HighlightAsync(targetId)
+                : await _agentTools.HighlightTextAsync(targetId, matchText);
+            if (receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
+                _activeSpeechCueTargets.Add((targetId, matchText));
+        }
+
+        if (_activeSpeechCueTargets.SetEquals(targets)) return true;
+
+        // A timeline segment is valid only when every requested target is highlighted.
+        // Remove any successful subset so narration cannot continue with a misleading partial cue.
+        await ClearHighlightsCoreAsync();
+        _activeSpeechCueTargets.Clear();
+        return false;
+    }
+
+    private int GetCurrentAssistantResponseLength()
+    {
+        if (_boundSession is null) return 0;
+        if (_boundSession.StreamingText.Length > 0) return _boundSession.StreamingText.Length;
+        return _boundSession.Messages.LastOrDefault(message => message.Role == "assistant")?.Text.Length ?? 0;
+    }
+
+    private static bool IsValidSpeechRange(ClientInteractionRequest request) =>
+        request.SpeechStartCharacter is null && request.SpeechEndCharacter is null ||
+        request.SpeechStartCharacter is >= 0 and < 32_000 &&
+        request.SpeechEndCharacter is > 0 and <= 32_000 &&
+        request.SpeechStartCharacter < request.SpeechEndCharacter;
+
+    private static string? BoundedInferenceLabel(string? label) =>
+        string.IsNullOrWhiteSpace(label) ? null : label.Length <= 256 ? label : label[..256];
+
+    private static IEnumerable<string> ToInferenceActions(LiveUICapability capability, string targetKind)
+    {
+        if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind)) return [];
+        return capability switch
+    {
+        LiveUICapability.Activate => ["activate"],
+        LiveUICapability.Filter when kind == LiveUITargetKind.Tab => ["activate"],
+        LiveUICapability.Filter when kind == LiveUITargetKind.Select => ["select"],
+        LiveUICapability.Filter when kind is LiveUITargetKind.Input or LiveUITargetKind.Checkbox => ["setValue"],
+        LiveUICapability.SetValue => ["setValue"],
+        LiveUICapability.Select => ["select"],
+        LiveUICapability.Highlight => ["highlight"],
+        LiveUICapability.Focus => ["focus"],
+        LiveUICapability.Scroll => ["scroll"],
+        LiveUICapability.Inspect => ["inspect"],
+        _ => []
+        };
+    }
+
+    private async Task<LiveUIActionReceipt> HandleHighlightRequestAsync(
+        ClientInteractionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var receipt = request.Value is null
+            ? await _agentTools!.HighlightAsync(request.TargetId!, cancellationToken, request.HighlightDurationMilliseconds)
+            : await _agentTools!.HighlightTextAsync(
+                request.TargetId!, request.Value, cancellationToken, request.HighlightDurationMilliseconds);
+        if (LiveUIOptions.Value.Narration.SynchronizeWithSpeech &&
+            request.SpeechStartCharacter is int startCharacter &&
+            request.SpeechEndCharacter is int endCharacter &&
+            receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
+            await RegisterSpeechCueAsync(request.TargetId!, request.Value, startCharacter, endCharacter);
+        return receipt;
+    }
+
+    private async Task ProcessClientInteractionAsync(ComposerSession originatingSession,
+        ClientInteractionRequest request, IOpenConnectClient client,
+        CancellationTokenSource interactionCancellation)
+    {
+        try
+        {
+            var cancellationToken = interactionCancellation.Token;
+            var sessionText = originatingSession.SessionId;
+            var connectionId = originatingSession.ConnectionId;
+            var connectionGeneration = originatingSession.ConnectionGeneration;
+            if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(sessionText) || string.IsNullOrWhiteSpace(connectionId) ||
+                !string.Equals(request.ConnectionId, connectionId, StringComparison.Ordinal))
+                return;
+            Ulid sessionId;
+            try { sessionId = Ulid.Parse(sessionText); }
+            catch (FormatException) { return; }
+            if (!IsCurrentSession(originatingSession, sessionText)) return;
+
+            using var sessionBinding = Services.GetService(typeof(ILiveUIAgentContextAccessor)) is ILiveUIAgentContextSessionBinder binder
+                ? binder.BindSession(sessionText)
+                : null;
+
+            var responseKind = "action";
+            string payloadJson;
+            try
+            {
+                _agentTools ??= Services.GetService(typeof(LiveUIAgentTools)) as LiveUIAgentTools;
+                if (_agentTools is null) throw new InvalidOperationException("LiveUI agent tools are unavailable.");
+
+                if (request.Operation == "infer_plan" && request.Value is { Length: > 0 and <= 8_000 })
+                {
+                    responseKind = "plan";
+                    var router = Services.GetService(typeof(ILiveUIInferenceRouter)) as ILiveUIInferenceRouter;
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
+                    if (router is null || page is null || manifest is null ||
+                        page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion)
+                    {
+                        payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", plan = (LiveUIActionPlan?)null }, JsonOptions);
+                    }
+                    else
+                    {
+                        var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
+                                target.TargetId,
+                                target.Capabilities.SelectMany(capability => ToInferenceActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray())
+                                { Label = BoundedInferenceLabel(target.Label) })
+                            .Where(capability => capability.Actions.Count > 0)
+                            .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])
+                                { Label = BoundedInferenceLabel(route.Title) }))
+                            .ToArray();
+                        var inferenceRequest = new LiveUIInferenceRequest(request.Value, sessionText, page.RouteId,
+                            manifest.SchemaVersion, capabilities, manifest.ContentHash)
+                        {
+                            RequestId = request.CorrelationId,
+                            ExecutionId = Guid.NewGuid().ToString("N")
+                        };
+                        var result = await router.GeneratePlanAsync(inferenceRequest, cancellationToken);
+                        payloadJson = JsonSerializer.Serialize(result, JsonOptions);
+                    }
+                }
+                else if (request.Operation == "get_current_page")
+                {
+                    responseKind = "page";
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    payloadJson = page is null ? "{\"error\":\"page_unavailable\"}" : JsonSerializer.Serialize(page, JsonOptions);
+                }
+                else if (request.Operation == "navigate" && request.RouteId is { Length: > 0 and <= 128 })
+                {
+                    var receipt = await _agentTools.NavigateAsync(request.RouteId, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "inspect" && request.TargetId is { Length: > 0 and <= 256 })
+                {
+                    var receipt = await _agentTools.InspectAsync(request.TargetId, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "execute" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.Value is not { Length: > 2_000 } &&
+                         request.Action is { Length: > 0 and <= 32 })
+                {
+                    var receipt = await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "await_state" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.StateName is { Length: > 0 and <= 64 } &&
+                         request.StateValue is not { Length: > 256 })
+                {
+                    var receipt = await _agentTools.AwaitStateAsync(request.TargetId, request.StateName, request.StateValue, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "highlight" &&
+                         request.TargetId is { Length: > 0 and <= 256 } &&
+                         request.HighlightDurationMilliseconds is >= 0 and <= 30_000 &&
+                         (request.Value is null || request.Value.Length is > 0 and <= 256 && !string.IsNullOrWhiteSpace(request.Value)) &&
+                         IsValidSpeechRange(request))
+                {
+                    var receipt = await HandleHighlightRequestAsync(request, cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else if (request.Operation == "clear_highlight")
+                {
+                    var receipt = await _agentTools.ClearHighlightAsync(cancellationToken);
+                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                }
+                else
+                {
+                    throw new JsonException("The interaction request is invalid.");
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError("LiveUI interaction failed for operation {Operation} ({CorrelationId}); exception type {ExceptionType}. Stack: {StackTrace}",
+                    request.Operation, request.CorrelationId, exception.GetType().FullName, exception.StackTrace);
+                payloadJson = JsonSerializer.Serialize(new { code = "client_interaction_failed" }, JsonOptions);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentSession(originatingSession, sessionText) ||
+                !IsCurrentConnection(originatingSession, connectionId, connectionGeneration)) return;
+            var response = new ClientInteractionResponse(request.CorrelationId, responseKind, payloadJson)
+            {
+                ConnectionId = connectionId
+            };
+            await client.PostClientInteractionResponseAsync(
+                new SessionId(sessionId), response, cancellationToken);
+        }
+        catch (OperationCanceledException) when (interactionCancellation.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            // The gateway times out the correlated agent tool when the client cannot acknowledge it.
+        }
+        finally
+        {
+            _activeInteractions.TryRemove(request.CorrelationId, out _);
+            interactionCancellation.Dispose();
+        }
+    }
+
+    private bool IsCurrentSession(ComposerSession originatingSession, string sessionId) =>
+        ReferenceEquals(_boundSession, originatingSession) &&
+        string.Equals(originatingSession.SessionId, sessionId, StringComparison.Ordinal);
+
+    private static bool IsCurrentConnection(ComposerSession session, string connectionId, long generation) =>
+        session.ConnectionGeneration == generation &&
+        string.Equals(session.ConnectionId, connectionId, StringComparison.Ordinal);
+
+    public void Dispose()
+    {
+        if (_boundSession is not null)
+        {
+            _boundSession.Changed -= OnComposerSessionChanged;
+            _boundSession.SpeechPlaybackChanged -= OnSpeechPlaybackChangedAsync;
+        }
+        CancelActiveInteractions();
+    }
+}

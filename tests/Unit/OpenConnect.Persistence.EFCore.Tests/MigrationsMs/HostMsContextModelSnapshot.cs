@@ -32,6 +32,17 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
 
@@ -65,6 +76,8 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("Approvals", "openconnect");
                 });
@@ -538,6 +551,13 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("ResultRef")
                         .HasColumnType("nvarchar(max)");

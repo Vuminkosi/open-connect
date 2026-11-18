@@ -1,0 +1,32 @@
+{
+  "fixtureId": "operational-misfire-overlap-revocation-cancel",
+  "acceptanceId": "WSE2E-AT-070",
+  "scheduleValidation": {
+    "cronExpression": "*/15 * * * *",
+    "timeZoneId": "UTC",
+    "misfirePolicy": "SkipIfOverdue",
+    "overlapPolicy": "ForbidConcurrentOccurrence"
+  },
+  "scenarios": {
+    "expiredDeadlineMisfire": {
+      "executionId": "exec-misfire-expired-001",
+      "deadlineOffsetSeconds": -30,
+      "expectedStatus": "Rejected"
+    },
+    "overlappingOccurrence": {
+      "executionId": "exec-overlap-001",
+      "firstHolderStatus": "Completed",
+      "secondConcurrentHolderStatus": "Rejected"
+    },
+    "midRunCancellation": {
+      "executionId": "exec-cancel-001",
+      "cancelDuringStepIndex": 1,
+      "expectedStatus": "Cancelled",
+      "expectLeaseReleasedImmediately": true
+    },
+    "midRunDeadlineExpiry": {
+      "executionId": "exec-deadline-001",
+      "expectedStatus": "Cancelled"
+    }
+  }
+}

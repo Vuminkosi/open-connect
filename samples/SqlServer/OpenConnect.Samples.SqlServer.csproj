@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenConnect.Samples.SqlServer</AssemblyName>
+    <!-- Samples are never shippable NuGet packages (OC-G5-FIX01). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.SqlServer</RootNamespace>
     <!-- Design package supports `dotnet ef migrations list` from this sample's own pipeline. -->
   </PropertyGroup>

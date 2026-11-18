@@ -1,0 +1,1 @@
+{"text":"user.name@sub.example.test","overlappingCandidates":[{"start":0,"length":26,"entityType":"email","priority":1},{"start":10,"length":16,"entityType":"domain","priority":2}],"expectedWinner":"email"}

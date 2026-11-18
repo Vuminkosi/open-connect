@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","messageId":"123e4567-e89b-42d3-a456-426614174000","taskId":"task-1","kind":"classification","issuedAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:01:00Z","lease":{"leaseId":"123e4567-e89b-42d3-a456-426614174001","fencingToken":1},"payloadRef":"opaque://payload/abc","correlationId":null}

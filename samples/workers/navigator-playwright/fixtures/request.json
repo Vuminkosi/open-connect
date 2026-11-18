@@ -1,1 +1,1 @@
-{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174007","url":"about:blank","actions":[]}
+{"args":{"ms":10},"tool":"wait"}

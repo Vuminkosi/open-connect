@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-wrong-sample-rate",
+  "taskId": "123e4567-e89b-42d3-a456-426614174013",
+  "declaredSampleRateHz": 11025,
+  "channels": 1,
+  "bitsPerSample": 16,
+  "mimeType": "audio/pcm",
+  "expectedBehavior": {
+    "expectedStatus": 422,
+    "expectedReason": "unsupported_sample_rate"
+  }
+}

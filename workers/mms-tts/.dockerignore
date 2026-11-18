@@ -1,0 +1,7 @@
+# Keep the build context limited to locked runtime inputs and application source.
+**
+!pyproject.toml
+!uv.lock
+!src
+!src/
+!src/**

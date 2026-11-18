@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup Condition="'$(UsingMicrosoftNETSdkRazor)' == 'true'">
+    <OpenConnectLiveUIManifestPath Condition="'$(OpenConnectLiveUIManifestPath)' == ''">$(IntermediateOutputPath)openconnect.liveui.manifest.json</OpenConnectLiveUIManifestPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UsingMicrosoftNETSdkRazor)' == 'true'">
+    <EmbeddedResource Include="$(OpenConnectLiveUIManifestPath)"
+                      LogicalName="$(AssemblyName).openconnect.liveui.manifest.json" />
+  </ItemGroup>
+
+  <Target Name="GenerateOpenConnectLiveUIManifest"
+          BeforeTargets="PrepareResourceNames"
+          Condition="'$(UsingMicrosoftNETSdkRazor)' == 'true'">
+    <Exec Command="dotnet &quot;$(MSBuildThisFileDirectory)../tools/liveui-compiler/net8.0/OpenConnect.LiveUI.Compiler.dll&quot; --root &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(OpenConnectLiveUIManifestPath)&quot;" />
+  </Target>
+</Project>

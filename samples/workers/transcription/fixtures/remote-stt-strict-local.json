@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-remote-stt-strict-local",
+  "privacyMode": "strict-local",
+  "cloudApiUrl": "https://api.external-stt-provider.example/v1/audio/transcriptions",
+  "expectedBehavior": {
+    "outboundEgressBlocked": true,
+    "rejectionStatusCode": 503,
+    "rejectionDetail": "privacy_blocked"
+  }
+}

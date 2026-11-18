@@ -1,1 +1,1 @@
-{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174002","text":"Hello world","sourceLang":"eng_Latn","targetLang":"fra_Latn"}
+{"input":{"sourceLang":"eng_Latn","targetLang":"fra_Latn","text":"Hello world (synthetic e2e fixture)"},"schemaVersion":"openconnect.v1","taskId":"123e4567-e89b-42d3-a456-426614174002"}
