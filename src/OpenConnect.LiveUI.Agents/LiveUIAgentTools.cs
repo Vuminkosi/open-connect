@@ -16,6 +16,8 @@ public sealed class LiveUIAgentTools(
     ILiveUIRuntimeTargetDiscovery? runtimeDiscovery = null) : IDisposable
 {
     private readonly SemaphoreSlim _actionGate = new(1, 1);
+    private readonly object _pageGate = new();
+    private readonly Dictionary<string, (string RouteId, string Path)> _observedPages = new(StringComparer.Ordinal);
 
     public void Dispose() => _actionGate.Dispose();
 
@@ -80,6 +82,18 @@ public sealed class LiveUIAgentTools(
             if (await IsAllowedAsync(new LiveUIExecutionContext(manifest, route, null, navigationAction), cancellationToken)
                     .ConfigureAwait(false))
                 navigableRoutes.Add(new(destination.Id, destination.Path, destination.Title));
+        }
+
+        if (context.CurrentPath is not null)
+        {
+            var latest = await contextAccessor.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+            if (latest is null || latest.SessionId != context.SessionId || latest.CurrentRouteId != context.CurrentRouteId ||
+                !string.Equals(latest.CurrentPath, context.CurrentPath, StringComparison.Ordinal)) return null;
+            lock (_pageGate)
+            {
+                if (!_observedPages.ContainsKey(context.SessionId) && _observedPages.Count >= 256) return null;
+                _observedPages[context.SessionId] = (context.CurrentRouteId, context.CurrentPath);
+            }
         }
 
         return new LiveUIAgentPage(route.Id, route.Path, route.Title, manifest.BuildId, manifest.ContentHash, targets)
@@ -188,8 +202,29 @@ public sealed class LiveUIAgentTools(
                 (runtimeDiscovery is null || !runtimeDiscovery.IsCurrentTarget(context, manifest, targetId)))
                 return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
                     LiveUIActionOutcome.Conflict, "runtime_target_stale", false, DateTimeOffset.UtcNow);
+            if (type != LiveUIActionType.ClearHighlight)
+            {
+                lock (_pageGate)
+                    if (_observedPages.TryGetValue(context.SessionId, out var observed) &&
+                        (observed.RouteId != context.CurrentRouteId ||
+                         !string.Equals(observed.Path, context.CurrentPath, StringComparison.Ordinal)))
+                        return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
+                            LiveUIActionOutcome.Conflict, "page_context_stale", false, DateTimeOffset.UtcNow);
+            }
             var action = CreateAction(context, manifest, route, targetId, type, parameters);
-            return await orchestrator.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
+            var receipt = await orchestrator.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
+            if (type == LiveUIActionType.Navigate && receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
+            {
+                var destination = await contextAccessor.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+                if (destination is not null && destination.SessionId == context.SessionId &&
+                    destination.CurrentRouteId == parameters.DestinationRouteId && destination.CurrentPath is not null)
+                {
+                    lock (_pageGate)
+                        if (_observedPages.ContainsKey(context.SessionId) || _observedPages.Count < 256)
+                            _observedPages[context.SessionId] = (destination.CurrentRouteId, destination.CurrentPath);
+                }
+            }
+            return receipt;
         }
         finally
         {

@@ -16,6 +16,61 @@ public sealed class LiveUIAgentToolsTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public async Task Only_verified_navigation_advances_the_observed_page(bool verified)
+    {
+        var target = new LiveUITarget("destination.heading", LiveUITargetKind.Heading, "Destination",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "", [
+            new LiveUIRoute("start", "/", "Start", []), new LiveUIRoute("destination", "/destination", "Destination", [target])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var provider = new ManifestProvider(manifest);
+        var accessor = new MutableContextAccessor { Current = new LiveUIAgentContext("session", "start") { CurrentPath = "/" } };
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new NavigationRuntime(accessor, verified);
+        var options = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, runtime, options, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(accessor, provider, authorizer, new LiveUIManifestValidator(), orchestrator, options);
+        Assert.NotNull(await tools.GetCurrentPageAsync());
+
+        var navigation = await tools.NavigateAsync("destination");
+        var inspection = await tools.InspectAsync(target.Id);
+
+        Assert.Equal(verified ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Uncertain, navigation.Outcome);
+        Assert.Equal(verified ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Conflict, inspection.Outcome);
+    }
+
+    [Fact]
+    public async Task Compiled_target_requires_a_fresh_page_after_the_concrete_route_changes()
+    {
+        var target = new LiveUITarget("docs.heading", LiveUITargetKind.Heading, "Installation",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "", [
+            new LiveUIRoute("docs", "/docs/{version}/{slug}", "Docs", [target])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var provider = new ManifestProvider(manifest);
+        var accessor = new MutableContextAccessor { Current = new LiveUIAgentContext("session", "docs")
+            { CurrentPath = "/docs/v1/install" } };
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        var options = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, runtime, options, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(accessor, provider, authorizer, new LiveUIManifestValidator(), orchestrator, options);
+        Assert.NotNull(await tools.GetCurrentPageAsync());
+        accessor.Current = accessor.Current with { CurrentPath = "/docs/v1/configuration" };
+
+        var stale = await tools.InspectAsync(target.Id);
+        Assert.Equal(LiveUIActionOutcome.Conflict, stale.Outcome);
+        Assert.Equal("page_context_stale", stale.Code);
+        Assert.Equal(0, runtime.Calls);
+
+        Assert.NotNull(await tools.GetCurrentPageAsync());
+        Assert.Equal(LiveUIActionOutcome.Completed, (await tools.InspectAsync(target.Id)).Outcome);
+        Assert.Equal(1, runtime.Calls);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task Runtime_discovery_requires_route_inspection_and_filters_each_discovered_capability(bool allowRoute)
     {
         var provider = new MutableManifestProvider(Manifest);
@@ -681,6 +736,26 @@ public sealed class LiveUIAgentToolsTests
     {
         public ValueTask<LiveUIAgentContext?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(context);
+    }
+
+    private sealed class MutableContextAccessor : ILiveUIAgentContextAccessor
+    {
+        public required LiveUIAgentContext Current { get; set; }
+        public ValueTask<LiveUIAgentContext?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<LiveUIAgentContext?>(Current);
+    }
+
+    private sealed class NavigationRuntime(MutableContextAccessor accessor, bool verified) : ILiveUIRuntime
+    {
+        public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            if (context.Action.Type == LiveUIActionType.Navigate)
+            {
+                accessor.Current = accessor.Current with { CurrentRouteId = "destination", CurrentPath = "/destination" };
+                return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "route_ready", verified));
+            }
+            return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "verified", true));
+        }
     }
 
     private sealed class ManifestProvider(LiveUIManifest manifest) : ILiveUIManifestProvider
