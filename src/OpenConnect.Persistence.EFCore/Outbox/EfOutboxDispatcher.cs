@@ -33,14 +33,11 @@ public sealed class EfOutboxDispatcher
         {
             try
             {
-                var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                // Earlier publishes may outlast later claims in the same batch.
-                // Never begin a publish using a claim already known to be stale.
-                if (row is null || row.Status != "pending" || row.LeaseOwner != claim.LeaseOwner ||
-                    row.FencingVersion != claim.FencingVersion || row.LeaseExpiresUtc is null ||
-                    row.LeaseExpiresUtc <= DateTime.UtcNow)
+                var row = await OutboxClaimOperations.LoadCurrentClaimAsync(db, claim, ct).ConfigureAwait(false);
+                if (row is null)
                     continue;
                 await publisher.PublishAsync(row.Subject, row.EventId, row.SanitizedPayload, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
                 if (await dialect.CompleteClaimAsync(db, claim, ct).ConfigureAwait(false))
                     delivered++;
             }
@@ -50,12 +47,11 @@ public sealed class EfOutboxDispatcher
             }
             catch (Exception)
             {
-                var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                // A stale publisher must not mutate a row reclaimed by another
-                // dispatcher. SaveChanges also CAS-checks the original fencing token.
-                if (row is null || row.Status != "pending" || row.LeaseOwner != claim.LeaseOwner ||
-                    row.FencingVersion != claim.FencingVersion || row.LeaseExpiresUtc is null ||
-                    row.LeaseExpiresUtc <= DateTime.UtcNow)
+                // A broker may wrap cancellation in another exception. Ownership
+                // loss must never consume a retry or quarantine an innocent row.
+                ct.ThrowIfCancellationRequested();
+                var row = await OutboxClaimOperations.LoadCurrentClaimAsync(db, claim, ct).ConfigureAwait(false);
+                if (row is null)
                     continue;
                 row.Attempts++;
                 row.NextAttemptUtc = DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Math.Min(row.Attempts, 8))));

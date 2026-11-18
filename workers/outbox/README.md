@@ -14,6 +14,15 @@ Per batch, in order:
 1. **Acquire/renew fence** — renew the durable supervisor lease `oc/outbox/supervisor`
    (`ILeaseStore`, EF-backed). Exactly one dispatcher is active across replicas;
    a duplicate fails startup and a lost lease stops the host fail-closed.
+   A heartbeat renews every third of the lease duration using independent scopes
+   and database contexts. Each publish rechecks current supervisor ownership.
+   The current expiry remains a cancellation deadline until renewal is confirmed;
+   ownership loss or a failed renewal cancels the active broker call without
+   consuming a poison retry. Shutdown awaits dispatch/heartbeat before releasing
+   the supervisor lease; if the shutdown deadline expires first, the lease is
+   left to expire rather than released under an unfinished broker call.
+   Configure `PollingInterval` shorter than the supervisor lease duration;
+   otherwise ownership may expire between batches and the host stops fail-closed.
 2. **Claim and publish** — `OutboxBatchDispatcher` claims due entries with a
    per-row owner, expiry and fencing token, validates each envelope
    (persisted event id must match envelope message id), and publishes via `NatsPublisher`
@@ -28,6 +37,9 @@ Per batch, in order:
    the broker call. Both completion and failure updates are fenced. A crash after PUBACK can
    cause redelivery: delivery is at-least-once, and JetStream deduplication is
    limited to its configured duplicate window; consumers must remain idempotent.
+   Row claims last at most `SupervisorLeaseDuration` and are not extended by the
+   supervisor heartbeat. A slow publish can outlive its row claim, so it cannot
+   complete that claim and may be redelivered; this is not exactly-once delivery.
    Cancellation propagates without consuming a retry attempt.
 
 Failures are logged using exception type only, never exception messages or

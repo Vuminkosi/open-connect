@@ -239,6 +239,62 @@ public sealed class OutboxPoisonRecoveryTests
         Assert.Equal(0, deferred.Attempts);
     }
 
+    [Fact]
+    public async Task Prepublish_guard_reads_a_later_claims_new_owner_from_database()
+    {
+        await using var fixture = await Database.CreateAsync();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        await using var db = fixture.Open();
+        var store = new EfOutboxStore<OpenConnectDbContext>(db);
+        await store.EnqueueAsync(new(first, "first", "payload"));
+        await store.EnqueueAsync(new(second, "second", "payload"));
+        var published = new List<string>();
+        var publisher = new Publisher(async (subject, _, _, _) =>
+        {
+            published.Add(subject);
+            if (subject == "first")
+            {
+                await using var replacement = fixture.Open();
+                var row = await replacement.Set<OutboxEntity>().SingleAsync(x => x.Id == second);
+                row.LeaseOwner = "replacement-owner";
+                row.FencingVersion++;
+                row.LeaseExpiresUtc = DateTime.UtcNow.AddMinutes(2);
+                await replacement.SaveChangesAsync();
+            }
+        });
+        Assert.Equal(1, await Dispatch(db, publisher, "old-owner", 2));
+        Assert.Equal(["first"], published);
+        await using var read = fixture.Open();
+        var unchanged = await read.Set<OutboxEntity>().SingleAsync(x => x.Id == second);
+        Assert.Equal("pending", unchanged.Status);
+        Assert.Equal("replacement-owner", unchanged.LeaseOwner);
+        Assert.Equal(0, unchanged.Attempts);
+    }
+
+    [Fact]
+    public async Task Completion_does_not_adopt_a_reloaded_replacement_owners_token()
+    {
+        await using var fixture = await Database.CreateAsync();
+        await using var db = fixture.Open();
+        await new EfOutboxStore<OpenConnectDbContext>(db).EnqueueAsync(new(Guid.NewGuid(), "test", "payload"));
+        var publisher = new Publisher(async (_, _, _, _) =>
+        {
+            await using var replacement = fixture.Open();
+            var row = await replacement.Set<OutboxEntity>().SingleAsync();
+            row.LeaseOwner = "new-owner";
+            row.FencingVersion++;
+            await replacement.SaveChangesAsync();
+        });
+        Assert.Equal(0, await Dispatch(db, publisher, "old-owner", 2));
+        await using var read = fixture.Open();
+        var pending = await read.Set<OutboxEntity>().SingleAsync();
+        Assert.Equal("pending", pending.Status);
+        Assert.Equal("new-owner", pending.LeaseOwner);
+        Assert.Equal(2, pending.FencingVersion);
+        Assert.Equal(0, pending.Attempts);
+    }
+
     private static Task<int> Dispatch(OpenConnectDbContext db, ICommittedOutboxPublisher publisher,
         string owner, int maxAttempts, CancellationToken ct = default) =>
         new EfOutboxDispatcher().ExecuteBatchAsync(db, OpenConnectOutboxClaimStrategy.Auto,

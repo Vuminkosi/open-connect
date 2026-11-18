@@ -71,11 +71,26 @@ internal static class OutboxClaimOperations
         return winners;
     }
 
+    internal static async Task<OutboxEntity?> LoadCurrentClaimAsync(DbContext context, OutboxClaim claim, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var row = await context.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
+        if (row is null)
+            return null;
+        // Claims are tracked for CAS writes, but ownership can change while a
+        // previous broker call is in flight. Never trust cached owner/token state.
+        await context.Entry(row).ReloadAsync(ct).ConfigureAwait(false);
+        if (context.Entry(row).State == EntityState.Detached || row.Status != "pending" ||
+            row.LeaseOwner != claim.LeaseOwner || row.FencingVersion != claim.FencingVersion ||
+            row.LeaseExpiresUtc is null || row.LeaseExpiresUtc <= DateTime.UtcNow)
+            return null;
+        return row;
+    }
+
     internal static async Task<bool> CompleteClaimAsync(DbContext context, OutboxClaim claim, CancellationToken ct)
     {
-        var id = Guid.Parse(claim.EntryId);
-        var row = await context.Set<OutboxEntity>().FindAsync([id], ct).ConfigureAwait(false);
-        if (row is null || row.Status != "pending" || row.LeaseOwner != claim.LeaseOwner || row.FencingVersion != claim.FencingVersion || row.LeaseExpiresUtc is null || row.LeaseExpiresUtc <= DateTime.UtcNow)
+        var row = await LoadCurrentClaimAsync(context, claim, ct).ConfigureAwait(false);
+        if (row is null)
             return false;
         row.Status = "delivered";
         row.PublishedUtc = DateTime.UtcNow;
