@@ -48,8 +48,11 @@ public sealed class OutboxAtomicProviderTests
         var name = "oc_outbox_atomic_" + Guid.NewGuid().ToString("N");
         var connection = new SqlConnectionStringBuilder
         {
-            DataSource = @"(localdb)\OpenConnectPrivacyMigration", InitialCatalog = "master",
-            IntegratedSecurity = true, TrustServerCertificate = true, ConnectTimeout = 15
+            DataSource = @"(localdb)\OpenConnectPrivacyMigration",
+            InitialCatalog = "master",
+            IntegratedSecurity = true,
+            TrustServerCertificate = true,
+            ConnectTimeout = 15
         };
         await using (var master = new SqlConnection(connection.ConnectionString))
         {
@@ -83,10 +86,18 @@ public sealed class OutboxAtomicProviderTests
             var now = DateTime.UtcNow;
             var row = new OutboxEntity
             {
-                Id = Guid.NewGuid(), TenantScope = "atomic-tenant", EventId = Guid.NewGuid().ToString(),
-                Subject = "atomic.test", SanitizedPayload = "opaque-payload", Status = "pending",
-                LeaseOwner = "atomic-owner", FencingVersion = 7, LeaseExpiresUtc = expire ? now.AddSeconds(5) : now.AddMinutes(5),
-                CreatedUtc = now, NextAttemptUtc = now, Attempts = 1
+                Id = Guid.NewGuid(),
+                TenantScope = "atomic-tenant",
+                EventId = Guid.NewGuid().ToString(),
+                Subject = "atomic.test",
+                SanitizedPayload = "opaque-payload",
+                Status = "pending",
+                LeaseOwner = "atomic-owner",
+                FencingVersion = 7,
+                LeaseExpiresUtc = expire ? now.AddSeconds(5) : now.AddMinutes(5),
+                CreatedUtc = now,
+                NextAttemptUtc = now,
+                Attempts = 1
             };
             db.Add(row);
             await db.SaveChangesAsync();
