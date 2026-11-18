@@ -125,7 +125,12 @@ public sealed record CapabilityDescriptor(CapabilityId Id, CapabilityKind Kind, 
 public sealed record TaskAcceptance(TaskId TaskId, TenantId TenantId, PrincipalId PrincipalId, string IdempotencyKey);
 // AgentRunState is the canonical public enum name used by the abstractions contract.
 public sealed record TaskRecord(TaskId Id, TenantId TenantId, PrincipalId PrincipalId, AgentRunState State);
-public sealed record EventRecord(SessionId SessionId, long Sequence, string Type, string Data);
+public sealed record EventRecord(SessionId SessionId, long Sequence, string Type, string Data)
+{
+    /// <summary>Identifies the originating task when the event is task-scoped.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TaskId { get; init; }
+}
 public sealed record OutboxEntry(Guid Id, string Type, string Payload);
 
 /// <summary>Stable, server-defined policy associated with a tool.</summary>

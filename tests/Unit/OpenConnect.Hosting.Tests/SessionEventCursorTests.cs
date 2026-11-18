@@ -32,6 +32,25 @@ public sealed class SessionEventCursorTests
         }
     }
 
+    [Fact]
+    public async Task Task_scoped_messages_preserve_optional_identity_without_changing_legacy_events()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var task = new TaskId(Ulid.NewUlid());
+        await store.AppendEventAsync(session.Id.Value, "message", "legacy");
+        await store.AppendTaskEventAsync(session.Id.Value, task, "message", "scoped");
+
+        var response = await Invoke(store, session.Id.Value.ToString(), "");
+        Assert.Equal(200, response.Status);
+        using var json = JsonDocument.Parse(response.Body);
+        var records = json.RootElement.EnumerateArray().ToArray();
+        Assert.False(records[0].TryGetProperty("taskId", out _));
+        Assert.Equal("legacy", records[0].GetProperty("data").GetString());
+        Assert.Equal(task.Value.ToString(), records[1].GetProperty("taskId").GetString());
+        Assert.Equal("scoped", records[1].GetProperty("data").GetString());
+    }
+
     [Theory]
     [InlineData("?afterSequence=-1")]
     [InlineData("?after=bad")]

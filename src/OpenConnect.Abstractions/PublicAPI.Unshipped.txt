@@ -313,6 +313,8 @@ OpenConnect.Abstractions.EventRecord.Sequence.get -> long
 OpenConnect.Abstractions.EventRecord.Sequence.init -> void
 OpenConnect.Abstractions.EventRecord.SessionId.get -> OpenConnect.Abstractions.SessionId
 OpenConnect.Abstractions.EventRecord.SessionId.init -> void
+OpenConnect.Abstractions.EventRecord.TaskId.get -> string?
+OpenConnect.Abstractions.EventRecord.TaskId.init -> void
 OpenConnect.Abstractions.EventRecord.Type.get -> string!
 OpenConnect.Abstractions.EventRecord.Type.init -> void
 OpenConnect.Abstractions.ExecutionId

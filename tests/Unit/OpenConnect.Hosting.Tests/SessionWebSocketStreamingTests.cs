@@ -34,6 +34,8 @@ public sealed class SessionWebSocketStreamingTests
         await store.AppendEventAsync(session.Id.Value, "message.delta", "hello");
         var largeMessage = new string('x', 70_000);
         await store.AppendEventAsync(session.Id.Value, "message.delta", largeMessage);
+        var taskId = new TaskId(Ulid.NewUlid());
+        await store.AppendTaskEventAsync(session.Id.Value, taskId, "message.delta", "scoped");
         using var http = new HttpClient { BaseAddress = new Uri(server.BaseUri, "/openconnect/v1/") };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(FixtureScheme, $"{Tenant}:{Principal}");
         var sdk = new OpenConnectClient(http);
@@ -50,6 +52,9 @@ public sealed class SessionWebSocketStreamingTests
         Assert.Equal("hello", events.Current.Data);
         Assert.True(await events.MoveNextAsync());
         Assert.Equal(largeMessage, events.Current.Data);
+        Assert.True(await events.MoveNextAsync());
+        Assert.Equal(taskId.Value.ToString(), events.Current.TaskId);
+        Assert.Equal("scoped", events.Current.Data);
     }
 
     [Fact]

@@ -751,6 +751,13 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data), cancellationToken);
     }
 
+    /// <summary>Appends an event associated with a task in an existing session.</summary>
+    public Task<long> AppendTaskEventAsync(Ulid id, TaskId taskId, string type, string data, CancellationToken cancellationToken = default)
+    {
+        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data) { TaskId = taskId.Value.ToString() }, cancellationToken);
+    }
+
     public async Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
         string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
     {

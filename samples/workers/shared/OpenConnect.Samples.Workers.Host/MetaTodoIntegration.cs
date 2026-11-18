@@ -206,7 +206,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             }
             if (coreRequest)
             {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", "I’ll check your request. ", cancellationToken).ConfigureAwait(false);
+                await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", "I’ll check your request. ", cancellationToken).ConfigureAwait(false);
                 tools.Add(AIFunctionFactory.Create((CancellationToken ct) => RunToolAsync("checking your Todo list", todo.ListAsync, task, ct), "todo.list", "List the current tenant's Todo records."));
             }
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
@@ -228,7 +228,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
                 AgentInstructions).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
-                await sessions.AppendEventAsync(task.SessionId.Value, "message", response.Text, cancellationToken).ConfigureAwait(false);
+                await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", response.Text, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception exception)
@@ -262,7 +262,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         var delayTask = Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         if (await Task.WhenAny(operationTask, delayTask).ConfigureAwait(false) == delayTask)
         {
-            await sessions.AppendEventAsync(task.SessionId.Value, "message", $"This is taking a little longer while I’m {description}. ", cancellationToken).ConfigureAwait(false);
+            await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", $"This is taking a little longer while I’m {description}. ", cancellationToken).ConfigureAwait(false);
         }
         return await operationTask.ConfigureAwait(false);
     }

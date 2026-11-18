@@ -150,6 +150,7 @@ OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.InMemoryEventJournal() -> vo
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.ReplayAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.AppendEventAsync(OpenConnect.Abstractions.Ulid id, string! type, string! data, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
+OpenConnect.Hosting.AspNetCore.InMemorySessionStore.AppendTaskEventAsync(OpenConnect.Abstractions.Ulid id, OpenConnect.Abstractions.TaskId taskId, string! type, string! data, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.Create(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal) -> OpenConnect.Hosting.AspNetCore.SessionRecord!
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.Get(OpenConnect.Abstractions.Ulid id) -> OpenConnect.Hosting.AspNetCore.SessionRecord?
 OpenConnect.Hosting.AspNetCore.InMemorySessionStore.GetEvents(OpenConnect.Abstractions.Ulid id, long afterSequence) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.EventRecord!>!

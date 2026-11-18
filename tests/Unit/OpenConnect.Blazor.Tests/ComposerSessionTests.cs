@@ -236,6 +236,57 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Tracked_reply_ignores_text_from_a_different_task()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var currentTask = new TaskId(Ulid.NewUlid());
+        var sessionId = new SessionId(Ulid.NewUlid());
+        session.AttachSession(sessionId.Value.ToString());
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(currentTask);
+        var json = $$"""{"sessionId":"{{sessionId.Value}}","sequence":1,"type":"message","data":"old text","taskId":"{{oldTask.Value}}"}""";
+        var other = System.Text.Json.JsonSerializer.Deserialize<EventRecord>(json, OpenConnectHttpJson.CreateOptions())!;
+
+        Assert.False(session.ApplyEvent(other));
+        Assert.Equal(string.Empty, session.StreamingText);
+    }
+
+    [Fact]
+    public void Tracked_reply_buffers_early_text_until_the_task_identity_is_known()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var currentTask = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "message", "old text") with { TaskId = oldTask.Value.ToString() });
+        session.ApplyEvent(Event(2, "message", "correct text") with { TaskId = currentTask.Value.ToString() });
+        Assert.Equal(string.Empty, session.StreamingText);
+
+        session.BindTrackedTask(currentTask);
+
+        Assert.Equal("correct text", session.StreamingText);
+    }
+
+    [Fact]
+    public void Early_task_message_overflow_does_not_replay_a_partial_reply()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        for (var i = 1; i <= 257; i++)
+            session.ApplyEvent(Event(i, "message.delta", "x") with { TaskId = task.Value.ToString() });
+
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
+        Assert.Equal("The assistant could not reconcile task messages.", session.LastError);
+    }
+
+    [Fact]
     public void Unknown_event_types_are_ignored_without_render_change()
     {
         var session = new ComposerSession();

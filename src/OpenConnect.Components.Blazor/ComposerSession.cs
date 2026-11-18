@@ -39,6 +39,9 @@ public sealed class ComposerSession
     private bool _trackedTerminalHandled;
     private string? _trackedTaskId;
     private readonly Dictionary<string, EventRecord> _earlyTaskTerminals = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<EventRecord> _earlyTaskMessages = [];
+    private int _earlyTaskMessageCharacters;
+    private bool _earlyTaskBufferFailed;
     private string _livePartialTranscript = string.Empty;
     private long _committedSpeechEpoch;
 
@@ -136,6 +139,9 @@ public sealed class ComposerSession
             _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
+            _earlyTaskMessages.Clear();
+            _earlyTaskMessageCharacters = 0;
+            _earlyTaskBufferFailed = false;
             _livePartialTranscript = string.Empty;
             _committedSpeechEpoch = 0;
             StagedRecording = null;
@@ -169,6 +175,9 @@ public sealed class ComposerSession
             _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
+            _earlyTaskMessages.Clear();
+            _earlyTaskMessageCharacters = 0;
+            _earlyTaskBufferFailed = false;
             Connection = ComposerConnectionState.Streaming;
         }
 
@@ -185,6 +194,9 @@ public sealed class ComposerSession
             _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
+            _earlyTaskMessages.Clear();
+            _earlyTaskMessageCharacters = 0;
+            _earlyTaskBufferFailed = false;
             Connection = ComposerConnectionState.Streaming;
         }
         Notify();
@@ -196,6 +208,22 @@ public sealed class ComposerSession
         {
             if (!_trackingTask || (expectedSessionId is not null && !string.Equals(SessionId, expectedSessionId, StringComparison.Ordinal))) return;
             _trackedTaskId = taskId.Value.ToString();
+            if (_earlyTaskBufferFailed)
+            {
+                _earlyTaskMessages.Clear();
+                _earlyTaskTerminals.Clear();
+                return;
+            }
+            foreach (var message in _earlyTaskMessages)
+            {
+                if (string.Equals(message.TaskId, _trackedTaskId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _streamingText += message.Data ?? string.Empty;
+                    Connection = ComposerConnectionState.Streaming;
+                }
+            }
+            _earlyTaskMessages.Clear();
+            _earlyTaskMessageCharacters = 0;
             if (_earlyTaskTerminals.TryGetValue(_trackedTaskId, out var terminal))
                 ApplyTrackedTerminalCore(terminal.Type, terminal.Sequence);
             else if (state is AgentRunState.Completed or AgentRunState.Cancelled or AgentRunState.Failed)
@@ -539,8 +567,38 @@ public sealed class ComposerSession
             else if (type.EndsWith("delta", StringComparison.OrdinalIgnoreCase)
                 || type.Equals("message", StringComparison.OrdinalIgnoreCase))
             {
-                _streamingText += record.Data ?? string.Empty;
-                Connection = ComposerConnectionState.Streaming;
+                if (_trackingTask && _earlyTaskBufferFailed)
+                    notify = false;
+                else if (_trackingTask && record.TaskId is not null && _trackedTaskId is null)
+                {
+                    var length = record.Data?.Length ?? 0;
+                    if (_earlyTaskMessages.Count < 256 && length <= 1_000_000 - _earlyTaskMessageCharacters)
+                    {
+                        _earlyTaskMessages.Add(record);
+                        _earlyTaskMessageCharacters += length;
+                        notify = false;
+                    }
+                    else
+                    {
+                        _errors.Add("The assistant could not reconcile task messages.");
+                        Connection = ComposerConnectionState.Error;
+                        _earlyTaskBufferFailed = true;
+                    }
+                }
+                else if (_trackingTask && record.TaskId is { } task &&
+                    !string.Equals(_trackedTaskId, task, StringComparison.OrdinalIgnoreCase))
+                    notify = false;
+                else
+                {
+                    _streamingText += record.Data ?? string.Empty;
+                    Connection = ComposerConnectionState.Streaming;
+                }
+            }
+            else if (_trackingTask && _earlyTaskBufferFailed && (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("task.completed", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("task.failed", StringComparison.OrdinalIgnoreCase)))
+            {
+                notify = false;
             }
             else if (_trackingTask && (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase)
                 || type.Equals("task.completed", StringComparison.OrdinalIgnoreCase)
@@ -568,6 +626,7 @@ public sealed class ComposerSession
                     {
                         _errors.Add("The assistant could not reconcile task completion.");
                         Connection = ComposerConnectionState.Error;
+                        _earlyTaskBufferFailed = true;
                     }
                 }
                 else if (!string.Equals(_trackedTaskId, taskId, StringComparison.OrdinalIgnoreCase))
