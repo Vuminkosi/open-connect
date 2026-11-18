@@ -30,11 +30,11 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.InferPlanAsync, "liveui_infer_plan",
                 "For an interactive UI request, asks the connected Blazor client to use its configured local-first LiveUI inference router and returns a structurally validated plan proposal. Before executing any proposed action, compare it with the user's actual request and current page; structural validity does not prove that the action matches the intent. Do not execute unrelated or uncertain actions; explain the limitation or ask for clarification. Pass the user's request without adding instructions or changing literal search terms, except when resolving a reference from verified context. If browser and worker inference are unavailable, the normal server model may continue by reading liveui_get_current_page and choosing only an exact target and capability returned there; each action still passes host authorization and requires a verified receipt. A missing plan is not an action. Never invent target IDs or claim UI state changed without a verified receipt. This tool does not execute actions. Do not call it for ordinary conversation."),
             AIFunctionFactory.Create(tools.NavigateAsync, "liveui_navigate",
-                "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target."),
+                "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target. An Uncertain result may mean navigation already happened; inspect the current state before repeating it."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",
                 "Inspects a compiled target and returns a privacy-safe verified receipt."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result. An Uncertain result may mean the action already happened; inspect the current state before repeating it."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
@@ -132,9 +132,9 @@ public static class LiveUIClientAgentToolFactory
         {
             var response = await interactionBroker.RequestAsync(sessionId, request, expectedResultKind, timeout, cancellationToken)
                 .ConfigureAwait(false);
-            if (response is null) return JsonSerializer.SerializeToElement(new { error = "client_response_timeout" });
+            if (response is null) return UnverifiedResult("client_response_timeout", expectedResultKind);
             if (response.CorrelationId != request.CorrelationId || response.ResultKind != expectedResultKind)
-                return JsonSerializer.SerializeToElement(new { error = "client_response_mismatch" });
+                return UnverifiedResult("client_response_mismatch", expectedResultKind);
 
             try
             {
@@ -142,7 +142,23 @@ public static class LiveUIClientAgentToolFactory
                 if (payload.RootElement.ValueKind == JsonValueKind.Object) return payload.RootElement.Clone();
             }
             catch (JsonException) { }
-            return JsonSerializer.SerializeToElement(new { error = "client_response_invalid" });
+            return UnverifiedResult("client_response_invalid", expectedResultKind);
         }
+
+        private static JsonElement UnverifiedResult(string error, string expectedResultKind) =>
+            expectedResultKind == "action"
+                ? JsonSerializer.SerializeToElement(new
+                {
+                    error,
+                    outcome = "Uncertain",
+                    postconditionVerified = false,
+                    retrySafe = false,
+                    message = "The client did not return a valid receipt. The action may already have happened; inspect the current state before considering another action."
+                })
+                : JsonSerializer.SerializeToElement(new
+                {
+                    error,
+                    message = "The client did not return a valid response; it may be disconnected or the request may have timed out."
+                });
     }
 }

@@ -213,6 +213,43 @@ public sealed class LiveUIAgentToolsTests
         Assert.All(broker.Requests, item => Assert.True(Guid.TryParseExact(item.CorrelationId, "D", out _)));
     }
 
+    [Fact]
+    public async Task Missing_action_receipt_reports_uncertainty_and_does_not_imply_retry_is_safe()
+    {
+        var broker = new RecordingInteractionBroker((_, _, _) => Task.FromResult<ClientInteractionResponse?>(null));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
+
+        Assert.Equal("client_response_timeout", result.GetProperty("error").GetString());
+        Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());
+        Assert.False(result.GetProperty("postconditionVerified").GetBoolean());
+        Assert.False(result.GetProperty("retrySafe").GetBoolean());
+        Assert.Contains("may already have happened", result.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, "client_response_mismatch")]
+    [InlineData(false, "client_response_invalid")]
+    public async Task Invalid_action_receipts_do_not_imply_an_action_was_safe_to_retry(bool mismatch, string error)
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(mismatch ? Guid.NewGuid().ToString("D") : request.CorrelationId, kind, mismatch ? "{}" : "not-json")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
+
+        Assert.Equal(error, result.GetProperty("error").GetString());
+        Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());
+        Assert.False(result.GetProperty("retrySafe").GetBoolean());
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]

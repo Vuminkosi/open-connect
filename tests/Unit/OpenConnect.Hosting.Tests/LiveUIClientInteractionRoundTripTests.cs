@@ -487,6 +487,27 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Equal(correlation, (await pending.WaitAsync(TimeSpan.FromSeconds(2)))!.CorrelationId);
     }
 
+    [Fact]
+    public async Task Agent_tool_reports_uncertain_outcome_when_client_disconnects_after_dispatch()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var tools = LiveUIClientAgentToolFactory.CreateTools(store, session.Id, TimeSpan.FromSeconds(10));
+        var execute = Assert.IsAssignableFrom<Microsoft.Extensions.AI.AIFunction>(
+            tools.Single(tool => tool.Name == "liveui_execute"));
+        var pending = execute.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })).AsTask();
+        await WaitForRequestAsync(store, session.Id.Value, "execute");
+
+        connection.Dispose();
+
+        var result = Assert.IsType<JsonElement>(await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());
+        Assert.False(result.GetProperty("postconditionVerified").GetBoolean());
+        Assert.False(result.GetProperty("retrySafe").GetBoolean());
+    }
+
     private static PendingRequest StartPendingRequest(InMemorySessionStore store, SessionRecord session, string correlationId)
     {
         var connection = store.RegisterBoundConnection(session)!;
