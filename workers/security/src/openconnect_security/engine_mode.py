@@ -212,7 +212,7 @@ def detect_gpu_present() -> bool:
         import torch
 
         return bool(torch.cuda.is_available())
-    except Exception:
+    except Exception:  # noqa: BLE001 - Optional GPU probe must never prevent CPU startup.
         return False
 
 
