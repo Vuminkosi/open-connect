@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 from openconnect_security.engine_mode import (
@@ -62,7 +62,7 @@ class Settings:
     yunet_enabled: bool = False
 
     @classmethod
-    def from_environment(cls) -> "Settings":
+    def from_environment(cls) -> Settings:
         token = os.environ.get("OPENCONNECT_SCAN_TOKEN") or os.environ.get(
             "OPENCONNECT_WORKER_TOKEN"
         )

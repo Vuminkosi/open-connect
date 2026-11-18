@@ -1,7 +1,4 @@
 #nullable enable
-const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
-const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
-const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 OpenConnect.Core.AgentDefinitionRegistry
 OpenConnect.Core.AgentDefinitionRegistry.AgentDefinitionRegistry() -> void
 OpenConnect.Core.AgentDefinitionRegistry.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -292,12 +289,12 @@ OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Required.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions
 OpenConnect.Core.Configuration.PrivacyOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
@@ -489,8 +486,6 @@ OpenConnect.Core.ServerVadFrameResult.SpeechProbability.init -> void
 OpenConnect.Core.ServerVadFrameResult.StateWasReset.get -> bool
 OpenConnect.Core.ServerVadFrameResult.StateWasReset.init -> void
 OpenConnect.Core.ServiceCollectionExtensions
-const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
-const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
 OpenConnect.Core.VadEngine
 OpenConnect.Core.VadEngine.None = 0 -> OpenConnect.Core.VadEngine
 OpenConnect.Core.VadEngine.SileroOnnx = 1 -> OpenConnect.Core.VadEngine
@@ -519,6 +514,11 @@ OpenConnect.Core.VoiceTurnCoordinator.HandlePartialHypothesis(OpenConnect.Abstra
 OpenConnect.Core.VoiceTurnCoordinator.InterruptBargeIn(OpenConnect.Abstractions.SessionId sessionId) -> long
 OpenConnect.Core.VoiceTurnCoordinator.ValidateRecordedUpload(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Core.RecordedAudioUpload! upload) -> OpenConnect.Core.VoiceTurnCommitResult!
 OpenConnect.Core.VoiceTurnCoordinator.VoiceTurnCoordinator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>! options) -> void
+const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
+const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
+const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
+const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
+const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.CanonicalDockerImages.get -> System.Collections.Generic.IReadOnlyDictionary<OpenConnect.Abstractions.OpenConnectWorkerKind, string!>!
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetCanonicalDockerImage(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> string!
 static OpenConnect.Core.Configuration.AgentOptionsMapping.ToRunBudget(OpenConnect.Core.Configuration.AgentRegistryOptions! options) -> OpenConnect.Abstractions.AgentBudget!
