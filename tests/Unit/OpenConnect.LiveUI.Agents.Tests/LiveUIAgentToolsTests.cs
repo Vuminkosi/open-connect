@@ -185,7 +185,7 @@ public sealed class LiveUIAgentToolsTests
         var tools = LiveUIAgentToolFactory.CreateTools(service);
 
         Assert.Equal(
-            ["liveui_get_current_page", "liveui_navigate", "liveui_inspect", "liveui_execute", "liveui_await_state", "liveui_highlight", "liveui_clear_highlight"],
+            ["liveui_get_current_page", "liveui_navigate", "liveui_inspect", "liveui_find_matching_rows", "liveui_execute", "liveui_await_state", "liveui_highlight", "liveui_clear_highlight"],
             tools.Select(tool => tool.Name));
 
         var awaitState = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_await_state"));
@@ -211,6 +211,29 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("todo.home", action.RouteId);
         Assert.Equal("todo.settings", action.Parameters.DestinationRouteId);
         Assert.Equal(LiveUIActionType.Navigate, action.Type);
+    }
+
+    [Fact]
+    public async Task Find_matching_rows_requires_text_and_preserves_ambiguous_receipt()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, "{\"outcome\":\"Ambiguous\",\"code\":\"text_match_ambiguous\",\"postconditionVerified\":false}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var find = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_find_matching_rows"));
+
+        var invalid = Assert.IsType<System.Text.Json.JsonElement>(await find.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.list", ["matchText"] = " " })));
+        Assert.Equal("invalid_request", invalid.GetProperty("error").GetString());
+        Assert.Empty(broker.Requests);
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await find.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.list", ["matchText"] = "report" })));
+        Assert.Equal("Ambiguous", result.GetProperty("outcome").GetString());
+        Assert.Equal("text_match_ambiguous", result.GetProperty("code").GetString());
+        var request = Assert.Single(broker.Requests);
+        Assert.Equal("highlight", request.Operation);
+        Assert.Equal("report", request.Value);
     }
 
     [Fact]

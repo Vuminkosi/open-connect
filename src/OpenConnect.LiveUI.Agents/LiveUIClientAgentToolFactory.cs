@@ -35,6 +35,8 @@ public static class LiveUIClientAgentToolFactory
                 "Navigates to an authorized route returned by liveui_get_current_page and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target. An Uncertain result may mean navigation already happened; inspect the current state and do not repeat navigation to that route in this turn."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",
                 "Inspects an authorized target and returns a privacy-safe verified receipt. For lists and tables, verifiedState may report no_recognized_visible_items, one_recognized_visible_item, or multiple_recognized_visible_items. These states describe recognized visible rows only, not their contents, matching records, hidden rows, or other pages; use a specific authorized match when available and ask for clarification when identity remains uncertain."),
+            AIFunctionFactory.Create(tools.FindMatchingRowsAsync, "liveui_find_matching_rows",
+                "Finds visible rows containing matchText in an authorized list or table. Supply the identifying words from the user's request, not the entire instruction. A text_match_ambiguous receipt means multiple visible rows match: ask which record, using a detail that distinguishes them, and do not change any record. A text_match_missing receipt means no visible match was found; it does not prove a record is absent from hidden rows or other pages. A unique result highlights that row but does not establish uniqueness elsewhere. Never treat a generic row count as proof of matching records."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
                 "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
@@ -93,6 +95,12 @@ public static class LiveUIClientAgentToolFactory
 
         public Task<JsonElement> InspectAsync(string targetId, CancellationToken cancellationToken = default) =>
             RequestTargetOperationAsync("inspect", targetId, cancellationToken);
+
+        public Task<JsonElement> FindMatchingRowsAsync(string targetId, string matchText,
+            CancellationToken cancellationToken = default) =>
+            string.IsNullOrWhiteSpace(matchText) || matchText.Length > 256
+                ? Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }))
+                : HighlightAsync(targetId, matchText: matchText, cancellationToken: cancellationToken);
 
         public Task<JsonElement> ExecuteAsync(string targetId, string action, string? value = null,
             CancellationToken cancellationToken = default)
