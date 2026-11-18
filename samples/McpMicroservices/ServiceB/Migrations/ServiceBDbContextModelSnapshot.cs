@@ -418,7 +418,7 @@ namespace OpenConnect.Samples.McpMicroservices.ServiceB.Migrations
 
                     b.HasIndex("ExpiresUtc");
 
-                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId")
+                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId")
                         .IsUnique();
 
                     b.ToTable("oc_privacytokens", (string)null);

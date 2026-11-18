@@ -178,7 +178,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var vault = new EfPrivacyTokenVault<OpenConnectDbContext>(db);
         var ciphertext = new byte[] { 3, 1, 4 };
         await vault.StoreAsync(new($"token-{suffix}", _tenant!.Value, "principal", _sessionId!.Value, "email", ciphertext, DateTimeOffset.UtcNow.AddHours(1)));
-        Assert.Equal(ciphertext, (await vault.GetAsync($"token-{suffix}", _tenant!.Value))!.EncryptedValue);
+        Assert.Equal(ciphertext, (await vault.GetAsync($"token-{suffix}", _tenant!.Value, "principal", _sessionId!.Value))!.EncryptedValue);
         await ExerciseNativeAgentSessionStoreAsync(db);
     }
 

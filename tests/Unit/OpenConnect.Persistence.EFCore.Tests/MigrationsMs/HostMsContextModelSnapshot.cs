@@ -436,9 +436,8 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsMs
 
                     b.HasIndex("ExpiresUtc");
 
-                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId")
-                        .IsUnique()
-                        .HasFilter("[TurnId] IS NOT NULL");
+                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId")
+                        .IsUnique();
 
                     b.ToTable("PrivacyTokens", "openconnect");
                 });
