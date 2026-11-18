@@ -74,7 +74,12 @@ test('worker-backed navigation opens Todo from another route', async ({ page, re
   await page.locator('.oc-anchored-fab').click();
   await page.getByRole('textbox', { name: /message ellai/i }).fill('Open my tasks');
   await page.getByRole('button', { name: /send to ellai/i }).click();
-  await expect(page.getByRole('log', { name: 'Conversation' })).toContainText('The requested task view is ready.', { timeout: 90_000 });
+  try {
+    await expect(page.getByRole('log', { name: 'Conversation' })).toContainText('The requested task view is ready.', { timeout: 90_000 });
+  } catch (error) {
+    const fixture = await (await request.get('http://127.0.0.1:5110/__acceptance/runs')).json();
+    throw new Error(`Cross-route conversation did not complete; fixture error: ${fixture.error ?? 'none'}`, { cause: error });
+  }
   await expect(page.getByRole('heading', { name: 'Task Management' })).toBeVisible();
   const result = await (await request.get('http://127.0.0.1:5110/__acceptance/runs')).json();
   expect(result.error).toBeNull();
