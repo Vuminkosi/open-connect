@@ -11,6 +11,8 @@ public sealed class LiveUIOrchestrator(
     IOptions<LiveUIOptions> options,
     LiveUIManifestValidator manifestValidator)
 {
+    private const byte InFlight = 0;
+    private const byte Finished = 1;
     private readonly ConcurrentDictionary<(string SessionId, string ActionId), byte> _seenActions = new();
 
     public async ValueTask<LiveUIActionReceipt> ExecuteAsync(LiveUIAction action, CancellationToken cancellationToken = default)
@@ -21,7 +23,8 @@ public sealed class LiveUIOrchestrator(
         if (!IsValidAction(action, config, out var validationCode))
             return Receipt(action, LiveUIActionOutcome.Failed, validationCode, false);
 
-        if (!_seenActions.TryAdd((action.SessionId, action.ActionId), 0))
+        var actionKey = (action.SessionId, action.ActionId);
+        if (!_seenActions.TryAdd(actionKey, InFlight))
             return Receipt(action, LiveUIActionOutcome.Conflict, "duplicate_action", false);
 
         try
@@ -106,15 +109,20 @@ public sealed class LiveUIOrchestrator(
         {
             return Receipt(action, LiveUIActionOutcome.Failed, "execution_failed", false);
         }
+        finally
+        {
+            _seenActions.TryUpdate(actionKey, Finished, InFlight);
+        }
     }
 
+    /// <summary>Removes completed action IDs; IDs still executing remain fenced until a later clear.</summary>
     public int ClearSession(string sessionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         var removed = 0;
-        foreach (var key in _seenActions.Keys.Where(key => key.SessionId == sessionId))
+        foreach (var entry in _seenActions.Where(entry => entry.Key.SessionId == sessionId && entry.Value == Finished))
         {
-            if (_seenActions.TryRemove(key, out _)) removed++;
+            if (((ICollection<KeyValuePair<(string SessionId, string ActionId), byte>>)_seenActions).Remove(entry)) removed++;
         }
         return removed;
     }

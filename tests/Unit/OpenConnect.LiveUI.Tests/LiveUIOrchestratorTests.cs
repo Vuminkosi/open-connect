@@ -416,6 +416,25 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(1, orchestrator.ClearSession("session-001"));
     }
 
+    [Fact]
+    public async Task ClearSession_DoesNotReleaseAnActionWhileRuntimeIsExecuting()
+    {
+        var runtime = new BlockingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(Manifest), new RecordingAuthorizer(true),
+            runtime, Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+        var first = orchestrator.ExecuteAsync(Action()).AsTask();
+        await runtime.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(0, orchestrator.ClearSession("session-001"));
+        var duplicate = await orchestrator.ExecuteAsync(Action());
+        Assert.Equal("duplicate_action", duplicate.Code);
+        Assert.Equal(1, runtime.Calls);
+
+        runtime.Release.TrySetResult();
+        Assert.Equal(LiveUIActionOutcome.Completed, (await first).Outcome);
+        Assert.Equal(1, orchestrator.ClearSession("session-001"));
+    }
+
     private static LiveUIOrchestrator Create(RecordingAuthorizer? authorizer = null, RecordingRuntime? runtime = null) =>
         new(new RecordingManifestProvider(Manifest), authorizer ?? new RecordingAuthorizer(true),
             runtime ?? new RecordingRuntime(), Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
@@ -448,6 +467,22 @@ public sealed class LiveUIOrchestratorTests
             Calls++;
             return ValueTask.FromResult(result ?? new LiveUIRuntimeResult(
                 LiveUIActionOutcome.Completed, "verified", PostconditionVerified: true, "selected"));
+        }
+    }
+
+    private sealed class BlockingRuntime : ILiveUIRuntime
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Calls { get; private set; }
+
+        public async ValueTask<LiveUIRuntimeResult> ExecuteAsync(
+            LiveUIExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "verified", true);
         }
     }
 }
