@@ -30,7 +30,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Same_token_id_for_two_principals_resolves_each_without_exception()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
         await vault.StoreAsync(Binding("tok", TenantA, "bob", Session, 2, Start.AddHours(1)));
@@ -42,7 +43,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Same_token_id_for_two_sessions_resolves_by_session()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var other = new SessionId(Ulid.NewUlid());
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
@@ -55,7 +57,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Expired_binding_is_hidden_before_purge_runs()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var clock = new TestClock(Start);
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, clock);
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddMinutes(5)));
@@ -69,7 +72,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Lookup_with_other_principal_or_session_returns_null()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
         Assert.Null(await vault.GetAsync("tok", TenantA, "bob", Session));
@@ -81,7 +85,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Lookup_from_other_tenant_returns_null()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
         Assert.Null(await vault.GetAsync("tok", TenantB, "alice", Session));
@@ -91,7 +96,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Restoring_same_binding_replaces_it_without_exception()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
         await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 2, Start.AddHours(2)));
@@ -105,7 +111,8 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Unique_index_rejects_duplicate_rows_with_null_turn()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         await InsertRawAsync(db, Guid.NewGuid(), 1);
         await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => InsertRawAsync(db, Guid.NewGuid(), 2));
     }
@@ -114,9 +121,12 @@ public sealed class PrivacyTokenVaultScopeTests
     public async Task Dedupe_sql_keeps_newest_row_per_key_before_unique_index()
     {
         var (connection, db) = await OpenAsync();
-        await using var _ = connection; await using var __ = db;
+        await using var _ = connection;
+        await using var __ = db;
         await db.Database.ExecuteSqlRawAsync("DROP INDEX IF EXISTS \"IX_oc_privacytokens_TenantScope_PrincipalOrWorkloadScope_TokenId_SessionId\"");
-        var older = Guid.NewGuid(); var newest = Guid.NewGuid(); var other = Guid.NewGuid();
+        var older = Guid.NewGuid();
+        var newest = Guid.NewGuid();
+        var other = Guid.NewGuid();
         await InsertRawAsync(db, older, 1, created: "2030-01-01 00:00:00");
         await InsertRawAsync(db, newest, 2, created: "2030-01-02 00:00:00");
         await InsertRawAsync(db, other, 3, token: "other", created: "2030-01-01 00:00:00");
