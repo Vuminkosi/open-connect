@@ -14,9 +14,10 @@ export function discoverTargets(maximumTargets) {
   const elements = document.querySelectorAll(selector);
   for (let index = 0; index < Math.min(elements.length, 5000); index++) {
     const element = elements[index];
-    if (!isVisible(element) || element.closest("pre, code") || element.matches(":disabled")) continue;
+    if (!isVisible(element) || element.closest("pre, code") || isDisabled(element)) continue;
     const tag = element.tagName.toLowerCase();
     const role = roleOf(element);
+    if (tag === "input" && element.type === "radio") continue;
     const kind = role === "tab" ? "Tab" : role === "button" ? "Button" : role === "link" ? "Link" :
       role === "heading" ? "Heading" : tag === "select" ? "Select" :
       tag === "input" && element.type === "checkbox" ? "Checkbox" :
@@ -70,6 +71,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Open":
     case "Close":
     case "Click":
+      if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
       if (!isAllowedLinkActivation(element)) return measured(result("Denied", "navigation_boundary"));
       element.click();
       if (parameters.stateName) return measured(verifyState(parameters.stateName, parameters.stateValue));
@@ -104,6 +106,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "SetValue": return measured(setValue(element, parameters.value, isCurrentTarget));
     case "Select": return measured(selectValue(element, parameters.value, isCurrentTarget));
     case "SelectTab":
+      if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
       element.click();
       return measured(verifyState("selected", "true"));
     case "Inspect": return measured(inspect(element));
@@ -266,8 +269,14 @@ function isVisible(element) {
     element.getClientRects().length > 0;
 }
 
+function isDisabled(element) {
+  return element.matches(":disabled") || !!element.closest("[aria-disabled='true']");
+}
+
 function setValue(element, value, isCurrentTarget) {
   if (typeof value !== "string" || !("value" in element)) return result("Failed", "value_not_supported");
+  if (isDisabled(element)) return result("Denied", "control_disabled");
+  if (element.readOnly || element.getAttribute("aria-readonly")?.toLowerCase() === "true") return result("Denied", "control_readonly");
   if (isSensitiveField(element)) {
     return result("Denied", "sensitive_input_blocked");
   }
@@ -284,7 +293,7 @@ function setValue(element, value, isCurrentTarget) {
 function selectValue(element, value, isCurrentTarget) {
   if (isSensitiveField(element)) return result("Denied", "sensitive_input_blocked");
   if (!(element instanceof HTMLSelectElement) || typeof value !== "string") return result("Failed", "select_not_supported");
-  if (element.matches(":disabled")) return result("Denied", "select_disabled");
+  if (isDisabled(element)) return result("Denied", "select_disabled");
   const options = [...element.options];
   const exactValues = options.filter((item) => item.value === value);
   const matches = exactValues.length ? exactValues : options.filter((item) => normalize(item.label) === normalize(value));

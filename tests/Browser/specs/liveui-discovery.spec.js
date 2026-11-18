@@ -13,6 +13,7 @@ test('discovers unique visible semantic controls without exposing input values o
       <h1>Tasks</h1><label>Task title <input value="private task value"></label>
       <button>Add task</button><button>Duplicate</button><button>Duplicate</button>
       <button hidden>Hidden</button><pre><button>Fake action</button></pre>
+      <input type="radio" aria-label="Unsupported radio">
       <input type="password" aria-label="Password" value="secret">
       <a href="/docs">Documentation</a><a href="https://elsewhere.example/">External</a>` }));
   await page.goto('http://liveui.test/');
@@ -24,6 +25,6 @@ test('discovers unique visible semantic controls without exposing input values o
     expect.objectContaining({ kind: 'Link', label: 'Documentation' }),
   ]));
   const serialized = JSON.stringify(result);
-  for (const forbidden of ['private task value', 'secret', 'Password', 'Duplicate', 'Hidden', 'Fake action', 'External'])
+  for (const forbidden of ['private task value', 'secret', 'Password', 'Duplicate', 'Hidden', 'Fake action', 'External', 'Unsupported radio'])
     expect(serialized).not.toContain(forbidden);
 });
