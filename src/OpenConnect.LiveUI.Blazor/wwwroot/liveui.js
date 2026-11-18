@@ -106,7 +106,14 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Click":
       if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
       if (!isAllowedLinkActivation(element)) return measured(result("Denied", "navigation_boundary"));
+      if (action.type !== "Click" && element.getAttribute("aria-expanded") === (action.type === "Open" ? "true" : "false")) {
+        if (parameters.stateName && !stateMatches(element, parameters.stateName, parameters.stateValue))
+          return measured(result("Uncertain", "postcondition_unverified"));
+        return measured(result("Completed", "state_already_verified", true, "state_verified"));
+      }
+      const wasSatisfied = parameters.stateName && stateMatches(element, parameters.stateName, parameters.stateValue);
       element.click();
+      if (wasSatisfied) return measured(result("Uncertain", "postcondition_already_satisfied"));
       if (parameters.stateName) return measured(verifyState(parameters.stateName, parameters.stateValue));
       if (action.type !== "Click") return measured(verifyState("expanded", action.type === "Open" ? "true" : "false"));
       return measured(result("Uncertain", "click_dispatched_without_postcondition"));
@@ -435,19 +442,22 @@ function waitForState(target, route, enableRuntimeFallback, name, expected, time
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     const resolution = resolveTarget(target, enableRuntimeFallback, route);
     if (resolution.status !== "resolved" || !resolution.element.isConnected) return false;
-    const element = resolution.element;
-    switch (name) {
-      case "selected": return (element.getAttribute("aria-selected") || element.getAttribute("aria-pressed")) === (expected || "true");
-      case "checked": return "checked" in element && String(element.checked) === (expected || "true");
-      case "expanded": return element.getAttribute("aria-expanded") === (expected || "true");
-      case "visible": return isVisible(element) === (expected !== "false");
-      case "exists": return element.isConnected === (expected !== "false");
-      case "textContains": return normalize(element.innerText ?? "").includes(normalize(expected));
-      case "textNotContains": return !normalize(element.innerText ?? "").includes(normalize(expected));
-      default: return false;
-    }
+    return stateMatches(resolution.element, name, expected);
   };
   return waitUntil(matches, timeoutMs, "state_verified", "state_not_verified");
+}
+
+function stateMatches(element, name, expected) {
+  switch (name) {
+    case "selected": return (element.getAttribute("aria-selected") || element.getAttribute("aria-pressed")) === (expected || "true");
+    case "checked": return "checked" in element && String(element.checked) === (expected || "true");
+    case "expanded": return element.getAttribute("aria-expanded") === (expected || "true");
+    case "visible": return isVisible(element) === (expected !== "false");
+    case "exists": return element.isConnected === (expected !== "false");
+    case "textContains": return typeof expected === "string" && !!normalize(expected) && normalize(element.innerText ?? "").includes(normalize(expected));
+    case "textNotContains": return typeof expected === "string" && !!normalize(expected) && !normalize(element.innerText ?? "").includes(normalize(expected));
+    default: return false;
+  }
 }
 
 function waitForVisibility(element, timeoutMs) {

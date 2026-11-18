@@ -152,3 +152,52 @@ test('waits for a known target to render without accepting ambiguous or wrong-ro
   expect(results.ambiguous).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
   expect(results.navigated).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
 });
+
+test('a click cannot verify a postcondition that was already true', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button aria-expanded="false">Details</button>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'details', kind: 'Button', label: 'Details', role: 'button' };
+    const button = document.querySelector('button');
+    let clicks = 0;
+    button.addEventListener('click', () => { clicks++; button.setAttribute('aria-expanded', 'true'); });
+    const run = () => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: { stateName: 'expanded', stateValue: 'true' } },
+    }, 100, true);
+    const changed = await run();
+    const alreadyTrue = await run();
+    return { changed, alreadyTrue, clicks };
+  });
+  expect(results.changed).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.alreadyTrue).toMatchObject({ outcome: 'Uncertain', code: 'postcondition_already_satisfied', postconditionVerified: false });
+  expect(results.clicks).toBe(2);
+});
+
+test('opening or closing an already matching disclosure does not toggle it', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button aria-expanded="true">Details</button>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'details', kind: 'Button', label: 'Details', role: 'button' };
+    const button = document.querySelector('button');
+    let clicks = 0;
+    button.addEventListener('click', () => { clicks++; button.setAttribute('aria-expanded', button.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); });
+    const run = (type) => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type, parameters: {} },
+    }, 100, true);
+    const alreadyOpen = await run('Open');
+    const closed = await run('Close');
+    const alreadyClosed = await run('Close');
+    return { alreadyOpen, closed, alreadyClosed, clicks };
+  });
+  for (const receipt of [results.alreadyOpen, results.closed, results.alreadyClosed])
+    expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.clicks).toBe(1);
+});
