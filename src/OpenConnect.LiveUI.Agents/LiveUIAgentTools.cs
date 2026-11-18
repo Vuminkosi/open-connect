@@ -38,10 +38,12 @@ public sealed class LiveUIAgentTools(
             new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
 
         var runtimeOnly = options.Value.Discovery.Mode == LiveUIDiscoveryMode.RuntimeOnly;
+        var runtimeFresh = false;
         if (discover && canInspectRoute && options.Value.Discovery.EnableRuntimeFallback && runtimeDiscovery is not null)
         {
             var refreshed = await runtimeDiscovery.RefreshAsync(context, manifest, route, cancellationToken).ConfigureAwait(false);
             if (!refreshed && runtimeOnly) return null;
+            runtimeFresh = refreshed;
             (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
             if (context is null || manifest is null || route is null) return null;
             routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
@@ -51,7 +53,9 @@ public sealed class LiveUIAgentTools(
         else if (runtimeOnly && canInspectRoute) return null;
 
         var targets = new List<LiveUIAgentTarget>();
-        foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0) : [])
+        foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0 &&
+            (!target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal) ||
+             runtimeFresh && runtimeDiscovery?.IsCurrentTarget(context, manifest, target.Id) == true)) : [])
         {
             cancellationToken.ThrowIfCancellationRequested();
             var authorizedCapabilities = new HashSet<LiveUICapability>();

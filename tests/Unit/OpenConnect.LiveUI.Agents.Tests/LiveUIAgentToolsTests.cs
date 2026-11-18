@@ -13,6 +13,29 @@ public sealed class LiveUIAgentToolsTests
 {
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
+    [Fact]
+    public async Task Failed_runtime_refresh_does_not_expose_stale_discovered_targets()
+    {
+        var stale = new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + "old", LiveUITargetKind.Heading, "Previous page",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var replacement = Manifest with { Routes = Manifest.Routes.Select(route => route.Id == "todo.home"
+            ? route with { Targets = route.Targets.Append(stale).ToArray() } : route).ToArray() };
+        replacement = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
+        var provider = new MutableManifestProvider(replacement);
+        var authorizer = new RecordingAuthorizer();
+        var options = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, new RecordingRuntime(), options, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home") { CurrentPath = "/" }),
+            provider, authorizer, new LiveUIManifestValidator(), orchestrator, options, runtimeDiscovery: new FailedDiscovery());
+
+        var page = await tools.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.Contains(page.Targets, target => target.TargetId == "todo.search");
+        Assert.DoesNotContain(page.Targets, target => target.TargetId == stale.Id);
+        Assert.DoesNotContain(authorizer.Contexts, context => context.Target?.Id == stale.Id);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -786,6 +809,13 @@ public sealed class LiveUIAgentToolsTests
             provider.Current = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
             return ValueTask.FromResult(true);
         }
+    }
+
+    private sealed class FailedDiscovery : ILiveUIRuntimeTargetDiscovery
+    {
+        public ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+        public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) => false;
     }
 
     private sealed class RecordingAuthorizer(Func<RecordingAuthorizer, LiveUIExecutionContext, bool>? allow = null) : ILiveUIActionAuthorizer
