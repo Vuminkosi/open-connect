@@ -714,7 +714,8 @@ const server = http.createServer(async (request, response) => {
     return json(response, 200, { status: 'available' });
   }
   if (request.method === 'GET' && url.pathname === '/__acceptance/runs') {
-    return json(response, fixtureError ? 500 : 200, { runs, error: fixtureError });
+    const error = runs.at(-1)?.error ?? fixtureError;
+    return json(response, error ? 500 : 200, { runs, error: error ?? null });
   }
   if (request.method === 'GET' && url.pathname === '/__acceptance/speech') {
     return json(response, 200, { calls: speechCalls });
@@ -757,11 +758,11 @@ const server = http.createServer(async (request, response) => {
     return json(response, 404, { error: { message: 'not_found' } });
   }
 
+  let run;
   try {
     const body = await readRequest(request);
     const messages = Array.isArray(body.messages) ? body.messages : [];
     const toolMessages = messages.filter((message) => message?.role === 'tool');
-    let run;
     if (toolMessages.length === 0) {
       const userText = messages.filter((item) => item?.role === 'user').at(-1)?.content ?? '';
       const normalizedUserText = typeof userText === 'string' ? userText : JSON.stringify(userText);
@@ -985,8 +986,10 @@ const server = http.createServer(async (request, response) => {
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
     });
   } catch (error) {
-    fixtureError = error instanceof Error ? error.message : String(error);
-    return json(response, 500, { error: { message: fixtureError } });
+    const message = error instanceof Error ? error.message : String(error);
+    if (run) run.error = message;
+    else fixtureError = message;
+    return json(response, 500, { error: { message } });
   }
 });
 
