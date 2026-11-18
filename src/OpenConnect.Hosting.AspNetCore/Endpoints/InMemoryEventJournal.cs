@@ -89,6 +89,13 @@ public sealed class InMemoryEventJournal : IEventJournal
         }
     }
 
+    internal bool IsPendingInteractionDisconnected(SessionId sessionId, string correlationId, string connectionId)
+    {
+        lock (_bindingGate)
+            return _pendingInteractions.TryGetValue((sessionId.Value, correlationId), out var pending) &&
+                pending.Connection.ConnectionId == connectionId && pending.Disconnected;
+    }
+
     internal bool IsInteractionEventForConnection(EventRecord record, string connectionId)
     {
         lock (_bindingGate)
@@ -149,14 +156,14 @@ public sealed class InMemoryEventJournal : IEventJournal
             if (!_boundConnections.TryGetValue(connection.ConnectionId, out var active) || active != connection) return;
             _boundConnections.Remove(connection.ConnectionId);
             foreach (var key in _pendingInteractions
-                         .Where(pair => pair.Value.Connection.ConnectionId == connection.ConnectionId)
+                         .Where(pair => pair.Value.Connection.ConnectionId == connection.ConnectionId && !pair.Value.Completed)
                          .Select(pair => pair.Key).ToArray())
-                _pendingInteractions[key] = _pendingInteractions[key] with { Completed = true };
+                _pendingInteractions[key] = _pendingInteractions[key] with { Completed = true, Disconnected = true };
         }
     }
 
     internal sealed record BoundConnection(string ConnectionId, SessionId SessionId, TenantId TenantId, PrincipalId PrincipalId);
-    private sealed record PendingInteraction(BoundConnection Connection, bool Completed = false);
+    private sealed record PendingInteraction(BoundConnection Connection, bool Completed = false, bool Disconnected = false);
 
     internal sealed class BoundConnectionRegistration(InMemoryEventJournal journal, BoundConnection connection) : IDisposable
     {

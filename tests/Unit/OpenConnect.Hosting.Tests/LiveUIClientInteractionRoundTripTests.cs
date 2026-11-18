@@ -430,6 +430,63 @@ public sealed class LiveUIClientInteractionRoundTripTests
                 .CorrelationId == correlation);
     }
 
+    [Fact]
+    public async Task Disconnect_releases_pending_interaction_and_reconnect_cannot_answer_it()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var original = store.RegisterBoundConnection(session)!;
+        var correlation = Guid.NewGuid().ToString("D");
+        using var cancellation = new CancellationTokenSource();
+        var pending = store.RequestAsync(session.Id,
+            new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab")
+                { ConnectionId = original.ConnectionId },
+            "action", TimeSpan.FromSeconds(10), cancellation.Token);
+        try
+        {
+            await WaitForRequestAsync(store, session.Id.Value, "execute");
+            original.Dispose();
+            using var replacement = store.RegisterBoundConnection(session)!;
+            using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+            var response = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+                session.Id.Value.ToString(), VerifiedResponse(correlation) with { ConnectionId = replacement.ConnectionId },
+                AuthenticatedContext(services), store);
+            Assert.Equal(StatusCodes.Status409Conflict, (await ExecuteAsync(response, services)).StatusCode);
+
+            Assert.Null(await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+            var requestEvent = Assert.Single(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Request);
+            Assert.False(store.IsInteractionEventForConnection(requestEvent, replacement.ConnectionId));
+        }
+        finally
+        {
+            cancellation.Cancel();
+            try { await pending; } catch (OperationCanceledException) { }
+            original.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Accepted_response_survives_a_subsequent_disconnect()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var correlation = Guid.NewGuid().ToString("D");
+        var pending = store.RequestAsync(session.Id,
+            new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab")
+                { ConnectionId = connection.ConnectionId }, "action", TimeSpan.FromSeconds(5));
+        await WaitForRequestAsync(store, session.Id.Value, "execute");
+        using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        var response = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), VerifiedResponse(correlation) with { ConnectionId = connection.ConnectionId },
+            AuthenticatedContext(services), store);
+        Assert.Equal(StatusCodes.Status200OK, (await ExecuteAsync(response, services)).StatusCode);
+
+        connection.Dispose();
+
+        Assert.Equal(correlation, (await pending.WaitAsync(TimeSpan.FromSeconds(2)))!.CorrelationId);
+    }
+
     private static PendingRequest StartPendingRequest(InMemorySessionStore store, SessionRecord session, string correlationId)
     {
         var connection = store.RegisterBoundConnection(session)!;

@@ -804,6 +804,11 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
                         return response;
                 }
 
+                if (_journal.IsPendingInteractionDisconnected(sessionId, request.CorrelationId, connectionId))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return null;
+                }
                 await Task.Delay(delay, responseTimeout.Token).ConfigureAwait(false);
                 delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, 500));
             }

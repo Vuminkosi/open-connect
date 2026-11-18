@@ -58,6 +58,27 @@ public sealed class SessionWebSocketStreamingTests
     }
 
     [Fact]
+    public async Task WebSocket_disconnect_releases_its_pending_interaction()
+    {
+        await using var server = await HostFixture.StartAsync();
+        var store = server.App.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var socket = await server.ConnectWebSocketAsync(session.Id.Value.ToString(), 0, Tenant, Principal);
+        using var registration = await ReceiveJsonAsync(socket).WaitAsync(TimeSpan.FromSeconds(5));
+        var connectionId = registration.RootElement.GetProperty("connectionId").GetString();
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab")
+        { ConnectionId = connectionId };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(10), timeout.Token);
+        using var issued = await ReceiveJsonAsync(socket).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(ClientInteractionEventTypes.Request, issued.RootElement.GetProperty("type").GetString());
+
+        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "test disconnect", timeout.Token);
+
+        Assert.Null(await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
+    [Fact]
     public async Task WebSocket_streams_historical_and_live_events_with_cursor_resume()
     {
         await using var server = await HostFixture.StartAsync();
