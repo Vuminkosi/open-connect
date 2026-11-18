@@ -14,13 +14,13 @@ using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
-using OpenConnect.Samples.Workers.Host;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Samples.Blazor;
 using OpenConnect.Samples.Blazor.Components;
 using OpenConnect.Samples.Blazor.Models;
 using OpenConnect.Samples.Shared;
+using OpenConnect.Samples.Workers.Host;
 
 var builder = WebApplication.CreateBuilder(args);
 

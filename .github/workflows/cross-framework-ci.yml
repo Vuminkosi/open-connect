@@ -228,6 +228,10 @@ jobs:
             exit 0
           }
           foreach ($p in $applicable) {
+            # The explicit matrix includes test projects outside OpenConnect.slnx.
+            # Restore each selected project without permitting lockfile drift.
+            dotnet restore $p --locked-mode
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "TEST: $p -f $tfm"
             dotnet test $p -c Release -f $tfm --no-restore
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -265,6 +269,8 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path $env:CONTRACT_TEST_PROJECT) {
+            dotnet restore $env:CONTRACT_TEST_PROJECT --locked-mode
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             dotnet test $env:CONTRACT_TEST_PROJECT -c Release -f net8.0 --no-restore
           } else {
             Write-Host 'NOT APPLICABLE: contract test project not present yet.'

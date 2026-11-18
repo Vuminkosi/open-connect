@@ -1,7 +1,7 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 namespace OpenConnect.Client.Tests;
 

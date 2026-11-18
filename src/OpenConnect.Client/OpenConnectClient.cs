@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using System.Text.Json;
-using System.Net.Http.Json;
 using System.Globalization;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -8,7 +9,6 @@ using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Components.Contracts;
-using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace OpenConnect.Blazor.Tests;

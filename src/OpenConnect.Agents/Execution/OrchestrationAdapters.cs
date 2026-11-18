@@ -1,7 +1,7 @@
+using System.Text;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
-using System.Text;
 
 namespace OpenConnect.Agents.Execution;
 

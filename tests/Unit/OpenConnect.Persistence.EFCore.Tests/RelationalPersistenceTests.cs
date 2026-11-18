@@ -1,16 +1,16 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using System.Text;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Persistence.EFCore.Entities;
-using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Health;
+using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Stores;
 using Xunit;
 

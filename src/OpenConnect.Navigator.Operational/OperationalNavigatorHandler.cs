@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using OpenConnect.Abstractions;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.Operational.Durable;
-using System.Collections.Concurrent;
 
 namespace OpenConnect.Navigator.Operational;
 

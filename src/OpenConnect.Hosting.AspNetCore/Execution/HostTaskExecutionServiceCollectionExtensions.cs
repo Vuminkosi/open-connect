@@ -2,9 +2,9 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Privacy;
 
 namespace OpenConnect.Hosting.AspNetCore.Execution;

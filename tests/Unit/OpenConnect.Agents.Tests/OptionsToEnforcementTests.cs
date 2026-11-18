@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
-using OpenConnect.Core.Configuration;
 using OpenConnect.Agents.Execution;
+using OpenConnect.Core.Configuration;
 using Xunit;
 
 namespace OpenConnect.Agents.Tests;

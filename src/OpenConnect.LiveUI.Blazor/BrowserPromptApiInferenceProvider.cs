@@ -1,7 +1,7 @@
-using Microsoft.JSInterop;
-using Microsoft.Extensions.Options;
-using OpenConnect.LiveUI.Inference;
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
+using OpenConnect.LiveUI.Inference;
 
 namespace OpenConnect.LiveUI.Blazor;
 

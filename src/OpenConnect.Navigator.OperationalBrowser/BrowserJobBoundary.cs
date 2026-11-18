@@ -1,6 +1,6 @@
+using System.Text.Json;
 using OpenConnect.Navigator;
 using OpenConnect.Navigator.Playwright;
-using System.Text.Json;
 
 namespace OpenConnect.Navigator.OperationalBrowser;
 

@@ -1,11 +1,11 @@
-using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Options;
-using Microsoft.JSInterop;
 using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
 using OpenConnect.Abstractions;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;

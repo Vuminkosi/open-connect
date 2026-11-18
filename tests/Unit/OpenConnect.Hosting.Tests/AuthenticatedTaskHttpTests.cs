@@ -14,11 +14,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
-using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
-using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using Xunit;
+using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
+using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
 
 namespace OpenConnect.Hosting.Tests;
 

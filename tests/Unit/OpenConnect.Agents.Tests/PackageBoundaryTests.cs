@@ -1,6 +1,6 @@
+using System.Xml.Linq;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
-using System.Xml.Linq;
 using Xunit;
 
 namespace OpenConnect.Agents.Tests;

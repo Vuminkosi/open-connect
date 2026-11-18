@@ -1,6 +1,6 @@
-using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using OpenConnect.Navigator.Events;
 
 namespace OpenConnect.Navigator.AspNetCore.Outbox;

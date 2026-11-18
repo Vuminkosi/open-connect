@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using OpenConnect.LiveUI.Inference;
 using Microsoft.Extensions.Options;
+using OpenConnect.LiveUI.Inference;
 using OpenConnect.Privacy;
 using Xunit;
 

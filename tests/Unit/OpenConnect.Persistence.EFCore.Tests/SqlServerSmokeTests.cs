@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Context;

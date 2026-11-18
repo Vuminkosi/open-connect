@@ -1,6 +1,6 @@
+using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using Microsoft.Agents.AI;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.LiveUI;

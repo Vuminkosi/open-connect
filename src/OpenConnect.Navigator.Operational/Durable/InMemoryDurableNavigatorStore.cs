@@ -1,6 +1,6 @@
 using OpenConnect.Navigator;
-using OpenConnect.Navigator.Operational.Durable;
 using OpenConnect.Navigator.Operational;
+using OpenConnect.Navigator.Operational.Durable;
 
 namespace OpenConnect.Navigator.Operational.Durable;
 

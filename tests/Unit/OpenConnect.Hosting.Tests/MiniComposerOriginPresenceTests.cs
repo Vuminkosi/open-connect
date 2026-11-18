@@ -1,7 +1,7 @@
-using Xunit;
 using OpenConnect.Abstractions;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
 

@@ -1,12 +1,12 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using OpenConnect.Abstractions;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
-using OpenConnect.Abstractions;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;

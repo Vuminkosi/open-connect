@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
-using OpenConnect.Navigator;
 using OpenConnect.Abstractions;
+using OpenConnect.Navigator;
 
 namespace OpenConnect.Navigator.AspNetCore;
 

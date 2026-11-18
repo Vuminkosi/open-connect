@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using OpenConnect.Abstractions;
 using OpenConnect.Observability;
-using System.Diagnostics;
 
 namespace OpenConnect.QdrantVactor;
 

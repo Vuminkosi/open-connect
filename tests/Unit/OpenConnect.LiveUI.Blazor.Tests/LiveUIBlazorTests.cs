@@ -1,10 +1,10 @@
-using System.Collections.Frozen;
 using System.Collections;
-using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Frozen;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.LiveUI;
-using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Agents;
+using OpenConnect.LiveUI.Blazor;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;

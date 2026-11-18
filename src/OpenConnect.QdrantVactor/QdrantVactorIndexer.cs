@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
