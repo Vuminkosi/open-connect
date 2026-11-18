@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const plannerKind = process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND ?? 'LocalWorker';
+
 const cases = [
   { name: 'open Todo', prompt: 'Open my Todo list.', route: '/workspace-guide',
     actions: [{ type: 'navigate', targetSuffix: 'route.root' }] },
@@ -26,7 +28,7 @@ const cases = [
     actions: [{ type: 'inspect', targetSuffix: '-region-todo-list' }] },
 ];
 
-async function verifyWorkerPlan(page, request, expectedActions) {
+async function verifyPlan(page, request, expectedActions) {
   await page.locator('.oc-bubble__header-actions button').first().click();
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
@@ -39,7 +41,7 @@ async function verifyWorkerPlan(page, request, expectedActions) {
     .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
   const plans = events.filter((event) => event.type === 'liveui.response' && event.payload.resultKind === 'plan')
     .map((event) => ({ event, plan: JSON.parse(event.payload.payloadJson) }))
-    .filter(({ plan }) => plan.provider === 'LocalWorker' && plan.outcome === 'completed');
+    .filter(({ plan }) => plan.provider === plannerKind && plan.outcome === 'completed');
   const matching = plans.find(({ plan }) => expectedActions.every((expected) => plan.plan.actions.some((action) =>
     action.type === expected.type && action.targetId.endsWith(expected.targetSuffix) &&
     (expected.value === undefined || action.value === expected.value))));
@@ -67,7 +69,9 @@ async function verifyWorkerPlan(page, request, expectedActions) {
 }
 
 for (const scenario of cases) {
-  test(`real conversation and worker: ${scenario.name}`, async ({ page, request }) => {
+  test(`real conversation and ${plannerKind}: ${scenario.name}`, async ({ page, request }) => {
+    const fallbackCallsBefore = plannerKind === 'Gateway'
+      ? (await (await request.get('http://127.0.0.1:5311/__stats')).json()).planCalls : 0;
     await page.goto(scenario.route ?? '/');
     if (scenario.initiallyActive) {
       await page.getByRole('tab', { name: 'Active' }).click();
@@ -96,7 +100,11 @@ for (const scenario of cases) {
     await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
     if (scenario.name === 'explain current view')
       await expect(page.locator('.oc-message-assistant .oc-message-text').last()).toContainText(/\b(?:workflows|tasks?|todos?)\b/i);
-    await verifyWorkerPlan(page, request, scenario.actions);
+    await verifyPlan(page, request, scenario.actions);
+    if (plannerKind === 'Gateway') {
+      const stats = await (await request.get('http://127.0.0.1:5311/__stats')).json();
+      expect(stats.planCalls).toBeGreaterThan(fallbackCallsBefore);
+    }
   });
 }
 

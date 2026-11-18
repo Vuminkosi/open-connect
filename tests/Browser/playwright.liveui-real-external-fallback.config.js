@@ -12,6 +12,7 @@ const [fixture, app] = base.webServer;
 const gatewayUrl = 'http://127.0.0.1:5120';
 const bearer = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER ?? randomBytes(32).toString('base64');
 process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER = bearer;
+process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND = 'Gateway';
 
 export default defineConfig({
   ...base,

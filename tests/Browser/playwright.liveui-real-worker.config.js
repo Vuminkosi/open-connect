@@ -25,6 +25,7 @@ const [fixtureServer, appServer] = connectedConfig.webServer;
 const gatewayUrl = 'http://127.0.0.1:5120';
 const localGatewayBearer = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER ?? randomBytes(32).toString('base64');
 process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER = localGatewayBearer;
+process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND = 'LocalWorker';
 const gatewayEnvironment = {
   ...appServer.env,
   ASPNETCORE_URLS: gatewayUrl,
