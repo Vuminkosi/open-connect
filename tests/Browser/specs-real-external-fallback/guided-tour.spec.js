@@ -39,6 +39,12 @@ test('real agent starts an interactive tour and advances when asked to continue'
   expect(accepted).toHaveLength(2);
   const interactions = events.filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
     .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
+  if (process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND === 'LocalWorker') {
+    const workerPlans = interactions.filter((event) => event.type === 'liveui.response' && event.payload.resultKind === 'plan' &&
+      JSON.parse(event.payload.payloadJson).provider === 'LocalWorker');
+    expect(workerPlans.some((event) => event.sequence < accepted[1].sequence)).toBe(true);
+    expect(workerPlans.some((event) => event.sequence > accepted[1].sequence)).toBe(true);
+  }
   const verified = (event) => {
     const receipt = interactions.find((item) => item.type === 'liveui.response' &&
       item.payload.correlationId === event.payload.correlationId);
