@@ -47,10 +47,10 @@ OpenConnect.Client.ClientVadSession.RecurrentStateLength.get -> int
 OpenConnect.Client.ClientVadSession.ResetState() -> void
 OpenConnect.Client.ClientVadSession.TotalSourceSamples.get -> long
 OpenConnect.Client.CreateTaskRequest
-OpenConnect.Client.CreateTaskRequest.ClientTaskId.get -> string!
-OpenConnect.Client.CreateTaskRequest.ClientTaskId.init -> void
 OpenConnect.Client.CreateTaskRequest.ClientConnectionId.get -> string?
 OpenConnect.Client.CreateTaskRequest.ClientConnectionId.init -> void
+OpenConnect.Client.CreateTaskRequest.ClientTaskId.get -> string!
+OpenConnect.Client.CreateTaskRequest.ClientTaskId.init -> void
 OpenConnect.Client.CreateTaskRequest.CreateTaskRequest(string! ClientTaskId, string! IdempotencyKey, string? Message = null, string? SessionId = null) -> void
 OpenConnect.Client.CreateTaskRequest.IdempotencyKey.get -> string!
 OpenConnect.Client.CreateTaskRequest.IdempotencyKey.init -> void
@@ -93,6 +93,7 @@ OpenConnect.Client.INavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.IOpenConnectClient
 OpenConnect.Client.IOpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.CreateMiniComposerTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.IOpenConnectClient.CreateSessionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
 OpenConnect.Client.IOpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.IOpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
 OpenConnect.Client.IOpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
@@ -100,6 +101,9 @@ OpenConnect.Client.IOpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.Task
 OpenConnect.Client.IOpenConnectClient.PostClientInteractionResponseAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionResponse! response, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Client.IOpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
 OpenConnect.Client.IOpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.IOpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
+OpenConnect.Client.IRealtimeOpenConnectClient
+OpenConnect.Client.IRealtimeOpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
 OpenConnect.Client.IVoiceClientService
 OpenConnect.Client.IVoiceClientService.AcceptRecordingForSubmission(bool userConsentGranted) -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.IVoiceClientService.BeginPlayback() -> long
@@ -161,14 +165,17 @@ OpenConnect.Client.NavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.OpenConnectClient
 OpenConnect.Client.OpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateMiniComposerTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.CreateSessionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!>!
 OpenConnect.Client.OpenConnectClient.GetSessionAsync(OpenConnect.Abstractions.SessionId sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
 OpenConnect.Client.OpenConnectClient.GetTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
-OpenConnect.Client.OpenConnectClient.PostClientInteractionResponseAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionResponse! response, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Client.OpenConnectClient.OpenConnectClient(System.Net.Http.HttpClient! httpClient, Microsoft.Extensions.Options.IOptions<OpenConnect.Client.OpenConnectClientOptions!>? options = null) -> void
+OpenConnect.Client.OpenConnectClient.PostClientInteractionResponseAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionResponse! response, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Client.OpenConnectClient.ReplayEventsAsync(System.Guid sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CanonicalAgentEvent!>!
 OpenConnect.Client.OpenConnectClient.SubscribeEventsAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.OpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
+OpenConnect.Client.OpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
 OpenConnect.Client.OpenConnectClientException
 OpenConnect.Client.OpenConnectClientException.ErrorCode.get -> string?
 OpenConnect.Client.OpenConnectClientException.OpenConnectClientException(int statusCode, string? errorCode, string! message) -> void
@@ -185,6 +192,7 @@ OpenConnect.Client.OpenConnectClientOptions.Reconnect.get -> OpenConnect.Client.
 OpenConnect.Client.OpenConnectClientOptions.Validate() -> void
 OpenConnect.Client.OpenConnectClientOptions.WebSocketAddress.get -> System.Uri?
 OpenConnect.Client.OpenConnectClientOptions.WebSocketAddress.set -> void
+OpenConnect.Client.OpenConnectClientOptions.WebSocketHeaders.get -> System.Collections.Generic.IDictionary<string!, string!>!
 OpenConnect.Client.OpenConnectClientReconnectOptions
 OpenConnect.Client.OpenConnectClientReconnectOptions.Enabled.get -> bool
 OpenConnect.Client.OpenConnectClientReconnectOptions.Enabled.set -> void
@@ -220,6 +228,30 @@ OpenConnect.Client.SessionRecord.PrincipalId.init -> void
 OpenConnect.Client.SessionRecord.SessionRecord(OpenConnect.Abstractions.SessionId Id, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, System.DateTimeOffset CreatedAt) -> void
 OpenConnect.Client.SessionRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Client.SessionRecord.TenantId.init -> void
+OpenConnect.Client.SpeechSynthesisRequest
+OpenConnect.Client.SpeechSynthesisRequest.Format.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Format.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.Locale.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Locale.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.get -> long
+OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.SpeechSynthesisRequest(string! Text, string! VoiceId = "af_heart", string! Locale = "en-US", string! Format = "pcm", long SpeechEpoch = 0) -> void
+OpenConnect.Client.SpeechSynthesisRequest.Text.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.Text.init -> void
+OpenConnect.Client.SpeechSynthesisRequest.VoiceId.get -> string!
+OpenConnect.Client.SpeechSynthesisRequest.VoiceId.init -> void
+OpenConnect.Client.SpeechSynthesisResult
+OpenConnect.Client.SpeechSynthesisResult.AudioBase64.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.AudioBase64.init -> void
+OpenConnect.Client.SpeechSynthesisResult.Channels.get -> int
+OpenConnect.Client.SpeechSynthesisResult.Channels.init -> void
+OpenConnect.Client.SpeechSynthesisResult.Format.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.Format.init -> void
+OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.get -> int
+OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.init -> void
+OpenConnect.Client.SpeechSynthesisResult.SpeechSynthesisResult(string! VoiceId, string! Format, int SampleRateHz, int Channels, string! AudioBase64) -> void
+OpenConnect.Client.SpeechSynthesisResult.VoiceId.get -> string!
+OpenConnect.Client.SpeechSynthesisResult.VoiceId.init -> void
 OpenConnect.Client.VadEngine
 OpenConnect.Client.VadEngine.None = 0 -> OpenConnect.Client.VadEngine
 OpenConnect.Client.VadEngine.SileroOnnx = 1 -> OpenConnect.Client.VadEngine
@@ -289,35 +321,3 @@ static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenCo
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectMauiAudio(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.MauiAudioOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectNavigatorClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.NavigatorClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectVoiceClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.VoiceClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
-OpenConnect.Client.IOpenConnectClient.CreateSessionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
-OpenConnect.Client.OpenConnectClient.CreateSessionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
-OpenConnect.Client.IRealtimeOpenConnectClient
-OpenConnect.Client.IRealtimeOpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
-OpenConnect.Client.OpenConnectClient.SubscribeEventsWebSocketAsync(OpenConnect.Abstractions.SessionId sessionId, long afterSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.EventRecord!>!
-OpenConnect.Client.OpenConnectClientOptions.WebSocketHeaders.get -> System.Collections.Generic.IDictionary<string!, string!>!
-OpenConnect.Client.IOpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
-OpenConnect.Client.OpenConnectClient.SynthesizeSpeechAsync(OpenConnect.Client.SpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SpeechSynthesisResult!>!
-OpenConnect.Client.SpeechSynthesisRequest
-OpenConnect.Client.SpeechSynthesisRequest.SpeechSynthesisRequest(string! Text, string! VoiceId = "af_heart", string! Locale = "en-US", string! Format = "pcm", long SpeechEpoch = 0) -> void
-OpenConnect.Client.SpeechSynthesisRequest.Text.get -> string!
-OpenConnect.Client.SpeechSynthesisRequest.Text.init -> void
-OpenConnect.Client.SpeechSynthesisRequest.VoiceId.get -> string!
-OpenConnect.Client.SpeechSynthesisRequest.VoiceId.init -> void
-OpenConnect.Client.SpeechSynthesisRequest.Locale.get -> string!
-OpenConnect.Client.SpeechSynthesisRequest.Locale.init -> void
-OpenConnect.Client.SpeechSynthesisRequest.Format.get -> string!
-OpenConnect.Client.SpeechSynthesisRequest.Format.init -> void
-OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.get -> long
-OpenConnect.Client.SpeechSynthesisRequest.SpeechEpoch.init -> void
-OpenConnect.Client.SpeechSynthesisResult
-OpenConnect.Client.SpeechSynthesisResult.SpeechSynthesisResult(string! VoiceId, string! Format, int SampleRateHz, int Channels, string! AudioBase64) -> void
-OpenConnect.Client.SpeechSynthesisResult.VoiceId.get -> string!
-OpenConnect.Client.SpeechSynthesisResult.VoiceId.init -> void
-OpenConnect.Client.SpeechSynthesisResult.Format.get -> string!
-OpenConnect.Client.SpeechSynthesisResult.Format.init -> void
-OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.get -> int
-OpenConnect.Client.SpeechSynthesisResult.SampleRateHz.init -> void
-OpenConnect.Client.SpeechSynthesisResult.Channels.get -> int
-OpenConnect.Client.SpeechSynthesisResult.Channels.init -> void
-OpenConnect.Client.SpeechSynthesisResult.AudioBase64.get -> string!
-OpenConnect.Client.SpeechSynthesisResult.AudioBase64.init -> void
