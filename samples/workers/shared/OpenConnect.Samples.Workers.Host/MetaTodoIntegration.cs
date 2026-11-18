@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using System.ClientModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
@@ -210,6 +211,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             var tools = new List<AITool>();
             var coreRequest = RequiresTodoTools(task.Message);
             var liveUIRequest = task.Origin == HostTaskOrigin.MiniComposer;
+            var readTodoRequest = coreRequest || liveUIRequest && conversation!.TodoContext && IsTodoReference(task.Message);
             if (liveUIRequest)
             {
                 if (string.IsNullOrWhiteSpace(task.ClientConnectionId))
@@ -217,7 +219,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
                 tools.AddRange(LiveUIClientAgentToolFactory.CreateTools(
                     new ConnectionBoundInteractionBroker(interactionBroker, task.ClientConnectionId), task.SessionId));
             }
-            if (coreRequest)
+            if (readTodoRequest)
             {
                 await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", "I’ll check your request. ", cancellationToken).ConfigureAwait(false);
                 tools.Add(AIFunctionFactory.Create((CancellationToken ct) => RunToolAsync("checking your Todo list", todo.ListAsync, task, ct), "todo.list", "List the current tenant's Todo records."));
@@ -245,16 +247,16 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             {
                 await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", response.Text, cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                conversation?.Append(task.Message, response.Text);
+                conversation?.Append(task.Message, response.Text, readTodoRequest);
             }
             else
             {
-                conversation?.Messages.Clear();
+                conversation?.Reset();
             }
         }
         catch (Exception exception)
         {
-            conversation?.Messages.Clear();
+            conversation?.Reset();
             logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
             throw;
         }
@@ -270,17 +272,25 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         private const int MaxMessageLength = 4000;
         public SemaphoreSlim Gate { get; } = new(1, 1);
         public List<ChatMessage> Messages { get; } = [];
+        public bool TodoContext { get; private set; }
 
-        public void Append(string user, string assistant)
+        public void Append(string user, string assistant, bool todoContext)
         {
             if (user.Length > MaxMessageLength || assistant.Length > MaxMessageLength)
             {
-                Messages.Clear();
+                Reset();
                 return;
             }
             Messages.Add(new ChatMessage(ChatRole.User, user));
             Messages.Add(new ChatMessage(ChatRole.Assistant, assistant));
             while (Messages.Count > MaxTurns * 2) Messages.RemoveRange(0, 2);
+            TodoContext = todoContext;
+        }
+
+        public void Reset()
+        {
+            Messages.Clear();
+            TodoContext = false;
         }
     }
 
@@ -319,6 +329,10 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         string[] terms = ["todo", "to-do", "task", "tasks", "reminder", "remind me"];
         return terms.Any(value.Contains);
     }
+
+    private static bool IsTodoReference(string message) => Regex.IsMatch(message,
+        @"\b(?:which\s+ones?|that\s+one|those|them|it|its|the\s+next\s+one|what\s+should\s+i\s+do\s+next)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 }
 
 public static class MetaCloudRegistration

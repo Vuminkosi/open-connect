@@ -144,6 +144,46 @@ public sealed class MetaTodoPrivacyEgressTests
     }
 
     [Fact]
+    public async Task Task_follow_up_can_read_todos_without_enabling_mutation_tools()
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), AllowMutations = true, MutationApprovalGranted = true });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        async Task Send(string text) => await executor.ExecuteAsync(
+            new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session, text, Guid.NewGuid().ToString())
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        await Send("Which one should I do next?");
+        Assert.DoesNotContain("todo.list", chat.ToolNames);
+        await Send("Show my active tasks.");
+        var otherSession = sessions.Create(tenant, principal).Id;
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, otherSession,
+            "Which one should I do next?", "other-session")
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "other-client" }, CancellationToken.None);
+        Assert.DoesNotContain("todo.list", chat.ToolNames);
+        await Send("Which one should I do next?");
+        Assert.Contains("todo.list", chat.ToolNames);
+        Assert.DoesNotContain(chat.ToolNames, name => name is "todo.create" or "todo.complete" or "todo.update" or "todo.delete");
+        await Send("Highlight it.");
+        Assert.Contains("todo.list", chat.ToolNames);
+
+        await Send("Tell me a joke.");
+        Assert.DoesNotContain("todo.list", chat.ToolNames);
+        await Send("Which one should I do next?");
+        Assert.DoesNotContain("todo.list", chat.ToolNames);
+    }
+
+    [Fact]
     public async Task Conversation_context_is_session_scoped_and_passes_through_the_privacy_gate()
     {
         const string email = "history.canary@example.test";
