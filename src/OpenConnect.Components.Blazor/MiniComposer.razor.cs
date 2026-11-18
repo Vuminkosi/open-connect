@@ -771,7 +771,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 session.ResumeSend();
             else
             {
-                session.BeginSend(text);
+                session.BeginTrackedSend(text);
                 _pendingSubmissionDisplayed = true;
             }
             sendStarted = true;
@@ -791,7 +791,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 _admissionInFlight = false;
             }
+            if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal)) return;
             _activeTaskId = admitted.Id;
+            session.BindTrackedTask(admitted.Id, sessionId);
             ClearPendingSubmissionIdentity();
             if (_stopRequested)
                 await CancelAdmittedTaskAsync(admitted.Id);

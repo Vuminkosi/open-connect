@@ -35,6 +35,9 @@ public sealed class ComposerSession
     private readonly List<string> _errors = new();
     private string? _streamingRole;
     private string _streamingText = string.Empty;
+    private bool _trackingTask;
+    private string? _trackedTaskId;
+    private readonly Dictionary<string, EventRecord> _earlyTaskTerminals = new(StringComparer.OrdinalIgnoreCase);
     private string _livePartialTranscript = string.Empty;
     private long _committedSpeechEpoch;
 
@@ -128,6 +131,9 @@ public sealed class ComposerSession
             _errors.Clear();
             _streamingText = string.Empty;
             _streamingRole = pendingInitialUserMessage is null ? null : "assistant";
+            _trackingTask = false;
+            _trackedTaskId = null;
+            _earlyTaskTerminals.Clear();
             _livePartialTranscript = string.Empty;
             _committedSpeechEpoch = 0;
             StagedRecording = null;
@@ -144,6 +150,12 @@ public sealed class ComposerSession
     }
 
     public void BeginSend(string text)
+        => BeginSendCore(text, tracked: false);
+
+    internal void BeginTrackedSend(string text)
+        => BeginSendCore(text, tracked: true);
+
+    private void BeginSendCore(string text, bool tracked)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         lock (_gate)
@@ -151,6 +163,9 @@ public sealed class ComposerSession
             _messages.Add(new ComposerMessage("user", text.Trim(), LastSequence, ComposerMessageState.Received));
             _streamingRole = "assistant";
             _streamingText = string.Empty;
+            _trackingTask = tracked;
+            _trackedTaskId = null;
+            _earlyTaskTerminals.Clear();
             Connection = ComposerConnectionState.Streaming;
         }
 
@@ -163,9 +178,49 @@ public sealed class ComposerSession
         {
             _streamingRole = "assistant";
             _streamingText = string.Empty;
+            _trackingTask = true;
+            _trackedTaskId = null;
+            _earlyTaskTerminals.Clear();
             Connection = ComposerConnectionState.Streaming;
         }
         Notify();
+    }
+
+    internal void BindTrackedTask(TaskId taskId, string? expectedSessionId = null)
+    {
+        lock (_gate)
+        {
+            if (!_trackingTask || (expectedSessionId is not null && !string.Equals(SessionId, expectedSessionId, StringComparison.Ordinal))) return;
+            _trackedTaskId = taskId.Value.ToString();
+            if (_earlyTaskTerminals.TryGetValue(_trackedTaskId, out var terminal))
+                ApplyTrackedTerminalCore(terminal);
+            _earlyTaskTerminals.Clear();
+        }
+        Notify();
+    }
+
+    private void ApplyTrackedTerminalCore(EventRecord record)
+    {
+        if (record.Type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            CancelStreamingCore();
+            return;
+        }
+        if (record.Type.Equals("task.failed", StringComparison.OrdinalIgnoreCase))
+        {
+            _errors.Add("The assistant could not complete the request.");
+            _messages.Add(new ComposerMessage("assistant", _streamingText, record.Sequence, ComposerMessageState.Failed));
+            _streamingText = string.Empty;
+            _streamingRole = null;
+            Connection = ComposerConnectionState.Error;
+            return;
+        }
+        if (_streamingText.Length > 0)
+            _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, record.Sequence));
+        _streamingText = string.Empty;
+        _streamingRole = null;
+        if (Connection == ComposerConnectionState.Streaming)
+            Connection = ComposerConnectionState.Idle;
     }
 
     /// <summary>
@@ -477,6 +532,39 @@ public sealed class ComposerSession
             {
                 _streamingText += record.Data ?? string.Empty;
                 Connection = ComposerConnectionState.Streaming;
+            }
+            else if (_trackingTask && (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("task.completed", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("task.failed", StringComparison.OrdinalIgnoreCase)))
+            {
+                string? taskId = null;
+                try
+                {
+                    using var document = JsonDocument.Parse(record.Data ?? "{}");
+                    if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                        document.RootElement.TryGetProperty("taskId", out var id) && id.ValueKind == JsonValueKind.String)
+                        taskId = id.GetString();
+                }
+                catch (JsonException) { }
+                if (string.IsNullOrWhiteSpace(taskId))
+                    notify = false;
+                else if (_trackedTaskId is null)
+                {
+                    if (_earlyTaskTerminals.Count < 64 || _earlyTaskTerminals.ContainsKey(taskId))
+                    {
+                        _earlyTaskTerminals[taskId] = record;
+                        notify = false;
+                    }
+                    else
+                    {
+                        _errors.Add("The assistant could not reconcile task completion.");
+                        Connection = ComposerConnectionState.Error;
+                    }
+                }
+                else if (!string.Equals(_trackedTaskId, taskId, StringComparison.OrdinalIgnoreCase))
+                    notify = false;
+                else
+                    ApplyTrackedTerminalCore(record);
             }
             else if (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
             {

@@ -153,6 +153,56 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Late_terminal_event_does_not_cancel_a_new_tracked_reply()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var newTask = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("first");
+        session.BindTrackedTask(oldTask);
+        session.ApplyEvent(Event(1, "task.completed", $$"""{"taskId":"{{oldTask.Value}}"}"""));
+        session.BeginTrackedSend("second");
+        Assert.False(session.ApplyEvent(Event(2, "task.cancelled", $$"""{"taskId":"{{oldTask.Value}}"}""")));
+        session.BindTrackedTask(newTask);
+
+        Assert.False(session.ApplyEvent(Event(3, "task.cancelled", $$"""{"taskId":"{{oldTask.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.True(session.ApplyEvent(Event(4, "task.cancelled", $$"""{"taskId":"{{newTask.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+    }
+
+    [Fact]
+    public void Terminal_event_before_admission_response_is_applied_after_binding()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "task.cancelled", $$"""{"taskId":"{{task.Value}}"}"""));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+    }
+
+    [Fact]
+    public void Terminal_event_without_matching_identity_cannot_finish_tracked_reply()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task);
+        Assert.False(session.ApplyEvent(Event(1, "task.completed", "{}")));
+        Assert.False(session.ApplyEvent(Event(2, "task.failed", "not-json")));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.True(session.ApplyEvent(Event(3, "task.failed", $$"""{"taskId":"{{task.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+    }
+
+    [Fact]
     public void Unknown_event_types_are_ignored_without_render_change()
     {
         var session = new ComposerSession();
