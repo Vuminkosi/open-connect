@@ -10,6 +10,10 @@ namespace OpenConnect.Persistence.EFCore.Tests.MigrationsPg
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Existing rows may hold duplicate bindings because TurnId (always null) made the old key non-unique.
+            // Keep the newest binding per (tenant, principal, token, session) before enforcing uniqueness.
+            migrationBuilder.Sql(@"DELETE FROM ""openconnect"".""PrivacyTokens"" WHERE ""Id"" IN (SELECT ""Id"" FROM (SELECT ""Id"", ROW_NUMBER() OVER (PARTITION BY ""TenantScope"", ""PrincipalOrWorkloadScope"", ""TokenId"", ""SessionId"" ORDER BY ""CreatedUtc"" DESC, ""Id"" ASC) AS rn FROM ""openconnect"".""PrivacyTokens"") AS d WHERE d.rn > 1)");
+
             migrationBuilder.DropIndex(
                 name: "IX_PrivacyTokens_TenantScope_PrincipalOrWorkloadScope_TokenId_~",
                 schema: "openconnect",

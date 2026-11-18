@@ -436,7 +436,7 @@ namespace OpenConnect.Samples.Persistence.Postgres.Migrations
 
                     b.HasIndex("ExpiresUtc");
 
-                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId")
+                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId")
                         .IsUnique();
 
                     b.ToTable("PrivacyTokens", "openconnect");

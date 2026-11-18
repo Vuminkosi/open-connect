@@ -15,26 +15,44 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context, TimeProvid
         var tenantScope = UlidGuidMapper.Scope(binding.TenantId.Value);
         var scope = binding.PrincipalOrWorkloadScope;
         var sessionId = UlidGuidMapper.ToGuid(binding.SessionId.Value);
-        // EF-02F master-approved interim mapping. Envelope is opaque; this adapter never decrypts it.
-        context.Set<PrivacyTokenEntity>().Add(new PrivacyTokenEntity
+        var digest = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{tenantScope}|{scope}|{sessionId}|{binding.TokenId}|{binding.EntityType}"))).ToLowerInvariant();
+        var createdUtc = _time.GetUtcNow().UtcDateTime;
+        // Storing the same (tenant, principal/workload, token, session) again replaces the existing binding so the
+        // unique index never rejects an idempotent re-store. Concurrent first writes still surface DbUpdateException.
+        var existing = await context.Set<PrivacyTokenEntity>()
+            .FirstOrDefaultAsync(x => x.TenantScope == tenantScope && x.PrincipalOrWorkloadScope == scope
+                && x.SessionId == sessionId && x.TokenId == binding.TokenId, ct).ConfigureAwait(false);
+        if (existing is not null)
         {
-            Id = Guid.NewGuid(),
-            TenantScope = tenantScope,
-            PrincipalOrWorkloadScope = scope,
-            SessionId = sessionId,
-            TurnId = null,
-            TokenId = binding.TokenId,
-            EntityType = binding.EntityType,
-            EncryptedValue = binding.EncryptedValue,
-            Nonce = [],
-            AuthenticationTag = [],
-            WrappedDataKey = [],
-            KeyProviderId = "envelope",
-            KeyVersion = "v1",
-            BindingDigest = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{tenantScope}|{scope}|{sessionId}|{binding.TokenId}|{binding.EntityType}"))).ToLowerInvariant(),
-            CreatedUtc = _time.GetUtcNow().UtcDateTime,
-            ExpiresUtc = binding.ExpiresAt.UtcDateTime
-        });
+            existing.EntityType = binding.EntityType;
+            existing.EncryptedValue = binding.EncryptedValue;
+            existing.BindingDigest = digest;
+            existing.CreatedUtc = createdUtc;
+            existing.ExpiresUtc = binding.ExpiresAt.UtcDateTime;
+        }
+        else
+        {
+            // EF-02F master-approved interim mapping. Envelope is opaque; this adapter never decrypts it.
+            context.Set<PrivacyTokenEntity>().Add(new PrivacyTokenEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantScope = tenantScope,
+                PrincipalOrWorkloadScope = scope,
+                SessionId = sessionId,
+                TurnId = null,
+                TokenId = binding.TokenId,
+                EntityType = binding.EntityType,
+                EncryptedValue = binding.EncryptedValue,
+                Nonce = [],
+                AuthenticationTag = [],
+                WrappedDataKey = [],
+                KeyProviderId = "envelope",
+                KeyVersion = "v1",
+                BindingDigest = digest,
+                CreatedUtc = createdUtc,
+                ExpiresUtc = binding.ExpiresAt.UtcDateTime
+            });
+        }
         await context.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 

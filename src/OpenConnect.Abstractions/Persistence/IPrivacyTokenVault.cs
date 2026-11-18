@@ -3,7 +3,10 @@ namespace OpenConnect.Abstractions.Persistence;
 /// <summary>Provider-independent storage contract for privacy token mappings.</summary>
 public interface IPrivacyTokenVault
 {
-    /// <summary>Stores an encrypted privacy token binding.</summary>
+    /// <summary>
+    /// Stores an encrypted privacy token binding. A binding for the same tenant, principal or workload scope, token id and session
+    /// replaces the existing one (idempotent re-store).
+    /// </summary>
     Task StoreAsync(PrivacyTokenBinding binding, CancellationToken ct = default);
 
     /// <summary>
