@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI.Workflows.Declarative.Mcp;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -30,21 +33,38 @@ public sealed class McpLiveRoundTripLabTests
         using var cts = new CancellationTokenSource(HappyPathTimeout);
         await using var lab = await InProcMcpLab.StartAsync("add", cts.Token);
 
-        await using var handler = new DefaultMcpToolHandler((_, _) => Task.FromResult<HttpClient?>(lab.HttpClient));
-        var result = await handler.InvokeToolAsync(
-            lab.ServerUrl,
-            "lab",
-            "add",
-            new Dictionary<string, object?> { ["a"] = 40, ["b"] = 2 },
-            new Dictionary<string, string>(),
-            null,
-            cts.Token);
+        using var services = CreateHttpServices(TimeSpan.FromSeconds(10), new Uri(lab.ServerUrl));
+        var factory = new TrackingClientFactory(services.GetRequiredService<IHttpClientFactory>());
+        var handler = new DefaultMcpToolHandler(factory, ClientName);
+        for (var invocation = 0; invocation < 2; invocation++)
+        {
+            var result = await handler.InvokeToolAsync(
+                lab.ServerUrl,
+                "lab",
+                "add",
+                new Dictionary<string, object?> { ["a"] = 40, ["b"] = 2 },
+                new Dictionary<string, string> { ["X-Lab-Invocation"] = invocation.ToString() },
+                null,
+                cts.Token);
 
-        Assert.NotNull(result);
-        Assert.NotNull(result.Outputs);
-        var text = Assert.Single(result.Outputs);
-        var textContent = Assert.IsType<TextContent>(text);
-        Assert.Equal("42", textContent.Text.Trim());
+            Assert.NotNull(result);
+            Assert.NotNull(result.Outputs);
+            var text = Assert.Single(result.Outputs);
+            var textContent = Assert.IsType<TextContent>(text);
+            Assert.Equal("42", textContent.Text.Trim());
+        }
+
+        Assert.Equal(2, factory.Clients.Count);
+        Assert.NotSame(factory.Clients[0], factory.Clients[1]);
+        foreach (var client in factory.Clients)
+        {
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => client.GetAsync(lab.ServerUrl));
+        }
+
+        Assert.NotEmpty(lab.RequestHeaders);
+        Assert.All(lab.RequestHeaders, headers => Assert.Equal("Bearer local-test-token", headers["Authorization"]));
+        Assert.Contains(lab.RequestHeaders, headers => headers.GetValueOrDefault("X-Lab-Invocation") == "0");
+        Assert.Contains(lab.RequestHeaders, headers => headers.GetValueOrDefault("X-Lab-Invocation") == "1");
     }
 
     [Fact]
@@ -61,8 +81,9 @@ public sealed class McpLiveRoundTripLabTests
 
         var started = DateTimeOffset.UtcNow;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        using var httpClient = new HttpClient { Timeout = UnreachableClientTimeout };
-        await using var handler = new DefaultMcpToolHandler((_, _) => Task.FromResult<HttpClient?>(httpClient));
+        using var services = CreateHttpServices(UnreachableClientTimeout, new Uri($"http://127.0.0.1:{closedPort}/mcp"));
+        var factory = new TrackingClientFactory(services.GetRequiredService<IHttpClientFactory>());
+        var handler = new DefaultMcpToolHandler(factory, ClientName);
 
         var exception = await Record.ExceptionAsync(() => handler.InvokeToolAsync(
             $"http://127.0.0.1:{closedPort}/mcp",
@@ -74,9 +95,47 @@ public sealed class McpLiveRoundTripLabTests
             cts.Token));
 
         Assert.NotNull(exception);
+        var client = Assert.Single(factory.Clients);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => client.GetAsync($"http://127.0.0.1:{closedPort}/mcp"));
         Assert.True(
             DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(12),
             $"Unreachable-server probe took too long; fail-closed must be prompt. Exception: {exception.GetType().FullName}");
+    }
+
+    private const string ClientName = "workflow-mcp-lab";
+
+    private static ServiceProvider CreateHttpServices(TimeSpan timeout, Uri origin)
+    {
+        var services = new ServiceCollection();
+        services.AddHttpClient(ClientName, client => client.Timeout = timeout)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            .AddHttpMessageHandler(() => new OriginAuthenticationHandler(origin))
+            .SetHandlerLifetime(TimeSpan.FromMinutes(2));
+        return services.BuildServiceProvider();
+    }
+
+    private sealed class TrackingClientFactory(IHttpClientFactory inner) : IHttpClientFactory
+    {
+        public List<HttpClient> Clients { get; } = new();
+
+        public HttpClient CreateClient(string name)
+        {
+            Assert.Equal(ClientName, name);
+            var client = inner.CreateClient(name);
+            Clients.Add(client);
+            return client;
+        }
+    }
+
+    private sealed class OriginAuthenticationHandler(Uri origin) : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.NotNull(request.RequestUri);
+            Assert.Equal(origin.GetLeftPart(UriPartial.Authority), request.RequestUri.GetLeftPart(UriPartial.Authority));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "local-test-token");
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -97,7 +156,7 @@ public sealed class McpLiveRoundTripLabTests
 
         public string ServerUrl { get; }
 
-        public HttpClient HttpClient { get; } = new() { Timeout = TimeSpan.FromSeconds(10) };
+        public ConcurrentQueue<Dictionary<string, string>> RequestHeaders { get; } = new();
 
         private InProcMcpLab(
             TcpListener listener,
@@ -244,6 +303,8 @@ public sealed class McpLiveRoundTripLabTests
                     }
                 }
 
+                RequestHeaders.Enqueue(headerMap);
+
                 if (string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase))
                 {
                     await HandleGetAsync(stream, ct);
@@ -356,7 +417,6 @@ public sealed class McpLiveRoundTripLabTests
             {
             }
 
-            HttpClient.Dispose();
             await _server.DisposeAsync().ConfigureAwait(false);
             await _transport.DisposeAsync().ConfigureAwait(false);
             _cts.Dispose();

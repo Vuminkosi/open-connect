@@ -55,25 +55,27 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative": {
         "type": "Transitive",
-        "resolved": "1.27.0",
-        "contentHash": "j7z3PB7xh3CK0lA4zT+TSArVOt/5+244t1CEX8YuG1BDVmWtBsucNEs6E3X3MWU+SvIsg+KjwEke22KRkO0n0w==",
+        "resolved": "1.28.0",
+        "contentHash": "15v3Jr5iUqyKWcY2M8+P1b48bTgofZJ359wHIX5izC9TXgfPVYCg1wsEYUv94e3WNHGVyT5lAF5qDs9/vYrFcg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows": "1.27.0",
+          "Microsoft.Agents.AI.Workflows": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
@@ -160,8 +162,8 @@
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "vHPomsJPqUvf1ExdzCCSEUMQqloONPTBMGqNqBUdr4UgSTs9bCzH1oLkuS6WgUgIu+xqWngQbjelUBNlDuzLWQ=="
+        "resolved": "10.0.13",
+        "contentHash": "PEC80XidOaP1vyHWiSIOHOfh6MpkFln/gkLXKaSmjrAdBSwcAaowvOaVBKvnb+HAb2UTGrZqROajIKMVFu2jdw=="
       },
       "Microsoft.Bcl.HashCode": {
         "type": "Transitive",
@@ -523,7 +525,7 @@
         "dependencies": {
           "Microsoft.Agents.AI": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
-          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
+          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.28.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
         }
@@ -635,26 +637,28 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative.Mcp": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "3Mlz8Xu0pMK6MFq53Hm76lndnLMJgwAVhGR8w4N25sLX/ApzhaPIMyeJbXkao9Io4zMEY57XFnXRv8DvquChjA==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "ttZdmVCcRkL81Be8TMhVDG/5D/vyfDjszhGZyoCAj+RHkWpRL/wxYgK6ImMAw2ApCmq2OZK//ETGiLBs8stgmg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows.Declarative": "1.27.0",
+          "Microsoft.Agents.AI.Workflows.Declarative": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
@@ -766,34 +770,36 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative": {
         "type": "Transitive",
-        "resolved": "1.27.0",
-        "contentHash": "j7z3PB7xh3CK0lA4zT+TSArVOt/5+244t1CEX8YuG1BDVmWtBsucNEs6E3X3MWU+SvIsg+KjwEke22KRkO0n0w==",
+        "resolved": "1.28.0",
+        "contentHash": "15v3Jr5iUqyKWcY2M8+P1b48bTgofZJ359wHIX5izC9TXgfPVYCg1wsEYUv94e3WNHGVyT5lAF5qDs9/vYrFcg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows": "1.27.0",
+          "Microsoft.Agents.AI.Workflows": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
           "OpenTelemetry.Api": "1.18.0",
           "System.CodeDom": "10.0.12",
           "System.Collections.Immutable": "10.0.12",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Agents.ObjectModel": {
@@ -879,8 +885,8 @@
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "vHPomsJPqUvf1ExdzCCSEUMQqloONPTBMGqNqBUdr4UgSTs9bCzH1oLkuS6WgUgIu+xqWngQbjelUBNlDuzLWQ=="
+        "resolved": "10.0.13",
+        "contentHash": "PEC80XidOaP1vyHWiSIOHOfh6MpkFln/gkLXKaSmjrAdBSwcAaowvOaVBKvnb+HAb2UTGrZqROajIKMVFu2jdw=="
       },
       "Microsoft.Bcl.HashCode": {
         "type": "Transitive",
@@ -1219,8 +1225,8 @@
       },
       "System.Net.ServerSentEvents": {
         "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "72010m/U1v06btqPUDgSatcYvHMPSKBbwYsTMBzaONx1ksCG2mz0CCnzaikCrQggjz5l7V7mzpD8yiCoKqNV2A=="
+        "resolved": "10.0.13",
+        "contentHash": "qIzBBMElC4Vq4pLFNi9MIbXEH5GwtCkuEn1msb67dPMNEZQnQeXxDjMNw1B0hDM/PnBZsJg5oSBYMwJeJt7htQ=="
       },
       "System.Numerics.Tensors": {
         "type": "Transitive",
@@ -1294,7 +1300,7 @@
         "dependencies": {
           "Microsoft.Agents.AI": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
-          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
+          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.28.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
         }
@@ -1412,26 +1418,28 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative.Mcp": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "3Mlz8Xu0pMK6MFq53Hm76lndnLMJgwAVhGR8w4N25sLX/ApzhaPIMyeJbXkao9Io4zMEY57XFnXRv8DvquChjA==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "ttZdmVCcRkL81Be8TMhVDG/5D/vyfDjszhGZyoCAj+RHkWpRL/wxYgK6ImMAw2ApCmq2OZK//ETGiLBs8stgmg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows.Declarative": "1.27.0",
+          "Microsoft.Agents.AI.Workflows.Declarative": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
@@ -1439,10 +1447,10 @@
           "OpenTelemetry.Api": "1.18.0",
           "System.CodeDom": "10.0.12",
           "System.Collections.Immutable": "10.0.12",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Net.ServerSentEvents": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Net.ServerSentEvents": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Extensions.Configuration": {
@@ -1548,34 +1556,36 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative": {
         "type": "Transitive",
-        "resolved": "1.27.0",
-        "contentHash": "j7z3PB7xh3CK0lA4zT+TSArVOt/5+244t1CEX8YuG1BDVmWtBsucNEs6E3X3MWU+SvIsg+KjwEke22KRkO0n0w==",
+        "resolved": "1.28.0",
+        "contentHash": "15v3Jr5iUqyKWcY2M8+P1b48bTgofZJ359wHIX5izC9TXgfPVYCg1wsEYUv94e3WNHGVyT5lAF5qDs9/vYrFcg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows": "1.27.0",
+          "Microsoft.Agents.AI.Workflows": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
           "OpenTelemetry.Api": "1.18.0",
           "System.CodeDom": "10.0.12",
           "System.Collections.Immutable": "10.0.12",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Agents.ObjectModel": {
@@ -1660,8 +1670,8 @@
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "vHPomsJPqUvf1ExdzCCSEUMQqloONPTBMGqNqBUdr4UgSTs9bCzH1oLkuS6WgUgIu+xqWngQbjelUBNlDuzLWQ=="
+        "resolved": "10.0.13",
+        "contentHash": "PEC80XidOaP1vyHWiSIOHOfh6MpkFln/gkLXKaSmjrAdBSwcAaowvOaVBKvnb+HAb2UTGrZqROajIKMVFu2jdw=="
       },
       "Microsoft.Bcl.HashCode": {
         "type": "Transitive",
@@ -1999,8 +2009,8 @@
       },
       "System.Net.ServerSentEvents": {
         "type": "Transitive",
-        "resolved": "10.0.12",
-        "contentHash": "72010m/U1v06btqPUDgSatcYvHMPSKBbwYsTMBzaONx1ksCG2mz0CCnzaikCrQggjz5l7V7mzpD8yiCoKqNV2A=="
+        "resolved": "10.0.13",
+        "contentHash": "qIzBBMElC4Vq4pLFNi9MIbXEH5GwtCkuEn1msb67dPMNEZQnQeXxDjMNw1B0hDM/PnBZsJg5oSBYMwJeJt7htQ=="
       },
       "System.Numerics.Tensors": {
         "type": "Transitive",
@@ -2074,7 +2084,7 @@
         "dependencies": {
           "Microsoft.Agents.AI": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
-          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
+          "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.28.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
         }
@@ -2192,26 +2202,28 @@
       },
       "Microsoft.Agents.AI.Workflows.Declarative.Mcp": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "3Mlz8Xu0pMK6MFq53Hm76lndnLMJgwAVhGR8w4N25sLX/ApzhaPIMyeJbXkao9Io4zMEY57XFnXRv8DvquChjA==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "ttZdmVCcRkL81Be8TMhVDG/5D/vyfDjszhGZyoCAj+RHkWpRL/wxYgK6ImMAw2ApCmq2OZK//ETGiLBs8stgmg==",
         "dependencies": {
-          "Microsoft.Agents.AI.Workflows.Declarative": "1.27.0",
+          "Microsoft.Agents.AI.Workflows.Declarative": "1.28.0",
           "Microsoft.Agents.ObjectModel": "2026.5.5",
           "Microsoft.Agents.ObjectModel.Json": "2026.5.5",
           "Microsoft.Agents.ObjectModel.PowerFx": "2026.5.5",
-          "Microsoft.Bcl.AsyncInterfaces": "10.0.12",
+          "Microsoft.Bcl.AsyncInterfaces": "10.0.13",
           "Microsoft.Bcl.HashCode": "6.0.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
           "Microsoft.Extensions.Configuration": "10.0.12",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.12",
           "Microsoft.Extensions.DependencyInjection": "10.0.12",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+          "Microsoft.Extensions.Http": "10.0.12",
           "Microsoft.Extensions.Logging": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "Microsoft.PowerFx.Interpreter": "1.8.1",
@@ -2219,10 +2231,10 @@
           "OpenTelemetry.Api": "1.18.0",
           "System.CodeDom": "10.0.12",
           "System.Collections.Immutable": "10.0.12",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Net.ServerSentEvents": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Net.ServerSentEvents": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Extensions.Configuration": {
