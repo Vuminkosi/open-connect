@@ -118,7 +118,7 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             var vault = new EfPrivacyTokenVault<OpenConnectDbContext>(db);
             var encrypted = new byte[] { 1, 2, 3 };
             await vault.StoreAsync(new("pg-token", scope, "principal", sessionId, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
-            Assert.Equal(encrypted, (await vault.GetAsync("pg-token", scope))!.EncryptedValue);
+            Assert.Equal(encrypted, (await vault.GetAsync("pg-token", scope, "principal", sessionId))!.EncryptedValue);
         }
         catch (Exception exception)
         {
