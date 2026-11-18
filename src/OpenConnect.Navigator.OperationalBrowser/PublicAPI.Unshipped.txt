@@ -77,3 +77,43 @@ const OpenConnect.Navigator.OperationalBrowser.EgressGuard.MaxRedirectHops = 10 
 static OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary.IsAllowedTool(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement args, System.Uri! origin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
 static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
 static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out string! denialReason) -> bool
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt!
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Deconstruct(out string! ExecutionId, out string! SessionId, out System.DateTimeOffset CompletedAt, out bool ProfileDeleted, out bool CleanupRequiresOperatorAlert) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? other) -> bool
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec!
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Deconstruct(out string! ExecutionId, out string! TenantScope, out string! ServicePrincipalRef, out System.Collections.Generic.IReadOnlyList<System.Uri!>! AllowedOrigins, out string! PolicyRevision, out System.DateTimeOffset Deadline, out string! IdempotencyKey, out OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget! ResourceBudget) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? other) -> bool
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget!
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Deconstruct(out int MaxMs, out int MaxSteps, out long MaxBytes) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? other) -> bool
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession!
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Deconstruct(out string! SessionId, out string! ProfileDir, out string! WorkloadIdentityRef) -> void
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Equals(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? other) -> bool
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget!
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Deconstruct(out System.Uri! Destination, out System.Collections.Generic.IReadOnlyList<System.Net.IPAddress!>! Addresses) -> void
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Equals(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? other) -> bool
+override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Equals(object? obj) -> bool
+override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.GetHashCode() -> int
+override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.ToString() -> string!
+override OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Equals(object? obj) -> bool
+override OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.GetHashCode() -> int
+override OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.ToString() -> string!
+override OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Equals(object? obj) -> bool
+override OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.GetHashCode() -> int
+override OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.ToString() -> string!
+override OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Equals(object? obj) -> bool
+override OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.GetHashCode() -> int
+override OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.ToString() -> string!
+override OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Equals(object? obj) -> bool
+override OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.GetHashCode() -> int
+override OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.ToString() -> string!
+static OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? left, OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.operator ==(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? left, OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? left, OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.operator ==(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? left, OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? left, OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.operator ==(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? left, OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.operator !=(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? left, OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.operator ==(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? left, OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.operator !=(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? left, OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.operator ==(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? left, OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? right) -> bool

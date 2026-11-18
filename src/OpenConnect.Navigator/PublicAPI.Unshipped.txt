@@ -495,3 +495,163 @@ static OpenConnect.Navigator.NavigatorRiskClassifier.Classify(OpenConnect.Naviga
 static OpenConnect.Navigator.NavigatorServiceCollectionExtensions.AddOpenConnectNavigator(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Navigator.NavigatorOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Navigator.NavigatorSession.Restore(OpenConnect.Navigator.NavigatorSessionSnapshot! snapshot) -> OpenConnect.Navigator.NavigatorSession!
 static OpenConnect.Navigator.NavigatorToolFacade.GetTools(System.Collections.Generic.IReadOnlySet<string!>! grants, bool captureEnabled, bool speechEnabled) -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.<Clone>$() -> OpenConnect.Navigator.Capture.NavigatorCaptureConsent!
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Deconstruct(out string! Scope, out string! ArtifactId, out string! Purpose, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Equals(OpenConnect.Navigator.Capture.NavigatorCaptureConsent? other) -> bool
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.<Clone>$() -> OpenConnect.Navigator.Capture.NavigatorCaptureDecision!
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Deconstruct(out bool Allowed, out System.DateTimeOffset? ExpiresAt, out string! Reason) -> void
+OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Equals(OpenConnect.Navigator.Capture.NavigatorCaptureDecision? other) -> bool
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.<Clone>$() -> OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof!
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.Deconstruct(out bool PixelsRedacted, out bool ServerReinspectionPassed) -> void
+OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.Equals(OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? other) -> bool
+OpenConnect.Navigator.CommandGrant.<Clone>$() -> OpenConnect.Navigator.CommandGrant!
+OpenConnect.Navigator.CommandGrant.Deconstruct(out string! CommandId, out string! NavigatorSessionId, out long Sequence, out OpenConnect.Navigator.NavigatorActionType Action, out string! TargetId, out long TargetRevision, out string! ArgsHash, out string! Tenant, out string! Principal, out string! ClientInstance, out long PolicyRevision, out System.DateTimeOffset ExpiresAt, out string! Nonce) -> void
+OpenConnect.Navigator.CommandGrant.Equals(OpenConnect.Navigator.CommandGrant? other) -> bool
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.<Clone>$() -> OpenConnect.Navigator.Events.CommittedNavigatorEvent!
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Deconstruct(out string! EventId, out string! SessionId, out string? TaskId, out long Sequence, out string? CorrelationId, out string! Type, out System.DateTimeOffset OccurredAt, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Metadata) -> void
+OpenConnect.Navigator.Events.CommittedNavigatorEvent.Equals(OpenConnect.Navigator.Events.CommittedNavigatorEvent? other) -> bool
+OpenConnect.Navigator.NavigatorCommand.<Clone>$() -> OpenConnect.Navigator.NavigatorCommand!
+OpenConnect.Navigator.NavigatorCommand.Deconstruct(out string! CommandId, out string! NavigatorSessionId, out long Sequence, out string! IdempotencyKey, out long ExpectedVersion, out OpenConnect.Navigator.NavigatorActionType Action, out string! TargetId, out long TargetRevision, out object? Args) -> void
+OpenConnect.Navigator.NavigatorCommand.Equals(OpenConnect.Navigator.NavigatorCommand? other) -> bool
+OpenConnect.Navigator.NavigatorEvent.<Clone>$() -> OpenConnect.Navigator.NavigatorEvent!
+OpenConnect.Navigator.NavigatorEvent.Deconstruct(out string! EventId, out string! Type, out string! SessionId, out string? TaskId, out long Sequence, out string? CorrelationId, out System.DateTimeOffset OccurredAt, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Metadata) -> void
+OpenConnect.Navigator.NavigatorEvent.Equals(OpenConnect.Navigator.NavigatorEvent? other) -> bool
+OpenConnect.Navigator.NavigatorReceipt.<Clone>$() -> OpenConnect.Navigator.NavigatorReceipt!
+OpenConnect.Navigator.NavigatorReceipt.Deconstruct(out string! Intent, out OpenConnect.Navigator.NavigatorActionType Action, out OpenConnect.Navigator.NavigatorCommandOutcome Outcome, out string? Postcondition) -> void
+OpenConnect.Navigator.NavigatorReceipt.Equals(OpenConnect.Navigator.NavigatorReceipt? other) -> bool
+OpenConnect.Navigator.NavigatorRegisteredTarget.<Clone>$() -> OpenConnect.Navigator.NavigatorRegisteredTarget!
+OpenConnect.Navigator.NavigatorRegisteredTarget.Deconstruct(out OpenConnect.Navigator.NavigatorTargetDescriptor! Descriptor, out string! TenantId, out string! PrincipalId, out long Revision) -> void
+OpenConnect.Navigator.NavigatorRegisteredTarget.Equals(OpenConnect.Navigator.NavigatorRegisteredTarget? other) -> bool
+OpenConnect.Navigator.NavigatorSessionSnapshot.<Clone>$() -> OpenConnect.Navigator.NavigatorSessionSnapshot!
+OpenConnect.Navigator.NavigatorSessionSnapshot.Deconstruct(out string! SessionId, out string! TenantId, out string! PrincipalId, out OpenConnect.Navigator.NavigatorSessionState State, out string! ClientInstance, out string! RouteId, out long Revision) -> void
+OpenConnect.Navigator.NavigatorSessionSnapshot.Equals(OpenConnect.Navigator.NavigatorSessionSnapshot? other) -> bool
+OpenConnect.Navigator.NavigatorSuggestion.<Clone>$() -> OpenConnect.Navigator.NavigatorSuggestion!
+OpenConnect.Navigator.NavigatorSuggestion.Deconstruct(out string! Id, out string! Text) -> void
+OpenConnect.Navigator.NavigatorSuggestion.Equals(OpenConnect.Navigator.NavigatorSuggestion? other) -> bool
+OpenConnect.Navigator.NavigatorTargetDescriptor.<Clone>$() -> OpenConnect.Navigator.NavigatorTargetDescriptor!
+OpenConnect.Navigator.NavigatorTargetDescriptor.Deconstruct(out string! SchemaVersion, out string! TargetId, out string! ComponentId, out int ComponentVersion, out string! Label, out string! Description, out string! RouteId, out System.Collections.Generic.IReadOnlySet<OpenConnect.Navigator.NavigatorActionType>! AllowedActions, out System.Collections.Generic.IReadOnlySet<string!>! RequiredCapabilities, out string! Sensitivity, out System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorSuggestion!>? Suggestions) -> void
+OpenConnect.Navigator.NavigatorTargetDescriptor.Equals(OpenConnect.Navigator.NavigatorTargetDescriptor? other) -> bool
+OpenConnect.Navigator.NavigatorTargetScope.<Clone>$() -> OpenConnect.Navigator.NavigatorTargetScope!
+OpenConnect.Navigator.NavigatorTargetScope.Deconstruct(out string! TenantId, out string! PrincipalId, out string! RouteId, out System.Collections.Generic.IReadOnlySet<string!>! Capabilities) -> void
+OpenConnect.Navigator.NavigatorTargetScope.Equals(OpenConnect.Navigator.NavigatorTargetScope? other) -> bool
+OpenConnect.Navigator.NavigatorTourPlan.<Clone>$() -> OpenConnect.Navigator.NavigatorTourPlan!
+OpenConnect.Navigator.NavigatorTourPlan.Deconstruct(out string! TourId, out int Version, out System.Collections.Generic.IReadOnlyList<OpenConnect.Navigator.NavigatorTourStep!>! Steps, out string! RouteId, out bool IsDynamic) -> void
+OpenConnect.Navigator.NavigatorTourPlan.Equals(OpenConnect.Navigator.NavigatorTourPlan? other) -> bool
+OpenConnect.Navigator.NavigatorTourStep.<Clone>$() -> OpenConnect.Navigator.NavigatorTourStep!
+OpenConnect.Navigator.NavigatorTourStep.Deconstruct(out OpenConnect.Navigator.NavigatorTourStepType Type, out string? TargetId, out string? Text, out OpenConnect.Navigator.NavigatorActionType? Action, out System.TimeSpan? Timeout) -> void
+OpenConnect.Navigator.NavigatorTourStep.Equals(OpenConnect.Navigator.NavigatorTourStep? other) -> bool
+OpenConnect.Navigator.SpeechCapability.<Clone>$() -> OpenConnect.Navigator.SpeechCapability!
+OpenConnect.Navigator.SpeechCapability.Deconstruct(out string! ProviderId, out OpenConnect.Navigator.NavigatorSpeechProvider Provider, out bool Available, out bool Healthy) -> void
+OpenConnect.Navigator.SpeechCapability.Equals(OpenConnect.Navigator.SpeechCapability? other) -> bool
+OpenConnect.Navigator.SpeechError.<Clone>$() -> OpenConnect.Navigator.SpeechError!
+OpenConnect.Navigator.SpeechError.Deconstruct(out OpenConnect.Navigator.SpeechErrorCode Code) -> void
+OpenConnect.Navigator.SpeechError.Equals(OpenConnect.Navigator.SpeechError? other) -> bool
+OpenConnect.Navigator.SpeechProviderResolution.<Clone>$() -> OpenConnect.Navigator.SpeechProviderResolution!
+OpenConnect.Navigator.SpeechProviderResolution.Deconstruct(out string? ProviderId, out OpenConnect.Navigator.SpeechUnavailableReason? UnavailableReason) -> void
+OpenConnect.Navigator.SpeechProviderResolution.Equals(OpenConnect.Navigator.SpeechProviderResolution? other) -> bool
+OpenConnect.Navigator.SpeechSynthesisEvent.<Clone>$() -> OpenConnect.Navigator.SpeechSynthesisEvent!
+OpenConnect.Navigator.SpeechSynthesisEvent.Deconstruct(out OpenConnect.Navigator.SpeechSynthesisEventKind Kind, out string! RequestId, out long SpeechEpoch, out int? ChunkIndex, out OpenConnect.Navigator.SpeechError? Error) -> void
+OpenConnect.Navigator.SpeechSynthesisEvent.Equals(OpenConnect.Navigator.SpeechSynthesisEvent? other) -> bool
+OpenConnect.Navigator.SpeechSynthesisRequest.<Clone>$() -> OpenConnect.Navigator.SpeechSynthesisRequest!
+OpenConnect.Navigator.SpeechSynthesisRequest.Deconstruct(out string! RequestId, out string! TextReference, out string! Locale, out string! VoiceId, out string! Format, out long SpeechEpoch, out System.DateTimeOffset Deadline) -> void
+OpenConnect.Navigator.SpeechSynthesisRequest.Equals(OpenConnect.Navigator.SpeechSynthesisRequest? other) -> bool
+override OpenConnect.Navigator.Capture.NavigatorCaptureConsent.Equals(object? obj) -> bool
+override OpenConnect.Navigator.Capture.NavigatorCaptureConsent.GetHashCode() -> int
+override OpenConnect.Navigator.Capture.NavigatorCaptureConsent.ToString() -> string!
+override OpenConnect.Navigator.Capture.NavigatorCaptureDecision.Equals(object? obj) -> bool
+override OpenConnect.Navigator.Capture.NavigatorCaptureDecision.GetHashCode() -> int
+override OpenConnect.Navigator.Capture.NavigatorCaptureDecision.ToString() -> string!
+override OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.Equals(object? obj) -> bool
+override OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.GetHashCode() -> int
+override OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.ToString() -> string!
+override OpenConnect.Navigator.CommandGrant.Equals(object? obj) -> bool
+override OpenConnect.Navigator.CommandGrant.GetHashCode() -> int
+override OpenConnect.Navigator.CommandGrant.ToString() -> string!
+override OpenConnect.Navigator.Events.CommittedNavigatorEvent.Equals(object? obj) -> bool
+override OpenConnect.Navigator.Events.CommittedNavigatorEvent.GetHashCode() -> int
+override OpenConnect.Navigator.Events.CommittedNavigatorEvent.ToString() -> string!
+override OpenConnect.Navigator.NavigatorCommand.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorCommand.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorCommand.ToString() -> string!
+override OpenConnect.Navigator.NavigatorEvent.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorEvent.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorEvent.ToString() -> string!
+override OpenConnect.Navigator.NavigatorReceipt.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorReceipt.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorReceipt.ToString() -> string!
+override OpenConnect.Navigator.NavigatorRegisteredTarget.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorRegisteredTarget.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorRegisteredTarget.ToString() -> string!
+override OpenConnect.Navigator.NavigatorSessionSnapshot.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorSessionSnapshot.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorSessionSnapshot.ToString() -> string!
+override OpenConnect.Navigator.NavigatorSuggestion.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorSuggestion.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorSuggestion.ToString() -> string!
+override OpenConnect.Navigator.NavigatorTargetDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorTargetDescriptor.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorTargetDescriptor.ToString() -> string!
+override OpenConnect.Navigator.NavigatorTargetScope.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorTargetScope.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorTargetScope.ToString() -> string!
+override OpenConnect.Navigator.NavigatorTourPlan.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorTourPlan.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorTourPlan.ToString() -> string!
+override OpenConnect.Navigator.NavigatorTourStep.Equals(object? obj) -> bool
+override OpenConnect.Navigator.NavigatorTourStep.GetHashCode() -> int
+override OpenConnect.Navigator.NavigatorTourStep.ToString() -> string!
+override OpenConnect.Navigator.SpeechCapability.Equals(object? obj) -> bool
+override OpenConnect.Navigator.SpeechCapability.GetHashCode() -> int
+override OpenConnect.Navigator.SpeechCapability.ToString() -> string!
+override OpenConnect.Navigator.SpeechError.Equals(object? obj) -> bool
+override OpenConnect.Navigator.SpeechError.GetHashCode() -> int
+override OpenConnect.Navigator.SpeechError.ToString() -> string!
+override OpenConnect.Navigator.SpeechProviderResolution.Equals(object? obj) -> bool
+override OpenConnect.Navigator.SpeechProviderResolution.GetHashCode() -> int
+override OpenConnect.Navigator.SpeechProviderResolution.ToString() -> string!
+override OpenConnect.Navigator.SpeechSynthesisEvent.Equals(object? obj) -> bool
+override OpenConnect.Navigator.SpeechSynthesisEvent.GetHashCode() -> int
+override OpenConnect.Navigator.SpeechSynthesisEvent.ToString() -> string!
+override OpenConnect.Navigator.SpeechSynthesisRequest.Equals(object? obj) -> bool
+override OpenConnect.Navigator.SpeechSynthesisRequest.GetHashCode() -> int
+override OpenConnect.Navigator.SpeechSynthesisRequest.ToString() -> string!
+static OpenConnect.Navigator.Capture.NavigatorCaptureConsent.operator !=(OpenConnect.Navigator.Capture.NavigatorCaptureConsent? left, OpenConnect.Navigator.Capture.NavigatorCaptureConsent? right) -> bool
+static OpenConnect.Navigator.Capture.NavigatorCaptureConsent.operator ==(OpenConnect.Navigator.Capture.NavigatorCaptureConsent? left, OpenConnect.Navigator.Capture.NavigatorCaptureConsent? right) -> bool
+static OpenConnect.Navigator.Capture.NavigatorCaptureDecision.operator !=(OpenConnect.Navigator.Capture.NavigatorCaptureDecision? left, OpenConnect.Navigator.Capture.NavigatorCaptureDecision? right) -> bool
+static OpenConnect.Navigator.Capture.NavigatorCaptureDecision.operator ==(OpenConnect.Navigator.Capture.NavigatorCaptureDecision? left, OpenConnect.Navigator.Capture.NavigatorCaptureDecision? right) -> bool
+static OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.operator !=(OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? left, OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? right) -> bool
+static OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof.operator ==(OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? left, OpenConnect.Navigator.Capture.NavigatorPixelRedactionProof? right) -> bool
+static OpenConnect.Navigator.CommandGrant.operator !=(OpenConnect.Navigator.CommandGrant? left, OpenConnect.Navigator.CommandGrant? right) -> bool
+static OpenConnect.Navigator.CommandGrant.operator ==(OpenConnect.Navigator.CommandGrant? left, OpenConnect.Navigator.CommandGrant? right) -> bool
+static OpenConnect.Navigator.Events.CommittedNavigatorEvent.operator !=(OpenConnect.Navigator.Events.CommittedNavigatorEvent? left, OpenConnect.Navigator.Events.CommittedNavigatorEvent? right) -> bool
+static OpenConnect.Navigator.Events.CommittedNavigatorEvent.operator ==(OpenConnect.Navigator.Events.CommittedNavigatorEvent? left, OpenConnect.Navigator.Events.CommittedNavigatorEvent? right) -> bool
+static OpenConnect.Navigator.NavigatorCommand.operator !=(OpenConnect.Navigator.NavigatorCommand? left, OpenConnect.Navigator.NavigatorCommand? right) -> bool
+static OpenConnect.Navigator.NavigatorCommand.operator ==(OpenConnect.Navigator.NavigatorCommand? left, OpenConnect.Navigator.NavigatorCommand? right) -> bool
+static OpenConnect.Navigator.NavigatorEvent.operator !=(OpenConnect.Navigator.NavigatorEvent? left, OpenConnect.Navigator.NavigatorEvent? right) -> bool
+static OpenConnect.Navigator.NavigatorEvent.operator ==(OpenConnect.Navigator.NavigatorEvent? left, OpenConnect.Navigator.NavigatorEvent? right) -> bool
+static OpenConnect.Navigator.NavigatorReceipt.operator !=(OpenConnect.Navigator.NavigatorReceipt? left, OpenConnect.Navigator.NavigatorReceipt? right) -> bool
+static OpenConnect.Navigator.NavigatorReceipt.operator ==(OpenConnect.Navigator.NavigatorReceipt? left, OpenConnect.Navigator.NavigatorReceipt? right) -> bool
+static OpenConnect.Navigator.NavigatorRegisteredTarget.operator !=(OpenConnect.Navigator.NavigatorRegisteredTarget? left, OpenConnect.Navigator.NavigatorRegisteredTarget? right) -> bool
+static OpenConnect.Navigator.NavigatorRegisteredTarget.operator ==(OpenConnect.Navigator.NavigatorRegisteredTarget? left, OpenConnect.Navigator.NavigatorRegisteredTarget? right) -> bool
+static OpenConnect.Navigator.NavigatorSessionSnapshot.operator !=(OpenConnect.Navigator.NavigatorSessionSnapshot? left, OpenConnect.Navigator.NavigatorSessionSnapshot? right) -> bool
+static OpenConnect.Navigator.NavigatorSessionSnapshot.operator ==(OpenConnect.Navigator.NavigatorSessionSnapshot? left, OpenConnect.Navigator.NavigatorSessionSnapshot? right) -> bool
+static OpenConnect.Navigator.NavigatorSuggestion.operator !=(OpenConnect.Navigator.NavigatorSuggestion? left, OpenConnect.Navigator.NavigatorSuggestion? right) -> bool
+static OpenConnect.Navigator.NavigatorSuggestion.operator ==(OpenConnect.Navigator.NavigatorSuggestion? left, OpenConnect.Navigator.NavigatorSuggestion? right) -> bool
+static OpenConnect.Navigator.NavigatorTargetDescriptor.operator !=(OpenConnect.Navigator.NavigatorTargetDescriptor? left, OpenConnect.Navigator.NavigatorTargetDescriptor? right) -> bool
+static OpenConnect.Navigator.NavigatorTargetDescriptor.operator ==(OpenConnect.Navigator.NavigatorTargetDescriptor? left, OpenConnect.Navigator.NavigatorTargetDescriptor? right) -> bool
+static OpenConnect.Navigator.NavigatorTargetScope.operator !=(OpenConnect.Navigator.NavigatorTargetScope? left, OpenConnect.Navigator.NavigatorTargetScope? right) -> bool
+static OpenConnect.Navigator.NavigatorTargetScope.operator ==(OpenConnect.Navigator.NavigatorTargetScope? left, OpenConnect.Navigator.NavigatorTargetScope? right) -> bool
+static OpenConnect.Navigator.NavigatorTourPlan.operator !=(OpenConnect.Navigator.NavigatorTourPlan? left, OpenConnect.Navigator.NavigatorTourPlan? right) -> bool
+static OpenConnect.Navigator.NavigatorTourPlan.operator ==(OpenConnect.Navigator.NavigatorTourPlan? left, OpenConnect.Navigator.NavigatorTourPlan? right) -> bool
+static OpenConnect.Navigator.NavigatorTourStep.operator !=(OpenConnect.Navigator.NavigatorTourStep? left, OpenConnect.Navigator.NavigatorTourStep? right) -> bool
+static OpenConnect.Navigator.NavigatorTourStep.operator ==(OpenConnect.Navigator.NavigatorTourStep? left, OpenConnect.Navigator.NavigatorTourStep? right) -> bool
+static OpenConnect.Navigator.SpeechCapability.operator !=(OpenConnect.Navigator.SpeechCapability? left, OpenConnect.Navigator.SpeechCapability? right) -> bool
+static OpenConnect.Navigator.SpeechCapability.operator ==(OpenConnect.Navigator.SpeechCapability? left, OpenConnect.Navigator.SpeechCapability? right) -> bool
+static OpenConnect.Navigator.SpeechError.operator !=(OpenConnect.Navigator.SpeechError? left, OpenConnect.Navigator.SpeechError? right) -> bool
+static OpenConnect.Navigator.SpeechError.operator ==(OpenConnect.Navigator.SpeechError? left, OpenConnect.Navigator.SpeechError? right) -> bool
+static OpenConnect.Navigator.SpeechProviderResolution.operator !=(OpenConnect.Navigator.SpeechProviderResolution? left, OpenConnect.Navigator.SpeechProviderResolution? right) -> bool
+static OpenConnect.Navigator.SpeechProviderResolution.operator ==(OpenConnect.Navigator.SpeechProviderResolution? left, OpenConnect.Navigator.SpeechProviderResolution? right) -> bool
+static OpenConnect.Navigator.SpeechSynthesisEvent.operator !=(OpenConnect.Navigator.SpeechSynthesisEvent? left, OpenConnect.Navigator.SpeechSynthesisEvent? right) -> bool
+static OpenConnect.Navigator.SpeechSynthesisEvent.operator ==(OpenConnect.Navigator.SpeechSynthesisEvent? left, OpenConnect.Navigator.SpeechSynthesisEvent? right) -> bool
+static OpenConnect.Navigator.SpeechSynthesisRequest.operator !=(OpenConnect.Navigator.SpeechSynthesisRequest? left, OpenConnect.Navigator.SpeechSynthesisRequest? right) -> bool
+static OpenConnect.Navigator.SpeechSynthesisRequest.operator ==(OpenConnect.Navigator.SpeechSynthesisRequest? left, OpenConnect.Navigator.SpeechSynthesisRequest? right) -> bool

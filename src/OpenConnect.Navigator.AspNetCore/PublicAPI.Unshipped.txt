@@ -90,3 +90,35 @@ static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorOutboxServiceCollectionE
 static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext.FromServerPrincipal(System.Security.Claims.ClaimsPrincipal! principal, string! sessionId) -> OpenConnect.Navigator.AspNetCore.Outbox.NavigatorServerAuthContext
 static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsDeliveryAdapter.ProjectProgress(string! sessionId, long sequence, string! type, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! metadata) -> object!
 static OpenConnect.Navigator.AspNetCore.Outbox.NavigatorWsProjector.ProjectProgress(string! sessionId, long sequence, string! type, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! metadata) -> object!
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.<Clone>$() -> OpenConnect.Navigator.AspNetCore.ApprovalRequest!
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.Deconstruct(out string! CommandId, out string! ArgsHash) -> void
+OpenConnect.Navigator.AspNetCore.ApprovalRequest.Equals(OpenConnect.Navigator.AspNetCore.ApprovalRequest? other) -> bool
+OpenConnect.Navigator.AspNetCore.CommandRequest.<Clone>$() -> OpenConnect.Navigator.AspNetCore.CommandRequest!
+OpenConnect.Navigator.AspNetCore.CommandRequest.Deconstruct(out OpenConnect.Navigator.NavigatorCommand! Command) -> void
+OpenConnect.Navigator.AspNetCore.CommandRequest.Equals(OpenConnect.Navigator.AspNetCore.CommandRequest? other) -> bool
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.<Clone>$() -> OpenConnect.Navigator.AspNetCore.CreateSessionRequest!
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.Deconstruct(out string! ClientInstance, out string! RouteId) -> void
+OpenConnect.Navigator.AspNetCore.CreateSessionRequest.Equals(OpenConnect.Navigator.AspNetCore.CreateSessionRequest? other) -> bool
+OpenConnect.Navigator.AspNetCore.NavigatorSession.<Clone>$() -> OpenConnect.Navigator.AspNetCore.NavigatorSession!
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Deconstruct(out string! Id, out string! Tenant, out string! Principal, out string! ClientInstance, out string! RouteId) -> void
+OpenConnect.Navigator.AspNetCore.NavigatorSession.Equals(OpenConnect.Navigator.AspNetCore.NavigatorSession? other) -> bool
+override OpenConnect.Navigator.AspNetCore.ApprovalRequest.Equals(object? obj) -> bool
+override OpenConnect.Navigator.AspNetCore.ApprovalRequest.GetHashCode() -> int
+override OpenConnect.Navigator.AspNetCore.ApprovalRequest.ToString() -> string!
+override OpenConnect.Navigator.AspNetCore.CommandRequest.Equals(object? obj) -> bool
+override OpenConnect.Navigator.AspNetCore.CommandRequest.GetHashCode() -> int
+override OpenConnect.Navigator.AspNetCore.CommandRequest.ToString() -> string!
+override OpenConnect.Navigator.AspNetCore.CreateSessionRequest.Equals(object? obj) -> bool
+override OpenConnect.Navigator.AspNetCore.CreateSessionRequest.GetHashCode() -> int
+override OpenConnect.Navigator.AspNetCore.CreateSessionRequest.ToString() -> string!
+override OpenConnect.Navigator.AspNetCore.NavigatorSession.Equals(object? obj) -> bool
+override OpenConnect.Navigator.AspNetCore.NavigatorSession.GetHashCode() -> int
+override OpenConnect.Navigator.AspNetCore.NavigatorSession.ToString() -> string!
+static OpenConnect.Navigator.AspNetCore.ApprovalRequest.operator !=(OpenConnect.Navigator.AspNetCore.ApprovalRequest? left, OpenConnect.Navigator.AspNetCore.ApprovalRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.ApprovalRequest.operator ==(OpenConnect.Navigator.AspNetCore.ApprovalRequest? left, OpenConnect.Navigator.AspNetCore.ApprovalRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.CommandRequest.operator !=(OpenConnect.Navigator.AspNetCore.CommandRequest? left, OpenConnect.Navigator.AspNetCore.CommandRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.CommandRequest.operator ==(OpenConnect.Navigator.AspNetCore.CommandRequest? left, OpenConnect.Navigator.AspNetCore.CommandRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.CreateSessionRequest.operator !=(OpenConnect.Navigator.AspNetCore.CreateSessionRequest? left, OpenConnect.Navigator.AspNetCore.CreateSessionRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.CreateSessionRequest.operator ==(OpenConnect.Navigator.AspNetCore.CreateSessionRequest? left, OpenConnect.Navigator.AspNetCore.CreateSessionRequest? right) -> bool
+static OpenConnect.Navigator.AspNetCore.NavigatorSession.operator !=(OpenConnect.Navigator.AspNetCore.NavigatorSession? left, OpenConnect.Navigator.AspNetCore.NavigatorSession? right) -> bool
+static OpenConnect.Navigator.AspNetCore.NavigatorSession.operator ==(OpenConnect.Navigator.AspNetCore.NavigatorSession? left, OpenConnect.Navigator.AspNetCore.NavigatorSession? right) -> bool

@@ -321,3 +321,51 @@ static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenCo
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectMauiAudio(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.MauiAudioOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectNavigatorClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.NavigatorClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectVoiceClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.VoiceClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+OpenConnect.Client.CreateTaskRequest.<Clone>$() -> OpenConnect.Client.CreateTaskRequest!
+OpenConnect.Client.CreateTaskRequest.Deconstruct(out string! ClientTaskId, out string! IdempotencyKey, out string? Message, out string? SessionId) -> void
+OpenConnect.Client.CreateTaskRequest.Equals(OpenConnect.Client.CreateTaskRequest? other) -> bool
+OpenConnect.Client.RecordedVoiceDraft.<Clone>$() -> OpenConnect.Client.RecordedVoiceDraft!
+OpenConnect.Client.RecordedVoiceDraft.Deconstruct(out string! DraftId, out string! MimeType, out int SizeBytes, out System.TimeSpan Duration, out string! Sha256Checksum, out System.DateTimeOffset CreatedAtUtc) -> void
+OpenConnect.Client.RecordedVoiceDraft.Equals(OpenConnect.Client.RecordedVoiceDraft? other) -> bool
+OpenConnect.Client.SessionRecord.<Clone>$() -> OpenConnect.Client.SessionRecord!
+OpenConnect.Client.SessionRecord.Deconstruct(out OpenConnect.Abstractions.SessionId Id, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Client.SessionRecord.Equals(OpenConnect.Client.SessionRecord? other) -> bool
+OpenConnect.Client.SpeechSynthesisRequest.<Clone>$() -> OpenConnect.Client.SpeechSynthesisRequest!
+OpenConnect.Client.SpeechSynthesisRequest.Deconstruct(out string! Text, out string! VoiceId, out string! Locale, out string! Format, out long SpeechEpoch) -> void
+OpenConnect.Client.SpeechSynthesisRequest.Equals(OpenConnect.Client.SpeechSynthesisRequest? other) -> bool
+OpenConnect.Client.SpeechSynthesisResult.<Clone>$() -> OpenConnect.Client.SpeechSynthesisResult!
+OpenConnect.Client.SpeechSynthesisResult.Deconstruct(out string! VoiceId, out string! Format, out int SampleRateHz, out int Channels, out string! AudioBase64) -> void
+OpenConnect.Client.SpeechSynthesisResult.Equals(OpenConnect.Client.SpeechSynthesisResult? other) -> bool
+OpenConnect.Client.VadFrameObservation.<Clone>$() -> OpenConnect.Client.VadFrameObservation!
+OpenConnect.Client.VadFrameObservation.Deconstruct(out long FrameSequence, out long SourceSampleOffset, out int SourceSampleRate, out int InferenceSampleRate, out int SampleCount, out float SpeechProbability, out bool IsSpeechCandidate, out long SpeechEpoch, out bool IsAuthoritativeTurn) -> void
+OpenConnect.Client.VadFrameObservation.Equals(OpenConnect.Client.VadFrameObservation? other) -> bool
+override OpenConnect.Client.CreateTaskRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.CreateTaskRequest.GetHashCode() -> int
+override OpenConnect.Client.CreateTaskRequest.ToString() -> string!
+override OpenConnect.Client.RecordedVoiceDraft.Equals(object? obj) -> bool
+override OpenConnect.Client.RecordedVoiceDraft.GetHashCode() -> int
+override OpenConnect.Client.RecordedVoiceDraft.ToString() -> string!
+override OpenConnect.Client.SessionRecord.Equals(object? obj) -> bool
+override OpenConnect.Client.SessionRecord.GetHashCode() -> int
+override OpenConnect.Client.SessionRecord.ToString() -> string!
+override OpenConnect.Client.SpeechSynthesisRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.SpeechSynthesisRequest.GetHashCode() -> int
+override OpenConnect.Client.SpeechSynthesisRequest.ToString() -> string!
+override OpenConnect.Client.SpeechSynthesisResult.Equals(object? obj) -> bool
+override OpenConnect.Client.SpeechSynthesisResult.GetHashCode() -> int
+override OpenConnect.Client.SpeechSynthesisResult.ToString() -> string!
+override OpenConnect.Client.VadFrameObservation.Equals(object? obj) -> bool
+override OpenConnect.Client.VadFrameObservation.GetHashCode() -> int
+override OpenConnect.Client.VadFrameObservation.ToString() -> string!
+static OpenConnect.Client.CreateTaskRequest.operator !=(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
+static OpenConnect.Client.CreateTaskRequest.operator ==(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
+static OpenConnect.Client.RecordedVoiceDraft.operator !=(OpenConnect.Client.RecordedVoiceDraft? left, OpenConnect.Client.RecordedVoiceDraft? right) -> bool
+static OpenConnect.Client.RecordedVoiceDraft.operator ==(OpenConnect.Client.RecordedVoiceDraft? left, OpenConnect.Client.RecordedVoiceDraft? right) -> bool
+static OpenConnect.Client.SessionRecord.operator !=(OpenConnect.Client.SessionRecord? left, OpenConnect.Client.SessionRecord? right) -> bool
+static OpenConnect.Client.SessionRecord.operator ==(OpenConnect.Client.SessionRecord? left, OpenConnect.Client.SessionRecord? right) -> bool
+static OpenConnect.Client.SpeechSynthesisRequest.operator !=(OpenConnect.Client.SpeechSynthesisRequest? left, OpenConnect.Client.SpeechSynthesisRequest? right) -> bool
+static OpenConnect.Client.SpeechSynthesisRequest.operator ==(OpenConnect.Client.SpeechSynthesisRequest? left, OpenConnect.Client.SpeechSynthesisRequest? right) -> bool
+static OpenConnect.Client.SpeechSynthesisResult.operator !=(OpenConnect.Client.SpeechSynthesisResult? left, OpenConnect.Client.SpeechSynthesisResult? right) -> bool
+static OpenConnect.Client.SpeechSynthesisResult.operator ==(OpenConnect.Client.SpeechSynthesisResult? left, OpenConnect.Client.SpeechSynthesisResult? right) -> bool
+static OpenConnect.Client.VadFrameObservation.operator !=(OpenConnect.Client.VadFrameObservation? left, OpenConnect.Client.VadFrameObservation? right) -> bool
+static OpenConnect.Client.VadFrameObservation.operator ==(OpenConnect.Client.VadFrameObservation? left, OpenConnect.Client.VadFrameObservation? right) -> bool

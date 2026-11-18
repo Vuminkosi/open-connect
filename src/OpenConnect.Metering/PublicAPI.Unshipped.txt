@@ -85,3 +85,43 @@ OpenConnect.Metering.UsageQuantity.Validate() -> OpenConnect.Metering.UsageQuant
 OpenConnect.Metering.UsageUnit
 OpenConnect.Metering.UsageUnit.Requests = 1 -> OpenConnect.Metering.UsageUnit
 OpenConnect.Metering.UsageUnit.Tokens = 0 -> OpenConnect.Metering.UsageUnit
+OpenConnect.Metering.BudgetReservation.<Clone>$() -> OpenConnect.Metering.BudgetReservation!
+OpenConnect.Metering.BudgetReservation.Deconstruct(out System.Guid Id, out string! ScopeKey, out decimal Amount) -> void
+OpenConnect.Metering.BudgetReservation.Equals(OpenConnect.Metering.BudgetReservation? other) -> bool
+OpenConnect.Metering.ModelPrice.<Clone>$() -> OpenConnect.Metering.ModelPrice!
+OpenConnect.Metering.ModelPrice.Deconstruct(out decimal InputPerMillion, out decimal OutputPerMillion, out decimal CacheReadPerMillion, out decimal CacheWritePerMillion) -> void
+OpenConnect.Metering.ModelPrice.Equals(OpenConnect.Metering.ModelPrice? other) -> bool
+OpenConnect.Metering.ModelUsageEvent.<Clone>$() -> OpenConnect.Metering.ModelUsageEvent!
+OpenConnect.Metering.ModelUsageEvent.Deconstruct(out OpenConnect.Abstractions.Ulid EventId, out OpenConnect.Abstractions.Ulid AttemptId, out string! Provider, out string! Model, out OpenConnect.Metering.NormalizedUsage! Usage, out decimal? Cost, out OpenConnect.Metering.CostState CostState, out OpenConnect.Metering.UsageProvenance Provenance) -> void
+OpenConnect.Metering.ModelUsageEvent.Equals(OpenConnect.Metering.ModelUsageEvent? other) -> bool
+OpenConnect.Metering.NormalizedUsage.<Clone>$() -> OpenConnect.Metering.NormalizedUsage!
+OpenConnect.Metering.NormalizedUsage.Deconstruct(out OpenConnect.Metering.UsageQuantity! Quantity) -> void
+OpenConnect.Metering.NormalizedUsage.Equals(OpenConnect.Metering.NormalizedUsage? other) -> bool
+OpenConnect.Metering.UsageQuantity.<Clone>$() -> OpenConnect.Metering.UsageQuantity!
+OpenConnect.Metering.UsageQuantity.Deconstruct(out decimal? Input, out decimal? Output, out decimal? CacheRead, out decimal? CacheWrite) -> void
+OpenConnect.Metering.UsageQuantity.Equals(OpenConnect.Metering.UsageQuantity? other) -> bool
+override OpenConnect.Metering.BudgetReservation.Equals(object? obj) -> bool
+override OpenConnect.Metering.BudgetReservation.GetHashCode() -> int
+override OpenConnect.Metering.BudgetReservation.ToString() -> string!
+override OpenConnect.Metering.ModelPrice.Equals(object? obj) -> bool
+override OpenConnect.Metering.ModelPrice.GetHashCode() -> int
+override OpenConnect.Metering.ModelPrice.ToString() -> string!
+override OpenConnect.Metering.ModelUsageEvent.Equals(object? obj) -> bool
+override OpenConnect.Metering.ModelUsageEvent.GetHashCode() -> int
+override OpenConnect.Metering.ModelUsageEvent.ToString() -> string!
+override OpenConnect.Metering.NormalizedUsage.Equals(object? obj) -> bool
+override OpenConnect.Metering.NormalizedUsage.GetHashCode() -> int
+override OpenConnect.Metering.NormalizedUsage.ToString() -> string!
+override OpenConnect.Metering.UsageQuantity.Equals(object? obj) -> bool
+override OpenConnect.Metering.UsageQuantity.GetHashCode() -> int
+override OpenConnect.Metering.UsageQuantity.ToString() -> string!
+static OpenConnect.Metering.BudgetReservation.operator !=(OpenConnect.Metering.BudgetReservation? left, OpenConnect.Metering.BudgetReservation? right) -> bool
+static OpenConnect.Metering.BudgetReservation.operator ==(OpenConnect.Metering.BudgetReservation? left, OpenConnect.Metering.BudgetReservation? right) -> bool
+static OpenConnect.Metering.ModelPrice.operator !=(OpenConnect.Metering.ModelPrice? left, OpenConnect.Metering.ModelPrice? right) -> bool
+static OpenConnect.Metering.ModelPrice.operator ==(OpenConnect.Metering.ModelPrice? left, OpenConnect.Metering.ModelPrice? right) -> bool
+static OpenConnect.Metering.ModelUsageEvent.operator !=(OpenConnect.Metering.ModelUsageEvent? left, OpenConnect.Metering.ModelUsageEvent? right) -> bool
+static OpenConnect.Metering.ModelUsageEvent.operator ==(OpenConnect.Metering.ModelUsageEvent? left, OpenConnect.Metering.ModelUsageEvent? right) -> bool
+static OpenConnect.Metering.NormalizedUsage.operator !=(OpenConnect.Metering.NormalizedUsage? left, OpenConnect.Metering.NormalizedUsage? right) -> bool
+static OpenConnect.Metering.NormalizedUsage.operator ==(OpenConnect.Metering.NormalizedUsage? left, OpenConnect.Metering.NormalizedUsage? right) -> bool
+static OpenConnect.Metering.UsageQuantity.operator !=(OpenConnect.Metering.UsageQuantity? left, OpenConnect.Metering.UsageQuantity? right) -> bool
+static OpenConnect.Metering.UsageQuantity.operator ==(OpenConnect.Metering.UsageQuantity? left, OpenConnect.Metering.UsageQuantity? right) -> bool

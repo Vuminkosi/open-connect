@@ -196,3 +196,75 @@ static OpenConnect.Components.Contracts.ComposerWireValues.FromWireValue<TEnum>(
 static OpenConnect.Components.Contracts.ComposerWireValues.ToWireValue<TEnum>(TEnum value) -> string!
 static OpenConnect.Components.Contracts.ComposerWireValues.ValidateJson<T>(string! json) -> T
 static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.IsValidName(string! name) -> bool
+OpenConnect.Components.Contracts.ComponentProposal.<Clone>$() -> OpenConnect.Components.Contracts.ComponentProposal!
+OpenConnect.Components.Contracts.ComponentProposal.Deconstruct(out string! Name, out string? ParametersJson) -> void
+OpenConnect.Components.Contracts.ComponentProposal.Equals(OpenConnect.Components.Contracts.ComponentProposal? other) -> bool
+OpenConnect.Components.Contracts.ComposerAppearanceOptions.<Clone>$() -> OpenConnect.Components.Contracts.ComposerAppearanceOptions!
+OpenConnect.Components.Contracts.ComposerAppearanceOptions.ComposerAppearanceOptions() -> void
+OpenConnect.Components.Contracts.ComposerAppearanceOptions.Equals(OpenConnect.Components.Contracts.ComposerAppearanceOptions? other) -> bool
+OpenConnect.Components.Contracts.ComposerInputOptions.<Clone>$() -> OpenConnect.Components.Contracts.ComposerInputOptions!
+OpenConnect.Components.Contracts.ComposerInputOptions.ComposerInputOptions() -> void
+OpenConnect.Components.Contracts.ComposerInputOptions.Equals(OpenConnect.Components.Contracts.ComposerInputOptions? other) -> bool
+OpenConnect.Components.Contracts.ComposerMessage.<Clone>$() -> OpenConnect.Components.Contracts.ComposerMessage!
+OpenConnect.Components.Contracts.ComposerMessage.Deconstruct(out string! Role, out string! Text, out long Sequence, out OpenConnect.Components.Contracts.ComposerMessageState State) -> void
+OpenConnect.Components.Contracts.ComposerMessage.Equals(OpenConnect.Components.Contracts.ComposerMessage? other) -> bool
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.<Clone>$() -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent!
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Deconstruct(out long PlaybackEpoch, out int StartCharacter, out int EndCharacter, out OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage Stage, out double ElapsedSeconds, out double DurationSeconds) -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Equals(OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent? other) -> bool
+OpenConnect.Components.Contracts.ComposerVoiceOptions.<Clone>$() -> OpenConnect.Components.Contracts.ComposerVoiceOptions!
+OpenConnect.Components.Contracts.ComposerVoiceOptions.ComposerVoiceOptions() -> void
+OpenConnect.Components.Contracts.ComposerVoiceOptions.Equals(OpenConnect.Components.Contracts.ComposerVoiceOptions? other) -> bool
+OpenConnect.Components.Contracts.ComposerWireState.<Clone>$() -> OpenConnect.Components.Contracts.ComposerWireState!
+OpenConnect.Components.Contracts.ComposerWireState.ComposerWireState() -> void
+OpenConnect.Components.Contracts.ComposerWireState.Equals(OpenConnect.Components.Contracts.ComposerWireState? other) -> bool
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.<Clone>$() -> OpenConnect.Components.Contracts.OpenConnectComponentDescriptor!
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Deconstruct(out string! Name, out string! Title, out string! Description, out string? Category, out System.Collections.Generic.IReadOnlyList<string!>? Tags) -> void
+OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Equals(OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? other) -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.<Clone>$() -> OpenConnect.Components.Contracts.OpenConnectComposerOptions!
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Equals(OpenConnect.Components.Contracts.OpenConnectComposerOptions? other) -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.OpenConnectComposerOptions() -> void
+override OpenConnect.Components.Contracts.ComponentProposal.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComponentProposal.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComponentProposal.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerAppearanceOptions.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerAppearanceOptions.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerAppearanceOptions.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerInputOptions.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerInputOptions.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerInputOptions.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerMessage.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerMessage.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerMessage.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerVoiceOptions.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerVoiceOptions.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerVoiceOptions.ToString() -> string!
+override OpenConnect.Components.Contracts.ComposerWireState.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.ComposerWireState.GetHashCode() -> int
+override OpenConnect.Components.Contracts.ComposerWireState.ToString() -> string!
+override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.GetHashCode() -> int
+override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.ToString() -> string!
+override OpenConnect.Components.Contracts.OpenConnectComposerOptions.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.OpenConnectComposerOptions.GetHashCode() -> int
+override OpenConnect.Components.Contracts.OpenConnectComposerOptions.ToString() -> string!
+static OpenConnect.Components.Contracts.ComponentProposal.operator !=(OpenConnect.Components.Contracts.ComponentProposal? left, OpenConnect.Components.Contracts.ComponentProposal? right) -> bool
+static OpenConnect.Components.Contracts.ComponentProposal.operator ==(OpenConnect.Components.Contracts.ComponentProposal? left, OpenConnect.Components.Contracts.ComponentProposal? right) -> bool
+static OpenConnect.Components.Contracts.ComposerAppearanceOptions.operator !=(OpenConnect.Components.Contracts.ComposerAppearanceOptions? left, OpenConnect.Components.Contracts.ComposerAppearanceOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerAppearanceOptions.operator ==(OpenConnect.Components.Contracts.ComposerAppearanceOptions? left, OpenConnect.Components.Contracts.ComposerAppearanceOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerInputOptions.operator !=(OpenConnect.Components.Contracts.ComposerInputOptions? left, OpenConnect.Components.Contracts.ComposerInputOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerInputOptions.operator ==(OpenConnect.Components.Contracts.ComposerInputOptions? left, OpenConnect.Components.Contracts.ComposerInputOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerMessage.operator !=(OpenConnect.Components.Contracts.ComposerMessage? left, OpenConnect.Components.Contracts.ComposerMessage? right) -> bool
+static OpenConnect.Components.Contracts.ComposerMessage.operator ==(OpenConnect.Components.Contracts.ComposerMessage? left, OpenConnect.Components.Contracts.ComposerMessage? right) -> bool
+static OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.operator !=(OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent? left, OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent? right) -> bool
+static OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.operator ==(OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent? left, OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent? right) -> bool
+static OpenConnect.Components.Contracts.ComposerVoiceOptions.operator !=(OpenConnect.Components.Contracts.ComposerVoiceOptions? left, OpenConnect.Components.Contracts.ComposerVoiceOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerVoiceOptions.operator ==(OpenConnect.Components.Contracts.ComposerVoiceOptions? left, OpenConnect.Components.Contracts.ComposerVoiceOptions? right) -> bool
+static OpenConnect.Components.Contracts.ComposerWireState.operator !=(OpenConnect.Components.Contracts.ComposerWireState? left, OpenConnect.Components.Contracts.ComposerWireState? right) -> bool
+static OpenConnect.Components.Contracts.ComposerWireState.operator ==(OpenConnect.Components.Contracts.ComposerWireState? left, OpenConnect.Components.Contracts.ComposerWireState? right) -> bool
+static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.operator !=(OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? left, OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? right) -> bool
+static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.operator ==(OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? left, OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? right) -> bool
+static OpenConnect.Components.Contracts.OpenConnectComposerOptions.operator !=(OpenConnect.Components.Contracts.OpenConnectComposerOptions? left, OpenConnect.Components.Contracts.OpenConnectComposerOptions? right) -> bool
+static OpenConnect.Components.Contracts.OpenConnectComposerOptions.operator ==(OpenConnect.Components.Contracts.OpenConnectComposerOptions? left, OpenConnect.Components.Contracts.OpenConnectComposerOptions? right) -> bool

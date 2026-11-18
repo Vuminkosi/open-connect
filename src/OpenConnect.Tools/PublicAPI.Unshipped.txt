@@ -57,3 +57,19 @@ OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
 static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
 static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
+OpenConnect.Tools.ToolAccessRequest.<Clone>$() -> OpenConnect.Tools.ToolAccessRequest!
+OpenConnect.Tools.ToolAccessRequest.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.ToolId ToolId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.TaskId TaskId) -> void
+OpenConnect.Tools.ToolAccessRequest.Equals(OpenConnect.Tools.ToolAccessRequest? other) -> bool
+OpenConnect.Tools.ToolRegistration.<Clone>$() -> OpenConnect.Tools.ToolRegistration!
+OpenConnect.Tools.ToolRegistration.Deconstruct(out OpenConnect.Abstractions.ToolDescriptor! Descriptor, out string! JsonSchema, out System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, out bool RequiresApproval) -> void
+OpenConnect.Tools.ToolRegistration.Equals(OpenConnect.Tools.ToolRegistration? other) -> bool
+override OpenConnect.Tools.ToolAccessRequest.Equals(object? obj) -> bool
+override OpenConnect.Tools.ToolAccessRequest.GetHashCode() -> int
+override OpenConnect.Tools.ToolAccessRequest.ToString() -> string!
+override OpenConnect.Tools.ToolRegistration.Equals(object? obj) -> bool
+override OpenConnect.Tools.ToolRegistration.GetHashCode() -> int
+override OpenConnect.Tools.ToolRegistration.ToString() -> string!
+static OpenConnect.Tools.ToolAccessRequest.operator !=(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
+static OpenConnect.Tools.ToolAccessRequest.operator ==(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
+static OpenConnect.Tools.ToolRegistration.operator !=(OpenConnect.Tools.ToolRegistration? left, OpenConnect.Tools.ToolRegistration? right) -> bool
+static OpenConnect.Tools.ToolRegistration.operator ==(OpenConnect.Tools.ToolRegistration? left, OpenConnect.Tools.ToolRegistration? right) -> bool

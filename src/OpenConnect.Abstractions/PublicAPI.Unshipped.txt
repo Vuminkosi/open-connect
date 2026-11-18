@@ -915,3 +915,373 @@ static OpenConnect.Abstractions.RateLimitKeyComparer.Instance.get -> OpenConnect
 static OpenConnect.Abstractions.Serialization.OpenConnectHttpJson.CreateOptions(System.Text.Json.JsonSerializerDefaults defaults = System.Text.Json.JsonSerializerDefaults.Web) -> System.Text.Json.JsonSerializerOptions!
 static OpenConnect.Abstractions.Ulid.NewUlid() -> OpenConnect.Abstractions.Ulid
 static OpenConnect.Abstractions.Ulid.Parse(string! value) -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.AgentBudget.<Clone>$() -> OpenConnect.Abstractions.AgentBudget!
+OpenConnect.Abstractions.AgentBudget.Deconstruct(out int MaxToolCalls, out int MaxModelCalls, out long MaxTokens, out System.TimeSpan? MaxRuntime, out int MaxConcurrentAgents, out int MaxQueuedAgents, out int MaxTotalAgents, out long MaxCostMicrocents) -> void
+OpenConnect.Abstractions.AgentBudget.Equals(OpenConnect.Abstractions.AgentBudget? other) -> bool
+OpenConnect.Abstractions.AgentContextPolicy.<Clone>$() -> OpenConnect.Abstractions.AgentContextPolicy!
+OpenConnect.Abstractions.AgentContextPolicy.Deconstruct(out OpenConnect.Abstractions.AgentContextSharingMode SharingMode, out int MaxInputTokens, out int MaxOutputTokens) -> void
+OpenConnect.Abstractions.AgentContextPolicy.Equals(OpenConnect.Abstractions.AgentContextPolicy? other) -> bool
+OpenConnect.Abstractions.AgentDefinition.<Clone>$() -> OpenConnect.Abstractions.AgentDefinition!
+OpenConnect.Abstractions.AgentDefinition.Deconstruct(out OpenConnect.Abstractions.AgentId Id, out string! Name) -> void
+OpenConnect.Abstractions.AgentDefinition.Equals(OpenConnect.Abstractions.AgentDefinition? other) -> bool
+OpenConnect.Abstractions.AgentEventSubscriptionOptions.<Clone>$() -> OpenConnect.Abstractions.AgentEventSubscriptionOptions!
+OpenConnect.Abstractions.AgentEventSubscriptionOptions.Deconstruct(out string! ConsumerName, out string![]! EventTypes) -> void
+OpenConnect.Abstractions.AgentEventSubscriptionOptions.Equals(OpenConnect.Abstractions.AgentEventSubscriptionOptions? other) -> bool
+OpenConnect.Abstractions.AgentId.Deconstruct(out string! Value) -> void
+OpenConnect.Abstractions.AgentId.Equals(OpenConnect.Abstractions.AgentId other) -> bool
+OpenConnect.Abstractions.AgentMemoryPolicy.<Clone>$() -> OpenConnect.Abstractions.AgentMemoryPolicy!
+OpenConnect.Abstractions.AgentMemoryPolicy.Deconstruct(out OpenConnect.Abstractions.AgentMemoryMode Mode, out OpenConnect.Abstractions.AgentMemoryWritePolicy WritePolicy) -> void
+OpenConnect.Abstractions.AgentMemoryPolicy.Equals(OpenConnect.Abstractions.AgentMemoryPolicy? other) -> bool
+OpenConnect.Abstractions.AgentToolPolicy.<Clone>$() -> OpenConnect.Abstractions.AgentToolPolicy!
+OpenConnect.Abstractions.AgentToolPolicy.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolId>? AllowedToolIds, out System.Collections.Generic.IReadOnlyList<string!>? AllowedScopes) -> void
+OpenConnect.Abstractions.AgentToolPolicy.Equals(OpenConnect.Abstractions.AgentToolPolicy? other) -> bool
+OpenConnect.Abstractions.CanonicalAgentEvent.<Clone>$() -> OpenConnect.Abstractions.CanonicalAgentEvent!
+OpenConnect.Abstractions.CanonicalAgentEvent.Equals(OpenConnect.Abstractions.CanonicalAgentEvent? other) -> bool
+OpenConnect.Abstractions.CapabilityDescriptor.<Clone>$() -> OpenConnect.Abstractions.CapabilityDescriptor!
+OpenConnect.Abstractions.CapabilityDescriptor.Deconstruct(out OpenConnect.Abstractions.CapabilityId Id, out OpenConnect.Abstractions.CapabilityKind Kind, out OpenConnect.Abstractions.DetectorState State) -> void
+OpenConnect.Abstractions.CapabilityDescriptor.Equals(OpenConnect.Abstractions.CapabilityDescriptor? other) -> bool
+OpenConnect.Abstractions.CapabilityId.Deconstruct(out string! Value) -> void
+OpenConnect.Abstractions.CapabilityId.Equals(OpenConnect.Abstractions.CapabilityId other) -> bool
+OpenConnect.Abstractions.ClientInteractionCancellation.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionCancellation!
+OpenConnect.Abstractions.ClientInteractionCancellation.Deconstruct(out string! CorrelationId) -> void
+OpenConnect.Abstractions.ClientInteractionCancellation.Equals(OpenConnect.Abstractions.ClientInteractionCancellation? other) -> bool
+OpenConnect.Abstractions.ClientInteractionRequest.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionRequest!
+OpenConnect.Abstractions.ClientInteractionRequest.Deconstruct(out string! CorrelationId, out string! Operation, out string? TargetId, out string? Action, out string? Value, out string? RouteId, out string? StateName, out string? StateValue, out int HighlightDurationMilliseconds) -> void
+OpenConnect.Abstractions.ClientInteractionRequest.Equals(OpenConnect.Abstractions.ClientInteractionRequest? other) -> bool
+OpenConnect.Abstractions.ClientInteractionResponse.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionResponse!
+OpenConnect.Abstractions.ClientInteractionResponse.Deconstruct(out string! CorrelationId, out string! ResultKind, out string! PayloadJson) -> void
+OpenConnect.Abstractions.ClientInteractionResponse.Equals(OpenConnect.Abstractions.ClientInteractionResponse? other) -> bool
+OpenConnect.Abstractions.CommittedAgentEvent.<Clone>$() -> OpenConnect.Abstractions.CommittedAgentEvent!
+OpenConnect.Abstractions.CommittedAgentEvent.Deconstruct(out System.Guid EventId, out string! TenantId, out string! SessionId, out string! ExecutionId, out string! AgentId, out OpenConnect.Abstractions.AgentExecutionMode AgentMode, out string! EventType, out long Sequence, out string! ProjectionReference, out System.DateTimeOffset CommittedAt) -> void
+OpenConnect.Abstractions.CommittedAgentEvent.Equals(OpenConnect.Abstractions.CommittedAgentEvent? other) -> bool
+OpenConnect.Abstractions.CommittedEventDelivery.<Clone>$() -> OpenConnect.Abstractions.CommittedEventDelivery!
+OpenConnect.Abstractions.CommittedEventDelivery.Deconstruct(out OpenConnect.Abstractions.CommittedAgentEvent! Event, out System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! AckAsync, out System.Func<string?, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! NakAsync, out bool Redelivered) -> void
+OpenConnect.Abstractions.CommittedEventDelivery.Equals(OpenConnect.Abstractions.CommittedEventDelivery? other) -> bool
+OpenConnect.Abstractions.DelegationGrant.<Clone>$() -> OpenConnect.Abstractions.DelegationGrant!
+OpenConnect.Abstractions.DelegationGrant.Deconstruct(out OpenConnect.Abstractions.AgentId ParentAgentId, out OpenConnect.Abstractions.AgentId ChildAgentId, out int ChildDepth, out System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! EffectiveToolIds, out System.Collections.Generic.IReadOnlySet<string!>! EffectiveScopes, out OpenConnect.Abstractions.AgentBudget! RemainingBudget, out System.Guid ParentExecutionId, out string! PolicyRevision, out string! Reason, out string! ChildDefinitionRevision) -> void
+OpenConnect.Abstractions.DelegationGrant.Equals(OpenConnect.Abstractions.DelegationGrant? other) -> bool
+OpenConnect.Abstractions.EventRecord.<Clone>$() -> OpenConnect.Abstractions.EventRecord!
+OpenConnect.Abstractions.EventRecord.Deconstruct(out OpenConnect.Abstractions.SessionId SessionId, out long Sequence, out string! Type, out string! Data) -> void
+OpenConnect.Abstractions.EventRecord.Equals(OpenConnect.Abstractions.EventRecord? other) -> bool
+OpenConnect.Abstractions.ExecutionId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.ExecutionId.Equals(OpenConnect.Abstractions.ExecutionId other) -> bool
+OpenConnect.Abstractions.MemoryDeletionRequest.<Clone>$() -> OpenConnect.Abstractions.MemoryDeletionRequest!
+OpenConnect.Abstractions.MemoryDeletionRequest.Deconstruct(out string! TenantId, out string! AgentId, out string! DocumentId) -> void
+OpenConnect.Abstractions.MemoryDeletionRequest.Equals(OpenConnect.Abstractions.MemoryDeletionRequest? other) -> bool
+OpenConnect.Abstractions.MemoryDocument.<Clone>$() -> OpenConnect.Abstractions.MemoryDocument!
+OpenConnect.Abstractions.MemoryDocument.Deconstruct(out string! Id, out string! TenantId, out string! AgentId, out string! Content) -> void
+OpenConnect.Abstractions.MemoryDocument.Equals(OpenConnect.Abstractions.MemoryDocument? other) -> bool
+OpenConnect.Abstractions.MemorySearchMatch.<Clone>$() -> OpenConnect.Abstractions.MemorySearchMatch!
+OpenConnect.Abstractions.MemorySearchMatch.Deconstruct(out OpenConnect.Abstractions.MemoryDocument! Document, out double Score) -> void
+OpenConnect.Abstractions.MemorySearchMatch.Equals(OpenConnect.Abstractions.MemorySearchMatch? other) -> bool
+OpenConnect.Abstractions.MemorySearchRequest.<Clone>$() -> OpenConnect.Abstractions.MemorySearchRequest!
+OpenConnect.Abstractions.MemorySearchRequest.Deconstruct(out string! TenantId, out string! AgentId, out string! Query, out int Limit) -> void
+OpenConnect.Abstractions.MemorySearchRequest.Equals(OpenConnect.Abstractions.MemorySearchRequest? other) -> bool
+OpenConnect.Abstractions.MemorySearchResult.<Clone>$() -> OpenConnect.Abstractions.MemorySearchResult!
+OpenConnect.Abstractions.MemorySearchResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.MemorySearchMatch!>! Matches) -> void
+OpenConnect.Abstractions.MemorySearchResult.Equals(OpenConnect.Abstractions.MemorySearchResult? other) -> bool
+OpenConnect.Abstractions.ModelRequirement.<Clone>$() -> OpenConnect.Abstractions.ModelRequirement!
+OpenConnect.Abstractions.ModelRequirement.Deconstruct(out string? ModelId, out OpenConnect.Abstractions.ModelExecutionLocation? Location, out bool RequireTools, out bool RequireStreaming, out bool RequireStructuredOutput, out bool RequireVision, out string? FallbackModelId) -> void
+OpenConnect.Abstractions.ModelRequirement.Equals(OpenConnect.Abstractions.ModelRequirement? other) -> bool
+OpenConnect.Abstractions.OperationalPolicy.<Clone>$() -> OpenConnect.Abstractions.OperationalPolicy!
+OpenConnect.Abstractions.OperationalPolicy.Deconstruct(out OpenConnect.Abstractions.AgentActivationMode Activation, out string? WorkloadIdentityRef, out string? Cron, out string? TimeZoneId, out OpenConnect.Abstractions.SchedulingMisfirePolicy Misfire, out OpenConnect.Abstractions.OperationalConcurrencyPolicy Concurrency, out int MaxParallelRuns, out System.TimeSpan? MaxRunDuration) -> void
+OpenConnect.Abstractions.OperationalPolicy.Equals(OpenConnect.Abstractions.OperationalPolicy? other) -> bool
+OpenConnect.Abstractions.OrchestrationPolicy.<Clone>$() -> OpenConnect.Abstractions.OrchestrationPolicy!
+OpenConnect.Abstractions.OrchestrationPolicy.Deconstruct(out OpenConnect.Abstractions.AgentOrchestrationMode Mode, out int MaxDepth, out int MaxChildren, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentId>? AllowedChildAgents, out OpenConnect.Abstractions.AgentResultMergeMode ResultMergeMode) -> void
+OpenConnect.Abstractions.OrchestrationPolicy.Equals(OpenConnect.Abstractions.OrchestrationPolicy? other) -> bool
+OpenConnect.Abstractions.OutboxEntry.<Clone>$() -> OpenConnect.Abstractions.OutboxEntry!
+OpenConnect.Abstractions.OutboxEntry.Deconstruct(out System.Guid Id, out string! Type, out string! Payload) -> void
+OpenConnect.Abstractions.OutboxEntry.Equals(OpenConnect.Abstractions.OutboxEntry? other) -> bool
+OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.<Clone>$() -> OpenConnect.Abstractions.Persistence.ApprovalNonceBinding!
+OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.Deconstruct(out string! RequestId, out System.DateTime CreatedAtUtc) -> void
+OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.Equals(OpenConnect.Abstractions.Persistence.ApprovalNonceBinding? other) -> bool
+OpenConnect.Abstractions.Persistence.ApprovalRecord.<Clone>$() -> OpenConnect.Abstractions.Persistence.ApprovalRecord!
+OpenConnect.Abstractions.Persistence.ApprovalRecord.Deconstruct(out System.Guid Id, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.TaskId TaskId, out string! State, out string? Decision) -> void
+OpenConnect.Abstractions.Persistence.ApprovalRecord.Equals(OpenConnect.Abstractions.Persistence.ApprovalRecord? other) -> bool
+OpenConnect.Abstractions.Persistence.LeaseRecord.<Clone>$() -> OpenConnect.Abstractions.Persistence.LeaseRecord!
+OpenConnect.Abstractions.Persistence.LeaseRecord.Deconstruct(out string! ResourceKey, out OpenConnect.Abstractions.TenantId TenantId, out string! Owner, out System.DateTimeOffset ExpiresAt, out long FencingVersion) -> void
+OpenConnect.Abstractions.Persistence.LeaseRecord.Equals(OpenConnect.Abstractions.Persistence.LeaseRecord? other) -> bool
+OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.<Clone>$() -> OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding!
+OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.Equals(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding? other) -> bool
+OpenConnect.Abstractions.Persistence.OutboxClaim.<Clone>$() -> OpenConnect.Abstractions.Persistence.OutboxClaim!
+OpenConnect.Abstractions.Persistence.OutboxClaim.Deconstruct(out string! EntryId, out string! TenantScope, out long FencingVersion, out string! LeaseOwner, out System.DateTimeOffset LeaseExpiry) -> void
+OpenConnect.Abstractions.Persistence.OutboxClaim.Equals(OpenConnect.Abstractions.Persistence.OutboxClaim? other) -> bool
+OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.<Clone>$() -> OpenConnect.Abstractions.Persistence.PrivacyTokenBinding!
+OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.Deconstruct(out string! TokenId, out OpenConnect.Abstractions.TenantId TenantId, out string! PrincipalOrWorkloadScope, out OpenConnect.Abstractions.SessionId SessionId, out string! EntityType, out byte[]! EncryptedValue, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.Equals(OpenConnect.Abstractions.Persistence.PrivacyTokenBinding? other) -> bool
+OpenConnect.Abstractions.Persistence.SessionRecord.<Clone>$() -> OpenConnect.Abstractions.Persistence.SessionRecord!
+OpenConnect.Abstractions.Persistence.SessionRecord.Deconstruct(out OpenConnect.Abstractions.SessionId Id, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out long Version) -> void
+OpenConnect.Abstractions.Persistence.SessionRecord.Equals(OpenConnect.Abstractions.Persistence.SessionRecord? other) -> bool
+OpenConnect.Abstractions.PrincipalId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.PrincipalId.Equals(OpenConnect.Abstractions.PrincipalId other) -> bool
+OpenConnect.Abstractions.RateLimitAuditRecord.<Clone>$() -> OpenConnect.Abstractions.RateLimitAuditRecord!
+OpenConnect.Abstractions.RateLimitAuditRecord.Deconstruct(out string! Tenant, out string! Application, out string! Mode, out string! Decision, out string! LimitName, out long ObservedCount, out long Limit, out System.DateTimeOffset Timestamp, out string! ExecutionId, out string! KeyId, out string! Signature) -> void
+OpenConnect.Abstractions.RateLimitAuditRecord.Equals(OpenConnect.Abstractions.RateLimitAuditRecord? other) -> bool
+OpenConnect.Abstractions.RateLimitDecision.<Clone>$() -> OpenConnect.Abstractions.RateLimitDecision!
+OpenConnect.Abstractions.RateLimitDecision.Deconstruct(out bool Allowed, out string? LimitName, out OpenConnect.Abstractions.RateLimitAuditRecord? Audit) -> void
+OpenConnect.Abstractions.RateLimitDecision.Equals(OpenConnect.Abstractions.RateLimitDecision? other) -> bool
+OpenConnect.Abstractions.RateLimitKey.<Clone>$() -> OpenConnect.Abstractions.RateLimitKey!
+OpenConnect.Abstractions.RateLimitKey.Equals(OpenConnect.Abstractions.RateLimitKey? other) -> bool
+OpenConnect.Abstractions.SessionId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.SessionId.Equals(OpenConnect.Abstractions.SessionId other) -> bool
+OpenConnect.Abstractions.TaskAcceptance.<Clone>$() -> OpenConnect.Abstractions.TaskAcceptance!
+OpenConnect.Abstractions.TaskAcceptance.Deconstruct(out OpenConnect.Abstractions.TaskId TaskId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! IdempotencyKey) -> void
+OpenConnect.Abstractions.TaskAcceptance.Equals(OpenConnect.Abstractions.TaskAcceptance? other) -> bool
+OpenConnect.Abstractions.TaskId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.TaskId.Equals(OpenConnect.Abstractions.TaskId other) -> bool
+OpenConnect.Abstractions.TaskRecord.<Clone>$() -> OpenConnect.Abstractions.TaskRecord!
+OpenConnect.Abstractions.TaskRecord.Deconstruct(out OpenConnect.Abstractions.TaskId Id, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.AgentRunState State) -> void
+OpenConnect.Abstractions.TaskRecord.Equals(OpenConnect.Abstractions.TaskRecord? other) -> bool
+OpenConnect.Abstractions.TenantId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.TenantId.Equals(OpenConnect.Abstractions.TenantId other) -> bool
+OpenConnect.Abstractions.ToolDescriptor.<Clone>$() -> OpenConnect.Abstractions.ToolDescriptor!
+OpenConnect.Abstractions.ToolDescriptor.Deconstruct(out OpenConnect.Abstractions.ToolId Id, out string! Name, out OpenConnect.Abstractions.AgentId AgentId) -> void
+OpenConnect.Abstractions.ToolDescriptor.Equals(OpenConnect.Abstractions.ToolDescriptor? other) -> bool
+OpenConnect.Abstractions.ToolId.Deconstruct(out string! Value) -> void
+OpenConnect.Abstractions.ToolId.Equals(OpenConnect.Abstractions.ToolId other) -> bool
+OpenConnect.Abstractions.ToolPolicy.<Clone>$() -> OpenConnect.Abstractions.ToolPolicy!
+OpenConnect.Abstractions.ToolPolicy.Deconstruct(out OpenConnect.Abstractions.ToolId ToolId, out OpenConnect.Abstractions.ToolImpact Impact, out OpenConnect.Abstractions.ToolIdempotency Idempotency, out OpenConnect.Abstractions.ToolExecutionMode ExecutionMode, out OpenConnect.Abstractions.ToolAcknowledgementMode AcknowledgementMode, out OpenConnect.Abstractions.ToolProgressMode ProgressMode, out OpenConnect.Abstractions.ToolApprovalMode ApprovalMode) -> void
+OpenConnect.Abstractions.ToolPolicy.Equals(OpenConnect.Abstractions.ToolPolicy? other) -> bool
+OpenConnect.Abstractions.Ulid.Equals(OpenConnect.Abstractions.Ulid other) -> bool
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.<Clone>$() -> OpenConnect.Abstractions.WorkerCapabilityDescriptor!
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Deconstruct(out OpenConnect.Abstractions.OpenConnectWorkerKind Kind, out string! ContractVersion, out string! ExecutionLocation, out string! EndpointOrHostId, out OpenConnect.Abstractions.WorkerReadiness Readiness, out System.Collections.Generic.IReadOnlySet<string!>! CapabilityIds, out System.Collections.Generic.IReadOnlySet<string!>! Modalities, out System.Collections.Generic.IReadOnlySet<string!>! Languages, out string? ModelId, out string? ModelRevision, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.WorkerCapabilityDescriptor.Equals(OpenConnect.Abstractions.WorkerCapabilityDescriptor? other) -> bool
+override OpenConnect.Abstractions.AgentBudget.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentBudget.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentBudget.ToString() -> string!
+override OpenConnect.Abstractions.AgentContextPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentContextPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentContextPolicy.ToString() -> string!
+override OpenConnect.Abstractions.AgentDefinition.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentDefinition.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentDefinition.ToString() -> string!
+override OpenConnect.Abstractions.AgentEventSubscriptionOptions.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentEventSubscriptionOptions.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentEventSubscriptionOptions.ToString() -> string!
+override OpenConnect.Abstractions.AgentId.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentMemoryPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentMemoryPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentMemoryPolicy.ToString() -> string!
+override OpenConnect.Abstractions.AgentToolPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.AgentToolPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.AgentToolPolicy.ToString() -> string!
+override OpenConnect.Abstractions.CanonicalAgentEvent.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.CanonicalAgentEvent.GetHashCode() -> int
+override OpenConnect.Abstractions.CanonicalAgentEvent.ToString() -> string!
+override OpenConnect.Abstractions.CapabilityDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.CapabilityDescriptor.GetHashCode() -> int
+override OpenConnect.Abstractions.CapabilityDescriptor.ToString() -> string!
+override OpenConnect.Abstractions.CapabilityId.GetHashCode() -> int
+override OpenConnect.Abstractions.ClientInteractionCancellation.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ClientInteractionCancellation.GetHashCode() -> int
+override OpenConnect.Abstractions.ClientInteractionCancellation.ToString() -> string!
+override OpenConnect.Abstractions.ClientInteractionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ClientInteractionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.ClientInteractionRequest.ToString() -> string!
+override OpenConnect.Abstractions.ClientInteractionResponse.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ClientInteractionResponse.GetHashCode() -> int
+override OpenConnect.Abstractions.ClientInteractionResponse.ToString() -> string!
+override OpenConnect.Abstractions.CommittedAgentEvent.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.CommittedAgentEvent.GetHashCode() -> int
+override OpenConnect.Abstractions.CommittedAgentEvent.ToString() -> string!
+override OpenConnect.Abstractions.CommittedEventDelivery.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.CommittedEventDelivery.GetHashCode() -> int
+override OpenConnect.Abstractions.CommittedEventDelivery.ToString() -> string!
+override OpenConnect.Abstractions.DelegationGrant.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.DelegationGrant.GetHashCode() -> int
+override OpenConnect.Abstractions.DelegationGrant.ToString() -> string!
+override OpenConnect.Abstractions.EventRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.EventRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.EventRecord.ToString() -> string!
+override OpenConnect.Abstractions.ExecutionId.GetHashCode() -> int
+override OpenConnect.Abstractions.MemoryDeletionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.MemoryDeletionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.MemoryDeletionRequest.ToString() -> string!
+override OpenConnect.Abstractions.MemoryDocument.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.MemoryDocument.GetHashCode() -> int
+override OpenConnect.Abstractions.MemoryDocument.ToString() -> string!
+override OpenConnect.Abstractions.MemorySearchMatch.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.MemorySearchMatch.GetHashCode() -> int
+override OpenConnect.Abstractions.MemorySearchMatch.ToString() -> string!
+override OpenConnect.Abstractions.MemorySearchRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.MemorySearchRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.MemorySearchRequest.ToString() -> string!
+override OpenConnect.Abstractions.MemorySearchResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.MemorySearchResult.GetHashCode() -> int
+override OpenConnect.Abstractions.MemorySearchResult.ToString() -> string!
+override OpenConnect.Abstractions.ModelRequirement.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ModelRequirement.GetHashCode() -> int
+override OpenConnect.Abstractions.ModelRequirement.ToString() -> string!
+override OpenConnect.Abstractions.OperationalPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.OperationalPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.OperationalPolicy.ToString() -> string!
+override OpenConnect.Abstractions.OrchestrationPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.OrchestrationPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.OrchestrationPolicy.ToString() -> string!
+override OpenConnect.Abstractions.OutboxEntry.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.OutboxEntry.GetHashCode() -> int
+override OpenConnect.Abstractions.OutboxEntry.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.ApprovalRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.ApprovalRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.ApprovalRecord.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.LeaseRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.LeaseRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.LeaseRecord.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.OutboxClaim.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.OutboxClaim.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.OutboxClaim.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.ToString() -> string!
+override OpenConnect.Abstractions.Persistence.SessionRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Persistence.SessionRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Persistence.SessionRecord.ToString() -> string!
+override OpenConnect.Abstractions.PrincipalId.GetHashCode() -> int
+override OpenConnect.Abstractions.RateLimitAuditRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.RateLimitAuditRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.RateLimitAuditRecord.ToString() -> string!
+override OpenConnect.Abstractions.RateLimitDecision.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.RateLimitDecision.GetHashCode() -> int
+override OpenConnect.Abstractions.RateLimitDecision.ToString() -> string!
+override OpenConnect.Abstractions.RateLimitKey.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.RateLimitKey.GetHashCode() -> int
+override OpenConnect.Abstractions.RateLimitKey.ToString() -> string!
+override OpenConnect.Abstractions.SessionId.GetHashCode() -> int
+override OpenConnect.Abstractions.TaskAcceptance.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.TaskAcceptance.GetHashCode() -> int
+override OpenConnect.Abstractions.TaskAcceptance.ToString() -> string!
+override OpenConnect.Abstractions.TaskId.GetHashCode() -> int
+override OpenConnect.Abstractions.TaskRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.TaskRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.TaskRecord.ToString() -> string!
+override OpenConnect.Abstractions.TenantId.GetHashCode() -> int
+override OpenConnect.Abstractions.ToolDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ToolDescriptor.GetHashCode() -> int
+override OpenConnect.Abstractions.ToolDescriptor.ToString() -> string!
+override OpenConnect.Abstractions.ToolId.GetHashCode() -> int
+override OpenConnect.Abstractions.ToolPolicy.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.ToolPolicy.GetHashCode() -> int
+override OpenConnect.Abstractions.ToolPolicy.ToString() -> string!
+override OpenConnect.Abstractions.Ulid.GetHashCode() -> int
+override OpenConnect.Abstractions.WorkerCapabilityDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.WorkerCapabilityDescriptor.GetHashCode() -> int
+override OpenConnect.Abstractions.WorkerCapabilityDescriptor.ToString() -> string!
+static OpenConnect.Abstractions.AgentBudget.operator !=(OpenConnect.Abstractions.AgentBudget? left, OpenConnect.Abstractions.AgentBudget? right) -> bool
+static OpenConnect.Abstractions.AgentBudget.operator ==(OpenConnect.Abstractions.AgentBudget? left, OpenConnect.Abstractions.AgentBudget? right) -> bool
+static OpenConnect.Abstractions.AgentContextPolicy.operator !=(OpenConnect.Abstractions.AgentContextPolicy? left, OpenConnect.Abstractions.AgentContextPolicy? right) -> bool
+static OpenConnect.Abstractions.AgentContextPolicy.operator ==(OpenConnect.Abstractions.AgentContextPolicy? left, OpenConnect.Abstractions.AgentContextPolicy? right) -> bool
+static OpenConnect.Abstractions.AgentDefinition.operator !=(OpenConnect.Abstractions.AgentDefinition? left, OpenConnect.Abstractions.AgentDefinition? right) -> bool
+static OpenConnect.Abstractions.AgentDefinition.operator ==(OpenConnect.Abstractions.AgentDefinition? left, OpenConnect.Abstractions.AgentDefinition? right) -> bool
+static OpenConnect.Abstractions.AgentEventSubscriptionOptions.operator !=(OpenConnect.Abstractions.AgentEventSubscriptionOptions? left, OpenConnect.Abstractions.AgentEventSubscriptionOptions? right) -> bool
+static OpenConnect.Abstractions.AgentEventSubscriptionOptions.operator ==(OpenConnect.Abstractions.AgentEventSubscriptionOptions? left, OpenConnect.Abstractions.AgentEventSubscriptionOptions? right) -> bool
+static OpenConnect.Abstractions.AgentId.operator !=(OpenConnect.Abstractions.AgentId left, OpenConnect.Abstractions.AgentId right) -> bool
+static OpenConnect.Abstractions.AgentId.operator ==(OpenConnect.Abstractions.AgentId left, OpenConnect.Abstractions.AgentId right) -> bool
+static OpenConnect.Abstractions.AgentMemoryPolicy.operator !=(OpenConnect.Abstractions.AgentMemoryPolicy? left, OpenConnect.Abstractions.AgentMemoryPolicy? right) -> bool
+static OpenConnect.Abstractions.AgentMemoryPolicy.operator ==(OpenConnect.Abstractions.AgentMemoryPolicy? left, OpenConnect.Abstractions.AgentMemoryPolicy? right) -> bool
+static OpenConnect.Abstractions.AgentToolPolicy.operator !=(OpenConnect.Abstractions.AgentToolPolicy? left, OpenConnect.Abstractions.AgentToolPolicy? right) -> bool
+static OpenConnect.Abstractions.AgentToolPolicy.operator ==(OpenConnect.Abstractions.AgentToolPolicy? left, OpenConnect.Abstractions.AgentToolPolicy? right) -> bool
+static OpenConnect.Abstractions.CanonicalAgentEvent.operator !=(OpenConnect.Abstractions.CanonicalAgentEvent? left, OpenConnect.Abstractions.CanonicalAgentEvent? right) -> bool
+static OpenConnect.Abstractions.CanonicalAgentEvent.operator ==(OpenConnect.Abstractions.CanonicalAgentEvent? left, OpenConnect.Abstractions.CanonicalAgentEvent? right) -> bool
+static OpenConnect.Abstractions.CapabilityDescriptor.operator !=(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
+static OpenConnect.Abstractions.CapabilityDescriptor.operator ==(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
+static OpenConnect.Abstractions.CapabilityId.operator !=(OpenConnect.Abstractions.CapabilityId left, OpenConnect.Abstractions.CapabilityId right) -> bool
+static OpenConnect.Abstractions.CapabilityId.operator ==(OpenConnect.Abstractions.CapabilityId left, OpenConnect.Abstractions.CapabilityId right) -> bool
+static OpenConnect.Abstractions.ClientInteractionCancellation.operator !=(OpenConnect.Abstractions.ClientInteractionCancellation? left, OpenConnect.Abstractions.ClientInteractionCancellation? right) -> bool
+static OpenConnect.Abstractions.ClientInteractionCancellation.operator ==(OpenConnect.Abstractions.ClientInteractionCancellation? left, OpenConnect.Abstractions.ClientInteractionCancellation? right) -> bool
+static OpenConnect.Abstractions.ClientInteractionRequest.operator !=(OpenConnect.Abstractions.ClientInteractionRequest? left, OpenConnect.Abstractions.ClientInteractionRequest? right) -> bool
+static OpenConnect.Abstractions.ClientInteractionRequest.operator ==(OpenConnect.Abstractions.ClientInteractionRequest? left, OpenConnect.Abstractions.ClientInteractionRequest? right) -> bool
+static OpenConnect.Abstractions.ClientInteractionResponse.operator !=(OpenConnect.Abstractions.ClientInteractionResponse? left, OpenConnect.Abstractions.ClientInteractionResponse? right) -> bool
+static OpenConnect.Abstractions.ClientInteractionResponse.operator ==(OpenConnect.Abstractions.ClientInteractionResponse? left, OpenConnect.Abstractions.ClientInteractionResponse? right) -> bool
+static OpenConnect.Abstractions.CommittedAgentEvent.operator !=(OpenConnect.Abstractions.CommittedAgentEvent? left, OpenConnect.Abstractions.CommittedAgentEvent? right) -> bool
+static OpenConnect.Abstractions.CommittedAgentEvent.operator ==(OpenConnect.Abstractions.CommittedAgentEvent? left, OpenConnect.Abstractions.CommittedAgentEvent? right) -> bool
+static OpenConnect.Abstractions.CommittedEventDelivery.operator !=(OpenConnect.Abstractions.CommittedEventDelivery? left, OpenConnect.Abstractions.CommittedEventDelivery? right) -> bool
+static OpenConnect.Abstractions.CommittedEventDelivery.operator ==(OpenConnect.Abstractions.CommittedEventDelivery? left, OpenConnect.Abstractions.CommittedEventDelivery? right) -> bool
+static OpenConnect.Abstractions.DelegationGrant.operator !=(OpenConnect.Abstractions.DelegationGrant? left, OpenConnect.Abstractions.DelegationGrant? right) -> bool
+static OpenConnect.Abstractions.DelegationGrant.operator ==(OpenConnect.Abstractions.DelegationGrant? left, OpenConnect.Abstractions.DelegationGrant? right) -> bool
+static OpenConnect.Abstractions.EventRecord.operator !=(OpenConnect.Abstractions.EventRecord? left, OpenConnect.Abstractions.EventRecord? right) -> bool
+static OpenConnect.Abstractions.EventRecord.operator ==(OpenConnect.Abstractions.EventRecord? left, OpenConnect.Abstractions.EventRecord? right) -> bool
+static OpenConnect.Abstractions.ExecutionId.operator !=(OpenConnect.Abstractions.ExecutionId left, OpenConnect.Abstractions.ExecutionId right) -> bool
+static OpenConnect.Abstractions.ExecutionId.operator ==(OpenConnect.Abstractions.ExecutionId left, OpenConnect.Abstractions.ExecutionId right) -> bool
+static OpenConnect.Abstractions.MemoryDeletionRequest.operator !=(OpenConnect.Abstractions.MemoryDeletionRequest? left, OpenConnect.Abstractions.MemoryDeletionRequest? right) -> bool
+static OpenConnect.Abstractions.MemoryDeletionRequest.operator ==(OpenConnect.Abstractions.MemoryDeletionRequest? left, OpenConnect.Abstractions.MemoryDeletionRequest? right) -> bool
+static OpenConnect.Abstractions.MemoryDocument.operator !=(OpenConnect.Abstractions.MemoryDocument? left, OpenConnect.Abstractions.MemoryDocument? right) -> bool
+static OpenConnect.Abstractions.MemoryDocument.operator ==(OpenConnect.Abstractions.MemoryDocument? left, OpenConnect.Abstractions.MemoryDocument? right) -> bool
+static OpenConnect.Abstractions.MemorySearchMatch.operator !=(OpenConnect.Abstractions.MemorySearchMatch? left, OpenConnect.Abstractions.MemorySearchMatch? right) -> bool
+static OpenConnect.Abstractions.MemorySearchMatch.operator ==(OpenConnect.Abstractions.MemorySearchMatch? left, OpenConnect.Abstractions.MemorySearchMatch? right) -> bool
+static OpenConnect.Abstractions.MemorySearchRequest.operator !=(OpenConnect.Abstractions.MemorySearchRequest? left, OpenConnect.Abstractions.MemorySearchRequest? right) -> bool
+static OpenConnect.Abstractions.MemorySearchRequest.operator ==(OpenConnect.Abstractions.MemorySearchRequest? left, OpenConnect.Abstractions.MemorySearchRequest? right) -> bool
+static OpenConnect.Abstractions.MemorySearchResult.operator !=(OpenConnect.Abstractions.MemorySearchResult? left, OpenConnect.Abstractions.MemorySearchResult? right) -> bool
+static OpenConnect.Abstractions.MemorySearchResult.operator ==(OpenConnect.Abstractions.MemorySearchResult? left, OpenConnect.Abstractions.MemorySearchResult? right) -> bool
+static OpenConnect.Abstractions.ModelRequirement.operator !=(OpenConnect.Abstractions.ModelRequirement? left, OpenConnect.Abstractions.ModelRequirement? right) -> bool
+static OpenConnect.Abstractions.ModelRequirement.operator ==(OpenConnect.Abstractions.ModelRequirement? left, OpenConnect.Abstractions.ModelRequirement? right) -> bool
+static OpenConnect.Abstractions.OperationalPolicy.operator !=(OpenConnect.Abstractions.OperationalPolicy? left, OpenConnect.Abstractions.OperationalPolicy? right) -> bool
+static OpenConnect.Abstractions.OperationalPolicy.operator ==(OpenConnect.Abstractions.OperationalPolicy? left, OpenConnect.Abstractions.OperationalPolicy? right) -> bool
+static OpenConnect.Abstractions.OrchestrationPolicy.operator !=(OpenConnect.Abstractions.OrchestrationPolicy? left, OpenConnect.Abstractions.OrchestrationPolicy? right) -> bool
+static OpenConnect.Abstractions.OrchestrationPolicy.operator ==(OpenConnect.Abstractions.OrchestrationPolicy? left, OpenConnect.Abstractions.OrchestrationPolicy? right) -> bool
+static OpenConnect.Abstractions.OutboxEntry.operator !=(OpenConnect.Abstractions.OutboxEntry? left, OpenConnect.Abstractions.OutboxEntry? right) -> bool
+static OpenConnect.Abstractions.OutboxEntry.operator ==(OpenConnect.Abstractions.OutboxEntry? left, OpenConnect.Abstractions.OutboxEntry? right) -> bool
+static OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.operator !=(OpenConnect.Abstractions.Persistence.ApprovalNonceBinding? left, OpenConnect.Abstractions.Persistence.ApprovalNonceBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.ApprovalNonceBinding.operator ==(OpenConnect.Abstractions.Persistence.ApprovalNonceBinding? left, OpenConnect.Abstractions.Persistence.ApprovalNonceBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.ApprovalRecord.operator !=(OpenConnect.Abstractions.Persistence.ApprovalRecord? left, OpenConnect.Abstractions.Persistence.ApprovalRecord? right) -> bool
+static OpenConnect.Abstractions.Persistence.ApprovalRecord.operator ==(OpenConnect.Abstractions.Persistence.ApprovalRecord? left, OpenConnect.Abstractions.Persistence.ApprovalRecord? right) -> bool
+static OpenConnect.Abstractions.Persistence.LeaseRecord.operator !=(OpenConnect.Abstractions.Persistence.LeaseRecord? left, OpenConnect.Abstractions.Persistence.LeaseRecord? right) -> bool
+static OpenConnect.Abstractions.Persistence.LeaseRecord.operator ==(OpenConnect.Abstractions.Persistence.LeaseRecord? left, OpenConnect.Abstractions.Persistence.LeaseRecord? right) -> bool
+static OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.operator !=(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding? left, OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding.operator ==(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding? left, OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.OutboxClaim.operator !=(OpenConnect.Abstractions.Persistence.OutboxClaim? left, OpenConnect.Abstractions.Persistence.OutboxClaim? right) -> bool
+static OpenConnect.Abstractions.Persistence.OutboxClaim.operator ==(OpenConnect.Abstractions.Persistence.OutboxClaim? left, OpenConnect.Abstractions.Persistence.OutboxClaim? right) -> bool
+static OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.operator !=(OpenConnect.Abstractions.Persistence.PrivacyTokenBinding? left, OpenConnect.Abstractions.Persistence.PrivacyTokenBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.PrivacyTokenBinding.operator ==(OpenConnect.Abstractions.Persistence.PrivacyTokenBinding? left, OpenConnect.Abstractions.Persistence.PrivacyTokenBinding? right) -> bool
+static OpenConnect.Abstractions.Persistence.SessionRecord.operator !=(OpenConnect.Abstractions.Persistence.SessionRecord? left, OpenConnect.Abstractions.Persistence.SessionRecord? right) -> bool
+static OpenConnect.Abstractions.Persistence.SessionRecord.operator ==(OpenConnect.Abstractions.Persistence.SessionRecord? left, OpenConnect.Abstractions.Persistence.SessionRecord? right) -> bool
+static OpenConnect.Abstractions.PrincipalId.operator !=(OpenConnect.Abstractions.PrincipalId left, OpenConnect.Abstractions.PrincipalId right) -> bool
+static OpenConnect.Abstractions.PrincipalId.operator ==(OpenConnect.Abstractions.PrincipalId left, OpenConnect.Abstractions.PrincipalId right) -> bool
+static OpenConnect.Abstractions.RateLimitAuditRecord.operator !=(OpenConnect.Abstractions.RateLimitAuditRecord? left, OpenConnect.Abstractions.RateLimitAuditRecord? right) -> bool
+static OpenConnect.Abstractions.RateLimitAuditRecord.operator ==(OpenConnect.Abstractions.RateLimitAuditRecord? left, OpenConnect.Abstractions.RateLimitAuditRecord? right) -> bool
+static OpenConnect.Abstractions.RateLimitDecision.operator !=(OpenConnect.Abstractions.RateLimitDecision? left, OpenConnect.Abstractions.RateLimitDecision? right) -> bool
+static OpenConnect.Abstractions.RateLimitDecision.operator ==(OpenConnect.Abstractions.RateLimitDecision? left, OpenConnect.Abstractions.RateLimitDecision? right) -> bool
+static OpenConnect.Abstractions.RateLimitKey.operator !=(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
+static OpenConnect.Abstractions.RateLimitKey.operator ==(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
+static OpenConnect.Abstractions.SessionId.operator !=(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
+static OpenConnect.Abstractions.SessionId.operator ==(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
+static OpenConnect.Abstractions.TaskAcceptance.operator !=(OpenConnect.Abstractions.TaskAcceptance? left, OpenConnect.Abstractions.TaskAcceptance? right) -> bool
+static OpenConnect.Abstractions.TaskAcceptance.operator ==(OpenConnect.Abstractions.TaskAcceptance? left, OpenConnect.Abstractions.TaskAcceptance? right) -> bool
+static OpenConnect.Abstractions.TaskId.operator !=(OpenConnect.Abstractions.TaskId left, OpenConnect.Abstractions.TaskId right) -> bool
+static OpenConnect.Abstractions.TaskId.operator ==(OpenConnect.Abstractions.TaskId left, OpenConnect.Abstractions.TaskId right) -> bool
+static OpenConnect.Abstractions.TaskRecord.operator !=(OpenConnect.Abstractions.TaskRecord? left, OpenConnect.Abstractions.TaskRecord? right) -> bool
+static OpenConnect.Abstractions.TaskRecord.operator ==(OpenConnect.Abstractions.TaskRecord? left, OpenConnect.Abstractions.TaskRecord? right) -> bool
+static OpenConnect.Abstractions.TenantId.operator !=(OpenConnect.Abstractions.TenantId left, OpenConnect.Abstractions.TenantId right) -> bool
+static OpenConnect.Abstractions.TenantId.operator ==(OpenConnect.Abstractions.TenantId left, OpenConnect.Abstractions.TenantId right) -> bool
+static OpenConnect.Abstractions.ToolDescriptor.operator !=(OpenConnect.Abstractions.ToolDescriptor? left, OpenConnect.Abstractions.ToolDescriptor? right) -> bool
+static OpenConnect.Abstractions.ToolDescriptor.operator ==(OpenConnect.Abstractions.ToolDescriptor? left, OpenConnect.Abstractions.ToolDescriptor? right) -> bool
+static OpenConnect.Abstractions.ToolId.operator !=(OpenConnect.Abstractions.ToolId left, OpenConnect.Abstractions.ToolId right) -> bool
+static OpenConnect.Abstractions.ToolId.operator ==(OpenConnect.Abstractions.ToolId left, OpenConnect.Abstractions.ToolId right) -> bool
+static OpenConnect.Abstractions.ToolPolicy.operator !=(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
+static OpenConnect.Abstractions.ToolPolicy.operator ==(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
+static OpenConnect.Abstractions.Ulid.operator !=(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
+static OpenConnect.Abstractions.Ulid.operator ==(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
+static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator !=(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
+static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator ==(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
+~override OpenConnect.Abstractions.AgentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.AgentId.ToString() -> string
+~override OpenConnect.Abstractions.CapabilityId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.CapabilityId.ToString() -> string
+~override OpenConnect.Abstractions.ExecutionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ExecutionId.ToString() -> string
+~override OpenConnect.Abstractions.PrincipalId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
+~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.SessionId.ToString() -> string
+~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TaskId.ToString() -> string
+~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TenantId.ToString() -> string
+~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ToolId.ToString() -> string
+~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool

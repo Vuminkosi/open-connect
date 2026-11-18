@@ -102,3 +102,11 @@ static OpenConnect.Observability.Instrumentation.SafeRecordVector(double duratio
 static OpenConnect.Observability.Instrumentation.SafeStartActivity(string! source, string! operation, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags = null, System.Diagnostics.ActivityKind kind = System.Diagnostics.ActivityKind.Internal) -> System.Diagnostics.Activity?
 static OpenConnect.Observability.SafeExporter.ValidateAndSanitizeActivity(System.Diagnostics.Activity! activity, OpenConnect.Observability.ITelemetryPrivacyFilter? filter = null) -> bool
 static OpenConnect.Observability.TelemetryPrivacy.CreateDefault() -> (OpenConnect.Observability.ITelemetryPrivacyFilter! Filter, OpenConnect.Observability.ITelemetryExportValidator! Validator)
+OpenConnect.Observability.TelemetryAttribute.<Clone>$() -> OpenConnect.Observability.TelemetryAttribute!
+OpenConnect.Observability.TelemetryAttribute.Deconstruct(out string! Name, out object? Value, out OpenConnect.Observability.TelemetryDataClassification Classification) -> void
+OpenConnect.Observability.TelemetryAttribute.Equals(OpenConnect.Observability.TelemetryAttribute? other) -> bool
+override OpenConnect.Observability.TelemetryAttribute.Equals(object? obj) -> bool
+override OpenConnect.Observability.TelemetryAttribute.GetHashCode() -> int
+override OpenConnect.Observability.TelemetryAttribute.ToString() -> string!
+static OpenConnect.Observability.TelemetryAttribute.operator !=(OpenConnect.Observability.TelemetryAttribute? left, OpenConnect.Observability.TelemetryAttribute? right) -> bool
+static OpenConnect.Observability.TelemetryAttribute.operator ==(OpenConnect.Observability.TelemetryAttribute? left, OpenConnect.Observability.TelemetryAttribute? right) -> bool
