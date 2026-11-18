@@ -12,20 +12,20 @@ namespace OpenConnect.Persistence.EFCore.DependencyInjection;
 
 public static class OpenConnectEfServiceCollectionExtensions
 {
-    private static readonly object RegistrationLock = new();
-    private static readonly HashSet<Type> RegisteredContexts = [];
+    private sealed record EfContextRegistrationMarker(Type ContextType);
 
     public static IServiceCollection AddOpenConnectEntityFramework<TContext>(this IServiceCollection services, Action<OpenConnectEfOptions>? configure = null) where TContext : DbContext
     {
         ArgumentNullException.ThrowIfNull(services);
-        lock (RegistrationLock)
-        {
-            if (!RegisteredContexts.Contains(typeof(TContext)) && RegisteredContexts.Count > 0)
-                throw new InvalidOperationException("ef_ambiguous_registration: only one OpenConnect EF context may be registered.");
-            if (!services.Any(d => d.ServiceType == typeof(TContext)))
-                throw new InvalidOperationException($"{OpenConnect.Abstractions.ErrorCodes.EfContextMissing}: Register ApplicationDbContext before AddOpenConnectEntityFramework.");
-            RegisteredContexts.Add(typeof(TContext));
-        }
+        var existingMarker = services
+            .FirstOrDefault(d => d.ServiceType == typeof(EfContextRegistrationMarker))?
+            .ImplementationInstance as EfContextRegistrationMarker;
+        if (existingMarker is not null && existingMarker.ContextType != typeof(TContext))
+            throw new InvalidOperationException("ef_ambiguous_registration: only one OpenConnect EF context may be registered.");
+        if (!services.Any(d => d.ServiceType == typeof(TContext)))
+            throw new InvalidOperationException($"{OpenConnect.Abstractions.ErrorCodes.EfContextMissing}: Register ApplicationDbContext before AddOpenConnectEntityFramework.");
+        if (existingMarker is null)
+            services.AddSingleton(new EfContextRegistrationMarker(typeof(TContext)));
 
         // TryAdd* keeps repeats on the same collection safe. This static set only rejects a
         // second, different context because named stores are not supported.

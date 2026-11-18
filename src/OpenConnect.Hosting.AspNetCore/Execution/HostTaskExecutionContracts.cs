@@ -3,7 +3,19 @@ using OpenConnect.Abstractions;
 namespace OpenConnect.Hosting.AspNetCore.Execution;
 
 /// <summary>Authenticated input passed from the HTTP host to a native execution adapter.</summary>
-public sealed record HostTaskExecution(TaskId TaskId, TenantId TenantId, PrincipalId PrincipalId, SessionId SessionId, string Message, string IdempotencyKey);
+public enum HostTaskOrigin
+{
+    NonInteractive = 0,
+    MiniComposer = 1
+}
+
+public sealed record HostTaskExecution(TaskId TaskId, TenantId TenantId, PrincipalId PrincipalId, SessionId SessionId, string Message, string IdempotencyKey)
+{
+    /// <summary>Trusted host-selected submission channel; never populated from request data.</summary>
+    public HostTaskOrigin Origin { get; init; } = HostTaskOrigin.NonInteractive;
+    /// <summary>Server-issued connection identity bound to an interactive task, when present.</summary>
+    public string? ClientConnectionId { get; init; }
+}
 
 /// <summary>Executes one accepted task. Implementations must honor cancellation and recheck revocation.</summary>
 public interface IHostTaskExecutor

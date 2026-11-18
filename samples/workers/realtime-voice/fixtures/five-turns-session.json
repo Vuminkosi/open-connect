@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-five-turns-session",
+  "sessionId": "123e4567-e89b-42d3-a456-426614174015",
+  "turns": [
+    { "turn": 1, "userUtterance": "Hello, how are you?", "agentResponse": "I am doing well, thank you." },
+    { "turn": 2, "userUtterance": "Can you check my calendar?", "agentResponse": "You have two meetings today." },
+    { "turn": 3, "userUtterance": "What time is the first one?", "agentResponse": "It starts at 10:00 AM." },
+    { "turn": 4, "userUtterance": "And the second one?", "agentResponse": "The second meeting is at 2:30 PM." },
+    { "turn": 5, "userUtterance": "Thank you, goodbye.", "agentResponse": "You are welcome. Have a great day!" }
+  ]
+}

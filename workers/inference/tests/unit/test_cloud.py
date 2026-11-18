@@ -85,9 +85,24 @@ def _ok_cloud(monkeypatch, output="cloud says hi", **kwargs):
 # --- defaults ----------------------------------------------------------------
 
 
-def test_cloud_disabled_by_default(monkeypatch) -> None:
-    for var in ("INFERENCE_CLOUD_URL", "INFERENCE_CLOUD_API_KEY", "INFERENCE_ROUTE_ORDER"):
+def test_cloud_unconfigured_when_urls_empty(monkeypatch) -> None:
+    # Renamed contract: OC_INFERENCE_API_BASE_URL is primary,
+    # INFERENCE_CLOUD_URL is the deprecated alias; either set (non-empty)
+    # configures the cloud leg. Explicitly empty both for local-only.
+    for var in (
+        "INFERENCE_CLOUD_URL",
+        "INFERENCE_CLOUD_API_KEY",
+        "INFERENCE_ROUTE_ORDER",
+        "OC_INFERENCE_API_BASE_URL",
+        "OC_INFERENCE_MODEL",
+        "OC_INFERENCE_PROVIDER",
+        "OC_MODEL_CACHE_DIR",
+        "MODEL_DIR",
+        "OC_MODEL_PROVISIONING",
+    ):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("OC_INFERENCE_API_BASE_URL", "")
+    monkeypatch.setenv("OC_CONTRIBUTOR_DATA_USE_APPROVED", "1")
     settings = Settings.from_environment()
     assert settings.cloud_url is None
     assert settings.cloud_api_key is None

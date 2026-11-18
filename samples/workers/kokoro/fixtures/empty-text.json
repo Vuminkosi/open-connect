@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-empty-text",
+  "taskId": "123e4567-e89b-42d3-a456-426614174022",
+  "input": {
+    "text": "   ",
+    "voiceId": "af_heart",
+    "locale": "en",
+    "format": "wav"
+  },
+  "expectedBehavior": {
+    "expectedStatus": 422,
+    "expectedDetail": "empty_input"
+  }
+}

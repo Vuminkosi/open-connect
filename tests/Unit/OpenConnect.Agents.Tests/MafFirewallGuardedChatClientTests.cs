@@ -1,10 +1,13 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Privacy;
 using OpenConnect.Privacy.Gates;
 using OpenConnect.Privacy.Policy;
+using OpenConnect.Privacy.Rules;
+using OpenConnect.Privacy.Tokenization;
 using Xunit;
 
 namespace OpenConnect.Agents.Tests;
@@ -79,6 +82,128 @@ public sealed class MafFirewallGuardedChatClientTests
     }
 
     [Fact]
+    public async Task Sanitizing_assistant_text_preserves_tool_call_and_matching_result()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(content =>
+            Allow(content is "request" or "private text" ? "[REDACTED]" : content)), Provider);
+        var assistant = new ChatMessage(ChatRole.Assistant,
+            [new TextContent("private text"), new FunctionCallContent("call-1", "liveui_inspect", new Dictionary<string, object?>())])
+        { MessageId = "message-1" };
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", "visible")]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), assistant, tool]);
+
+        var forwarded = inner.LastMessages[1];
+        Assert.Equal("[REDACTED]", forwarded.Text);
+        Assert.Equal("message-1", forwarded.MessageId);
+        Assert.Equal("call-1", Assert.Single(forwarded.Contents.OfType<FunctionCallContent>()).CallId);
+        Assert.Equal("call-1", Assert.Single(inner.LastMessages[2].Contents.OfType<FunctionResultContent>()).CallId);
+        Assert.Equal("private text", assistant.Text);
+    }
+
+    [Fact]
+    public async Task Structured_tool_arguments_and_results_are_guarded_before_egress()
+    {
+        const string secret = "SYNTH-PRIVATE-0001";
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(content => Allow(content.Replace(secret, "[REDACTED]", StringComparison.Ordinal))), Provider);
+        var assistant = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["query"] = secret })]);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", new { description = secret })]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), assistant, tool]);
+
+        var call = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionCallContent>());
+        var result = Assert.Single(inner.LastMessages[2].Contents.OfType<FunctionResultContent>());
+        Assert.DoesNotContain(secret, System.Text.Json.JsonSerializer.Serialize(call.Arguments), StringComparison.Ordinal);
+        Assert.DoesNotContain(secret, System.Text.Json.JsonSerializer.Serialize(result.Result), StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", System.Text.Json.JsonSerializer.Serialize(call.Arguments), StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", System.Text.Json.JsonSerializer.Serialize(result.Result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Allowed_tool_content_preserves_argument_and_result_types()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        const string payload = "visible";
+        var assistant = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["limit"] = 3 })]);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", payload)]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), assistant, tool]);
+
+        var call = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionCallContent>());
+        var result = Assert.Single(inner.LastMessages[2].Contents.OfType<FunctionResultContent>());
+        Assert.Equal(3, Assert.IsType<int>(call.Arguments!["limit"]));
+        Assert.Equal(payload, Assert.IsType<string>(result.Result));
+    }
+
+    [Fact]
+    public async Task Redacted_string_tool_result_remains_a_string()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(content =>
+            Allow(content.Replace("SYNTH-PRIVATE-0001", "[REDACTED]", StringComparison.Ordinal))), Provider);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", "SYNTH-PRIVATE-0001")]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), tool]);
+
+        var result = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionResultContent>());
+        Assert.Equal("[REDACTED]", Assert.IsType<string>(result.Result));
+    }
+
+
+    [Fact]
+    public async Task Rules_firewall_redacts_sensitive_tool_data_before_model_egress()
+    {
+        const string email = "tool.canary@example.test";
+        const string phone = "+1-555-867-5309";
+        var inner = new TestChatClient();
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
+        var assistant = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["query"] = email })]);
+        using var toolJson = System.Text.Json.JsonDocument.Parse("{\"phone\":\"\\u002b1-555-867-5309\"}");
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", toolJson.RootElement)]);
+
+        await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), assistant, tool]);
+
+        var call = Assert.Single(inner.LastMessages[1].Contents.OfType<FunctionCallContent>());
+        var result = Assert.Single(inner.LastMessages[2].Contents.OfType<FunctionResultContent>());
+        Assert.DoesNotContain(email, System.Text.Json.JsonSerializer.Serialize(call.Arguments), StringComparison.Ordinal);
+        Assert.DoesNotContain(phone, System.Text.Json.JsonSerializer.Serialize(result.Result), StringComparison.Ordinal);
+        Assert.DoesNotContain("555-867-5309", System.Text.Json.JsonSerializer.Serialize(result.Result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Invalid_sanitized_tool_json_fails_closed_before_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(content =>
+            Allow(content.StartsWith('{') ? "not-json" : content)), Provider);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", new { name = "value" })]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+            guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request"), tool]));
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
+    public async Task Denied_structured_tool_result_never_reaches_provider()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(_ => Block()), Provider);
+        var tool = new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", new { value = "private" })]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([tool]));
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
     public async Task Streaming_is_blocked_before_first_token()
     {
         var inner = new TestChatClient();
@@ -141,12 +266,14 @@ public sealed class MafFirewallGuardedChatClientTests
     {
         public int Calls { get; private set; }
         public string? LastText { get; private set; }
+        public List<ChatMessage> LastMessages { get; private set; } = [];
 
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;
-            LastText = messages.Last(message => message.Role == ChatRole.User).Text;
+            LastMessages = messages.ToList();
+            LastText = LastMessages.Last(message => message.Role == ChatRole.User).Text;
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, LastText)));
         }
 

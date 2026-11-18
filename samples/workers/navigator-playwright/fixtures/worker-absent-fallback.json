@@ -1,0 +1,29 @@
+{
+  "fixtureId": "navigator-worker-absent-fallback",
+  "acceptanceId": "WSE2E-AT-065",
+  "description": "When the optional Playwright worker is absent or unreachable, client-side read-only tour and highlighting remain functional while browser automation returns capability_unavailable.",
+  "readOnlyTourPlan": {
+    "tourId": "tour-onboarding-v1",
+    "steps": [
+      {
+        "stepId": "step-1",
+        "action": "highlight",
+        "targetId": "hdr-login",
+        "tooltip": "Click here to sign in to your workspace."
+      },
+      {
+        "stepId": "step-2",
+        "action": "explain",
+        "targetId": "fld-search",
+        "tooltip": "Use the search box to find privacy and security controls."
+      }
+    ],
+    "expectClientSideTourAvailable": true
+  },
+  "browserAutomationProbeWhenWorkerAbsent": {
+    "tool": "click",
+    "targetId": "hdr-login",
+    "expectedErrorCode": "capability_unavailable",
+    "expectedHttpStatus": 503
+  }
+}

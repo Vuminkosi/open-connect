@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "vad-preroll-and-resample-24k-to-16k",
+  "capture": {
+    "sampleRateHz": 24000,
+    "channels": 1,
+    "audioFile": "speech-24k-mono.wav"
+  },
+  "target": {
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "audioFile": "speech-16k-mono.wav"
+  },
+  "preRoll": {
+    "bufferDurationMs": 250,
+    "preRollFrames16k": 4000,
+    "retainedBeforeSpeechStart": true
+  },
+  "resampleRatio": 0.6666666666666666
+}

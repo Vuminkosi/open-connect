@@ -1,263 +1,375 @@
-/* MiniComposer — anchored FAB + bubble. Fixed positioning only: opening the
-   bubble never reflows host content. Logical properties throughout for RTL. */
-.oc-anchored-host { position: static; }
+/* MiniComposer — Production-grade floating assistant composer.
+   Referenced from SwiftAidv2 EllaiCompactComposer + EllaiLauncherMenu.
+   Features floating card anchored above MudFab launcher, 1:1 direct viewport
+   tracking, input row with live waveform and send switch, dotted divider,
+   breathing status dots, and green voice/mic toggles. */
 
-/* Closed state: FAB only, 2.75rem (44px), fixed bottom inline-end, safe-area aware. */
-.oc-anchored-fab {
-    position: fixed !important;
-    inset-inline-end: max(16px, env(safe-area-inset-right, 0px));
-    inset-block-end: max(16px, env(safe-area-inset-bottom, 0px));
-    z-index: 1200;
-    inline-size: 2.75rem;
-    block-size: 2.75rem;
-    min-inline-size: 2.75rem;
-}
-
-/* Open state: bubble min(23.5rem, 100vw-2rem) anchored above the FAB, with tail. */
-.oc-bubble {
-    --oc-dx: 0px;
-    --oc-dy: 0px;
-    position: fixed;
-    inset-inline-end: max(16px, env(safe-area-inset-right, 0px));
-    inset-block-end: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 3.5rem);
-    transform: translate(var(--oc-dx), var(--oc-dy));
-    inline-size: min(23.5rem, calc(100vw - 2rem));
-    max-block-size: min(34rem, calc(100vh - 8rem));
-    display: flex;
-    flex-direction: column;
-    background: var(--mud-palette-surface, #fff);
-    color: var(--mud-palette-text-primary, #111827);
-    border: 1px solid var(--mud-palette-lines-default, #dce2ea);
-    border-radius: 12px;
-    box-shadow: 0 12px 32px rgb(15 23 42 / 0.18);
-    overflow: hidden;
-    z-index: 1200;
-}
-
-/* Tail pointing down toward the FAB. Hidden in attached mode. */
-.oc-bubble::after {
-    content: "";
-    position: absolute;
-    inset-inline-end: 14px;
-    inset-block-end: -7px;
-    inline-size: 14px;
-    block-size: 14px;
-    background: inherit;
-    border-inline-end: 1px solid var(--mud-palette-lines-default, #dce2ea);
-    border-block-end: 1px solid var(--mud-palette-lines-default, #dce2ea);
-    transform: rotate(45deg);
-}
-
-/* Attached mode (Placement == Inline/Docked): inline bubble, no FAB/tail/drag. */
-.oc-attached .oc-bubble {
+.oc-anchored-host {
     position: static;
-    transform: none;
-    inset-inline-end: auto;
-    inset-block-end: auto;
-    z-index: auto;
 }
 
-.oc-attached .oc-bubble::after { content: none; }
-
-/* Header: Move (drag handle) | Settings / Stop / Close. */
-.oc-bubble-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 8px 8px 12px;
-    padding-inline: 12px 8px;
-    border-block-end: 1px solid var(--mud-palette-lines-default, #dce2ea);
+/* Floating Launcher Menu (SwiftAidv2 MudFabMenu activator) */
+.oc-launcher-menu {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 99999 !important;
 }
 
-.oc-drag-handle {
+::deep .oc-anchored-fab,
+.oc-anchored-fab {
+    background-color: var(--mud-palette-primary) !important;
+    color: var(--mud-palette-primary-text) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28) !important;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease !important;
+}
+
+::deep .oc-anchored-fab:hover,
+.oc-anchored-fab:hover {
+    background-color: var(--mud-palette-primary-darken) !important;
+    transform: scale(1.06) !important;
+}
+
+::deep .oc-anchored-fab .mud-icon-root,
+.oc-anchored-fab .mud-icon-root {
+    color: var(--mud-palette-primary-text) !important;
+    fill: var(--mud-palette-primary-text) !important;
+    font-size: 28px !important;
+}
+
+/* Floating Composer Card (Clean Card, No pseudo-elements, No scroll constraints) */
+.oc-bubble {
+    position: fixed !important;
+    right: 24px !important;
+    bottom: 96px !important;
+    width: 380px !important;
+    max-width: calc(100vw - 32px) !important;
+    height: auto !important;
+    max-height: none !important;
+    background: var(--mud-palette-surface) !important;
+    border: 1px solid var(--mud-palette-lines-default) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--mud-elevation-8) !important;
+    padding: 10px 14px !important;
+    z-index: 99998 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+/* Attached mode (Placement == Attached): inline bubble, no FAB */
+.oc-attached .oc-bubble {
+    position: static !important;
+    transform: none !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: auto !important;
+}
+
+/* Move / Header Row */
+.oc-bubble__move-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
+}
+
+.oc-bubble__handle {
+    touch-action: none;
+    cursor: grab;
+    display: inline-flex;
+    padding: 0.25rem;
+    border-radius: 0.375rem;
+    user-select: none;
+    color: var(--mud-palette-text-primary);
+}
+
+.oc-bubble__handle:active {
+    cursor: grabbing;
+}
+
+.oc-composer--dragging {
+    cursor: grabbing !important;
+    user-select: none !important;
+    will-change: left, top !important;
+}
+
+.oc-bubble__header-actions {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    inline-size: 44px;
-    block-size: 44px;
-    margin-inline-start: -8px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--mud-palette-text-secondary, #475569);
-    cursor: grab;
-    touch-action: none;
-    flex: none;
+    gap: 0.125rem;
 }
 
-.oc-drag-handle:active { cursor: grabbing; }
-
-.oc-drag-handle:focus-visible {
-    outline: 2px solid var(--mud-palette-primary, #4f46e5);
-    outline-offset: 2px;
+.oc-bubble-progress {
+    margin: 0.25rem 0 0 0;
 }
 
-.oc-bubble-heading { flex: 1 1 auto; min-inline-size: 0; }
-
-.oc-bubble-title {
-    margin: 0;
-    font-size: 17px;
-    line-height: 24px;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.oc-bubble-subtitle {
-    margin: 0;
-    font-size: 12px;
-    line-height: 16px;
-    color: var(--mud-palette-text-secondary, #475569);
-}
-
-.oc-bubble-header-actions {
+/* Field Wrap and Input Row (SwiftAidv2 MudTextField Wrap) */
+.oc-bubble__input-row {
     display: flex;
     align-items: center;
-    gap: 0;
-    flex: none;
+    margin-block: 0.25rem;
 }
 
-/* 44px hitboxes for touch; visual icon stays compact. */
-.oc-icon-btn {
-    min-inline-size: 44px !important;
-    min-block-size: 44px !important;
+.oc-bubble__field-wrap {
+    position: relative;
+    flex: 1 1 auto;
 }
 
-.oc-bubble-progress { margin: 0; }
+.oc-bubble__field-wrap ::deep .mud-input-control > .mud-input {
+    padding-inline-start: 0.75rem;
+    padding-inline-end: 5rem;
+}
+
+.oc-bubble__field-actions {
+    position: absolute;
+    inset-inline-end: 0.25rem;
+    inset-block-end: 0.25rem;
+    display: flex;
+    gap: 0.125rem;
+}
+
+.oc-bubble__live-speak--active {
+    box-shadow: 0 0 10px rgba(13, 148, 120, 0.6);
+    transition: box-shadow 90ms ease-out;
+}
+
+/* Captions and conversation timeline stay compact while long text scrolls inside its region. */
+.oc-bubble__sent-message {
+    margin-block: 0.5rem 0.25rem;
+    padding-inline-start: 0.5rem;
+    border-inline-start: 2px solid var(--mud-palette-lines-default);
+    max-block-size: none;
+    max-height: none;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    color: var(--mud-palette-text-secondary);
+}
+
+.oc-bubble__response {
+    margin-block: 0.5rem;
+    max-block-size: 9rem;
+    max-height: 9rem;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    color: var(--mud-palette-text-primary);
+}
+
+.oc-bubble__partial-transcript {
+    margin: 0.375rem 0 0;
+    max-block-size: none;
+    max-height: none;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
 
 .oc-bubble-messages {
     overflow-y: auto;
-    padding: 12px 16px;
-    padding-inline: 16px;
+    padding: 6px 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-block-size: 7.5rem;
+    gap: 6px;
+    max-height: 14rem;
+    height: auto;
 }
 
-.oc-bubble-empty {
-    margin: 0;
-    font-size: 13px;
-    line-height: 19px;
-    color: var(--mud-palette-text-secondary, #475569);
+.oc-bubble__response ::deep .oc-speech-spoken {
+    color: var(--mud-palette-text-primary);
 }
 
-.oc-message { display: flex; flex-direction: column; gap: 2px; max-inline-size: 100%; }
+.oc-bubble__response ::deep .oc-speech-speaking {
+    color: var(--mud-palette-primary);
+    font-weight: 600;
+}
+
+.oc-bubble__response ::deep .oc-speech-pending {
+    color: var(--mud-palette-text-disabled);
+    opacity: 0.55;
+}
+
+.oc-message {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
 
 .oc-message-role {
     font-size: 11px;
-    line-height: 16px;
-    font-weight: 550;
-    color: var(--mud-palette-text-secondary, #475569);
+    font-weight: 600;
+    color: var(--mud-palette-text-secondary);
+}
+
+.oc-message-inline {
+    display: block;
+    max-width: 100%;
 }
 
 .oc-message-text {
+    display: inline;
     margin: 0;
-    font-size: 14px;
-    line-height: 21px;
-    overflow-wrap: anywhere;
+    font-size: 13px;
+    line-height: 18px;
+    word-break: break-word;
 }
 
-.oc-message-user { align-items: flex-end; text-align: end; }
+.oc-message-copy {
+    display: inline;
+    width: auto;
+    height: auto;
+    margin: 0 0.1rem 0 0.15rem;
+    color: var(--mud-palette-text-secondary);
+    cursor: pointer;
+    font-size: 0.68rem;
+    line-height: 1;
+    vertical-align: baseline;
+    opacity: 0.65;
+    user-select: none;
+}
 
-.oc-message-streaming .oc-message-text::after { content: "▍"; opacity: 0.55; }
+.oc-message-copy:hover,
+.oc-message-copy:focus-visible {
+    color: var(--mud-palette-primary);
+    opacity: 1;
+}
+
+.oc-message-copy ::deep .mud-icon-root,
+.oc-message-copy .mud-icon-root {
+    width: 0.78rem;
+    height: 0.78rem;
+    font-size: 0.78rem;
+    vertical-align: text-bottom;
+}
+
+.oc-message-user {
+    align-items: flex-end;
+    text-align: right;
+}
 
 .oc-bubble-error {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin: 0 16px 8px;
-    margin-inline: 16px;
-    padding: 8px 12px;
-    padding-inline: 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    line-height: 19px;
-    background: color-mix(in srgb, var(--mud-palette-error, #dc3545) 10%, transparent);
-}
-
-.oc-bubble-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px 8px; padding-inline: 16px; }
-
-/* Editor: visible label, 1–5 line autosize input, right-end contextual action. */
-.oc-bubble-editor {
-    padding: 8px 12px 8px 16px;
-    padding-inline: 16px 12px;
-    border-block-start: 1px solid var(--mud-palette-lines-default, #dce2ea);
-}
-
-.oc-editor-label {
-    display: block;
+    margin: 4px 0;
+    padding: 4px 8px;
+    border-radius: 6px;
     font-size: 12px;
-    line-height: 16px;
-    font-weight: 550;
-    color: var(--mud-palette-text-secondary, #475569);
-    margin-block-end: 4px;
+    background: color-mix(in srgb, var(--mud-palette-error) 12%, transparent);
 }
 
-.oc-editor-row { display: flex; align-items: flex-end; gap: 4px; }
-
-.oc-editor-input {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-    resize: none;
-    overflow-y: auto;
-    font: inherit;
-    font-size: 14px;
-    line-height: 21px;
-    color: inherit;
-    background: var(--mud-palette-background-gray, transparent);
-    border: 1px solid var(--mud-palette-lines-default, #dce2ea);
-    border-radius: 8px;
-    padding: 8px 12px;
-    padding-inline: 12px;
-    min-block-size: 44px;
-}
-
-.oc-editor-input:focus-visible {
-    outline: 2px solid var(--mud-palette-primary, #4f46e5);
-    outline-offset: 1px;
-    border-color: var(--mud-palette-primary, #4f46e5);
-}
-
-.oc-editor-input:disabled { opacity: 0.6; }
-
-.oc-editor-end {
+.oc-bubble-chips {
     display: flex;
-    align-items: center;
-    gap: 0;
-    flex: none;
-    padding-block-end: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 0;
 }
 
-.oc-live-badge {
-    font-size: 11px;
-    line-height: 16px;
-    font-weight: 600;
-    color: var(--mud-palette-success, #168568);
-    padding-inline-end: 4px;
+/* Dotted Divider */
+.oc-bubble-divider {
+    border: none !important;
+    border-top: 1px dotted var(--mud-palette-lines-default) !important;
+    margin: 8px 0 !important;
+    width: 100% !important;
 }
 
-/* Footer: three-bar status + independent Voice/Mic toggles. */
-.oc-bubble-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 4px 8px 8px 16px;
-    padding-inline: 16px 8px;
-    min-inline-size: 0;
+/* Status Row: 3 green dots + Voice/Mic Toggles */
+.oc-bubble__status-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding-top: 2px !important;
 }
 
-.oc-bubble-footer .oc-statusline { flex: 1 1 auto; min-inline-size: 0; }
+.oc-status__line {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
 
-.oc-voice-toggles { display: flex; align-items: center; flex: none; }
+.oc-status__dots {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+}
+
+.oc-status__dot {
+    width: 5px !important;
+    height: 5px !important;
+    border-radius: 50% !important;
+    background-color: var(--mud-palette-secondary) !important;
+    display: inline-block !important;
+    animation: oc-dot-breathe 2.4s ease-in-out infinite;
+}
+
+.oc-status__dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.oc-status__dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes oc-dot-breathe {
+    0%, 100% {
+        opacity: 0.45;
+        transform: scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+}
+
+.oc-status__text {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--mud-palette-text-primary) !important;
+}
+
+.oc-bubble__speech-action {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-inline-start: auto !important;
+}
+
+.oc-speech-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #00875a !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+.oc-speech-item .mud-icon-root {
+    color: #00875a !important;
+    fill: #00875a !important;
+    font-size: 18px !important;
+}
 
 .oc-bubble-settings {
-    border-block-start: 1px solid var(--mud-palette-lines-default, #dce2ea);
-    padding: 8px 16px 12px;
-    padding-inline: 16px;
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 0;
 }
 
 .oc-settings-row {
@@ -267,17 +379,14 @@
     margin: 0;
     font-size: 12px;
     line-height: 20px;
-    color: var(--mud-palette-text-secondary, #475569);
+    color: #475569;
 }
 
 @media (max-width: 599px) {
     .oc-bubble {
-        inline-size: calc(100vw - 2rem);
-        max-block-size: calc(100vh - 8rem);
+        inline-size: calc(100vw - 2rem) !important;
+        width: calc(100vw - 2rem) !important;
+        max-block-size: none !important;
+        max-height: none !important;
     }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .oc-bubble { transition: none; }
-    .oc-message-streaming .oc-message-text::after { content: ""; }
 }

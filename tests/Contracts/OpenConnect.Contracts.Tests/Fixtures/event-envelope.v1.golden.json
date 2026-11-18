@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","eventId":"123e4567-e89b-42d3-a456-426614174000","eventType":"task.accepted","sessionId":"123e4567-e89b-42d3-a456-426614174001","sequence":1,"occurredAt":"2026-01-01T00:00:00Z","correlationId":null,"payload":{"taskId":"task-1"}}

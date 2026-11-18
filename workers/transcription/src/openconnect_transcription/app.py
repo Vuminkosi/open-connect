@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
+import struct
 import os
 import time
 import uuid
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, status
 
 from openconnect_transcription.config import Settings
 from openconnect_transcription import cloud as cloud_module
 from openconnect_transcription import engine_mode
+from openconnect_transcription import realtime
 from openconnect_transcription.engine import (
     FakeTranscriptionEngine,
     TranscriptResult,
@@ -100,6 +103,16 @@ def live() -> dict[str, str]:
     return {"status": "live"}
 
 
+@app.websocket("/internal/v1/realtime")
+async def realtime_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    supplied = (websocket.headers.get("authorization") or "").removeprefix("Bearer ")
+    if token is None or not hmac.compare_digest(supplied, token):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await realtime.proxy(websocket, _settings())
+
+
 class _LocalLegUnavailable(RuntimeError):
     """Local leg cannot serve this request."""
 
@@ -114,9 +127,14 @@ def _routing_status(cfg: Settings) -> dict[str, object]:
 
 
 def _cloud_leg_available(cfg: Settings) -> bool:
+    # The cloud leg needs an exact provider model ID: OC_TRANSCRIPTION_MODEL
+    # defaults to empty (never guessed), so the cloud path stays unready
+    # until the operator sets it -- even with URL + key configured.
     return (
         cfg.cloud_url is not None
         and cfg.cloud_api_key is not None
+        and cfg.model_id is not None
+        and cfg.model_id != ""
         and not cloud_module.privacy_zone_strict()
     )
 
@@ -141,24 +159,36 @@ def _try_local_real(cfg: Settings, audio, locale: str) -> TranscriptResult:
     raise _LocalLegUnavailable("no provisioned local model for this request")
 
 
+def _pcm_to_wav(audio) -> bytes:
+    """Wrap validated PCM in a canonical WAV container for Meta cloud STT."""
+    data_size = len(audio.raw_pcm)
+    byte_rate = audio.sample_rate_hz * audio.channels * (audio.bits_per_sample // 8)
+    block_align = audio.channels * (audio.bits_per_sample // 8)
+    header = b"RIFF" + struct.pack("<I", 36 + data_size) + b"WAVEfmt "
+    header += struct.pack("<IHHIIHH", 16, 1, audio.channels, audio.sample_rate_hz, byte_rate, block_align, audio.bits_per_sample)
+    return header + b"data" + struct.pack("<I", data_size) + audio.raw_pcm
+
+
 def _try_cloud_real(cfg: Settings, audio, request: ExecuteRequest) -> TranscriptResult:
     """Cloud leg. Raises CloudPolicyDenied (terminal) or CloudLegFailed."""
     assert cfg.cloud_url is not None and cfg.cloud_api_key is not None
     if cloud_module.privacy_zone_strict():
         # Terminal: strict-local disables the cloud path entirely.
         raise cloud_module.CloudPolicyDenied("privacy_blocked")
-    payload = {
-        "audioBase64": request.input.audioBase64,
-        "mimeType": request.input.mimeType,
-        "sampleRateHz": request.input.sampleRateHz,
-        "channels": request.input.channels,
-        "bitsPerSample": request.input.bitsPerSample,
-        "durationMs": request.input.durationMs,
-        "locale": request.input.locale,
-    }
-    response = cloud_module.post_json(
+    payload = json.dumps({
+        "model": cfg.model_id or "",
+        "audioEncoding": "WAV",
+        "mode": cfg.transcription_mode,
+        "language": request.input.locale,
+    })
+    wav = _pcm_to_wav(audio)
+    response = cloud_module.post_multipart(
         url=cfg.cloud_url,
-        payload=payload,
+        fields={"request": payload},
+        file_field="audio",
+        filename="ellai-capture.wav",
+        file_bytes=wav,
+        file_content_type="audio/wav",
         api_key=cfg.cloud_api_key,
         timeout_s=cfg.cloud_timeout_ms / 1000.0,
     )
@@ -231,6 +261,11 @@ def ready() -> dict[str, object]:
             "capabilities": advertised_capabilities(backend=cfg.backend),
             "device": info.effective,
             "deviceRequested": info.requested,
+            "provisioning": cfg.provisioning,
+            "modelCacheDir": cfg.model_dir,
+            "transcriptionProvider": cfg.transcription_provider,
+            "transcriptionMode": cfg.transcription_mode,
+            "transcriptionModel": cfg.model_id,
             **_routing_status(cfg),
         }
     # Real mode: ready iff a serving leg exists (opt-in cloud, or a
@@ -248,6 +283,11 @@ def ready() -> dict[str, object]:
         "capabilities": advertised_capabilities(backend=cfg.backend),
         "device": info.effective,
         "deviceRequested": info.requested,
+        "provisioning": cfg.provisioning,
+        "modelCacheDir": cfg.model_dir,
+        "transcriptionProvider": cfg.transcription_provider,
+        "transcriptionMode": cfg.transcription_mode,
+        "transcriptionModel": cfg.model_id,
         **_routing_status(cfg),
     }
 

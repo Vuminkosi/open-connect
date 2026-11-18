@@ -1,4 +1,5 @@
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Components.Contracts;
 using Xunit;
@@ -30,6 +31,58 @@ public sealed class ComposerSessionTests
         Assert.Empty(session.Messages);
         Assert.Empty(session.Proposals);
         Assert.Equal(string.Empty, session.StreamingText);
+    }
+
+    [Fact]
+    public void AttachSession_preserves_a_pending_first_user_turn_until_the_gateway_reply_arrives()
+    {
+        var session = new ComposerSession();
+        session.BeginSend("Explain what I am looking at.");
+
+        session.AttachSession("FIRST-SESSION");
+
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.Equal("Explain what I am looking at.", Assert.Single(session.Messages).Text);
+        session.ApplyEvent(Event(1, "message", "The task list is visible."));
+        session.ApplyEvent(Event(2, "task.completed", "{}"));
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Collection(session.Messages,
+            message => Assert.Equal(("user", "Explain what I am looking at."), (message.Role, message.Text)),
+            message => Assert.Equal(("assistant", "The task list is visible."), (message.Role, message.Text)));
+    }
+
+    [Fact]
+    public void SpeechPlayback_completion_is_epoch_fenced_and_returns_to_on_state()
+    {
+        var session = new ComposerSession();
+
+        var completedEpoch = session.BeginSpeechPlayback();
+        Assert.True(session.EndSpeechPlayback(completedEpoch));
+        Assert.Equal(ComposerSpeechState.On, session.SpeechState);
+        Assert.False(session.EndSpeechPlayback(completedEpoch));
+
+        var interruptedEpoch = session.BeginSpeechPlayback();
+        session.TriggerBargeIn();
+        Assert.False(session.EndSpeechPlayback(interruptedEpoch));
+        Assert.Equal(ComposerSpeechState.On, session.SpeechState);
+    }
+
+    [Fact]
+    public void Client_interaction_cancellation_is_correlated_and_cleared_on_new_session()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("ALPHA");
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "highlight", "todo.list");
+        session.ApplyEvent(Event(1, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions())));
+
+        session.ApplyEvent(Event(2, ClientInteractionEventTypes.Cancellation,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), OpenConnectHttpJson.CreateOptions())));
+
+        Assert.Equal(request.CorrelationId, session.PendingClientInteractionCancellationId);
+        session.AttachSession("BETA");
+        Assert.Null(session.PendingClientInteractionCancellationId);
     }
 
     [Fact]
@@ -84,6 +137,192 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Gateway_cancellation_finishes_stream_and_preserves_partial_reply()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        session.BeginSend("question");
+        session.ApplyEvent(Event(1, "message.delta", "partial"));
+
+        Assert.True(session.ApplyEvent(Event(2, "task.cancelled", "{}")));
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
+        Assert.Contains(session.Messages, static message => message.Text == "partial" && message.State == ComposerMessageState.Cancelled);
+        Assert.False(session.ApplyEvent(Event(2, "task.cancelled", "{}")));
+        Assert.Single(session.Messages, static message => message.State == ComposerMessageState.Cancelled);
+    }
+
+    [Fact]
+    public void Late_terminal_event_does_not_cancel_a_new_tracked_reply()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var newTask = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("first");
+        session.BindTrackedTask(oldTask);
+        session.ApplyEvent(Event(1, "task.completed", $$"""{"taskId":"{{oldTask.Value}}"}"""));
+        session.BeginTrackedSend("second");
+        Assert.False(session.ApplyEvent(Event(2, "task.cancelled", $$"""{"taskId":"{{oldTask.Value}}"}""")));
+        session.BindTrackedTask(newTask);
+
+        Assert.False(session.ApplyEvent(Event(3, "task.cancelled", $$"""{"taskId":"{{oldTask.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.True(session.ApplyEvent(Event(4, "task.cancelled", $$"""{"taskId":"{{newTask.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+    }
+
+    [Fact]
+    public void Terminal_event_before_admission_response_is_applied_after_binding()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "task.cancelled", $$"""{"taskId":"{{task.Value}}"}"""));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+    }
+
+    [Fact]
+    public void Terminal_event_without_matching_identity_cannot_finish_tracked_reply()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task);
+        Assert.False(session.ApplyEvent(Event(1, "task.completed", "{}")));
+        Assert.False(session.ApplyEvent(Event(2, "task.failed", "not-json")));
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.True(session.ApplyEvent(Event(3, "task.failed", $$"""{"taskId":"{{task.Value}}"}""")));
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+    }
+
+    [Fact]
+    public void Terminal_admission_and_replayed_events_do_not_duplicate_failure()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task, state: AgentRunState.Failed);
+        var count = session.Messages.Count;
+
+        session.ApplyEvent(Event(1, "task.failed", $$"""{"taskId":"{{task.Value}}"}"""));
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(count, session.Messages.Count);
+        Assert.Single(session.Messages, static message => message.State == ComposerMessageState.Failed);
+    }
+
+    [Fact]
+    public void Terminal_admission_allows_later_replayed_text_to_finish()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task, state: AgentRunState.Completed);
+
+        session.ApplyEvent(Event(1, "message.delta", "Finished answer"));
+        session.ApplyEvent(Event(2, "task.completed", $$"""{"taskId":"{{task.Value}}"}"""));
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Contains(session.Messages, static message => message.Text == "Finished answer");
+    }
+
+    [Fact]
+    public void Tracked_reply_ignores_text_from_a_different_task()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var currentTask = new TaskId(Ulid.NewUlid());
+        var sessionId = new SessionId(Ulid.NewUlid());
+        session.AttachSession(sessionId.Value.ToString());
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(currentTask);
+        var json = $$"""{"sessionId":"{{sessionId.Value}}","sequence":1,"type":"message","data":"old text","taskId":"{{oldTask.Value}}"}""";
+        var other = System.Text.Json.JsonSerializer.Deserialize<EventRecord>(json, OpenConnectHttpJson.CreateOptions())!;
+
+        Assert.False(session.ApplyEvent(other));
+        Assert.Equal(string.Empty, session.StreamingText);
+    }
+
+    [Fact]
+    public void Tracked_reply_buffers_early_text_until_the_task_identity_is_known()
+    {
+        var session = new ComposerSession();
+        var oldTask = new TaskId(Ulid.NewUlid());
+        var currentTask = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "message", "old text") with { TaskId = oldTask.Value.ToString() });
+        session.ApplyEvent(Event(2, "message", "correct text") with { TaskId = currentTask.Value.ToString() });
+        Assert.Equal(string.Empty, session.StreamingText);
+
+        session.BindTrackedTask(currentTask);
+
+        Assert.Equal("correct text", session.StreamingText);
+    }
+
+    [Fact]
+    public void Retrying_ambiguous_admission_preserves_buffered_reply_and_completion()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.ApplyEvent(Event(1, "message", "The reply") with { TaskId = task.Value.ToString() });
+        session.ApplyEvent(Event(2, "task.completed", $$"""{"taskId":"{{task.Value}}"}"""));
+        session.MarkError("The admission response was lost.");
+
+        session.ResumeSend();
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Contains(session.Messages, static message => message.Text == "The reply");
+        Assert.Single(session.Messages, static message => message.Role == "user");
+    }
+
+    [Fact]
+    public void Early_task_message_overflow_does_not_replay_a_partial_reply()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        for (var i = 1; i <= 257; i++)
+            session.ApplyEvent(Event(i, "message.delta", "x") with { TaskId = task.Value.ToString() });
+
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
+        Assert.Equal("The assistant could not reconcile task messages.", session.LastError);
+    }
+
+    [Fact]
+    public void Retrying_does_not_hide_an_early_message_buffer_overflow()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        for (var i = 1; i <= 257; i++)
+            session.ApplyEvent(Event(i, "message.delta", "x") with { TaskId = task.Value.ToString() });
+
+        session.ResumeSend();
+        session.BindTrackedTask(task);
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(string.Empty, session.StreamingText);
+    }
+
+    [Fact]
     public void Unknown_event_types_are_ignored_without_render_change()
     {
         var session = new ComposerSession();
@@ -92,6 +331,21 @@ public sealed class ComposerSessionTests
         var changed = session.ApplyEvent(Event(1, "telemetry.heartbeat", "{}"));
 
         Assert.False(changed);
+    }
+
+    [Fact]
+    public void LiveUI_request_event_is_retained_for_the_blazor_client_bridge()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab");
+
+        Assert.True(session.ApplyEvent(Event(1, ClientInteractionEventTypes.Request,
+            System.Text.Json.JsonSerializer.Serialize(request))));
+
+        Assert.Equal(request, session.PendingClientInteraction);
+        Assert.Empty(session.Messages);
+        Assert.Equal(string.Empty, session.StreamingText);
     }
 
     [Fact]

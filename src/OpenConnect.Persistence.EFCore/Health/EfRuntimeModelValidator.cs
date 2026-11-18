@@ -21,7 +21,11 @@ internal static class EfRuntimeModelValidator
         foreach (var (type, table) in Expected)
         {
             var entity = context.Model.FindEntityType(type);
-            if (entity is null || !string.Equals(entity.GetTableName(), table, StringComparison.OrdinalIgnoreCase))
+            var tableName = entity?.GetTableName();
+            var matches = entity is not null && (
+                string.Equals(tableName, table, StringComparison.OrdinalIgnoreCase) ||
+                (tableName?.EndsWith(table.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase) == true));
+            if (!matches)
                 throw new InvalidOperationException($"{ErrorCodes.EfModelMissing}: EF model is missing {type.Name} mapped to {table}. Apply OpenConnectModelBuilderExtensions.ApplyOpenConnectModel() in OnModelCreating.");
         }
     }

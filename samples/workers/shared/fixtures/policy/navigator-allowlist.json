@@ -1,0 +1,1 @@
+{"allowedTools":["navigate","observe","click","fill","select","screenshot"],"deniedCapabilities":["evaluate","filesystem","private_network","metadata_ip"],"requireScreenshotConsent":true}

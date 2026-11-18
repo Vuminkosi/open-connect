@@ -17,11 +17,27 @@ public sealed class ToolCatalog(ToolAuthorizationService authorization) : IToolC
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(allowedAgents);
+        ValidateToolId(registration.Descriptor.Id);
         ValidateSchema(registration.JsonSchema);
-        if (string.IsNullOrWhiteSpace(registration.Descriptor.Id.Value)) throw new ArgumentException("Tool ID is required.", nameof(registration));
-        _tools[registration.Descriptor.Id] = registration;
+        if (!_tools.TryAdd(registration.Descriptor.Id, registration))
+            throw new InvalidOperationException($"Tool '{registration.Descriptor.Id.Value}' is already registered.");
         foreach (var agent in allowedAgents)
             _agentAllowLists.GetOrAdd(agent, _ => new ConcurrentDictionary<ToolId, byte>())[registration.Descriptor.Id] = 0;
+    }
+
+    private static void ValidateToolId(ToolId toolId)
+    {
+        var value = toolId.Value;
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Tool ID is required.", nameof(toolId));
+        if (value.Contains("..", StringComparison.Ordinal) ||
+            value.Contains('/', StringComparison.Ordinal) ||
+            value.Contains('\\', StringComparison.Ordinal) ||
+            value.Contains('\0', StringComparison.Ordinal) ||
+            value.Contains("<script", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"Hostile or malformed tool ID rejected: '{value}'.", nameof(toolId));
+        }
     }
 
     public ToolDescriptor? Get(ToolId toolId) => _tools.TryGetValue(toolId, out var tool) ? tool.Descriptor : null;

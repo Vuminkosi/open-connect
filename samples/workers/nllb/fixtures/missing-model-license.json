@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-missing-model-license",
+  "cases": [
+    {
+      "id": "license-not-accepted",
+      "manifest": {
+        "modelId": "nllb-200-distilled-600M",
+        "revision": "rev-2026-04-01",
+        "license": "CC-BY-NC-4.0"
+      },
+      "licenseAccepted": false,
+      "expectedReason": "license_denied"
+    },
+    {
+      "id": "license-accepted-ok",
+      "manifest": {
+        "modelId": "nllb-200-distilled-600M",
+        "revision": "rev-2026-04-01",
+        "license": "CC-BY-NC-4.0"
+      },
+      "licenseAccepted": true,
+      "expectedReason": null
+    }
+  ]
+}

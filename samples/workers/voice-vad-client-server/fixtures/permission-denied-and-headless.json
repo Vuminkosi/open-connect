@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "vad-permission-denied-and-headless",
+  "permissionDeniedCase": {
+    "errorName": "NotAllowedError",
+    "errorMessage": "Permission denied by user or system policy",
+    "fallbackState": "PermissionDenied",
+    "gracefulDegradation": true
+  },
+  "headlessNodeEnvironment": {
+    "requireBrowserGlobals": false,
+    "windowUndefined": true,
+    "navigatorUndefined": true,
+    "nodeImportSafe": true
+  }
+}

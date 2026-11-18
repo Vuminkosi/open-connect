@@ -81,6 +81,8 @@ def ready() -> dict[str, object]:
             "engineWarning": FAKE_WARNING,
             "modelRevision": "fake-nllb-0.1.0",
             "supportedLanguages": list(SUPPORTED_LANGUAGES),
+            "provisioning": settings.provisioning,
+            "modelCacheDir": settings.model_dir.as_posix(),
             "device": info.effective,
             "deviceRequested": info.requested,
         }
@@ -92,6 +94,8 @@ def ready() -> dict[str, object]:
             "engine": "real",
             "modelRevision": result.manifest.revision,
             "tokenizerHash": result.manifest.tokenizer_hash,
+            "provisioning": settings.provisioning,
+            "modelCacheDir": settings.model_dir.as_posix(),
             "device": info.effective,
             "deviceRequested": info.requested,
         }

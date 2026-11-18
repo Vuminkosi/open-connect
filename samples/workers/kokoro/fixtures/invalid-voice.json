@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-invalid-voice",
+  "taskId": "123e4567-e89b-42d3-a456-426614174021",
+  "input": {
+    "text": "Valid text with invalid voice ID.",
+    "voiceId": "unknown_voice_id",
+    "locale": "en",
+    "format": "wav"
+  },
+  "expectedBehavior": {
+    "expectedStatus": 422,
+    "expectedDetail": "unknown_voice"
+  }
+}

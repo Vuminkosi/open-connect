@@ -15,13 +15,21 @@
 //     never hardcoded, so schema/table-prefix mapping options keep working.
 //   - No Npgsql provider package reference: detection is via
 //     Database.ProviderName containing "Npgsql"; the statement runs through
-//     ExecuteSqlRawAsync positional parameters only.
+//     a DbCommand with DbParameters (named values only).
+//     EF1003 note: EF Core 10 analyzer EF1003 flags ExecuteSqlRawAsync calls
+//     whose SQL string is built by concatenation. Table/column identifiers
+//     here come from ResolveNames() model metadata (not user input) and all
+//     values travel as DbParameters, so the DbCommand pattern keeps the
+//     analyzer from firing without any warning suppression.
 //   - Expiry is floored to whole microseconds (idempotent with the seam's truncation)
 //     so persisted expiry never exceeds the requested instant (timestamptz parity).
 //   - Fail closed: affected-row-count 0 (live lease / concurrent winner), read-back
 //     mismatch, or any non-cancellation failure returns null. Cancellation propagates.
 
+using System.Data;
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using OpenConnect.Persistence.EFCore.Entities;
 using OpenConnect.Persistence.EFCore.Navigator;
 
@@ -61,6 +69,7 @@ internal sealed class PostgresLeaseFencingDialect : IEfLeaseFencingDialect
             || string.IsNullOrWhiteSpace(executionId)
             || string.IsNullOrWhiteSpace(owner))
             return null;
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Idempotent floor: persisted expiry never exceeds the requested instant.
         expiry = new DateTimeOffset(expiry.UtcTicks - expiry.UtcTicks % 10, TimeSpan.Zero);
@@ -73,14 +82,41 @@ internal sealed class PostgresLeaseFencingDialect : IEfLeaseFencingDialect
             var expiryUtc = expiry.UtcDateTime;
             var nowUtc = now.UtcDateTime;
 
-            var changed = await context.Database.ExecuteSqlRawAsync(
+            // EF1003: values are DbParameters; only model-metadata identifiers
+            // (tableRef/tableAlias/column names) are concatenated into the text.
+            var sql =
                 $"INSERT INTO {tableRef} ({id}, {tenant}, {resource}, {ownerCol}, {version}, {expires}) " +
-                "VALUES ({0}, {1}, {2}, {3}, 1, {4}) " +
+                "VALUES (@id, @tenant, @key, @owner, 1, @expiry) " +
                 $"ON CONFLICT ({tenant}, {resource}) DO UPDATE " +
                 $"SET {ownerCol} = EXCLUDED.{ownerCol}, {expires} = EXCLUDED.{expires}, {version} = {tableAlias}.{version} + 1 " +
-                $"WHERE {tableAlias}.{expires} <= " + "{5}",
-                new object[] { rowId, tenantScope, executionId, owner, expiryUtc, nowUtc },
-                cancellationToken).ConfigureAwait(false);
+                $"WHERE {tableAlias}.{expires} <= @now";
+
+            var connection = context.Database.GetDbConnection();
+            var wasOpen = connection.State == ConnectionState.Open;
+            if (!wasOpen)
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            int changed;
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = sql;
+                var currentTransaction = context.Database.CurrentTransaction;
+                if (currentTransaction is not null)
+                    command.Transaction = currentTransaction.GetDbTransaction();
+                AddParameter(command, "@id", DbType.Guid, rowId);
+                AddParameter(command, "@tenant", DbType.String, tenantScope);
+                AddParameter(command, "@key", DbType.String, executionId);
+                AddParameter(command, "@owner", DbType.String, owner);
+                AddParameter(command, "@expiry", DbType.DateTime, expiryUtc);
+                AddParameter(command, "@now", DbType.DateTime, nowUtc);
+
+                changed = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!wasOpen)
+                    await connection.CloseAsync().ConfigureAwait(false);
+            }
 
             if (changed == 0)
                 return null; // Live lease held or concurrent winner: conflict, fail closed.
@@ -133,6 +169,15 @@ internal sealed class PostgresLeaseFencingDialect : IEfLeaseFencingDialect
     }
 
     private static string Quote(string identifier) => "\"" + identifier.Replace("\"", "\"\"") + "\"";
+
+    private static void AddParameter(DbCommand command, string name, DbType type, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.DbType = type;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
 }
 
 internal static class EfLeaseFencingDialectSelector

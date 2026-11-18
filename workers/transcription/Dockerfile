@@ -20,7 +20,10 @@ RUN uv sync --locked --no-dev --no-install-project
 FROM base AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
-    MODEL_DIR=/models
+    OC_MODEL_CACHE_DIR=/models \
+    MODEL_DIR=/models \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
 COPY --from=dependencies /app/.venv /app/.venv
 COPY src/ /app/src/
 RUN mkdir -p /models && chown -R 10001:10001 /app /models

@@ -1,0 +1,17 @@
+@page "/api"
+@inject GeneratedApiStore Api
+<PageTitle>Generated API reference · OpenConnect</PageTitle>
+<HeadContent><link rel="canonical" href="/api" /><meta name="description" content="Generated OpenConnect .NET API metadata and versioned REST contracts." /></HeadContent>
+<h1>Generated API reference</h1>
+<p class="lede">Generated from compiled OpenConnect source projects with DocFX 2.81.0. The generated revision is recorded in the build manifest.</p>
+@if (Api.Documents.Count == 0)
+{
+    <p class="status warning">API metadata has not been generated for this build. Static documentation remains available.</p>
+}
+else
+{
+    <p>@Api.Documents.Count generated API documents are available.</p>
+    <div class="api-list">@foreach (var document in Api.Documents) { <details><summary>@document.Name</summary><pre><code>@document.Content</code></pre></details> }</div>
+}
+<h2>REST and worker contracts</h2>
+<p><a href="/docs/v1/rest-api">Read the versioned REST and worker contract guide</a>.</p>

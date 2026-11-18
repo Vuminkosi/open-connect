@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
 using OpenConnect.Privacy;
@@ -28,11 +30,14 @@ public sealed class FixedEgressContextProvider : IEgressContextProvider
 }
 
 /// <summary>Firewall-decorated <see cref="IChatClient"/> that guards outbound model content fail-closed.</summary>
-/// <remarks>Every message carrying non-empty text is evaluated through the egress gate before reaching
-/// the inner client; sanitized content is forwarded and denials throw without echoing content.
+/// <remarks>Message text and structured function arguments and results are evaluated through the egress gate
+/// before reaching the inner client; sanitized content is forwarded and denials throw without echoing content.
+/// Function arguments are materialized as JSON-compatible values. String results remain strings; other
+/// structured results are forwarded as sanitized JSON values rather than their original CLR instances.
 /// Service resolution and disposal delegate to the inner client via <see cref="DelegatingChatClient"/>.</remarks>
 public sealed class FirewallGuardedChatClient : DelegatingChatClient
 {
+    private static readonly JsonSerializerOptions EgressJsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private readonly IEgressGate _gate;
     private readonly IEgressContextProvider _contextProvider;
 
@@ -90,31 +95,93 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
         foreach (var message in messages)
         {
             ArgumentNullException.ThrowIfNull(message);
-            if (string.IsNullOrEmpty(message.Text))
+            if (string.IsNullOrEmpty(message.Text) && !message.Contents.Any(content => content is FunctionCallContent or FunctionResultContent))
             {
                 guarded.Add(message);
                 continue;
             }
 
-            EgressDecision decision;
-            try
+            var safeText = string.IsNullOrEmpty(message.Text) ? null :
+                await SanitizeAsync(message.Text, context, cancellationToken).ConfigureAwait(false);
+            // Keep tool calls and other protocol content attached to the assistant message.
+            // The gate evaluated the combined text, so replace all text fragments with the
+            // single sanitized result without mutating the original message.
+            var sanitized = message.Clone();
+            var contents = new List<AIContent>();
+            var addedText = false;
+            foreach (var content in message.Contents)
             {
-                decision = await _gate.EvaluateAsync(message.Text, context, cancellationToken).ConfigureAwait(false);
+                if (content is TextContent)
+                {
+                    if (!addedText && safeText is not null) contents.Add(new TextContent(safeText));
+                    addedText = true;
+                }
+                else if (content is FunctionCallContent call && call.Arguments is not null)
+                {
+                    var safeArguments = await SanitizeJsonAsync(call.Arguments, context, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        using var document = JsonDocument.Parse(safeArguments);
+                        var arguments = ReadJsonValue(document.RootElement) as Dictionary<string, object?> ?? throw FailClosed();
+                        contents.Add(new FunctionCallContent(call.CallId, call.Name, arguments) { InformationalOnly = call.InformationalOnly });
+                    }
+                    catch (Exception exception) when (exception is JsonException or ArgumentException) { throw FailClosed(); }
+                }
+                else if (content is FunctionResultContent result && result.Result is not null)
+                {
+                    var safeResult = await SanitizeJsonAsync(result.Result, context, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        using var document = JsonDocument.Parse(safeResult);
+                        object? safeValue = result.Result is string
+                            ? document.RootElement.ValueKind == JsonValueKind.String ? document.RootElement.GetString() : throw FailClosed()
+                            : document.RootElement.Clone();
+                        contents.Add(new FunctionResultContent(result.CallId, safeValue));
+                    }
+                    catch (JsonException) { throw FailClosed(); }
+                }
+                else contents.Add(content);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch
-            {
-                throw FailClosed();
-            }
-
-            if (decision is null || !decision.Allowed || decision.SanitizedContent is null) throw FailClosed();
-            guarded.Add(new ChatMessage(message.Role, decision.SanitizedContent) { AuthorName = message.AuthorName });
+            sanitized.Contents = contents;
+            sanitized.RawRepresentation = null;
+            guarded.Add(sanitized);
         }
 
         return guarded;
+    }
+
+    private static object? ReadJsonValue(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name,
+            property => ReadJsonValue(property.Value), StringComparer.Ordinal),
+        JsonValueKind.Array => element.EnumerateArray().Select(ReadJsonValue).ToList(),
+        JsonValueKind.String => element.GetString(),
+        JsonValueKind.Number when element.TryGetInt32(out var value) => value,
+        JsonValueKind.Number when element.TryGetInt64(out var value) => value,
+        JsonValueKind.Number when element.TryGetDecimal(out var value) => value,
+        JsonValueKind.Number => element.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Null => null,
+        _ => throw new JsonException("Unsupported JSON value.")
+    };
+
+    private async Task<string> SanitizeJsonAsync(object value, EgressContext context, CancellationToken cancellationToken)
+    {
+        string json;
+        try { json = JsonSerializer.Serialize(value, EgressJsonOptions); }
+        catch (Exception exception) when (exception is not OperationCanceledException) { throw FailClosed(); }
+        return await SanitizeAsync(json, context, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> SanitizeAsync(string content, EgressContext context, CancellationToken cancellationToken)
+    {
+        EgressDecision decision;
+        try { decision = await _gate.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw; }
+        catch { throw FailClosed(); }
+        if (decision is null || !decision.Allowed || decision.SanitizedContent is null) throw FailClosed();
+        return decision.SanitizedContent;
     }
 
     private static PrivacyBlockedException FailClosed() =>

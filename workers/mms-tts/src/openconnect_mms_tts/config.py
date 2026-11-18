@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+import os
 
 from openconnect_mms_tts.engine_mode import (
     fake_requested,
     is_production,
     parse_device,
+    parse_offline,
+    parse_provisioning,
+    resolve_cache_dir,
+    resolve_environment,
     validate_startup,
 )
 
@@ -44,14 +48,14 @@ class Settings:
     languages: tuple[str, ...]
     commercial_use: bool
     cache_size: int
+    provisioning: str = "first-start-if-missing"
+    environment: str = "Production"
+    model_offline: bool = False
 
     @classmethod
     def from_environment(cls) -> "Settings":
         token = os.environ.get("OPENCONNECT_WORKER_TOKEN")
-        # Fake is env-gated on the exact OPENCONNECT_FAKE_ENGINE name with the
-        # strict 1/true/yes set ("on" does NOT enable fake mode).
         fake = fake_requested()
-        # Fail closed at startup: fake requested in production never serves.
         validate_startup(fake=fake)
         raw = os.environ.get("MMS_LANGUAGES", "eng")
         languages = tuple(lang.strip().lower() for lang in raw.split(",") if lang.strip()) or (
@@ -63,13 +67,18 @@ class Settings:
             cache_size = 2
         return cls(
             worker_token=token if token else None,
-            model_dir=os.environ.get("MODEL_DIR", "/models"),
+            model_dir=resolve_cache_dir(
+                os.environ.get("OC_MODEL_CACHE_DIR"), os.environ.get("MODEL_DIR")
+            ),
             fake_engine=fake,
             is_production=is_production(),
             model_device=parse_device(os.environ.get("OC_MODEL_DEVICE")),
             languages=languages,
             commercial_use=_as_bool(os.environ.get("MMS_COMMERCIAL_USE"), False),
             cache_size=cache_size,
+            provisioning=parse_provisioning(os.environ.get("OC_MODEL_PROVISIONING")),
+            environment=resolve_environment(),
+            model_offline=parse_offline(os.environ.get("OC_MODEL_OFFLINE")),
         )
 
     def configuration_error(self) -> str | None:

@@ -75,6 +75,9 @@ def ready() -> dict[str, object]:
         "capabilities": _capabilities(),
         "device": info.effective,
         "deviceRequested": info.requested,
+        "provisioning": settings.provisioning,
+        "modelCacheDir": settings.model_dir,
+        "transcriptionMode": settings.transcription_mode,
     }
 
 

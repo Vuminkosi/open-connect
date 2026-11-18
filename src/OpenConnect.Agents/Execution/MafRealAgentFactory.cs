@@ -34,13 +34,23 @@ public sealed class MafRealAgentFactory
     }
 
     /// <summary>Runs one turn on a real MAF agent and records its root/agent trace.</summary>
-    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, CancellationToken cancellationToken = default)
+    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, CancellationToken cancellationToken)
         => await RunAsync(agentId, prompt, tools: null, cancellationToken, instructions: null).ConfigureAwait(false);
 
     /// <summary>Runs one turn using host-authorized tools. Tool discovery and approval belong to OpenConnect.Tools; this factory performs no authorization.</summary>
-    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools, CancellationToken cancellationToken = default, string? instructions = null)
+    public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools = null, CancellationToken cancellationToken = default, string? instructions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+        return await RunConversationAsync(agentId, [new ChatMessage(ChatRole.User, prompt)], tools, cancellationToken, instructions).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs an agent with host-supplied conversation messages and host-authorized tools.</summary>
+    public async Task<AgentResponse> RunConversationAsync(AgentId agentId, IEnumerable<ChatMessage> messages,
+        IEnumerable<AITool>? tools = null, CancellationToken cancellationToken = default, string? instructions = null)
+    {
+        ArgumentNullException.ThrowIfNull(messages);
+        var conversation = messages.ToList();
+        if (conversation.Count == 0) throw new ArgumentException("A conversation must contain at least one message.", nameof(messages));
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
         var parent = new ExecutionTraceRecord(Guid.NewGuid(), null, "execution", "lead", DateTimeOffset.UtcNow, null);
         var child = new ExecutionTraceRecord(Guid.NewGuid(), parent.Id, definition.Id.Value, "agent", DateTimeOffset.UtcNow, null);
@@ -49,7 +59,7 @@ public sealed class MafRealAgentFactory
 
         try
         {
-            return await CreateAgent(agentId, tools, instructions).RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await CreateAgent(agentId, tools, instructions).RunAsync(conversation, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -61,7 +71,8 @@ public sealed class MafRealAgentFactory
     /// <summary>Returns a snapshot of all execution records.</summary>
     public IReadOnlyList<ExecutionTraceRecord> GetTrace()
     {
-        lock (_sync) return _traces.ToArray();
+        lock (_sync)
+            return _traces.ToArray();
     }
 
     private static IChatClient Guard(IChatClient chatClient, IEgressGate? egressGate, IEgressContextProvider? egressContext)
@@ -73,7 +84,8 @@ public sealed class MafRealAgentFactory
 
     private void AddTrace(ExecutionTraceRecord trace)
     {
-        lock (_sync) _traces.Add(trace);
+        lock (_sync)
+            _traces.Add(trace);
     }
 
     private void CompleteTrace(Guid id)

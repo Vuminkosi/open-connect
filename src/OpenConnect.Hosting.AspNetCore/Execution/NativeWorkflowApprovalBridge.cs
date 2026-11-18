@@ -44,9 +44,9 @@ public sealed class NativeWorkflowApprovalBridge(
     NativeWorkflowApprovalScope expectedScope,
     string expectedArgumentsHash,
     string expectedToolRevision,
-    Func<CancellationToken, ValueTask<bool>>? isExecutionRevokedAsync = null,
-    Func<CancellationToken, ValueTask<bool>>? isGrantValidAsync = null,
-    TimeProvider? timeProvider = null)
+    Func<CancellationToken, ValueTask<bool>>? isExecutionRevokedAsync,
+    Func<CancellationToken, ValueTask<bool>>? isGrantValidAsync,
+    TimeProvider? timeProvider)
 {
     private readonly NativeWorkflowInteraction _interaction = interaction ?? throw new ArgumentNullException(nameof(interaction));
     private readonly NativeWorkflowApprovalScope _expectedScope = expectedScope ?? throw new ArgumentNullException(nameof(expectedScope));
@@ -61,6 +61,16 @@ public sealed class NativeWorkflowApprovalBridge(
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<string, byte> _consumedNonces = new(StringComparer.Ordinal);
     private Func<string, string, CancellationToken, ValueTask<bool>>? _durableTryConsumeNonceAsync;
+
+    /// <summary>Creates a bridge with default revocation, grant, and clock behavior.</summary>
+    public NativeWorkflowApprovalBridge(
+        NativeWorkflowInteraction interaction,
+        NativeWorkflowApprovalScope expectedScope,
+        string expectedArgumentsHash,
+        string expectedToolRevision)
+        : this(interaction, expectedScope, expectedArgumentsHash, expectedToolRevision, null, null, null)
+    {
+    }
 
     /// <summary>Creates a bridge whose single-use nonces are consumed through a durable store.</summary>
     /// <remarks>
