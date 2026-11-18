@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Persistence.EFCore.Stores;
 using Xunit;
 
