@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Net;
 using System.Text.Json;
 using System.ClientModel;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
@@ -13,6 +14,7 @@ using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.Privacy;
 using OpenConnect.Privacy.Gates;
+using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
 namespace OpenConnect.Samples.Workers.Host;
 
@@ -186,11 +188,22 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
     IOptions<MetaCloudOptions> options, ILogger<MetaTodoTaskExecutor> logger) : IHostTaskExecutor
 {
     private readonly MetaCloudOptions _options = options.Value;
+    private readonly ConditionalWeakTable<OpenConnect.Hosting.AspNetCore.SessionRecord, ConversationState> _conversations = new();
 
     public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
     {
         if (!_options.IsConfiguredTenant(task.TenantId))
             throw new UnauthorizedAccessException("This task is not authorized for the Todo service.");
+
+        ConversationState? conversation = null;
+        if (task.Origin == HostTaskOrigin.MiniComposer)
+        {
+            var session = sessions.Get(task.SessionId.Value);
+            if (session is null || session.TenantId != task.TenantId || session.PrincipalId != task.PrincipalId)
+                throw new UnauthorizedAccessException("The interactive session is not authorized.");
+            conversation = _conversations.GetValue(session, static _ => new ConversationState());
+            await conversation.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
 
         try
         {
@@ -220,21 +233,54 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             var egressContext = new EgressContext(task.TenantId, task.PrincipalId, task.SessionId, EgressDestination.ExternalModel);
             var factory = new MafRealAgentFactory(agentRegistry, chatClient, egressGate,
                 new FixedEgressContextProvider(egressContext));
-            var response = await factory.RunAsync(
+            var messages = conversation?.Messages.ToList() ?? [];
+            messages.Add(new ChatMessage(ChatRole.User, task.Message));
+            var response = await factory.RunConversationAsync(
                 new AgentId("worker-sample-direct"),
-                task.Message,
+                messages,
                 tools,
                 cancellationToken,
                 AgentInstructions).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
                 await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", response.Text, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                conversation?.Append(task.Message, response.Text);
+            }
+            else
+            {
+                conversation?.Messages.Clear();
             }
         }
         catch (Exception exception)
         {
+            conversation?.Messages.Clear();
             logger.LogError(exception, "Meta Todo task execution failed for task {TaskId}.", task.TaskId.Value);
             throw;
+        }
+        finally
+        {
+            conversation?.Gate.Release();
+        }
+    }
+
+    private sealed class ConversationState
+    {
+        private const int MaxTurns = 4;
+        private const int MaxMessageLength = 4000;
+        public SemaphoreSlim Gate { get; } = new(1, 1);
+        public List<ChatMessage> Messages { get; } = [];
+
+        public void Append(string user, string assistant)
+        {
+            if (user.Length > MaxMessageLength || assistant.Length > MaxMessageLength)
+            {
+                Messages.Clear();
+                return;
+            }
+            Messages.Add(new ChatMessage(ChatRole.User, user));
+            Messages.Add(new ChatMessage(ChatRole.Assistant, assistant));
+            while (Messages.Count > MaxTurns * 2) Messages.RemoveRange(0, 2);
         }
     }
 

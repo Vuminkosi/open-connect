@@ -41,6 +41,16 @@ public sealed class MafRealAgentFactory
     public async Task<AgentResponse> RunAsync(AgentId agentId, string prompt, IEnumerable<AITool>? tools = null, CancellationToken cancellationToken = default, string? instructions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+        return await RunConversationAsync(agentId, [new ChatMessage(ChatRole.User, prompt)], tools, cancellationToken, instructions).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs an agent with host-supplied conversation messages and host-authorized tools.</summary>
+    public async Task<AgentResponse> RunConversationAsync(AgentId agentId, IEnumerable<ChatMessage> messages,
+        IEnumerable<AITool>? tools = null, CancellationToken cancellationToken = default, string? instructions = null)
+    {
+        ArgumentNullException.ThrowIfNull(messages);
+        var conversation = messages.ToList();
+        if (conversation.Count == 0) throw new ArgumentException("A conversation must contain at least one message.", nameof(messages));
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
         var parent = new ExecutionTraceRecord(Guid.NewGuid(), null, "execution", "lead", DateTimeOffset.UtcNow, null);
         var child = new ExecutionTraceRecord(Guid.NewGuid(), parent.Id, definition.Id.Value, "agent", DateTimeOffset.UtcNow, null);
@@ -49,7 +59,7 @@ public sealed class MafRealAgentFactory
 
         try
         {
-            return await CreateAgent(agentId, tools, instructions).RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await CreateAgent(agentId, tools, instructions).RunAsync(conversation, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         finally
         {

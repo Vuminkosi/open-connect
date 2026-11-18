@@ -117,6 +117,126 @@ public sealed class MetaTodoPrivacyEgressTests
         Assert.True(new[] { email, phone, card }.ToHashSet(StringComparer.Ordinal).SetEquals(restored));
     }
 
+    [Fact]
+    public async Task Follow_up_receives_previous_turn_from_the_same_interactive_session()
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            "Highlight the task list.", "first") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            "Highlight it again.", "follow-up") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.Contains(chat.OutboundMessages, message => message.Role == ChatRole.User && message.Text == "Highlight the task list.");
+        Assert.Contains(chat.OutboundMessages, message => message.Role == ChatRole.Assistant && message.Text == "Handled safely.");
+        Assert.Contains(chat.OutboundMessages, message => message.Role == ChatRole.User && message.Text == "Highlight it again.");
+    }
+
+    [Fact]
+    public async Task Conversation_context_is_session_scoped_and_passes_through_the_privacy_gate()
+    {
+        const string email = "history.canary@example.test";
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var firstSession = sessions.Create(tenant, principal).Id;
+        var secondSession = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        async Task Send(SessionId session, string message) => await executor.ExecuteAsync(
+            new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session, message, Guid.NewGuid().ToString())
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        await Send(firstSession, $"Find tasks for {email}.");
+        await Send(firstSession, "Show those again.");
+        var outbound = string.Join("\n", chat.OutboundMessages.Select(message => message.Text));
+        Assert.DoesNotContain(email, outbound, StringComparison.Ordinal);
+        Assert.Contains("[OC_", outbound, StringComparison.Ordinal);
+        Assert.Contains("Show those again.", outbound, StringComparison.Ordinal);
+
+        await Send(secondSession, "Show my tasks.");
+        Assert.DoesNotContain(chat.OutboundMessages, message => message.Text?.Contains("[OC_", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(chat.OutboundMessages, message => message.Text == "Show those again.");
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => executor.ExecuteAsync(
+            new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, new PrincipalId(Ulid.NewUlid()), firstSession,
+                "Show those again.", "other-principal")
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Conversation_history_keeps_only_the_most_recent_four_completed_turns()
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        for (var index = 0; index < 6; index++)
+            await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+                $"Message number {index}", $"turn-{index}")
+                { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        var userMessages = chat.OutboundMessages.Where(message => message.Role == ChatRole.User).Select(message => message.Text).ToArray();
+        Assert.Equal(new[] { "Message number 1", "Message number 2", "Message number 3", "Message number 4", "Message number 5" }, userMessages);
+    }
+
+    [Fact]
+    public async Task Overlapping_turns_for_one_session_are_serialized_and_include_the_first_reply()
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new BlockingChatClient();
+        var options = Options.Create(new MetaCloudOptions { TodoTenant = tenant.Value.ToString() });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        Task Send(string text) => executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal,
+            session, text, Guid.NewGuid().ToString())
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        var first = Send("First request");
+        await chat.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = Send("Follow up");
+        Assert.Equal(1, chat.Calls);
+        chat.ReleaseFirst.SetResult();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(2, chat.Calls);
+        Assert.Contains(chat.LastMessages, message => message.Role == ChatRole.User && message.Text == "First request");
+        Assert.Contains(chat.LastMessages, message => message.Role == ChatRole.Assistant && message.Text == "First response");
+    }
+
     private sealed class TestAgentRegistry : IAgentDefinitionRegistry
     {
         private static readonly AgentDefinition Definition = new(new AgentId("worker-sample-direct"), "OpenConnect assistant");
@@ -150,6 +270,37 @@ public sealed class MetaTodoPrivacyEgressTests
             ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var response = await GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+
+    private sealed class BlockingChatClient : IChatClient
+    {
+        private int _calls;
+        public int Calls => Volatile.Read(ref _calls);
+        public TaskCompletionSource FirstStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseFirst { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<ChatMessage> LastMessages { get; private set; } = [];
+
+        public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastMessages = messages.ToList();
+            if (Interlocked.Increment(ref _calls) == 1)
+            {
+                FirstStarted.SetResult();
+                await ReleaseFirst.Task.WaitAsync(cancellationToken);
+            }
+            return new ChatResponse(new ChatMessage(ChatRole.Assistant, "First response"));
+        }
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var response = await GetResponseAsync(messages, options, cancellationToken);
             yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text);
         }
 
