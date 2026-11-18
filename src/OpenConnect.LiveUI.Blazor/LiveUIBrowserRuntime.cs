@@ -36,6 +36,14 @@ public sealed class LiveUIBrowserRuntime(
                 context.Manifest, context.Target.Id)))
             return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "runtime_target_stale", false);
 
+        if (context.Action.Type == LiveUIActionType.Navigate &&
+            context.Action.Parameters.DestinationRouteId is { } destinationId &&
+            destinationId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) &&
+            (manifestState is null || !manifestState.IsRuntimeRouteCurrent(
+                new LiveUIAgentContext(context.Action.SessionId, context.Route.Id) { CurrentPath = currentPath },
+                context.Manifest, destinationId)))
+            return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "runtime_route_stale", false);
+
         if (context.Action.Type == LiveUIActionType.Navigate)
             return await NavigateAsync(context, cancellationToken).ConfigureAwait(false);
 
@@ -91,12 +99,18 @@ public sealed class LiveUIBrowserRuntime(
         var expectedPath = navigationManager.ToAbsoluteUri(destination.Path).AbsolutePath;
         try
         {
-            navigationManager.NavigateTo(destination.Path);
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>(
                 "import", cancellationToken, ModulePath).ConfigureAwait(false);
+            string? observation = null;
+            if (destination.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal))
+            {
+                observation = await _module.InvokeAsync<string?>("prepareRoute", cancellationToken, destination).ConfigureAwait(false);
+                if (observation is null) return new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "route_observation_missing", false);
+            }
+            navigationManager.NavigateTo(destination.Path);
             var result = await _module.InvokeAsync<BrowserResult>(
                 "awaitRoute", cancellationToken, expectedPath, destination, (int)context.Action.Timeout.TotalMilliseconds,
-                options.Value.Discovery.EnableRuntimeFallback)
+                options.Value.Discovery.EnableRuntimeFallback, observation)
                 .ConfigureAwait(false);
             if (!Enum.TryParse<LiveUIActionOutcome>(result.Outcome, ignoreCase: true, out var outcome))
                 return Failed("runtime_result_invalid");

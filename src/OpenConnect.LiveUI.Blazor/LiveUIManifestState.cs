@@ -8,6 +8,7 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
     private readonly object _gate = new();
     private LiveUIManifest? _manifest;
     private readonly Dictionary<string, string> _runtimePaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string RouteId, string Path)> _runtimeDestinations = new(StringComparer.Ordinal);
 
     public void SetManifest(LiveUIManifest manifest)
     {
@@ -19,6 +20,7 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
         {
             _manifest = manifest;
             _runtimePaths.Clear();
+            _runtimeDestinations.Clear();
         }
     }
 
@@ -36,8 +38,20 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
             if (!ReferenceEquals(_manifest, expected)) return false;
             _manifest = replacement;
             _runtimePaths[routeId] = path;
+            _runtimeDestinations.Clear();
+            foreach (var route in replacement.Routes.Where(route => route.Id != routeId &&
+                route.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)))
+                _runtimeDestinations[route.Id] = (routeId, path);
             return true;
         }
+    }
+
+    internal bool IsRuntimeRouteCurrent(LiveUIAgentContext context, LiveUIManifest manifest, string destinationId)
+    {
+        lock (_gate)
+            return ReferenceEquals(_manifest, manifest) && context.CurrentPath is not null &&
+                _runtimeDestinations.TryGetValue(destinationId, out var source) &&
+                source.RouteId == context.CurrentRouteId && string.Equals(source.Path, context.CurrentPath, StringComparison.Ordinal);
     }
 
     internal bool IsRuntimeTargetCurrent(LiveUIAgentContext context, LiveUIManifest manifest, string targetId)

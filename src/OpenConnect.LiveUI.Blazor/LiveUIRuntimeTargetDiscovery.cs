@@ -57,7 +57,20 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                     capabilities, candidate.Role, ParentId: parentId,
                     RequiresConfirmation: kind is not (LiveUITargetKind.Heading or LiveUITargetKind.Region)));
             }
-            var routes = manifest.Routes.Select(item => item.Id == route.Id ? item with { Targets = existing.ToArray() } : item).ToArray();
+            var compiledRoutes = manifest.Routes.Where(item => !item.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)).ToArray();
+            var routes = manifest.Routes.Where(item => !item.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) || item.Id == route.Id)
+                .Select(item => item.Id == route.Id ? item with { Targets = existing.ToArray() } : item).ToList();
+            var paths = routes.Select(item => item.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var candidate in observed.Take(maximum))
+            {
+                if (candidate is null || candidate.Kind != "Link" || candidate.Path is not { Length: > 0 and <= 2048 } path ||
+                    candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) || paths.Contains(path)) continue;
+                var template = LiveUIRouteMatcher.Resolve(compiledRoutes, path);
+                if (template is null || !template.Path.Contains('{')) continue;
+                var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(path));
+                routes.Add(new LiveUIRoute(LiveUIRuntimeRouteIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant(), path, label, []));
+                paths.Add(path);
+            }
             var replacement = manifest with { Routes = routes, ContentHash = string.Empty };
             replacement = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
             return state.TryReplace(manifest, replacement, route.Id, expectedPath);
@@ -69,6 +82,9 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
 
     public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) =>
         state.IsRuntimeTargetCurrent(context, manifest, targetId);
+
+    public bool IsCurrentRoute(LiveUIAgentContext context, LiveUIManifest manifest, string routeId) =>
+        state.IsRuntimeRouteCurrent(context, manifest, routeId);
 
     public async ValueTask DisposeAsync()
     {
@@ -92,5 +108,5 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
         _ => []
     };
 
-    private sealed record ObservedTarget(string Kind, string Label, string? Role, string? ParentLabel = null);
+    private sealed record ObservedTarget(string Kind, string Label, string? Role, string? ParentLabel = null, string? Path = null);
 }

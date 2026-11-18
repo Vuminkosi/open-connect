@@ -11,6 +11,69 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 
 public sealed class LiveUIRuntimeDiscoveryTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Discovered_internal_link_to_template_is_exposed_only_when_navigation_is_authorized(bool allowNavigation)
+    {
+        const string observations = "[" +
+            "{\"kind\":\"Link\",\"label\":\"Installation\",\"role\":\"link\",\"path\":\"/docs/v1/install\"}," +
+            "{\"kind\":\"Link\",\"label\":\"Query\",\"role\":\"link\",\"path\":\"/docs/v1/install?key=value\"}," +
+            "{\"kind\":\"Link\",\"label\":\"Unknown\",\"role\":\"link\",\"path\":\"/unknown\"}]";
+        var navigation = new Navigation();
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor();
+        services.AddScoped<NavigationManager>(_ => navigation);
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations));
+        services.AddScoped<ILiveUIActionAuthorizer>(_ => new NavigationAuthorizer(allowNavigation));
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [
+            new LiveUIRoute("home", "/", "Home", []), new LiveUIRoute("docs", "/docs/{version}/{slug}", "Docs", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+        var tools = scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>();
+
+        var page = await tools.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.DoesNotContain(page.NavigableRoutes, route => route.Path.Contains('?') || route.Path == "/unknown");
+        var discovered = page.NavigableRoutes.Where(route => route.Path == "/docs/v1/install").ToArray();
+        Assert.Equal(allowNavigation ? 1 : 0, discovered.Length);
+        if (allowNavigation)
+        {
+            var directPage = await tools.GetCurrentPageForDirectAgentAsync();
+            Assert.NotNull(directPage);
+            Assert.DoesNotContain(directPage.NavigableRoutes, item => item.Path == "/docs/v1/install");
+            Assert.Equal(string.Empty, directPage.ContentHash);
+            navigation.MoveTo("https://example.test/docs/v1/other");
+            var stale = await tools.NavigateAsync(discovered[0].RouteId);
+            Assert.Equal(LiveUIActionOutcome.Conflict, stale.Outcome);
+            Assert.Equal("runtime_route_stale", stale.Code);
+            var currentManifest = (await state.GetCurrentAsync())!;
+            var directAction = new LiveUIAction(Guid.NewGuid().ToString("N"), LiveUISchema.CurrentVersion,
+                "session", currentManifest.ContentHash, "docs", null, LiveUIActionType.Navigate,
+                new LiveUIActionParameters(DestinationRouteId: discovered[0].RouteId), TimeSpan.FromSeconds(1))
+                { ExpectedPath = "/docs/v1/other" };
+            var direct = await scope.ServiceProvider.GetRequiredService<LiveUIOrchestrator>().ExecuteAsync(directAction);
+            Assert.Equal(LiveUIActionOutcome.Conflict, direct.Outcome);
+            Assert.Equal("runtime_route_stale", direct.Code);
+            navigation.MoveTo("https://example.test/");
+            var receipt = await tools.NavigateAsync(discovered[0].RouteId);
+            Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+            Assert.Equal("https://example.test/docs/v1/install", navigation.Uri);
+            Assert.Equal(discovered[0].RouteId, (await tools.GetCurrentPageAsync())!.RouteId);
+            Assert.Null(await tools.GetCurrentPageForDirectAgentAsync());
+        }
+        else
+        {
+            var hiddenRoute = Assert.Single((await state.GetCurrentAsync())!.Routes, item => item.Path == "/docs/v1/install");
+            var denied = await tools.NavigateAsync(hiddenRoute.Id);
+            Assert.Equal(LiveUIActionOutcome.Denied, denied.Outcome);
+            Assert.Equal("https://example.test/", navigation.Uri);
+        }
+    }
+
     [Fact]
     public async Task Duplicate_headings_are_exposed_with_authorized_section_context()
     {
@@ -160,7 +223,7 @@ public sealed class LiveUIRuntimeDiscoveryTests
     {
         public Navigation(string uri = "https://example.test/") => Initialize("https://example.test/", uri);
         public void MoveTo(string uri) { Uri = uri; NotifyLocationChanged(false); }
-        protected override void NavigateToCore(string uri, bool forceLoad) => throw new NotSupportedException();
+        protected override void NavigateToCore(string uri, bool forceLoad) => MoveTo(ToAbsoluteUri(uri).AbsoluteUri);
     }
 
     private sealed class InspectOnlyAuthorizer : ILiveUIActionAuthorizer
@@ -169,12 +232,20 @@ public sealed class LiveUIRuntimeDiscoveryTests
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect, "policy"));
     }
 
+    private sealed class NavigationAuthorizer(bool allowNavigation) : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect ||
+                allowNavigation && context.Action.Type == LiveUIActionType.Navigate, "policy"));
+    }
+
     private sealed class Browser(bool unavailable = false, string? observations = null) : IJSRuntime, IJSObjectReference
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "prepareRoute") return ValueTask.FromResult((TValue)(object)"observation");
             if (identifier == "discoverTargets" && unavailable) throw new JSException("unavailable");
             var json = identifier == "discoverTargets"
                 ? observations ?? "[{\"kind\":\"Heading\",\"label\":\"Tasks\",\"role\":\"heading\"}]"

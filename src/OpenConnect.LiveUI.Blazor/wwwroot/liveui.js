@@ -1,5 +1,7 @@
 const highlights = new Set();
 const highlightTimers = new Map();
+const pendingRoutes = new Map();
+let nextRouteObservation = 0;
 const idAttribute = "data-openconnect-liveui-id";
 const highlightAttribute = "data-openconnect-liveui-highlight";
 const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
@@ -43,7 +45,15 @@ export function discoverTargets(maximumTargets) {
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
     const parentLabel = regionLabels.get(element.closest("section"));
-    candidates.push(parentLabel ? { kind, label, role, parentLabel } : { kind, label, role });
+    const candidate = parentLabel ? { kind, label, role, parentLabel } : { kind, label, role };
+    if (kind === "Link") {
+      const link = element.closest("a[href]");
+      if (link) {
+        const destination = new URL(link.getAttribute("href"), document.baseURI);
+        if (!destination.search && !destination.hash) candidate.path = destination.pathname;
+      }
+    }
+    candidates.push(candidate);
   }
   const counts = new Map();
   for (const candidate of candidates) {
@@ -164,15 +174,48 @@ function resolveTextMatchTarget(container, target, matchText) {
     : { status: "missing" };
 }
 
-export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback) {
+function matchingRouteHeadings(title) {
+  const label = normalize(title || "");
+  if (!label) return [];
+  const containers = [...document.querySelectorAll("main, [role='main']")].filter(isVisible);
+  const roots = containers.length ? containers : [document];
+  return roots.flatMap((root) => [...root.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading']")])
+    .filter((heading) => isVisible(heading) && !heading.closest("pre, code"))
+    .filter((heading) => accessibleNames(heading).some((name) => normalize(name) === label));
+}
+
+export function prepareRoute(route) {
+  if (!route?.id?.startsWith("oc.runtime.route.") || typeof route.title !== "string" || !route.title.trim() || pendingRoutes.size >= 32) return null;
+  const currentLink = [...document.querySelectorAll("a[href]")].some((link) => {
+    if (!isVisible(link) || !isAllowedLinkActivation(link) || link.closest("pre, code")) return false;
+    const destination = new URL(link.getAttribute("href"), document.baseURI);
+    return !destination.search && !destination.hash && destination.pathname === route.path &&
+      accessibleNames(link).some((name) => normalize(name) === normalize(route.title));
+  });
+  if (!currentLink) return null;
+  const token = String(++nextRouteObservation);
+  const timer = setTimeout(() => pendingRoutes.delete(token), 120000);
+  pendingRoutes.set(token, { routeId: route.id, path: route.path, title: route.title,
+    previousHeadings: new Set(matchingRouteHeadings(route.title)), timer });
+  return token;
+}
+
+export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback, observationToken = null) {
+  const dynamicRoute = route?.id?.startsWith("oc.runtime.route.");
+  const observation = dynamicRoute ? pendingRoutes.get(observationToken) : null;
+  if (dynamicRoute && (!observation || observation.routeId !== route.id || observation.path !== route.path || observation.title !== route.title))
+    return Promise.resolve(result("Uncertain", "route_observation_missing"));
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(expectedPath)) return false;
+    if (dynamicRoute) return matchingRouteHeadings(route.title).some((heading) => !observation.previousHeadings.has(heading));
     if (route && route.targets && route.targets.length) {
       return route.targets.some((target) => resolveTarget(target, enableRuntimeFallback, route).status === "resolved");
     }
     return !route || !route.title || document.title === route.title;
   };
-  return waitUntil(matches, timeoutMs, "route_ready", "route_not_ready");
+  return waitUntil(matches, timeoutMs, "route_ready", "route_not_ready").finally(() => {
+    if (observation) { clearTimeout(observation.timer); pendingRoutes.delete(observationToken); }
+  });
 }
 
 function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()) {

@@ -25,3 +25,13 @@ test('discovers the unannotated documentation index sections', async ({ page }) 
   expect(result.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(result.highlighted[0]).toBe(true);
 });
+
+test('discovers a concrete documentation link on the rendered index', async ({ page }) => {
+  test.skip(!docsUrl, 'A running documentation test instance is required.');
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('**/__openconnect-test-runtime.js', (route) => route.fulfill({ contentType: 'text/javascript', body: runtime }));
+  await page.goto(new URL('/docs', docsUrl).href);
+  const expectedPath = await page.locator('main section a').first().getAttribute('href');
+  const candidates = await page.evaluate(async () => (await import('/__openconnect-test-runtime.js')).discoverTargets(500));
+  expect(candidates).toContainEqual(expect.objectContaining({ kind: 'Link', path: expectedPath }));
+});

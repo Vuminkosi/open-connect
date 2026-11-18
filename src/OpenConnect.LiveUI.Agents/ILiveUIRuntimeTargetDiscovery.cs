@@ -8,6 +8,12 @@ public static class LiveUIRuntimeTargetIds
     public const string Prefix = "oc.runtime.";
 }
 
+/// <summary>Identifies concrete routes observed from links on the active page.</summary>
+public static class LiveUIRuntimeRouteIds
+{
+    public const string Prefix = "oc.runtime.route.";
+}
+
 /// <summary>Refreshes runtime targets for an already authorized route in the active client circuit.</summary>
 public interface ILiveUIRuntimeTargetDiscovery
 {
@@ -16,4 +22,7 @@ public interface ILiveUIRuntimeTargetDiscovery
 
     /// <summary>Checks that a runtime target belongs to the currently observed concrete route.</summary>
     bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) => false;
+
+    /// <summary>Checks that an observed destination belongs to the current source page.</summary>
+    bool IsCurrentRoute(LiveUIAgentContext context, LiveUIManifest manifest, string routeId) => false;
 }

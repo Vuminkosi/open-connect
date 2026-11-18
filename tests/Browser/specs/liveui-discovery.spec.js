@@ -15,18 +15,19 @@ test('discovers unique visible semantic controls without exposing input values o
       <button hidden>Hidden</button><pre><button>Fake action</button></pre>
       <input type="radio" aria-label="Unsupported radio">
       <input type="password" aria-label="Password" value="secret">
-      <a href="/docs">Documentation</a><a href="https://elsewhere.example/">External</a>` }));
+      <a href="/docs">Documentation</a><a href="/docs?key=value">Query link</a><a href="https://elsewhere.example/">External</a>` }));
   await page.goto('http://liveui.test/');
   const result = await page.evaluate(async () => (await import('/liveui.js')).discoverTargets(100));
   expect(result).toEqual(expect.arrayContaining([
     expect.objectContaining({ kind: 'Heading', label: 'Tasks' }),
     expect.objectContaining({ kind: 'Input', label: 'Task title' }),
     expect.objectContaining({ kind: 'Button', label: 'Add task' }),
-    expect.objectContaining({ kind: 'Link', label: 'Documentation' }),
+    expect.objectContaining({ kind: 'Link', label: 'Documentation', path: '/docs' }),
   ]));
   const serialized = JSON.stringify(result);
   for (const forbidden of ['private task value', 'secret', 'Password', 'Duplicate', 'Hidden', 'Fake action', 'External', 'Unsupported radio'])
     expect(serialized).not.toContain(forbidden);
+  expect(result.find((item) => item.label === 'Query link')).not.toHaveProperty('path');
 });
 
 test('discovers duplicate headings in distinct named sections without guessing between them', async ({ page }) => {

@@ -85,7 +85,9 @@ public sealed class LiveUIAgentTools(
 
         var navigableRoutes = new List<LiveUIAgentRoute>();
         foreach (var destination in manifest.Routes.Where(destination =>
-            !destination.Path.Contains('{') && !destination.Path.Contains('}')))
+            !destination.Path.Contains('{') && !destination.Path.Contains('}') &&
+            (!destination.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) ||
+             runtimeFresh && runtimeDiscovery?.IsCurrentRoute(context, manifest, destination.Id) == true)))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var navigationAction = CreateAction(context, manifest, route, null, LiveUIActionType.Navigate,
@@ -120,18 +122,20 @@ public sealed class LiveUIAgentTools(
     {
         var page = await GetCurrentPageCoreAsync(false, cancellationToken).ConfigureAwait(false);
         if (page is null) return null;
+        if (page.RouteId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)) return null;
         var filteredTargets = page.Targets.Where(target => !target.TargetId.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)).ToArray();
         var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
-        var hasRuntimeTargets = manifest?.Routes.Any(route => route.Targets.Any(target =>
-            target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal))) != false;
+        var hasRuntimeTargets = manifest?.Routes.Any(route => route.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) ||
+            route.Targets.Any(target => target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal))) != false;
         return page with
         {
             Targets = filteredTargets,
+            NavigableRoutes = page.NavigableRoutes.Where(route => !route.RouteId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)).ToArray(),
             ContentHash = hasRuntimeTargets || filteredTargets.Length != page.Targets.Count ? string.Empty : page.ContentHash
         };
     }
 
-    /// <summary>Navigates only to a route present in the current compiled manifest.</summary>
+    /// <summary>Navigates only to an authorized route present in the current manifest snapshot.</summary>
     public ValueTask<LiveUIActionReceipt> NavigateAsync(string routeId, CancellationToken cancellationToken = default) =>
         ExecuteOnCurrentRouteAsync(null, LiveUIActionType.Navigate,
             new LiveUIActionParameters(DestinationRouteId: routeId), cancellationToken);
@@ -209,6 +213,11 @@ public sealed class LiveUIAgentTools(
         {
             var (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
             if (context is null || manifest is null || route is null) return Rejected("session_context_unavailable");
+            if (type == LiveUIActionType.Navigate && parameters.DestinationRouteId is { } destinationId &&
+                destinationId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) &&
+                (runtimeDiscovery is null || !runtimeDiscovery.IsCurrentRoute(context, manifest, destinationId)))
+                return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
+                    LiveUIActionOutcome.Conflict, "runtime_route_stale", false, DateTimeOffset.UtcNow);
             if (targetId is not null && targetId.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal) &&
                 (runtimeDiscovery is null || !runtimeDiscovery.IsCurrentTarget(context, manifest, targetId)))
                 return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
