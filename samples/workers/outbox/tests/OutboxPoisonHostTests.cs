@@ -228,13 +228,67 @@ public sealed class OutboxPoisonHostTests
         Assert.Equal(0, (await fixture.Read(id)).Attempts);
     }
 
+    [Fact]
+    public void Supervisor_expiry_is_floored_to_utc_microseconds()
+    {
+        var normalize = typeof(OutboxBatchDispatcher).GetMethod("NormalizeLeaseExpiry",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var input = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.FromHours(2)).AddTicks(19);
+        var actual = Assert.IsType<DateTimeOffset>(normalize.Invoke(null, [input]));
+        Assert.Equal(new DateTimeOffset(input.UtcTicks - 9, TimeSpan.Zero), actual);
+        Assert.Equal(TimeSpan.Zero, actual.Offset);
+        Assert.Equal(0, actual.UtcTicks % 10);
+        Assert.True(actual <= input);
+        Assert.Equal(actual, normalize.Invoke(null, [actual]));
+    }
+
+    [Fact]
+    public async Task Supervisor_renewal_accepts_microsecond_precision_persistence()
+    {
+        var leases = new MicrosecondLeaseStore();
+        await using var fixture = await HostFixture.CreateAsync(leases);
+        var id = Guid.NewGuid();
+        await fixture.Enqueue(new(id, "first", Envelope(id)));
+        await fixture.AcquireSupervisor("owner");
+        Assert.Equal(1, await fixture.DispatchGuarded("owner", CancellationToken.None));
+        Assert.True(leases.Renewals > 0);
+        Assert.Equal(0, leases.LastRequestedExpiry.UtcTicks % 10);
+        Assert.Equal([id.ToString("D")], fixture.Broker.Delivered.ToArray());
+        Assert.Equal("delivered", (await fixture.Read(id)).Status);
+        Assert.Equal(0, (await fixture.Read(id)).Attempts);
+    }
+
+    private sealed class MicrosecondLeaseStore : ILeaseStore
+    {
+        private LeaseRecord? current;
+        public int Renewals { get; private set; }
+        public DateTimeOffset LastRequestedExpiry { get; private set; }
+        private static DateTimeOffset Quantize(DateTimeOffset value) => new(value.UtcTicks - value.UtcTicks % 10, TimeSpan.Zero);
+        public Task<LeaseRecord?> GetAsync(string resourceKey, TenantId tenantId, CancellationToken ct = default) => Task.FromResult(current);
+        public Task<bool> TryAcquireAsync(LeaseRecord lease, CancellationToken ct = default)
+        {
+            current = lease with { ExpiresAt = Quantize(lease.ExpiresAt) };
+            return Task.FromResult(true);
+        }
+        public Task<bool> RenewAsync(string resourceKey, TenantId tenantId, string owner, long fencingVersion, DateTimeOffset expiresAt, CancellationToken ct = default)
+        {
+            if (current is null || current.Owner != owner || current.FencingVersion != fencingVersion || current.ExpiresAt <= DateTimeOffset.UtcNow)
+                return Task.FromResult(false);
+            LastRequestedExpiry = expiresAt;
+            current = current with { ExpiresAt = Quantize(expiresAt) };
+            Renewals++;
+            return Task.FromResult(true);
+        }
+        public Task ReleaseAsync(string resourceKey, TenantId tenantId, string owner, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
     private static string Envelope(Guid id, string payloadRef = "opaque://payload/ref") => $$"""{"schemaVersion":"openconnect.v1","messageId":"{{id:D}}","taskId":"task-1","kind":"classification","issuedAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:01:00Z","lease":{"leaseId":"123e4567-e89b-42d3-a456-426614174001","fencingToken":1},"payloadRef":"{{payloadRef}}"}""";
 
     private sealed class HostFixture(string path, ServiceProvider services, Broker broker, CaptureLogger log) : IAsyncDisposable
     {
         public Broker Broker => broker;
         public CaptureLogger Log => log;
-        public static async Task<HostFixture> CreateAsync()
+        public static async Task<HostFixture> CreateAsync(ILeaseStore? leaseStore = null)
         {
             var path = Path.Combine(Path.GetTempPath(), $"oc-host-poison-{Guid.NewGuid():N}.db");
             var broker = new Broker();
@@ -242,6 +296,8 @@ public sealed class OutboxPoisonHostTests
             var services = new ServiceCollection();
             services.AddDbContext<OpenConnectDbContext>(options => options.UseSqlite($"Data Source={path};Pooling=False"));
             services.AddOpenConnectEntityFramework<OpenConnectDbContext>();
+            if (leaseStore is not null)
+                services.AddSingleton(leaseStore);
             services.AddSingleton(new NatsPublisher(broker));
             services.AddSingleton<IOptions<OutboxWorkerOptions>>(Options.Create(new OutboxWorkerOptions { MaxAttempts = 2, Subject = "configured.subject", TenantUlid = "01ARZ3NDEKTSV4RRFFQ69G5FAV", SupervisorLeaseDuration = TimeSpan.FromSeconds(5) }));
             services.AddSingleton<ILogger<OutboxBatchDispatcher>>(log);

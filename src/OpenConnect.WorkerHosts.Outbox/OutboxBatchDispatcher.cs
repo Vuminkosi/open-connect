@@ -18,6 +18,10 @@ public sealed class OutboxBatchDispatcher(OpenConnectDbContext db, NatsPublisher
     public Task<int> DispatchAsync(string leaseOwner, CancellationToken cancellationToken = default) =>
         DispatchCoreAsync(leaseOwner, null, cancellationToken);
 
+    // PostgreSQL timestamps persist microseconds. Floor before both renewal and confirmation.
+    private static DateTimeOffset NormalizeLeaseExpiry(DateTimeOffset value) =>
+        new(value.UtcTicks - value.UtcTicks % 10, TimeSpan.Zero);
+
     private Task<int> DispatchCoreAsync(string leaseOwner, Func<CancellationToken, Task>? validateSupervisor, CancellationToken cancellationToken)
     {
         var config = options.Value;
@@ -49,7 +53,7 @@ public sealed class OutboxBatchDispatcher(OpenConnectDbContext db, NatsPublisher
             if (remaining <= TimeSpan.Zero)
                 throw new OutboxSupervisorLeaseLostException();
             batch.CancelAfter(remaining);
-            var expiresAt = DateTimeOffset.UtcNow + config.SupervisorLeaseDuration;
+            var expiresAt = NormalizeLeaseExpiry(DateTimeOffset.UtcNow + config.SupervisorLeaseDuration);
             if (!await leases.RenewAsync(OutboxWorkerOptions.SupervisorResourceKey, tenant,
                     leaseOwner, fencingVersion, expiresAt, ct).ConfigureAwait(false))
                 throw new OutboxSupervisorLeaseLostException();
