@@ -1,4 +1,6 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using OpenConnect.Abstractions;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.Context;
@@ -295,6 +297,90 @@ public sealed class OutboxPoisonRecoveryTests
         Assert.Equal(0, pending.Attempts);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Expiry_between_validation_and_write_prevents_completion_or_retry(bool publishFails, bool elapseNaturally)
+    {
+        await using var fixture = await Database.CreateAsync();
+        var interceptor = new ExpireBeforeMutation(fixture, elapseNaturally);
+        await using var db = fixture.Open(interceptor);
+        var id = Guid.NewGuid();
+        await new EfOutboxStore<OpenConnectDbContext>(db).EnqueueAsync(new(id, "test", "payload"));
+        var publisher = new Publisher(async (_, _, _, _) =>
+        {
+            if (elapseNaturally)
+            {
+                await using var other = fixture.Open();
+                await other.Database.ExecuteSqlInterpolatedAsync($"UPDATE Outbox SET LeaseExpiresUtc={DateTime.UtcNow.AddSeconds(1)}");
+            }
+            interceptor.Armed = true;
+            if (publishFails)
+                throw new InvalidOperationException("broker failure");
+        });
+        Assert.Equal(0, await Dispatch(db, publisher, "owner", 1));
+        Assert.True(interceptor.Expired);
+        await using var read = fixture.Open();
+        var row = await read.Set<OutboxEntity>().SingleAsync();
+        Assert.Equal("pending", row.Status);
+        Assert.Equal(0, row.Attempts);
+        Assert.Null(row.PublishedUtc);
+        Assert.Equal("owner", row.LeaseOwner);
+        Assert.Equal(1, row.FencingVersion);
+        Assert.True(row.LeaseExpiresUtc < DateTime.UtcNow);
+    }
+
+    private sealed class ExpireBeforeMutation(Database fixture, bool elapseNaturally) : DbCommandInterceptor
+    {
+        public bool Armed { get; set; }
+        public bool Expired { get; private set; }
+        private async Task BeforeMutation(DbCommand command, CancellationToken ct)
+        {
+            if (!Armed || Expired || !command.CommandText.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
+                return;
+            Expired = true;
+            await using var other = fixture.Open();
+            if (elapseNaturally)
+            {
+                var expires = (await other.Set<OutboxEntity>().SingleAsync(ct)).LeaseExpiresUtc!.Value;
+                var remaining = expires - DateTime.UtcNow;
+                if (remaining > TimeSpan.Zero)
+                    await Task.Delay(remaining + TimeSpan.FromMilliseconds(20), ct);
+            }
+            else
+                await other.Database.ExecuteSqlInterpolatedAsync($"UPDATE Outbox SET LeaseExpiresUtc={DateTime.UtcNow.AddMinutes(-1)}", ct);
+        }
+        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            await BeforeMutation(command, cancellationToken);
+            return result;
+        }
+        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            await BeforeMutation(command, cancellationToken);
+            return result;
+        }
+    }
+
+    [Fact]
+    public async Task Unsupported_provider_is_rejected_before_claim_or_publication()
+    {
+        await using var db = new OpenConnectDbContext(new DbContextOptionsBuilder<OpenConnectDbContext>()
+            .UseInMemoryDatabase($"outbox-unsupported-{Guid.NewGuid():N}").Options);
+        var published = false;
+        var publisher = new Publisher((_, _, _, _) =>
+        {
+            published = true;
+            return Task.CompletedTask;
+        });
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => Dispatch(db, publisher, "owner", 1));
+        Assert.Equal("Atomic outbox lease updates require a supported relational provider.", failure.Message);
+        Assert.False(published);
+        Assert.Empty(db.ChangeTracker.Entries());
+    }
+
     private static Task<int> Dispatch(OpenConnectDbContext db, ICommittedOutboxPublisher publisher,
         string owner, int maxAttempts, CancellationToken ct = default) =>
         new EfOutboxDispatcher().ExecuteBatchAsync(db, OpenConnectOutboxClaimStrategy.Auto,
@@ -307,8 +393,8 @@ public sealed class OutboxPoisonRecoveryTests
 
     private sealed class Database(string file) : IAsyncDisposable
     {
-        public OpenConnectDbContext Open() => new(new DbContextOptionsBuilder<OpenConnectDbContext>()
-            .UseSqlite($"Data Source={file};Pooling=False").Options);
+        public OpenConnectDbContext Open(params IInterceptor[] interceptors) => new(new DbContextOptionsBuilder<OpenConnectDbContext>()
+            .UseSqlite($"Data Source={file};Pooling=False").AddInterceptors(interceptors).Options);
         public static async Task<Database> CreateAsync()
         {
             var fixture = new Database(Path.Combine(Path.GetTempPath(), $"oc-outbox-poison-{Guid.NewGuid():N}.db"));

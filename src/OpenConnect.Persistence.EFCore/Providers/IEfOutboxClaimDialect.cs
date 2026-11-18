@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
@@ -92,19 +93,76 @@ internal static class OutboxClaimOperations
         var row = await LoadCurrentClaimAsync(context, claim, ct).ConfigureAwait(false);
         if (row is null)
             return false;
-        row.Status = "delivered";
-        row.PublishedUtc = DateTime.UtcNow;
+        return await MutateCurrentClaimAsync(context, claim, row, null, ct).ConfigureAwait(false);
+    }
+
+    internal static async Task RetryClaimAsync(DbContext context, OutboxClaim claim, int maxAttempts, CancellationToken ct)
+    {
+        var row = await LoadCurrentClaimAsync(context, claim, ct).ConfigureAwait(false);
+        if (row is not null)
+            await MutateCurrentClaimAsync(context, claim, row, maxAttempts, ct).ConfigureAwait(false);
+    }
+
+    internal static string DatabaseClock(DbContext context) => context.Database.ProviderName switch
+    {
+        "Microsoft.EntityFrameworkCore.Sqlite" => "strftime('%Y-%m-%d %H:%M:%f', 'now')",
+        "Npgsql.EntityFrameworkCore.PostgreSQL" => "clock_timestamp()",
+        "Microsoft.EntityFrameworkCore.SqlServer" => "SYSUTCDATETIME()",
+        _ => throw new InvalidOperationException("Atomic outbox lease updates require a supported relational provider.")
+    };
+
+    private static async Task<bool> MutateCurrentClaimAsync(DbContext context, OutboxClaim claim, OutboxEntity row, int? maxAttempts, CancellationToken ct)
+    {
+        // The clock must be evaluated by the database at the mutation, not captured
+        // before a network wait. PostgreSQL now() is transaction-stable, so use its
+        // wall clock instead. All identifiers come from EF metadata; values are parameters.
+        var provider = context.Database.ProviderName;
+        var clock = DatabaseClock(context);
+        var entity = context.Model.FindEntityType(typeof(OutboxEntity))!;
+        var table = entity.GetTableName()!;
+        var schema = entity.GetSchema();
+        var identifier = context.GetService<Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper>();
+        var tableRef = identifier.DelimitIdentifier(table, schema);
+        var store = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(table, schema);
+        string Col(string property) => identifier.DelimitIdentifier(entity.FindProperty(property)!.GetColumnName(store)!);
+        var values = new List<object> { Guid.Parse(claim.EntryId), claim.LeaseOwner, claim.FencingVersion, claim.TenantScope };
+        string assignment;
+        if (maxAttempts is null)
+        {
+            assignment = $"{Col(nameof(OutboxEntity.Status))} = 'delivered', {Col(nameof(OutboxEntity.PublishedUtc))} = {clock}";
+        }
+        else
+        {
+            var attempts = row.Attempts + 1;
+            values.Add(attempts);
+            values.Add(DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Math.Min(attempts, 8)))));
+            values.Add(attempts >= maxAttempts ? "quarantined" : "pending");
+            assignment = $"{Col(nameof(OutboxEntity.Attempts))} = {{4}}, {Col(nameof(OutboxEntity.NextAttemptUtc))} = {{5}}, " +
+                $"{Col(nameof(OutboxEntity.Status))} = {{6}}, {Col(nameof(OutboxEntity.LeaseOwner))} = NULL, {Col(nameof(OutboxEntity.LeaseExpiresUtc))} = NULL";
+        }
+        var expiryColumn = Col(nameof(OutboxEntity.LeaseExpiresUtc));
+        // Compare SQLite timestamps at the database clock's own precision rather
+        // than lexically comparing variable-length fractional-second strings.
+        var liveExpiry = provider == "Microsoft.EntityFrameworkCore.Sqlite"
+            ? $"julianday({expiryColumn}) > julianday('now')"
+            : $"{expiryColumn} > {clock}";
+        var sql = $"UPDATE {tableRef} SET {assignment} WHERE {Col(nameof(OutboxEntity.Id))} = {{0}} " +
+            $"AND {Col(nameof(OutboxEntity.LeaseOwner))} = {{1}} AND {Col(nameof(OutboxEntity.FencingVersion))} = {{2}} " +
+            $"AND {Col(nameof(OutboxEntity.TenantScope))} = {{3}} AND {Col(nameof(OutboxEntity.Status))} = 'pending' " +
+            $"AND {liveExpiry}";
+        ct.ThrowIfCancellationRequested();
         try
         {
-            await context.SaveChangesAsync(ct).ConfigureAwait(false);
-            return true;
+            return await context.Database.ExecuteSqlRawAsync(sql, values, ct).ConfigureAwait(false) == 1;
         }
-        catch (DbUpdateConcurrencyException)
+        finally
         {
+            // Direct SQL bypasses tracking. Do not leave a cached row available for
+            // a later SaveChanges to overwrite a winner or the newly persisted result.
             context.Entry(row).State = EntityState.Detached;
-            return false;
         }
     }
+
 }
 internal static class EfOutboxClaimDialectSelector
 {

@@ -33,7 +33,7 @@ Per batch, in order:
    A failing entry never aborts publication of later valid entries in the batch.
 4. **CAS mark delivered** — the entry is marked delivered only after PUBACK and a matching, unexpired
    row lease/fencing token, in a
-   short independent `SaveChanges`. No database transaction is ever held across
+   short atomic conditional update. No database transaction is ever held across
    the broker call. Both completion and failure updates are fenced. A crash after PUBACK can
    cause redelivery: delivery is at-least-once, and JetStream deduplication is
    limited to its configured duplicate window; consumers must remain idempotent.
@@ -76,3 +76,11 @@ dotnet run --project workers/outbox
 ```
 
 Or `docker compose -f workers/outbox/compose.yaml up --build`.
+
+### Atomic row-lease updates
+
+Durable dispatch supports SQLite, PostgreSQL, and SQL Server. Completion and retry
+updates atomically require the original row owner, fencing version, tenant scope,
+pending status, and an unexpired lease evaluated using the database clock. Unsupported
+providers are rejected before claiming or publishing; there is no unfenced fallback.
+These per-row checks do not change the host's currently unscoped tenant claim selection.
