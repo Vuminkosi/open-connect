@@ -30,11 +30,11 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.InferPlanAsync, "liveui_infer_plan",
                 "For an interactive UI request, asks the connected Blazor client to use its configured local-first LiveUI inference router and returns a structurally validated plan proposal. Before executing any proposed action, compare it with the user's actual request and current page; structural validity does not prove that the action matches the intent. Do not execute unrelated or uncertain actions; explain the limitation or ask for clarification. Pass the user's request without adding instructions or changing literal search terms, except when resolving a reference from verified context. If browser and worker inference are unavailable, the normal server model may continue by reading liveui_get_current_page and choosing only an exact target and capability returned there; each action still passes host authorization and requires a verified receipt. A missing plan is not an action. Never invent target IDs or claim UI state changed without a verified receipt. This tool does not execute actions. Do not call it for ordinary conversation."),
             AIFunctionFactory.Create(tools.NavigateAsync, "liveui_navigate",
-                "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target. An Uncertain result may mean navigation already happened; inspect the current state before repeating it."),
+                "Navigates to a route from the compiled application manifest and verifies readiness. After navigation, call liveui_get_current_page again before acting on a target. An Uncertain result may mean navigation already happened; inspect the current state and do not repeat navigation to that route in this turn."),
             AIFunctionFactory.Create(tools.InspectAsync, "liveui_inspect",
                 "Inspects a compiled target and returns a privacy-safe verified receipt."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result. An Uncertain result may mean the action already happened; inspect the current state before repeating it."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on a compiled UI target and returns a verified receipt."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
@@ -46,6 +46,10 @@ public static class LiveUIClientAgentToolFactory
 
     private sealed class SessionTools(IClientInteractionBroker interactionBroker, SessionId sessionId, TimeSpan timeout)
     {
+        private readonly object _actionGate = new();
+        private readonly HashSet<(string Kind, string Target)> _inFlightActions = [];
+        private readonly HashSet<(string Kind, string Target)> _uncertainActions = [];
+
         public Task<JsonElement> GetCurrentPageAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page"), "page", cancellationToken);
 
@@ -61,7 +65,7 @@ public static class LiveUIClientAgentToolFactory
         {
             if (string.IsNullOrWhiteSpace(routeId) || routeId.Length > 128)
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
-            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "navigate", RouteId: routeId), "action", cancellationToken);
+            return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "navigate", RouteId: routeId), ("route", routeId), cancellationToken);
         }
 
         public Task<JsonElement> InspectAsync(string targetId, CancellationToken cancellationToken = default) =>
@@ -74,8 +78,8 @@ public static class LiveUIClientAgentToolFactory
                 string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 })
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
 
-            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value),
-                "action", cancellationToken);
+            return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value),
+                ("target", targetId), cancellationToken);
         }
 
         public Task<JsonElement> AwaitStateAsync(string targetId, string stateName, string? stateValue = null,
@@ -108,7 +112,7 @@ public static class LiveUIClientAgentToolFactory
                 SpeechStartCharacter = speechStartCharacter,
                 SpeechEndCharacter = speechEndCharacter
             };
-            return RequestAsync(request, "action", cancellationToken);
+            return RequestGuardedActionAsync(request, ("target", targetId), cancellationToken);
         }
 
         private static bool IsValidSpeechRange(int? start, int? end) =>
@@ -116,7 +120,7 @@ public static class LiveUIClientAgentToolFactory
             start is >= 0 && end is > 0 and <= 32_000 && start < end;
 
         public Task<JsonElement> ClearHighlightAsync(CancellationToken cancellationToken = default) =>
-            RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "clear_highlight"), "action", cancellationToken);
+            RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "clear_highlight"), ("clear_highlight", ""), cancellationToken);
 
         private Task<JsonElement> RequestTargetOperationAsync(string operation, string targetId,
             CancellationToken cancellationToken)
@@ -146,6 +150,48 @@ public static class LiveUIClientAgentToolFactory
             catch (JsonException) { }
             return UnverifiedResult("client_response_invalid", expectedResultKind);
         }
+
+        private async Task<JsonElement> RequestGuardedActionAsync(ClientInteractionRequest request,
+            (string Kind, string Target) key, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (_actionGate)
+            {
+                if (_uncertainActions.Contains(key)) return ActionFenceResult("action_retry_unsafe",
+                    "The previous action may already have happened. Do not dispatch another action for this target in this turn.");
+                if (!_inFlightActions.Add(key)) return ActionFenceResult("action_in_progress",
+                    "An action for this target is already in progress. Wait for its receipt.");
+            }
+            var uncertain = true;
+            try
+            {
+                var result = await RequestAsync(request, "action", cancellationToken).ConfigureAwait(false);
+                if (result.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String)
+                {
+                    var value = outcome.GetString();
+                    uncertain = value is not ("Completed" or "Denied");
+                }
+                return result;
+            }
+            finally
+            {
+                lock (_actionGate)
+                {
+                    _inFlightActions.Remove(key);
+                    if (uncertain) _uncertainActions.Add(key);
+                }
+            }
+        }
+
+        private static JsonElement ActionFenceResult(string error, string message) =>
+            JsonSerializer.SerializeToElement(new
+            {
+                error,
+                outcome = "Uncertain",
+                postconditionVerified = false,
+                retrySafe = false,
+                message
+            });
 
         private static bool IsValidActionReceipt(JsonElement payload)
         {

@@ -231,6 +231,89 @@ public sealed class LiveUIAgentToolsTests
         Assert.Contains("may already have happened", result.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Uncertain_action_is_not_dispatched_again_in_the_same_agent_turn()
+    {
+        var broker = new RecordingInteractionBroker((_, _, _) => Task.FromResult<ClientInteractionResponse?>(null));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        var arguments = new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "SelectTab" });
+
+        var first = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(arguments));
+        var retry = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(arguments));
+
+        Assert.Equal("Uncertain", first.GetProperty("outcome").GetString());
+        Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+        Assert.False(retry.GetProperty("retrySafe").GetBoolean());
+        Assert.Single(broker.Requests);
+    }
+
+    [Fact]
+    public async Task Concurrent_action_on_same_target_waits_for_the_first_receipt()
+    {
+        var receipt = new TaskCompletionSource<ClientInteractionResponse?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new RecordingInteractionBroker((_, _, _) => receipt.Task);
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        var arguments = new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "SelectTab" });
+
+        var first = execute.InvokeAsync(arguments).AsTask();
+        var concurrent = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(arguments));
+
+        Assert.Equal("action_in_progress", concurrent.GetProperty("error").GetString());
+        var request = Assert.Single(broker.Requests);
+        receipt.SetResult(new ClientInteractionResponse(request.CorrelationId, "action",
+            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}"));
+        var completed = Assert.IsType<System.Text.Json.JsonElement>(await first);
+        Assert.Equal("Completed", completed.GetProperty("outcome").GetString());
+    }
+
+    [Fact]
+    public async Task Observation_is_still_available_after_an_uncertain_action()
+    {
+        var broker = new RecordingInteractionBroker((_, _, _) => Task.FromResult<ClientInteractionResponse?>(null));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        var inspect = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_inspect"));
+
+        await execute.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "SelectTab" }));
+        await inspect.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed" }));
+
+        Assert.Equal(new[] { "execute", "inspect" }, broker.Requests.Select(request => request.Operation));
+    }
+
+    [Theory]
+    [InlineData("Completed", true, 2)]
+    [InlineData("Denied", false, 2)]
+    [InlineData("MissingTarget", false, 1)]
+    [InlineData("Ambiguous", false, 1)]
+    [InlineData("Failed", false, 1)]
+    [InlineData("Conflict", false, 1)]
+    public async Task Action_receipt_controls_whether_the_target_can_be_retried(string outcome, bool verified, int expectedRequests)
+    {
+        var payload = System.Text.Json.JsonSerializer.Serialize(new { outcome, postconditionVerified = verified });
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind, payload)));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        var arguments = new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "SelectTab" });
+
+        await execute.InvokeAsync(arguments);
+        var retry = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(arguments));
+
+        Assert.Equal(expectedRequests, broker.Requests.Count);
+        if (expectedRequests == 1) Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+    }
+
     [Theory]
     [InlineData(true, "client_response_mismatch")]
     [InlineData(false, "client_response_invalid")]
