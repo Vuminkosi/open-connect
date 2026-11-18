@@ -420,6 +420,8 @@ OpenConnect.Abstractions.IToolCatalog
 OpenConnect.Abstractions.IToolCatalog.Get(OpenConnect.Abstractions.ToolId toolId) -> OpenConnect.Abstractions.ToolDescriptor?
 OpenConnect.Abstractions.IToolCatalog.GetAuthorized(OpenConnect.Abstractions.AgentId agentId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
 OpenConnect.Abstractions.IToolCatalog.GetForAgent(OpenConnect.Abstractions.AgentId agentId) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
+OpenConnect.Abstractions.IToolDiscovery
+OpenConnect.Abstractions.IToolDiscovery.DiscoverAsync(OpenConnect.Abstractions.AgentId agent, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.TaskId task, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!>
 OpenConnect.Abstractions.IWorkerCapabilityRegistry
 OpenConnect.Abstractions.IWorkerCapabilityRegistry.Get(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> OpenConnect.Abstractions.WorkerCapabilityDescriptor?
 OpenConnect.Abstractions.IWorkerCapabilityRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.WorkerCapabilityDescriptor!>!
@@ -1289,5 +1291,3 @@ static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator ==(OpenConne
 ~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
 ~override OpenConnect.Abstractions.ToolId.ToString() -> string
 ~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool
-OpenConnect.Abstractions.IToolDiscovery
-OpenConnect.Abstractions.IToolDiscovery.DiscoverAsync(OpenConnect.Abstractions.AgentId agent, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.TaskId task, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!>
