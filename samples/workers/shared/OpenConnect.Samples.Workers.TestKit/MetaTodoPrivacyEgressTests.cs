@@ -429,6 +429,103 @@ public sealed class MetaTodoPrivacyEgressTests
             item.Data.Contains("could not identify a unique task", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("different", null, "Medium", false)]
+    [InlineData("report", "invented description", "Medium", false)]
+    [InlineData("report", null, "Urgent", false)]
+    [InlineData("report", null, "Medium", true)]
+    public async Task Model_cannot_change_or_invent_task_creation_fields(string title, string? description, string priority, bool includeDueDate)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var handler = new RecordingTodoHandler();
+        var chat = new CreateInvokingChatClient(title, description, priority,
+            includeDueDate ? new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc) : null);
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), TodoInternalToken = "test-token", AllowMutations = true, MutationApprovalGranted = true });
+        var todo = new TodoServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            "Create a task called report", "bound-create")
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.True(chat.Invoked);
+        Assert.NotNull(chat.InvocationError);
+        Assert.Empty(handler.Writes);
+    }
+
+    [Theory]
+    [InlineData("Create a task called report", "Medium")]
+    [InlineData("Create a task called \"report\" with urgent priority", "Urgent")]
+    public async Task Explicit_creation_fields_are_preserved_in_the_write(string message, string priority)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var handler = new RecordingTodoHandler();
+        var chat = new CreateInvokingChatClient("report", null, priority, null);
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), TodoInternalToken = "test-token", AllowMutations = true, MutationApprovalGranted = true });
+        var todo = new TodoServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            message, "authorized-create")
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.True(chat.Invoked);
+        Assert.Null(chat.InvocationError);
+        Assert.Single(handler.Writes);
+        using var payload = System.Text.Json.JsonDocument.Parse(Assert.IsType<string>(handler.LastWriteBody));
+        Assert.Equal("report", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal(priority, payload.RootElement.GetProperty("priority").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, payload.RootElement.GetProperty("description").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, payload.RootElement.GetProperty("dueDateUtc").ValueKind);
+    }
+
+    [Theory]
+    [InlineData("Create a task")]
+    [InlineData("Create a task called report with urgent priority")]
+    [InlineData("Create a task called report due tomorrow")]
+    public async Task Ambiguous_creation_requests_clarify_without_a_write(string message)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var handler = new RecordingTodoHandler();
+        var chat = new CreateInvokingChatClient("report", null, "Medium", null);
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), TodoInternalToken = "test-token", AllowMutations = true, MutationApprovalGranted = true });
+        var todo = new TodoServiceClient(new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            message, "ambiguous-create")
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.False(chat.Invoked);
+        Assert.Empty(handler.Writes);
+        Assert.Contains(sessions.GetEvents(session.Value, 0), item => item.Type == "message" &&
+            item.Data.Contains("Specify the task title", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Conversation_context_is_session_scoped_and_passes_through_the_privacy_gate()
     {
@@ -541,15 +638,24 @@ public sealed class MetaTodoPrivacyEgressTests
     private sealed class RecordingTodoHandler(params TodoServiceRecord[] records) : HttpMessageHandler
     {
         public List<Uri?> Writes { get; } = [];
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public string? LastWriteBody { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (request.Method != HttpMethod.Get) Writes.Add(request.RequestUri);
+            if (request.Method != HttpMethod.Get)
+            {
+                Writes.Add(request.RequestUri);
+                if (request.Content is not null) LastWriteBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            }
             if (request.Method == HttpMethod.Put)
-                return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 { Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
-                    Guid.Parse(request.RequestUri!.Segments[^1]), "report", null, true, 1, DateTime.UtcNow, null)) });
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            { Content = System.Net.Http.Json.JsonContent.Create(records) });
+                    Guid.Parse(request.RequestUri!.Segments[^1]), "report", null, true, 1, DateTime.UtcNow, null)) };
+            if (request.Method == HttpMethod.Post)
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                { Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
+                    Guid.NewGuid(), "report", null, false, 1, DateTime.UtcNow, null)) };
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            { Content = System.Net.Http.Json.JsonContent.Create(records) };
         }
     }
 
@@ -567,6 +673,36 @@ public sealed class MetaTodoPrivacyEgressTests
                 var arguments = new Dictionary<string, object?> { ["todoId"] = target.ToString("D") };
                 if (toolName == "todo.update") arguments["isCompleted"] = completed;
                 try { await function.InvokeAsync(new AIFunctionArguments(arguments), cancellationToken); }
+                catch (Exception exception) { InvocationError = exception; }
+            }
+            return new ChatResponse(new ChatMessage(ChatRole.Assistant, "Handled safely."));
+        }
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var response = await GetResponseAsync(messages, options, cancellationToken);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+
+    private sealed class CreateInvokingChatClient(string title, string? description, string priority, DateTime? dueDate) : IChatClient
+    {
+        public bool Invoked { get; private set; }
+        public Exception? InvocationError { get; private set; }
+        public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var function = options?.Tools?.OfType<AIFunction>().SingleOrDefault(tool => tool.Name == "todo.create");
+            if (function is not null)
+            {
+                Invoked = true;
+                var arguments = new AIFunctionArguments(new Dictionary<string, object?>
+                { ["title"] = title, ["description"] = description, ["priority"] = priority, ["dueDateUtc"] = dueDate });
+                try { await function.InvokeAsync(arguments, cancellationToken); }
                 catch (Exception exception) { InvocationError = exception; }
             }
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, "Handled safely."));

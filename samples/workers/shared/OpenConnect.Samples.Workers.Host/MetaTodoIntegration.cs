@@ -227,6 +227,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
             {
                 var mutation = RequestedTodoMutation(task.Message);
+                var authorizedCreation = mutation == "create" ? ResolveTodoCreation(task.Message) : null;
                 var authorizedTarget = mutation is "complete" or "delete" or "update"
                     ? await ResolveTodoMutationTargetAsync(task.Message, mutation, todo, cancellationToken).ConfigureAwait(false)
                     : null;
@@ -240,10 +241,18 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
                     conversation?.Append(task.Message, clarification, readTodoRequest);
                     return;
                 }
+                if (mutation == "create" && authorizedCreation is null)
+                {
+                    const string clarification = "Specify the task title using 'create a task called' or 'create a task named'. Quote the title when specifying a priority. This command supports a title and optional priority, but not a description or due date.";
+                    await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", clarification, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    conversation?.Append(task.Message, clarification, readTodoRequest);
+                    return;
+                }
                 switch (mutation)
                 {
-                    case "create":
-                        tools.Add(AIFunctionFactory.Create((string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => RunToolAsync("creating that Todo", innerCt => todo.CreateAsync(title, description, priority, dueDateUtc, innerCt), task, ct), "todo.create", "Create a Todo for the current tenant."));
+                    case "create" when authorizedCreation is { } createRequest:
+                        tools.Add(AIFunctionFactory.Create((string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => RunToolAsync("creating that Todo", innerCt => CreateAuthorizedTodoAsync(todo, createRequest, title, description, priority, dueDateUtc, innerCt), task, ct), "todo.create", "Create the Todo with the explicitly requested title and priority."));
                         break;
                     case "complete" when authorizedTarget is { } completeTarget:
                         tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("completing that Todo", innerCt => todo.CompleteAsync(RequireAuthorizedTodoId(todoId, completeTarget.Id), innerCt), task, ct), "todo.complete", "Complete the explicitly requested Todo by id."));
@@ -375,6 +384,40 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             "update" or "change" => "update",
             _ => null
         };
+    }
+
+    private sealed record AuthorizedTodoCreation(string Title, string Priority);
+
+    private static AuthorizedTodoCreation? ResolveTodoCreation(string message)
+    {
+        var match = Regex.Match(message,
+            @"^\s*(?:please\s+)?(?:create|add)\s+(?:(?:a|an|the|my|this)\s+)?(?:new\s+)?(?:todo|to-do|task)\s+(?:called|named)\s+(?<title>""[^""]+""|'[^']+'|[^""']+?)(?:\s+with\s+(?<priority>low|medium|high|urgent)\s+priority)?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        if (!match.Success) return null;
+        var title = match.Groups["title"].Value.Trim();
+        var quoted = title.Length >= 2 && (title[0] == '"' && title[^1] == '"' || title[0] == '\'' && title[^1] == '\'');
+        if (match.Groups["priority"].Success && !quoted) return null;
+        if (quoted) title = title[1..^1];
+        else if (Regex.IsMatch(title, @"\b(?:due|description)\b|\bwith\s+(?:a\s+)?(?:priority|description)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100))) return null;
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 200 || title.Any(char.IsControl)) return null;
+        var priority = match.Groups["priority"].Value.ToLowerInvariant() switch
+        {
+            "low" => "Low",
+            "high" => "High",
+            "urgent" => "Urgent",
+            _ => "Medium"
+        };
+        return new AuthorizedTodoCreation(title, priority);
+    }
+
+    private static Task<TodoServiceRecord?> CreateAuthorizedTodoAsync(TodoServiceClient todo, AuthorizedTodoCreation authorized,
+        string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(title, authorized.Title, StringComparison.Ordinal) || !string.IsNullOrEmpty(description) ||
+            !string.Equals(priority, authorized.Priority, StringComparison.OrdinalIgnoreCase) || dueDateUtc is not null)
+            throw new UnauthorizedAccessException("The Todo creation fields do not match the user request.");
+        return todo.CreateAsync(authorized.Title, null, authorized.Priority, null, cancellationToken);
     }
 
     private sealed record AuthorizedTodoTarget(Guid Id, bool? Completed);
