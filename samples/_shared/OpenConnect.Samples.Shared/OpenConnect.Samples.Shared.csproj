@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>OpenConnect.Samples.Shared</AssemblyName>
+    <!-- Samples are never shippable NuGet packages (OC-G5-FIX01). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.Shared</RootNamespace>
     <!-- No provider packages here by design (OC-PERSIST-001 rule 2): provider-neutral helpers only. -->
   </PropertyGroup>

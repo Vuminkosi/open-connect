@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-context-overflow",
+  "limits": {
+    "maxMessages": 64,
+    "maxContentChars": 32768,
+    "maxTokens": 4096
+  },
+  "overflowCases": [
+    {
+      "id": "excessive-messages",
+      "messageCount": 65,
+      "expectedStatus": 422,
+      "errorLocation": "body.input.messages"
+    },
+    {
+      "id": "excessive-token-limit",
+      "requestedMaxTokens": 4097,
+      "expectedStatus": 422,
+      "errorLocation": "body.input.maxTokens"
+    }
+  ]
+}

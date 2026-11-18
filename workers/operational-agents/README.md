@@ -27,7 +27,7 @@ fast rather than executing placeholder logic.
 | `Mode` | `Standalone` | `OperationalAgentHostingMode`. `Embedded` refuses to supervise. |
 | `EmbeddedEnabled` | `false` | Must be `false` in `Standalone`; startup fails otherwise. |
 | `TenantUlid` | — | Required. Tenant ULID scoping the supervisor lease. |
-| `DatabaseProvider` | `npgsql` | `npgsql` (same as gateway) or `sqlite`. Provider package is bundled because the host owns its `DbContext`. |
+| `DatabaseProvider` | `npgsql` | `npgsql` / `postgres` (same as gateway), `sqlserver`, or `sqlite`. Provider package is bundled because the host owns its `DbContext`. |
 | `ConnectionString` | — | Required. Never logged. |
 | `SupervisorLeaseDuration` | `00:00:30` | 5s–1h. |
 | `RenewInterval` | `00:00:10` | Must be shorter than the lease. |

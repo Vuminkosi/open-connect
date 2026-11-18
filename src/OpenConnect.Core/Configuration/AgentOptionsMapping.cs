@@ -7,20 +7,17 @@ namespace OpenConnect.Core.Configuration;
 /// Mapping table: <see cref="AgentBudget.MaxToolCalls"/> copies
 /// <see cref="AgentRegistryOptions.MaxTotalToolCalls"/>; <see cref="AgentBudget.MaxModelCalls"/>
 /// copies <see cref="AgentRegistryOptions.MaxModelCalls"/>; <see cref="AgentBudget.MaxTokens"/>
-/// uses <see cref="long.MaxValue"/> because <see cref="AgentRegistryOptions"/> has no token
-/// limit; <see cref="AgentBudget.MaxRuntime"/> copies <see cref="AgentRegistryOptions.MaxTurnDuration"/>;
-/// <see cref="AgentBudget.MaxConcurrentAgents"/> copies
-/// <see cref="AgentRegistryOptions.MaxConcurrentSubagents"/>;
-/// <see cref="AgentBudget.MaxQueuedAgents"/> uses <see cref="int.MaxValue"/> because
-/// <see cref="AgentRegistryOptions"/> has no queued-agent limit; and
-/// <see cref="AgentBudget.MaxTotalAgents"/> copies
-/// <see cref="AgentRegistryOptions.MaxTotalSubagentsPerRun"/>. The options field list has no
-/// token or queue caps, so unconfigured dimensions must not veto configured ones. Explicitly
-/// constructed <see cref="AgentBudget"/> instances with zero limits retain their fail-closed
-/// meaning in the ledger; hosts needing token or queue caps should construct an
-/// <see cref="AgentBudget"/> directly. Delegation depth remains enforced by the delegation policy
-/// layer and is not a run-budget dimension. The unbounded token sentinel follows the existing
-/// <c>MaxRuntimeTicks</c> mapping in <c>OrchestrationAdapters.CreateChild</c>.
+/// copies <see cref="AgentRegistryOptions.MaxTokens"/>; <see cref="AgentBudget.MaxRuntime"/>
+/// copies <see cref="AgentRegistryOptions.MaxTurnDuration"/>; <see cref="AgentBudget.MaxConcurrentAgents"/>
+/// copies <see cref="AgentRegistryOptions.MaxConcurrentSubagents"/>; <see cref="AgentBudget.MaxQueuedAgents"/>
+/// copies <see cref="AgentRegistryOptions.MaxQueuedAgents"/>; <see cref="AgentBudget.MaxTotalAgents"/>
+/// copies <see cref="AgentRegistryOptions.MaxTotalSubagentsPerRun"/>; and
+/// <see cref="AgentBudget.MaxCostMicrocents"/> copies
+/// <see cref="AgentRegistryOptions.MaxCostMicrocents"/>. Explicitly constructed
+/// <see cref="AgentBudget"/> instances with zero limits retain their fail-closed meaning in the
+/// ledger. Delegation depth remains enforced by the delegation policy layer and is not a
+/// run-budget dimension. The unbounded sentinels (<see cref="long.MaxValue"/>/<see cref="int.MaxValue"/>)
+/// mean unlimited for the token, queue, and cost dimensions.
 /// </remarks>
 public static class AgentOptionsMapping
 {
@@ -35,10 +32,11 @@ public static class AgentOptionsMapping
         return new AgentBudget(
             MaxToolCalls: options.MaxTotalToolCalls,
             MaxModelCalls: options.MaxModelCalls,
-            MaxTokens: long.MaxValue,
+            MaxTokens: options.MaxTokens,
             MaxRuntime: options.MaxTurnDuration,
             MaxConcurrentAgents: options.MaxConcurrentSubagents,
-            MaxQueuedAgents: int.MaxValue,
-            MaxTotalAgents: options.MaxTotalSubagentsPerRun);
+            MaxQueuedAgents: options.MaxQueuedAgents,
+            MaxTotalAgents: options.MaxTotalSubagentsPerRun,
+            MaxCostMicrocents: options.MaxCostMicrocents);
     }
 }

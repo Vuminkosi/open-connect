@@ -17,7 +17,7 @@ namespace OpenConnect.Samples.PostgreSql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.11")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -31,6 +31,17 @@ namespace OpenConnect.Samples.PostgreSql.Migrations
                     b.Property<string>("BoundArgumentsHash")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
@@ -65,6 +76,8 @@ namespace OpenConnect.Samples.PostgreSql.Migrations
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("Approvals", "openconnect");
                 });
@@ -537,6 +550,13 @@ namespace OpenConnect.Samples.PostgreSql.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ResultRef")
                         .HasColumnType("text");

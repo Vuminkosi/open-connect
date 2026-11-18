@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net8.0</TargetFramework><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <PropertyGroup><TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <!-- CF-SEC-NU001 F2: transitive-only NU1902/NU1903 noise; direct advisories still gate via NuGetAuditMode=direct. -->
+  <PropertyGroup><NuGetAuditMode>direct</NuGetAuditMode></PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../../src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />

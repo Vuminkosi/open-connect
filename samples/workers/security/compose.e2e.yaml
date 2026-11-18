@@ -1,22 +1,76 @@
-# E2E sample for the Security worker (T0-T3). T4 model-live: BLOCKED/NOT_RUN.
-# Canonical image source (never a toy worker image):
-#   workers/security/Dockerfile
-# Local tag only. The harness never pushes images and never downloads models.
-# Project name is injected via COMPOSE_PROJECT_NAME (see shared/scripts/lib.sh)
-# so parallel runs never share networks or volumes.
+# E2E sample for the Security worker (T0-T5).
+# Canonical production image source:
+#   workers/security/Dockerfile & workers/security/compose.yaml
+# Image repository: vuminkosimatibe/openconnect-worker-security (local e2e tag only in PR/CI)
+# Model cache volume: oc_security_models
 services:
   security:
     build:
       context: ../../../workers/security
       dockerfile: Dockerfile
-    image: openconnect/security:e2e-local
+    image: vuminkosimatibe/openconnect-worker-security:${OC_E2E_TAG:-e2e-local}
     ports:
       - "${PORT_SECURITY:-8080}:8080"
     environment:
       OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-CI}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-cpu}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+      OC_SECURITY_RULES_ENABLED: ${OC_SECURITY_RULES_ENABLED:-true}
+      OC_SECURITY_GLINER_ENABLED: ${OC_SECURITY_GLINER_ENABLED:-false}
+      OC_SECURITY_DEBERTA_ENABLED: ${OC_SECURITY_DEBERTA_ENABLED:-false}
+      OC_SECURITY_QWEN3GUARD_ENABLED: ${OC_SECURITY_QWEN3GUARD_ENABLED:-false}
+      OC_SECURITY_PADDLEOCR_ENABLED: ${OC_SECURITY_PADDLEOCR_ENABLED:-false}
+      OC_SECURITY_YUNET_ENABLED: ${OC_SECURITY_YUNET_ENABLED:-false}
+    volumes:
+      - oc_security_models:/models:ro
+    networks:
+      - oc-test-private
+      - oc-test-loopback
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 24
       start_period: 10s
+
+  test-host:
+    profiles: ["harness", "integration"]
+    build:
+      context: ../../..
+      dockerfile: samples/workers/shared/OpenConnect.Samples.Workers.Host/Dockerfile
+    environment:
+      OC_WORKER_SECURITY_URL: http://security:8080
+      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
+      OC_TEST_MODE: "true"
+      OC_PRIVACY_MODE: strict-local
+    networks:
+      - oc-test-private
+    depends_on:
+      security:
+        condition: service_healthy
+
+  e2e-test:
+    profiles: ["harness", "integration"]
+    build:
+      context: ../../..
+      dockerfile: samples/workers/shared/OpenConnect.Samples.Workers.TestKit/Dockerfile
+    command: ["test", "--worker", "security", "--tier", "integration"]
+    networks:
+      - oc-test-private
+    depends_on:
+      test-host:
+        condition: service_healthy
+
+networks:
+  oc-test-private:
+    internal: true
+  oc-test-loopback:
+    driver: bridge
+
+volumes:
+  oc_security_models:
+    name: oc_security_models

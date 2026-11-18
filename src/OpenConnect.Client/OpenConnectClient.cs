@@ -2,15 +2,23 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Net.Http.Json;
 using System.Globalization;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 namespace OpenConnect.Client;
-public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClient
+public sealed partial class OpenConnectClient : IOpenConnectClient
 {
     private static readonly ActivitySource ActivitySource = new("OpenConnect.Client");
     private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
     private static readonly JsonSerializerOptions EventJsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    private readonly HttpClient _httpClient;
+    private readonly OpenConnectClientOptions? _options;
+
+    public OpenConnectClient(HttpClient httpClient, IOptions<OpenConnectClientOptions>? options = null)
+    {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _options = options?.Value;
+    }
 
     public async Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
     {
@@ -24,10 +32,59 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
         return await ReadAsync<TaskRecord>(response, cancellationToken).ConfigureAwait(false);
     }
+    public async Task<TaskRecord> CreateMiniComposerTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.ClientTaskId) || request.ClientTaskId.Length > 128) throw new ArgumentException("A client task ID of 1 to 128 characters is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || request.IdempotencyKey.Length > 256) throw new ArgumentException("An idempotency key of 1 to 256 characters is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.SessionId)) throw new ArgumentException("An existing session ID is required for MiniComposer task submission.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.ClientConnectionId)) throw new ArgumentException("An active client connection is required for MiniComposer task submission.", nameof(request));
+        using var activity = ActivitySource.StartActivity("openconnect.task.create", ActivityKind.Client);
+        using var message = new HttpRequestMessage(HttpMethod.Post, "minicomposer/tasks")
+        {
+            Content = JsonContent.Create(new { clientTaskId = request.ClientTaskId, message = request.Message, sessionId = request.SessionId, clientConnectionId = request.ClientConnectionId }, options: JsonOptions)
+        };
+        message.Headers.TryAddWithoutValidation("Idempotency-Key", request.IdempotencyKey);
+        using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<TaskRecord>(response, cancellationToken).ConfigureAwait(false);
+    }
     public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Post, $"tasks/{taskId.Value}/cancel", cancellationToken);
     public Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => SendAsync<TaskRecord>(HttpMethod.Get, $"tasks/{taskId.Value}", cancellationToken);
+    public async Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("sessions", new { name = "OpenConnect composer" }, JsonOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<SessionRecord>(response, cancellationToken).ConfigureAwait(false);
+    }
+
     public Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default) => SendAsync<SessionRecord>(HttpMethod.Get, $"sessions/{sessionId.Value}", cancellationToken);
+    public async Task PostClientInteractionResponseAsync(SessionId sessionId, ClientInteractionResponse response, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        if (string.IsNullOrWhiteSpace(response.CorrelationId) || response.CorrelationId.Length > 64)
+            throw new ArgumentException("A bounded interaction correlation ID is required.", nameof(response));
+        if (response.ResultKind is not ("page" or "plan" or "action"))
+            throw new ArgumentException("The interaction result kind is unsupported.", nameof(response));
+        if (string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
+            throw new ArgumentException("The interaction result payload must contain 1 to 65536 characters.", nameof(response));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"sessions/{sessionId.Value}/liveui/responses")
+        {
+            Content = JsonContent.Create(response, options: JsonOptions)
+        };
+        using var httpResponse = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(httpResponse, cancellationToken).ConfigureAwait(false);
+    }
     public async Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities", cancellationToken).ConfigureAwait(false);
+    public async Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000) throw new ArgumentException("Speech text must contain 1-2000 characters.", nameof(request));
+        using var response = await _httpClient.PostAsJsonAsync("speech/synthesize", request, JsonOptions, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync<SpeechSynthesisResult>(response, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Retrieves one finite snapshot of events available after the specified sequence.
@@ -44,7 +101,7 @@ public sealed class OpenConnectClient(HttpClient httpClient) : IOpenConnectClien
         using var activity = ActivitySource.StartActivity("openconnect.events.subscribe", ActivityKind.Client);
         using var response = await _httpClient.GetAsync($"sessions/{sessionId.Value}/events?after={afterSequence.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
-        var events = await response.Content.ReadFromJsonAsync<List<EventRecord>>(EventJsonOptions, cancellationToken).ConfigureAwait(false)
+        var events = await response.Content.ReadFromJsonAsync<List<EventRecord>>(JsonOptions, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException("The OpenConnect service returned an empty response.");
         foreach (var item in events) { cancellationToken.ThrowIfCancellationRequested(); yield return item; }
     }

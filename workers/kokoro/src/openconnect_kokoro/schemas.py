@@ -15,7 +15,7 @@ class SynthesizePayload(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
     voiceId: str | None = Field(default=None, max_length=64)
     locale: str = Field(default="en-US", max_length=16)
-    format: Literal["wav", "mp3", "pcm"] = "wav"
+    format: Literal["wav", "pcm"] = "wav"
     speechEpoch: int | None = Field(default=None, ge=0)
     idempotencyKey: str | None = Field(default=None, max_length=128)
 

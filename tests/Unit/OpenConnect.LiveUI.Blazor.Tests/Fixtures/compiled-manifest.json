@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "openconnect.liveui/v1",
+  "buildId": "cache-test",
+  "contentHash": "sha256:b3b30b85be006ff8375249dd89eaaccd43fb2cf5d1c4d02670f14fc4f46a8a6d",
+  "routes": [
+    {
+      "id": "home",
+      "path": "/",
+      "title": "Home",
+      "targets": [
+        {
+          "id": "home.heading",
+          "kind": "Heading",
+          "label": "Home",
+          "capabilities": ["Highlight"]
+        }
+      ]
+    }
+  ]
+}

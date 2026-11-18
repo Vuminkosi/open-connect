@@ -75,7 +75,7 @@ class CapabilityResponse(BaseModel):
     worker: Literal["inference"]
     version: str
     backend: str
-    engine: Literal["fake-bounded"]
+    engine: Literal["fake-bounded", "real"]
     modelId: str | None = None
     modelRevision: str | None = None
     modelLoaded: bool

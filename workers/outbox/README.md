@@ -29,7 +29,7 @@ Per batch, in order:
 | `Mode` | `Standalone` | `OutboxHostingMode`. `Embedded` refuses to dispatch. |
 | `EmbeddedDispatcherEnabled` | `false` | Must be `false` in `Standalone`; startup fails otherwise. |
 | `TenantUlid` | — | Required. Tenant ULID scoping the supervisor lease. |
-| `DatabaseProvider` | `npgsql` | `npgsql` (same as gateway) or `sqlite`. Provider package is bundled because the host owns its `DbContext`. |
+| `DatabaseProvider` | `npgsql` | `npgsql` / `postgres` (same as gateway), `sqlserver`, or `sqlite`. Provider package is bundled because the host owns its `DbContext`. |
 | `ConnectionString` | — | Required. Never logged. |
 | `SupervisorLeaseDuration` | `00:00:30` | 5s–1h. |
 | `PollingInterval` | `00:00:02` | 100ms–5min. Failures keep entries pending; the next poll redrives. |

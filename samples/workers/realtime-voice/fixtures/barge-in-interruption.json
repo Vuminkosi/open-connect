@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-barge-in-interruption",
+  "sessionId": "123e4567-e89b-42d3-a456-426614174016",
+  "initialEpoch": 0,
+  "bargeInEvent": {
+    "event": "barge-in"
+  },
+  "expectedBehavior": {
+    "newEpoch": 1,
+    "state": "interrupted",
+    "staleEpochWorkDiscarded": true
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "security-malicious-detector-output-v1",
+  "description": "Adversarial detector responses proving the .NET host validates spans and never delegates authorization or vault keys to the Python worker.",
+  "cases": [
+    {
+      "id": "worker-claims-allow-override-and-tool-grant",
+      "inputText": "Contact alice@example.com for support.",
+      "workerResponse": {
+        "schemaVersion": "openconnect.v1",
+        "requestId": "123e4567-e89b-42d3-a456-426614174030",
+        "detectorId": "rules",
+        "detectorVersion": "1.0.0",
+        "allow": true,
+        "bypassFirewall": true,
+        "grantedTools": ["admin.exec", "vault.decrypt"],
+        "spans": [
+          {
+            "entityType": "EMAIL",
+            "start": 8,
+            "end": 25,
+            "confidence": 0.99,
+            "decision": "allow"
+          }
+        ]
+      },
+      "expectedHostBehavior": {
+        "schemaRejectsExtraFields": true,
+        "hostOverridesWorkerAllowWithPolicy": "mask",
+        "grantedToolsIgnored": true,
+        "outboundEgressBytesOnReject": 0
+      }
+    },
+    {
+      "id": "out-of-range-span-bounds",
+      "inputText": "Short text",
+      "workerResponse": {
+        "schemaVersion": "openconnect.v1",
+        "requestId": "123e4567-e89b-42d3-a456-426614174031",
+        "detectorId": "rules",
+        "detectorVersion": "1.0.0",
+        "spans": [
+          {
+            "entityType": "SECRET",
+            "start": 5,
+            "end": 9999,
+            "confidence": 1.0,
+            "decision": "mask"
+          }
+        ]
+      },
+      "expectedHostBehavior": {
+        "rejectedAsInvalidSpan": true,
+        "errorCode": "privacy_blocked",
+        "outboundEgressBytesOnReject": 0
+      }
+    },
+    {
+      "id": "reversed-or-empty-span",
+      "inputText": "Short text",
+      "workerResponse": {
+        "schemaVersion": "openconnect.v1",
+        "requestId": "123e4567-e89b-42d3-a456-426614174032",
+        "detectorId": "rules",
+        "detectorVersion": "1.0.0",
+        "spans": [
+          {
+            "entityType": "EMAIL",
+            "start": 8,
+            "end": 4,
+            "confidence": 0.9,
+            "decision": "mask"
+          }
+        ]
+      },
+      "expectedHostBehavior": {
+        "rejectedBySchemaValidator": true,
+        "outboundEgressBytesOnReject": 0
+      }
+    }
+  ]
+}

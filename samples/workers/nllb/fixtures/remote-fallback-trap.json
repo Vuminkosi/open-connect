@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-remote-fallback-trap",
+  "taskId": "00000000-0000-4000-8000-000000000310",
+  "input": {
+    "sourceLang": "eng_Latn",
+    "targetLang": "fra_Latn",
+    "inputRef": "http://169.254.169.254/translate-fallback"
+  },
+  "expectedOfflineBehavior": {
+    "outboundRequests": 0,
+    "status": "failed",
+    "errorCode": "input_ref_unresolved"
+  }
+}

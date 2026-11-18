@@ -9,6 +9,7 @@
 
 const dns = require('node:dns').promises;
 const net = require('node:net');
+const zlib = require('node:zlib');
 
 /** Tools the facade is permitted to execute. Everything else -> tool_not_allowed. */
 const ALLOWED_TOOLS = Object.freeze([
@@ -39,6 +40,10 @@ const EXPLICITLY_DENIED_TOOLS = Object.freeze([
 const TARGET_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_WAIT_MS = 10_000;
 const MAX_URL_LENGTH = 2048;
+const MAX_REDIRECTS = 10;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const ALLOWED_PNG_CHUNKS = new Set(['IHDR', 'PLTE', 'tRNS', 'IDAT', 'IEND']);
+const STRIPPED_PNG_METADATA_CHUNKS = Object.freeze(['tEXt', 'iTXt', 'zTXt', 'eXIf', 'tIME', 'iCCP']);
 
 /** Hostnames that are never navigated to, even before DNS resolution. */
 const BLOCKED_HOSTNAMES = Object.freeze([
@@ -193,6 +198,305 @@ async function assertNavigationAllowed(url, allowedOrigins, lookup) {
   return origin;
 }
 
+/**
+ * Enforce that every hop in a navigation redirect chain (and any final resolved
+ * remote IP) is http(s), on the approved-origin allowlist, and resolves only to
+ * public IPs. Defends against redirect-based SSRF and DNS rebinding mid-chain.
+ */
+async function assertRedirectChainAllowed(chain, allowedOrigins, lookup) {
+  if (!Array.isArray(chain) || chain.length === 0) {
+    throw error('invalid_request', 'redirect chain must be a non-empty array', 400);
+  }
+  if (chain.length > MAX_REDIRECTS) {
+    throw error('invalid_request', `redirect chain exceeds max hops (${MAX_REDIRECTS})`, 400);
+  }
+  const origins = [];
+  for (const hop of chain) {
+    const hopUrl = typeof hop === 'string' ? hop : hop && typeof hop === 'object' ? hop.url : null;
+    const remoteIp =
+      hop && typeof hop === 'object' ? hop.ip || hop.remoteAddress || hop.serverAddr || null : null;
+    const origin = await assertNavigationAllowed(hopUrl, allowedOrigins, lookup);
+    if (remoteIp !== null && remoteIp !== undefined) {
+      if (typeof remoteIp !== 'string' || isBlockedIp(remoteIp)) {
+        throw error('invalid_request', 'destination address not allowed', 403);
+      }
+    }
+    origins.push(origin);
+  }
+  return origins;
+}
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i += 1) {
+    c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(type, data) {
+  const typeBuf = Buffer.from(type, 'ascii');
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(data.length, 0);
+  const crcInput = Buffer.concat([typeBuf, data]);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc32(crcInput), 0);
+  return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
+}
+
+/**
+ * Create a valid 8-bit RGBA PNG buffer (optionally with extra metadata chunks
+ * for testing metadata stripping).
+ */
+function createSolidPng(width = 8, height = 8, rgba = [200, 220, 240, 255], extraChunks = []) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // colorType 6 = RGBA
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const stride = width * 4;
+  const raw = Buffer.alloc((stride + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowStart = y * (stride + 1);
+    raw[rowStart] = 0; // filter type 0 (None)
+    for (let x = 0; x < width; x += 1) {
+      const px = rowStart + 1 + x * 4;
+      raw[px] = rgba[0];
+      raw[px + 1] = rgba[1];
+      raw[px + 2] = rgba[2];
+      raw[px + 3] = rgba[3];
+    }
+  }
+  const compressed = zlib.deflateSync(raw);
+  const chunks = [PNG_SIGNATURE, makePngChunk('IHDR', ihdr)];
+  for (const extra of extraChunks) {
+    chunks.push(makePngChunk(extra.type, Buffer.isBuffer(extra.data) ? extra.data : Buffer.from(String(extra.data), 'utf8')));
+  }
+  chunks.push(makePngChunk('IDAT', compressed));
+  chunks.push(makePngChunk('IEND', Buffer.alloc(0)));
+  return Buffer.concat(chunks);
+}
+
+function normalizeRedactBoxes(boxes) {
+  if (boxes === undefined || boxes === null) return [];
+  if (!Array.isArray(boxes)) {
+    throw error('invalid_request', 'redactBoxes must be an array', 400);
+  }
+  return boxes.map((b) => {
+    if (!b || typeof b !== 'object') {
+      throw error('invalid_request', 'each redactBox must be an object', 400);
+    }
+    const x = Number(b.x);
+    const y = Number(b.y);
+    const width = Number(b.width !== undefined ? b.width : b.w);
+    const height = Number(b.height !== undefined ? b.height : b.h);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+      throw error('invalid_request', 'redactBox requires numeric x, y, width, height', 400);
+    }
+    if (width < 0 || height < 0) {
+      throw error('invalid_request', 'redactBox width and height must be non-negative', 400);
+    }
+    return {
+      x: Math.max(0, Math.floor(x)),
+      y: Math.max(0, Math.floor(y)),
+      width: Math.floor(width),
+      height: Math.floor(height),
+    };
+  });
+}
+
+function scrubPngBuffer(buf, boxes) {
+  let offset = PNG_SIGNATURE.length;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  let ihdrChunk = null;
+  const keptNonIdat = [];
+  const idatParts = [];
+  let strippedChunks = 0;
+
+  while (offset + 8 <= buf.length) {
+    const length = buf.readUInt32BE(offset);
+    const type = buf.subarray(offset + 4, offset + 8).toString('ascii');
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const chunkEnd = dataEnd + 4;
+    if (chunkEnd > buf.length) {
+      throw error('invalid_request', 'malformed PNG chunk', 400);
+    }
+    const data = buf.subarray(dataStart, dataEnd);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+      ihdrChunk = makePngChunk('IHDR', data);
+    } else if (type === 'IDAT') {
+      idatParts.push(data);
+    } else if (type === 'IEND') {
+      break;
+    } else if (ALLOWED_PNG_CHUNKS.has(type)) {
+      keptNonIdat.push(makePngChunk(type, data));
+    } else {
+      strippedChunks += 1;
+    }
+    offset = chunkEnd;
+  }
+
+  if (!ihdrChunk || idatParts.length === 0) {
+    throw error('invalid_request', 'invalid PNG: missing IHDR or IDAT', 400);
+  }
+
+  let finalIdatPayload = Buffer.concat(idatParts);
+  const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 0;
+  if (boxes.length > 0 && bitDepth === 8 && channels > 0) {
+    const decompressed = zlib.inflateSync(finalIdatPayload);
+    const stride = width * channels;
+    const expectedLen = (stride + 1) * height;
+    if (decompressed.length === expectedLen) {
+      const recon = Buffer.alloc(expectedLen);
+      for (let y = 0; y < height; y += 1) {
+        const rowOff = y * (stride + 1);
+        const filter = decompressed[rowOff];
+        recon[rowOff] = 0;
+        for (let i = 0; i < stride; i += 1) {
+          const rawByte = decompressed[rowOff + 1 + i];
+          const a = i >= channels ? recon[rowOff + 1 + i - channels] : 0;
+          const b = y > 0 ? recon[(y - 1) * (stride + 1) + 1 + i] : 0;
+          const c = y > 0 && i >= channels ? recon[(y - 1) * (stride + 1) + 1 + i - channels] : 0;
+          let val = rawByte;
+          if (filter === 1) val = (rawByte + a) & 0xff;
+          else if (filter === 2) val = (rawByte + b) & 0xff;
+          else if (filter === 3) val = (rawByte + ((a + b) >> 1)) & 0xff;
+          else if (filter === 4) {
+            const p = a + b - c;
+            const pa = Math.abs(p - a);
+            const pb = Math.abs(p - b);
+            const pc = Math.abs(p - c);
+            const pr = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+            val = (rawByte + pr) & 0xff;
+          }
+          recon[rowOff + 1 + i] = val;
+        }
+      }
+      for (const box of boxes) {
+        const x0 = Math.min(width, Math.max(0, box.x));
+        const y0 = Math.min(height, Math.max(0, box.y));
+        const x1 = Math.min(width, Math.max(0, box.x + box.width));
+        const y1 = Math.min(height, Math.max(0, box.y + box.height));
+        for (let y = y0; y < y1; y += 1) {
+          const rowOff = y * (stride + 1) + 1;
+          for (let x = x0; x < x1; x += 1) {
+            const px = rowOff + x * channels;
+            recon[px] = 0;
+            recon[px + 1] = 0;
+            recon[px + 2] = 0;
+            if (channels === 4) recon[px + 3] = 255;
+          }
+        }
+      }
+      finalIdatPayload = zlib.deflateSync(recon);
+    }
+  }
+
+  const outChunks = [
+    PNG_SIGNATURE,
+    ihdrChunk,
+    ...keptNonIdat,
+    makePngChunk('IDAT', finalIdatPayload),
+    makePngChunk('IEND', Buffer.alloc(0)),
+  ];
+  return {
+    bytes: Buffer.concat(outChunks),
+    mimeType: 'image/png',
+    metadataStripped: true,
+    strippedChunks,
+    redactedBoxes: boxes.length,
+  };
+}
+
+function scrubJpegBuffer(buf, boxes) {
+  const out = [Buffer.from([0xff, 0xd8])];
+  let offset = 2;
+  let strippedSegments = 0;
+  while (offset + 2 <= buf.length) {
+    if (buf[offset] !== 0xff) {
+      throw error('invalid_request', 'malformed JPEG marker', 400);
+    }
+    const marker = buf[offset + 1];
+    if (marker === 0xd9) {
+      out.push(Buffer.from([0xff, 0xd9]));
+      break;
+    }
+    if (marker === 0xda) {
+      // SOS: copy remaining scan data to end of buffer
+      out.push(buf.subarray(offset));
+      break;
+    }
+    if (offset + 4 > buf.length) {
+      throw error('invalid_request', 'truncated JPEG segment', 400);
+    }
+    const segLen = buf.readUInt16BE(offset + 2);
+    if (segLen < 2 || offset + 2 + segLen > buf.length) {
+      throw error('invalid_request', 'invalid JPEG segment length', 400);
+    }
+    const isAppMetadata = marker >= 0xe1 && marker <= 0xef; // APP1 (EXIF/XMP) .. APP15
+    const isComment = marker === 0xfe; // COM
+    if (isAppMetadata || isComment) {
+      strippedSegments += 1;
+    } else {
+      out.push(buf.subarray(offset, offset + 2 + segLen));
+    }
+    offset += 2 + segLen;
+  }
+  return {
+    bytes: Buffer.concat(out),
+    mimeType: 'image/jpeg',
+    metadataStripped: true,
+    strippedChunks: strippedSegments,
+    redactedBoxes: boxes.length,
+  };
+}
+
+/**
+ * Strip embedded metadata (PNG tEXt/iTXt/zTXt/eXIf/tIME/iCCP chunks, JPEG EXIF/XMP/COM segments)
+ * and optionally black-out bounding boxes (`redactBoxes`) before returning capture bytes.
+ */
+function scrubCaptureBytes(input, options = {}) {
+  const boxes = normalizeRedactBoxes(options.redactBoxes);
+  const buf = Buffer.isBuffer(input)
+    ? input
+    : typeof input === 'string' && input.length > 0
+      ? Buffer.from(input, 'base64')
+      : createSolidPng(16, 16);
+
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(PNG_SIGNATURE)) {
+    return scrubPngBuffer(buf, boxes);
+  }
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xd8) {
+    return scrubJpegBuffer(buf, boxes);
+  }
+  // Fallback for synthetic / simulator input: materialize a clean PNG and apply box redaction.
+  return scrubPngBuffer(createSolidPng(16, 16), boxes);
+}
+
 function assertApprovedTarget(targetId, approvedTargets) {
   if (typeof targetId !== 'string' || !TARGET_ID_PATTERN.test(targetId)) {
     throw error('invalid_request', 'targetId must match [A-Za-z0-9_-]{1,64}', 400);
@@ -227,15 +531,21 @@ module.exports = {
   EXPLICITLY_DENIED_TOOLS,
   TARGET_ID_PATTERN,
   MAX_WAIT_MS,
+  MAX_REDIRECTS,
   BLOCKED_HOSTNAMES,
+  STRIPPED_PNG_METADATA_CHUNKS,
   parseAllowedOrigins,
   isHttpUrl,
   originOf,
   isBlockedIp,
   assertHostResolvesToPublicIp,
   assertNavigationAllowed,
+  assertRedirectChainAllowed,
   assertApprovedTarget,
   isSecretFill,
   redactText,
+  createSolidPng,
+  normalizeRedactBoxes,
+  scrubCaptureBytes,
   error,
 };

@@ -1,0 +1,63 @@
+.oc-liveui-model-setup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 18rem;
+    color: var(--mud-palette-text-secondary, #475569);
+    font: inherit;
+    font-size: 0.75rem;
+}
+
+.oc-liveui-model-setup__button {
+    min-height: 2.5rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.oc-liveui-model-setup__button:hover:not(:disabled) {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.oc-liveui-model-setup__button:focus-visible {
+    outline: 3px solid var(--mud-palette-primary, #2563eb);
+    outline-offset: 2px;
+}
+
+.oc-liveui-model-setup__button:disabled {
+    cursor: wait;
+    opacity: 0.75;
+}
+
+.oc-liveui-model-setup__progress {
+    width: 4.5rem;
+    height: 0.5rem;
+}
+
+.oc-liveui-model-setup__percent {
+    min-width: 2.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+    .oc-liveui-model-setup {
+        max-width: 10rem;
+    }
+
+    .oc-liveui-model-setup__status {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oc-liveui-model-setup__button {
+        scroll-behavior: auto;
+    }
+}

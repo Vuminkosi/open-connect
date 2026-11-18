@@ -95,3 +95,19 @@ public enum ToolProgressKind { Phase, MeasuredProgress, Heartbeat, DiagnosticSum
 public enum AgentHistoryPolicy { RecentTurns, BoundedSummary, FullWithinBudget, ProviderManaged }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentMemoryWritePolicy>))]
 public enum AgentMemoryWritePolicy { DenyByDefault, ExplicitApproved, ApplicationPolicy }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<AgentExecutionProfile>))]
+public enum AgentExecutionProfile { Direct, Harness, Workflow, DurableWorkflow }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<OpenConnectWorkerKind>))]
+public enum OpenConnectWorkerKind { Security, Classification, Nllb, Inference, Transcription, RealtimeVoice, Kokoro, MmsTts, NavigatorPlaywright, OperationalAgents, Outbox }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<WorkerEngine>))]
+public enum WorkerEngine { Real, Fake }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<WorkerHostingMode>))]
+public enum WorkerHostingMode { Disabled, Embedded, Standalone }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<WorkerReadiness>))]
+public enum WorkerReadiness { Disabled, Provisioning, Loading, Ready, Degraded, Unavailable }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<McpToolAccess>))]
+public enum McpToolAccess { Deny, AllowListed }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<McpAuthorizationMode>))]
+public enum McpAuthorizationMode { PerInvocation, SessionScoped }
+[JsonConverter(typeof(KebabCaseStringEnumConverter<CloudTranscriptionMode>))]
+public enum CloudTranscriptionMode { Disabled, Endpointing, Batch }

@@ -91,7 +91,7 @@ try {
                 $resp = Invoke-WebRequest -Uri $baseUrl -TimeoutSec 5 -UseBasicParsing
                 $lastStatus = [int]$resp.StatusCode
                 if ($lastStatus -eq 200) {
-                    if ($resp.Content -match 'What needs attention\?') { $sawMarker = $true; $ok = $true }
+                    if ($resp.Content -match 'Task Management') { $sawMarker = $true; $ok = $true }
                 }
             }
             catch { }

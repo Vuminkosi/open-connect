@@ -1,1 +1,1 @@
-{"expectedStatus":200,"requiredResponseFields":["schemaVersion","requestId","label"]}
+{"expectedStatus":200,"requiredResponseFields":["schemaVersion","taskId","status","result"]}

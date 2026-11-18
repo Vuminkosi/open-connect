@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "classification-label-sets-v1",
+  "description": "Operator-owned versioned label sets (v1 and v2) plus custom neutral routing taxonomy. Zero clinical, medical, or domain-specific case defaults.",
+  "defaultLabelSet": "v1",
+  "labelSets": {
+    "v1": {
+      "version": "v1",
+      "labels": ["safe", "spam", "toxic", "sensitive"]
+    },
+    "v2": {
+      "version": "v2",
+      "labels": ["safe", "spam", "toxic", "sensitive", "pii", "injection"]
+    }
+  },
+  "operatorNeutralRoutingTaxonomy": [
+    "billing-question",
+    "technical-support",
+    "general-question",
+    "unknown"
+  ],
+  "forbiddenClinicalLabels": [
+    "triage-critical",
+    "diagnosis",
+    "clinical-intake",
+    "patient-record"
+  ]
+}

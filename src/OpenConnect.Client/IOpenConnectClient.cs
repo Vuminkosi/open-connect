@@ -3,10 +3,18 @@ namespace OpenConnect.Client;
 public interface IOpenConnectClient
 {
     Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Creates a task through the authenticated MiniComposer route, bound to an existing session.</summary>
+    Task<TaskRecord> CreateMiniComposerTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("MiniComposer task submission is not supported by this client implementation.");
     Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
     Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default);
+    Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException("Session creation is not supported by this client implementation.");
     Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default);
+    /// <summary>Posts a connected-client response for a correlated LiveUI request.</summary>
+    Task PostClientInteractionResponseAsync(SessionId sessionId, ClientInteractionResponse response, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Client interaction responses are not supported by this client implementation.");
     Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default);
+    Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException("Speech synthesis is not supported by this client implementation.");
     /// <summary>
     /// Retrieves a finite snapshot of events for a session after the specified sequence.
     /// This method does not poll or reconnect. To retrieve subsequent events, call it again
@@ -36,5 +44,11 @@ public interface IOpenConnectClient
     /// </exception>
     IAsyncEnumerable<CanonicalAgentEvent> ReplayEventsAsync(Guid sessionId, long afterSequence = 0, CancellationToken cancellationToken = default);
 }
-public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null);
+public sealed record CreateTaskRequest(string ClientTaskId, string IdempotencyKey, string? Message = null, string? SessionId = null)
+{
+    /// <summary>Server-issued connection identity for an interactive MiniComposer submission.</summary>
+    public string? ClientConnectionId { get; init; }
+}
+public sealed record SpeechSynthesisRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0);
+public sealed record SpeechSynthesisResult(string VoiceId, string Format, int SampleRateHz, int Channels, string AudioBase64);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);

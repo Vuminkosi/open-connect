@@ -1,0 +1,11 @@
+@page "/docs"
+@inject DocumentationContentStore Content
+<PageTitle>Documentation · OpenConnect</PageTitle>
+<HeadContent><link rel="canonical" href="/docs" /><meta name="description" content="Versioned OpenConnect developer documentation." /></HeadContent>
+<h1>Documentation</h1>
+<p class="lede">Versioned guides for integrating OpenConnect into .NET applications.</p>
+<SearchBox />
+@foreach (var version in Content.Versions())
+{
+    <section><h2>@version</h2><div class="doc-grid">@foreach (var doc in Content.Documents.Where(d => d.Version == version)) { <a class="doc-card" href="/docs/@version/@doc.Slug"><strong>@doc.Title</strong><span>@doc.Summary</span></a> }</div></section>
+}

@@ -3,6 +3,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /repo
 COPY Directory.Build.props Directory.Packages.props global.json ./
+COPY build/supported-frameworks.props build/supported-frameworks.props
 COPY src/OpenConnect.Abstractions/ src/OpenConnect.Abstractions/
 COPY src/OpenConnect.Core/ src/OpenConnect.Core/
 COPY src/OpenConnect.Persistence.EFCore/ src/OpenConnect.Persistence.EFCore/

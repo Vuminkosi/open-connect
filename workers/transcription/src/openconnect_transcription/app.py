@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
+import struct
 import os
 import time
 import uuid
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, status
 
 from openconnect_transcription.config import Settings
+from openconnect_transcription import cloud as cloud_module
+from openconnect_transcription import engine_mode
+from openconnect_transcription import realtime
 from openconnect_transcription.engine import (
     FakeTranscriptionEngine,
+    TranscriptResult,
     advertised_capabilities,
     supported_sample_rates,
 )
@@ -97,11 +103,144 @@ def live() -> dict[str, str]:
     return {"status": "live"}
 
 
+@app.websocket("/internal/v1/realtime")
+async def realtime_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    supplied = (websocket.headers.get("authorization") or "").removeprefix("Bearer ")
+    if token is None or not hmac.compare_digest(supplied, token):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await realtime.proxy(websocket, _settings())
+
+
+class _LocalLegUnavailable(RuntimeError):
+    """Local leg cannot serve this request."""
+
+
+def _routing_status(cfg: Settings) -> dict[str, object]:
+    return {
+        "routeOrder": cfg.route_order,
+        "cloudConfigured": cfg.cloud_url is not None,
+        "cloudAvailable": _cloud_leg_available(cfg),
+        "localAvailable": _local_leg_available(cfg),
+    }
+
+
+def _cloud_leg_available(cfg: Settings) -> bool:
+    # The cloud leg needs an exact provider model ID: OC_TRANSCRIPTION_MODEL
+    # defaults to empty (never guessed), so the cloud path stays unready
+    # until the operator sets it -- even with URL + key configured.
+    return (
+        cfg.cloud_url is not None
+        and cfg.cloud_api_key is not None
+        and cfg.model_id is not None
+        and cfg.model_id != ""
+        and not cloud_module.privacy_zone_strict()
+    )
+
+
+def _local_leg_available(cfg: Settings) -> bool:
+    # This build provisions a local adapter only via local-model + manifest.
+    return cfg.backend == "local-model" and _model_loaded(cfg)
+
+
+def _ordered_legs(cfg: Settings) -> list[str]:
+    if cfg.cloud_url is None:
+        return ["local"]
+    if cfg.route_order == cloud_module.LOCAL_FIRST:
+        return ["local", "cloud"]
+    return ["cloud", "local"]
+
+
+def _try_local_real(cfg: Settings, audio, locale: str) -> TranscriptResult:
+    """Local leg: serves only a provisioned local-model checkpoint."""
+    if cfg.backend == "local-model" and _model_loaded(cfg):
+        return engine.transcribe(audio, locale)
+    raise _LocalLegUnavailable("no provisioned local model for this request")
+
+
+def _pcm_to_wav(audio) -> bytes:
+    """Wrap validated PCM in a canonical WAV container for Meta cloud STT."""
+    data_size = len(audio.raw_pcm)
+    byte_rate = audio.sample_rate_hz * audio.channels * (audio.bits_per_sample // 8)
+    block_align = audio.channels * (audio.bits_per_sample // 8)
+    header = b"RIFF" + struct.pack("<I", 36 + data_size) + b"WAVEfmt "
+    header += struct.pack("<IHHIIHH", 16, 1, audio.channels, audio.sample_rate_hz, byte_rate, block_align, audio.bits_per_sample)
+    return header + b"data" + struct.pack("<I", data_size) + audio.raw_pcm
+
+
+def _try_cloud_real(cfg: Settings, audio, request: ExecuteRequest) -> TranscriptResult:
+    """Cloud leg. Raises CloudPolicyDenied (terminal) or CloudLegFailed."""
+    assert cfg.cloud_url is not None and cfg.cloud_api_key is not None
+    if cloud_module.privacy_zone_strict():
+        # Terminal: strict-local disables the cloud path entirely.
+        raise cloud_module.CloudPolicyDenied("privacy_blocked")
+    payload = json.dumps({
+        "model": cfg.model_id or "",
+        "audioEncoding": "WAV",
+        "mode": cfg.transcription_mode,
+        "language": request.input.locale,
+    })
+    wav = _pcm_to_wav(audio)
+    response = cloud_module.post_multipart(
+        url=cfg.cloud_url,
+        fields={"request": payload},
+        file_field="audio",
+        filename="ellai-capture.wav",
+        file_bytes=wav,
+        file_content_type="audio/wav",
+        api_key=cfg.cloud_api_key,
+        timeout_s=cfg.cloud_timeout_ms / 1000.0,
+    )
+    transcript = response.get("transcript")
+    if not isinstance(transcript, str) or not transcript:
+        raise cloud_module.CloudLegFailed("cloud leg returned no transcript")
+    revision = response.get("revision", 1)
+    raw_segments = response.get("segments")
+    segments: list[tuple[int, int, str]] = [(0, audio.duration_ms, transcript)]
+    if isinstance(raw_segments, list) and raw_segments:
+        parsed: list[tuple[int, int, str]] = []
+        for entry in raw_segments:
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], str):
+                parsed.append((int(entry[0]), int(entry[1]), entry[2]))
+        if parsed:
+            segments = parsed
+    return TranscriptResult(
+        transcript=transcript,
+        revision=revision if isinstance(revision, int) else 1,
+        is_final=True,
+        locale=request.input.locale,
+        duration_ms=audio.duration_ms,
+        segments=segments,
+    )
+
+
+def _execute_real_routed(cfg: Settings, audio, request: ExecuteRequest) -> TranscriptResult:
+    """Route across cloud/local legs. Exhaustion -> 503 model_unavailable."""
+    for leg in _ordered_legs(cfg):
+        try:
+            if leg == "cloud":
+                if cfg.cloud_url is None:
+                    continue
+                return _try_cloud_real(cfg, audio, request)
+            return _try_local_real(cfg, audio, request.input.locale)
+        except cloud_module.CloudPolicyDenied as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.code
+            ) from exc
+        except (cloud_module.CloudLegFailed, _LocalLegUnavailable) as exc:
+            logger.info("Real leg %s failed; trying next leg outcome=%s", leg, type(exc).__name__)
+            continue
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable")
+
+
 @app.get("/health/ready")
 def ready() -> dict[str, object]:
     cfg = _settings()
-    if cfg.backend == "local-model" and not _model_loaded(cfg):
-        # Fail closed: a claimed local model without provisioned weights is not ready.
+    # Backend provisioning gates apply in both modes (claimed backends must
+    # be provisioned); a configured cloud leg only yields the
+    # missing-weights gates, never a missing-URL config error.
+    if cfg.backend == "local-model" and not _model_loaded(cfg) and cfg.cloud_url is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
         )
@@ -110,11 +249,46 @@ def ready() -> dict[str, object]:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="endpoint_unavailable",
         )
+    info, status_code, code = engine_mode.rejection(cfg.fake_engine, cfg.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    assert info is not None
+    if cfg.fake_engine:
+        return {
+            "status": "ready",
+            "backend": cfg.backend,
+            "modelLoaded": _model_loaded(cfg),
+            "capabilities": advertised_capabilities(backend=cfg.backend),
+            "device": info.effective,
+            "deviceRequested": info.requested,
+            "provisioning": cfg.provisioning,
+            "modelCacheDir": cfg.model_dir,
+            "transcriptionProvider": cfg.transcription_provider,
+            "transcriptionMode": cfg.transcription_mode,
+            "transcriptionModel": cfg.model_id,
+            **_routing_status(cfg),
+        }
+    # Real mode: ready iff a serving leg exists (opt-in cloud, or a
+    # provisioned local-model checkpoint). Both down -> typed unready.
+    # (Readiness reports availability; per-request policy verdicts such as
+    # strict-local privacy_blocked surface on execute.)
+    if not (_cloud_leg_available(cfg) or _local_leg_available(cfg)):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
     return {
         "status": "ready",
         "backend": cfg.backend,
         "modelLoaded": _model_loaded(cfg),
         "capabilities": advertised_capabilities(backend=cfg.backend),
+        "device": info.effective,
+        "deviceRequested": info.requested,
+        "provisioning": cfg.provisioning,
+        "modelCacheDir": cfg.model_dir,
+        "transcriptionProvider": cfg.transcription_provider,
+        "transcriptionMode": cfg.transcription_mode,
+        "transcriptionModel": cfg.model_id,
+        **_routing_status(cfg),
     }
 
 
@@ -129,7 +303,7 @@ def capabilities() -> CapabilityResponse:
         worker="transcription",
         version=WORKER_VERSION,
         backend=cfg.backend,
-        engine="fake-bounded",
+        engine="fake-bounded" if cfg.fake_engine else "real",
         modelId=cfg.model_id,
         modelRevision=cfg.model_revision,
         modelLoaded=_model_loaded(cfg),
@@ -149,6 +323,9 @@ def capabilities() -> CapabilityResponse:
 )
 def execute(request: ExecuteRequest) -> ExecuteResponse:
     cfg = _settings()
+    _, status_code, code = engine_mode.rejection(cfg.fake_engine, cfg.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
     if cfg.remote_blocked:
         # Strict-local: unmasked audio must never leave the trusted boundary.
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="privacy_blocked")
@@ -159,7 +336,12 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="capability_unavailable",
         )
-    if cfg.backend == "local-model" and not _model_loaded(cfg):
+    if cfg.backend == "local-model" and not _model_loaded(cfg) and cfg.cloud_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
+        )
+    if not cfg.fake_engine and cfg.backend == "local-fake" and cfg.cloud_url is None:
+        # No serving leg: the local-fake stub never serves in real mode.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable"
         )
@@ -190,7 +372,10 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
     if idem_key and idem_key in _idempotency:
         return ExecuteResponse(**_idempotency[idem_key])
 
-    result = engine.transcribe(audio, request.input.locale)
+    if cfg.fake_engine:
+        result = engine.transcribe(audio, request.input.locale)
+    else:
+        result = _execute_real_routed(cfg, audio, request)
 
     # Log metadata only: never audio bytes, transcripts, or base64 payloads.
     logger.info(

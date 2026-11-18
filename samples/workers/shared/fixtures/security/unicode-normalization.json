@@ -1,0 +1,1 @@
+{"text":"Hello \uD83D\uDE00 café synthetic.unicode@example.test","combiningSequence":"e\u0301","surrogatePair":"\uD83D\uDE00","expectedEntity":"email"}
