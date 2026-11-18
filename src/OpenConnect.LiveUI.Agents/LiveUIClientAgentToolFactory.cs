@@ -53,12 +53,21 @@ public static class LiveUIClientAgentToolFactory
         public Task<JsonElement> GetCurrentPageAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page"), "page", cancellationToken);
 
-        public Task<JsonElement> InferPlanAsync(string intent, CancellationToken cancellationToken = default)
+        public async Task<JsonElement> InferPlanAsync(string intent, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(intent) || intent.Length > 8_000)
-                return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
-            return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent),
-                "plan", cancellationToken);
+                return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
+            var response = await RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent),
+                "plan", cancellationToken).ConfigureAwait(false);
+            if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String &&
+                outcome.GetString() == "rate_limited")
+                return JsonSerializer.SerializeToElement(new
+                {
+                    outcome = "rate_limited",
+                    plan = (object?)null,
+                    message = "UI planning is temporarily rate limited and did not perform an action. Tell the user and do not retry planning in this turn."
+                });
+            return response;
         }
 
         public Task<JsonElement> NavigateAsync(string routeId, CancellationToken cancellationToken = default)

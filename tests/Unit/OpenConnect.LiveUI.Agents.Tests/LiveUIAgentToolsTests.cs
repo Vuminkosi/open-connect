@@ -309,6 +309,25 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Client_inference_rate_limit_is_reported_without_a_plan_or_retry()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind,
+                "{\"outcome\":\"rate_limited\",\"plan\":{\"actions\":[{\"type\":\"activate\"}]} }")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var infer = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await infer.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["intent"] = "Open tasks" })));
+
+        Assert.Equal("rate_limited", result.GetProperty("outcome").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, result.GetProperty("plan").ValueKind);
+        Assert.Contains("do not retry", result.GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.Single(broker.Requests);
+    }
+
+    [Fact]
     public async Task Client_tool_factory_uses_host_session_and_returns_structured_client_receipts()
     {
         var broker = new RecordingInteractionBroker((session, request, resultKind) =>
