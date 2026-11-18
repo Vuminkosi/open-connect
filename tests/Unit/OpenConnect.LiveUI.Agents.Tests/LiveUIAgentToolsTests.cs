@@ -14,6 +14,36 @@ public sealed class LiveUIAgentToolsTests
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
     [Fact]
+    public async Task Activate_resolves_tab_from_manifest_and_preserves_authorization()
+    {
+        var authorizer = new RecordingAuthorizer((_, context) => context.Target?.Id != "todo.secret");
+        var runtime = new RecordingRuntime();
+        using var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home")),
+            new ManifestProvider(Manifest), authorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(authorizer, runtime), Options.Create(new LiveUIOptions()));
+
+        var receipt = await tools.ExecuteAsync("todo.completed", "ACTIVATE");
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(LiveUIActionType.SelectTab, runtime.LastContext!.Action.Type);
+        Assert.Contains(authorizer.Contexts, context => context.Target?.Id == "todo.completed" &&
+            context.Action.Type == LiveUIActionType.SelectTab);
+        var calls = runtime.Calls;
+        Assert.NotEqual(LiveUIActionOutcome.Completed, (await tools.ExecuteAsync("missing", "activate")).Outcome);
+        Assert.NotEqual(LiveUIActionOutcome.Completed, (await tools.ExecuteAsync("todo.secret", "activate")).Outcome);
+        Assert.NotEqual(LiveUIActionOutcome.Completed, (await tools.ExecuteAsync("todo.completed", "activate", "unexpected")).Outcome);
+        Assert.Equal(calls, runtime.Calls);
+
+        var denyAuthorizer = new RecordingAuthorizer((_, _) => false);
+        var deniedRuntime = new RecordingRuntime();
+        using var deniedTools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home")),
+            new ManifestProvider(Manifest), denyAuthorizer, new LiveUIManifestValidator(),
+            CreateOrchestrator(denyAuthorizer, deniedRuntime), Options.Create(new LiveUIOptions()));
+        Assert.Equal(LiveUIActionOutcome.Denied, (await deniedTools.ExecuteAsync("todo.completed", "activate")).Outcome);
+        Assert.Equal(0, deniedRuntime.Calls);
+    }
+
+    [Fact]
     public async Task Scoped_target_is_not_exposed_when_its_parent_is_unauthorized()
     {
         var parent = new LiveUITarget("parent", LiveUITargetKind.Region, "Private section",

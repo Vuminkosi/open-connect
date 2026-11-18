@@ -155,6 +155,12 @@ public sealed class LiveUIAgentTools(
         string? value = null,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(operation, "activate", StringComparison.OrdinalIgnoreCase))
+        {
+            if (value is not null) return ValueTask.FromResult(Rejected("operation_unsupported"));
+            return ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Click, new(), cancellationToken, resolveActivate: true);
+        }
+
         if (!Enum.TryParse<LiveUIActionType>(operation, ignoreCase: true, out var type) ||
             type is not (LiveUIActionType.Open or LiveUIActionType.Close or LiveUIActionType.Click or
                 LiveUIActionType.Focus or LiveUIActionType.Scroll or LiveUIActionType.SetValue or
@@ -210,7 +216,8 @@ public sealed class LiveUIAgentTools(
         string? targetId,
         LiveUIActionType type,
         LiveUIActionParameters parameters,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool resolveActivate = false)
     {
         await _actionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -235,6 +242,8 @@ public sealed class LiveUIAgentTools(
                         return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
                             LiveUIActionOutcome.Conflict, "page_context_stale", false, DateTimeOffset.UtcNow);
             }
+            if (resolveActivate && route.Targets.SingleOrDefault(target => target.Id == targetId)?.Kind == LiveUITargetKind.Tab)
+                type = LiveUIActionType.SelectTab;
             var action = CreateAction(context, manifest, route, targetId, type, parameters);
             var receipt = await orchestrator.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
             if (type == LiveUIActionType.Navigate && receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)
