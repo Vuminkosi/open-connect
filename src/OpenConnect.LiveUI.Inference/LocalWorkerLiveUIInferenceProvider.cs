@@ -4,10 +4,13 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OpenConnect.Privacy;
 
 namespace OpenConnect.LiveUI.Inference;
 
 /// <summary>Calls the private LiveUI worker from the server or Gateway process.</summary>
+/// <remarks>Runtime labels require a request prepared by <see cref="LiveUIWorkerPrivacyScreen"/> in the worker host.
+/// Other calls must also be screened by the caller for the authenticated worker egress context.</remarks>
 public sealed class LocalWorkerLiveUIInferenceProvider(
     HttpClient httpClient,
     IOptions<LiveUIWorkerClientOptions> options) : ILiveUIInferenceProvider
@@ -41,6 +44,14 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        request = request with
+        {
+            Capabilities = request.Capabilities.Select(capability => capability with { Actions = capability.Actions.ToArray() }).ToArray()
+        };
+        if (request.Capabilities.Any(capability => capability.TargetId.StartsWith("oc.runtime.", StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(capability.Label)) &&
+            !string.Equals(request.WorkerScreenedDigest, LiveUIWorkerPrivacyScreen.ComputeDigest(request), StringComparison.Ordinal))
+            throw new PrivacyBlockedException("Runtime target labels require authenticated worker privacy screening.");
         var body = new
         {
             requestId = request.RequestId,
@@ -49,10 +60,12 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
             context = new
             {
                 route = request.RouteId,
-                availableActions = request.Capabilities.SelectMany(capability => capability.Actions.Select(action => new
+                availableActions = request.Capabilities.SelectMany(capability => capability.Actions.Select(action =>
                 {
-                    target = capability.TargetId,
-                    action
+                    var item = new Dictionary<string, string> { ["target"] = capability.TargetId, ["action"] = action };
+                    if (capability.TargetId.StartsWith("oc.runtime.", StringComparison.Ordinal) &&
+                        !string.IsNullOrWhiteSpace(capability.Label)) item["label"] = capability.Label;
+                    return item;
                 })).ToArray()
             },
             generation = new { maxActions = 8, maxOutputTokens = 256 }

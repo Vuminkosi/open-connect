@@ -113,15 +113,19 @@ public static class LiveUIInferenceEndpoints
         }
         else
         {
-            var egress = await firewall.EvaluateAsync(request.Intent,
-                new EgressContext(new TenantId(tenant), new PrincipalId(principal), new SessionId(sessionUlid), EgressDestination.Worker),
-                cancellationToken).ConfigureAwait(false);
-            if (!egress.Allowed || egress.SanitizedContent is null)
+            try
+            {
+                validatedRequest = await LiveUIWorkerPrivacyScreen.PrepareAsync(request, firewall,
+                    new EgressContext(new TenantId(tenant), new PrincipalId(principal), new SessionId(sessionUlid), EgressDestination.Worker),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (PrivacyBlockedException)
+            {
                 return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Privacy policy blocked LiveUI worker inference.", type: "https://openconnect.dev/problems/privacy-blocked");
+            }
             var worker = services.GetService<LocalWorkerLiveUIInferenceProvider>();
             if (worker is null)
                 return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "The LiveUI worker is not configured.");
-            validatedRequest = request with { Intent = egress.SanitizedContent };
             result = await worker.GeneratePlanAsync(validatedRequest, cancellationToken).ConfigureAwait(false);
         }
 

@@ -25,6 +25,27 @@ namespace OpenConnect.Samples.Workers.TestKit;
 public sealed class GatewayPlannerEndpointTests
 {
     [Fact]
+    public async Task WorkerEndpointBlocksSensitiveCapabilityLabelsBeforeWorkerDispatch()
+    {
+        await using var host = await TestHost.StartAsync(false);
+        host.Firewall.RedactMarker = true;
+        var session = host.Sessions.Create(new TenantId(host.Tenant), new PrincipalId(host.Principal));
+        var requestId = Guid.NewGuid().ToString("D");
+        var executionId = Guid.NewGuid().ToString("N");
+        var payload = new LiveUIInferenceRequest("Show active tasks", session.Id.Value.ToString(), "route.root",
+            "openconnect.liveui/v1", [new("oc.runtime.target", ["activate"]) { Label = "person@example.org" }], "sha256:test");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/openconnect/v1/liveui/inference/plan")
+        { Content = JsonContent.Create(new GatewayLiveUIInferenceRequest(requestId, executionId, payload)) };
+        request.Headers.Add("X-Test-Tenant", host.Tenant.ToString());
+        request.Headers.Add("X-Test-Principal", host.Principal.ToString());
+
+        using var response = await host.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(EgressDestination.Worker, host.Firewall.LastContext!.Destination);
+    }
+
+    [Fact]
     public async Task PlannerIsDisabledByDefault()
     {
         await using var host = await TestHost.StartAsync(false);
@@ -89,11 +110,12 @@ public sealed class GatewayPlannerEndpointTests
     }
 
     private sealed class TestHost(WebApplication app, HttpClient client, InMemorySessionStore sessions,
-        TestGate gate, TestChat chat, Ulid tenant, Ulid principal) : IAsyncDisposable
+        TestGate gate, TestFirewall firewall, TestChat chat, Ulid tenant, Ulid principal) : IAsyncDisposable
     {
         public HttpClient Client => client;
         public InMemorySessionStore Sessions => sessions;
         public TestGate Gate => gate;
+        public TestFirewall Firewall => firewall;
         public TestChat Chat => chat;
         public Ulid Tenant => tenant;
         public Ulid Principal => principal;
@@ -114,10 +136,11 @@ public sealed class GatewayPlannerEndpointTests
             }));
             var sessions = new InMemorySessionStore();
             var gate = new TestGate();
+            var firewall = new TestFirewall();
             var chat = new TestChat();
             builder.Services.AddSingleton(sessions);
             builder.Services.AddSingleton<IEgressGate>(gate);
-            builder.Services.AddSingleton<IPrivacyFirewall>(new TestFirewall());
+            builder.Services.AddSingleton<IPrivacyFirewall>(firewall);
             builder.Services.AddSingleton<IChatClient>(chat);
             var app = builder.Build();
             app.UseAuthentication();
@@ -127,7 +150,7 @@ public sealed class GatewayPlannerEndpointTests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await app.StartAsync(timeout.Token);
             var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()), Timeout = TimeSpan.FromSeconds(10) };
-            return new TestHost(app, client, sessions, gate, chat, Ulid.NewUlid(), Ulid.NewUlid());
+            return new TestHost(app, client, sessions, gate, firewall, chat, Ulid.NewUlid(), Ulid.NewUlid());
         }
 
         public HttpRequestMessage Request(Ulid session, Ulid? tenant, Ulid? principal)
@@ -183,9 +206,15 @@ public sealed class GatewayPlannerEndpointTests
 
     private sealed class TestFirewall : IPrivacyFirewall
     {
+        public bool RedactMarker { get; set; }
+        public EgressContext? LastContext { get; private set; }
         public bool Enabled => true;
-        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
+        {
+            LastContext = context;
+            var sanitized = RedactMarker ? content.Replace("person@example.org", "[redacted]", StringComparison.Ordinal) : content;
+            return ValueTask.FromResult(new EgressDecision(true, sanitized, [], SecurityPolicyAction.Allow, "test"));
+        }
     }
 
     private sealed class TestChat : IChatClient

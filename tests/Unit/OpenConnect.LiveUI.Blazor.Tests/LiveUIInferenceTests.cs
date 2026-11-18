@@ -6,9 +6,13 @@ using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using OpenConnect.Abstractions;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;
 using OpenConnect.Privacy;
+using OpenConnect.Privacy.Policy;
+using OpenConnect.Privacy.Rules;
+using OpenConnect.Privacy.Tokenization;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
@@ -611,6 +615,52 @@ public sealed class LiveUIInferenceTests
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => router.GeneratePlanAsync(Request));
         Assert.Equal(0, worker.GenerateCalls);
         Assert.Equal(0, browser.GenerateCalls);
+    }
+
+    [Fact]
+    public async Task LocalWorkerProvider_SendsRuntimeLabelsWithoutChangingCompiledWorkerRequests()
+    {
+        var inferenceRequest = Request with
+        {
+            Capabilities = [new("oc.runtime.active", ["activate"]) { Label = "Active" },
+                new("todo.completed", ["activate"]) { Label = "Completed" }]
+        };
+        var handler = new RecordingHttpMessageHandler(request =>
+        {
+            using var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            var actions = body.RootElement.GetProperty("context").GetProperty("availableActions");
+            Assert.Equal("Active", actions[0].GetProperty("label").GetString());
+            Assert.False(actions[1].TryGetProperty("label", out _));
+            var response = JsonSerializer.Serialize(new
+            {
+                requestId = inferenceRequest.RequestId, schemaVersion = inferenceRequest.SchemaVersion,
+                plan = new { actions = new[] { new { type = "activate", target = "oc.runtime.active" } } }
+            });
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(response, Encoding.UTF8, "application/json") };
+        });
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
+        var provider = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
+        {
+            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+        }));
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => provider.GeneratePlanAsync(inferenceRequest));
+        using var vault = new TokenVault(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var firewall = new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(new RulesSecurityDetector(vault)));
+        var egress = new EgressContext(new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()),
+            new SessionId(Ulid.NewUlid()), EgressDestination.Worker);
+        inferenceRequest = inferenceRequest with { SessionId = egress.Session.Value.ToString() };
+        var screened = await LiveUIWorkerPrivacyScreen.PrepareAsync(inferenceRequest, firewall, egress);
+        var changed = screened with { Capabilities = [new("oc.runtime.active", ["activate"]) { Label = "Changed" }] };
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => provider.GeneratePlanAsync(changed));
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => provider.GeneratePlanAsync(
+            screened with { Intent = "person@example.org" }));
+        var deserialized = JsonSerializer.Deserialize<LiveUIInferenceRequest>(JsonSerializer.Serialize(screened))!;
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => provider.GeneratePlanAsync(deserialized));
+
+        var result = await provider.GeneratePlanAsync(screened);
+
+        Assert.Equal("oc.runtime.active", Assert.Single(result.Plan!.Actions).TargetId);
     }
 
     [Fact]

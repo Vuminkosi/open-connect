@@ -41,6 +41,10 @@ public sealed record LiveUIInferenceRequest(
     /// <summary>Unique ID for this inference execution.</summary>
     [JsonIgnore]
     public string ExecutionId { get; init; } = Guid.NewGuid().ToString("N");
+
+    // In-process proof only; it is never accepted from a serialized client request.
+    [JsonIgnore]
+    internal string? WorkerScreenedDigest { get; init; }
 }
 public sealed record LiveUIPlannedAction(string Type, string TargetId, string? Value = null);
 public sealed record LiveUIActionPlan(string SchemaVersion, IReadOnlyList<LiveUIPlannedAction> Actions);
