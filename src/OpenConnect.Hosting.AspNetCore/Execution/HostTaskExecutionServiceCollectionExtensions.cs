@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Privacy;
 
 namespace OpenConnect.Hosting.AspNetCore.Execution;
 
@@ -20,6 +21,8 @@ public static class HostTaskExecutionServiceCollectionExtensions
         configure?.Invoke(options);
         if (options.Capacity < 1 || options.WorkerConcurrency < 1 || options.WorkerConcurrency > 64 || options.MaxRetainedTasks < 1)
             throw new ArgumentOutOfRangeException(nameof(configure), "Capacity and retained task limit must be positive; worker concurrency must be between 1 and 64.");
+        services.EnsureHostPrivacyServices();
+        services.AddOpenConnectRulesDetector();
         services.AddSingleton(options);
         services.AddSingleton<InMemoryTaskStore>();
         services.AddSingleton<ITaskLifecycleStore>(provider => provider.GetRequiredService<InMemoryTaskStore>());

@@ -16,6 +16,7 @@ using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Privacy;
 
 [assembly: InternalsVisibleTo("OpenConnect.Hosting.Tests")]
 
@@ -370,7 +371,7 @@ public static class EndpointRouteBuilderExtensions
             ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
     }
 
-    internal static Task<IResult> HandlePostClientInteractionResponseAsync(
+    internal static async Task<IResult> HandlePostClientInteractionResponseAsync(
         string id,
         ClientInteractionResponse response,
         HttpContext context,
@@ -381,24 +382,57 @@ public static class EndpointRouteBuilderExtensions
             !Guid.TryParseExact(response.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
             response.ResultKind is not ("page" or "plan" or "action") ||
             string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
-            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid."));
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid.");
         try
         {
             using var payload = JsonDocument.Parse(response.PayloadJson);
             if (payload.RootElement.ValueKind != JsonValueKind.Object)
-                return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid."));
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
         }
         catch (JsonException)
         {
-            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid."));
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
         }
-        if (!TryIdentity(context, out var tenant, out var principal)) return Task.FromResult(IdentityError());
+        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
         var session = store.Get(value);
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
-            return Task.FromResult<IResult>(Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."));
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
 
         if (string.IsNullOrWhiteSpace(response.ConnectionId))
-            return Task.FromResult<IResult>(Results.Problem(statusCode: 400, title: "The client interaction response is invalid."));
+            return Results.Problem(statusCode: 400, title: "The client interaction response is invalid.");
+        if (response.ResultKind == "page")
+        {
+            var gate = context.RequestServices.GetService<IEgressGate>();
+            if (gate is null) return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable.");
+            using var page = JsonDocument.Parse(response.PayloadJson);
+            var content = new StringBuilder();
+            var pendingValues = new Stack<JsonElement>();
+            pendingValues.Push(page.RootElement);
+            while (pendingValues.TryPop(out var item))
+            {
+                if (item.ValueKind == JsonValueKind.String) content.AppendLine(item.GetString());
+                else if (item.ValueKind == JsonValueKind.Array)
+                    foreach (var child in item.EnumerateArray()) pendingValues.Push(child);
+                else if (item.ValueKind == JsonValueKind.Object)
+                    foreach (var property in item.EnumerateObject())
+                    {
+                        content.AppendLine(property.Name);
+                        pendingValues.Push(property.Value);
+                    }
+            }
+            var decodedContent = content.ToString();
+            EgressDecision decision;
+            try
+            {
+                decision = await gate.EvaluateAsync(decodedContent,
+                    new EgressContext(session.TenantId, session.PrincipalId, session.Id, EgressDestination.Tool), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable."); }
+            if (decision is null || !decision.Allowed || !string.Equals(decision.SanitizedContent, decodedContent, StringComparison.Ordinal))
+                return Results.Problem(statusCode: 403, title: "Page content was blocked by privacy policy.");
+        }
         var eventData = JsonSerializer.Serialize(response, JsonOptions);
         var appendResult = store.TryAppendClientInteractionResponse(value, response.ConnectionId, response, eventData);
         var result = appendResult switch
@@ -417,7 +451,7 @@ public static class EndpointRouteBuilderExtensions
                 Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."),
             _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError)
         };
-        return Task.FromResult(result);
+        return result;
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)

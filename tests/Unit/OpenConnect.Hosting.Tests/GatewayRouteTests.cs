@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Hosting;
 using OpenConnect.Abstractions;
@@ -11,6 +12,7 @@ using OpenConnect.Core.Capabilities;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Privacy;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
@@ -155,6 +157,50 @@ public sealed class GatewayRouteTests
 
         Assert.Equal(409, result.StatusCode);
         Assert.Empty(store.GetEvents(session.Id.Value, 0));
+    }
+
+    [Fact]
+    public async Task Client_page_content_is_checked_before_it_is_journaled()
+    {
+        await using var host = await CreateAppAsync();
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var correlationId = Guid.NewGuid().ToString("D");
+        var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(correlationId, "get_current_page"),
+            "page", TimeSpan.FromSeconds(5));
+        await WaitForRequestAsync(store, session.Id.Value);
+        var response = new ClientInteractionResponse(correlationId, "page", "{\"label\":\"person\\u0040example.org\"}")
+            { ConnectionId = connection.ConnectionId };
+
+        var blocked = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, Context(app), store), app.Services);
+        Assert.Equal(403, blocked.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
+
+        var safe = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response with { PayloadJson = "{\"label\":\"Tasks\"}" }, Context(app), store), app.Services);
+        Assert.Equal(200, safe.StatusCode);
+        Assert.NotNull(await pending);
+    }
+
+    [Fact]
+    public async Task Client_page_content_is_not_journaled_when_privacy_gate_is_missing()
+    {
+        await using var host = await CreateAppAsync(services => services.RemoveAll<IEgressGate>());
+        var app = host.App;
+        var store = app.Services.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "{\"label\":\"Tasks\"}")
+            { ConnectionId = connection.ConnectionId };
+
+        var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+            session.Id.Value.ToString(), response, Context(app), store), app.Services);
+
+        Assert.Equal(503, result.StatusCode);
+        Assert.DoesNotContain(store.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Response);
     }
 
     [Theory]
