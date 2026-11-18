@@ -40,7 +40,7 @@ def _verify_model_detector(detector_id: str, current_settings: Settings) -> tupl
     try:
         lock_data = json.loads(lock_path.read_text(encoding="utf-8"))
         manifest = RuntimeModelManifest.model_validate(lock_data["manifest"])
-    except Exception:
+    except Exception:  # noqa: BLE001 - Invalid cache data must fail closed.
         return False, "cache_corrupt"
     result = mgr.verify_for_request(
         manifest,

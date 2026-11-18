@@ -37,8 +37,11 @@ OpenConnect.Transport.Nats.OutboxStoreRelaySource.GetPendingAsync(int limit, Sys
 OpenConnect.Transport.Nats.OutboxStoreRelaySource.MarkDeliveredAsync(System.Guid entryId, System.Guid leaseId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
 OpenConnect.Transport.Nats.OutboxStoreRelaySource.OutboxStoreRelaySource(OpenConnect.Abstractions.IOutboxStore! store) -> void
 OpenConnect.Transport.Nats.WorkerEnvelope
+OpenConnect.Transport.Nats.WorkerEnvelope.<Clone>$() -> OpenConnect.Transport.Nats.WorkerEnvelope!
 OpenConnect.Transport.Nats.WorkerEnvelope.CorrelationId.get -> string?
 OpenConnect.Transport.Nats.WorkerEnvelope.CorrelationId.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.Deconstruct(out string! SchemaVersion, out System.Guid MessageId, out string! TaskId, out string! Kind, out System.DateTimeOffset IssuedAt, out System.DateTimeOffset ExpiresAt, out OpenConnect.Transport.Nats.WorkerLease! Lease, out string! PayloadRef, out string? CorrelationId) -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.Equals(OpenConnect.Transport.Nats.WorkerEnvelope? other) -> bool
 OpenConnect.Transport.Nats.WorkerEnvelope.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Transport.Nats.WorkerEnvelope.ExpiresAt.init -> void
 OpenConnect.Transport.Nats.WorkerEnvelope.IssuedAt.get -> System.DateTimeOffset
@@ -57,10 +60,23 @@ OpenConnect.Transport.Nats.WorkerEnvelope.TaskId.get -> string!
 OpenConnect.Transport.Nats.WorkerEnvelope.TaskId.init -> void
 OpenConnect.Transport.Nats.WorkerEnvelope.WorkerEnvelope(string! SchemaVersion, System.Guid MessageId, string! TaskId, string! Kind, System.DateTimeOffset IssuedAt, System.DateTimeOffset ExpiresAt, OpenConnect.Transport.Nats.WorkerLease! Lease, string! PayloadRef, string? CorrelationId = null) -> void
 OpenConnect.Transport.Nats.WorkerLease
+OpenConnect.Transport.Nats.WorkerLease.<Clone>$() -> OpenConnect.Transport.Nats.WorkerLease!
+OpenConnect.Transport.Nats.WorkerLease.Deconstruct(out System.Guid LeaseId, out long FencingToken) -> void
+OpenConnect.Transport.Nats.WorkerLease.Equals(OpenConnect.Transport.Nats.WorkerLease? other) -> bool
 OpenConnect.Transport.Nats.WorkerLease.FencingToken.get -> long
 OpenConnect.Transport.Nats.WorkerLease.FencingToken.init -> void
 OpenConnect.Transport.Nats.WorkerLease.LeaseId.get -> System.Guid
 OpenConnect.Transport.Nats.WorkerLease.LeaseId.init -> void
 OpenConnect.Transport.Nats.WorkerLease.WorkerLease(System.Guid LeaseId, long FencingToken) -> void
 const OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher.Subject = "oc.v1.execution.event" -> string!
+override OpenConnect.Transport.Nats.WorkerEnvelope.Equals(object? obj) -> bool
+override OpenConnect.Transport.Nats.WorkerEnvelope.GetHashCode() -> int
+override OpenConnect.Transport.Nats.WorkerEnvelope.ToString() -> string!
+override OpenConnect.Transport.Nats.WorkerLease.Equals(object? obj) -> bool
+override OpenConnect.Transport.Nats.WorkerLease.GetHashCode() -> int
+override OpenConnect.Transport.Nats.WorkerLease.ToString() -> string!
 static OpenConnect.Transport.Nats.WorkerEnvelope.Parse(System.ReadOnlySpan<byte> json) -> OpenConnect.Transport.Nats.WorkerEnvelope!
+static OpenConnect.Transport.Nats.WorkerEnvelope.operator !=(OpenConnect.Transport.Nats.WorkerEnvelope? left, OpenConnect.Transport.Nats.WorkerEnvelope? right) -> bool
+static OpenConnect.Transport.Nats.WorkerEnvelope.operator ==(OpenConnect.Transport.Nats.WorkerEnvelope? left, OpenConnect.Transport.Nats.WorkerEnvelope? right) -> bool
+static OpenConnect.Transport.Nats.WorkerLease.operator !=(OpenConnect.Transport.Nats.WorkerLease? left, OpenConnect.Transport.Nats.WorkerLease? right) -> bool
+static OpenConnect.Transport.Nats.WorkerLease.operator ==(OpenConnect.Transport.Nats.WorkerLease? left, OpenConnect.Transport.Nats.WorkerLease? right) -> bool

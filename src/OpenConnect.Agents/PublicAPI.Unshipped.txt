@@ -1,8 +1,4 @@
 #nullable enable
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
 OpenConnect.Agents.Catalog.AgentCatalog
 OpenConnect.Agents.Catalog.AgentCatalog.AgentCatalog() -> void
 OpenConnect.Agents.Catalog.AgentCatalog.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -19,6 +15,7 @@ OpenConnect.Agents.Catalog.DelegationGate
 OpenConnect.Agents.Catalog.DelegationGate.AuthorizeDelegation(OpenConnect.Agents.Catalog.DelegationParentContext! parentCtx, OpenConnect.Abstractions.AgentId childAgentId, OpenConnect.Agents.Catalog.DelegationRequest! request) -> OpenConnect.Abstractions.DelegationGrant!
 OpenConnect.Agents.Catalog.DelegationGate.DelegationGate(OpenConnect.Abstractions.IAgentDefinitionRegistry! catalog, int configuredMaxDepth = 2) -> void
 OpenConnect.Agents.Catalog.DelegationParentContext
+OpenConnect.Agents.Catalog.DelegationParentContext.<Clone>$() -> OpenConnect.Agents.Catalog.DelegationParentContext!
 OpenConnect.Agents.Catalog.DelegationParentContext.ActiveChildCount.get -> int
 OpenConnect.Agents.Catalog.DelegationParentContext.ActiveChildCount.init -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.AgentId.get -> OpenConnect.Abstractions.AgentId
@@ -27,6 +24,7 @@ OpenConnect.Agents.Catalog.DelegationParentContext.Ancestors.get -> System.Colle
 OpenConnect.Agents.Catalog.DelegationParentContext.Ancestors.init -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.ChildCount.get -> int
 OpenConnect.Agents.Catalog.DelegationParentContext.ChildCount.init -> void
+OpenConnect.Agents.Catalog.DelegationParentContext.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out System.Guid ExecutionId, out int Depth, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentId>! Ancestors, out System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! EffectiveToolIds, out System.Collections.Generic.IReadOnlySet<string!>! EffectiveScopes, out OpenConnect.Abstractions.AgentBudget! RemainingBudget, out OpenConnect.Abstractions.AgentExecutionMode ExecutionMode, out int ChildCount, out int ActiveChildCount, out int QueuedChildCount) -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.DelegationParentContext(OpenConnect.Abstractions.AgentId AgentId, System.Guid ExecutionId, int Depth, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentId>! Ancestors, System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! EffectiveToolIds, System.Collections.Generic.IReadOnlySet<string!>! EffectiveScopes, OpenConnect.Abstractions.AgentBudget! RemainingBudget, OpenConnect.Abstractions.AgentExecutionMode ExecutionMode, int ChildCount = 0, int ActiveChildCount = 0, int QueuedChildCount = 0) -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.Depth.get -> int
 OpenConnect.Agents.Catalog.DelegationParentContext.Depth.init -> void
@@ -34,6 +32,7 @@ OpenConnect.Agents.Catalog.DelegationParentContext.EffectiveScopes.get -> System
 OpenConnect.Agents.Catalog.DelegationParentContext.EffectiveScopes.init -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.EffectiveToolIds.get -> System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>!
 OpenConnect.Agents.Catalog.DelegationParentContext.EffectiveToolIds.init -> void
+OpenConnect.Agents.Catalog.DelegationParentContext.Equals(OpenConnect.Agents.Catalog.DelegationParentContext? other) -> bool
 OpenConnect.Agents.Catalog.DelegationParentContext.ExecutionId.get -> System.Guid
 OpenConnect.Agents.Catalog.DelegationParentContext.ExecutionId.init -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.ExecutionMode.get -> OpenConnect.Abstractions.AgentExecutionMode
@@ -43,11 +42,14 @@ OpenConnect.Agents.Catalog.DelegationParentContext.QueuedChildCount.init -> void
 OpenConnect.Agents.Catalog.DelegationParentContext.RemainingBudget.get -> OpenConnect.Abstractions.AgentBudget!
 OpenConnect.Agents.Catalog.DelegationParentContext.RemainingBudget.init -> void
 OpenConnect.Agents.Catalog.DelegationRequest
+OpenConnect.Agents.Catalog.DelegationRequest.<Clone>$() -> OpenConnect.Agents.Catalog.DelegationRequest!
 OpenConnect.Agents.Catalog.DelegationRequest.CrossModeFreshTaskToken.get -> string?
 OpenConnect.Agents.Catalog.DelegationRequest.CrossModeFreshTaskToken.init -> void
+OpenConnect.Agents.Catalog.DelegationRequest.Deconstruct(out System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! ToolIds, out System.Collections.Generic.IReadOnlySet<string!>! Scopes, out bool EnqueueCrossMode, out string? Reason, out string? CrossModeFreshTaskToken) -> void
 OpenConnect.Agents.Catalog.DelegationRequest.DelegationRequest(System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! ToolIds, System.Collections.Generic.IReadOnlySet<string!>! Scopes, bool EnqueueCrossMode = false, string? Reason = null, string? CrossModeFreshTaskToken = null) -> void
 OpenConnect.Agents.Catalog.DelegationRequest.EnqueueCrossMode.get -> bool
 OpenConnect.Agents.Catalog.DelegationRequest.EnqueueCrossMode.init -> void
+OpenConnect.Agents.Catalog.DelegationRequest.Equals(OpenConnect.Agents.Catalog.DelegationRequest? other) -> bool
 OpenConnect.Agents.Catalog.DelegationRequest.Reason.get -> string?
 OpenConnect.Agents.Catalog.DelegationRequest.Reason.init -> void
 OpenConnect.Agents.Catalog.DelegationRequest.Scopes.get -> System.Collections.Generic.IReadOnlySet<string!>!
@@ -55,6 +57,7 @@ OpenConnect.Agents.Catalog.DelegationRequest.Scopes.init -> void
 OpenConnect.Agents.Catalog.DelegationRequest.ToolIds.get -> System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>!
 OpenConnect.Agents.Catalog.DelegationRequest.ToolIds.init -> void
 OpenConnect.Agents.Execution.AgentContextProjection
+OpenConnect.Agents.Execution.AgentContextProjection.<Clone>$() -> OpenConnect.Agents.Execution.AgentContextProjection!
 OpenConnect.Agents.Execution.AgentContextProjection.AgentContextProjection(OpenConnect.Abstractions.Ulid ContextId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.ExecutionId ParentExecutionId, int Version, OpenConnect.Abstractions.AgentContextSharingMode Mode, string! DataClass, System.Collections.Immutable.ImmutableArray<OpenConnect.Agents.Execution.ContextItem!> Items, System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.AgentId> AllowedAgentIds, System.DateTimeOffset ExpiresAt, string! TenantScope, long PolicyRevision, System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.ExecutionId> SourceLineage, System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.ToolId> AllowedToolIds, System.Collections.Immutable.ImmutableArray<string!> AllowedScopes, int TokenBudget) -> void
 OpenConnect.Agents.Execution.AgentContextProjection.AllowedAgentIds.get -> System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.AgentId>
 OpenConnect.Agents.Execution.AgentContextProjection.AllowedAgentIds.init -> void
@@ -66,6 +69,8 @@ OpenConnect.Agents.Execution.AgentContextProjection.ContextId.get -> OpenConnect
 OpenConnect.Agents.Execution.AgentContextProjection.ContextId.init -> void
 OpenConnect.Agents.Execution.AgentContextProjection.DataClass.get -> string!
 OpenConnect.Agents.Execution.AgentContextProjection.DataClass.init -> void
+OpenConnect.Agents.Execution.AgentContextProjection.Deconstruct(out OpenConnect.Abstractions.Ulid ContextId, out OpenConnect.Abstractions.SessionId SessionId, out OpenConnect.Abstractions.ExecutionId ParentExecutionId, out int Version, out OpenConnect.Abstractions.AgentContextSharingMode Mode, out string! DataClass, out System.Collections.Immutable.ImmutableArray<OpenConnect.Agents.Execution.ContextItem!> Items, out System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.AgentId> AllowedAgentIds, out System.DateTimeOffset ExpiresAt, out string! TenantScope, out long PolicyRevision, out System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.ExecutionId> SourceLineage, out System.Collections.Immutable.ImmutableArray<OpenConnect.Abstractions.ToolId> AllowedToolIds, out System.Collections.Immutable.ImmutableArray<string!> AllowedScopes, out int TokenBudget) -> void
+OpenConnect.Agents.Execution.AgentContextProjection.Equals(OpenConnect.Agents.Execution.AgentContextProjection? other) -> bool
 OpenConnect.Agents.Execution.AgentContextProjection.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Agents.Execution.AgentContextProjection.ExpiresAt.init -> void
 OpenConnect.Agents.Execution.AgentContextProjection.Items.get -> System.Collections.Immutable.ImmutableArray<OpenConnect.Agents.Execution.ContextItem!>
@@ -87,6 +92,8 @@ OpenConnect.Agents.Execution.AgentContextProjection.TokenBudget.init -> void
 OpenConnect.Agents.Execution.AgentContextProjection.Version.get -> int
 OpenConnect.Agents.Execution.AgentContextProjection.Version.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext
+OpenConnect.Agents.Execution.AgentExecutionContext.<Clone>$() -> OpenConnect.Agents.Execution.AgentExecutionContext!
+OpenConnect.Agents.Execution.AgentExecutionContext.AgentExecutionContext() -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.AgentExecutionId.get -> OpenConnect.Abstractions.ExecutionId
 OpenConnect.Agents.Execution.AgentExecutionContext.AgentExecutionId.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.AuthRevision.get -> long
@@ -101,6 +108,7 @@ OpenConnect.Agents.Execution.AgentExecutionContext.Deadline.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.Depth.get -> int
 OpenConnect.Agents.Execution.AgentExecutionContext.Depth.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.Dispose() -> void
+OpenConnect.Agents.Execution.AgentExecutionContext.Equals(OpenConnect.Agents.Execution.AgentExecutionContext? other) -> bool
 OpenConnect.Agents.Execution.AgentExecutionContext.IdentityKind.get -> OpenConnect.Abstractions.AgentIdentityMode
 OpenConnect.Agents.Execution.AgentExecutionContext.IdentityKind.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.ParentExecutionId.get -> OpenConnect.Abstractions.ExecutionId?
@@ -118,13 +126,17 @@ OpenConnect.Agents.Execution.AgentExecutionContext.TaskId.init -> void
 OpenConnect.Agents.Execution.AgentExecutionContext.TenantScope.get -> string!
 OpenConnect.Agents.Execution.AgentExecutionContext.TenantScope.init -> void
 OpenConnect.Agents.Execution.AgentRun
+OpenConnect.Agents.Execution.AgentRun.<Clone>$() -> OpenConnect.Agents.Execution.AgentRun!
 OpenConnect.Agents.Execution.AgentRun.AgentRun(System.Guid Id, OpenConnect.Abstractions.AgentDefinition! Definition) -> void
+OpenConnect.Agents.Execution.AgentRun.Deconstruct(out System.Guid Id, out OpenConnect.Abstractions.AgentDefinition! Definition) -> void
 OpenConnect.Agents.Execution.AgentRun.Definition.get -> OpenConnect.Abstractions.AgentDefinition!
 OpenConnect.Agents.Execution.AgentRun.Definition.init -> void
+OpenConnect.Agents.Execution.AgentRun.Equals(OpenConnect.Agents.Execution.AgentRun? other) -> bool
 OpenConnect.Agents.Execution.AgentRun.Id.get -> System.Guid
 OpenConnect.Agents.Execution.AgentRun.Id.init -> void
 OpenConnect.Agents.Execution.AgentRunStateMachine
 OpenConnect.Agents.Execution.AttachmentObjectRef
+OpenConnect.Agents.Execution.AttachmentObjectRef.<Clone>$() -> OpenConnect.Agents.Execution.AttachmentObjectRef!
 OpenConnect.Agents.Execution.AttachmentObjectRef.AttachmentId.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.AttachmentId.init -> void
 OpenConnect.Agents.Execution.AttachmentObjectRef.AttachmentObjectRef(string! AttachmentId, string! TenantId, string! Sha256Hash, long ByteLength, string! ContentType, System.DateTimeOffset CreatedAt) -> void
@@ -134,12 +146,15 @@ OpenConnect.Agents.Execution.AttachmentObjectRef.ContentType.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.ContentType.init -> void
 OpenConnect.Agents.Execution.AttachmentObjectRef.CreatedAt.get -> System.DateTimeOffset
 OpenConnect.Agents.Execution.AttachmentObjectRef.CreatedAt.init -> void
+OpenConnect.Agents.Execution.AttachmentObjectRef.Deconstruct(out string! AttachmentId, out string! TenantId, out string! Sha256Hash, out long ByteLength, out string! ContentType, out System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Agents.Execution.AttachmentObjectRef.Equals(OpenConnect.Agents.Execution.AttachmentObjectRef? other) -> bool
 OpenConnect.Agents.Execution.AttachmentObjectRef.Sha256Hash.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.Sha256Hash.init -> void
 OpenConnect.Agents.Execution.AttachmentObjectRef.TenantId.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.TenantId.init -> void
 OpenConnect.Agents.Execution.ChildContextRestrictionGate
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest
+OpenConnect.Agents.Execution.ChildContextRestrictionRequest.<Clone>$() -> OpenConnect.Agents.Execution.ChildContextRestrictionRequest!
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ChildAgentId.get -> OpenConnect.Abstractions.AgentId
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ChildAgentId.init -> void
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ChildContextRestrictionRequest(OpenConnect.Abstractions.AgentId ChildAgentId, string! TenantScope, string! DataClass, string! PurposeScope, string! DataZone, string! ModelRoute, long DelegatedTokenBudget) -> void
@@ -147,8 +162,10 @@ OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DataClass.get -> str
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DataClass.init -> void
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DataZone.get -> string!
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DataZone.init -> void
+OpenConnect.Agents.Execution.ChildContextRestrictionRequest.Deconstruct(out OpenConnect.Abstractions.AgentId ChildAgentId, out string! TenantScope, out string! DataClass, out string! PurposeScope, out string! DataZone, out string! ModelRoute, out long DelegatedTokenBudget) -> void
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DelegatedTokenBudget.get -> long
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.DelegatedTokenBudget.init -> void
+OpenConnect.Agents.Execution.ChildContextRestrictionRequest.Equals(OpenConnect.Agents.Execution.ChildContextRestrictionRequest? other) -> bool
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ModelRoute.get -> string!
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ModelRoute.init -> void
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.PurposeScope.get -> string!
@@ -156,11 +173,14 @@ OpenConnect.Agents.Execution.ChildContextRestrictionRequest.PurposeScope.init ->
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.TenantScope.get -> string!
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.TenantScope.init -> void
 OpenConnect.Agents.Execution.ChildResult
+OpenConnect.Agents.Execution.ChildResult.<Clone>$() -> OpenConnect.Agents.Execution.ChildResult!
 OpenConnect.Agents.Execution.ChildResult.AgentId.get -> OpenConnect.Abstractions.AgentId
 OpenConnect.Agents.Execution.ChildResult.AgentId.init -> void
 OpenConnect.Agents.Execution.ChildResult.ChildResult(OpenConnect.Abstractions.AgentId AgentId, OpenConnect.Abstractions.ExecutionId ExecutionId, Microsoft.Agents.AI.AgentResponse! Response, int Order, System.Guid ParentExecutionId, long SourceSequence, string! TenantScope, System.Collections.Generic.IReadOnlySet<string!>! EffectiveScopes) -> void
+OpenConnect.Agents.Execution.ChildResult.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.ExecutionId ExecutionId, out Microsoft.Agents.AI.AgentResponse! Response, out int Order, out System.Guid ParentExecutionId, out long SourceSequence, out string! TenantScope, out System.Collections.Generic.IReadOnlySet<string!>! EffectiveScopes) -> void
 OpenConnect.Agents.Execution.ChildResult.EffectiveScopes.get -> System.Collections.Generic.IReadOnlySet<string!>!
 OpenConnect.Agents.Execution.ChildResult.EffectiveScopes.init -> void
+OpenConnect.Agents.Execution.ChildResult.Equals(OpenConnect.Agents.Execution.ChildResult? other) -> bool
 OpenConnect.Agents.Execution.ChildResult.ExecutionId.get -> OpenConnect.Abstractions.ExecutionId
 OpenConnect.Agents.Execution.ChildResult.ExecutionId.init -> void
 OpenConnect.Agents.Execution.ChildResult.Order.get -> int
@@ -174,17 +194,23 @@ OpenConnect.Agents.Execution.ChildResult.SourceSequence.init -> void
 OpenConnect.Agents.Execution.ChildResult.TenantScope.get -> string!
 OpenConnect.Agents.Execution.ChildResult.TenantScope.init -> void
 OpenConnect.Agents.Execution.ChildSessionCheckpoint
+OpenConnect.Agents.Execution.ChildSessionCheckpoint.<Clone>$() -> OpenConnect.Agents.Execution.ChildSessionCheckpoint!
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.AgentId.get -> string!
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.AgentId.init -> void
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.ChildSessionCheckpoint(string! AgentId, string! SessionKey, int HistoryCount) -> void
+OpenConnect.Agents.Execution.ChildSessionCheckpoint.Deconstruct(out string! AgentId, out string! SessionKey, out int HistoryCount) -> void
+OpenConnect.Agents.Execution.ChildSessionCheckpoint.Equals(OpenConnect.Agents.Execution.ChildSessionCheckpoint? other) -> bool
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.HistoryCount.get -> int
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.HistoryCount.init -> void
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.SessionKey.get -> string!
 OpenConnect.Agents.Execution.ChildSessionCheckpoint.SessionKey.init -> void
 OpenConnect.Agents.Execution.CompactedMemory
+OpenConnect.Agents.Execution.CompactedMemory.<Clone>$() -> OpenConnect.Agents.Execution.CompactedMemory!
 OpenConnect.Agents.Execution.CompactedMemory.CheckpointProvenance.get -> string!
 OpenConnect.Agents.Execution.CompactedMemory.CheckpointProvenance.init -> void
 OpenConnect.Agents.Execution.CompactedMemory.CompactedMemory(string! Text, System.Collections.Generic.IReadOnlyList<string!>! SourceLineage, int TokenEstimate, System.Collections.Generic.IReadOnlyList<string!>! TruncatedItems, string! CheckpointProvenance) -> void
+OpenConnect.Agents.Execution.CompactedMemory.Deconstruct(out string! Text, out System.Collections.Generic.IReadOnlyList<string!>! SourceLineage, out int TokenEstimate, out System.Collections.Generic.IReadOnlyList<string!>! TruncatedItems, out string! CheckpointProvenance) -> void
+OpenConnect.Agents.Execution.CompactedMemory.Equals(OpenConnect.Agents.Execution.CompactedMemory? other) -> bool
 OpenConnect.Agents.Execution.CompactedMemory.SourceLineage.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Agents.Execution.CompactedMemory.SourceLineage.init -> void
 OpenConnect.Agents.Execution.CompactedMemory.Text.get -> string!
@@ -194,6 +220,7 @@ OpenConnect.Agents.Execution.CompactedMemory.TokenEstimate.init -> void
 OpenConnect.Agents.Execution.CompactedMemory.TruncatedItems.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Agents.Execution.CompactedMemory.TruncatedItems.init -> void
 OpenConnect.Agents.Execution.ContextItem
+OpenConnect.Agents.Execution.ContextItem.<Clone>$() -> OpenConnect.Agents.Execution.ContextItem!
 OpenConnect.Agents.Execution.ContextItem.Citation.get -> string?
 OpenConnect.Agents.Execution.ContextItem.Citation.init -> void
 OpenConnect.Agents.Execution.ContextItem.ContainsSecret.get -> bool
@@ -201,6 +228,8 @@ OpenConnect.Agents.Execution.ContextItem.ContainsSecret.init -> void
 OpenConnect.Agents.Execution.ContextItem.ContextItem(string! Id, string! DataClass, string! SummaryOrRef, string? Citation, int TokenEstimate, bool ContainsSecret = false, bool ToolControl = false) -> void
 OpenConnect.Agents.Execution.ContextItem.DataClass.get -> string!
 OpenConnect.Agents.Execution.ContextItem.DataClass.init -> void
+OpenConnect.Agents.Execution.ContextItem.Deconstruct(out string! Id, out string! DataClass, out string! SummaryOrRef, out string? Citation, out int TokenEstimate, out bool ContainsSecret, out bool ToolControl) -> void
+OpenConnect.Agents.Execution.ContextItem.Equals(OpenConnect.Agents.Execution.ContextItem? other) -> bool
 OpenConnect.Agents.Execution.ContextItem.Id.get -> string!
 OpenConnect.Agents.Execution.ContextItem.Id.init -> void
 OpenConnect.Agents.Execution.ContextItem.SummaryOrRef.get -> string!
@@ -215,11 +244,14 @@ OpenConnect.Agents.Execution.ContextProjectionBuilder.Build(OpenConnect.Agents.E
 OpenConnect.Agents.Execution.ContextProjectionBuilder.ContextProjectionBuilder(System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Agents.Execution.ContextProjectionBuilder.RequestAdditional(OpenConnect.Agents.Execution.AgentContextProjection! existing, OpenConnect.Abstractions.AgentId requestor, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Execution.ContextItem!>! extraItems) -> (OpenConnect.Agents.Execution.AgentContextProjection! Projection, int QuarantinedCount)
 OpenConnect.Agents.Execution.ConversationCheckpoint
+OpenConnect.Agents.Execution.ConversationCheckpoint.<Clone>$() -> OpenConnect.Agents.Execution.ConversationCheckpoint!
 OpenConnect.Agents.Execution.ConversationCheckpoint.CatalogRevision.get -> string?
 OpenConnect.Agents.Execution.ConversationCheckpoint.CatalogRevision.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.ChildSessions.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>!
 OpenConnect.Agents.Execution.ConversationCheckpoint.ChildSessions.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.ConversationCheckpoint(string! Version, string! LeadAgentId, string! SessionKey, long TurnSequence, System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! ChildSessions, string? CatalogRevision = null) -> void
+OpenConnect.Agents.Execution.ConversationCheckpoint.Deconstruct(out string! Version, out string! LeadAgentId, out string! SessionKey, out long TurnSequence, out System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! ChildSessions, out string? CatalogRevision) -> void
+OpenConnect.Agents.Execution.ConversationCheckpoint.Equals(OpenConnect.Agents.Execution.ConversationCheckpoint? other) -> bool
 OpenConnect.Agents.Execution.ConversationCheckpoint.LeadAgentId.get -> string!
 OpenConnect.Agents.Execution.ConversationCheckpoint.LeadAgentId.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpoint.SessionKey.get -> string!
@@ -230,9 +262,12 @@ OpenConnect.Agents.Execution.ConversationCheckpoint.Version.get -> string!
 OpenConnect.Agents.Execution.ConversationCheckpoint.Version.init -> void
 OpenConnect.Agents.Execution.ConversationCheckpointCodec
 OpenConnect.Agents.Execution.ConversationTurnEvent
+OpenConnect.Agents.Execution.ConversationTurnEvent.<Clone>$() -> OpenConnect.Agents.Execution.ConversationTurnEvent!
 OpenConnect.Agents.Execution.ConversationTurnEvent.ActorId.get -> string!
 OpenConnect.Agents.Execution.ConversationTurnEvent.ActorId.init -> void
 OpenConnect.Agents.Execution.ConversationTurnEvent.ConversationTurnEvent(System.Guid EventId, string! EventType, OpenConnect.Abstractions.SessionId SessionId, string! TenantScope, long TurnSequence, string! ActorId, System.DateTimeOffset OccurredAt, string! Provenance, string! Summary) -> void
+OpenConnect.Agents.Execution.ConversationTurnEvent.Deconstruct(out System.Guid EventId, out string! EventType, out OpenConnect.Abstractions.SessionId SessionId, out string! TenantScope, out long TurnSequence, out string! ActorId, out System.DateTimeOffset OccurredAt, out string! Provenance, out string! Summary) -> void
+OpenConnect.Agents.Execution.ConversationTurnEvent.Equals(OpenConnect.Agents.Execution.ConversationTurnEvent? other) -> bool
 OpenConnect.Agents.Execution.ConversationTurnEvent.EventId.get -> System.Guid
 OpenConnect.Agents.Execution.ConversationTurnEvent.EventId.init -> void
 OpenConnect.Agents.Execution.ConversationTurnEvent.EventType.get -> string!
@@ -250,10 +285,13 @@ OpenConnect.Agents.Execution.ConversationTurnEvent.TenantScope.init -> void
 OpenConnect.Agents.Execution.ConversationTurnEvent.TurnSequence.get -> long
 OpenConnect.Agents.Execution.ConversationTurnEvent.TurnSequence.init -> void
 OpenConnect.Agents.Execution.ExecutionTraceRecord
+OpenConnect.Agents.Execution.ExecutionTraceRecord.<Clone>$() -> OpenConnect.Agents.Execution.ExecutionTraceRecord!
 OpenConnect.Agents.Execution.ExecutionTraceRecord.AgentId.get -> string!
 OpenConnect.Agents.Execution.ExecutionTraceRecord.AgentId.init -> void
 OpenConnect.Agents.Execution.ExecutionTraceRecord.CompletedAt.get -> System.DateTimeOffset?
 OpenConnect.Agents.Execution.ExecutionTraceRecord.CompletedAt.init -> void
+OpenConnect.Agents.Execution.ExecutionTraceRecord.Deconstruct(out System.Guid Id, out System.Guid? ParentId, out string! AgentId, out string! Kind, out System.DateTimeOffset StartedAt, out System.DateTimeOffset? CompletedAt) -> void
+OpenConnect.Agents.Execution.ExecutionTraceRecord.Equals(OpenConnect.Agents.Execution.ExecutionTraceRecord? other) -> bool
 OpenConnect.Agents.Execution.ExecutionTraceRecord.ExecutionTraceRecord(System.Guid Id, System.Guid? ParentId, string! AgentId, string! Kind, System.DateTimeOffset StartedAt, System.DateTimeOffset? CompletedAt) -> void
 OpenConnect.Agents.Execution.ExecutionTraceRecord.Id.get -> System.Guid
 OpenConnect.Agents.Execution.ExecutionTraceRecord.Id.init -> void
@@ -310,6 +348,9 @@ OpenConnect.Agents.Execution.LeadCapabilityRouter.LeadCapabilityRouter(System.Co
 OpenConnect.Agents.Execution.LeadCapabilityRouter.ResolveChild(string! capability) -> OpenConnect.Abstractions.AgentId
 OpenConnect.Agents.Execution.LeadCapabilityRouter.Validate(OpenConnect.Abstractions.IAgentDefinitionRegistry! catalog, OpenConnect.Abstractions.AgentId leadId) -> void
 OpenConnect.Agents.Execution.LeadSynthesisOutcome
+OpenConnect.Agents.Execution.LeadSynthesisOutcome.<Clone>$() -> OpenConnect.Agents.Execution.LeadSynthesisOutcome!
+OpenConnect.Agents.Execution.LeadSynthesisOutcome.Deconstruct(out string! Text, out int WithheldCount) -> void
+OpenConnect.Agents.Execution.LeadSynthesisOutcome.Equals(OpenConnect.Agents.Execution.LeadSynthesisOutcome? other) -> bool
 OpenConnect.Agents.Execution.LeadSynthesisOutcome.LeadSynthesisOutcome(string! Text, int WithheldCount) -> void
 OpenConnect.Agents.Execution.LeadSynthesisOutcome.Text.get -> string!
 OpenConnect.Agents.Execution.LeadSynthesisOutcome.Text.init -> void
@@ -324,10 +365,13 @@ OpenConnect.Agents.Execution.MafAgentFactory.Delegate(OpenConnect.Agents.Executi
 OpenConnect.Agents.Execution.MafAgentFactory.GetTrace() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ExecutionTraceRecord!>!
 OpenConnect.Agents.Execution.MafAgentFactory.MafAgentFactory(OpenConnect.Abstractions.IAgentDefinitionRegistry! registry) -> void
 OpenConnect.Agents.Execution.MafCapabilityProbe
+OpenConnect.Agents.Execution.MafCapabilityProbe.<Clone>$() -> OpenConnect.Agents.Execution.MafCapabilityProbe!
 OpenConnect.Agents.Execution.MafCapabilityProbe.AssemblyName.get -> string?
 OpenConnect.Agents.Execution.MafCapabilityProbe.AssemblyName.init -> void
 OpenConnect.Agents.Execution.MafCapabilityProbe.Capability.get -> string!
 OpenConnect.Agents.Execution.MafCapabilityProbe.Capability.init -> void
+OpenConnect.Agents.Execution.MafCapabilityProbe.Deconstruct(out string! Capability, out OpenConnect.Agents.Execution.MafCapabilityStatus Status, out string! RequiredTypeName, out string? UnavailableReason, out string? AssemblyName) -> void
+OpenConnect.Agents.Execution.MafCapabilityProbe.Equals(OpenConnect.Agents.Execution.MafCapabilityProbe? other) -> bool
 OpenConnect.Agents.Execution.MafCapabilityProbe.MafCapabilityProbe(string! Capability, OpenConnect.Agents.Execution.MafCapabilityStatus Status, string! RequiredTypeName, string? UnavailableReason, string? AssemblyName) -> void
 OpenConnect.Agents.Execution.MafCapabilityProbe.RequiredTypeName.get -> string!
 OpenConnect.Agents.Execution.MafCapabilityProbe.RequiredTypeName.init -> void
@@ -363,6 +407,9 @@ OpenConnect.Agents.Execution.MafRealAgentFactory.RunConversationAsync(OpenConnec
 OpenConnect.Agents.Execution.MafRuntimeProbe
 OpenConnect.Agents.Execution.MemoryCompaction
 OpenConnect.Agents.Execution.MemoryDeletionRequest
+OpenConnect.Agents.Execution.MemoryDeletionRequest.<Clone>$() -> OpenConnect.Agents.Execution.MemoryDeletionRequest!
+OpenConnect.Agents.Execution.MemoryDeletionRequest.Deconstruct(out string! Scope, out string! MemoryId, out string! Reason) -> void
+OpenConnect.Agents.Execution.MemoryDeletionRequest.Equals(OpenConnect.Agents.Execution.MemoryDeletionRequest? other) -> bool
 OpenConnect.Agents.Execution.MemoryDeletionRequest.MemoryDeletionRequest(string! Scope, string! MemoryId, string! Reason) -> void
 OpenConnect.Agents.Execution.MemoryDeletionRequest.MemoryId.get -> string!
 OpenConnect.Agents.Execution.MemoryDeletionRequest.MemoryId.init -> void
@@ -371,8 +418,11 @@ OpenConnect.Agents.Execution.MemoryDeletionRequest.Reason.init -> void
 OpenConnect.Agents.Execution.MemoryDeletionRequest.Scope.get -> string!
 OpenConnect.Agents.Execution.MemoryDeletionRequest.Scope.init -> void
 OpenConnect.Agents.Execution.MemoryDocument
+OpenConnect.Agents.Execution.MemoryDocument.<Clone>$() -> OpenConnect.Agents.Execution.MemoryDocument!
 OpenConnect.Agents.Execution.MemoryDocument.DataClass.get -> string!
 OpenConnect.Agents.Execution.MemoryDocument.DataClass.init -> void
+OpenConnect.Agents.Execution.MemoryDocument.Deconstruct(out string! Scope, out string! MemoryId, out long Revision, out string! DataClass, out string! Summary, out string! Provenance, out System.DateTimeOffset? ExpiresAt, out bool Tombstoned) -> void
+OpenConnect.Agents.Execution.MemoryDocument.Equals(OpenConnect.Agents.Execution.MemoryDocument? other) -> bool
 OpenConnect.Agents.Execution.MemoryDocument.ExpiresAt.get -> System.DateTimeOffset?
 OpenConnect.Agents.Execution.MemoryDocument.ExpiresAt.init -> void
 OpenConnect.Agents.Execution.MemoryDocument.MemoryDocument(string! Scope, string! MemoryId, long Revision, string! DataClass, string! Summary, string! Provenance, System.DateTimeOffset? ExpiresAt, bool Tombstoned) -> void
@@ -389,16 +439,22 @@ OpenConnect.Agents.Execution.MemoryDocument.Summary.init -> void
 OpenConnect.Agents.Execution.MemoryDocument.Tombstoned.get -> bool
 OpenConnect.Agents.Execution.MemoryDocument.Tombstoned.init -> void
 OpenConnect.Agents.Execution.MemoryLookup
+OpenConnect.Agents.Execution.MemoryLookup.<Clone>$() -> OpenConnect.Agents.Execution.MemoryLookup!
+OpenConnect.Agents.Execution.MemoryLookup.Deconstruct(out string! Scope, out string! MemoryId) -> void
+OpenConnect.Agents.Execution.MemoryLookup.Equals(OpenConnect.Agents.Execution.MemoryLookup? other) -> bool
 OpenConnect.Agents.Execution.MemoryLookup.MemoryId.get -> string!
 OpenConnect.Agents.Execution.MemoryLookup.MemoryId.init -> void
 OpenConnect.Agents.Execution.MemoryLookup.MemoryLookup(string! Scope, string! MemoryId) -> void
 OpenConnect.Agents.Execution.MemoryLookup.Scope.get -> string!
 OpenConnect.Agents.Execution.MemoryLookup.Scope.init -> void
 OpenConnect.Agents.Execution.MemoryWriteRequest
+OpenConnect.Agents.Execution.MemoryWriteRequest.<Clone>$() -> OpenConnect.Agents.Execution.MemoryWriteRequest!
 OpenConnect.Agents.Execution.MemoryWriteRequest.ConsentToken.get -> string?
 OpenConnect.Agents.Execution.MemoryWriteRequest.ConsentToken.init -> void
 OpenConnect.Agents.Execution.MemoryWriteRequest.DataClass.get -> string!
 OpenConnect.Agents.Execution.MemoryWriteRequest.DataClass.init -> void
+OpenConnect.Agents.Execution.MemoryWriteRequest.Deconstruct(out string! Scope, out string! MemoryId, out string! Summary, out string! DataClass, out string! Provenance, out System.TimeSpan? Ttl, out OpenConnect.Abstractions.AgentMemoryWritePolicy WritePolicy, out string? ConsentToken) -> void
+OpenConnect.Agents.Execution.MemoryWriteRequest.Equals(OpenConnect.Agents.Execution.MemoryWriteRequest? other) -> bool
 OpenConnect.Agents.Execution.MemoryWriteRequest.MemoryId.get -> string!
 OpenConnect.Agents.Execution.MemoryWriteRequest.MemoryId.init -> void
 OpenConnect.Agents.Execution.MemoryWriteRequest.MemoryWriteRequest(string! Scope, string! MemoryId, string! Summary, string! DataClass, string! Provenance, System.TimeSpan? Ttl, OpenConnect.Abstractions.AgentMemoryWritePolicy WritePolicy = OpenConnect.Abstractions.AgentMemoryWritePolicy.DenyByDefault, string? ConsentToken = null) -> void
@@ -413,8 +469,11 @@ OpenConnect.Agents.Execution.MemoryWriteRequest.Ttl.init -> void
 OpenConnect.Agents.Execution.MemoryWriteRequest.WritePolicy.get -> OpenConnect.Abstractions.AgentMemoryWritePolicy
 OpenConnect.Agents.Execution.MemoryWriteRequest.WritePolicy.init -> void
 OpenConnect.Agents.Execution.MergeAudit
+OpenConnect.Agents.Execution.MergeAudit.<Clone>$() -> OpenConnect.Agents.Execution.MergeAudit!
 OpenConnect.Agents.Execution.MergeAudit.AcceptedCount.get -> int
 OpenConnect.Agents.Execution.MergeAudit.AcceptedCount.init -> void
+OpenConnect.Agents.Execution.MergeAudit.Deconstruct(out OpenConnect.Abstractions.AgentResultMergeMode Mode, out int InputCount, out int AcceptedCount, out System.Guid ParentExecutionId, out System.Collections.Generic.IReadOnlyList<long>! SourceSequences) -> void
+OpenConnect.Agents.Execution.MergeAudit.Equals(OpenConnect.Agents.Execution.MergeAudit? other) -> bool
 OpenConnect.Agents.Execution.MergeAudit.InputCount.get -> int
 OpenConnect.Agents.Execution.MergeAudit.InputCount.init -> void
 OpenConnect.Agents.Execution.MergeAudit.MergeAudit(OpenConnect.Abstractions.AgentResultMergeMode Mode, int InputCount, int AcceptedCount, System.Guid ParentExecutionId, System.Collections.Generic.IReadOnlyList<long>! SourceSequences) -> void
@@ -425,8 +484,11 @@ OpenConnect.Agents.Execution.MergeAudit.ParentExecutionId.init -> void
 OpenConnect.Agents.Execution.MergeAudit.SourceSequences.get -> System.Collections.Generic.IReadOnlyList<long>!
 OpenConnect.Agents.Execution.MergeAudit.SourceSequences.init -> void
 OpenConnect.Agents.Execution.MergedAgentResult
+OpenConnect.Agents.Execution.MergedAgentResult.<Clone>$() -> OpenConnect.Agents.Execution.MergedAgentResult!
 OpenConnect.Agents.Execution.MergedAgentResult.Audit.get -> OpenConnect.Agents.Execution.MergeAudit!
 OpenConnect.Agents.Execution.MergedAgentResult.Audit.init -> void
+OpenConnect.Agents.Execution.MergedAgentResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>! Results, out System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.QuarantinedChildResult!>! Quarantined, out bool RequiresLeadSynthesis, out OpenConnect.Agents.Execution.MergeAudit! Audit) -> void
+OpenConnect.Agents.Execution.MergedAgentResult.Equals(OpenConnect.Agents.Execution.MergedAgentResult? other) -> bool
 OpenConnect.Agents.Execution.MergedAgentResult.MergedAgentResult(System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>! Results, System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.QuarantinedChildResult!>! Quarantined, bool RequiresLeadSynthesis, OpenConnect.Agents.Execution.MergeAudit! Audit) -> void
 OpenConnect.Agents.Execution.MergedAgentResult.Quarantined.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.QuarantinedChildResult!>!
 OpenConnect.Agents.Execution.MergedAgentResult.Quarantined.init -> void
@@ -439,8 +501,11 @@ OpenConnect.Agents.Execution.ModelHistoryOwner.NativeMafSession = 1 -> OpenConne
 OpenConnect.Agents.Execution.ModelHistoryOwner.ServiceManaged = 2 -> OpenConnect.Agents.Execution.ModelHistoryOwner
 OpenConnect.Agents.Execution.ModelHistoryOwnershipValidator
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy
+OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.<Clone>$() -> OpenConnect.Agents.Execution.ModelHistoryProviderPolicy!
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.AuthoritativeOwner.get -> OpenConnect.Agents.Execution.ModelHistoryOwner
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.AuthoritativeOwner.init -> void
+OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.Deconstruct(out string! ProviderId, out OpenConnect.Agents.Execution.ModelHistoryOwner AuthoritativeOwner) -> void
+OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.Equals(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy? other) -> bool
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.ModelHistoryProviderPolicy(string! ProviderId, OpenConnect.Agents.Execution.ModelHistoryOwner AuthoritativeOwner) -> void
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.ProviderId.get -> string!
 OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.ProviderId.init -> void
@@ -487,8 +552,10 @@ OpenConnect.Agents.Execution.ParallelPartialFailureException.Error.get -> System
 OpenConnect.Agents.Execution.ParallelPartialFailureException.FailedChildId.get -> string!
 OpenConnect.Agents.Execution.ParallelPartialFailureException.ParallelPartialFailureException(string! failedChildId, System.Exception! error, System.Collections.Generic.IReadOnlyList<string!>! completedIds, System.Collections.Generic.IReadOnlyList<string!>! cancelledIds) -> void
 OpenConnect.Agents.Execution.PerCallToolReauthorizer
-static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
 OpenConnect.Agents.Execution.QuarantinedChildResult
+OpenConnect.Agents.Execution.QuarantinedChildResult.<Clone>$() -> OpenConnect.Agents.Execution.QuarantinedChildResult!
+OpenConnect.Agents.Execution.QuarantinedChildResult.Deconstruct(out OpenConnect.Agents.Execution.ChildResult! Result, out string! Reason) -> void
+OpenConnect.Agents.Execution.QuarantinedChildResult.Equals(OpenConnect.Agents.Execution.QuarantinedChildResult? other) -> bool
 OpenConnect.Agents.Execution.QuarantinedChildResult.QuarantinedChildResult(OpenConnect.Agents.Execution.ChildResult! Result, string! Reason) -> void
 OpenConnect.Agents.Execution.QuarantinedChildResult.Reason.get -> string!
 OpenConnect.Agents.Execution.QuarantinedChildResult.Reason.init -> void
@@ -517,6 +584,9 @@ OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveSubagentWithSlot() -> boo
 OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveTokens(long tokens) -> bool
 OpenConnect.Agents.Execution.RunBudgetLedger.TryReserveToolCall() -> bool
 OpenConnect.Agents.Execution.StructuredOutputValidationResult
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.<Clone>$() -> OpenConnect.Agents.Execution.StructuredOutputValidationResult!
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.Deconstruct(out bool IsValid, out string? ValidatedContent, out string? ErrorMessage, out int RepairsAttempted) -> void
+OpenConnect.Agents.Execution.StructuredOutputValidationResult.Equals(OpenConnect.Agents.Execution.StructuredOutputValidationResult? other) -> bool
 OpenConnect.Agents.Execution.StructuredOutputValidationResult.ErrorMessage.get -> string?
 OpenConnect.Agents.Execution.StructuredOutputValidationResult.ErrorMessage.init -> void
 OpenConnect.Agents.Execution.StructuredOutputValidationResult.IsValid.get -> bool
@@ -535,8 +605,11 @@ OpenConnect.Agents.Execution.TenantApplicationRateLimiter.TenantApplicationRateL
 OpenConnect.Agents.Execution.TenantApplicationRateLimiter.TryAcquire(OpenConnect.Abstractions.RateLimitKey! key, string! executionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> OpenConnect.Abstractions.RateLimitDecision!
 OpenConnect.Agents.Execution.TenantApplicationRateLimiter.Verify(OpenConnect.Abstractions.RateLimitAuditRecord! record) -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization
+OpenConnect.Agents.Execution.TransitionAuthorization.<Clone>$() -> OpenConnect.Agents.Execution.TransitionAuthorization!
 OpenConnect.Agents.Execution.TransitionAuthorization.Allowed.get -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization.Allowed.init -> void
+OpenConnect.Agents.Execution.TransitionAuthorization.Deconstruct(out bool Allowed, out bool RequiresFreshUserTask) -> void
+OpenConnect.Agents.Execution.TransitionAuthorization.Equals(OpenConnect.Agents.Execution.TransitionAuthorization? other) -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.get -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.init -> void
 OpenConnect.Agents.Execution.TransitionAuthorization.TransitionAuthorization(bool Allowed, bool RequiresFreshUserTask) -> void
@@ -547,13 +620,15 @@ OpenConnect.Agents.Providers.EchoProvider.SendAsync(OpenConnect.Agents.Providers
 OpenConnect.Agents.Providers.IProviderAdapter
 OpenConnect.Agents.Providers.IProviderAdapter.Descriptor.get -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.IProviderAdapter.SendAsync(OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
+OpenConnect.Agents.Providers.ModelRouteSelector
 OpenConnect.Agents.Providers.ProviderAdapter
 OpenConnect.Agents.Providers.ProviderAdapter.ProviderAdapter(System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.IProviderAdapter!>! providers) -> void
-OpenConnect.Agents.Providers.ModelRouteSelector
-static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.ProviderAdapter.Providers.get -> System.Collections.Generic.IReadOnlyCollection<OpenConnect.Agents.Providers.ProviderDescriptor!>!
 OpenConnect.Agents.Providers.ProviderAdapter.SendAsync(string! providerId, OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
 OpenConnect.Agents.Providers.ProviderDescriptor
+OpenConnect.Agents.Providers.ProviderDescriptor.<Clone>$() -> OpenConnect.Agents.Providers.ProviderDescriptor!
+OpenConnect.Agents.Providers.ProviderDescriptor.Deconstruct(out string! ProviderId, out bool SupportsChat, out bool SupportsStreaming, out bool SupportsTools, out bool SupportsStructuredOutput, out bool SupportsVision, out OpenConnect.Abstractions.ModelExecutionLocation Locality) -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.Equals(OpenConnect.Agents.Providers.ProviderDescriptor? other) -> bool
 OpenConnect.Agents.Providers.ProviderDescriptor.Locality.get -> OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Agents.Providers.ProviderDescriptor.Locality.init -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! ProviderId, bool SupportsChat, bool SupportsStreaming, bool SupportsTools, bool SupportsStructuredOutput, bool SupportsVision = false, OpenConnect.Abstractions.ModelExecutionLocation Locality = OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly) -> void
@@ -571,6 +646,9 @@ OpenConnect.Agents.Providers.ProviderDescriptor.SupportsTools.init -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsVision.get -> bool
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsVision.init -> void
 OpenConnect.Agents.Providers.ProviderRequest
+OpenConnect.Agents.Providers.ProviderRequest.<Clone>$() -> OpenConnect.Agents.Providers.ProviderRequest!
+OpenConnect.Agents.Providers.ProviderRequest.Deconstruct(out string! Prompt, out bool UseStreaming, out bool UseTools, out bool UseStructuredOutput) -> void
+OpenConnect.Agents.Providers.ProviderRequest.Equals(OpenConnect.Agents.Providers.ProviderRequest? other) -> bool
 OpenConnect.Agents.Providers.ProviderRequest.Prompt.get -> string!
 OpenConnect.Agents.Providers.ProviderRequest.Prompt.init -> void
 OpenConnect.Agents.Providers.ProviderRequest.ProviderRequest(string! Prompt, bool UseStreaming = false, bool UseTools = false, bool UseStructuredOutput = false) -> void
@@ -581,8 +659,11 @@ OpenConnect.Agents.Providers.ProviderRequest.UseStructuredOutput.init -> void
 OpenConnect.Agents.Providers.ProviderRequest.UseTools.get -> bool
 OpenConnect.Agents.Providers.ProviderRequest.UseTools.init -> void
 OpenConnect.Agents.Providers.ProviderResponse
+OpenConnect.Agents.Providers.ProviderResponse.<Clone>$() -> OpenConnect.Agents.Providers.ProviderResponse!
 OpenConnect.Agents.Providers.ProviderResponse.Content.get -> string!
 OpenConnect.Agents.Providers.ProviderResponse.Content.init -> void
+OpenConnect.Agents.Providers.ProviderResponse.Deconstruct(out string! Content) -> void
+OpenConnect.Agents.Providers.ProviderResponse.Equals(OpenConnect.Agents.Providers.ProviderResponse? other) -> bool
 OpenConnect.Agents.Providers.ProviderResponse.ProviderResponse(string! Content) -> void
 OpenConnect.Agents.Providers.StreamingTestProvider
 OpenConnect.Agents.Providers.StreamingTestProvider.Descriptor.get -> OpenConnect.Agents.Providers.ProviderDescriptor!
@@ -646,12 +727,16 @@ OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentTemplateBuilder.Sa
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentTemplateBuilder.Version.get -> string!
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentTemplateBuilder.Version.set -> void
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration
+OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.<Clone>$() -> OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration!
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.AgentId.get -> OpenConnect.Abstractions.AgentId
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.AgentId.init -> void
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.CatalogRevision.get -> string?
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.CatalogRevision.init -> void
+OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out string? CatalogRevision) -> void
+OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.Equals(OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration? other) -> bool
 OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.LeadAgentRegistration(OpenConnect.Abstractions.AgentId AgentId, string? CatalogRevision = null) -> void
 OpenConnect.Agents.Templates.AgentTemplate
+OpenConnect.Agents.Templates.AgentTemplate.<Clone>$() -> OpenConnect.Agents.Templates.AgentTemplate!
 OpenConnect.Agents.Templates.AgentTemplate.AckPolicy.get -> OpenConnect.Abstractions.ToolAcknowledgementMode
 OpenConnect.Agents.Templates.AgentTemplate.AckPolicy.init -> void
 OpenConnect.Agents.Templates.AgentTemplate.AgentTemplate(string! Id, string! Version, string! Description, string! InstructionsPath, OpenConnect.Abstractions.ModelRequirement? ModelRequirements, System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! AllowedToolIds, string? OutputSchemaRef, OpenConnect.Abstractions.AgentBudget! Budget, OpenConnect.Abstractions.AgentMemoryPolicy! MemoryPolicy, OpenConnect.Abstractions.AgentContextSharingMode ContextSharing, OpenConnect.Abstractions.ToolAcknowledgementMode AckPolicy, string! SafetyLabel, string? BaseTemplateId = null, System.Collections.Generic.IReadOnlySet<string!>? AllowedScopes = null) -> void
@@ -665,8 +750,10 @@ OpenConnect.Agents.Templates.AgentTemplate.Budget.get -> OpenConnect.Abstraction
 OpenConnect.Agents.Templates.AgentTemplate.Budget.init -> void
 OpenConnect.Agents.Templates.AgentTemplate.ContextSharing.get -> OpenConnect.Abstractions.AgentContextSharingMode
 OpenConnect.Agents.Templates.AgentTemplate.ContextSharing.init -> void
+OpenConnect.Agents.Templates.AgentTemplate.Deconstruct(out string! Id, out string! Version, out string! Description, out string! InstructionsPath, out OpenConnect.Abstractions.ModelRequirement? ModelRequirements, out System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.ToolId>! AllowedToolIds, out string? OutputSchemaRef, out OpenConnect.Abstractions.AgentBudget! Budget, out OpenConnect.Abstractions.AgentMemoryPolicy! MemoryPolicy, out OpenConnect.Abstractions.AgentContextSharingMode ContextSharing, out OpenConnect.Abstractions.ToolAcknowledgementMode AckPolicy, out string! SafetyLabel, out string? BaseTemplateId, out System.Collections.Generic.IReadOnlySet<string!>? AllowedScopes) -> void
 OpenConnect.Agents.Templates.AgentTemplate.Description.get -> string!
 OpenConnect.Agents.Templates.AgentTemplate.Description.init -> void
+OpenConnect.Agents.Templates.AgentTemplate.Equals(OpenConnect.Agents.Templates.AgentTemplate? other) -> bool
 OpenConnect.Agents.Templates.AgentTemplate.Id.get -> string!
 OpenConnect.Agents.Templates.AgentTemplate.Id.init -> void
 OpenConnect.Agents.Templates.AgentTemplate.InstructionsPath.get -> string!
@@ -686,10 +773,13 @@ OpenConnect.Agents.Templates.InstructionLoaderAdapter.InstructionLoaderAdapter(S
 OpenConnect.Agents.Templates.InstructionLoaderAdapter.LoadAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<(string! Content, string! Revision)>!
 OpenConnect.Agents.Templates.LeadResolver
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution
+OpenConnect.Agents.Templates.LeadResolver.LeadResolution.<Clone>$() -> OpenConnect.Agents.Templates.LeadResolver.LeadResolution!
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.BoundTaskId.get -> OpenConnect.Abstractions.TaskId
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.BoundTaskId.init -> void
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.CatalogRevision.get -> string!
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.CatalogRevision.init -> void
+OpenConnect.Agents.Templates.LeadResolver.LeadResolution.Deconstruct(out OpenConnect.Abstractions.AgentDefinition! Lead, out string! CatalogRevision, out OpenConnect.Abstractions.TaskId BoundTaskId) -> void
+OpenConnect.Agents.Templates.LeadResolver.LeadResolution.Equals(OpenConnect.Agents.Templates.LeadResolver.LeadResolution? other) -> bool
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.Lead.get -> OpenConnect.Abstractions.AgentDefinition!
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.Lead.init -> void
 OpenConnect.Agents.Templates.LeadResolver.LeadResolution.LeadResolution(OpenConnect.Abstractions.AgentDefinition! Lead, string! CatalogRevision, OpenConnect.Abstractions.TaskId BoundTaskId) -> void
@@ -697,8 +787,11 @@ OpenConnect.Agents.Templates.LeadResolver.LeadResolver() -> void
 OpenConnect.Agents.Templates.LeadResolver.Resolve(OpenConnect.Abstractions.TaskId taskId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentDefinition!>! catalog, OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration! registration) -> (OpenConnect.Abstractions.AgentDefinition! Lead, string! CatalogRevision)
 OpenConnect.Agents.Templates.LeadResolver.ResolveBound(OpenConnect.Abstractions.TaskId taskId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.AgentDefinition!>! catalog, OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration! registration) -> OpenConnect.Agents.Templates.LeadResolver.LeadResolution!
 OpenConnect.Agents.Templates.RenderedTemplateInstructions
+OpenConnect.Agents.Templates.RenderedTemplateInstructions.<Clone>$() -> OpenConnect.Agents.Templates.RenderedTemplateInstructions!
 OpenConnect.Agents.Templates.RenderedTemplateInstructions.Content.get -> string!
 OpenConnect.Agents.Templates.RenderedTemplateInstructions.Content.init -> void
+OpenConnect.Agents.Templates.RenderedTemplateInstructions.Deconstruct(out string! Content, out string! Revision) -> void
+OpenConnect.Agents.Templates.RenderedTemplateInstructions.Equals(OpenConnect.Agents.Templates.RenderedTemplateInstructions? other) -> bool
 OpenConnect.Agents.Templates.RenderedTemplateInstructions.RenderedTemplateInstructions(string! Content, string! Revision) -> void
 OpenConnect.Agents.Templates.RenderedTemplateInstructions.Revision.get -> string!
 OpenConnect.Agents.Templates.RenderedTemplateInstructions.Revision.init -> void
@@ -711,35 +804,190 @@ OpenConnect.Agents.Templates.TemplateRegistry.Resolve(string! id) -> OpenConnect
 OpenConnect.Agents.Templates.TemplateRegistry.TemplateRegistry() -> void
 OpenConnect.Agents.Templates.TemplateRegistry.TryGetMigration(string! oldTemplateId, out string? newTemplateId) -> bool
 OpenConnect.Agents.Templates.TemplateVariables
+OpenConnect.Agents.Templates.TemplateVariables.<Clone>$() -> OpenConnect.Agents.Templates.TemplateVariables!
 OpenConnect.Agents.Templates.TemplateVariables.ApplicationName.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.ApplicationName.init -> void
+OpenConnect.Agents.Templates.TemplateVariables.Equals(OpenConnect.Agents.Templates.TemplateVariables? other) -> bool
 OpenConnect.Agents.Templates.TemplateVariables.Locale.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.Locale.init -> void
 OpenConnect.Agents.Templates.TemplateVariables.TaskGoal.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.TaskGoal.init -> void
+OpenConnect.Agents.Templates.TemplateVariables.TemplateVariables() -> void
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.init -> void
 const OpenConnect.Agents.Catalog.AgentCatalog.FrameworkMaxDepth = 2 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
 const OpenConnect.Agents.Execution.ConversationCheckpointCodec.CurrentVersion = "oc-checkpoint/v1" -> string!
 const OpenConnect.Agents.Execution.ConversationCheckpointCodec.MaxCheckpointChildren = 64 -> int
+override OpenConnect.Agents.Catalog.DelegationParentContext.Equals(object? obj) -> bool
+override OpenConnect.Agents.Catalog.DelegationParentContext.GetHashCode() -> int
+override OpenConnect.Agents.Catalog.DelegationParentContext.ToString() -> string!
+override OpenConnect.Agents.Catalog.DelegationRequest.Equals(object? obj) -> bool
+override OpenConnect.Agents.Catalog.DelegationRequest.GetHashCode() -> int
+override OpenConnect.Agents.Catalog.DelegationRequest.ToString() -> string!
+override OpenConnect.Agents.Execution.AgentContextProjection.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.AgentContextProjection.GetHashCode() -> int
+override OpenConnect.Agents.Execution.AgentContextProjection.ToString() -> string!
+override OpenConnect.Agents.Execution.AgentExecutionContext.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.AgentExecutionContext.GetHashCode() -> int
+override OpenConnect.Agents.Execution.AgentExecutionContext.ToString() -> string!
+override OpenConnect.Agents.Execution.AgentRun.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.AgentRun.GetHashCode() -> int
+override OpenConnect.Agents.Execution.AgentRun.ToString() -> string!
+override OpenConnect.Agents.Execution.AttachmentObjectRef.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.AttachmentObjectRef.GetHashCode() -> int
+override OpenConnect.Agents.Execution.AttachmentObjectRef.ToString() -> string!
+override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ToString() -> string!
+override OpenConnect.Agents.Execution.ChildResult.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ChildResult.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ChildResult.ToString() -> string!
+override OpenConnect.Agents.Execution.ChildSessionCheckpoint.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ChildSessionCheckpoint.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ChildSessionCheckpoint.ToString() -> string!
+override OpenConnect.Agents.Execution.CompactedMemory.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.CompactedMemory.GetHashCode() -> int
+override OpenConnect.Agents.Execution.CompactedMemory.ToString() -> string!
+override OpenConnect.Agents.Execution.ContextItem.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ContextItem.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ContextItem.ToString() -> string!
+override OpenConnect.Agents.Execution.ConversationCheckpoint.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ConversationCheckpoint.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ConversationCheckpoint.ToString() -> string!
+override OpenConnect.Agents.Execution.ConversationTurnEvent.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ConversationTurnEvent.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ConversationTurnEvent.ToString() -> string!
+override OpenConnect.Agents.Execution.ExecutionTraceRecord.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ExecutionTraceRecord.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ExecutionTraceRecord.ToString() -> string!
 override OpenConnect.Agents.Execution.FirewallGuardedChatClient.GetResponseAsync(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>! messages, Microsoft.Extensions.AI.ChatOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Microsoft.Extensions.AI.ChatResponse!>!
 override OpenConnect.Agents.Execution.FirewallGuardedChatClient.GetService(System.Type! serviceType, object? serviceKey = null) -> object?
 override OpenConnect.Agents.Execution.FirewallGuardedChatClient.GetStreamingResponseAsync(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>! messages, Microsoft.Extensions.AI.ChatOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Microsoft.Extensions.AI.ChatResponseUpdate!>!
+override OpenConnect.Agents.Execution.LeadSynthesisOutcome.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.LeadSynthesisOutcome.GetHashCode() -> int
+override OpenConnect.Agents.Execution.LeadSynthesisOutcome.ToString() -> string!
+override OpenConnect.Agents.Execution.MafCapabilityProbe.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MafCapabilityProbe.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MafCapabilityProbe.ToString() -> string!
+override OpenConnect.Agents.Execution.MemoryDeletionRequest.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MemoryDeletionRequest.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MemoryDeletionRequest.ToString() -> string!
+override OpenConnect.Agents.Execution.MemoryDocument.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MemoryDocument.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MemoryDocument.ToString() -> string!
+override OpenConnect.Agents.Execution.MemoryLookup.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MemoryLookup.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MemoryLookup.ToString() -> string!
+override OpenConnect.Agents.Execution.MemoryWriteRequest.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MemoryWriteRequest.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MemoryWriteRequest.ToString() -> string!
+override OpenConnect.Agents.Execution.MergeAudit.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MergeAudit.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MergeAudit.ToString() -> string!
+override OpenConnect.Agents.Execution.MergedAgentResult.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.MergedAgentResult.GetHashCode() -> int
+override OpenConnect.Agents.Execution.MergedAgentResult.ToString() -> string!
+override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.GetHashCode() -> int
+override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.ToString() -> string!
+override OpenConnect.Agents.Execution.QuarantinedChildResult.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.QuarantinedChildResult.GetHashCode() -> int
+override OpenConnect.Agents.Execution.QuarantinedChildResult.ToString() -> string!
+override OpenConnect.Agents.Execution.StructuredOutputValidationResult.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.StructuredOutputValidationResult.GetHashCode() -> int
+override OpenConnect.Agents.Execution.StructuredOutputValidationResult.ToString() -> string!
+override OpenConnect.Agents.Execution.TransitionAuthorization.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.TransitionAuthorization.GetHashCode() -> int
+override OpenConnect.Agents.Execution.TransitionAuthorization.ToString() -> string!
+override OpenConnect.Agents.Providers.ProviderDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Agents.Providers.ProviderDescriptor.GetHashCode() -> int
+override OpenConnect.Agents.Providers.ProviderDescriptor.ToString() -> string!
+override OpenConnect.Agents.Providers.ProviderRequest.Equals(object? obj) -> bool
+override OpenConnect.Agents.Providers.ProviderRequest.GetHashCode() -> int
+override OpenConnect.Agents.Providers.ProviderRequest.ToString() -> string!
+override OpenConnect.Agents.Providers.ProviderResponse.Equals(object? obj) -> bool
+override OpenConnect.Agents.Providers.ProviderResponse.GetHashCode() -> int
+override OpenConnect.Agents.Providers.ProviderResponse.ToString() -> string!
+override OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.Equals(object? obj) -> bool
+override OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.GetHashCode() -> int
+override OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.ToString() -> string!
+override OpenConnect.Agents.Templates.AgentTemplate.Equals(object? obj) -> bool
+override OpenConnect.Agents.Templates.AgentTemplate.GetHashCode() -> int
+override OpenConnect.Agents.Templates.AgentTemplate.ToString() -> string!
+override OpenConnect.Agents.Templates.LeadResolver.LeadResolution.Equals(object? obj) -> bool
+override OpenConnect.Agents.Templates.LeadResolver.LeadResolution.GetHashCode() -> int
+override OpenConnect.Agents.Templates.LeadResolver.LeadResolution.ToString() -> string!
+override OpenConnect.Agents.Templates.RenderedTemplateInstructions.Equals(object? obj) -> bool
+override OpenConnect.Agents.Templates.RenderedTemplateInstructions.GetHashCode() -> int
+override OpenConnect.Agents.Templates.RenderedTemplateInstructions.ToString() -> string!
+override OpenConnect.Agents.Templates.TemplateVariables.Equals(object? obj) -> bool
+override OpenConnect.Agents.Templates.TemplateVariables.GetHashCode() -> int
+override OpenConnect.Agents.Templates.TemplateVariables.ToString() -> string!
 static OpenConnect.Agents.Catalog.AgentCatalog.Validate(System.Collections.Generic.IEnumerable<OpenConnect.Abstractions.AgentDefinition!>! definitions) -> void
+static OpenConnect.Agents.Catalog.DelegationParentContext.operator !=(OpenConnect.Agents.Catalog.DelegationParentContext? left, OpenConnect.Agents.Catalog.DelegationParentContext? right) -> bool
+static OpenConnect.Agents.Catalog.DelegationParentContext.operator ==(OpenConnect.Agents.Catalog.DelegationParentContext? left, OpenConnect.Agents.Catalog.DelegationParentContext? right) -> bool
+static OpenConnect.Agents.Catalog.DelegationRequest.operator !=(OpenConnect.Agents.Catalog.DelegationRequest? left, OpenConnect.Agents.Catalog.DelegationRequest? right) -> bool
+static OpenConnect.Agents.Catalog.DelegationRequest.operator ==(OpenConnect.Agents.Catalog.DelegationRequest? left, OpenConnect.Agents.Catalog.DelegationRequest? right) -> bool
+static OpenConnect.Agents.Execution.AgentContextProjection.operator !=(OpenConnect.Agents.Execution.AgentContextProjection? left, OpenConnect.Agents.Execution.AgentContextProjection? right) -> bool
+static OpenConnect.Agents.Execution.AgentContextProjection.operator ==(OpenConnect.Agents.Execution.AgentContextProjection? left, OpenConnect.Agents.Execution.AgentContextProjection? right) -> bool
+static OpenConnect.Agents.Execution.AgentExecutionContext.operator !=(OpenConnect.Agents.Execution.AgentExecutionContext? left, OpenConnect.Agents.Execution.AgentExecutionContext? right) -> bool
+static OpenConnect.Agents.Execution.AgentExecutionContext.operator ==(OpenConnect.Agents.Execution.AgentExecutionContext? left, OpenConnect.Agents.Execution.AgentExecutionContext? right) -> bool
+static OpenConnect.Agents.Execution.AgentRun.operator !=(OpenConnect.Agents.Execution.AgentRun? left, OpenConnect.Agents.Execution.AgentRun? right) -> bool
+static OpenConnect.Agents.Execution.AgentRun.operator ==(OpenConnect.Agents.Execution.AgentRun? left, OpenConnect.Agents.Execution.AgentRun? right) -> bool
 static OpenConnect.Agents.Execution.AgentRunStateMachine.IsTerminal(OpenConnect.Abstractions.AgentRunState state) -> bool
 static OpenConnect.Agents.Execution.AgentRunStateMachine.Validate(OpenConnect.Abstractions.AgentRunState from, OpenConnect.Abstractions.AgentRunState to) -> void
+static OpenConnect.Agents.Execution.AttachmentObjectRef.operator !=(OpenConnect.Agents.Execution.AttachmentObjectRef? left, OpenConnect.Agents.Execution.AttachmentObjectRef? right) -> bool
+static OpenConnect.Agents.Execution.AttachmentObjectRef.operator ==(OpenConnect.Agents.Execution.AttachmentObjectRef? left, OpenConnect.Agents.Execution.AttachmentObjectRef? right) -> bool
 static OpenConnect.Agents.Execution.ChildContextRestrictionGate.ValidateChildRestriction(OpenConnect.Agents.Execution.AgentExecutionContext! parentContext, string! parentDataZone, string! parentModelRoute, System.Collections.Generic.IReadOnlySet<string!>! allowedDataClasses, System.Collections.Generic.IReadOnlySet<OpenConnect.Abstractions.AgentId>! allowedChildAgents, OpenConnect.Agents.Execution.ChildContextRestrictionRequest! request) -> void
+static OpenConnect.Agents.Execution.ChildContextRestrictionRequest.operator !=(OpenConnect.Agents.Execution.ChildContextRestrictionRequest? left, OpenConnect.Agents.Execution.ChildContextRestrictionRequest? right) -> bool
+static OpenConnect.Agents.Execution.ChildContextRestrictionRequest.operator ==(OpenConnect.Agents.Execution.ChildContextRestrictionRequest? left, OpenConnect.Agents.Execution.ChildContextRestrictionRequest? right) -> bool
+static OpenConnect.Agents.Execution.ChildResult.operator !=(OpenConnect.Agents.Execution.ChildResult? left, OpenConnect.Agents.Execution.ChildResult? right) -> bool
+static OpenConnect.Agents.Execution.ChildResult.operator ==(OpenConnect.Agents.Execution.ChildResult? left, OpenConnect.Agents.Execution.ChildResult? right) -> bool
+static OpenConnect.Agents.Execution.ChildSessionCheckpoint.operator !=(OpenConnect.Agents.Execution.ChildSessionCheckpoint? left, OpenConnect.Agents.Execution.ChildSessionCheckpoint? right) -> bool
+static OpenConnect.Agents.Execution.ChildSessionCheckpoint.operator ==(OpenConnect.Agents.Execution.ChildSessionCheckpoint? left, OpenConnect.Agents.Execution.ChildSessionCheckpoint? right) -> bool
+static OpenConnect.Agents.Execution.CompactedMemory.operator !=(OpenConnect.Agents.Execution.CompactedMemory? left, OpenConnect.Agents.Execution.CompactedMemory? right) -> bool
+static OpenConnect.Agents.Execution.CompactedMemory.operator ==(OpenConnect.Agents.Execution.CompactedMemory? left, OpenConnect.Agents.Execution.CompactedMemory? right) -> bool
+static OpenConnect.Agents.Execution.ContextItem.operator !=(OpenConnect.Agents.Execution.ContextItem? left, OpenConnect.Agents.Execution.ContextItem? right) -> bool
+static OpenConnect.Agents.Execution.ContextItem.operator ==(OpenConnect.Agents.Execution.ContextItem? left, OpenConnect.Agents.Execution.ContextItem? right) -> bool
 static OpenConnect.Agents.Execution.ContextProjectionBounds.GetMaxBudget(OpenConnect.Abstractions.AgentContextSharingMode mode) -> int
 static OpenConnect.Agents.Execution.ContextProjectionBounds.ValidateBounds(OpenConnect.Abstractions.AgentContextSharingMode mode, int tokenBudget, System.TimeSpan ttl) -> void
+static OpenConnect.Agents.Execution.ConversationCheckpoint.operator !=(OpenConnect.Agents.Execution.ConversationCheckpoint? left, OpenConnect.Agents.Execution.ConversationCheckpoint? right) -> bool
+static OpenConnect.Agents.Execution.ConversationCheckpoint.operator ==(OpenConnect.Agents.Execution.ConversationCheckpoint? left, OpenConnect.Agents.Execution.ConversationCheckpoint? right) -> bool
 static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Export(string! leadAgentId, string! sessionKey, long turnSequence, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Execution.ChildSessionCheckpoint!>! childSessions, string? catalogRevision = null) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
 static OpenConnect.Agents.Execution.ConversationCheckpointCodec.Import(OpenConnect.Agents.Execution.ConversationCheckpoint! checkpoint, string! expectedLeadAgentId, string! expectedSessionKey, string? expectedCatalogRevision = null) -> OpenConnect.Agents.Execution.ConversationCheckpoint!
+static OpenConnect.Agents.Execution.ConversationTurnEvent.operator !=(OpenConnect.Agents.Execution.ConversationTurnEvent? left, OpenConnect.Agents.Execution.ConversationTurnEvent? right) -> bool
+static OpenConnect.Agents.Execution.ConversationTurnEvent.operator ==(OpenConnect.Agents.Execution.ConversationTurnEvent? left, OpenConnect.Agents.Execution.ConversationTurnEvent? right) -> bool
+static OpenConnect.Agents.Execution.ExecutionTraceRecord.operator !=(OpenConnect.Agents.Execution.ExecutionTraceRecord? left, OpenConnect.Agents.Execution.ExecutionTraceRecord? right) -> bool
+static OpenConnect.Agents.Execution.ExecutionTraceRecord.operator ==(OpenConnect.Agents.Execution.ExecutionTraceRecord? left, OpenConnect.Agents.Execution.ExecutionTraceRecord? right) -> bool
 static OpenConnect.Agents.Execution.FirewallGuardedChatClientExtensions.AddFirewallGuardedChatClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, OpenConnect.Privacy.EgressContext! context) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Agents.Execution.LeadSynthesisOutcome.operator !=(OpenConnect.Agents.Execution.LeadSynthesisOutcome? left, OpenConnect.Agents.Execution.LeadSynthesisOutcome? right) -> bool
+static OpenConnect.Agents.Execution.LeadSynthesisOutcome.operator ==(OpenConnect.Agents.Execution.LeadSynthesisOutcome? left, OpenConnect.Agents.Execution.LeadSynthesisOutcome? right) -> bool
+static OpenConnect.Agents.Execution.MafCapabilityProbe.operator !=(OpenConnect.Agents.Execution.MafCapabilityProbe? left, OpenConnect.Agents.Execution.MafCapabilityProbe? right) -> bool
+static OpenConnect.Agents.Execution.MafCapabilityProbe.operator ==(OpenConnect.Agents.Execution.MafCapabilityProbe? left, OpenConnect.Agents.Execution.MafCapabilityProbe? right) -> bool
 static OpenConnect.Agents.Execution.MafRuntimeProbe.GetAgentApiInventory() -> System.Collections.Generic.IReadOnlyList<string!>!
 static OpenConnect.Agents.Execution.MafRuntimeProbe.GetWorkflowCapabilityMatrix() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.MafCapabilityProbe!>!
 static OpenConnect.Agents.Execution.MemoryCompaction.Compact(System.Collections.Generic.IReadOnlyList<string!>! recentTurns, System.Collections.Generic.IReadOnlyList<string!>! prioritizedDecisions, string! handoffSummary, System.Collections.Generic.IReadOnlyList<string!>! approvedMemories, int tokenBudget, System.Collections.Generic.IReadOnlyList<string!>! mustRetain, System.Collections.Generic.IReadOnlyList<string!>? approvalRefs = null) -> OpenConnect.Agents.Execution.CompactedMemory!
+static OpenConnect.Agents.Execution.MemoryDeletionRequest.operator !=(OpenConnect.Agents.Execution.MemoryDeletionRequest? left, OpenConnect.Agents.Execution.MemoryDeletionRequest? right) -> bool
+static OpenConnect.Agents.Execution.MemoryDeletionRequest.operator ==(OpenConnect.Agents.Execution.MemoryDeletionRequest? left, OpenConnect.Agents.Execution.MemoryDeletionRequest? right) -> bool
+static OpenConnect.Agents.Execution.MemoryDocument.operator !=(OpenConnect.Agents.Execution.MemoryDocument? left, OpenConnect.Agents.Execution.MemoryDocument? right) -> bool
+static OpenConnect.Agents.Execution.MemoryDocument.operator ==(OpenConnect.Agents.Execution.MemoryDocument? left, OpenConnect.Agents.Execution.MemoryDocument? right) -> bool
+static OpenConnect.Agents.Execution.MemoryLookup.operator !=(OpenConnect.Agents.Execution.MemoryLookup? left, OpenConnect.Agents.Execution.MemoryLookup? right) -> bool
+static OpenConnect.Agents.Execution.MemoryLookup.operator ==(OpenConnect.Agents.Execution.MemoryLookup? left, OpenConnect.Agents.Execution.MemoryLookup? right) -> bool
+static OpenConnect.Agents.Execution.MemoryWriteRequest.operator !=(OpenConnect.Agents.Execution.MemoryWriteRequest? left, OpenConnect.Agents.Execution.MemoryWriteRequest? right) -> bool
+static OpenConnect.Agents.Execution.MemoryWriteRequest.operator ==(OpenConnect.Agents.Execution.MemoryWriteRequest? left, OpenConnect.Agents.Execution.MemoryWriteRequest? right) -> bool
+static OpenConnect.Agents.Execution.MergeAudit.operator !=(OpenConnect.Agents.Execution.MergeAudit? left, OpenConnect.Agents.Execution.MergeAudit? right) -> bool
+static OpenConnect.Agents.Execution.MergeAudit.operator ==(OpenConnect.Agents.Execution.MergeAudit? left, OpenConnect.Agents.Execution.MergeAudit? right) -> bool
+static OpenConnect.Agents.Execution.MergedAgentResult.operator !=(OpenConnect.Agents.Execution.MergedAgentResult? left, OpenConnect.Agents.Execution.MergedAgentResult? right) -> bool
+static OpenConnect.Agents.Execution.MergedAgentResult.operator ==(OpenConnect.Agents.Execution.MergedAgentResult? left, OpenConnect.Agents.Execution.MergedAgentResult? right) -> bool
 static OpenConnect.Agents.Execution.ModelHistoryOwnershipValidator.IsNativeMafSession(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy! policy) -> bool
 static OpenConnect.Agents.Execution.ModelHistoryOwnershipValidator.IsServiceManaged(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy! policy) -> bool
 static OpenConnect.Agents.Execution.ModelHistoryOwnershipValidator.Validate(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy! policy) -> void
+static OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.operator !=(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy? left, OpenConnect.Agents.Execution.ModelHistoryProviderPolicy? right) -> bool
+static OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.operator ==(OpenConnect.Agents.Execution.ModelHistoryProviderPolicy? left, OpenConnect.Agents.Execution.ModelHistoryProviderPolicy? right) -> bool
 static OpenConnect.Agents.Execution.NativeWorkflowInteraction.StartAsync<TInput>(Microsoft.Agents.AI.Workflows.Workflow! workflow, TInput trustedInput, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Agents.Execution.NativeWorkflowInteraction!>!
 static OpenConnect.Agents.Execution.OperationalBoundary.AssertCrossModeTransition(OpenConnect.Abstractions.AgentExecutionMode from, OpenConnect.Abstractions.AgentExecutionMode to, bool isExplicitEnqueue) -> OpenConnect.Agents.Execution.TransitionAuthorization!
 static OpenConnect.Agents.Execution.OperationalBoundary.AssertInteractive(OpenConnect.Agents.Execution.AgentExecutionContext! context) -> void
@@ -749,10 +997,35 @@ static OpenConnect.Agents.Execution.OrchestrationProfileRouter.Resolve(OpenConne
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateAgentProfile(OpenConnect.Abstractions.AgentDefinition! definition, bool mafDirect, bool mafSequential, bool mafParallel, bool mafHandoff, bool mafSupervisor) -> void
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateExecutionProfile(string! profile) -> void
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateRuntimeProfile(string! profile) -> void
+static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
+static OpenConnect.Agents.Execution.QuarantinedChildResult.operator !=(OpenConnect.Agents.Execution.QuarantinedChildResult? left, OpenConnect.Agents.Execution.QuarantinedChildResult? right) -> bool
+static OpenConnect.Agents.Execution.QuarantinedChildResult.operator ==(OpenConnect.Agents.Execution.QuarantinedChildResult? left, OpenConnect.Agents.Execution.QuarantinedChildResult? right) -> bool
 static OpenConnect.Agents.Execution.RateLimitServiceCollectionExtensions.AddTenantApplicationRateLimiting(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Execution.ResultMerger.Merge(System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>! children, System.Guid expectedParentExecutionId, string! expectedTenantScope, OpenConnect.Abstractions.AgentResultMergeMode mode, System.Func<OpenConnect.Agents.Execution.ChildResult!, bool>? validator = null, System.Func<System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>!, OpenConnect.Agents.Execution.MergedAgentResult!>? explicitReducer = null) -> OpenConnect.Agents.Execution.MergedAgentResult!
+static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator !=(OpenConnect.Agents.Execution.StructuredOutputValidationResult? left, OpenConnect.Agents.Execution.StructuredOutputValidationResult? right) -> bool
+static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator ==(OpenConnect.Agents.Execution.StructuredOutputValidationResult? left, OpenConnect.Agents.Execution.StructuredOutputValidationResult? right) -> bool
+static OpenConnect.Agents.Execution.TransitionAuthorization.operator !=(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
+static OpenConnect.Agents.Execution.TransitionAuthorization.operator ==(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
+static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
+static OpenConnect.Agents.Providers.ProviderDescriptor.operator !=(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool
+static OpenConnect.Agents.Providers.ProviderDescriptor.operator ==(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool
+static OpenConnect.Agents.Providers.ProviderRequest.operator !=(OpenConnect.Agents.Providers.ProviderRequest? left, OpenConnect.Agents.Providers.ProviderRequest? right) -> bool
+static OpenConnect.Agents.Providers.ProviderRequest.operator ==(OpenConnect.Agents.Providers.ProviderRequest? left, OpenConnect.Agents.Providers.ProviderRequest? right) -> bool
+static OpenConnect.Agents.Providers.ProviderResponse.operator !=(OpenConnect.Agents.Providers.ProviderResponse? left, OpenConnect.Agents.Providers.ProviderResponse? right) -> bool
+static OpenConnect.Agents.Providers.ProviderResponse.operator ==(OpenConnect.Agents.Providers.ProviderResponse? left, OpenConnect.Agents.Providers.ProviderResponse? right) -> bool
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectAgent(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentDefinitionBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectAgentTemplate(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentTemplateBuilder!>? configure = null, bool allowWidening = false) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectLeadAgent(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentDefinitionBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.operator !=(OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration? left, OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration? right) -> bool
+static OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration.operator ==(OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration? left, OpenConnect.Agents.Templates.AgentRegistrationExtensions.LeadAgentRegistration? right) -> bool
+static OpenConnect.Agents.Templates.AgentTemplate.operator !=(OpenConnect.Agents.Templates.AgentTemplate? left, OpenConnect.Agents.Templates.AgentTemplate? right) -> bool
+static OpenConnect.Agents.Templates.AgentTemplate.operator ==(OpenConnect.Agents.Templates.AgentTemplate? left, OpenConnect.Agents.Templates.AgentTemplate? right) -> bool
+static OpenConnect.Agents.Templates.LeadResolver.LeadResolution.operator !=(OpenConnect.Agents.Templates.LeadResolver.LeadResolution? left, OpenConnect.Agents.Templates.LeadResolver.LeadResolution? right) -> bool
+static OpenConnect.Agents.Templates.LeadResolver.LeadResolution.operator ==(OpenConnect.Agents.Templates.LeadResolver.LeadResolution? left, OpenConnect.Agents.Templates.LeadResolver.LeadResolution? right) -> bool
+static OpenConnect.Agents.Templates.RenderedTemplateInstructions.operator !=(OpenConnect.Agents.Templates.RenderedTemplateInstructions? left, OpenConnect.Agents.Templates.RenderedTemplateInstructions? right) -> bool
+static OpenConnect.Agents.Templates.RenderedTemplateInstructions.operator ==(OpenConnect.Agents.Templates.RenderedTemplateInstructions? left, OpenConnect.Agents.Templates.RenderedTemplateInstructions? right) -> bool
+static OpenConnect.Agents.Templates.TemplateVariables.operator !=(OpenConnect.Agents.Templates.TemplateVariables? left, OpenConnect.Agents.Templates.TemplateVariables? right) -> bool
+static OpenConnect.Agents.Templates.TemplateVariables.operator ==(OpenConnect.Agents.Templates.TemplateVariables? left, OpenConnect.Agents.Templates.TemplateVariables? right) -> bool
 static readonly OpenConnect.Agents.Execution.ContextProjectionBounds.MaxAllowableTtl -> System.TimeSpan
 static readonly OpenConnect.Agents.Execution.ContextProjectionBounds.MinAllowableTtl -> System.TimeSpan
+virtual OpenConnect.Agents.Execution.IsExecutionRevoked.Invoke(OpenConnect.Agents.Execution.AgentExecutionContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>

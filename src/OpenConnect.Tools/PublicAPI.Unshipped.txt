@@ -2,8 +2,11 @@
 OpenConnect.Tools.IToolAccessPolicy
 OpenConnect.Tools.IToolAccessPolicy.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Tools.ToolAccessRequest
+OpenConnect.Tools.ToolAccessRequest.<Clone>$() -> OpenConnect.Tools.ToolAccessRequest!
 OpenConnect.Tools.ToolAccessRequest.AgentId.get -> OpenConnect.Abstractions.AgentId
 OpenConnect.Tools.ToolAccessRequest.AgentId.init -> void
+OpenConnect.Tools.ToolAccessRequest.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.ToolId ToolId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.TaskId TaskId) -> void
+OpenConnect.Tools.ToolAccessRequest.Equals(OpenConnect.Tools.ToolAccessRequest? other) -> bool
 OpenConnect.Tools.ToolAccessRequest.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
 OpenConnect.Tools.ToolAccessRequest.PrincipalId.init -> void
 OpenConnect.Tools.ToolAccessRequest.TaskId.get -> OpenConnect.Abstractions.TaskId
@@ -43,8 +46,11 @@ OpenConnect.Tools.ToolCatalog.GetForAgent(OpenConnect.Abstractions.AgentId agent
 OpenConnect.Tools.ToolCatalog.Register(OpenConnect.Tools.ToolRegistration! registration, System.Collections.Generic.IEnumerable<OpenConnect.Abstractions.AgentId>! allowedAgents) -> void
 OpenConnect.Tools.ToolCatalog.ToolCatalog(OpenConnect.Tools.ToolAuthorizationService! authorization) -> void
 OpenConnect.Tools.ToolRegistration
+OpenConnect.Tools.ToolRegistration.<Clone>$() -> OpenConnect.Tools.ToolRegistration!
+OpenConnect.Tools.ToolRegistration.Deconstruct(out OpenConnect.Abstractions.ToolDescriptor! Descriptor, out string! JsonSchema, out System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, out bool RequiresApproval) -> void
 OpenConnect.Tools.ToolRegistration.Descriptor.get -> OpenConnect.Abstractions.ToolDescriptor!
 OpenConnect.Tools.ToolRegistration.Descriptor.init -> void
+OpenConnect.Tools.ToolRegistration.Equals(OpenConnect.Tools.ToolRegistration? other) -> bool
 OpenConnect.Tools.ToolRegistration.InvokeAsync.get -> System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>!
 OpenConnect.Tools.ToolRegistration.InvokeAsync.init -> void
 OpenConnect.Tools.ToolRegistration.JsonSchema.get -> string!
@@ -53,7 +59,17 @@ OpenConnect.Tools.ToolRegistration.RequiresApproval.get -> bool
 OpenConnect.Tools.ToolRegistration.RequiresApproval.init -> void
 OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.ToolDescriptor! Descriptor, string! JsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, bool RequiresApproval = false) -> void
 OpenConnect.Tools.ToolRetryClassifier
-static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
 OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
+override OpenConnect.Tools.ToolAccessRequest.Equals(object? obj) -> bool
+override OpenConnect.Tools.ToolAccessRequest.GetHashCode() -> int
+override OpenConnect.Tools.ToolAccessRequest.ToString() -> string!
+override OpenConnect.Tools.ToolRegistration.Equals(object? obj) -> bool
+override OpenConnect.Tools.ToolRegistration.GetHashCode() -> int
+override OpenConnect.Tools.ToolRegistration.ToString() -> string!
+static OpenConnect.Tools.ToolAccessRequest.operator !=(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
+static OpenConnect.Tools.ToolAccessRequest.operator ==(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
 static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
+static OpenConnect.Tools.ToolRegistration.operator !=(OpenConnect.Tools.ToolRegistration? left, OpenConnect.Tools.ToolRegistration? right) -> bool
+static OpenConnect.Tools.ToolRegistration.operator ==(OpenConnect.Tools.ToolRegistration? left, OpenConnect.Tools.ToolRegistration? right) -> bool
+static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
