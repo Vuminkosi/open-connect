@@ -12,7 +12,8 @@ internal sealed class EfEventJournal<TContext>(TContext context) : IEventJournal
     {
         var session = UlidGuidMapper.ToGuid(@event.SessionId.Value);
         var owner = await context.Set<SessionEntity>().AsNoTracking().SingleOrDefaultAsync(x => x.SessionId == session, cancellationToken).ConfigureAwait(false);
-        if (owner is null) throw new KeyNotFoundException("session_not_found");
+        if (owner is null)
+            throw new KeyNotFoundException("session_not_found");
 
         var set = context.Set<EventEntity>();
         // OC2-D-DATA-017: the (TenantScope, SessionId, Sequence) unique index is the fence. Concurrent admitted
@@ -35,7 +36,8 @@ internal sealed class EfEventJournal<TContext>(TContext context) : IEventJournal
             {
                 context.Entry(row).State = EntityState.Detached;
                 var taken = await set.AsNoTracking().AnyAsync(x => x.TenantScope == owner.TenantScope && x.SessionId == session && x.Sequence == sequence, cancellationToken).ConfigureAwait(false);
-                if (!taken) throw;
+                if (!taken)
+                    throw;
             }
             catch (DbUpdateException) when (context.Database.CurrentTransaction is not null)
             {
@@ -49,9 +51,11 @@ internal sealed class EfEventJournal<TContext>(TContext context) : IEventJournal
     {
         var session = UlidGuidMapper.ToGuid(sessionId.Value);
         var owner = await context.Set<SessionEntity>().AsNoTracking().SingleOrDefaultAsync(x => x.SessionId == session, cancellationToken).ConfigureAwait(false);
-        if (owner is null) yield break;
+        if (owner is null)
+            yield break;
 
         var rows = await context.Set<EventEntity>().AsNoTracking().Where(x => x.SessionId == session && x.TenantScope == owner.TenantScope && x.Sequence > afterSequence).OrderBy(x => x.Sequence).Take(200).ToListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var row in rows) { cancellationToken.ThrowIfCancellationRequested(); yield return new(sessionId, row.Sequence, row.EventType, row.SanitizedPayload); }
+        foreach (var row in rows)
+        { cancellationToken.ThrowIfCancellationRequested(); yield return new(sessionId, row.Sequence, row.EventType, row.SanitizedPayload); }
     }
 }

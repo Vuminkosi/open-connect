@@ -1,8 +1,8 @@
-using Xunit;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
+using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
 

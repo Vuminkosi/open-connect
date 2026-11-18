@@ -16,7 +16,8 @@ public sealed class RunBudgetLedgerTests
     {
         var ledger = new RunBudgetLedger(Budget());
 
-        for (var i = 0; i < 8; i++) Assert.True(ledger.TryReserveSubagent(1, 0));
+        for (var i = 0; i < 8; i++)
+            Assert.True(ledger.TryReserveSubagent(1, 0));
         Assert.False(ledger.TryReserveSubagent(1, 0));
         Assert.Equal(0, ledger.Remaining.MaxTotalAgents);
     }
@@ -38,13 +39,7 @@ public sealed class RunBudgetLedgerTests
         const long amount = 7;
         const int attempts = 32;
         var ledger = new RunBudgetLedger(Budget(tokens: limit));
-        using var barrier = new Barrier(attempts);
-
-        var results = await Task.WhenAll(Enumerable.Range(0, attempts).Select(_ => Task.Run(() =>
-        {
-            barrier.SignalAndWait();
-            return ledger.TryReserveTokens(amount);
-        })));
+        var results = await RunContendersAsync(attempts, () => ledger.TryReserveTokens(amount));
 
         var successes = results.Count(reserved => reserved);
         var remaining = ledger.Remaining.MaxTokens;
@@ -61,18 +56,14 @@ public sealed class RunBudgetLedgerTests
     public async Task CombinedReservations_NeverExceedConcurrencyAndDebitOnlySuccessfulChildren()
     {
         var ledger = new RunBudgetLedger(Budget(subagents: 8));
-        using var barrier = new Barrier(8);
-        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() =>
-        {
-            barrier.SignalAndWait();
-            return ledger.TryReserveSubagentWithSlot();
-        })));
+        var results = await RunContendersAsync(8, ledger.TryReserveSubagentWithSlot);
 
         Assert.Equal(3, results.Count(x => x));
         Assert.Equal(5, ledger.Remaining.MaxTotalAgents);
         Assert.False(ledger.TryReserveSubagentWithSlot());
         Assert.Equal(5, ledger.Remaining.MaxTotalAgents);
-        for (var i = 0; i < 3; i++) Assert.True(ledger.ReleaseActiveChild());
+        for (var i = 0; i < 3; i++)
+            Assert.True(ledger.ReleaseActiveChild());
         Assert.False(ledger.ReleaseActiveChild());
     }
 
@@ -91,9 +82,11 @@ public sealed class RunBudgetLedgerTests
     {
         var ledger = new RunBudgetLedger(Budget());
 
-        for (var i = 0; i < 20; i++) Assert.True(ledger.TryReserveToolCall());
+        for (var i = 0; i < 20; i++)
+            Assert.True(ledger.TryReserveToolCall());
         Assert.False(ledger.TryReserveToolCall());
-        for (var i = 0; i < 12; i++) Assert.True(ledger.TryReserveModelCall(1));
+        for (var i = 0; i < 12; i++)
+            Assert.True(ledger.TryReserveModelCall(1));
         Assert.False(ledger.TryReserveModelCall(1));
         Assert.Equal(0, ledger.Remaining.MaxToolCalls);
         Assert.Equal(0, ledger.Remaining.MaxModelCalls);
@@ -167,7 +160,8 @@ public sealed class RunBudgetLedgerTests
         var registry = new Registry(new AgentDefinition(new AgentId("child"), "child"));
         var client = new Client(async (_, token) =>
         {
-            if (Interlocked.Increment(ref enteredCount) == 3) entered.TrySetResult();
+            if (Interlocked.Increment(ref enteredCount) == 3)
+                entered.TrySetResult();
             await finish.Task.WaitAsync(token);
             return "done";
         });
@@ -176,13 +170,21 @@ public sealed class RunBudgetLedgerTests
         var execution = new ExecutionId(Ulid.NewUlid());
         var context = new AgentExecutionContext
         {
-            TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-            SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()), AgentExecutionId = execution,
-            Depth = 0, CatalogRevision = 1, PolicyRevision = 1, AuthRevision = 1,
+            TenantScope = "tenant",
+            PrincipalOrWorkloadScope = "principal",
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = new SessionId(Ulid.NewUlid()),
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = execution,
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
             Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
             RemainingBudgets = ImmutableDictionary<string, long>.Empty.Add("MaxToolCalls", 1).Add("MaxModelCalls", 1)
                 .Add("MaxTokens", 100).Add("MaxConcurrent", 1).Add("MaxQueued", 2).Add("MaxTotal", 10)
-                .Add("MaxRuntimeTicks", long.MaxValue), CancellationToken = timeout.Token
+                .Add("MaxRuntimeTicks", long.MaxValue),
+            CancellationToken = timeout.Token
         };
         var ledger = new RunBudgetLedger(new AgentBudget(20, 20, 1000, TimeSpan.FromMinutes(1), 3, 2, 10));
         OrchestrationAdapters MakeAdapter() => new(factory, runner, (_, _, _) => ValueTask.FromResult<DelegationGrant?>(null),
@@ -198,6 +200,32 @@ public sealed class RunBudgetLedgerTests
         Assert.True(ledger.TryAcquireActiveChild());
         Assert.True(ledger.ReleaseActiveChild());
         Assert.False(ledger.ReleaseActiveChild());
+    }
+
+    private static async Task<T[]> RunContendersAsync<T>(int count, Func<T> action)
+    {
+        // Every contender reaches the gate before release, but waiting must not
+        // occupy pool threads: a synchronous 32-party Barrier starves unrelated
+        // native workflow/MCP continuations on runners with fewer worker threads.
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrivals = 0;
+        var contenders = Enumerable.Range(0, count).Select(_ => Task.Run(async () =>
+        {
+            if (Interlocked.Increment(ref arrivals) == count)
+                ready.TrySetResult();
+            await start.Task;
+            return action();
+        })).ToArray();
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            start.TrySetResult();
+        }
+        return await Task.WhenAll(contenders).WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     private static Guid ToTraceId(ExecutionId id)

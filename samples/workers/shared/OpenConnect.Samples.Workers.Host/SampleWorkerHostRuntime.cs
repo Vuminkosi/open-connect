@@ -49,7 +49,8 @@ public sealed class FakeExternalModelSink
     public void Reset()
     {
         Interlocked.Exchange(ref _receivedBytes, 0);
-        while (_receivedPayloads.TryDequeue(out _)) { }
+        while (_receivedPayloads.TryDequeue(out _))
+        { }
     }
 }
 

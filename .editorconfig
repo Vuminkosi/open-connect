@@ -17,6 +17,8 @@ indent_style = space
 
 # C# files
 [*.cs]
+# Match committed source and keep formatter results portable across platforms.
+end_of_line = lf
 
 # New line preferences
 csharp_new_line_before_open_brace = all

@@ -101,12 +101,13 @@ function Get-E2EScrubbedTail {
         [Parameter(Mandatory = $true)][string]$LogFile,
         [int]$MaxLines = 12
     )
-    if (-not (Test-Path -Path $LogFile)) { return '(no log file produced)' }
+    $logPaths = @($LogFile, "$LogFile.stderr.log") | Where-Object { Test-Path -LiteralPath $_ }
+    if (@($logPaths).Count -eq 0) { return '(no log file produced)' }
     # Drop any line shaped like an assigned secret before printing. Samples are
     # designed not to emit secrets; this is defense-in-depth for harness output.
-    $lines = Get-Content -Path $LogFile |
+    $lines = @(Get-Content -LiteralPath $logPaths |
         Where-Object { $_ -notmatch '(?i)(password|passwd|pwd|secret|token|connection\s*string)\s*=' } |
-        Select-Object -Last $MaxLines
+        Select-Object -Last $MaxLines)
     if ($lines -eq $null -or $lines.Count -eq 0) { return '(log empty after scrub)' }
     return ([string]::Join([Environment]::NewLine, $lines))
 }

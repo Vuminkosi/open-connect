@@ -1,13 +1,13 @@
-using System.Net.Http.Json;
-using System.Net;
-using System.Text.Json;
 using System.ClientModel;
+using System.Net;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using OpenAI.Chat;
 using OpenAI;
+using OpenAI.Chat;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore;
@@ -50,7 +50,8 @@ public sealed class MetaCloudOptions
             throw new InvalidOperationException("TODO_SERVICE_URL must be an exact loopback authority in local acceptance mode.");
         if (guardEnabled && string.Equals(guardCredential, todoToken, StringComparison.Ordinal))
             throw new InvalidOperationException("The local guard and Todo credentials must be distinct.");
-        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) throw new InvalidOperationException("OpenConnect:ApiUrl must be an absolute Meta-compatible endpoint.");
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _))
+            throw new InvalidOperationException("OpenConnect:ApiUrl must be an absolute Meta-compatible endpoint.");
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(todoUrl) || string.IsNullOrWhiteSpace(todoToken) || string.IsNullOrWhiteSpace(tenant))
             throw new InvalidOperationException("Meta inference and internal Todo service configuration are required.");
         return new MetaCloudOptions
@@ -144,7 +145,8 @@ public sealed class TodoServiceClient(HttpClient httpClient, IOptions<MetaCloudO
             request.Headers.Add("X-OpenConnect-Local-Guard", _options.LocalGuardCredential);
         request.Headers.Add("X-OpenConnect-Tenant", _options.TodoTenant);
         request.Headers.Add("X-OpenConnect-Principal", "gateway-workload");
-        if (payload is not null) request.Content = JsonContent.Create(payload);
+        if (payload is not null)
+            request.Content = JsonContent.Create(payload);
         if (_options.LocalGuardCredential.Length != 0)
         {
             // A supplied HttpClient can hide an auto-redirecting handler. Never send
@@ -176,10 +178,12 @@ public sealed class SampleTodoTaskAuthorizer(IOptions<MetaCloudOptions> options)
     public Task AuthorizeAsync(HostTaskExecution task, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (task.TenantId == default || task.PrincipalId == default) throw new UnauthorizedAccessException("Missing trusted task scope.");
+        if (task.TenantId == default || task.PrincipalId == default)
+            throw new UnauthorizedAccessException("Missing trusted task scope.");
         if (!options.Value.IsConfiguredTenant(task.TenantId))
             throw new UnauthorizedAccessException("This task is not authorized for the Todo service.");
-        if (string.IsNullOrWhiteSpace(task.Message)) throw new UnauthorizedAccessException("Task message is empty.");
+        if (string.IsNullOrWhiteSpace(task.Message))
+            throw new UnauthorizedAccessException("Task message is empty.");
         return Task.CompletedTask;
     }
 }
@@ -317,7 +321,8 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             }
             Messages.Add(new ChatMessage(ChatRole.User, user));
             Messages.Add(new ChatMessage(ChatRole.Assistant, assistant));
-            while (Messages.Count > MaxTurns * 2) Messages.RemoveRange(0, 2);
+            while (Messages.Count > MaxTurns * 2)
+                Messages.RemoveRange(0, 2);
             TodoContext = todoContext;
         }
 
@@ -371,11 +376,13 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
     private static string? RequestedTodoMutation(string message)
     {
         if (message.Contains('?') || Regex.IsMatch(message, @"\b(?:not|never|without|don't|do\s+not)\b",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100))) return null;
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)))
+            return null;
         var match = Regex.Match(message,
             @"^\s*(?:please\s+)?(?<operation>create|add|complete|finish|delete|remove|update|change)\s+(?:(?:a|an|the|my|this)\s+)?(?:new\s+)?(?:todo|to-do|task)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-        if (!match.Success) return null;
+        if (!match.Success)
+            return null;
         return match.Groups["operation"].Value.ToLowerInvariant() switch
         {
             "create" or "add" => "create",
@@ -393,14 +400,19 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         var match = Regex.Match(message,
             @"^\s*(?:please\s+)?(?:create|add)\s+(?:(?:a|an|the|my|this)\s+)?(?:new\s+)?(?:todo|to-do|task)\s+(?:called|named)\s+(?<title>""[^""]+""|'[^']+'|[^""']+?)(?:\s+with\s+(?<priority>low|medium|high|urgent)\s+priority)?\s*$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-        if (!match.Success) return null;
+        if (!match.Success)
+            return null;
         var title = match.Groups["title"].Value.Trim();
         var quoted = title.Length >= 2 && (title[0] == '"' && title[^1] == '"' || title[0] == '\'' && title[^1] == '\'');
-        if (match.Groups["priority"].Success && !quoted) return null;
-        if (quoted) title = title[1..^1];
+        if (match.Groups["priority"].Success && !quoted)
+            return null;
+        if (quoted)
+            title = title[1..^1];
         else if (Regex.IsMatch(title, @"\b(?:due|description)\b|\bwith\s+(?:a\s+)?(?:priority|description)\b",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100))) return null;
-        if (string.IsNullOrWhiteSpace(title) || title.Length > 200 || title.Any(char.IsControl)) return null;
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)))
+            return null;
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 200 || title.Any(char.IsControl))
+            return null;
         var priority = match.Groups["priority"].Value.ToLowerInvariant() switch
         {
             "low" => "Low",
@@ -428,7 +440,8 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
         var match = Regex.Match(message,
             @"^\s*(?:please\s+)?(?:complete|finish|delete|remove|update|change)\s+(?:(?:a|an|the|my|this)\s+)?(?:todo|to-do|task)\s+(?:(?:named|called)\s+)?(?<target>.+?)\s*$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-        if (!match.Success) return null;
+        if (!match.Success)
+            return null;
         var target = match.Groups["target"].Value.Trim();
         bool? completed = null;
         if (mutation == "update")
@@ -436,7 +449,8 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             var update = Regex.Match(target,
                 @"^(?<target>""[^""]+""|'[^']+'|[0-9a-fA-F-]{36})\s+to\s+(?<status>completed|active|incomplete)$",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-            if (!update.Success) return null;
+            if (!update.Success)
+                return null;
             target = update.Groups["target"].Value;
             completed = string.Equals(update.Groups["status"].Value, "completed", StringComparison.OrdinalIgnoreCase);
         }
@@ -444,7 +458,8 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             target = target[1..^1];
         if (Guid.TryParseExact(target, "D", out var id))
             return id == Guid.Empty ? null : new AuthorizedTodoTarget(id, completed);
-        if (string.IsNullOrWhiteSpace(target)) return null;
+        if (string.IsNullOrWhiteSpace(target))
+            return null;
         var matches = (await todo.ListAsync(cancellationToken).ConfigureAwait(false))
             .Where(item => string.Equals(item.Title, target, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
         return matches.Length == 1 && matches[0].Id != Guid.Empty ? new AuthorizedTodoTarget(matches[0].Id, completed) : null;

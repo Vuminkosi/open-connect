@@ -24,6 +24,40 @@ function fakeLookup(host) {
 }
 
 describe('policy', () => {
+  it('denies bracketed private and mapped IPv6 URLs without DNS resolution', async () => {
+    let lookups = 0;
+    for (const ip of ['::1', '::ffff:127.0.0.1', '::ffff:10.0.0.1', '::ffff:169.254.169.254', 'fd12::1', 'fc12::1', 'fe90::1']) {
+      const origin = `http://[${ip}]:8080`;
+      const canonicalOrigin = new URL(origin).origin;
+      await assert.rejects(
+        policy.assertNavigationAllowed(`${origin}/`, [canonicalOrigin], async () => {
+          lookups += 1;
+          throw new Error('literal IP must not reach DNS');
+        }),
+        (err) => err.status === 403 && err.code === 'invalid_request',
+      );
+    }
+    assert.equal(lookups, 0);
+  });
+
+  it('blocks expanded private and scoped IPv6 addresses returned by DNS', async () => {
+    for (const address of ['0:0:0:0:0:0:0:1', '0:0:0:0:0:ffff:7f00:1', 'fe80::1%eth0']) {
+      await assert.rejects(
+        policy.assertNavigationAllowed('https://example.com/', ['https://example.com'], async () => [
+          { address, family: 6 },
+        ]),
+        (err) => err.status === 403 && err.code === 'invalid_request',
+      );
+    }
+  });
+
+  it('accepts an approved public IPv6 literal without DNS resolution', async () => {
+    const origin = 'https://[2606:4700:4700::1111]';
+    assert.equal(await policy.assertNavigationAllowed(`${origin}/`, [origin], async () => {
+      assert.fail('literal IP must not reach DNS');
+    }), origin);
+  });
+
   it('denies non-http schemes (file/javascript/data)', () => {
     for (const u of ['file:///etc/passwd', 'javascript:alert(1)', 'data:text/html,hi', 'ftp://x/y']) {
       assert.throws(() => policy.originOf(u), /scheme not allowed/);
@@ -327,5 +361,41 @@ describe('http facade', () => {
     const ok = await postExecute({ tool: 'wait', args: { ms: 250 } });
     assert.equal(ok.status, 200);
     assert.equal(ok.json.waitedMs, 250);
+  });
+});
+
+
+describe('HTTP resolver injection', () => {
+  it('uses only server-owned DNS answers and preserves fail-closed validation', async () => {
+    let records = [{ address: '93.184.216.34', family: 4 }];
+    const server = createServer({ lookup: async (hostname) => {
+      assert.equal(hostname, 'example.com');
+      if (records === null) throw new Error('synthetic DNS failure');
+      return records;
+    } });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const endpoint = `http://127.0.0.1:${server.address().port}/internal/v1/execute`;
+    async function execute() {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        // A client-supplied lookup field cannot override the server dependency.
+        body: JSON.stringify({ tool: 'observe', args: { url: 'https://example.com/' }, lookup: 'public' }),
+      });
+      return { status: response.status, body: await response.json() };
+    }
+    try {
+      assert.equal((await execute()).status, 200);
+      records = [{ address: '127.0.0.1', family: 4 }];
+      const denied = await execute();
+      assert.equal(denied.status, 403);
+      assert.equal(denied.body.error.code, 'invalid_request');
+      records = null;
+      const unresolved = await execute();
+      assert.equal(unresolved.status, 400);
+      assert.equal(unresolved.body.error.code, 'invalid_request');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });

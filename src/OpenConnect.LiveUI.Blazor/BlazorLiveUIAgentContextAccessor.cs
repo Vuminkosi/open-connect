@@ -26,7 +26,8 @@ public sealed class BlazorLiveUIAgentContextAccessor(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
-        if (manifest is null) return null;
+        if (manifest is null)
+            return null;
 
         var currentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath;
         var route = LiveUIRouteMatcher.Resolve(manifest.Routes, currentPath);

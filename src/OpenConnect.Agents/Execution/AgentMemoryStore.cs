@@ -44,7 +44,8 @@ public sealed class InMemorySessionMemoryStore : IAgentMemoryStore
     public InMemorySessionMemoryStore(IEnumerable<string>? allowedDataClasses = null, TimeProvider? timeProvider = null)
     {
         _allowedDataClasses = new HashSet<string>(allowedDataClasses ?? ["session"], StringComparer.Ordinal);
-        if (_allowedDataClasses.Any(string.IsNullOrWhiteSpace)) throw new ArgumentException("Data classes must be non-empty.", nameof(allowedDataClasses));
+        if (_allowedDataClasses.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Data classes must be non-empty.", nameof(allowedDataClasses));
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -77,7 +78,8 @@ public sealed class InMemorySessionMemoryStore : IAgentMemoryStore
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Summary);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.DataClass);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Provenance);
-        if (request.Ttl is { } ttl && ttl <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(request), "TTL must be positive.");
+        if (request.Ttl is { } ttl && ttl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(request), "TTL must be positive.");
         cancellationToken.ThrowIfCancellationRequested();
         var consent = !string.IsNullOrWhiteSpace(request.ConsentToken);
         var permitted = request.WritePolicy switch
@@ -94,7 +96,8 @@ public sealed class InMemorySessionMemoryStore : IAgentMemoryStore
         {
             var key = (request.Scope, request.MemoryId);
             var old = _documents.GetValueOrDefault(key);
-            if (old?.Tombstoned == true) throw new InvalidOperationException("A tombstoned memory item cannot be resurrected.");
+            if (old?.Tombstoned == true)
+                throw new InvalidOperationException("A tombstoned memory item cannot be resurrected.");
             var doc = new MemoryDocument(request.Scope, request.MemoryId, checked((old?.Revision ?? 0) + 1), request.DataClass,
                 request.Summary, request.Provenance, request.Ttl is { } duration ? _timeProvider.GetUtcNow() + duration : null, false);
             _documents[key] = doc;

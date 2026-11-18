@@ -21,8 +21,10 @@ internal sealed class EfSessionStore<TContext>(TContext context) : ISessionStore
         var entity = await context.Set<SessionEntity>().SingleOrDefaultAsync(x => x.SessionId == id && x.TenantScope == tenant && x.PrincipalScope == principal, ct).ConfigureAwait(false);
         // DateTime.UtcNow is the approved interim clock; no IClock dependency is introduced.
         var now = DateTime.UtcNow;
-        if (entity is null) context.Add(new SessionEntity { SessionId = id, TenantScope = tenant, PrincipalScope = principal, Version = record.Version, CreatedUtc = now, UpdatedUtc = now });
-        else { entity.Version = record.Version; entity.UpdatedUtc = now; }
+        if (entity is null)
+            context.Add(new SessionEntity { SessionId = id, TenantScope = tenant, PrincipalScope = principal, Version = record.Version, CreatedUtc = now, UpdatedUtc = now });
+        else
+        { entity.Version = record.Version; entity.UpdatedUtc = now; }
         await context.SaveChangesAsync(ct).ConfigureAwait(false);
         return record;
     }

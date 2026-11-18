@@ -227,7 +227,8 @@ public sealed class MafNativeCapabilityLabTests
         public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             orderLog.Add($"{stage}:Before");
-            if (stage == "Inner") orderLog.Add("CoreClient");
+            if (stage == "Inner")
+                orderLog.Add("CoreClient");
             var response = await base.GetResponseAsync(messages, options, cancellationToken);
             orderLog.Add($"{stage}:After");
             return response;

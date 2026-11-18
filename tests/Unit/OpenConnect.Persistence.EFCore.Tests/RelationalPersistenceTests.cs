@@ -1,16 +1,16 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using System.Text;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Persistence.EFCore.Entities;
-using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Health;
+using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Stores;
 using Xunit;
 
@@ -66,7 +66,8 @@ public sealed class RelationalPersistenceTests
                 Assert.Equal(1, await journal.AppendAsync(new(sessionId, 0, "created", "one")));
                 Assert.Equal(2, await journal.AppendAsync(new(sessionId, 0, "updated", "two")));
                 var events = new List<EventRecord>();
-                await foreach (var item in journal.ReplayAsync(sessionId)) events.Add(item);
+                await foreach (var item in journal.ReplayAsync(sessionId))
+                    events.Add(item);
                 Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Sequence));
                 Assert.Equal(new[] { "created", "updated" }, events.Select(e => e.Type));
                 var outbox = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
@@ -147,9 +148,9 @@ public sealed class RelationalPersistenceTests
         var encrypted = System.Text.Encoding.UTF8.GetBytes("ciphertext-only");
         await vault.StoreAsync(new("token-live", Tenant, "principal", session, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
         await vault.StoreAsync(new("token-expired", Tenant, "principal", session, "email", [9, 8, 7], DateTimeOffset.UtcNow.AddMinutes(-1)));
-        Assert.Equal(encrypted, (await vault.GetAsync("token-live", Tenant))!.EncryptedValue);
+        Assert.Equal(encrypted, (await vault.GetAsync("token-live", Tenant, "principal", session))!.EncryptedValue);
         await vault.DeleteExpiredAsync(DateTimeOffset.UtcNow);
-        Assert.Null(await vault.GetAsync("token-expired", Tenant));
+        Assert.Null(await vault.GetAsync("token-expired", Tenant, "principal", session));
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = "SELECT EncryptedValue FROM oc_PrivacyTokens";
         await using var reader = await command.ExecuteReaderAsync();
@@ -347,7 +348,8 @@ public sealed class RelationalPersistenceTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 

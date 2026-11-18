@@ -18,7 +18,8 @@ public sealed class InMemoryVectorStore : IVectorStore
     public Task<IReadOnlyList<VectorPoint>> SearchAsync(string tenantId, string agentId, ReadOnlyMemory<float> vector, int limit, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit));
         // Tenant and agent predicates are applied before ranking; payload metadata never grants access.
         IReadOnlyList<VectorPoint> result = _points.Values
             .Where(point => point.TenantId == tenantId && point.AgentId == agentId)
@@ -39,7 +40,8 @@ public sealed class InMemoryVectorStore : IVectorStore
 
     private static double Similarity(ReadOnlySpan<float> left, ReadOnlySpan<float> right)
     {
-        if (left.Length != right.Length || left.Length == 0) return 0;
+        if (left.Length != right.Length || left.Length == 0)
+            return 0;
         double dot = 0, leftNorm = 0, rightNorm = 0;
         for (var index = 0; index < left.Length; index++)
         {

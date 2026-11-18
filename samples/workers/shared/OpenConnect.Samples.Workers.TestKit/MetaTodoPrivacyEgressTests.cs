@@ -38,7 +38,8 @@ public sealed class MetaTodoPrivacyEgressTests
             new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
-            message, "acknowledgement") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" },
+            message, "acknowledgement")
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" },
             CancellationToken.None);
 
         Assert.Equal("I’ll check your request. ", sessions.GetEvents(session.Value, 0).First(item => item.Type == "message").Data);
@@ -63,7 +64,8 @@ public sealed class MetaTodoPrivacyEgressTests
             new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
-            "Navigate to the Completed tab.", "interactive-origin") { Origin = origin, ClientConnectionId = "bound-client" }, CancellationToken.None);
+            "Navigate to the Completed tab.", "interactive-origin")
+        { Origin = origin, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.Equal(expected, chat.ToolNames.Contains("liveui_infer_plan"));
         Assert.DoesNotContain(chat.ToolNames, name => name.StartsWith("navigator.", StringComparison.Ordinal));
@@ -134,9 +136,11 @@ public sealed class MetaTodoPrivacyEgressTests
             new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
-            "Highlight the task list.", "first") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+            "Highlight the task list.", "first")
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
-            "Highlight it again.", "follow-up") { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+            "Highlight it again.", "follow-up")
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.Contains(chat.OutboundMessages, message => message.Role == ChatRole.User && message.Text == "Highlight the task list.");
         Assert.Contains(chat.OutboundMessages, message => message.Role == ChatRole.Assistant && message.Text == "Handled safely.");
@@ -169,7 +173,7 @@ public sealed class MetaTodoPrivacyEgressTests
         var otherSession = sessions.Create(tenant, principal).Id;
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, otherSession,
             "Which one should I do next?", "other-session")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "other-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "other-client" }, CancellationToken.None);
         Assert.DoesNotContain("todo.list", chat.ToolNames);
         await Send("Which one should I do next?");
         Assert.Contains("todo.list", chat.ToolNames);
@@ -207,7 +211,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             message, Guid.NewGuid().ToString())
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.Contains("todo.list", chat.ToolNames);
         Assert.DoesNotContain(chat.ToolNames, name => name is "todo.create" or "todo.complete" or "todo.update" or "todo.delete");
@@ -241,7 +245,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             message, Guid.NewGuid().ToString())
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.Equal(exposed ? new[] { expectedTool } : [],
             chat.ToolNames.Where(name => name is "todo.create" or "todo.complete" or "todo.update" or "todo.delete"));
@@ -272,7 +276,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             $"{command} {target:D}{(tool == "todo.update" ? " to completed" : "")}", "bound-mutation")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.NotNull(chat.InvocationError);
@@ -300,7 +304,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             $"Update the task {target:D} to completed", "bound-status")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.NotNull(chat.InvocationError);
@@ -328,7 +332,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             "Delete the task report", "bound-title")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.Null(chat.InvocationError);
@@ -358,7 +362,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             $"{command} {target:D}{(tool == "todo.update" ? " to completed" : "")}", "authorized-write")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.Null(chat.InvocationError);
@@ -392,7 +396,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             message, "bound-name")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.NotNull(chat.InvocationError);
@@ -421,7 +425,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             "Delete the task report", "ambiguous-title")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.DoesNotContain("todo.delete", chat.ToolNames);
         Assert.Empty(handler.Writes);
@@ -454,7 +458,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             "Create a task called report", "bound-create")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.NotNull(chat.InvocationError);
@@ -483,7 +487,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             message, "authorized-create")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.True(chat.Invoked);
         Assert.Null(chat.InvocationError);
@@ -518,7 +522,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
             message, "ambiguous-create")
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         Assert.False(chat.Invoked);
         Assert.Empty(handler.Writes);
@@ -583,7 +587,7 @@ public sealed class MetaTodoPrivacyEgressTests
         for (var index = 0; index < 6; index++)
             await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
                 $"Message number {index}", $"turn-{index}")
-                { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
 
         var userMessages = chat.OutboundMessages.Where(message => message.Role == ChatRole.User).Select(message => message.Text).ToArray();
         Assert.Equal(new[] { "Message number 1", "Message number 2", "Message number 3", "Message number 4", "Message number 5" }, userMessages);
@@ -607,7 +611,7 @@ public sealed class MetaTodoPrivacyEgressTests
 
         Task Send(string text) => executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal,
             session, text, Guid.NewGuid().ToString())
-            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
         var first = Send("First request");
         await chat.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var second = Send("Follow up");
@@ -644,16 +648,21 @@ public sealed class MetaTodoPrivacyEgressTests
             if (request.Method != HttpMethod.Get)
             {
                 Writes.Add(request.RequestUri);
-                if (request.Content is not null) LastWriteBody = await request.Content.ReadAsStringAsync(cancellationToken);
+                if (request.Content is not null)
+                    LastWriteBody = await request.Content.ReadAsStringAsync(cancellationToken);
             }
             if (request.Method == HttpMethod.Put)
                 return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                { Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
-                    Guid.Parse(request.RequestUri!.Segments[^1]), "report", null, true, 1, DateTime.UtcNow, null)) };
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
+                    Guid.Parse(request.RequestUri!.Segments[^1]), "report", null, true, 1, DateTime.UtcNow, null))
+                };
             if (request.Method == HttpMethod.Post)
                 return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                { Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
-                    Guid.NewGuid(), "report", null, false, 1, DateTime.UtcNow, null)) };
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(new TodoServiceRecord(
+                    Guid.NewGuid(), "report", null, false, 1, DateTime.UtcNow, null))
+                };
             return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             { Content = System.Net.Http.Json.JsonContent.Create(records) };
         }
@@ -671,8 +680,10 @@ public sealed class MetaTodoPrivacyEgressTests
             {
                 Invoked = true;
                 var arguments = new Dictionary<string, object?> { ["todoId"] = target.ToString("D") };
-                if (toolName == "todo.update") arguments["isCompleted"] = completed;
-                try { await function.InvokeAsync(new AIFunctionArguments(arguments), cancellationToken); }
+                if (toolName == "todo.update")
+                    arguments["isCompleted"] = completed;
+                try
+                { await function.InvokeAsync(new AIFunctionArguments(arguments), cancellationToken); }
                 catch (Exception exception) { InvocationError = exception; }
             }
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, "Handled safely."));
@@ -702,7 +713,8 @@ public sealed class MetaTodoPrivacyEgressTests
                 Invoked = true;
                 var arguments = new AIFunctionArguments(new Dictionary<string, object?>
                 { ["title"] = title, ["description"] = description, ["priority"] = priority, ["dueDateUtc"] = dueDate });
-                try { await function.InvokeAsync(arguments, cancellationToken); }
+                try
+                { await function.InvokeAsync(arguments, cancellationToken); }
                 catch (Exception exception) { InvocationError = exception; }
             }
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, "Handled safely."));

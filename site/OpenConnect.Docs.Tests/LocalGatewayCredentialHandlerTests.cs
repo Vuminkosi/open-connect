@@ -193,15 +193,18 @@ public sealed class LocalGatewayCredentialHandlerTests
             _ = task.ContinueWith(
                 completed =>
                 {
-                    if (completed.Status == TaskStatus.RanToCompletion) completed.Result.Dispose();
-                    else _ = completed.Exception;
+                    if (completed.Status == TaskStatus.RanToCompletion)
+                        completed.Result.Dispose();
+                    else
+                        _ = completed.Exception;
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
             var cleanupFailure = new Xunit.Sdk.XunitException(
                 "HTTP operation did not settle within the cleanup timeout; its eventual completion is not guaranteed.");
-            if (originalFailure is null) throw cleanupFailure;
+            if (originalFailure is null)
+                throw cleanupFailure;
             originalFailure.Data["HTTP cleanup failure"] = cleanupFailure;
         }
         catch (Exception)
@@ -235,9 +238,11 @@ public sealed class LocalGatewayCredentialHandlerTests
             while (length < buffer.Length)
             {
                 var count = await stream.ReadAsync(buffer.AsMemory(length), timeout.Token);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
-                if (Encoding.ASCII.GetString(buffer, 0, length).Contains("\r\n\r\n", StringComparison.Ordinal)) break;
+                if (Encoding.ASCII.GetString(buffer, 0, length).Contains("\r\n\r\n", StringComparison.Ordinal))
+                    break;
             }
             return Encoding.ASCII.GetString(buffer, 0, length);
         }

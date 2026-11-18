@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Context;
@@ -22,7 +22,8 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task SqlServerSmoke_CreateScript_has_expected_openconnect_tables()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         using var db = CreateContext();
         var script = db.Database.GenerateCreateScript();
         var lines = script.Split('\n');
@@ -33,7 +34,8 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
         }
         finally
         {
-            if (File.Exists(scriptPath)) File.Delete(scriptPath);
+            if (File.Exists(scriptPath))
+                File.Delete(scriptPath);
         }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
         Assert.Equal(12, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
@@ -47,7 +49,8 @@ public sealed class SqlServerSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task SqlServerSmoke_RoundTrip_persists_session_task_and_outbox()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         await using var db = CreateContext();
         await db.Database.EnsureCreatedAsync();
         var scope = new TenantId(Ulid.NewUlid());

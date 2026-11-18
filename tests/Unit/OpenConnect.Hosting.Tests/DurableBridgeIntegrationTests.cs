@@ -277,7 +277,8 @@ public sealed class DurableBridgeIntegrationTests
             services.AddSingleton<ISessionUuidMappingStore>(durable);
         }
 
-        if (sync is not null) services.AddSingleton(sync);
+        if (sync is not null)
+            services.AddSingleton(sync);
         return services.BuildServiceProvider();
     }
 
@@ -387,7 +388,8 @@ public sealed class DurableBridgeIntegrationTests
         {
             lock (_gate)
             {
-                if (!_byPublic.TryGetValue(publicId, out var entry)) return Task.FromResult<SessionId?>(null);
+                if (!_byPublic.TryGetValue(publicId, out var entry))
+                    return Task.FromResult<SessionId?>(null);
                 if (!ignoreOwnership && (entry.Tenant != tenantId || entry.Principal != principalId))
                     return Task.FromResult<SessionId?>(null);
                 return Task.FromResult<SessionId?>(entry.Session);
@@ -396,14 +398,16 @@ public sealed class DurableBridgeIntegrationTests
 
         public Task<SessionUuidMappingSaveOutcome> TryAddAsync(Guid publicId, SessionId sessionId, TenantId tenantId, PrincipalId principalId, CancellationToken ct = default)
         {
-            if (publicId == Guid.Empty || sessionId.Value == default) return Task.FromResult(SessionUuidMappingSaveOutcome.Conflict);
+            if (publicId == Guid.Empty || sessionId.Value == default)
+                return Task.FromResult(SessionUuidMappingSaveOutcome.Conflict);
             lock (_gate)
             {
                 if (_byPublic.TryGetValue(publicId, out var existing))
                     return Task.FromResult(existing.Session.Equals(sessionId) && existing.Tenant.Equals(tenantId) && existing.Principal.Equals(principalId)
                         ? SessionUuidMappingSaveOutcome.AlreadyMapped
                         : SessionUuidMappingSaveOutcome.Conflict);
-                if (_bySession.ContainsKey(sessionId.Value)) return Task.FromResult(SessionUuidMappingSaveOutcome.Conflict);
+                if (_bySession.ContainsKey(sessionId.Value))
+                    return Task.FromResult(SessionUuidMappingSaveOutcome.Conflict);
                 _byPublic[publicId] = (sessionId, tenantId, principalId);
                 _bySession[sessionId.Value] = publicId;
                 return Task.FromResult(SessionUuidMappingSaveOutcome.Saved);

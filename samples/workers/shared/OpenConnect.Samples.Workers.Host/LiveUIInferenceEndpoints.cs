@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.AI;
-using OpenConnect.Agents.Execution;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
+using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;
@@ -83,7 +83,8 @@ public static class LiveUIInferenceEndpoints
             return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The authenticated identity is missing required tenant or subject claims.");
 
         Ulid sessionUlid;
-        try { sessionUlid = Ulid.Parse(request.SessionId); }
+        try
+        { sessionUlid = Ulid.Parse(request.SessionId); }
         catch (FormatException)
         {
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");

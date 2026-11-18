@@ -112,7 +112,9 @@ function originOf(url) {
     // file:, data:, javascript:, blob:, ftp:, etc. are never allowed.
     throw error('invalid_request', `url scheme not allowed: ${u.protocol}`, 400);
   }
-  return { url: u, origin: u.origin.toLowerCase(), hostname: u.hostname.toLowerCase() };
+  // WHATWG URL retains IPv6 brackets; net.isIP and DNS expect the bare address.
+  const hostname = u.hostname.toLowerCase().replace(/^\[(.*)\]$/, '$1');
+  return { url: u, origin: u.origin.toLowerCase(), hostname };
 }
 
 function checkBlockedHostname(hostname) {
@@ -143,11 +145,28 @@ function isBlockedIp(ip) {
     return false;
   }
   // IPv6
-  const lower = ip.toLowerCase();
+  // Normalize DNS answers too: expanded/mixed IPv6 spellings must share policy.
+  let lower;
+  try {
+    lower = new URL(`http://[${ip}]/`).hostname.slice(1, -1).toLowerCase();
+  } catch {
+    return true; // unsupported scoped literals fail closed
+  }
   if (lower === '::1' || lower === '::') return true;
-  if (lower.startsWith('fe80:') || lower.startsWith('fec0:') || lower.startsWith('fc00:') || lower.startsWith('fd00:')) return true;
+  if (/^fe[89ab]/.test(lower) || /^fe[cdef]/.test(lower) || /^f[cd]/.test(lower)) return true;
   if (lower.startsWith('ff')) return true; // multicast
-  if (lower === '::ffff:127.0.0.1') return true;
+  // URL canonicalization renders IPv4-mapped literals as two hex words.
+  // Apply exactly the same IPv4 policy rather than allowing mapped private IPs.
+  if (lower.startsWith('::ffff:')) {
+    const tail = lower.slice('::ffff:'.length);
+    if (net.isIPv4(tail)) return isBlockedIp(tail);
+    const words = tail.split(':');
+    if (words.length !== 2) return true;
+    const high = Number.parseInt(words[0], 16);
+    const low = Number.parseInt(words[1], 16);
+    return isBlockedIp([high >>> 8, high & 255, low >>> 8, low & 255].join('.'));
+  }
+  if (lower.startsWith('::')) return true; // deprecated IPv4-compatible/special range
   return false;
 }
 

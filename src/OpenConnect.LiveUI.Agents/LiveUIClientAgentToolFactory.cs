@@ -1,6 +1,6 @@
-using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
 
@@ -19,7 +19,8 @@ public static class LiveUIClientAgentToolFactory
         TimeSpan? responseTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(interactionBroker);
-        if (sessionId.Value == default) throw new ArgumentException("A trusted session ID is required.", nameof(sessionId));
+        if (sessionId.Value == default)
+            throw new ArgumentException("A trusted session ID is required.", nameof(sessionId));
         var timeout = responseTimeout ?? TimeSpan.FromSeconds(45);
         if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
             throw new ArgumentOutOfRangeException(nameof(responseTimeout));
@@ -72,7 +73,7 @@ public static class LiveUIClientAgentToolFactory
                 screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
             }
             var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
-                { ScreenedPageDigest = screenedDigest };
+            { ScreenedPageDigest = screenedDigest };
             var response = await RequestAsync(request,
                 "plan", cancellationToken).ConfigureAwait(false);
             if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String &&
@@ -167,7 +168,8 @@ public static class LiveUIClientAgentToolFactory
         {
             var response = await interactionBroker.RequestAsync(sessionId, request, expectedResultKind, timeout, cancellationToken)
                 .ConfigureAwait(false);
-            if (response is null) return UnverifiedResult("client_response_timeout", expectedResultKind);
+            if (response is null)
+                return UnverifiedResult("client_response_timeout", expectedResultKind);
             if (response.CorrelationId != request.CorrelationId || response.ResultKind != expectedResultKind)
                 return UnverifiedResult("client_response_mismatch", expectedResultKind);
 
@@ -188,9 +190,11 @@ public static class LiveUIClientAgentToolFactory
             cancellationToken.ThrowIfCancellationRequested();
             lock (_actionGate)
             {
-                if (_uncertainActions.Contains(key)) return ActionFenceResult("action_retry_unsafe",
+                if (_uncertainActions.Contains(key))
+                    return ActionFenceResult("action_retry_unsafe",
                     "The previous action may already have happened. Do not dispatch another action for this target in this turn.");
-                if (!_inFlightActions.Add(key)) return ActionFenceResult("action_in_progress",
+                if (!_inFlightActions.Add(key))
+                    return ActionFenceResult("action_in_progress",
                     "An action for this target is already in progress. Wait for its receipt.");
             }
             var uncertain = true;
@@ -209,7 +213,8 @@ public static class LiveUIClientAgentToolFactory
                 lock (_actionGate)
                 {
                     _inFlightActions.Remove(key);
-                    if (uncertain) _uncertainActions.Add(key);
+                    if (uncertain)
+                        _uncertainActions.Add(key);
                 }
             }
         }
@@ -232,12 +237,14 @@ public static class LiveUIClientAgentToolFactory
             {
                 if (property.NameEquals("outcome"))
                 {
-                    if (outcomeText is not null || property.Value.ValueKind != JsonValueKind.String) return false;
+                    if (outcomeText is not null || property.Value.ValueKind != JsonValueKind.String)
+                        return false;
                     outcomeText = property.Value.GetString();
                 }
                 else if (property.NameEquals("postconditionVerified"))
                 {
-                    if (verified is not null || property.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
+                    if (verified is not null || property.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                        return false;
                     verified = property.Value.GetBoolean();
                 }
             }

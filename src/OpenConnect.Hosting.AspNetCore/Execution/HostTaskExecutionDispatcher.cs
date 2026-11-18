@@ -67,8 +67,10 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
             }
             catch
             {
-                if (record is not null && work is not null) RollbackAdmission(scopedKey, record, work, createdSession);
-                else if (createdSession is not null) _sessions.Remove(createdSession.Id.Value);
+                if (record is not null && work is not null)
+                    RollbackAdmission(scopedKey, record, work, createdSession);
+                else if (createdSession is not null)
+                    _sessions.Remove(createdSession.Id.Value);
                 throw;
             }
         }
@@ -78,7 +80,8 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
     {
         _keys.TryRemove(scopedKey, out _);
         _store.TryRemove(record.Id.Value);
-        if (createdSession is not null) _sessions.Remove(createdSession.Id.Value);
+        if (createdSession is not null)
+            _sessions.Remove(createdSession.Id.Value);
         work.Cancellation.Dispose();
     }
 
@@ -86,7 +89,8 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
     {
         cancellationToken.ThrowIfCancellationRequested();
         var record = _store.Find(taskId);
-        if (record is null) return null;
+        if (record is null)
+            return null;
         var work = _runtime.Active.GetValueOrDefault(taskId);
         if (record.State == AgentRunState.Accepted)
         {
@@ -101,7 +105,8 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
                 return transitioned ?? await _store.GetAsync(taskId, cancellationToken);
             }
         }
-        if (work is not null) await WorkCancellation.For(work).CancelAsync(work);
+        if (work is not null)
+            await WorkCancellation.For(work).CancelAsync(work);
         return await _store.GetAsync(taskId, cancellationToken);
     }
 }
@@ -238,7 +243,8 @@ internal static class WorkCancellation
             await Task.Yield();
             lock (_gate)
             {
-                if (_disposeRequested) return false;
+                if (_disposeRequested)
+                    return false;
                 _cancellationsInFlight++;
             }
             try
@@ -251,7 +257,8 @@ internal static class WorkCancellation
                 lock (_gate)
                 {
                     _cancellationsInFlight--;
-                    if (_cancellationsInFlight == 0) _drained?.TrySetResult();
+                    if (_cancellationsInFlight == 0)
+                        _drained?.TrySetResult();
                 }
             }
         }
@@ -260,7 +267,8 @@ internal static class WorkCancellation
         {
             lock (_gate)
             {
-                if (_disposeTask is not null) return _disposeTask;
+                if (_disposeTask is not null)
+                    return _disposeTask;
                 _disposeRequested = true;
                 var drained = _cancellationsInFlight == 0
                     ? Task.CompletedTask

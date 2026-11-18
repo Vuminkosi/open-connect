@@ -369,7 +369,8 @@ public sealed class LiveUIOrchestratorTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
-            if (instrument.Meter.Name == "OpenConnect.LiveUI") meterListener.EnableMeasurementEvents(instrument);
+            if (instrument.Meter.Name == "OpenConnect.LiveUI")
+                meterListener.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<double>((instrument, _, _, _) =>
             observed.AddOrUpdate(instrument.Name, 1, static (_, count) => count + 1));

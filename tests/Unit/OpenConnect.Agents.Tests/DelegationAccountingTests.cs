@@ -37,10 +37,17 @@ public sealed class DelegationAccountingTests
 
     private static AgentExecutionContext CreateParentContext() => new()
     {
-        TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-        SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()),
-        AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1,
-        PolicyRevision = 1, AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
+        TenantScope = "tenant",
+        PrincipalOrWorkloadScope = "principal",
+        IdentityKind = AgentIdentityMode.ActiveUser,
+        SessionId = new SessionId(Ulid.NewUlid()),
+        TaskId = new TaskId(Ulid.NewUlid()),
+        AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+        Depth = 0,
+        CatalogRevision = 1,
+        PolicyRevision = 1,
+        AuthRevision = 1,
+        Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
         RemainingBudgets = ImmutableDictionary<string, long>.Empty.Add("MaxModelCalls", 2).Add("MaxTokens", 5),
         CancellationToken = CancellationToken.None
     };

@@ -35,7 +35,8 @@ public sealed class StreamingPlaceholderBuffer
     /// <returns>Resolved and safe output string.</returns>
     public async ValueTask<string> ProcessChunkAsync(string chunk, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(chunk) && _buffer.Length == 0) return string.Empty;
+        if (string.IsNullOrEmpty(chunk) && _buffer.Length == 0)
+            return string.Empty;
         cancellationToken.ThrowIfCancellationRequested();
 
         var output = new StringBuilder();
@@ -113,7 +114,8 @@ public sealed class StreamingPlaceholderBuffer
     public async ValueTask<string> FlushAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (_buffer.Length == 0) return string.Empty;
+        if (_buffer.Length == 0)
+            return string.Empty;
 
         var bufStr = _buffer.ToString();
         _buffer.Clear();

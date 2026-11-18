@@ -1,7 +1,7 @@
-using Microsoft.JSInterop;
-using Microsoft.Extensions.Options;
-using OpenConnect.LiveUI.Inference;
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
+using OpenConnect.LiveUI.Inference;
 
 namespace OpenConnect.LiveUI.Blazor;
 
@@ -86,7 +86,8 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
         {
             if (_module is not null)
             {
-                try { await _module.InvokeVoidAsync("cancel").ConfigureAwait(false); }
+                try
+                { await _module.InvokeVoidAsync("cancel").ConfigureAwait(false); }
                 catch (JSDisconnectedException) { }
                 catch (JSException) { }
             }
@@ -158,12 +159,16 @@ public sealed class BrowserPromptApiInferenceProvider(IJSRuntime jsRuntime, IOpt
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
-        if (_module is null) return;
-        try { await _module.InvokeVoidAsync("dispose").ConfigureAwait(false); }
+        if (_module is null)
+            return;
+        try
+        { await _module.InvokeVoidAsync("dispose").ConfigureAwait(false); }
         catch (JSDisconnectedException) { }
-        try { await _module.DisposeAsync().ConfigureAwait(false); }
+        try
+        { await _module.DisposeAsync().ConfigureAwait(false); }
         catch (JSDisconnectedException) { }
     }
 }

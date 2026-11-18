@@ -47,12 +47,14 @@ public sealed class InMemoryConversationEventHistory : IConversationEventHistory
     public ValueTask AppendEventAsync(ConversationTurnEvent turnEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(turnEvent);
-        if (turnEvent.EventId == Guid.Empty) throw new ArgumentException("EventId must be non-empty.", nameof(turnEvent));
+        if (turnEvent.EventId == Guid.Empty)
+            throw new ArgumentException("EventId must be non-empty.", nameof(turnEvent));
         ArgumentException.ThrowIfNullOrWhiteSpace(turnEvent.EventType);
         ArgumentException.ThrowIfNullOrWhiteSpace(turnEvent.TenantScope);
         ArgumentException.ThrowIfNullOrWhiteSpace(turnEvent.ActorId);
         ArgumentException.ThrowIfNullOrWhiteSpace(turnEvent.Provenance);
-        if (turnEvent.TurnSequence < 0) throw new ArgumentOutOfRangeException(nameof(turnEvent), "TurnSequence must be non-negative.");
+        if (turnEvent.TurnSequence < 0)
+            throw new ArgumentOutOfRangeException(nameof(turnEvent), "TurnSequence must be non-negative.");
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)

@@ -61,12 +61,14 @@ public sealed class RunBudgetLedger
     /// <returns>True when reserved; false when any applicable limit is exhausted.</returns>
     public bool TryReserveSubagent(int activeCount, int queuedCount)
     {
-        if (activeCount < 0 || queuedCount < 0) return false;
+        if (activeCount < 0 || queuedCount < 0)
+            return false;
         lock (_sync)
         {
             if (_subagents >= _limit.MaxTotalAgents ||
                 (activeCount > 0 && activeCount > _limit.MaxConcurrentAgents) ||
-                (queuedCount > 0 && queuedCount >= _limit.MaxQueuedAgents)) return false;
+                (queuedCount > 0 && queuedCount >= _limit.MaxQueuedAgents))
+                return false;
             _subagents++;
             return true;
         }
@@ -96,7 +98,8 @@ public sealed class RunBudgetLedger
     {
         lock (_sync)
         {
-            if (_activeChildren >= _limit.MaxConcurrentAgents) return false;
+            if (_activeChildren >= _limit.MaxConcurrentAgents)
+                return false;
             _activeChildren++;
             return true;
         }
@@ -108,7 +111,8 @@ public sealed class RunBudgetLedger
     {
         lock (_sync)
         {
-            if (_activeChildren == 0) return false;
+            if (_activeChildren == 0)
+                return false;
             _activeChildren--;
             return true;
         }
@@ -121,7 +125,8 @@ public sealed class RunBudgetLedger
     {
         lock (_sync)
         {
-            if (_subagents == 0) return false;
+            if (_subagents == 0)
+                return false;
             _subagents--;
             return true;
         }
@@ -133,7 +138,8 @@ public sealed class RunBudgetLedger
     {
         lock (_sync)
         {
-            if (_toolCalls >= _limit.MaxToolCalls) return false;
+            if (_toolCalls >= _limit.MaxToolCalls)
+                return false;
             _toolCalls++;
             return true;
         }
@@ -146,10 +152,12 @@ public sealed class RunBudgetLedger
     /// <returns>True when call, token, and cost capacity are all reserved; false with no debit otherwise.</returns>
     public bool TryReserveModelCall(long tokens)
     {
-        if (tokens < 0) return false;
+        if (tokens < 0)
+            return false;
         lock (_sync)
         {
-            if (_modelCalls >= _limit.MaxModelCalls || tokens > _limit.MaxTokens - _tokens) return false;
+            if (_modelCalls >= _limit.MaxModelCalls || tokens > _limit.MaxTokens - _tokens)
+                return false;
             long cost;
             try
             {
@@ -159,7 +167,8 @@ public sealed class RunBudgetLedger
             {
                 return false;
             }
-            if (cost > _limit.MaxCostMicrocents - _costMicrocents) return false;
+            if (cost > _limit.MaxCostMicrocents - _costMicrocents)
+                return false;
             _modelCalls++;
             _tokens += tokens;
             _costMicrocents += cost;
@@ -172,10 +181,12 @@ public sealed class RunBudgetLedger
     /// <returns>True when reserved; false when invalid or exhausted.</returns>
     public bool TryReserveTokens(long tokens)
     {
-        if (tokens < 0) return false;
+        if (tokens < 0)
+            return false;
         lock (_sync)
         {
-            if (tokens > _limit.MaxTokens - _tokens) return false;
+            if (tokens > _limit.MaxTokens - _tokens)
+                return false;
             _tokens += tokens;
             return true;
         }
@@ -186,10 +197,12 @@ public sealed class RunBudgetLedger
     /// <returns>True when reserved; false when invalid or exhausted, with no partial debit.</returns>
     public bool TryReserveCost(long microcents)
     {
-        if (microcents < 0) return false;
+        if (microcents < 0)
+            return false;
         lock (_sync)
         {
-            if (microcents > _limit.MaxCostMicrocents - _costMicrocents) return false;
+            if (microcents > _limit.MaxCostMicrocents - _costMicrocents)
+                return false;
             _costMicrocents += microcents;
             return true;
         }
@@ -209,7 +222,8 @@ public sealed class RunBudgetLedger
     /// <remarks>Must be called under <see cref="_sync"/>. A zero rate always meters zero cost.</remarks>
     private long MeterCost(long tokens)
     {
-        if (tokens == 0 || _microcentsPerThousandTokens == 0) return 0;
+        if (tokens == 0 || _microcentsPerThousandTokens == 0)
+            return 0;
         checked
         {
             return (tokens / 1000) * _microcentsPerThousandTokens +

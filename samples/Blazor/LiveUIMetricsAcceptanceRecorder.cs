@@ -67,7 +67,8 @@ internal sealed class LiveUIMetricsAcceptanceRecorder : IDisposable
                 outcome = value;
                 continue;
             }
-            if (tag.Key == "provider" && tag.Value is string providerValue) provider = providerValue;
+            if (tag.Key == "provider" && tag.Value is string providerValue)
+                provider = providerValue;
         }
 
         lock (_gate)

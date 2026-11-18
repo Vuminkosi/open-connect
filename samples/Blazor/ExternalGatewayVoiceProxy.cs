@@ -54,7 +54,8 @@ public static class ExternalGatewayVoiceProxy
             var gatewayToBrowser = RelayAsync(gateway, browser, linked.Token);
             await Task.WhenAny(browserToGateway, gatewayToBrowser).ConfigureAwait(false);
             linked.Cancel();
-            try { await Task.WhenAll(browserToGateway, gatewayToBrowser).ConfigureAwait(false); }
+            try
+            { await Task.WhenAll(browserToGateway, gatewayToBrowser).ConfigureAwait(false); }
             catch (OperationCanceledException) when (linked.IsCancellationRequested) { }
             catch (WebSocketException) when (linked.IsCancellationRequested || context.RequestAborted.IsCancellationRequested) { }
         });
@@ -79,7 +80,8 @@ public static class ExternalGatewayVoiceProxy
     private static bool IsSameOrigin(HttpContext context)
     {
         var origin = context.Request.Headers.Origin.FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(origin)) return false;
+        if (string.IsNullOrWhiteSpace(origin))
+            return false;
         return Uri.TryCreate(origin, UriKind.Absolute, out var originUri)
             && string.Equals(originUri.Scheme, context.Request.Scheme, StringComparison.OrdinalIgnoreCase)
             && string.Equals(originUri.Host, context.Request.Host.Host, StringComparison.OrdinalIgnoreCase)

@@ -9,7 +9,9 @@ public sealed class AgentCatalogDepthTests
     [Fact]
     public void DelegationGate_AllowsDepthOneAndTwoAndRejectsThree()
     {
-        var root = Id("root"); var middle = Id("middle"); var leaf = Id("leaf");
+        var root = Id("root");
+        var middle = Id("middle");
+        var leaf = Id("leaf");
         var catalog = new AgentCatalog();
         catalog.Register(Definition(leaf));
         catalog.Register(Definition(middle, leaf));

@@ -8,8 +8,13 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-$projects = Get-ChildItem 'src' -Recurse -File -Filter '*.csproj' |
-    Where-Object { $_.FullName -notmatch '\\(obj|tests|workers)\\' -and $_.FullName -notmatch 'OpenConnect\\.WorkerHosts\\.' }
+# Match docfx.json's src/*/*.csproj scope and exclusions on every platform.
+# The compiler is a non-packable net8.0 build tool, not a public API library.
+$projects = @(Get-ChildItem 'src/*/*.csproj' -File |
+    Where-Object {
+        $_.Directory.Name -notlike 'OpenConnect.WorkerHosts.*' -and
+        $_.Directory.Name -ne 'OpenConnect.LiveUI.Compiler'
+    } | Sort-Object FullName)
 if (-not $projects) {
     throw 'No publishable OpenConnect source projects found.'
 }

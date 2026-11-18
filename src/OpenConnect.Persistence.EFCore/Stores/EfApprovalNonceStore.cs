@@ -60,10 +60,14 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
         var row = await context.Set<ApprovalNonceEntity>().AsNoTracking()
             .SingleOrDefaultAsync(x => x.TenantId == tenant && x.Nonce == nonce, ct)
             .ConfigureAwait(false);
-        if (row is null) return null;
-        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal)) return null;
-        if (row.ApprovalId == Guid.Empty) return null;
-        if (string.IsNullOrEmpty(row.Nonce)) return null;
+        if (row is null)
+            return null;
+        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal))
+            return null;
+        if (row.ApprovalId == Guid.Empty)
+            return null;
+        if (string.IsNullOrEmpty(row.Nonce))
+            return null;
         return new ApprovalNonceReceipt(row.ApprovalId, row.CreatedAtUtc);
     }
 
@@ -75,7 +79,8 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
         CancellationToken ct = default)
     {
         ValidateKey(tenantId, principalId, nonce);
-        if (approvalId == Guid.Empty) throw new ArgumentException("Approval id must be non-empty.", nameof(approvalId));
+        if (approvalId == Guid.Empty)
+            throw new ArgumentException("Approval id must be non-empty.", nameof(approvalId));
 
         var tenant = tenantId.Value.ToString();
         var principal = principalId.Value.ToString();
@@ -142,10 +147,14 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
         var row = await context.Set<ApprovalNonceEntity>().AsNoTracking()
             .SingleOrDefaultAsync(x => x.TenantId == tenant && x.Nonce == nonce, ct)
             .ConfigureAwait(false);
-        if (row is null) return null;
-        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal)) return null;
-        if (string.IsNullOrEmpty(row.RequestId)) return null;
-        if (string.IsNullOrEmpty(row.Nonce)) return null;
+        if (row is null)
+            return null;
+        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal))
+            return null;
+        if (string.IsNullOrEmpty(row.RequestId))
+            return null;
+        if (string.IsNullOrEmpty(row.Nonce))
+            return null;
         return new ApprovalNonceRequestReceipt(row.RequestId, row.CreatedAtUtc);
     }
 
@@ -215,8 +224,10 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
 
     private static void ValidateRequestId(string requestId)
     {
-        if (string.IsNullOrWhiteSpace(requestId)) throw new ArgumentException("Request id must be non-empty.", nameof(requestId));
-        if (requestId.Length > 256) throw new ArgumentException("Request id must be at most 256 characters.", nameof(requestId));
+        if (string.IsNullOrWhiteSpace(requestId))
+            throw new ArgumentException("Request id must be non-empty.", nameof(requestId));
+        if (requestId.Length > 256)
+            throw new ArgumentException("Request id must be at most 256 characters.", nameof(requestId));
     }
 
     private static bool MatchesRequest(ApprovalNonceEntity row, string tenant, string principal, string requestId) =>
@@ -228,10 +239,14 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
 
     private static void ValidateKey(TenantId tenantId, PrincipalId principalId, string nonce)
     {
-        if (tenantId.Value == default) throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
-        if (principalId.Value == default) throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
-        if (string.IsNullOrWhiteSpace(nonce)) throw new ArgumentException("Nonce must be non-empty.", nameof(nonce));
-        if (nonce.Length > 64) throw new ArgumentException("Nonce must be at most 64 characters.", nameof(nonce));
+        if (tenantId.Value == default)
+            throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
+        if (principalId.Value == default)
+            throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
+        if (string.IsNullOrWhiteSpace(nonce))
+            throw new ArgumentException("Nonce must be non-empty.", nameof(nonce));
+        if (nonce.Length > 64)
+            throw new ArgumentException("Nonce must be at most 64 characters.", nameof(nonce));
     }
 
     private static bool Matches(ApprovalNonceEntity row, string tenant, string principal, Guid approvalId) =>
@@ -247,11 +262,14 @@ internal sealed class EfApprovalNonceStore<TContext>(TContext context) where TCo
         {
             var type = current.GetType();
             var code = type.GetProperty("SqliteExtendedErrorCode")?.GetValue(current)?.ToString();
-            if (type.FullName == "Microsoft.Data.Sqlite.SqliteException" && (code == "1555" || code == "2067")) return true;
+            if (type.FullName == "Microsoft.Data.Sqlite.SqliteException" && (code == "1555" || code == "2067"))
+                return true;
             code = type.GetProperty("SqlState")?.GetValue(current)?.ToString();
-            if (type.FullName == "Npgsql.PostgresException" && code == "23505") return true;
+            if (type.FullName == "Npgsql.PostgresException" && code == "23505")
+                return true;
             code = type.GetProperty("Number")?.GetValue(current)?.ToString();
-            if (type.FullName == "Microsoft.Data.SqlClient.SqlException" && (code == "2601" || code == "2627")) return true;
+            if (type.FullName == "Microsoft.Data.SqlClient.SqlException" && (code == "2601" || code == "2627"))
+                return true;
         }
         return false;
     }

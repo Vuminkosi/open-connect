@@ -12,7 +12,9 @@ public abstract class HostMigrationContext : DbContext, IOpenConnectModelOptions
     public DbSet<Order> Orders => Set<Order>();
     public OpenConnectModelOptions ModelOptions { get; } = new()
     {
-        Schema = "openconnect", SqliteTablePrefix = "oc_", UseSqlitePrefix = false
+        Schema = "openconnect",
+        SqliteTablePrefix = "oc_",
+        UseSqlitePrefix = false
     };
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

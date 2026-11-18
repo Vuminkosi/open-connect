@@ -46,7 +46,8 @@ public sealed record PrivacyScope(TenantId Tenant, PrincipalId Principal, Sessio
     /// <exception cref="ArgumentException">The purpose is null, empty, or whitespace.</exception>
     public PrivacyScope Validate()
     {
-        if (string.IsNullOrWhiteSpace(Purpose)) throw new ArgumentException("A token purpose is required.", nameof(Purpose));
+        if (string.IsNullOrWhiteSpace(Purpose))
+            throw new ArgumentException("A token purpose is required.", nameof(Purpose));
         return this;
     }
 }

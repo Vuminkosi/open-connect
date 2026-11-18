@@ -124,7 +124,8 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
                         LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
                 });
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests));
-        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        }))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var fallback = new CountingGateway();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
@@ -157,9 +158,11 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
                     Content = JsonContent.Create(new LiveUIInferenceAvailability(
                         LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
                 });
-            if (networkFailure) throw new HttpRequestException("connection failed");
+            if (networkFailure)
+                throw new HttpRequestException("connection failed");
             return Task.FromResult(new HttpResponseMessage(failureStatus));
-        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        }))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var fallback = new SuccessfulGateway();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
@@ -211,7 +214,8 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
                 Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(envelope!.RequestId, envelope.ExecutionId,
                     new LiveUIInferenceResult(LiveUIInferenceProviderKind.LocalWorker, null, "rate_limited")))
             };
-        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        }))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var fallback = new CountingGateway();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;

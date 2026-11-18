@@ -247,9 +247,12 @@ public sealed class PromptInjectionScopeHardeningTests
         public Task<NativeAgentSessionRecord?> GetAsync(NativeAgentSessionBinding binding, CancellationToken ct = default) { ct.ThrowIfCancellationRequested(); Loads++; return Task.FromResult(_record); }
         public Task<NativeAgentSessionSaveOutcome> SaveAsync(NativeAgentSessionRecord record, long expectedVersion, CancellationToken ct = default)
         {
-            ct.ThrowIfCancellationRequested(); Saves++;
-            if ((_record?.Version ?? 0) != expectedVersion) return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
-            _record = record; return Task.FromResult(NativeAgentSessionSaveOutcome.Saved);
+            ct.ThrowIfCancellationRequested();
+            Saves++;
+            if ((_record?.Version ?? 0) != expectedVersion)
+                return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
+            _record = record;
+            return Task.FromResult(NativeAgentSessionSaveOutcome.Saved);
         }
     }
 

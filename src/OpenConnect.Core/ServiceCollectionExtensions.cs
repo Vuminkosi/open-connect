@@ -184,12 +184,18 @@ public static class ServiceCollectionExtensions
 
         var capabilities = new HashSet<string>(StringComparer.Ordinal);
         var modalities = new HashSet<string>(StringComparer.Ordinal);
-        if (options.Rules.Enabled) { capabilities.Add("security.rules"); modalities.Add("text"); }
-        if (options.Gliner.Enabled) { capabilities.Add("security.gliner-pii"); modalities.Add("text"); }
-        if (options.Deberta.Enabled) { capabilities.Add("security.deberta-injection"); modalities.Add("text"); }
-        if (options.Qwen3Guard.Enabled) { capabilities.Add("security.qwen3-guard"); modalities.Add("text"); }
-        if (options.PaddleOcr.Enabled) { capabilities.Add("security.paddle-ocr"); modalities.Add("image"); }
-        if (options.YuNet.Enabled) { capabilities.Add("security.yunet"); modalities.Add("image"); }
+        if (options.Rules.Enabled)
+        { capabilities.Add("security.rules"); modalities.Add("text"); }
+        if (options.Gliner.Enabled)
+        { capabilities.Add("security.gliner-pii"); modalities.Add("text"); }
+        if (options.Deberta.Enabled)
+        { capabilities.Add("security.deberta-injection"); modalities.Add("text"); }
+        if (options.Qwen3Guard.Enabled)
+        { capabilities.Add("security.qwen3-guard"); modalities.Add("text"); }
+        if (options.PaddleOcr.Enabled)
+        { capabilities.Add("security.paddle-ocr"); modalities.Add("image"); }
+        if (options.YuNet.Enabled)
+        { capabilities.Add("security.yunet"); modalities.Add("image"); }
 
         var readiness = capabilities.Count == 0
             ? WorkerReadiness.Disabled
@@ -706,12 +712,14 @@ public sealed class AgentDefinitionRegistry : IAgentDefinitionRegistry
 
     public AgentDefinition? Get(AgentId agentId)
     {
-        lock (_gate) return _agents.GetValueOrDefault(agentId);
+        lock (_gate)
+            return _agents.GetValueOrDefault(agentId);
     }
 
     public IReadOnlyList<AgentDefinition> GetAll()
     {
-        lock (_gate) return _agents.Values.ToArray();
+        lock (_gate)
+            return _agents.Values.ToArray();
     }
 
     public void Register(AgentDefinition definition)

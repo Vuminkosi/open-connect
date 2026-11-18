@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Options;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.Samples.Blazor;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.Blazor.Tests;

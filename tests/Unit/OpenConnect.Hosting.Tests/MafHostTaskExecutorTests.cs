@@ -75,10 +75,18 @@ public sealed class MafHostTaskExecutorTests
             var context = new AgentExecutionContext
             {
                 TenantScope = (WrongTenant ? new TenantId(Ulid.NewUlid()) : task.TenantId).Value.ToString(),
-                PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(), IdentityKind = AgentIdentityMode.ActiveUser,
-                SessionId = task.SessionId, TaskId = task.TaskId, AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
-                Depth = 0, CatalogRevision = 1, PolicyRevision = 1, AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(2),
-                RemainingBudgets = ImmutableDictionary<string, long>.Empty, CancellationToken = cancellationToken
+                PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(),
+                IdentityKind = AgentIdentityMode.ActiveUser,
+                SessionId = task.SessionId,
+                TaskId = task.TaskId,
+                AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+                Depth = 0,
+                CatalogRevision = 1,
+                PolicyRevision = 1,
+                AuthRevision = 1,
+                Deadline = DateTimeOffset.UtcNow.AddMinutes(2),
+                RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+                CancellationToken = cancellationToken
             };
             var factory = new MafRealAgentFactory(new Registry(), Client);
             var runner = new MafConversationRunner(factory, new AgentId("lead"));

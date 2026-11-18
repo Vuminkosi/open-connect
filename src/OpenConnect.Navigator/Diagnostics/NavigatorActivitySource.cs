@@ -21,15 +21,18 @@ public static class NavigatorActivitySource
         ArgumentException.ThrowIfNullOrWhiteSpace(operation);
         var safe = SafeTags(tags);
         var activity = Activities.StartActivity(operation);
-        if (activity is null) return null;
-        foreach (var tag in safe) activity.SetTag(tag.Key, tag.Value);
+        if (activity is null)
+            return null;
+        foreach (var tag in safe)
+            activity.SetTag(tag.Key, tag.Value);
         return activity;
     }
 
     /// <summary>Returns only approved, bounded metadata; content-like and secret-bearing values are discarded.</summary>
     public static KeyValuePair<string, object?>[] SafeTags(IEnumerable<KeyValuePair<string, object?>>? tags)
     {
-        if (tags is null) return [];
+        if (tags is null)
+            return [];
         return tags.Where(tag => AllowedTags.Contains(tag.Key))
             .Select(tag => SafeTag(tag))
             .Where(tag => tag.HasValue)
@@ -40,7 +43,8 @@ public static class NavigatorActivitySource
     /// <summary>Returns only bounded, low-cardinality dimensions suitable for metric labels.</summary>
     public static KeyValuePair<string, object?>[] SafeMetricTags(IEnumerable<KeyValuePair<string, object?>>? tags)
     {
-        if (tags is null) return [];
+        if (tags is null)
+            return [];
         var metricKeys = new HashSet<string>(["outcome", "kind", "provider"], StringComparer.Ordinal);
         return tags.Where(tag => metricKeys.Contains(tag.Key))
             .Select(SafeTag)

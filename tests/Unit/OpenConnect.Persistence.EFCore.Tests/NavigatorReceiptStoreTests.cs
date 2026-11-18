@@ -11,11 +11,12 @@
 // own DbContext (own pooled connection) so the race is resolved by persisted
 // state (unique index), not by in-memory tracking.
 //
-// Image policy: postgres:16-alpine must already exist locally. If Docker or
-// the image is unavailable the test skips (returns) like the seam fencing
-// suite; it must never trigger a network pull in an offline lane.
+// Explicit opt-in only: OPENCONNECT_REQUIRE_POSTGRES_DOCKER_TESTS=true.
+// Ordinary runs report real xUnit skips before touching Docker. Opted-in runs
+// require the preloaded official postgres:16-alpine image and fail on startup errors.
 
 using System.Text.Json;
+using DotNet.Testcontainers.Images;
 using Microsoft.EntityFrameworkCore;
 using OpenConnect.Persistence.EFCore.Context;
 using OpenConnect.Persistence.EFCore.Entities;
@@ -33,12 +34,10 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
     private static readonly DateTimeOffset T0 =
         new DateTimeOffset(2026, 11, 9, 12, 0, 0, TimeSpan.Zero).AddTicks(1234567);
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Concurrent_consume_from_independent_contexts_elects_single_winner()
     {
         await using var postgres = await StartPostgresAsync("navigator_receipt_race");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -139,12 +138,10 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
         Assert.Equal(digest, stored.Digest);
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Expired_receipt_reads_absent_and_consume_reports_expired()
     {
         await using var postgres = await StartPostgresAsync("navigator_receipt_expiry");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -200,12 +197,10 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Corrupt_receipt_payload_fails_closed_on_read_and_consume()
     {
         await using var postgres = await StartPostgresAsync("navigator_receipt_corrupt");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -255,12 +250,10 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Operational_save_accepts_completed_once_and_rejects_non_completed_and_duplicates()
     {
         await using var postgres = await StartPostgresAsync("navigator_receipt_operational");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -295,12 +288,10 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
         Assert.Equal(1, view.FencingToken);
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Receipt_lookups_are_tenant_and_principal_scoped()
     {
         await using var postgres = await StartPostgresAsync("navigator_receipt_isolation");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -388,32 +379,21 @@ public sealed class NavigatorReceiptStoreTests(ITestOutputHelper output)
         await db.SaveChangesAsync();
     }
 
-    private async Task<PostgreSqlContainer?> StartPostgresAsync(string database)
+    private static async Task<PostgreSqlContainer> StartPostgresAsync(string database)
     {
         var postgres = new PostgreSqlBuilder("postgres:16-alpine").WithDatabase(database)
+            .WithImagePullPolicy(PullPolicy.Never)
             .WithUsername("test").WithPassword("test").Build();
-        Exception? startupError = null;
-        for (var attempt = 1; attempt <= 2; attempt++)
+        try
         {
-            try
-            {
-                await postgres.StartAsync();
-                startupError = null;
-                break;
-            }
-            catch (Exception exception)
-            {
-                startupError = exception;
-            }
-        }
-
-        if (startupError is null)
+            await postgres.StartAsync();
             return postgres;
-        output.WriteLine(
-            $"SKIP PostgresDocker: Docker/Testcontainers could not start postgres:16-alpine " +
-            $"after 2 attempts: {startupError.Message}");
-        await postgres.DisposeAsync();
-        return null;
+        }
+        catch
+        {
+            await postgres.DisposeAsync();
+            throw;
+        }
     }
 
     private static OpenConnectDbContext CreateDb(string connectionString) =>

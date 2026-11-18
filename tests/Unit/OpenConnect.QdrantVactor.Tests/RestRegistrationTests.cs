@@ -47,7 +47,9 @@ public sealed class RestRegistrationTests
     {
         var result = new QdrantVactorOptionsValidator().Validate(null, new QdrantVactorOptions
         {
-            Enabled = true, Endpoint = new Uri("http://q:6333"), VectorSize = 0
+            Enabled = true,
+            Endpoint = new Uri("http://q:6333"),
+            VectorSize = 0
         });
         Assert.True(result.Failed);
     }

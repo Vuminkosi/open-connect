@@ -9,9 +9,20 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <!-- Exercise the actual SQLite sample migration bodies, not copied SQL. -->
+  <ItemGroup>
+    <Compile Include="../../../samples/Blazor/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/Blazor.cs" />
+    <Compile Include="../../../samples/McpMicroservices/ServiceA/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/McpMicroservices_ServiceA.cs" />
+    <Compile Include="../../../samples/McpMicroservices/ServiceB/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/McpMicroservices_ServiceB.cs" />
+    <Compile Include="../../../samples/Minimal/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/Minimal.cs" />
+    <Compile Include="../../../samples/Sqlite/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/Sqlite.cs" />
+    <Compile Include="../../../samples/persistence/sqlite/Migrations/20261118170000_PrivacyTokenScopeUniqueness.cs" Link="SampleMigrations/persistence_sqlite.cs" />
   </ItemGroup>
 </Project>

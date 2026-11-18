@@ -1,5 +1,5 @@
-using OpenConnect.Abstractions;
 using System.Text;
+using OpenConnect.Abstractions;
 
 namespace OpenConnect.Agents.Execution;
 

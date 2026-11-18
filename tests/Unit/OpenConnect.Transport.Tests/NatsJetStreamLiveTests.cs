@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using NATS.Client.Core;
 using NATS.Client.JetStream;
 using NATS.Client.JetStream.Models;

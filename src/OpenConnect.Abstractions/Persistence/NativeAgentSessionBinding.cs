@@ -24,9 +24,12 @@ public sealed record NativeAgentSessionBinding
         string SchemaVersion,
         string ProviderId)
     {
-        if (SessionId.Value == default) throw new ArgumentException("A non-default session identifier is required.", nameof(SessionId));
-        if (TenantId.Value == default) throw new ArgumentException("A non-default tenant identifier is required.", nameof(TenantId));
-        if (PrincipalId.Value == default) throw new ArgumentException("A non-default principal identifier is required.", nameof(PrincipalId));
+        if (SessionId.Value == default)
+            throw new ArgumentException("A non-default session identifier is required.", nameof(SessionId));
+        if (TenantId.Value == default)
+            throw new ArgumentException("A non-default tenant identifier is required.", nameof(TenantId));
+        if (PrincipalId.Value == default)
+            throw new ArgumentException("A non-default principal identifier is required.", nameof(PrincipalId));
 
         ArgumentException.ThrowIfNullOrWhiteSpace(AgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(DefinitionRevision);

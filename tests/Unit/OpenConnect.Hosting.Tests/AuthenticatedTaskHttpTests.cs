@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -14,11 +14,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
-using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
-using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using Xunit;
+using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
+using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
 
 namespace OpenConnect.Hosting.Tests;
 
@@ -185,7 +185,8 @@ public sealed class AuthenticatedTaskHttpTests
         while (state?.State != AgentRunState.Completed)
         {
             state = await sdk.GetTaskAsync(admitted.Id, timeout.Token);
-            if (state.State != AgentRunState.Completed) await Task.Delay(20, timeout.Token);
+            if (state.State != AgentRunState.Completed)
+                await Task.Delay(20, timeout.Token);
         }
 
         var seenMessage = false;
@@ -195,14 +196,16 @@ public sealed class AuthenticatedTaskHttpTests
             Assert.True(await events.MoveNextAsync());
             if (events.Current.Type == "message")
                 seenMessage = events.Current.TaskId == admitted.Id.Value.ToString() && events.Current.Data == "Task list ready";
-            if (events.Current.Type == "task.completed") seenCompletion = true;
+            if (events.Current.Type == "task.completed")
+                seenCompletion = true;
         }
         await events.DisposeAsync();
         var sessions = host.Services.GetRequiredService<InMemorySessionStore>();
         while (true)
         {
             using var claim = sessions.TryClaimSoleConnection(session.Id);
-            if (claim is null) break;
+            if (claim is null)
+                break;
             await Task.Delay(20, timeout.Token);
         }
         await using var reconnectedEvents = sdk.SubscribeEventsWebSocketAsync(session.Id, cancellationToken: timeout.Token).GetAsyncEnumerator();
@@ -305,7 +308,8 @@ public sealed class AuthenticatedTaskHttpTests
             Assert.Equal(26, text.Length);
             Assert.Equal(text, Ulid.Parse(text).ToString());
             Assert.NotEqual(default, Ulid.Parse(text));
-            if (expected is not null) Assert.Equal(expected, text);
+            if (expected is not null)
+                Assert.Equal(expected, text);
         }
     }
 
@@ -404,7 +408,8 @@ public sealed class AuthenticatedTaskHttpTests
             builder.Services.AddAuthorization();
             builder.Services.AddOpenConnectTaskExecution(options => { options.Capacity = 8; options.WorkerConcurrency = 1; });
             builder.Services.AddSingleton<IHostTaskExecutionAuthorizer, AllowAuthorizer>();
-            if (registerExecutor) builder.Services.AddSingleton<IHostTaskExecutor>(executor);
+            if (registerExecutor)
+                builder.Services.AddSingleton<IHostTaskExecutor>(executor);
 
             var app = builder.Build();
             try
@@ -422,7 +427,8 @@ public sealed class AuthenticatedTaskHttpTests
             catch
             {
                 executor.Release();
-                try { await StopBoundedAsync(app); }
+                try
+                { await StopBoundedAsync(app); }
                 finally { await app.DisposeAsync(); }
                 throw;
             }
@@ -446,7 +452,8 @@ public sealed class AuthenticatedTaskHttpTests
         {
             Client.Dispose();
             Executor.Release();
-            try { await StopBoundedAsync(_app); }
+            try
+            { await StopBoundedAsync(_app); }
             finally { await _app.DisposeAsync(); }
         }
     }
@@ -476,7 +483,8 @@ public sealed class AuthenticatedTaskHttpTests
 
         private static bool IsUlid(string text)
         {
-            try { _ = Ulid.Parse(text); return true; }
+            try
+            { _ = Ulid.Parse(text); return true; }
             catch (FormatException) { return false; }
         }
 

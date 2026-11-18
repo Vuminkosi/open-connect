@@ -1,19 +1,19 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
-using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Privacy;
@@ -96,7 +96,8 @@ public static class EndpointRouteBuilderExtensions
     public static IEndpointRouteBuilder MapOpenConnectVoice(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        if (!TryMarkMapped(endpoints, "voice")) return endpoints;
+        if (!TryMarkMapped(endpoints, "voice"))
+            return endpoints;
 
         var group = endpoints.MapGroup("/openconnect/v1/voice");
         group.MapGet("/status", (IServiceProvider services) =>
@@ -130,7 +131,8 @@ public static class EndpointRouteBuilderExtensions
     public static IEndpointRouteBuilder MapOpenConnectNavigator(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        if (!TryMarkMapped(endpoints, "navigator")) return endpoints;
+        if (!TryMarkMapped(endpoints, "navigator"))
+            return endpoints;
 
         var group = endpoints.MapGroup("/openconnect/v1/navigator");
         group.MapGet("/status", (IServiceProvider services) =>
@@ -147,7 +149,8 @@ public static class EndpointRouteBuilderExtensions
     public static IEndpointRouteBuilder MapOpenConnectMcp(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        if (!TryMarkMapped(endpoints, "mcp")) return endpoints;
+        if (!TryMarkMapped(endpoints, "mcp"))
+            return endpoints;
 
         var group = endpoints.MapGroup("/openconnect/v1/mcp");
         group.MapGet("/tools", (IServiceProvider services) =>
@@ -274,7 +277,8 @@ public static class EndpointRouteBuilderExtensions
 
     internal static async Task<IResult> HandleGetTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
     {
-        if (!UlidTryParse(id, out var value)) return Results.Problem(statusCode: 400, title: "The task ID is invalid.");
+        if (!UlidTryParse(id, out var value))
+            return Results.Problem(statusCode: 400, title: "The task ID is invalid.");
         if (!UlidTryParse(context.User.FindFirstValue("tenant_id"), out var tenant) ||
             !UlidTryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub"), out var principal))
             return Results.Problem(statusCode: 403, title: "The authenticated identity is missing required tenant or subject claims.");
@@ -286,13 +290,16 @@ public static class EndpointRouteBuilderExtensions
 
     internal static async Task<IResult> HandleCancelTaskAsync(string id, HttpContext context, InMemoryTaskStore store, CancellationToken cancellationToken)
     {
-        if (!UlidTryParse(id, out var value)) return Results.Problem(statusCode: 400, title: "The task ID is invalid.");
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!UlidTryParse(id, out var value))
+            return Results.Problem(statusCode: 400, title: "The task ID is invalid.");
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
         var existing = await store.GetAsync(value, cancellationToken);
         if (existing is null || existing.TenantId.Value != tenant || existing.PrincipalId.Value != principal)
             return Results.Problem(statusCode: 404, title: "Task not found.");
         var dispatcher = context.RequestServices.GetService<IHostTaskExecutionDispatcher>();
-        if (dispatcher is null) return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
+        if (dispatcher is null)
+            return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
         var cancelled = await dispatcher.CancelAsync(value, cancellationToken);
         return cancelled is null ? Results.Json(null, options: OpenConnectHttpJson.CreateOptions()) : IdentifierJson(cancelled, StatusCodes.Status200OK);
     }
@@ -314,7 +321,8 @@ public static class EndpointRouteBuilderExtensions
 
     internal static IResult HandleCreateSession(HttpContext context, SessionRequest? request, InMemorySessionStore store)
     {
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
         var session = store.Create(new TenantId(tenant), new PrincipalId(principal));
         return IdentifierJson(session, StatusCodes.Status201Created, $"/openconnect/v1/sessions/{session.Id.Value}");
     }
@@ -328,7 +336,8 @@ public static class EndpointRouteBuilderExtensions
     /// </remarks>
     internal static async Task<IResult> HandleCreateSessionAsync(HttpContext context, SessionRequest? request, InMemorySessionStore store, CancellationToken cancellationToken = default)
     {
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
         var session = store.Create(new TenantId(tenant), new PrincipalId(principal));
 
         var mapping = context.RequestServices.GetService<ISessionUuidMappingStore>();
@@ -364,8 +373,10 @@ public static class EndpointRouteBuilderExtensions
 
     internal static IResult HandleGetSession(string id, HttpContext context, InMemorySessionStore store)
     {
-        if (!UlidTryParse(id, out var value)) return Results.Problem(statusCode: 400, title: "The session ID is invalid.");
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!UlidTryParse(id, out var value))
+            return Results.Problem(statusCode: 400, title: "The session ID is invalid.");
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
         var session = store.Get(value);
         return session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal
             ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
@@ -393,7 +404,8 @@ public static class EndpointRouteBuilderExtensions
         {
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
         }
-        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
         var session = store.Get(value);
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
@@ -433,12 +445,15 @@ public static class EndpointRouteBuilderExtensions
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
     {
-        if (after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (after < 0)
+            return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
         if (UlidTryParse(id, out var value))
         {
-            if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+            if (!TryIdentity(context, out var tenant, out var principal))
+                return IdentityError();
             var session = store.Get(value);
-            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
+            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
+                return Results.Problem(statusCode: 404, title: "Session not found.");
             return Results.Ok(store.GetEvents(value, after ?? 0));
         }
 
@@ -448,7 +463,8 @@ public static class EndpointRouteBuilderExtensions
         // existence stays concealed, exactly like the legacy ownership check.
         if (!Guid.TryParseExact(id, "D", out var sessionUuid) || sessionUuid == Guid.Empty)
             return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
-        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal)) return IdentityError();
+        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal))
+            return IdentityError();
         var resolver = context.RequestServices.GetService<ISessionUuidResolver>();
         if (resolver is null || !resolver.TryResolve(sessionUuid, out var mapped))
             return Results.Problem(statusCode: 404, title: "Session not found.");
@@ -494,12 +510,15 @@ public static class EndpointRouteBuilderExtensions
     /// </remarks>
     internal static async Task<IResult> HandleGetSessionEventsAsync(string id, long? after, HttpContext context, InMemorySessionStore store, CancellationToken cancellationToken = default)
     {
-        if (after < 0) return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
+        if (after < 0)
+            return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
         if (UlidTryParse(id, out var value))
         {
-            if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+            if (!TryIdentity(context, out var tenant, out var principal))
+                return IdentityError();
             var session = store.Get(value);
-            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal) return Results.Problem(statusCode: 404, title: "Session not found.");
+            if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
+                return Results.Problem(statusCode: 404, title: "Session not found.");
             return Results.Ok(store.GetEvents(value, after ?? 0));
         }
 
@@ -509,7 +528,8 @@ public static class EndpointRouteBuilderExtensions
         // existence stays concealed, exactly like the legacy ownership check.
         if (!Guid.TryParseExact(id, "D", out var sessionUuid) || sessionUuid == Guid.Empty)
             return Results.Problem(statusCode: 400, title: "The session or event position is invalid.");
-        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal)) return IdentityError();
+        if (!TryIdentity(context, out var uuidTenant, out var uuidPrincipal))
+            return IdentityError();
         var tenantId = new TenantId(uuidTenant);
         var principalId = new PrincipalId(uuidPrincipal);
 
@@ -518,7 +538,8 @@ public static class EndpointRouteBuilderExtensions
         if (durable is not null)
         {
             var resolved = await durable.ResolveAsync(sessionUuid, tenantId, principalId, cancellationToken).ConfigureAwait(false);
-            if (resolved is not null) mapped = resolved.Value.Value;
+            if (resolved is not null)
+                mapped = resolved.Value.Value;
         }
 
         if (mapped is null)
@@ -571,7 +592,8 @@ public static class EndpointRouteBuilderExtensions
     private static bool TryReadCursor(IQueryCollection query, string name, out long? cursor)
     {
         cursor = 0;
-        if (!query.ContainsKey(name)) return true;
+        if (!query.ContainsKey(name))
+            return true;
 
         var values = query[name];
         if (values.Count != 1 || !long.TryParse(values[0], System.Globalization.NumberStyles.None,
@@ -695,7 +717,8 @@ public sealed class InMemoryTaskStore : ITaskLifecycleStore
             if (current.TenantId != tenantId || current.PrincipalId != principalId || current.State != expectedState)
                 return Task.FromResult<TaskRecord?>(null);
             var updated = current with { State = newState };
-            if (_byId.TryUpdate(taskId.Value, updated, current)) return Task.FromResult<TaskRecord?>(updated);
+            if (_byId.TryUpdate(taskId.Value, updated, current))
+                return Task.FromResult<TaskRecord?>(updated);
         }
         return Task.FromResult<TaskRecord?>(null);
     }
@@ -705,9 +728,11 @@ public sealed class InMemoryTaskStore : ITaskLifecycleStore
         cancellationToken.ThrowIfCancellationRequested();
         while (_byId.TryGetValue(id, out var current))
         {
-            if (current.State is AgentRunState.Completed or AgentRunState.Failed or AgentRunState.Cancelled) return Task.FromResult<TaskRecord?>(current);
+            if (current.State is AgentRunState.Completed or AgentRunState.Failed or AgentRunState.Cancelled)
+                return Task.FromResult<TaskRecord?>(current);
             var updated = current with { State = AgentRunState.Cancelled };
-            if (_byId.TryUpdate(id, updated, current)) return Task.FromResult<TaskRecord?>(updated);
+            if (_byId.TryUpdate(id, updated, current))
+                return Task.FromResult<TaskRecord?>(updated);
         }
         return Task.FromResult<TaskRecord?>(null);
     }
@@ -747,27 +772,31 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
     internal ClientInteractionResponseAppendResult TryAppendClientInteractionResponse(
         Ulid id, string connectionId, ClientInteractionResponse response, string eventData)
     {
-        if (!_sessions.TryGetValue(id, out var session)) return ClientInteractionResponseAppendResult.SessionNotFound;
+        if (!_sessions.TryGetValue(id, out var session))
+            return ClientInteractionResponseAppendResult.SessionNotFound;
         return _journal.TryAppendBoundClientInteractionResponse(connectionId, session.Id, session.TenantId,
             session.PrincipalId, response, eventData);
     }
 
     internal long AppendEvent(Ulid id, string type, string data)
     {
-        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        if (!_sessions.ContainsKey(id))
+            throw new KeyNotFoundException("Session not found.");
         return _journal.Append(new EventRecord(new SessionId(id), 0, type, data));
     }
 
     public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)
     {
-        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        if (!_sessions.ContainsKey(id))
+            throw new KeyNotFoundException("Session not found.");
         return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data), cancellationToken);
     }
 
     /// <summary>Appends an event associated with a task in an existing session.</summary>
     public Task<long> AppendTaskEventAsync(Ulid id, TaskId taskId, string type, string data, CancellationToken cancellationToken = default)
     {
-        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        if (!_sessions.ContainsKey(id))
+            throw new KeyNotFoundException("Session not found.");
         return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data) { TaskId = taskId.Value.ToString() }, cancellationToken);
     }
 
@@ -791,7 +820,8 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         var session = _sessions[sessionId.Value];
         var connectionId = _journal.TryClaimAndBindPendingInteraction(sessionId, session.TenantId,
             session.PrincipalId, request.CorrelationId, request.ConnectionId);
-        if (connectionId is null) return null;
+        if (connectionId is null)
+            return null;
         request = request with { ConnectionId = connectionId };
         var requestSequence = await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Request,
             JsonSerializer.Serialize(request, InteractionJsonOptions), cancellationToken).ConfigureAwait(false);
@@ -807,9 +837,11 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
                 foreach (var record in GetEvents(sessionId.Value, cursor))
                 {
                     cursor = Math.Max(cursor, record.Sequence);
-                    if (!record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)) continue;
+                    if (!record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal))
+                        continue;
                     ClientInteractionResponse? response;
-                    try { response = JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                    try
+                    { response = JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
                     catch (JsonException) { continue; }
                     if (response?.CorrelationId == request.CorrelationId && response.ResultKind == expectedResultKind)
                         return response;
@@ -832,12 +864,14 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
                     .Where(record => record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal))
                     .Select(record =>
                     {
-                        try { return JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                        try
+                        { return JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
                         catch (JsonException) { return null; }
                     })
                     .FirstOrDefault(response => response?.CorrelationId == request.CorrelationId &&
                                                 response.ResultKind == expectedResultKind);
-                if (response is not null) return response;
+                if (response is not null)
+                    return response;
             }
             return null;
         }

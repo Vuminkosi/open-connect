@@ -31,7 +31,8 @@ public sealed class LiveUIAgentTools(
     private async ValueTask<LiveUIAgentPage?> GetCurrentPageCoreAsync(bool discover, CancellationToken cancellationToken)
     {
         var (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
-        if (context is null || manifest is null || route is null) return null;
+        if (context is null || manifest is null || route is null)
+            return null;
 
         var routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
         var canInspectRoute = await IsAllowedAsync(
@@ -42,15 +43,18 @@ public sealed class LiveUIAgentTools(
         if (discover && canInspectRoute && options.Value.Discovery.EnableRuntimeFallback && runtimeDiscovery is not null)
         {
             var refreshed = await runtimeDiscovery.RefreshAsync(context, manifest, route, cancellationToken).ConfigureAwait(false);
-            if (!refreshed && runtimeOnly) return null;
+            if (!refreshed && runtimeOnly)
+                return null;
             runtimeFresh = refreshed;
             (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
-            if (context is null || manifest is null || route is null) return null;
+            if (context is null || manifest is null || route is null)
+                return null;
             routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
             canInspectRoute = await IsAllowedAsync(
                 new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
         }
-        else if (runtimeOnly && canInspectRoute) return null;
+        else if (runtimeOnly && canInspectRoute)
+            return null;
 
         var targets = new List<LiveUIAgentTarget>();
         foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0 &&
@@ -69,7 +73,8 @@ public sealed class LiveUIAgentTools(
                     GetCapabilityProbeParameters(target, group.Key));
                 var allowed = await IsAllowedAsync(
                     new LiveUIExecutionContext(manifest, route, target, candidate), cancellationToken).ConfigureAwait(false);
-                if (allowed) authorizedCapabilities.UnionWith(group.Select(item => item.Capability));
+                if (allowed)
+                    authorizedCapabilities.UnionWith(group.Select(item => item.Capability));
             }
 
             if (authorizedCapabilities.Count > 0)
@@ -105,10 +110,12 @@ public sealed class LiveUIAgentTools(
         {
             var latest = await contextAccessor.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
             if (latest is null || latest.SessionId != context.SessionId || latest.CurrentRouteId != context.CurrentRouteId ||
-                !string.Equals(latest.CurrentPath, context.CurrentPath, StringComparison.Ordinal)) return null;
+                !string.Equals(latest.CurrentPath, context.CurrentPath, StringComparison.Ordinal))
+                return null;
             lock (_pageGate)
             {
-                if (!_observedPages.ContainsKey(context.SessionId) && _observedPages.Count >= 256) return null;
+                if (!_observedPages.ContainsKey(context.SessionId) && _observedPages.Count >= 256)
+                    return null;
                 _observedPages[context.SessionId] = (context.CurrentRouteId, context.CurrentPath);
             }
         }
@@ -125,8 +132,10 @@ public sealed class LiveUIAgentTools(
     public async ValueTask<LiveUIAgentPage?> GetCurrentPageForDirectAgentAsync(CancellationToken cancellationToken = default)
     {
         var page = await GetCurrentPageCoreAsync(false, cancellationToken).ConfigureAwait(false);
-        if (page is null) return null;
-        if (page.RouteId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)) return null;
+        if (page is null)
+            return null;
+        if (page.RouteId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal))
+            return null;
         var filteredTargets = page.Targets.Where(target => !target.TargetId.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)).ToArray();
         var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
         var hasRuntimeTargets = manifest?.Routes.Any(route => route.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) ||
@@ -223,7 +232,8 @@ public sealed class LiveUIAgentTools(
         try
         {
             var (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
-            if (context is null || manifest is null || route is null) return Rejected("session_context_unavailable");
+            if (context is null || manifest is null || route is null)
+                return Rejected("session_context_unavailable");
             if (type == LiveUIActionType.Navigate && parameters.DestinationRouteId is { } destinationId &&
                 destinationId.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) &&
                 (runtimeDiscovery is null || !runtimeDiscovery.IsCurrentRoute(context, manifest, destinationId)))
@@ -275,7 +285,8 @@ public sealed class LiveUIAgentTools(
                 return (null, null, null);
 
             var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
-            if (manifestValidator.Validate(manifest).Count != 0) return (context, null, null);
+            if (manifestValidator.Validate(manifest).Count != 0)
+                return (context, null, null);
             var route = manifest!.Routes.SingleOrDefault(candidate => candidate.Id == context.CurrentRouteId);
             return route is null ? (context, manifest, null) : (context, manifest, route);
         }

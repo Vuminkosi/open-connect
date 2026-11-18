@@ -1,5 +1,5 @@
-using OpenConnect.Agents.Templates;
 using OpenConnect.Abstractions;
+using OpenConnect.Agents.Templates;
 using Xunit;
 
 namespace OpenConnect.Agents.Tests;

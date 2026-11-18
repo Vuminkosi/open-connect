@@ -25,7 +25,8 @@ public sealed class PolicyEngine(ISecurityDetector? detector = null)
             return Block("required_detector_unavailable");
 
         DetectorResult result;
-        try { result = await detector.DetectAndSanitizeAsync(content, context, cancellationToken).ConfigureAwait(false); }
+        try
+        { result = await detector.DetectAndSanitizeAsync(content, context, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { return Block("detector_failure"); }
         if (!result.Available || result.SanitizedContent is null || result.DetectedEntities is null)

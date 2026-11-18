@@ -27,7 +27,8 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     [Inject] private IServiceProvider ServiceProvider { get; set; } = default!;
 
-    [Inject] private IEnumerable<IConfigureOpenConnectComponent> ComponentConfigurations { get; set; }
+    [Inject]
+    private IEnumerable<IConfigureOpenConnectComponent> ComponentConfigurations { get; set; }
         = Enumerable.Empty<IConfigureOpenConnectComponent>();
 
     [CascadingParameter(Name = "OpenConnectProvider")]

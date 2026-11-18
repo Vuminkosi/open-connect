@@ -61,7 +61,8 @@ public sealed class OutboxWorkerOptionsValidator : IValidateOptions<OutboxWorker
         var failures = new List<string>();
         if (options.Mode == OutboxHostingMode.Standalone && options.EmbeddedDispatcherEnabled)
             failures.Add("outbox_standalone_requires_embedded_disabled: Standalone mode requires EmbeddedDispatcherEnabled=false so two dispatchers never publish the same entry.");
-        try { _ = Abstractions.Ulid.Parse(options.TenantUlid); }
+        try
+        { _ = Abstractions.Ulid.Parse(options.TenantUlid); }
         catch (Exception) { failures.Add("outbox_tenant_ulid_invalid: TenantUlid must be a 26-character Crockford Base32 ULID."); }
         if (!string.Equals(options.DatabaseProvider, "npgsql", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(options.DatabaseProvider, "postgres", StringComparison.OrdinalIgnoreCase)

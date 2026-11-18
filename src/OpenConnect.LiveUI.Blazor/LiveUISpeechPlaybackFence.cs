@@ -13,7 +13,8 @@ public sealed class LiveUISpeechPlaybackFence
     public bool ShouldClearHighlights(ComposerSpeechPlaybackEvent playbackEvent)
     {
         ArgumentNullException.ThrowIfNull(playbackEvent);
-        if (playbackEvent.PlaybackEpoch < 0) return false;
+        if (playbackEvent.PlaybackEpoch < 0)
+            return false;
 
         lock (_gate)
         {
@@ -33,7 +34,8 @@ public sealed class LiveUISpeechPlaybackFence
 
                 case ComposerSpeechPlaybackStage.ResponseCompleted:
                 case ComposerSpeechPlaybackStage.Interrupted:
-                    if (playbackEvent.PlaybackEpoch < _currentEpoch) return false;
+                    if (playbackEvent.PlaybackEpoch < _currentEpoch)
+                        return false;
                     _currentEpoch = playbackEvent.PlaybackEpoch;
                     _terminal = true;
                     return true;

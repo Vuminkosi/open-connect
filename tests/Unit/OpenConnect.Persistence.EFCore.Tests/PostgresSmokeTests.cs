@@ -27,7 +27,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task PostgresSmoke_MigrationContent_has_expected_openconnect_tables()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         await using var db = CreateContext();
         var script = db.Database.GenerateCreateScript();
         var lines = script.Split('\n');
@@ -38,7 +39,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         }
         finally
         {
-            if (File.Exists(scriptPath)) File.Delete(scriptPath);
+            if (File.Exists(scriptPath))
+                File.Delete(scriptPath);
         }
         Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
         Assert.Equal(12, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
@@ -51,7 +53,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task PostgresSmoke_IdempotentScriptHasOnlyOpenConnectTables()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         using var pgContext = CreateContext();
         var sql = pgContext.Database.GenerateCreateScript();
         var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns", "NativeAgentSessions", "PublicSessionMappings", "ApprovalNonces" };
@@ -63,7 +66,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task PostgresSmoke_RoundTrip_persists_openconnect_workflows()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
         {
             output.WriteLine("SKIP Postgres round-trip smoke test: an explicitly configured disposable PostgreSQL fixture is required for isolated database creation.");
@@ -85,35 +89,36 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             databaseCreated = true;
             await using var db = CreateContext(connectionString);
             await db.Database.EnsureCreatedAsync();
-        var scope = new TenantId(Ulid.NewUlid());
-        var principal = new PrincipalId(Ulid.NewUlid());
-        var sessionId = new SessionId(Ulid.NewUlid());
-        var sessions = new EfSessionStore<OpenConnectDbContext>(db);
-        await sessions.UpsertAsync(new(sessionId, scope, principal, 1));
-        var taskId = new TaskId(Ulid.NewUlid());
-        var tasks = new EfTaskStore<OpenConnectDbContext>(db);
-        Assert.Equal(taskId, (await tasks.AcceptAsync(new(taskId, scope, principal, "pg-smoke-key"))).Id);
-        var journal = new EfEventJournal<OpenConnectDbContext>(db);
-        Assert.Equal(1, await journal.AppendAsync(new(sessionId, 0, "first", "one")));
-        Assert.Equal(2, await journal.AppendAsync(new(sessionId, 0, "second", "two")));
-        var events = new List<EventRecord>();
-        await foreach (var item in journal.ReplayAsync(sessionId)) events.Add(item);
-        Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Sequence));
-        var outbox = new EfOutboxStore<OpenConnectDbContext>(db);
-        var entry = new OutboxEntry(Guid.NewGuid(), "pg-smoke", "payload");
-        await outbox.EnqueueAsync(entry);
-        Assert.Single(await outbox.GetPendingAsync(10));
-        var leases = new EfLeaseStore<OpenConnectDbContext>(db);
-        Assert.True(await leases.TryAcquireAsync(new("pg-smoke-resource", scope, "lease-owner", DateTimeOffset.UtcNow.AddMinutes(2), 1)));
-        var approvals = new EfApprovalStore<OpenConnectDbContext>(db);
-        var approval = new ApprovalRecord(Guid.NewGuid(), scope, principal, taskId, "pending", null);
-        await approvals.CreateAsync(approval);
-        await approvals.DecideAsync(approval.Id, scope, principal, "approved");
-        Assert.Equal("approved", (await approvals.GetAsync(approval.Id, scope, principal))!.Decision);
-        var vault = new EfPrivacyTokenVault<OpenConnectDbContext>(db);
-        var encrypted = new byte[] { 1, 2, 3 };
-        await vault.StoreAsync(new("pg-token", scope, "principal", sessionId, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
-        Assert.Equal(encrypted, (await vault.GetAsync("pg-token", scope))!.EncryptedValue);
+            var scope = new TenantId(Ulid.NewUlid());
+            var principal = new PrincipalId(Ulid.NewUlid());
+            var sessionId = new SessionId(Ulid.NewUlid());
+            var sessions = new EfSessionStore<OpenConnectDbContext>(db);
+            await sessions.UpsertAsync(new(sessionId, scope, principal, 1));
+            var taskId = new TaskId(Ulid.NewUlid());
+            var tasks = new EfTaskStore<OpenConnectDbContext>(db);
+            Assert.Equal(taskId, (await tasks.AcceptAsync(new(taskId, scope, principal, "pg-smoke-key"))).Id);
+            var journal = new EfEventJournal<OpenConnectDbContext>(db);
+            Assert.Equal(1, await journal.AppendAsync(new(sessionId, 0, "first", "one")));
+            Assert.Equal(2, await journal.AppendAsync(new(sessionId, 0, "second", "two")));
+            var events = new List<EventRecord>();
+            await foreach (var item in journal.ReplayAsync(sessionId))
+                events.Add(item);
+            Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Sequence));
+            var outbox = new EfOutboxStore<OpenConnectDbContext>(db);
+            var entry = new OutboxEntry(Guid.NewGuid(), "pg-smoke", "payload");
+            await outbox.EnqueueAsync(entry);
+            Assert.Single(await outbox.GetPendingAsync(10));
+            var leases = new EfLeaseStore<OpenConnectDbContext>(db);
+            Assert.True(await leases.TryAcquireAsync(new("pg-smoke-resource", scope, "lease-owner", DateTimeOffset.UtcNow.AddMinutes(2), 1)));
+            var approvals = new EfApprovalStore<OpenConnectDbContext>(db);
+            var approval = new ApprovalRecord(Guid.NewGuid(), scope, principal, taskId, "pending", null);
+            await approvals.CreateAsync(approval);
+            await approvals.DecideAsync(approval.Id, scope, principal, "approved");
+            Assert.Equal("approved", (await approvals.GetAsync(approval.Id, scope, principal))!.Decision);
+            var vault = new EfPrivacyTokenVault<OpenConnectDbContext>(db);
+            var encrypted = new byte[] { 1, 2, 3 };
+            await vault.StoreAsync(new("pg-token", scope, "principal", sessionId, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
+            Assert.Equal(encrypted, (await vault.GetAsync("pg-token", scope, "principal", sessionId))!.EncryptedValue);
         }
         catch (Exception exception)
         {
@@ -124,7 +129,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         {
             if (databaseCreated)
             {
-                try { await DropIsolatedDatabaseAsync(database); }
+                try
+                { await DropIsolatedDatabaseAsync(database); }
                 catch (Exception exception) when (testFailure is not null)
                 {
                     output.WriteLine($"Postgres isolated smoke database cleanup failed ({exception.GetType().Name}); the original test failure is preserved.");
@@ -142,7 +148,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     [Fact]
     public async Task PostgresSmoke_DispatcherSuppressesSequentialReplay_marks_claimed_rows_delivered()
     {
-        if (!await ServiceAvailableAsync()) return;
+        if (!await ServiceAvailableAsync())
+            return;
         if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
         {
             output.WriteLine("SKIP Postgres dispatcher smoke test: an explicitly configured disposable PostgreSQL fixture is required for isolated database creation.");
@@ -165,7 +172,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             await using var db = CreateContext(connectionString);
             await db.Database.EnsureCreatedAsync();
             var entries = Enumerable.Range(0, 3).Select(i => new OutboxEntry(Guid.NewGuid(), "dispatch", $"payload-{i}")).ToArray();
-            foreach (var entry in entries) await new EfOutboxStore<OpenConnectDbContext>(db).EnqueueAsync(entry);
+            foreach (var entry in entries)
+                await new EfOutboxStore<OpenConnectDbContext>(db).EnqueueAsync(entry);
             var publisher = new CountingPublisher();
             var dispatcher = new EfOutboxDispatcher();
             var request = new OutboxClaimRequest(10, DateTime.UtcNow.AddMinutes(1), "smoke-worker", TimeSpan.FromMinutes(1));
@@ -216,7 +224,8 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         {
             if (databaseCreated)
             {
-                try { await DropIsolatedDatabaseAsync(database); }
+                try
+                { await DropIsolatedDatabaseAsync(database); }
                 catch (Exception exception) when (testFailure is not null)
                 {
                     output.WriteLine($"Postgres isolated smoke database cleanup failed ({exception.GetType().Name}); the original test failure is preserved.");

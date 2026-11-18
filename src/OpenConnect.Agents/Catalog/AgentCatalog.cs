@@ -45,13 +45,15 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
     /// <inheritdoc />
     public AgentDefinition? Get(AgentId agentId)
     {
-        lock (_sync) return _definitions.GetValueOrDefault(agentId);
+        lock (_sync)
+            return _definitions.GetValueOrDefault(agentId);
     }
 
     /// <inheritdoc />
     public IReadOnlyList<AgentDefinition> GetAll()
     {
-        lock (_sync) return _definitions.Values.OrderBy(x => x.Id.Value, StringComparer.Ordinal).ToArray();
+        lock (_sync)
+            return _definitions.Values.OrderBy(x => x.Id.Value, StringComparer.Ordinal).ToArray();
     }
 
     private static void ValidateDefinition(AgentDefinition definition)
@@ -66,7 +68,8 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
             throw new AgentCatalogException("Agent orchestration policy contains an unsupported mode.");
         if (policy.MaxDepth < 0 || policy.MaxDepth > FrameworkMaxDepth)
             throw new AgentCatalogException($"Maximum delegation depth must be between 0 and {FrameworkMaxDepth}.");
-        if (policy.MaxChildren < 0) throw new AgentCatalogException("Maximum child count cannot be negative.");
+        if (policy.MaxChildren < 0)
+            throw new AgentCatalogException("Maximum child count cannot be negative.");
         var budget = definition.Budget ?? throw new AgentCatalogException("Agent budget is required.");
         if (budget.MaxToolCalls < 0 || budget.MaxModelCalls < 0 || budget.MaxTokens < 0 ||
             budget.MaxConcurrentAgents < 0 || budget.MaxQueuedAgents < 0 || budget.MaxTotalAgents < 0 ||
@@ -100,7 +103,8 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
                     throw new AgentCatalogException("Scheduled operational agents require a valid five- or six-field cron schedule.");
                 if (string.IsNullOrWhiteSpace(operational.TimeZoneId))
                     throw new AgentCatalogException("Scheduled operational agents require a time zone.");
-                try { _ = TimeZoneInfo.FindSystemTimeZoneById(operational.TimeZoneId); }
+                try
+                { _ = TimeZoneInfo.FindSystemTimeZoneById(operational.TimeZoneId); }
                 catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException or ArgumentException)
                 {
                     throw new AgentCatalogException($"Scheduled operational agent time zone '{operational.TimeZoneId}' is not recognized or is invalid.", ex);
@@ -123,12 +127,14 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
     private static bool IsCronShapeValid(string cron)
     {
         var fields = cron.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (fields.Length is not (5 or 6)) return false;
+        if (fields.Length is not (5 or 6))
+            return false;
         var bounds = fields.Length == 5
             ? new[] { (0, 59), (0, 23), (1, 31), (1, 12), (0, 7) }
             : new[] { (0, 59), (0, 59), (0, 23), (1, 31), (1, 12), (0, 7) };
         for (var i = 0; i < fields.Length; i++)
-            if (!IsCronFieldValid(fields[i], bounds[i].Item1, bounds[i].Item2)) return false;
+            if (!IsCronFieldValid(fields[i], bounds[i].Item1, bounds[i].Item2))
+                return false;
         return true;
     }
 
@@ -137,12 +143,16 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
         foreach (var item in field.Split(','))
         {
             var parts = item.Split('/');
-            if (parts.Length > 2 || (parts.Length == 2 && (!int.TryParse(parts[1], out var step) || step < 1))) return false;
+            if (parts.Length > 2 || (parts.Length == 2 && (!int.TryParse(parts[1], out var step) || step < 1)))
+                return false;
             var range = parts[0];
-            if (range == "*") continue;
+            if (range == "*")
+                continue;
             var endpoints = range.Split('-');
-            if (endpoints.Length is < 1 or > 2 || !int.TryParse(endpoints[0], out var start) || start < minimum || start > maximum) return false;
-            if (endpoints.Length == 2 && (!int.TryParse(endpoints[1], out var end) || end < start || end > maximum)) return false;
+            if (endpoints.Length is < 1 or > 2 || !int.TryParse(endpoints[0], out var start) || start < minimum || start > maximum)
+                return false;
+            if (endpoints.Length == 2 && (!int.TryParse(endpoints[1], out var end) || end < start || end > maximum))
+                return false;
         }
         return true;
     }
@@ -155,15 +165,18 @@ public sealed class AgentCatalog : IAgentDefinitionRegistry
                     throw new AgentCatalogException($"Agent '{definition.Id}' references unknown child '{child}'.");
 
         var active = new HashSet<AgentId>();
-        foreach (var id in definitions.Keys) Visit(id, 0);
+        foreach (var id in definitions.Keys)
+            Visit(id, 0);
 
         void Visit(AgentId id, int depth)
         {
             if (depth > FrameworkMaxDepth)
                 throw new DelegationDepthExceededException(depth, FrameworkMaxDepth);
-            if (active.Contains(id)) throw new AgentCatalogException($"Delegation graph contains a cycle at '{id}'.");
+            if (active.Contains(id))
+                throw new AgentCatalogException($"Delegation graph contains a cycle at '{id}'.");
             active.Add(id);
-            foreach (var child in definitions[id].Orchestration.AllowedChildAgents ?? []) Visit(child, depth + 1);
+            foreach (var child in definitions[id].Orchestration.AllowedChildAgents ?? [])
+                Visit(child, depth + 1);
             active.Remove(id);
         }
     }

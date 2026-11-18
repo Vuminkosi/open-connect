@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
@@ -26,7 +26,8 @@ public sealed class QdrantVactorIndexer(
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         var configured = options.Value;
-        if (!configured.Enabled || !configured.SubscribeToAgentEvents) return;
+        if (!configured.Enabled || !configured.SubscribeToAgentEvents)
+            return;
         if (subscription is null)
             throw new InvalidOperationException("QdrantVactor is enabled for agent event subscriptions, but no IAgentEventSubscriptionV2 is registered.");
         await foreach (var item in subscription.SubscribeAsync(

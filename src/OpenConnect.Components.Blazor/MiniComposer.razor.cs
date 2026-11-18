@@ -137,13 +137,15 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 if (message.Role == "user")
                 {
-                    if (current is not null) exchanges.Add(current);
+                    if (current is not null)
+                        exchanges.Add(current);
                     current = new List<ComposerMessage>();
                 }
                 if (current is not null && (current.Count == 0 || current[^1].Role != message.Role || !string.Equals(current[^1].Text, message.Text, StringComparison.Ordinal)))
                     current.Add(message);
             }
-            if (current is not null) exchanges.Add(current);
+            if (current is not null)
+                exchanges.Add(current);
             return exchanges.TakeLast(2).SelectMany(exchange => exchange).ToList();
         }
     }
@@ -190,13 +192,16 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             var line = rawLine.TrimEnd();
             if (line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal))
             {
-                if (!inList) { output.Append("<ul>"); inList = true; }
+                if (!inList)
+                { output.Append("<ul>"); inList = true; }
                 output.Append("<li>").Append(RenderInline(line[2..])).Append("</li>");
                 continue;
             }
 
-            if (inList) { output.Append("</ul>"); inList = false; }
-            if (line.Length == 0) { output.Append("<br />"); continue; }
+            if (inList)
+            { output.Append("</ul>"); inList = false; }
+            if (line.Length == 0)
+            { output.Append("<br />"); continue; }
             if (line.StartsWith("### ", StringComparison.Ordinal))
                 output.Append("<h5>").Append(RenderInline(line[4..])).Append("</h5>");
             else if (line.StartsWith("## ", StringComparison.Ordinal))
@@ -207,7 +212,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 output.Append("<span>").Append(RenderInline(line)).Append("</span><br />");
         }
 
-        if (inList) output.Append("</ul>");
+        if (inList)
+            output.Append("</ul>");
         return new MarkupString(output.ToString());
     }
 
@@ -216,11 +222,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task CopyResponseAsync(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return;
+        if (string.IsNullOrWhiteSpace(text))
+            return;
         try
         {
             var copied = await JS.InvokeAsync<bool>("ocComposerInput.copy", text).ConfigureAwait(false);
-            if (!copied) return;
+            if (!copied)
+                return;
             _copiedResponse = text;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             await Task.Delay(TimeSpan.FromSeconds(1.5)).ConfigureAwait(false);
@@ -246,9 +254,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         var activeStart = Math.Clamp(_beingSpokenStart, spoken, source.Length);
         var activeEnd = Math.Clamp(_beingSpokenEnd, activeStart, source.Length);
         var output = new StringBuilder();
-        if (spoken > 0) output.Append("<span class=\"oc-speech-spoken\" style=\"color:var(--mud-palette-text-primary)\">").Append(RenderInline(WebUtility.HtmlEncode(source[..spoken]))).Append("</span>");
-        if (activeEnd > activeStart) output.Append("<span class=\"oc-speech-speaking\" style=\"color:var(--mud-palette-primary);font-weight:600\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeStart..activeEnd]))).Append("</span>");
-        if (activeEnd < source.Length) output.Append("<span class=\"oc-speech-pending\" style=\"color:var(--mud-palette-text-disabled);opacity:.55\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeEnd..]))).Append("</span>");
+        if (spoken > 0)
+            output.Append("<span class=\"oc-speech-spoken\" style=\"color:var(--mud-palette-text-primary)\">").Append(RenderInline(WebUtility.HtmlEncode(source[..spoken]))).Append("</span>");
+        if (activeEnd > activeStart)
+            output.Append("<span class=\"oc-speech-speaking\" style=\"color:var(--mud-palette-primary);font-weight:600\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeStart..activeEnd]))).Append("</span>");
+        if (activeEnd < source.Length)
+            output.Append("<span class=\"oc-speech-pending\" style=\"color:var(--mud-palette-text-disabled);opacity:.55\">").Append(RenderInline(WebUtility.HtmlEncode(source[activeEnd..]))).Append("</span>");
         return new MarkupString(output.ToString());
     }
 
@@ -294,8 +305,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             var response = Session.Connection == ComposerConnectionState.Streaming
                 ? Session.StreamingText
                 : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(response)) _speechDisplayText = response;
-            if (_speechOn) QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
+            if (!string.IsNullOrWhiteSpace(response))
+                _speechDisplayText = response;
+            if (_speechOn)
+                QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
             TryNotifySpeechResponseCompleted(response);
         }
 
@@ -304,17 +317,20 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private void QueueSpeechSegments(string response, bool flush)
     {
-        if (response.Length < _speechCursor) _speechCursor = 0;
+        if (response.Length < _speechCursor)
+            _speechCursor = 0;
         var start = _speechCursor;
         while (start < response.Length)
         {
             var boundary = FindSpeechBoundary(response, start, flush);
-            if (boundary <= start) break;
+            if (boundary <= start)
+                break;
             _speechQueue.Enqueue(new SpeechSegment(response[start..boundary].Trim(), start, boundary));
             start = boundary;
         }
         _speechCursor = start;
-        if (_speechQueue.Count > 0 && !_speechWorkerRunning) _ = DrainSpeechQueueAsync();
+        if (_speechQueue.Count > 0 && !_speechWorkerRunning)
+            _ = DrainSpeechQueueAsync();
     }
 
     private static int FindSpeechBoundary(string text, int start, bool flush)
@@ -322,8 +338,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         for (var i = start; i < text.Length; i++)
         {
             if (text[i] is '.' or '!' or '?' or ';' or ':' or '\n'
-                && !IsInsideMarkdownSpan(text, i)) return i + 1;
-            if (i - start >= 240 && !IsInsideMarkdownSpan(text, i)) return i + 1;
+                && !IsInsideMarkdownSpan(text, i))
+                return i + 1;
+            if (i - start >= 240 && !IsInsideMarkdownSpan(text, i))
+                return i + 1;
         }
         return flush ? text.Length : start;
     }
@@ -341,7 +359,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 continue;
             }
 
-            if (inCode || i + 1 >= position) continue;
+            if (inCode || i + 1 >= position)
+                continue;
             if ((text[i] == '*' && text[i + 1] == '*')
                 || (text[i] == '_' && text[i + 1] == '_'))
             {
@@ -363,10 +382,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 SpeechSegment? segment;
                 lock (_speechQueue)
                 {
-                    if (_speechQueue.Count == 0) break;
+                    if (_speechQueue.Count == 0)
+                        break;
                     segment = _speechQueue.Dequeue();
                 }
-                if (!string.IsNullOrWhiteSpace(segment.Text)) await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(segment.Text))
+                    await SpeakResponseSegmentAsync(segment).ConfigureAwait(false);
             }
         }
         finally
@@ -390,7 +411,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _speechCts?.Dispose();
             _speechCts = new CancellationTokenSource();
             var speechText = StripMarkdown(segment.Text);
-            if (string.IsNullOrWhiteSpace(speechText)) return;
+            if (string.IsNullOrWhiteSpace(speechText))
+                return;
             var result = await Client.SynthesizeSpeechAsync(
                 new SpeechSynthesisRequest(speechText, "af_heart", "en-US", "pcm", Session.SpeechEpoch),
                 _speechCts.Token).ConfigureAwait(false);
@@ -401,7 +423,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             var dotNetReference = _dotNetRef ??= DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("ocComposerAudio.playPcm", result.AudioBase64, result.SampleRateHz, result.Channels,
                 playbackEpoch, dotNetReference, segment.StartCursor, segment.EndCursor).ConfigureAwait(false);
-            if (!Session.TryAcceptTtsAudioChunk(playbackEpoch)) return;
+            if (!Session.TryAcceptTtsAudioChunk(playbackEpoch))
+                return;
             _spokenResponseCharacters = Math.Max(_spokenResponseCharacters, segment.EndCursor);
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
@@ -422,7 +445,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
         finally
         {
-            if (playbackEpoch != 0) Session.EndSpeechPlayback(playbackEpoch);
+            if (playbackEpoch != 0)
+                Session.EndSpeechPlayback(playbackEpoch);
             _beingSpokenStart = -1;
             _beingSpokenEnd = -1;
         }
@@ -465,18 +489,22 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         if (Session is null || !Session.TryAcceptTtsAudioChunk(epoch) || !double.IsFinite(elapsedSeconds) ||
             !double.IsFinite(durationSeconds) || elapsedSeconds < 0 || durationSeconds < 0 ||
-            startCharacter < 0 || endCharacter < startCharacter) return;
+            startCharacter < 0 || endCharacter < startCharacter)
+            return;
         await NotifySpeechPlaybackChangedAsync(new(epoch, startCharacter, endCharacter, stage,
             Math.Min(elapsedSeconds, durationSeconds), durationSeconds)).ConfigureAwait(false);
     }
 
     private void TryNotifySpeechResponseCompleted(string response)
     {
-        if (Session is null || Session.Connection == ComposerConnectionState.Streaming || string.IsNullOrEmpty(response)) return;
-        if (_speechOn && (_speechWorkerRunning || _speechQueue.Count != 0 || _speechCursor < response.Length)) return;
+        if (Session is null || Session.Connection == ComposerConnectionState.Streaming || string.IsNullOrEmpty(response))
+            return;
+        if (_speechOn && (_speechWorkerRunning || _speechQueue.Count != 0 || _speechCursor < response.Length))
+            return;
 
         var completion = (Session.SessionId, Session.Messages.Count, Session.LastSequence);
-        if (_lastSpeechResponseCompleted == completion) return;
+        if (_lastSpeechResponseCompleted == completion)
+            return;
         _lastSpeechResponseCompleted = completion;
         _ = NotifySpeechPlaybackChangedAsync(new(Session.PlaybackEpoch, 0, response.Length,
             ComposerSpeechPlaybackStage.ResponseCompleted));
@@ -484,11 +512,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task NotifySpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         if (Session is not null)
             await Session.PublishSpeechPlaybackChangedAsync(playbackEvent).ConfigureAwait(false);
-        if (!SpeechPlaybackChanged.HasDelegate) return;
-        try { await SpeechPlaybackChanged.InvokeAsync(playbackEvent).ConfigureAwait(false); }
+        if (!SpeechPlaybackChanged.HasDelegate)
+            return;
+        try
+        { await SpeechPlaybackChanged.InvokeAsync(playbackEvent).ConfigureAwait(false); }
         catch (Exception) { }
     }
 
@@ -498,9 +529,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (!_speechOn)
         {
             _speechCts?.Cancel();
-            lock (_speechQueue) _speechQueue.Clear();
+            lock (_speechQueue)
+                _speechQueue.Clear();
             Session.TriggerBargeIn();
-            try { await JS.InvokeVoidAsync("ocComposerAudio.stop").ConfigureAwait(false); } catch (Exception) { }
+            try
+            { await JS.InvokeVoidAsync("ocComposerAudio.stop").ConfigureAwait(false); }
+            catch (Exception) { }
             await NotifySpeechPlaybackChangedAsync(new(Session.PlaybackEpoch, Math.Max(_beingSpokenStart, 0),
                 Math.Max(_beingSpokenEnd, 0), ComposerSpeechPlaybackStage.Interrupted)).ConfigureAwait(false);
         }
@@ -532,13 +566,15 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task OnSpeechSwitchChanged(bool value)
     {
-        if (_speechOn != value) await ToggleSpeechAsync();
+        if (_speechOn != value)
+            await ToggleSpeechAsync();
         await InvokeAsync(CloseSettingsMenuAsync);
     }
 
     private async Task OnMicrophoneSwitchChanged(bool value)
     {
-        if (_micOn != value) await ToggleMicrophoneAsync();
+        if (_micOn != value)
+            await ToggleMicrophoneAsync();
         await InvokeAsync(CloseSettingsMenuAsync);
     }
 
@@ -550,7 +586,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (!_micOn && _voiceActive)
         {
             _voiceActive = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); } catch (Exception) { }
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); }
+            catch (Exception) { }
         }
         await InvokeAsync(StateHasChanged);
     }
@@ -734,7 +772,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
                 await EnsureSessionAsync().WaitAsync(token);
 
-                if (string.IsNullOrWhiteSpace(session.SessionId)) return;
+                if (string.IsNullOrWhiteSpace(session.SessionId))
+                    return;
             }
 
             token.ThrowIfCancellationRequested();
@@ -745,7 +784,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _speechDisplayText = string.Empty;
             _beingSpokenStart = -1;
             _beingSpokenEnd = -1;
-            lock (_speechQueue) _speechQueue.Clear();
+            lock (_speechQueue)
+                _speechQueue.Clear();
             _speechCts?.Cancel();
             var sessionId = session.SessionId;
             if (!string.Equals(_pendingSubmissionDraft, text, StringComparison.Ordinal) ||
@@ -791,7 +831,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             {
                 _admissionInFlight = false;
             }
-            if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal)) return;
+            if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal))
+                return;
             _activeTaskId = admitted.Id;
             session.BindTrackedTask(admitted.Id, sessionId, admitted.State);
             ClearPendingSubmissionIdentity();
@@ -805,7 +846,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 _draft = text;
                 _inputRenderKey++;
             }
-            if (sendStarted) await InvokeAsync(session.CancelStreaming).ConfigureAwait(true);
+            if (sendStarted)
+                await InvokeAsync(session.CancelStreaming).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -822,7 +864,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         finally
         {
             _sending = false;
-            if (ReferenceEquals(_sendCts, sendCts)) _sendCts = null;
+            if (ReferenceEquals(_sendCts, sendCts))
+                _sendCts = null;
             sendCts.Dispose();
             await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
@@ -871,7 +914,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     [JSInvokable]
     public async Task OnVoiceFinal(string text, long speechEpoch)
     {
-        if (!Session.CommitLiveTranscript(text, speechEpoch)) return;
+        if (!Session.CommitLiveTranscript(text, speechEpoch))
+            return;
         _voiceActive = false;
         _draft = string.Empty;
         _inputRenderKey++;
@@ -905,7 +949,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (_voiceActive)
         {
             _voiceActive = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); } catch (Exception) { }
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); }
+            catch (Exception) { }
             return;
         }
 
@@ -924,7 +970,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
 
         var epoch = Session.StartLiveListening(permissionGranted: true);
-        if (Session.MicrophoneState == ComposerMicrophoneState.Failed) return;
+        if (Session.MicrophoneState == ComposerMicrophoneState.Failed)
+            return;
         try
         {
             await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint).ConfigureAwait(false);
@@ -960,7 +1007,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task CancelAdmittedTaskAsync(TaskId taskId)
     {
-        if (!_cancellingTaskIds.Add(taskId)) return;
+        if (!_cancellingTaskIds.Add(taskId))
+            return;
         try
         {
             var result = await Client.CancelTaskAsync(taskId);
@@ -986,9 +1034,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private Task EnsureSessionAsync()
     {
-        if (!string.IsNullOrWhiteSpace(Session.SessionId)) return Task.CompletedTask;
-        if (_sessionCreationFailed) return Task.CompletedTask;
-        if (_sessionCreationTask is { IsCompleted: false } pendingCreation) return pendingCreation;
+        if (!string.IsNullOrWhiteSpace(Session.SessionId))
+            return Task.CompletedTask;
+        if (_sessionCreationFailed)
+            return Task.CompletedTask;
+        if (_sessionCreationTask is { IsCompleted: false } pendingCreation)
+            return pendingCreation;
         return _sessionCreationTask ??= CreateSessionAsync();
     }
 

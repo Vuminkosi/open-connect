@@ -1,5 +1,6 @@
 using OpenConnect.Abstractions;
 namespace OpenConnect.Client;
+
 public interface IOpenConnectClient
 {
     Task<TaskRecord> CreateTaskAsync(CreateTaskRequest request, CancellationToken cancellationToken = default);

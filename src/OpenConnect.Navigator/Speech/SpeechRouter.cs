@@ -39,7 +39,8 @@ public sealed class SpeechRouter
         ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
         ArgumentException.ThrowIfNullOrWhiteSpace(textReference);
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        if (!_options.Enabled) throw new InvalidOperationException("Speech is disabled.");
+        if (!_options.Enabled)
+            throw new InvalidOperationException("Speech is disabled.");
         return new(requestId, textReference, locale ?? _options.DefaultLanguage, voiceId ?? _options.DefaultVoice,
             format, CurrentEpoch, deadline ?? DateTimeOffset.UtcNow.AddMinutes(1));
     }

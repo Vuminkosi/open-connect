@@ -40,7 +40,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_MigrateAppliesOnlyOwnedPlusBusinessTables()
     {
-        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres"))
+            return;
         await CreatePostgresDatabaseAsync($"oc_migrated_pg_{Run}");
         await using var db = new HostPgContext(PgOptions(PgMigrated));
         await db.GetService<IMigrator>().MigrateAsync();
@@ -62,7 +63,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_MigratedRoundTrip()
     {
-        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres"))
+            return;
         await CreatePostgresDatabaseAsync($"oc_rt_pg_{Run}");
         await using (var migrationDb = new HostPgContext(PgOptions(PgRoundTrip)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
@@ -73,7 +75,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_ConcurrentClaimBatchesDeliverExactlyOnce()
     {
-        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres"))
+            return;
         var database = $"oc_cc_pg_{Run}";
         await CreatePostgresDatabaseAsync(database);
         var connectionString = PgConnection(database);
@@ -81,7 +84,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
             await migrationDb.GetService<IMigrator>().MigrateAsync();
         await using var db = PgStoreContext(connectionString);
         var store = new EfOutboxStore<OpenConnectDbContext>(db);
-        for (var i = 0; i < 20; i++) await store.EnqueueAsync(new(Guid.NewGuid(), "batch", $"payload-{i}"));
+        for (var i = 0; i < 20; i++)
+            await store.EnqueueAsync(new(Guid.NewGuid(), "batch", $"payload-{i}"));
         var publisher = new RecordingPublisher();
         var calls = Enumerable.Range(0, 4).Select(i => new EfOutboxDispatcher().ExecuteBatchAsync(
             PgStoreContext(connectionString), OpenConnectOutboxClaimStrategy.OptimisticConcurrency,
@@ -98,7 +102,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task Postgres_PublishFailureRetriesThenQuarantines()
     {
-        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres")) return;
+        if (!await ServiceAvailableAsync(PgConnection("postgres"), "Postgres"))
+            return;
         var database = $"oc_q_pg_{Run}";
         await CreatePostgresDatabaseAsync(database);
         var connectionString = PgConnection(database);
@@ -115,7 +120,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
             await using var attemptDb = PgStoreContext(connectionString);
             await dispatcher.ExecuteBatchAsync(attemptDb, OpenConnectOutboxClaimStrategy.OptimisticConcurrency,
                 new OutboxClaimRequest(5, DateTime.UtcNow.AddMinutes(10), "failure-dispatcher", TimeSpan.FromMinutes(5)), publisher, 2, CancellationToken.None);
-            if (i < 2) await Task.Delay(TimeSpan.FromSeconds(5));
+            if (i < 2)
+                await Task.Delay(TimeSpan.FromSeconds(5));
         }
         Assert.DoesNotContain(await store.GetPendingAsync(10), x => x.Id == entry.Id);
         var status = await db.Set<OutboxEntity>().AsNoTracking().Where(x => x.Id == entry.Id).Select(x => x.Status).SingleAsync();
@@ -127,7 +133,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
     [Fact]
     public async Task SqlServer_MigrateAndRoundTrip()
     {
-        if (!await ServiceAvailableAsync(MsConnection("master"), "SQL Server")) return;
+        if (!await ServiceAvailableAsync(MsConnection("master"), "SQL Server"))
+            return;
         await CreateSqlServerDatabaseAsync($"oc_migrated_ms_{Run}");
         await using (var migrationDb = new HostMsContext(MsOptions(MsMigrated)))
             await migrationDb.GetService<IMigrator>().MigrateAsync();
@@ -156,7 +163,8 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         Assert.Equal(1, await journal.AppendAsync(new(_sessionId!.Value, 0, "first", "one")));
         Assert.Equal(2, await journal.AppendAsync(new(_sessionId!.Value, 0, "second", "two")));
         var events = new List<EventRecord>();
-        await foreach (var item in journal.ReplayAsync(_sessionId!.Value)) events.Add(item);
+        await foreach (var item in journal.ReplayAsync(_sessionId!.Value))
+            events.Add(item);
         Assert.Equal(new long[] { 1, 2 }, events.Select(x => x.Sequence));
         var leases = new EfLeaseStore<OpenConnectDbContext>(db);
         Assert.True(await leases.TryAcquireAsync(new($"resource-{suffix}", _tenant!.Value, "owner", DateTimeOffset.UtcNow.AddMinutes(2), 1)));
@@ -170,7 +178,7 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         var vault = new EfPrivacyTokenVault<OpenConnectDbContext>(db);
         var ciphertext = new byte[] { 3, 1, 4 };
         await vault.StoreAsync(new($"token-{suffix}", _tenant!.Value, "principal", _sessionId!.Value, "email", ciphertext, DateTimeOffset.UtcNow.AddHours(1)));
-        Assert.Equal(ciphertext, (await vault.GetAsync($"token-{suffix}", _tenant!.Value))!.EncryptedValue);
+        Assert.Equal(ciphertext, (await vault.GetAsync($"token-{suffix}", _tenant!.Value, "principal", _sessionId!.Value))!.EncryptedValue);
         await ExerciseNativeAgentSessionStoreAsync(db);
     }
 
@@ -194,8 +202,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
 
     private static async Task ExerciseSessionTaskOutboxAsync(OpenConnectDbContext db, string suffix)
     {
-        _tenant = new TenantId(Ulid.NewUlid()); _principal = new PrincipalId(Ulid.NewUlid());
-        _sessionId = new SessionId(Ulid.NewUlid()); _taskId = new TaskId(Ulid.NewUlid());
+        _tenant = new TenantId(Ulid.NewUlid());
+        _principal = new PrincipalId(Ulid.NewUlid());
+        _sessionId = new SessionId(Ulid.NewUlid());
+        _taskId = new TaskId(Ulid.NewUlid());
         var sessions = new EfSessionStore<OpenConnectDbContext>(db);
         await sessions.UpsertAsync(new(_sessionId!.Value, _tenant!.Value, _principal!.Value, 1));
         var tasks = new EfTaskStore<OpenConnectDbContext>(db);
@@ -206,8 +216,10 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
 
     private static async Task CreatePostgresDatabaseAsync(string database)
     {
-        await using var connection = new NpgsqlConnection(PgConnection("postgres")); await connection.OpenAsync();
-        await using var command = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection); await command.ExecuteNonQueryAsync();
+        await using var connection = new NpgsqlConnection(PgConnection("postgres"));
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection);
+        await command.ExecuteNonQueryAsync();
     }
 
     private async Task<bool> ServiceAvailableAsync(string connectionString, string service)
@@ -222,33 +234,44 @@ public sealed class MigratedTopologyTests(ITestOutputHelper output)
         }
         catch (Exception exception) when (exception is NpgsqlException or SqlException or System.Net.Sockets.SocketException or OperationCanceledException)
         {
-            if (RequireProviders) throw new Xunit.Sdk.XunitException($"{service} provider is required but unavailable ({exception.GetType().Name}).");
+            if (RequireProviders)
+                throw new Xunit.Sdk.XunitException($"{service} provider is required but unavailable ({exception.GetType().Name}).");
             output.WriteLine($"SKIP {service}: unavailable ({exception.GetType().Name}).");
             return false;
         }
     }
     private static async Task CreateSqlServerDatabaseAsync(string database)
     {
-        await using var connection = new SqlConnection(MsConnection("master")); await connection.OpenAsync();
-        await using var command = new SqlCommand($"CREATE DATABASE [{database}]", connection); await command.ExecuteNonQueryAsync();
+        await using var connection = new SqlConnection(MsConnection("master"));
+        await connection.OpenAsync();
+        await using var command = new SqlCommand($"CREATE DATABASE [{database}]", connection);
+        await command.ExecuteNonQueryAsync();
     }
     private static async Task<List<string>> ReadPostgresTablesAsync(string connectionString, string schema)
     {
-        await using var connection = new NpgsqlConnection(connectionString); await connection.OpenAsync();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
         await using var command = new NpgsqlCommand("SELECT table_name FROM information_schema.tables WHERE table_schema = @schema AND table_type = 'BASE TABLE' ORDER BY table_name", connection);
         command.Parameters.AddWithValue("schema", schema);
-        await using var reader = await command.ExecuteReaderAsync(); var result = new List<string>();
-        while (await reader.ReadAsync()) result.Add(reader.GetString(0)); return result;
+        await using var reader = await command.ExecuteReaderAsync();
+        var result = new List<string>();
+        while (await reader.ReadAsync())
+            result.Add(reader.GetString(0));
+        return result;
     }
     private static async Task<T> ScalarAsync<T>(string connectionString, string sql)
     {
-        await using var connection = new NpgsqlConnection(connectionString); await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(sql, connection); return (T)Convert.ChangeType(await command.ExecuteScalarAsync(), typeof(T))!;
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        return (T)Convert.ChangeType(await command.ExecuteScalarAsync(), typeof(T))!;
     }
     private static async Task<T> ScalarSqlServerAsync<T>(string connectionString, string sql)
     {
-        await using var connection = new SqlConnection(connectionString); await connection.OpenAsync();
-        await using var command = new SqlCommand(sql, connection); return (T)Convert.ChangeType(await command.ExecuteScalarAsync(), typeof(T))!;
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(sql, connection);
+        return (T)Convert.ChangeType(await command.ExecuteScalarAsync(), typeof(T))!;
     }
     private sealed class RecordingPublisher : ICommittedOutboxPublisher
     {

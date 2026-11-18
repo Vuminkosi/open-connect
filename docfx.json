@@ -4,7 +4,10 @@
       "src": [
         {
           "files": ["src/*/*.csproj"],
-          "exclude": ["src/OpenConnect.WorkerHosts.*/*.csproj"]
+          "exclude": [
+            "src/OpenConnect.WorkerHosts.*/*.csproj",
+            "src/OpenConnect.LiveUI.Compiler/*.csproj"
+          ]
         }
       ],
       "dest": "site/OpenConnect.Docs/generated/api/v1",

@@ -1,72 +1,39 @@
-# OpenConnect E2E Sample — `kokoro` (`workers/kokoro`)
+# Kokoro worker offline contract sample
 
-Standalone end-to-end sample and acceptance test suite for the Python Kokoro TTS worker (`workers/kokoro`), covering `WSE2E-AT-045` through `WSE2E-AT-051` and the 12-scenario runtime model cache protocol.
+The current worker is a local CPU Kokoro engine with one supported voice, `af_heart`. The contract tier tests real WAV/PCM codecs, input validation, fixed voice configuration, epoch metadata and literal pipeline input. It does **not** verify model-live synthesis, speech quality, downstream stale-chunk disposal or the runtime cache lifecycle.
 
-## 1. Exact Image Build Command
+## Run the verified offline contracts
 
-```sh
-docker build -f workers/kokoro/Dockerfile \
-  -t vuminkosimatibe/openconnect-worker-kokoro:e2e-local .
-```
-
-Zero model weights are downloaded or copied during `docker build`.
-
-## 2. Exact `docker compose` Command
+From the repository root, in an activated Python 3.12 virtual environment:
 
 ```sh
-docker compose -f samples/workers/kokoro/compose.e2e.yaml up -d
-sh samples/workers/kokoro/scripts/smoke.sh
-sh samples/workers/kokoro/tests/t1_contract.sh
+python -m pip install -r samples/workers/shared/requirements-contract.txt
+./samples/workers/shared/scripts/verify-no-build-models.sh kokoro
+./samples/workers/shared/scripts/run-one.sh kokoro --tier contract --provider sqlite
 ```
 
-## 3. Environment Variables & Secrets Configuration
+These tests use numeric codec samples and a fail-closed pipeline double, not fabricated successful speech. They guard against model provisioning. The static policy check is not a Docker build or live synthesis test.
 
-| Variable | Default in `compose.e2e.yaml` | Purpose |
-|---|---|---|
-| `OPENCONNECT_WORKER_TOKEN` | `e2e-test-token-do-not-use-in-prod` | Bearer token (`Authorization: Bearer ...`) |
-| `OC_WORKER_ENGINE` | `fake` | `fake` for CI/offline contract tests, `real` for production |
-| `KOKORO_VOICES` | `af_heart,af_bella,am_adam` | Comma-separated allowlist of valid voice identifiers |
-| `KOKORO_DEFAULT_VOICE` | `af_heart` | Default voice if unspecified in request |
-| `OC_MODEL_PROVISIONING` | `disabled` | `disabled`, `first-start-if-missing`, or `preprovisioned-only` |
-| `OC_MODEL_CACHE_DIR` | `/models` | Path to mounted `oc_kokoro_models` volume |
-| `OC_MODEL_OFFLINE` | `true` | Prevents remote weights downloads |
-| `PORT_KOKORO` | `8086` | Host loopback port mapped to container `:8080` |
+## Current runtime configuration
 
-## 4. Expected Capabilities & Synthesis Contract
+These settings are read by [the worker configuration](../../../workers/kokoro/src/openconnect_kokoro/config.py), not promises of offline execution:
 
-- **Audio Format & Sample Rate (`WSE2E-AT-045`)**: Synthesizes 24kHz mono audio with `af_heart` (or configured voices).
-- **Voice Validation (`WSE2E-AT-047`)**: Unknown voices are rejected with HTTP 422 (`unknown_voice`).
-- **Dynamic Inventory (`WSE2E-AT-051`)**: Updating the `KOKORO_VOICES` list dynamically extends supported voices without code changes.
-- **SSML/Markup Safety (`WSE2E-AT-050`)**: Markup tags in input text are treated strictly as plain characters, avoiding injection.
+| Setting | Default / constraint |
+|---|---|
+| `OPENCONNECT_WORKER_TOKEN` | No default token; configure authentication for an authorized live deployment. |
+| `KOKORO_VOICES` or `OC_KOKORO_VOICE` | Only `af_heart` is accepted; multi-voice lists fail validation. |
+| `OC_MODEL_CACHE_DIR` or `MODEL_DIR` | `/models`; storage location, **not** a no-download switch. |
+| `OC_KOKORO_MODEL` | `hexgrad/Kokoro-82M` |
+| `OC_ENVIRONMENT` | `Production` |
 
-## 5. Offline Test Procedure
+CPU execution, default voice `af_heart`, and native 24 kHz mono audio are fixed by the implementation. WAV and PCM are supported; MP3 is rejected. Input must contain 1–2000 characters.
 
-```sh
-sh samples/workers/kokoro/tests/t1_contract.sh
-sh samples/workers/kokoro/scripts/run-cache-matrix.sh
-```
+`OC_WORKER_ENGINE`, `OC_MODEL_PROVISIONING`, `OC_MODEL_OFFLINE` and `KOKORO_DEFAULT_VOICE` are not supported controls in this implementation. In particular, setting them does not select a fake engine or prevent downloads.
 
-## 6. Failure-Injection Commands
+## Live execution is not validated by this sample
 
-- **Excessive input (`WSE2E-AT-046`)**: POST text >4096 characters -> HTTP `422` (`input_too_long`).
-- **Unknown voice (`WSE2E-AT-047`)**: POST `invalid-voice.json` -> HTTP `422` (`unknown_voice`).
-- **Empty input (`WSE2E-AT-048`)**: POST whitespace-only text -> HTTP `422` (`empty_input`).
+The historical [compose file](compose.e2e.yaml), smoke script and cache-matrix script predate the real-engine migration. Their legacy voice/provisioning settings do not match the current implementation; do not use them as validated launch or offline-safety instructions. Readiness or synthesis can provision missing artifacts, so live execution requires separately reviewed configuration, approved model assets and explicit authorization.
 
-## 7. Evidence Artifact Filenames
+No model-live, container startup, or cache-lifecycle success should be inferred from a passing contract job. The contract runner prints its fixture/test results; those logs are the evidence for this tier.
 
-Written under `artifacts/workers-e2e/<run-id>/kokoro/`:
-- `build.log`, `compose-config.yaml`, `container-inspect.json`, `health-ready.json`, `capabilities.json`, `test-junit.xml`, `test-summary.json`, `cache-before.json`, `cache-after.json`, `network-isolation.txt`, `worker.log`.
-
-## 8. Safe Teardown vs Destructive Reset
-
-```sh
-# Safe teardown (preserves oc_kokoro_models volume):
-docker compose -f samples/workers/kokoro/compose.e2e.yaml down --remove-orphans
-
-# Destructive cache reset (ONLY when explicitly purging cached models):
-docker volume rm oc_kokoro_models
-```
-
-## 9. Production Differences
-
-Production runs with `OC_ENVIRONMENT=Production`, `OC_WORKER_ENGINE=real`, `OC_MODEL_PROVISIONING=preprovisioned-only`, local ONNX models staged in `/models`, and mTLS/private network ingress.
+If a separately authorized compose run is active, `docker compose -f samples/workers/kokoro/compose.e2e.yaml down --remove-orphans` preserves its volumes. Cache deletion is not part of the contract procedure.

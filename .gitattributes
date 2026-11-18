@@ -1,2 +1,5 @@
 # Keep executable POSIX harness scripts portable on Linux CI and developer shells.
 *.sh text eol=lf
+
+# C# source uses the same LF policy as .editorconfig on every checkout.
+*.cs text eol=lf

@@ -77,7 +77,8 @@ public sealed class LeadCapabilityRouterTests
     private static AgentCatalog Catalog(params AgentDefinition[] definitions)
     {
         var catalog = new AgentCatalog();
-        foreach (var definition in definitions) catalog.Register(definition);
+        foreach (var definition in definitions)
+            catalog.Register(definition);
         return catalog;
     }
 

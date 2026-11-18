@@ -137,7 +137,8 @@ public sealed class OutboxCrashRecoveryTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 
@@ -204,7 +205,8 @@ public sealed class OutboxCrashRecoveryTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 
@@ -269,7 +271,8 @@ public sealed class OutboxCrashRecoveryTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 

@@ -33,6 +33,7 @@ public sealed class DurableOperationalLeaseStore(IDurableOperationalStore store,
     private static void Validate(string executionId, TimeSpan duration)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(executionId);
-        if (duration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(duration));
+        if (duration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(duration));
     }
 }

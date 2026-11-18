@@ -1,9 +1,9 @@
+using System.Net;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Text.Json;
-using System.Reflection;
-using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Components;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
@@ -29,7 +29,8 @@ public sealed class RazorLiveUIManifestCompiler
         ArgumentException.ThrowIfNullOrWhiteSpace(projectDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         var root = Path.GetFullPath(projectDirectory);
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException($"Razor project directory does not exist: {root}");
+        if (!Directory.Exists(root))
+            throw new DirectoryNotFoundException($"Razor project directory does not exist: {root}");
 
         var files = Directory.EnumerateFiles(root, "*.razor", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) &&
@@ -98,10 +99,12 @@ public sealed class RazorLiveUIManifestCompiler
                 foreach (var block in Descendants(component.Root).Where(node => node.GetType().Name == "MarkupBlockIntermediateNode"))
                 {
                     var raw = GetProperty(block, "Content")?.ToString();
-                    if (raw is null) continue;
+                    if (raw is null)
+                        continue;
                     foreach (var element in ParseRawMarkup(raw))
                     {
-                        if (char.IsUpper(element.Tag[0])) continue;
+                        if (char.IsUpper(element.Tag[0]))
+                            continue;
                         foreach (var descriptor in DescribeRaw(element))
                         {
                             var key = Slug($"{component.File}:{descriptor.Kind}:{descriptor.Label}");
@@ -147,7 +150,8 @@ public sealed class RazorLiveUIManifestCompiler
         queue.Enqueue(page);
         while (queue.TryDequeue(out var component))
         {
-            if (!seen.Add(component.File)) continue;
+            if (!seen.Add(component.File))
+                continue;
             discovered.Add(component);
             foreach (var name in Descendants(component.Root).Where(node => node.GetType().Name == "MarkupElementIntermediateNode")
                          .Select(element => GetProperty(element, "TagName")?.ToString() ?? string.Empty)
@@ -155,7 +159,8 @@ public sealed class RazorLiveUIManifestCompiler
                          .Distinct(StringComparer.Ordinal))
             {
                 var child = parsed.Values.FirstOrDefault(candidate => Path.GetFileNameWithoutExtension(candidate.File).Equals(name, StringComparison.Ordinal));
-                if (child is not null) queue.Enqueue(child);
+                if (child is not null)
+                    queue.Enqueue(child);
             }
         }
         return discovered;
@@ -183,7 +188,8 @@ public sealed class RazorLiveUIManifestCompiler
 
         var label = First(attributes, "aria-label", "label", "text", "placeholder", "title");
         var text = NormalizeText(ReadStaticText(GetChildren(GetProperty(element, "Body"))));
-        if (string.IsNullOrWhiteSpace(label) && (lower is "button" or "a" or "summary" or "mudbutton" or "mudiconbutton")) label = text;
+        if (string.IsNullOrWhiteSpace(label) && (lower is "button" or "a" or "summary" or "mudbutton" or "mudiconbutton"))
+            label = text;
         var explicitTarget = First(attributes, "data-oc-target");
         var requiresConfirmation = attrNodes.Any(attribute =>
         {
@@ -213,18 +219,22 @@ public sealed class RazorLiveUIManifestCompiler
             case "button":
             case "mudbutton":
             case "mudiconbutton":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Button, label, "button", Caps(LiveUICapability.Activate, LiveUICapability.Highlight), RequiresConfirmation: requiresConfirmation);
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Button, label, "button", Caps(LiveUICapability.Activate, LiveUICapability.Highlight), RequiresConfirmation: requiresConfirmation);
                 yield break;
             case "a":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Link, label, "link", Caps(LiveUICapability.Activate, LiveUICapability.Highlight));
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Link, label, "link", Caps(LiveUICapability.Activate, LiveUICapability.Highlight));
                 yield break;
             case "input":
             case "textarea":
             case "mudtextfield":
                 var rawInputType = First(attributes, "type", "InputType");
-                if (HasUnresolvedInputType(attributes)) yield break;
+                if (HasUnresolvedInputType(attributes))
+                    yield break;
                 var inputType = NormalizeInputType(rawInputType);
-                if (IsSensitiveInput(inputType, label, attributes)) yield break;
+                if (IsSensitiveInput(inputType, label, attributes))
+                    yield break;
                 if (inputType == "checkbox")
                 {
                     if (!string.IsNullOrWhiteSpace(label))
@@ -235,19 +245,23 @@ public sealed class RazorLiveUIManifestCompiler
                 {
                     var filtering = inputType == "search" || label.Contains("search", StringComparison.OrdinalIgnoreCase);
                     var capabilities = new HashSet<LiveUICapability> { LiveUICapability.Focus, LiveUICapability.SetValue, LiveUICapability.Highlight, LiveUICapability.Inspect };
-                    if (filtering) capabilities.Add(LiveUICapability.Filter);
+                    if (filtering)
+                        capabilities.Add(LiveUICapability.Filter);
                     yield return new(LiveUITargetKind.Input, label, inputType == "search" ? "searchbox" : "textbox", capabilities);
                 }
                 yield break;
             case "select":
             case "mudselect":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Select, label, "combobox", Caps(LiveUICapability.Focus, LiveUICapability.Select, LiveUICapability.Highlight));
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Select, label, "combobox", Caps(LiveUICapability.Focus, LiveUICapability.Select, LiveUICapability.Highlight));
                 yield break;
             case "mudcheckbox":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Checkbox, label, "checkbox", Caps(LiveUICapability.Select, LiveUICapability.Highlight), RequiresConfirmation: requiresConfirmation);
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Checkbox, label, "checkbox", Caps(LiveUICapability.Select, LiveUICapability.Highlight), RequiresConfirmation: requiresConfirmation);
                 yield break;
             case "mudtabspanel":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter, LiveUICapability.WaitForState));
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Tab, label, "tab", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Filter, LiveUICapability.WaitForState));
                 yield break;
             case "mudtabs":
                 yield break;
@@ -266,11 +280,13 @@ public sealed class RazorLiveUIManifestCompiler
             case "table":
             case "mudtable":
             case "muddatagrid":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Table, label, "table", Caps(LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState));
                 yield break;
             case "details":
             case "mudexpansionpanel":
-                if (!string.IsNullOrWhiteSpace(label)) yield return new(LiveUITargetKind.Region, label, "group", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Inspect));
+                if (!string.IsNullOrWhiteSpace(label))
+                    yield return new(LiveUITargetKind.Region, label, "group", Caps(LiveUICapability.Activate, LiveUICapability.Highlight, LiveUICapability.Inspect));
                 yield break;
         }
 
@@ -304,7 +320,8 @@ public sealed class RazorLiveUIManifestCompiler
     private static string ReadAttributeValue(string source)
     {
         var equals = source.IndexOf('=');
-        if (equals < 0) return string.Empty;
+        if (equals < 0)
+            return string.Empty;
         var value = source[(equals + 1)..].Trim();
         if (value.Length >= 2 && value[0] is '"' or '\'' && value[^1] == value[0])
             value = value[1..^1];
@@ -331,7 +348,8 @@ public sealed class RazorLiveUIManifestCompiler
             }
 
             var nameStart = cursor;
-            while (cursor < markup.Length && IsTagCharacter(markup[cursor])) cursor++;
+            while (cursor < markup.Length && IsTagCharacter(markup[cursor]))
+                cursor++;
             if (cursor == nameStart)
             {
                 position = cursor;
@@ -344,7 +362,8 @@ public sealed class RazorLiveUIManifestCompiler
             while (cursor < markup.Length)
             {
                 SkipWhitespace(markup, ref cursor);
-                if (cursor >= markup.Length) break;
+                if (cursor >= markup.Length)
+                    break;
                 if (markup[cursor] == '>')
                 {
                     cursor++;
@@ -357,7 +376,8 @@ public sealed class RazorLiveUIManifestCompiler
                     continue;
                 }
                 var attributeStart = cursor;
-                while (cursor < markup.Length && !char.IsWhiteSpace(markup[cursor]) && markup[cursor] is not '=' and not '>' and not '/') cursor++;
+                while (cursor < markup.Length && !char.IsWhiteSpace(markup[cursor]) && markup[cursor] is not '=' and not '>' and not '/')
+                    cursor++;
                 if (cursor == attributeStart)
                 {
                     cursor++;
@@ -374,14 +394,17 @@ public sealed class RazorLiveUIManifestCompiler
                     {
                         var quote = markup[cursor++];
                         var valueStart = cursor;
-                        while (cursor < markup.Length && markup[cursor] != quote) cursor++;
+                        while (cursor < markup.Length && markup[cursor] != quote)
+                            cursor++;
                         value = markup[valueStart..cursor];
-                        if (cursor < markup.Length) cursor++;
+                        if (cursor < markup.Length)
+                            cursor++;
                     }
                     else
                     {
                         var valueStart = cursor;
-                        while (cursor < markup.Length && !char.IsWhiteSpace(markup[cursor]) && markup[cursor] != '>') cursor++;
+                        while (cursor < markup.Length && !char.IsWhiteSpace(markup[cursor]) && markup[cursor] != '>')
+                            cursor++;
                         value = markup[valueStart..cursor];
                     }
                 }
@@ -399,9 +422,11 @@ public sealed class RazorLiveUIManifestCompiler
                     var closeEnd = markup.IndexOf('>', closeStart);
                     position = closeEnd < 0 ? closeStart + closingTag.Length : closeEnd + 1;
                 }
-                else position = cursor;
+                else
+                    position = cursor;
             }
-            else position = cursor;
+            else
+                position = cursor;
 
             yield return new(tag, attributes, text);
         }
@@ -411,7 +436,8 @@ public sealed class RazorLiveUIManifestCompiler
     {
         var lower = element.Tag.ToLowerInvariant();
         var label = First(element.Attributes, "aria-label", "aria-labelledby", "placeholder", "title");
-        if (string.IsNullOrWhiteSpace(label) && lower is "button" or "a" or "summary") label = element.Text;
+        if (string.IsNullOrWhiteSpace(label) && lower is "button" or "a" or "summary")
+            label = element.Text;
         var requiresConfirmation = element.Attributes.Keys.Any(name =>
             name.Equals("onclick", StringComparison.OrdinalIgnoreCase) ||
             name.Equals("onsubmit", StringComparison.OrdinalIgnoreCase));
@@ -428,8 +454,10 @@ public sealed class RazorLiveUIManifestCompiler
             case "input":
             case "textarea":
                 var type = NormalizeInputType(First(element.Attributes, "type"));
-                if (type?.StartsWith('@') == true) break;
-                if (IsSensitiveInput(type, label, element.Attributes)) break;
+                if (type?.StartsWith('@') == true)
+                    break;
+                if (IsSensitiveInput(type, label, element.Attributes))
+                    break;
                 if (type == "checkbox")
                 {
                     if (!string.IsNullOrWhiteSpace(label))
@@ -472,9 +500,12 @@ public sealed class RazorLiveUIManifestCompiler
         var inTag = false;
         foreach (var character in content)
         {
-            if (character == '<') inTag = true;
-            else if (character == '>') inTag = false;
-            else if (!inTag) result.Append(character);
+            if (character == '<')
+                inTag = true;
+            else if (character == '>')
+                inTag = false;
+            else if (!inTag)
+                result.Append(character);
         }
         return NormalizeText(WebUtility.HtmlDecode(result.ToString()));
     }
@@ -493,7 +524,8 @@ public sealed class RazorLiveUIManifestCompiler
 
     private static void SkipWhitespace(string text, ref int position)
     {
-        while (position < text.Length && char.IsWhiteSpace(text[position])) position++;
+        while (position < text.Length && char.IsWhiteSpace(text[position]))
+            position++;
     }
 
     private static string ReadStaticText(IEnumerable<IntermediateNode> nodes)
@@ -595,11 +627,13 @@ public sealed class RazorLiveUIManifestCompiler
         {
             if (char.IsLetterOrDigit(character))
             {
-                if (separator && builder.Length > 0) builder.Append('-');
+                if (separator && builder.Length > 0)
+                    builder.Append('-');
                 builder.Append(character);
                 separator = false;
             }
-            else separator = true;
+            else
+                separator = true;
         }
         return builder.Length == 0 ? "unnamed" : builder.ToString();
     }

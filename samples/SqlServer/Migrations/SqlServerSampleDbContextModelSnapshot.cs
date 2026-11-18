@@ -17,7 +17,7 @@ namespace OpenConnect.Samples.SqlServer.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.11")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -31,6 +31,17 @@ namespace OpenConnect.Samples.SqlServer.Migrations
                     b.Property<string>("BoundArgumentsHash")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
@@ -65,6 +76,8 @@ namespace OpenConnect.Samples.SqlServer.Migrations
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("Approvals", "openconnect");
                 });
@@ -423,9 +436,8 @@ namespace OpenConnect.Samples.SqlServer.Migrations
 
                     b.HasIndex("ExpiresUtc");
 
-                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId", "TurnId")
-                        .IsUnique()
-                        .HasFilter("[TurnId] IS NOT NULL");
+                    b.HasIndex("TenantScope", "PrincipalOrWorkloadScope", "TokenId", "SessionId")
+                        .IsUnique();
 
                     b.ToTable("PrivacyTokens", "openconnect");
                 });
@@ -538,6 +550,13 @@ namespace OpenConnect.Samples.SqlServer.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("ResultRef")
                         .HasColumnType("nvarchar(max)");

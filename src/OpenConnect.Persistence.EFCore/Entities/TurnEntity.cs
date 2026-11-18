@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class TurnEntity
 {
     public Guid TurnId { get; set; }
