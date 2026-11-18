@@ -149,7 +149,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
       if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
       element.click();
       return measured(verifyState("selected", "true"));
-    case "Inspect": return measured(inspect(element));
+    case "Inspect": return measured(inspect(element, target));
     case "WaitForState":
       if (!parameters.stateName) return measured(result("Failed", "state_name_required"));
       return measured(verifyState(parameters.stateName, parameters.stateValue));
@@ -458,7 +458,20 @@ function isSensitiveField(element) {
   return sensitiveFieldPattern.test(metadata);
 }
 
-function inspect(element) {
+function inspect(element, target) {
+  if (target?.kind === "List" || target?.kind === "Table") {
+    const selector = target.kind === "Table" ? "tbody tr, [role='rowgroup'] [role='row']" : "li, [role='listitem'], .mud-list-item";
+    const rows = [...element.querySelectorAll(selector)].filter(isVisible);
+    const rowSet = new Set(rows);
+    const parents = new Set();
+    for (const row of rows) {
+      for (let parent = row.parentElement; parent && parent !== element; parent = parent.parentElement)
+        if (rowSet.has(parent)) parents.add(parent);
+    }
+    const leaves = rows.filter((row) => !parents.has(row));
+    const state = leaves.length === 0 ? "no_recognized_visible_items" : leaves.length === 1 ? "one_recognized_visible_item" : "multiple_recognized_visible_items";
+    return result("Completed", "inspection_verified", true, state);
+  }
   const role = roleOf(element);
   if (role === "tab" || role === "radio") {
     const selected = element.getAttribute("aria-selected") === "true";

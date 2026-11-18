@@ -431,6 +431,8 @@ public sealed class LiveUIAgentToolsTests
         _ = await awaitFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["stateName"] = "selected" }));
         var highlightFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
+        Assert.Contains("text_match_ambiguous", highlightFunction.Description, StringComparison.Ordinal);
+        Assert.Contains("does not prove uniqueness", highlightFunction.Description, StringComparison.Ordinal);
         _ = await highlightFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?>
             {

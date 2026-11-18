@@ -239,3 +239,33 @@ test('checkbox selection is explicit, verified and idempotent', async ({ page })
   expect(results.changes).toBe(2);
   expect(results.final).toBe(false);
 });
+
+test('list inspection reports only coarse recognized visible row counts', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<ul aria-label="Results" style="min-height:20px"></ul>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'results', kind: 'List', label: 'Results' };
+    const run = () => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Inspect', parameters: {} },
+    }, 100, true);
+    const list = document.querySelector('ul');
+    const empty = await run();
+    list.innerHTML = '<li>private content <ul><li>nested</li></ul></li><li hidden>hidden</li>';
+    const one = await run();
+    list.insertAdjacentHTML('beforeend', '<li>another private value</li>');
+    const multiple = await run();
+    document.body.innerHTML = '<table aria-label="Results"><thead><tr><th>Header</th></tr></thead><tbody><tr><td>private row</td></tr></tbody></table>';
+    target.kind = 'Table';
+    const table = await run();
+    return { empty, one, multiple, table };
+  });
+  expect(results.empty).toMatchObject({ outcome: 'Completed', verifiedState: 'no_recognized_visible_items' });
+  expect(results.one).toMatchObject({ outcome: 'Completed', verifiedState: 'one_recognized_visible_item' });
+  expect(results.multiple).toMatchObject({ outcome: 'Completed', verifiedState: 'multiple_recognized_visible_items' });
+  expect(results.table).toMatchObject({ outcome: 'Completed', verifiedState: 'one_recognized_visible_item' });
+  expect(JSON.stringify(results)).not.toMatch(/private|nested/);
+});
