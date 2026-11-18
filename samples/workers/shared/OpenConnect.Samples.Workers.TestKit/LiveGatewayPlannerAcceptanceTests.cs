@@ -94,7 +94,8 @@ public sealed class LiveGatewayPlannerAcceptanceTests
         using var workerHttp = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{address.Port}/") };
         var worker = new LocalWorkerLiveUIInferenceProvider(workerHttp, Options.Create(new LiveUIWorkerClientOptions
         {
-            Endpoint = workerHttp.BaseAddress, BearerToken = "acceptance-only-token"
+            Endpoint = workerHttp.BaseAddress,
+            BearerToken = "acceptance-only-token"
         }));
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
@@ -148,7 +149,8 @@ public sealed class LiveGatewayPlannerAcceptanceTests
         using var workerHttp = new HttpClient(recorder) { BaseAddress = new Uri(workerEndpoint.AbsoluteUri.TrimEnd('/') + "/") };
         var worker = new LocalWorkerLiveUIInferenceProvider(workerHttp, Options.Create(new LiveUIWorkerClientOptions
         {
-            Endpoint = workerEndpoint, BearerToken = workerToken
+            Endpoint = workerEndpoint,
+            BearerToken = workerToken
         }));
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
         settings.Worker.Enabled = true;
@@ -216,7 +218,8 @@ public sealed class LiveGatewayPlannerAcceptanceTests
             using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
             var requestLine = await reader.ReadLineAsync(cancellationToken);
             Assert.StartsWith(status == "200 OK" ? "GET /health/ready " : "POST /v1/liveui/inference/plan ", requestLine);
-            while (await reader.ReadLineAsync(cancellationToken) is { Length: > 0 }) { }
+            while (await reader.ReadLineAsync(cancellationToken) is { Length: > 0 })
+            { }
             var response = Encoding.ASCII.GetBytes($"HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             await stream.WriteAsync(response, cancellationToken);
             await stream.FlushAsync(cancellationToken);

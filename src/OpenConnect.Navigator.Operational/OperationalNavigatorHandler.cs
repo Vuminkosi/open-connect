@@ -35,7 +35,8 @@ public sealed class OperationalNavigatorHandler(
         if (receipts is not null)
         {
             var prior = await receipts.GetAsync(job.TenantScope, job.IdempotencyKey, cancellationToken).ConfigureAwait(false);
-            if (prior?.Status == OperationalRunStatus.Completed) return prior with { IsReplay = true };
+            if (prior?.Status == OperationalRunStatus.Completed)
+                return prior with { IsReplay = true };
         }
 
         var idempotencyId = $"{job.TenantScope}\0{job.IdempotencyKey}";
@@ -65,7 +66,8 @@ public sealed class OperationalNavigatorHandler(
         }
         catch
         {
-            if (task.IsCompleted) RemoveReservation(idempotencyId, selected);
+            if (task.IsCompleted)
+                RemoveReservation(idempotencyId, selected);
             throw;
         }
     }
@@ -81,11 +83,13 @@ public sealed class OperationalNavigatorHandler(
     /// effects exist yet, so no Cancelled receipt is fabricated).</remarks>
     private bool IsRateLimited(OperationalJob job, CancellationToken cancellationToken)
     {
-        if (rateLimitGate is null) return false;
+        if (rateLimitGate is null)
+            return false;
         try
         {
             var application = job.ApplicationAllowlist.OrderBy(name => name, StringComparer.Ordinal).FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(application)) return true;
+            if (string.IsNullOrWhiteSpace(application))
+                return true;
             var decision = rateLimitGate.TryAcquire(new RateLimitKey(job.TenantScope, application, RateLimitModes.Operational),
                 job.ExecutionId, cancellationToken);
             return !decision.Allowed;
@@ -104,7 +108,8 @@ public sealed class OperationalNavigatorHandler(
     {
 
         var lease = await leases.TryAcquireAsync(job.ExecutionId, LeaseDuration, cancellationToken).ConfigureAwait(false);
-        if (lease is null) return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Execution is already leased.", 0);
+        if (lease is null)
+            return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Execution is already leased.", 0);
         try
         {
             await using var identity = await identities.ResolveAsync(job.ServicePrincipalRef, job.TenantScope, cancellationToken).ConfigureAwait(false);
@@ -112,8 +117,10 @@ public sealed class OperationalNavigatorHandler(
                 return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Workload identity is unavailable or out of scope.", lease.FencingToken);
 
             var plan = await plans.GetPlanAsync(job.PlanId, job.TenantScope, job.PolicyRevision, cancellationToken).ConfigureAwait(false);
-            if (plan is null) return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Approved plan is unavailable.", lease.FencingToken);
-            try { new NavigatorTourValidator().Validate(plan); }
+            if (plan is null)
+                return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Approved plan is unavailable.", lease.FencingToken);
+            try
+            { new NavigatorTourValidator().Validate(plan); }
             catch (ArgumentException) { return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Plan exceeds operational safety limits.", lease.FencingToken); }
             if (plan.Steps.Count > MaxSteps || plan.Steps.Any(s => s.Type is not (NavigatorTourStepType.Explain or NavigatorTourStepType.Navigate or NavigatorTourStepType.Locate or NavigatorTourStepType.Highlight or NavigatorTourStepType.Focus or NavigatorTourStepType.WaitFor or NavigatorTourStepType.Complete)))
                 return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Plan contains a disallowed operational action.", lease.FencingToken);
@@ -122,11 +129,13 @@ public sealed class OperationalNavigatorHandler(
             foreach (var step in plan.Steps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (DateTimeOffset.UtcNow >= job.Deadline) return new(job.ExecutionId, OperationalRunStatus.Cancelled, completed, "Execution deadline reached.", lease.FencingToken);
+                if (DateTimeOffset.UtcNow >= job.Deadline)
+                    return new(job.ExecutionId, OperationalRunStatus.Cancelled, completed, "Execution deadline reached.", lease.FencingToken);
                 if (!await leases.IsCurrentAsync(lease, cancellationToken).ConfigureAwait(false))
                     return new(job.ExecutionId, OperationalRunStatus.LeaseLost, completed, "Execution lease lost.", lease.FencingToken);
                 var renewed = await leases.RenewAsync(lease, LeaseDuration, cancellationToken).ConfigureAwait(false);
-                if (renewed is null) return new(job.ExecutionId, OperationalRunStatus.LeaseLost, completed, "Execution lease lost.", lease.FencingToken);
+                if (renewed is null)
+                    return new(job.ExecutionId, OperationalRunStatus.LeaseLost, completed, "Execution lease lost.", lease.FencingToken);
                 lease = renewed;
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var remaining = job.Deadline - DateTimeOffset.UtcNow;
@@ -134,8 +143,10 @@ public sealed class OperationalNavigatorHandler(
                 var result = await executor.ExecuteReadOnlyAsync(step, identity, job.ApplicationAllowlist, deadline.Token).ConfigureAwait(false);
                 if (!await leases.IsCurrentAsync(lease, CancellationToken.None).ConfigureAwait(false))
                     return new(job.ExecutionId, OperationalRunStatus.LeaseLost, completed, "Execution lease lost.", lease.FencingToken);
-                if (result.Uncertain) return new(job.ExecutionId, OperationalRunStatus.Uncertain, completed, "Step outcome is uncertain; it will not be replayed.", lease.FencingToken);
-                if (!result.Succeeded) return new(job.ExecutionId, OperationalRunStatus.Failed, completed, "Operational step failed.", lease.FencingToken);
+                if (result.Uncertain)
+                    return new(job.ExecutionId, OperationalRunStatus.Uncertain, completed, "Step outcome is uncertain; it will not be replayed.", lease.FencingToken);
+                if (!result.Succeeded)
+                    return new(job.ExecutionId, OperationalRunStatus.Failed, completed, "Operational step failed.", lease.FencingToken);
                 completed++;
             }
             return new(job.ExecutionId, OperationalRunStatus.Completed, completed, "Operational tour completed.", lease.FencingToken);

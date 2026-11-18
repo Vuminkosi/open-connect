@@ -32,7 +32,8 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
     public InMemoryBudgetGuard(IReadOnlyDictionary<string, decimal> limits, MissingCostPolicy missingCostPolicy = MissingCostPolicy.TreatAsReserved)
     {
         ArgumentNullException.ThrowIfNull(limits);
-        if (limits.Values.Any(v => v < 0)) throw new ArgumentOutOfRangeException(nameof(limits), "Limits cannot be negative.");
+        if (limits.Values.Any(v => v < 0))
+            throw new ArgumentOutOfRangeException(nameof(limits), "Limits cannot be negative.");
         _limits = new Dictionary<string, decimal>(limits, StringComparer.Ordinal);
         _missingCostPolicy = missingCostPolicy;
     }
@@ -42,13 +43,16 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
     public BudgetReservation? TryReserve(string scopeKey, decimal estimatedAmount)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(scopeKey);
-        if (estimatedAmount < 0) throw new ArgumentOutOfRangeException(nameof(estimatedAmount));
+        if (estimatedAmount < 0)
+            throw new ArgumentOutOfRangeException(nameof(estimatedAmount));
         lock (_gate)
         {
             // Unknown scope has no limit configured: deny rather than allow unmetered spend.
-            if (!_limits.TryGetValue(scopeKey, out var limit) || _blocked.Contains(scopeKey)) return null;
+            if (!_limits.TryGetValue(scopeKey, out var limit) || _blocked.Contains(scopeKey))
+                return null;
             var committed = _spent.GetValueOrDefault(scopeKey) + _reserved.GetValueOrDefault(scopeKey);
-            if (committed + estimatedAmount > limit) return null;
+            if (committed + estimatedAmount > limit)
+                return null;
             var reservation = new BudgetReservation(Guid.NewGuid(), scopeKey, estimatedAmount);
             _open[reservation.Id] = reservation;
             _reserved[scopeKey] = _reserved.GetValueOrDefault(scopeKey) + estimatedAmount;
@@ -59,12 +63,15 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
     public void Settle(BudgetReservation reservation, decimal? actualCost)
     {
         ArgumentNullException.ThrowIfNull(reservation);
-        if (actualCost < 0) throw new ArgumentOutOfRangeException(nameof(actualCost));
+        if (actualCost < 0)
+            throw new ArgumentOutOfRangeException(nameof(actualCost));
         lock (_gate)
         {
-            if (!_open.Remove(reservation.Id)) return;
+            if (!_open.Remove(reservation.Id))
+                return;
             _reserved[reservation.ScopeKey] -= reservation.Amount;
-            if (actualCost is null && _missingCostPolicy == MissingCostPolicy.Deny) _blocked.Add(reservation.ScopeKey);
+            if (actualCost is null && _missingCostPolicy == MissingCostPolicy.Deny)
+                _blocked.Add(reservation.ScopeKey);
             var charge = actualCost ?? reservation.Amount;
             _spent[reservation.ScopeKey] = _spent.GetValueOrDefault(reservation.ScopeKey) + charge;
         }
@@ -75,7 +82,8 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
         ArgumentNullException.ThrowIfNull(reservation);
         lock (_gate)
         {
-            if (_open.Remove(reservation.Id)) _reserved[reservation.ScopeKey] -= reservation.Amount;
+            if (_open.Remove(reservation.Id))
+                _reserved[reservation.ScopeKey] -= reservation.Amount;
         }
     }
 }

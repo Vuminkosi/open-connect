@@ -55,14 +55,16 @@ public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService aut
 
     private static void ValidateArguments(string schema, JsonElement arguments)
     {
-        if (arguments.ValueKind != JsonValueKind.Object) throw new ToolValidationException("Arguments must be a JSON object.");
+        if (arguments.ValueKind != JsonValueKind.Object)
+            throw new ToolValidationException("Arguments must be a JSON object.");
         using var parsed = JsonDocument.Parse(schema);
         var root = parsed.RootElement;
         var properties = root.TryGetProperty("properties", out var props) ? props : default;
         var required = root.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.Array
             ? req.EnumerateArray().Select(e => e.GetString()!).ToHashSet(StringComparer.Ordinal) : [];
         foreach (var name in required)
-            if (!arguments.TryGetProperty(name, out _)) throw new ToolValidationException($"Required argument '{name}' is missing.");
+            if (!arguments.TryGetProperty(name, out _))
+                throw new ToolValidationException($"Required argument '{name}' is missing.");
         foreach (var argument in arguments.EnumerateObject())
         {
             if (properties.ValueKind != JsonValueKind.Object || !properties.TryGetProperty(argument.Name, out var definition))

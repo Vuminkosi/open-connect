@@ -1,6 +1,13 @@
 name: CI
 
 on:
+  workflow_dispatch:
+    inputs:
+      live_provider:
+        description: 'Run against a configured DISPOSABLE database (applies sample migrations; never production)'
+        type: choice
+        default: none
+        options: [none, PostgreSql, SqlServer]
   pull_request:
   push:
     branches: [main, master]
@@ -88,20 +95,16 @@ jobs:
       - name: Run tests
         run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
-  # Per-sample E2E matrix, windows-latest ONLY (orchestrator D-06 hardcodes
-  # powershell.exe). Informational; never required, never gates.
-  # D-03/D-04/D-05: no image pulls, no live containers, no test secrets, no
-  # fixture provisioning. E2E-13 (PostgreSql) takes its exit-3 NOT VERIFIED
-  # path; E2E-14 (SqlServer) exits 3 by design (no invocation, no pull).
+  # Real local-fixture cases run automatically and fail the workflow on errors.
+  # Live server providers are separate explicit manual checks, not fake passes.
   e2e-per-sample:
     name: E2E per-sample (${{ matrix.case }})
     runs-on: windows-latest
     timeout-minutes: 25
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
-        case: [Minimal, Sqlite, InMemory, Blazor, Navigator, PostgreSql, SqlServer]
+        case: [Minimal, Sqlite, InMemory, Blazor, Navigator]
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -111,17 +114,6 @@ jobs:
         with:
           global-json-file: global.json
           dotnet-version: 9.0.320
-
-      # D-04: PG-related env vars are ABSENT. This guard fails the step (not
-      # the branch) if a fixture-like variable ever appears, so the
-      # PostgreSql leg deterministically takes its exit-3 NOT VERIFIED path.
-      - name: Assert no PG fixture env (PostgreSql leg must exit 3 NOT VERIFIED)
-        if: matrix.case == 'PostgreSql'
-        shell: powershell
-        run: |
-          $leaked = @('OPENCONNECT_E2E_POSTGRES_HOST', 'OPENCONNECT_POSTGRESQL_CONNECTION') | Where-Object { -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
-          if ($leaked) { Write-Error ("PG fixture env must be absent in CI; found: " + ($leaked -join ', ')); exit 1 }
-          Write-Host 'PG fixture env absent: OPENCONNECT_E2E_POSTGRES_HOST and OPENCONNECT_POSTGRESQL_CONNECTION are unset.'
 
       - name: Run E2E case ${{ matrix.case }}
         shell: powershell
@@ -133,4 +125,43 @@ jobs:
           New-Item -ItemType Directory -Force -Path $logDir | Out-Null
           $dbFile = Join-Path $work ($case.ToLowerInvariant() + '.db')
           & (Join-Path 'samples/EndToEnd/cases' ("Run-" + $case + ".ps1")) -RepoRoot . -DbFile $dbFile -LogDir $logDir
+          exit $LASTEXITCODE
+
+  postgres-offline-parity:
+    name: PostgreSQL model parity (offline, not live persistence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: dotnet restore samples/PostgreSql/OpenConnect.Samples.PostgreSql.csproj --locked-mode
+      - run: dotnet run --project samples/PostgreSql/OpenConnect.Samples.PostgreSql.csproj --no-restore -- parity
+      - name: State coverage boundary
+        run: echo 'Live PostgreSQL and SQL Server persistence is NOT VERIFIED by ordinary CI; use the explicit live-provider dispatch with disposable fixtures.' >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-live-provider:
+    name: Live provider (${{ inputs.live_provider }}, configured disposable fixture)
+    if: github.event_name == 'workflow_dispatch' && inputs.live_provider != 'none'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      OPENCONNECT_E2E_POSTGRES_HOST: ${{ vars.OPENCONNECT_E2E_POSTGRES_HOST }}
+      OPENCONNECT_POSTGRESQL_CONNECTION: ${{ secrets.OPENCONNECT_E2E_POSTGRESQL_CONNECTION }}
+      OPENCONNECT_E2E_SQLSERVER_HOST: ${{ vars.OPENCONNECT_E2E_SQLSERVER_HOST }}
+      OPENCONNECT_SQLSERVER_CONNECTION: ${{ secrets.OPENCONNECT_E2E_SQLSERVER_CONNECTION }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Run explicitly selected disposable provider
+        shell: powershell
+        env:
+          E2E_PROVIDER: ${{ inputs.live_provider }}
+        run: |
+          $logDir = Join-Path $env:TEMP ('e2e-live-' + $env:E2E_PROVIDER)
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          & (Join-Path 'samples/EndToEnd/cases' ('Run-' + $env:E2E_PROVIDER + '.ps1')) -RepoRoot . -LogDir $logDir
           exit $LASTEXITCODE

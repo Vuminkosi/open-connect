@@ -51,7 +51,8 @@ public sealed class NavigatorWsProjector
         var projected = await _validator.ProjectAsync(value, cancellationToken).ConfigureAwait(false);
         if (projected is not null && !StringComparer.Ordinal.Equals(projected.SessionId, authorization.SessionId))
             throw new UnauthorizedAccessException("Navigator session access denied.");
-        if (projected is null) return null;
+        if (projected is null)
+            return null;
         var key = $"{consumerId}\u001f{projected.SessionId}";
         lock (_sentLock)
         {
@@ -63,7 +64,8 @@ public sealed class NavigatorWsProjector
                 _sent[key] = delivered;
                 _keyOrder.Enqueue(key);
             }
-            if (!delivered.Set.Add(projected.EventId)) return null;
+            if (!delivered.Set.Add(projected.EventId))
+                return null;
             delivered.Order.Enqueue(projected.EventId);
             if (delivered.Order.Count > MaxDeliveredPerConsumerSession)
                 delivered.Set.Remove(delivered.Order.Dequeue());

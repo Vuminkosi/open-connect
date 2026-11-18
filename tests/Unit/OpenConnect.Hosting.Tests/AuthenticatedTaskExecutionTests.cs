@@ -212,7 +212,8 @@ public sealed class AuthenticatedTaskExecutionTests
         {
             executor.Release.TrySetResult();
             executor.ReleaseCancellationCallback.TrySetResult();
-            try { await app.DisposeAsync(); }
+            try
+            { await app.DisposeAsync(); }
             finally { executor.DisposeCancellationRegistration(); }
         }
     }
@@ -225,7 +226,8 @@ public sealed class AuthenticatedTaskExecutionTests
         if (lifecycleObserver is not null)
             builder.Services.AddSingleton<ITaskLifecycleStore>(services => new ObservingLifecycleStore(services.GetRequiredService<InMemoryTaskStore>(), lifecycleObserver));
         builder.Services.AddSingleton(authorizer ?? new AllowAuthorizer());
-        if (registerExecutor) builder.Services.AddSingleton<IHostTaskExecutor>(executor ?? new ControlledExecutor());
+        if (registerExecutor)
+            builder.Services.AddSingleton<IHostTaskExecutor>(executor ?? new ControlledExecutor());
         var app = builder.Build();
         app.MapOpenConnect();
         app.StartAsync().GetAwaiter().GetResult();
@@ -250,7 +252,8 @@ public sealed class AuthenticatedTaskExecutionTests
         var id = Ulid.Parse(location.Split('/').Last());
         for (var i = 0; i < 100; i++)
         {
-            if (app.Services.GetRequiredService<InMemoryTaskStore>().Find(id)?.State == expected) return;
+            if (app.Services.GetRequiredService<InMemoryTaskStore>().Find(id)?.State == expected)
+                return;
             await Task.Delay(10);
         }
         Assert.Equal(expected, app.Services.GetRequiredService<InMemoryTaskStore>().Find(id)?.State);
@@ -303,7 +306,8 @@ public sealed class AuthenticatedTaskExecutionTests
                     ReleaseCancellationCallback.Task.GetAwaiter().GetResult();
                 });
             await (BlockCancellationCallback ? Release.Task : Release.Task.WaitAsync(cancellationToken));
-            if (Failure is not null) throw Failure;
+            if (Failure is not null)
+                throw Failure;
         }
 
         public void DisposeCancellationRegistration() => _cancellationRegistration.Dispose();

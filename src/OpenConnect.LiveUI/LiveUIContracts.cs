@@ -131,12 +131,16 @@ public sealed class LiveUIManifestValidator
 {
     public IReadOnlyList<string> Validate(LiveUIManifest? manifest)
     {
-        if (manifest is null) return ["manifest_missing"];
+        if (manifest is null)
+            return ["manifest_missing"];
 
         var errors = new List<string>();
-        if (manifest.SchemaVersion != LiveUISchema.CurrentVersion) errors.Add("manifest_schema_unsupported");
-        if (string.IsNullOrWhiteSpace(manifest.BuildId)) errors.Add("manifest_build_id_missing");
-        if (string.IsNullOrWhiteSpace(manifest.ContentHash)) errors.Add("manifest_hash_missing");
+        if (manifest.SchemaVersion != LiveUISchema.CurrentVersion)
+            errors.Add("manifest_schema_unsupported");
+        if (string.IsNullOrWhiteSpace(manifest.BuildId))
+            errors.Add("manifest_build_id_missing");
+        if (string.IsNullOrWhiteSpace(manifest.ContentHash))
+            errors.Add("manifest_hash_missing");
         if (manifest.Routes is null || manifest.Routes.Count == 0)
         {
             errors.Add("manifest_routes_missing");
@@ -158,8 +162,10 @@ public sealed class LiveUIManifestValidator
                 route.Path.Contains('?') || route.Path.Contains('#') ||
                 route.Path.Split('/').Any(segment => segment is "." or ".."))
                 errors.Add("manifest_route_path_invalid");
-            if (!routeIds.Add(route.Id)) errors.Add("manifest_route_id_duplicate");
-            if (!routePaths.Add(route.Path)) errors.Add("manifest_route_path_duplicate");
+            if (!routeIds.Add(route.Id))
+                errors.Add("manifest_route_id_duplicate");
+            if (!routePaths.Add(route.Path))
+                errors.Add("manifest_route_path_duplicate");
             if (route.Targets is null)
             {
                 errors.Add("manifest_targets_missing");
@@ -175,8 +181,10 @@ public sealed class LiveUIManifestValidator
                     errors.Add("manifest_target_invalid");
                     continue;
                 }
-                if (target.Selector is { Length: > 512 }) errors.Add("manifest_selector_invalid");
-                if (!targetIds.Add(target.Id)) errors.Add("manifest_target_id_duplicate");
+                if (target.Selector is { Length: > 512 })
+                    errors.Add("manifest_selector_invalid");
+                if (!targetIds.Add(target.Id))
+                    errors.Add("manifest_target_id_duplicate");
                 routeTargets.TryAdd(target.Id, target);
             }
 
@@ -184,13 +192,15 @@ public sealed class LiveUIManifestValidator
             var hasParentCycle = false;
             foreach (var target in routeTargets.Values)
             {
-                if (target.ParentId is null) continue;
+                if (target.ParentId is null)
+                    continue;
                 if (!routeTargets.ContainsKey(target.ParentId))
                 {
                     errors.Add("manifest_target_parent_missing");
                 }
 
-                if (parentVisitStates.ContainsKey(target.Id)) continue;
+                if (parentVisitStates.ContainsKey(target.Id))
+                    continue;
 
                 var path = new List<string>();
                 var current = target;
@@ -199,11 +209,14 @@ public sealed class LiveUIManifestValidator
                 {
                     parentVisitStates[current.Id] = 1;
                     path.Add(current.Id);
-                    if (current.ParentId is not { } parentId || !routeTargets.TryGetValue(parentId, out var next)) break;
+                    if (current.ParentId is not { } parentId || !routeTargets.TryGetValue(parentId, out var next))
+                        break;
                     current = next;
                 }
-                if (state == 1) hasParentCycle = true;
-                foreach (var targetId in path) parentVisitStates[targetId] = 2;
+                if (state == 1)
+                    hasParentCycle = true;
+                foreach (var targetId in path)
+                    parentVisitStates[targetId] = 2;
             }
             if (hasParentCycle)
                 errors.Add("manifest_target_parent_cycle");

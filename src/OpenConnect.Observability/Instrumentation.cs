@@ -11,10 +11,14 @@ public static class Instrumentation
     private static readonly IReadOnlyDictionary<string, ActivitySource> Sources =
         new Dictionary<string, ActivitySource>(StringComparer.Ordinal)
         {
-            ["gateway"] = new("OpenConnect.Gateway"), ["firewall"] = new("OpenConnect.Firewall"),
-            ["genai"] = new("OpenConnect.GenAI"), ["agents"] = new("OpenConnect.Agents"),
-            ["workers"] = new("OpenConnect.Workers"), ["vault"] = new("OpenConnect.Vault"),
-            ["metering"] = new("OpenConnect.Metering"), ["vectors"] = new("OpenConnect.Vectors")
+            ["gateway"] = new("OpenConnect.Gateway"),
+            ["firewall"] = new("OpenConnect.Firewall"),
+            ["genai"] = new("OpenConnect.GenAI"),
+            ["agents"] = new("OpenConnect.Agents"),
+            ["workers"] = new("OpenConnect.Workers"),
+            ["vault"] = new("OpenConnect.Vault"),
+            ["metering"] = new("OpenConnect.Metering"),
+            ["vectors"] = new("OpenConnect.Vectors")
         };
     private static readonly Meter Metrics = new("OpenConnect");
     private static readonly Meter VectorMetrics = new("OpenConnect.Vectors");
@@ -48,8 +52,10 @@ public static class Instrumentation
             throw new ArgumentOutOfRangeException(nameof(source));
         var safeTags = AllowlistedTags(tags ?? []);
         var activity = activitySource.StartActivity(operation, kind);
-        if (activity is null) return null;
-        foreach (var tag in safeTags) activity.SetTag(tag.Key, tag.Value);
+        if (activity is null)
+            return null;
+        foreach (var tag in safeTags)
+            activity.SetTag(tag.Key, tag.Value);
         return activity;
     }
 

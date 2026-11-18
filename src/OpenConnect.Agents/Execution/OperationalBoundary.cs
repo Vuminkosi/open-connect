@@ -41,7 +41,8 @@ public static class OperationalBoundary
     {
         if (!Enum.IsDefined(from) || !Enum.IsDefined(to))
             throw new UnauthorizedAccessException("Undefined identity mode cannot authorize a task transition.");
-        if (from == to) return new(true, false);
+        if (from == to)
+            return new(true, false);
         if (!isExplicitEnqueue)
             throw new UnauthorizedAccessException("Cross-mode transitions require an explicit authorized enqueue.");
         if (from == AgentExecutionMode.Interactive && to == AgentExecutionMode.Operational)

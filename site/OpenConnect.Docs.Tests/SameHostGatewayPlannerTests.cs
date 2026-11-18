@@ -23,7 +23,9 @@ public sealed class SameHostGatewayPlannerTests
         var chat = new RecordingChatClient();
         var planner = new SameHostGatewayPlanner(sessions, new TodoGatewayOptions
         {
-            Mode = TodoGatewayMode.SameHostGateway, TenantId = tenant.Value.ToString(), PrincipalId = principal.Value.ToString()
+            Mode = TodoGatewayMode.SameHostGateway,
+            TenantId = tenant.Value.ToString(),
+            PrincipalId = principal.Value.ToString()
         }, new FixedContext(session.Id.Value.ToString()), chat, gate);
 
         var result = await planner.GeneratePlanAsync(Request(session.Id.Value.ToString()));
@@ -48,7 +50,9 @@ public sealed class SameHostGatewayPlannerTests
         var chat = new RecordingChatClient();
         var planner = new SameHostGatewayPlanner(sessions, new TodoGatewayOptions
         {
-            Mode = TodoGatewayMode.SameHostGateway, TenantId = tenant.Value.ToString(), PrincipalId = principal.Value.ToString()
+            Mode = TodoGatewayMode.SameHostGateway,
+            TenantId = tenant.Value.ToString(),
+            PrincipalId = principal.Value.ToString()
         }, new FixedContext(foreign.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(foreign.Id.Value.ToString())));
@@ -71,7 +75,9 @@ public sealed class SameHostGatewayPlannerTests
         var gate = new CapturingGate();
         var planner = new SameHostGatewayPlanner(sessions, new TodoGatewayOptions
         {
-            Mode = TodoGatewayMode.SameHostGateway, TenantId = tenant.Value.ToString(), PrincipalId = principal.Value.ToString()
+            Mode = TodoGatewayMode.SameHostGateway,
+            TenantId = tenant.Value.ToString(),
+            PrincipalId = principal.Value.ToString()
         }, new FixedContext(current.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(other.Id.Value.ToString())));
@@ -90,7 +96,9 @@ public sealed class SameHostGatewayPlannerTests
         var gate = new CapturingGate();
         var planner = new SameHostGatewayPlanner(sessions, new TodoGatewayOptions
         {
-            Mode = TodoGatewayMode.SameHostGateway, TenantId = tenant.Value.ToString(), PrincipalId = principal.Value.ToString()
+            Mode = TodoGatewayMode.SameHostGateway,
+            TenantId = tenant.Value.ToString(),
+            PrincipalId = principal.Value.ToString()
         }, new FixedContext(session.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>

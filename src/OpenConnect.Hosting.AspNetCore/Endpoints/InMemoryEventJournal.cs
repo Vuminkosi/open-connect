@@ -25,7 +25,8 @@ public sealed class InMemoryEventJournal : IEventJournal
         lock (_bindingGate)
         {
             var connectionId = Ulid.NewUlid().ToString();
-            while (!_usedConnectionIds.Add(connectionId)) connectionId = Ulid.NewUlid().ToString();
+            while (!_usedConnectionIds.Add(connectionId))
+                connectionId = Ulid.NewUlid().ToString();
             var connection = new BoundConnection(connectionId, sessionId, tenantId, principalId);
             _boundConnections.Add(connectionId, connection);
             return new BoundConnectionRegistration(this, connection);
@@ -52,7 +53,8 @@ public sealed class InMemoryEventJournal : IEventJournal
                 connection.SessionId == sessionId && connection.TenantId == tenantId &&
                 connection.PrincipalId == principalId &&
                 (expectedConnectionId is null || connection.ConnectionId == expectedConnectionId)).Take(2).ToArray();
-            if (matches.Length != 1) return null;
+            if (matches.Length != 1)
+                return null;
             var connection = matches[0];
             var key = (sessionId.Value, correlationId);
             if (_pendingInteractions.ContainsKey(key) ||
@@ -68,9 +70,11 @@ public sealed class InMemoryEventJournal : IEventJournal
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
         lock (_bindingGate)
         {
-            if (!_boundConnections.TryGetValue(connectionId, out var connection)) return false;
+            if (!_boundConnections.TryGetValue(connectionId, out var connection))
+                return false;
             var key = (connection.SessionId.Value, correlationId);
-            if (_pendingInteractions.ContainsKey(key)) return false;
+            if (_pendingInteractions.ContainsKey(key))
+                return false;
             _pendingInteractions.Add(key, new PendingInteraction(connection));
             return true;
         }
@@ -153,7 +157,8 @@ public sealed class InMemoryEventJournal : IEventJournal
     {
         lock (_bindingGate)
         {
-            if (!_boundConnections.TryGetValue(connection.ConnectionId, out var active) || active != connection) return;
+            if (!_boundConnections.TryGetValue(connection.ConnectionId, out var active) || active != connection)
+                return;
             _boundConnections.Remove(connection.ConnectionId);
             foreach (var key in _pendingInteractions
                          .Where(pair => pair.Value.Connection.ConnectionId == connection.ConnectionId && !pair.Value.Completed)
@@ -171,7 +176,8 @@ public sealed class InMemoryEventJournal : IEventJournal
         internal string ConnectionId => connection.ConnectionId;
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 0) journal.DisconnectBoundConnection(connection);
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+                journal.DisconnectBoundConnection(connection);
         }
     }
 
@@ -187,7 +193,8 @@ public sealed class InMemoryEventJournal : IEventJournal
         {
             var matches = _boundConnections.Values.Where(connection => connection.SessionId == sessionId).Take(2).ToArray();
             if (matches.Length != 1 ||
-                !_claims.Add(sessionId.Value)) return null;
+                !_claims.Add(sessionId.Value))
+                return null;
             return new ConnectionClaim(this, sessionId.Value, matches[0].ConnectionId);
         }
     }
@@ -198,8 +205,10 @@ public sealed class InMemoryEventJournal : IEventJournal
         private int _disposed;
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-            lock (journal._bindingGate) journal._claims.Remove(sessionId);
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            lock (journal._bindingGate)
+                journal._claims.Remove(sessionId);
         }
     }
 
@@ -223,7 +232,8 @@ public sealed class InMemoryEventJournal : IEventJournal
         long afterSequence = 0,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (afterSequence < 0) throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        if (afterSequence < 0)
+            throw new ArgumentOutOfRangeException(nameof(afterSequence));
         var events = GetEvents(sessionId, afterSequence);
         foreach (var item in events)
         {
@@ -235,7 +245,8 @@ public sealed class InMemoryEventJournal : IEventJournal
 
     internal IReadOnlyList<EventRecord> GetEvents(SessionId sessionId, long afterSequence)
     {
-        if (afterSequence < 0) throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        if (afterSequence < 0)
+            throw new ArgumentOutOfRangeException(nameof(afterSequence));
         return _sessions.TryGetValue(sessionId.Value, out var events)
             ? events.GetAfter(afterSequence)
             : Array.Empty<EventRecord>();
@@ -267,14 +278,16 @@ public sealed class InMemoryEventJournal : IEventJournal
             {
                 var sequence = checked(++_sequence);
                 _events.Enqueue(item with { Sequence = sequence });
-                while (_events.Count > limit) _events.Dequeue();
+                while (_events.Count > limit)
+                    _events.Dequeue();
                 return sequence;
             }
         }
 
         public IReadOnlyList<EventRecord> GetAfter(long sequence)
         {
-            lock (_gate) return _events.Where(item => item.Sequence > sequence).ToArray();
+            lock (_gate)
+                return _events.Where(item => item.Sequence > sequence).ToArray();
         }
 
         public ClientInteractionResponseAppendResult TryAppendClientInteractionResponse(
@@ -286,11 +299,13 @@ public sealed class InMemoryEventJournal : IEventJournal
             {
                 foreach (var item in _events)
                 {
-                    if (!item.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)) continue;
+                    if (!item.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal))
+                        continue;
                     try
                     {
                         var prior = JsonSerializer.Deserialize<ClientInteractionResponse>(item.Data, ClientInteractionJsonOptions);
-                        if (prior?.CorrelationId != response.CorrelationId) continue;
+                        if (prior?.CorrelationId != response.CorrelationId)
+                            continue;
                         return prior == response
                             ? ClientInteractionResponseAppendResult.Duplicate
                             : ClientInteractionResponseAppendResult.ConflictingResponse;
@@ -303,7 +318,8 @@ public sealed class InMemoryEventJournal : IEventJournal
 
                 var wasCancelled = _events.Any(item =>
                 {
-                    if (!item.Type.Equals(ClientInteractionEventTypes.Cancellation, StringComparison.Ordinal)) return false;
+                    if (!item.Type.Equals(ClientInteractionEventTypes.Cancellation, StringComparison.Ordinal))
+                        return false;
                     try
                     {
                         var cancellation = JsonSerializer.Deserialize<ClientInteractionCancellation>(item.Data, ClientInteractionJsonOptions);
@@ -314,11 +330,13 @@ public sealed class InMemoryEventJournal : IEventJournal
                         return false;
                     }
                 });
-                if (wasCancelled) return ClientInteractionResponseAppendResult.Cancelled;
+                if (wasCancelled)
+                    return ClientInteractionResponseAppendResult.Cancelled;
 
                 var hasMatchingRequest = _events.Any(item =>
                 {
-                    if (!item.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal)) return false;
+                    if (!item.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal))
+                        return false;
                     try
                     {
                         var request = JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, ClientInteractionJsonOptions);
@@ -336,11 +354,13 @@ public sealed class InMemoryEventJournal : IEventJournal
                         return false;
                     }
                 });
-                if (!hasMatchingRequest) return ClientInteractionResponseAppendResult.RequestNotFound;
+                if (!hasMatchingRequest)
+                    return ClientInteractionResponseAppendResult.RequestNotFound;
 
                 var sequence = checked(++_sequence);
                 _events.Enqueue(responseEvent with { Sequence = sequence });
-                while (_events.Count > limit) _events.Dequeue();
+                while (_events.Count > limit)
+                    _events.Dequeue();
                 return ClientInteractionResponseAppendResult.Accepted;
             }
         }

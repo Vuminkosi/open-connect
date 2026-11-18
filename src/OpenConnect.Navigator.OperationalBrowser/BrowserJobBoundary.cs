@@ -15,8 +15,10 @@ public sealed class BrowserJobBoundary(EgressGuard egress)
             job.ResourceBudget is null || job.ResourceBudget.MaxMs is <= 0 or > 300_000 ||
             job.ResourceBudget.MaxSteps is <= 0 or > 25 || job.ResourceBudget.MaxBytes is <= 0 or > 10_000_000 ||
             job.Deadline <= DateTimeOffset.UtcNow || step < 0 || step >= job.ResourceBudget.MaxSteps ||
-            bytes < 0 || bytes > job.ResourceBudget.MaxBytes) return (false, "invalid_job");
-        if (job.AllowedOrigins.Any(o => !IsCanonicalOrigin(o))) return (false, "invalid_origin_policy");
+            bytes < 0 || bytes > job.ResourceBudget.MaxBytes)
+            return (false, "invalid_job");
+        if (job.AllowedOrigins.Any(o => !IsCanonicalOrigin(o)))
+            return (false, "invalid_origin_policy");
         return await egress.IsAllowedAsync(destination, job.AllowedOrigins, cancellationToken).ConfigureAwait(false)
             ? (true, string.Empty) : (false, "egress_denied");
     }

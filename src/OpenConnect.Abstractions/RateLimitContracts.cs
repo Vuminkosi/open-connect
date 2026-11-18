@@ -47,8 +47,10 @@ public sealed class RateLimitKeyComparer : IEqualityComparer<RateLimitKey>
     /// <inheritdoc/>
     public bool Equals(RateLimitKey? left, RateLimitKey? right)
     {
-        if (ReferenceEquals(left, right)) return true;
-        if (left is null || right is null) return false;
+        if (ReferenceEquals(left, right))
+            return true;
+        if (left is null || right is null)
+            return false;
         return StringComparer.Ordinal.Equals(left.Tenant, right.Tenant) &&
             StringComparer.Ordinal.Equals(left.Application, right.Application) &&
             StringComparer.Ordinal.Equals(left.Mode, right.Mode);

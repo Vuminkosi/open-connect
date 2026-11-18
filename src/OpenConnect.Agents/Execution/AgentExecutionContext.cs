@@ -61,9 +61,13 @@ public sealed record AgentExecutionContext : IDisposable
         var linked = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken, cancellationToken);
         return this with
         {
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), ParentExecutionId = AgentExecutionId,
-            Depth = checked(Depth + 1), RemainingBudgets = budgets.ToImmutable(),
-            Deadline = Deadline, CancellationToken = linked.Token, _linkedCancellation = linked
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            ParentExecutionId = AgentExecutionId,
+            Depth = checked(Depth + 1),
+            RemainingBudgets = budgets.ToImmutable(),
+            Deadline = Deadline,
+            CancellationToken = linked.Token,
+            _linkedCancellation = linked
         };
     }
 

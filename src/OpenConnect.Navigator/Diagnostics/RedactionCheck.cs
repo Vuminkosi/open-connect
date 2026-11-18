@@ -5,7 +5,8 @@ public static class RedactionCheck
 {
     public static bool ContainsSensitiveContent(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return false;
+        if (string.IsNullOrEmpty(value))
+            return false;
         return value.Contains('@') || value.Contains('<') || value.Contains('>') ||
                value.Contains("Bearer ", StringComparison.OrdinalIgnoreCase) ||
                value.Contains("password", StringComparison.OrdinalIgnoreCase) ||

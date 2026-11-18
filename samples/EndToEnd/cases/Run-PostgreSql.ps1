@@ -11,7 +11,7 @@
   recorded NOT VERIFIED and the script exits 3.
 
   The offline `parity` verb (no connection, no seeding) always runs as an
-  informational step; it does not verify live persistence.
+  required offline step; it does not verify live persistence.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$RepoRoot,
@@ -35,6 +35,11 @@ Write-Host ("E2E-STEP {0}/parity-offline exit={1} timedOut={2} elapsedSec={3}" -
 Write-Host (Get-E2EScrubbedTail -LogFile $parityLog -MaxLines 12)
 if ($parity.TimedOut -or ($parity.ExitCode -ne 0)) { $failures += 'parity-offline' }
 
+if ($failures.Count -gt 0) {
+    Write-E2ECaseResult -Case $case -Status 'FAIL' -ExitCode 1 -Detail 'parity-offline failed'
+    exit 1
+}
+
 $hostGate = $env:OPENCONNECT_E2E_POSTGRES_HOST
 $connGate = $env:OPENCONNECT_POSTGRESQL_CONNECTION
 if ([string]::IsNullOrWhiteSpace($hostGate)) {
@@ -51,7 +56,7 @@ if ([string]::IsNullOrWhiteSpace($connGate)) {
 }
 
 try {
-    foreach ($verb in @('run', 'verify')) {
+    foreach ($verb in @('migrate', 'run', 'verify')) {
         $log = Join-Path $LogDir ("postgresql-" + $verb + '.log')
         # Connection string flows ONLY from the pre-existing process environment
         # into the child; it is never printed by this harness.
@@ -67,5 +72,5 @@ finally {
     Write-Host 'E2E-CLEANUP PostgreSql db=not-applicable (live disposable database left untouched; no temp file created)'
 }
 
-if ($failures.Count -eq 0) { Write-E2ECaseResult -Case $case -Status 'PASS' -ExitCode 0 -Detail 'parity:0 run:0 verify:0 against disposable PG from pre-existing env'; exit 0 }
+if ($failures.Count -eq 0) { Write-E2ECaseResult -Case $case -Status 'PASS' -ExitCode 0 -Detail 'parity:0 migrate:0 run:0 verify:0 against disposable PG from pre-existing env'; exit 0 }
 else { Write-E2ECaseResult -Case $case -Status 'FAIL' -ExitCode 1 -Detail ('failed steps: ' + ($failures -join ',')); exit 1 }

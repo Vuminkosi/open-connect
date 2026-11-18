@@ -136,9 +136,12 @@ public sealed class LiveUIBlazorTests
     {
         var navigation = new TestNavigationManager("https://localhost/", "https://localhost/docs/search");
         var state = new LiveUIManifestState(new LiveUIManifestValidator());
-        var manifest = Manifest with { Routes = [
+        var manifest = Manifest with
+        {
+            Routes = [
             new LiveUIRoute("docs.dynamic", "/docs/{Slug}", "Document", []),
-            new LiveUIRoute("docs.search", "/docs/search", "Search", [])] };
+            new LiveUIRoute("docs.search", "/docs/search", "Search", [])]
+        };
         state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
 
         var context = await new BlazorLiveUIAgentContextAccessor(navigation, state).GetCurrentAsync();
@@ -154,8 +157,11 @@ public sealed class LiveUIBlazorTests
     {
         var navigation = new TestNavigationManager("https://localhost/", "https://localhost" + path);
         var state = new LiveUIManifestState(new LiveUIManifestValidator());
-        var manifest = Manifest with { Routes = [
-            new LiveUIRoute("first", first, "First", []), new LiveUIRoute("second", second, "Second", [])] };
+        var manifest = Manifest with
+        {
+            Routes = [
+            new LiveUIRoute("first", first, "First", []), new LiveUIRoute("second", second, "Second", [])]
+        };
         state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
 
         Assert.Null(await new BlazorLiveUIAgentContextAccessor(navigation, state).GetCurrentAsync());

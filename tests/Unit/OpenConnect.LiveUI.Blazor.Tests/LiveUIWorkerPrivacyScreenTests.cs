@@ -58,7 +58,8 @@ public sealed class LiveUIWorkerPrivacyScreenTests
 
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            if (!_mutated) { _mutated = true; mutate(); }
+            if (!_mutated)
+            { _mutated = true; mutate(); }
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }

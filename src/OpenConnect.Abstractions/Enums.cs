@@ -18,7 +18,8 @@ internal sealed class KebabCaseNamingPolicy : JsonNamingPolicy
         for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];
-            if (char.IsUpper(c) && i > 0 && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1]))) result.Append('-');
+            if (char.IsUpper(c) && i > 0 && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1])))
+                result.Append('-');
             result.Append(char.ToLowerInvariant(c));
         }
         return result.ToString();

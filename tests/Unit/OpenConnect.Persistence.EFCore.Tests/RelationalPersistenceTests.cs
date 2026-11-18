@@ -66,7 +66,8 @@ public sealed class RelationalPersistenceTests
                 Assert.Equal(1, await journal.AppendAsync(new(sessionId, 0, "created", "one")));
                 Assert.Equal(2, await journal.AppendAsync(new(sessionId, 0, "updated", "two")));
                 var events = new List<EventRecord>();
-                await foreach (var item in journal.ReplayAsync(sessionId)) events.Add(item);
+                await foreach (var item in journal.ReplayAsync(sessionId))
+                    events.Add(item);
                 Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Sequence));
                 Assert.Equal(new[] { "created", "updated" }, events.Select(e => e.Type));
                 var outbox = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
@@ -347,7 +348,8 @@ public sealed class RelationalPersistenceTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 

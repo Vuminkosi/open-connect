@@ -342,7 +342,7 @@ public sealed class CloudTranscriptionPolicyEvaluator
 
     public CloudTranscriptionRouteDecision EvaluateAudioEgress()
     {
-        if ( _options.Mode == CloudTranscriptionMode.Disabled)
+        if (_options.Mode == CloudTranscriptionMode.Disabled)
             return new CloudTranscriptionRouteDecision(false, ErrorCodes.CapabilityUnavailable, "Cloud transcription is disabled.");
 
         if (_coreOptions.Privacy.Enabled &&

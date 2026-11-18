@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class EventEntity
 {
     public Guid EventId { get; set; }

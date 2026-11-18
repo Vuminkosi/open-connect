@@ -392,10 +392,18 @@ public sealed class ContextProjectionTests
     private static ContextItem Item(string id) => new(id, "internal", "safe summary", "source", 1);
     private static AgentExecutionContext Parent() => new()
     {
-        TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-        SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()),
-        AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1, PolicyRevision = 2,
-        AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddHours(1), RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+        TenantScope = "tenant",
+        PrincipalOrWorkloadScope = "principal",
+        IdentityKind = AgentIdentityMode.ActiveUser,
+        SessionId = new SessionId(Ulid.NewUlid()),
+        TaskId = new TaskId(Ulid.NewUlid()),
+        AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+        Depth = 0,
+        CatalogRevision = 1,
+        PolicyRevision = 2,
+        AuthRevision = 1,
+        Deadline = DateTimeOffset.UtcNow.AddHours(1),
+        RemainingBudgets = ImmutableDictionary<string, long>.Empty,
         CancellationToken = CancellationToken.None
     };
 

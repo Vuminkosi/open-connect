@@ -52,7 +52,8 @@ internal sealed class EfOperationalDurableStore(
     public ValueTask<bool> TrySaveReceiptAsync(string tenantScope, string idempotencyKey, OperationalReceipt receipt, DateTimeOffset completedAt, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(receipt);
-        if (receipt.Status != OperationalRunStatus.Completed) return ValueTask.FromResult(false);
+        if (receipt.Status != OperationalRunStatus.Completed)
+            return ValueTask.FromResult(false);
         var input = new EfOperationalReceiptInput(receipt.ExecutionId, MapStatus(receipt.Status), receipt.CompletedSteps, receipt.SafeSummary, receipt.FencingToken);
         return receipts.TrySaveOperationalReceiptAsync(tenantScope, idempotencyKey, input, completedAt, cancellationToken);
     }

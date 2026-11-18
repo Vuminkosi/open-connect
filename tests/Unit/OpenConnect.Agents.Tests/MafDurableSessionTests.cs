@@ -44,7 +44,9 @@ public sealed class MafDurableSessionTests
     [Fact]
     public async Task Contention_does_not_call_model_and_ownership_is_disposed()
     {
-        var binding = Binding(); var client = new Client(); var (runner, context) = Runner(client, binding);
+        var binding = Binding();
+        var client = new Client();
+        var (runner, context) = Runner(client, binding);
         var ownership = new Ownership();
         var gate = new Gate { Reject = true };
         var persistence = new NativeAgentSessionPersistence(new MemoryStore(), new PassthroughProtector());
@@ -60,7 +62,9 @@ public sealed class MafDurableSessionTests
     [Fact]
     public async Task Cas_conflict_does_not_publish_response_or_advance_history()
     {
-        var binding = Binding(); var client = new Client(); var (runner, context) = Runner(client, binding);
+        var binding = Binding();
+        var client = new Client();
+        var (runner, context) = Runner(client, binding);
         var store = new MemoryStore { Conflict = true };
         var persistence = new NativeAgentSessionPersistence(store, new PassthroughProtector());
         await Assert.ThrowsAsync<InvalidOperationException>(() => runner.TurnDurableAsync("x", context, (_, _) => ValueTask.FromResult(false), Persistence(persistence, binding, new Gate())));
@@ -71,7 +75,8 @@ public sealed class MafDurableSessionTests
     [Fact]
     public async Task Ownership_loss_cancels_model_and_prevents_save()
     {
-        var binding = Binding(); var store = new MemoryStore();
+        var binding = Binding();
+        var store = new MemoryStore();
         var lost = new CancellationTokenSource();
         var client = new Client { OnCall = _ => lost.Cancel() };
         var (runner, context) = Runner(client, binding);
@@ -85,7 +90,9 @@ public sealed class MafDurableSessionTests
     [Fact]
     public async Task Dispose_failure_after_commit_returns_success_and_poisoned_runner_rejects_future_turns()
     {
-        var binding = Binding(); var client = new Client(); var store = new MemoryStore();
+        var binding = Binding();
+        var client = new Client();
+        var store = new MemoryStore();
         var (runner, context) = Runner(client, binding);
         var gate = new Gate { Handle = new Ownership { ThrowOnDispose = true } };
         var persistence = new NativeAgentSessionPersistence(store, new PassthroughProtector());
@@ -106,7 +113,9 @@ public sealed class MafDurableSessionTests
     [Fact]
     public async Task Dispose_failure_does_not_mask_turn_failure_and_cleanup_runs_once()
     {
-        var binding = Binding(); var client = new Client { Fail = true }; var (runner, context) = Runner(client, binding);
+        var binding = Binding();
+        var client = new Client { Fail = true };
+        var (runner, context) = Runner(client, binding);
         var ownership = new Ownership { ThrowOnDispose = true };
         var gate = new Gate { Handle = ownership };
         var persistence = new NativeAgentSessionPersistence(new MemoryStore(), new PassthroughProtector());
@@ -146,10 +155,18 @@ public sealed class MafDurableSessionTests
         var factory = new MafRealAgentFactory(registry, client);
         var context = new AgentExecutionContext
         {
-            TenantScope = binding.TenantId.Value.ToString(), PrincipalOrWorkloadScope = binding.PrincipalId.Value.ToString(),
-            IdentityKind = AgentIdentityMode.ActiveUser, SessionId = binding.SessionId, TaskId = new TaskId(Ulid.NewUlid()),
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1, PolicyRevision = 1,
-            AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(2), RemainingBudgets = ImmutableDictionary<string,long>.Empty,
+            TenantScope = binding.TenantId.Value.ToString(),
+            PrincipalOrWorkloadScope = binding.PrincipalId.Value.ToString(),
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = binding.SessionId,
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
+            Deadline = DateTimeOffset.UtcNow.AddMinutes(2),
+            RemainingBudgets = ImmutableDictionary<string, long>.Empty,
             CancellationToken = CancellationToken.None
         };
         return (new MafConversationRunner(factory, new AgentId("lead"), runLedger: ledger), context);
@@ -176,9 +193,12 @@ public sealed class MafDurableSessionTests
         public Task<NativeAgentSessionRecord?> GetAsync(NativeAgentSessionBinding binding, CancellationToken ct = default) { ct.ThrowIfCancellationRequested(); Loads++; return Task.FromResult(_record); }
         public Task<NativeAgentSessionSaveOutcome> SaveAsync(NativeAgentSessionRecord record, long expectedVersion, CancellationToken ct = default)
         {
-            ct.ThrowIfCancellationRequested(); Saves++;
-            if (Conflict || (_record?.Version ?? 0) != expectedVersion) return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
-            _record = record; return Task.FromResult(NativeAgentSessionSaveOutcome.Saved);
+            ct.ThrowIfCancellationRequested();
+            Saves++;
+            if (Conflict || (_record?.Version ?? 0) != expectedVersion)
+                return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
+            _record = record;
+            return Task.FromResult(NativeAgentSessionSaveOutcome.Saved);
         }
     }
 

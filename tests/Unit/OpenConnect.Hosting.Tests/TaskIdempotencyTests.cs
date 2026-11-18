@@ -77,9 +77,11 @@ public sealed class TaskIdempotencyTests
     private static async Task CleanupAfterStartFailureAsync(WebApplication app)
     {
         using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try { await app.StopAsync(stopTimeout.Token); }
+        try
+        { await app.StopAsync(stopTimeout.Token); }
         catch (Exception) { /* Preserve the startup exception. */ }
-        try { await app.DisposeAsync(); }
+        try
+        { await app.DisposeAsync(); }
         catch (Exception) { /* Preserve the startup exception. */ }
     }
 
@@ -111,7 +113,8 @@ public sealed class TaskIdempotencyTests
         public async ValueTask DisposeAsync()
         {
             using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            try { await App.StopAsync(stopTimeout.Token); }
+            try
+            { await App.StopAsync(stopTimeout.Token); }
             finally { await App.DisposeAsync(); }
         }
     }
@@ -125,7 +128,8 @@ public sealed class TaskIdempotencyTests
     {
         public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
         {
-            try { await Task.Delay(Timeout.Infinite, cancellationToken); }
+            try
+            { await Task.Delay(Timeout.Infinite, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         }
     }

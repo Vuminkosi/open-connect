@@ -285,7 +285,8 @@ public sealed class OutboxSampleTests
 
         public ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> payload, string messageId, CancellationToken cancellationToken)
         {
-            if (Fail) throw new InvalidOperationException("Broker offline");
+            if (Fail)
+                throw new InvalidOperationException("Broker offline");
             LastMessageId = messageId;
             PublishCount++;
             return ValueTask.CompletedTask;

@@ -13,24 +13,32 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
     public async Task PlannerUsesCorrelatedGatewayContract()
     {
         var request = new LiveUIInferenceRequest("Show completed tasks", "session", "route", "openconnect.liveui/v1",
-            [new("completed", ["activate"])]) { RequestId = "request", ExecutionId = "execution" };
+            [new("completed", ["activate"])])
+        { RequestId = "request", ExecutionId = "execution" };
         using var client = new HttpClient(new Handler(async message =>
         {
             if (message.Method == HttpMethod.Get)
             {
                 Assert.EndsWith("/liveui/inference/planner/availability", message.RequestUri!.AbsolutePath);
-                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(
-                    new LiveUIInferenceAvailability(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available)) };
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(
+                    new LiveUIInferenceAvailability(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available))
+                };
             }
             Assert.EndsWith("/liveui/inference/planner/plan", message.RequestUri!.AbsolutePath);
             var envelope = await message.Content!.ReadFromJsonAsync<GatewayLiveUIInferenceRequest>();
             Assert.Equal(request.RequestId, envelope!.RequestId);
             Assert.Equal(request.ExecutionId, envelope.ExecutionId);
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(
                 new GatewayLiveUIInferenceResponse(envelope.RequestId, envelope.ExecutionId,
                     new LiveUIInferenceResult(LiveUIInferenceProviderKind.Gateway,
-                        new LiveUIActionPlan(request.SchemaVersion, [new("activate", "completed")]), "completed"))) };
-        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+                        new LiveUIActionPlan(request.SchemaVersion, [new("activate", "completed")]), "completed")))
+            };
+        }))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var provider = new GatewayPlannerLiveUIInferenceProvider(client);
 
         Assert.Equal(LiveUIInferenceAvailabilityStatus.Available, (await provider.GetAvailabilityAsync()).Status);
@@ -46,7 +54,7 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
     public async Task PlannerDenialStopsExecution(HttpStatusCode status)
     {
         using var client = new HttpClient(new Handler(_ => Task.FromResult(new HttpResponseMessage(status))))
-            { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var provider = new GatewayPlannerLiveUIInferenceProvider(client);
         var request = new LiveUIInferenceRequest("Show tasks", "session", "route", "openconnect.liveui/v1", []);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => provider.GetAvailabilityAsync());
@@ -59,13 +67,14 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
     public async Task PlannerRejectsMismatchedCorrelationOrProvider(bool wrongCorrelation)
     {
         var request = new LiveUIInferenceRequest("Show tasks", "session", "route", "openconnect.liveui/v1", [])
-            { RequestId = "request", ExecutionId = "execution" };
+        { RequestId = "request", ExecutionId = "execution" };
         using var client = new HttpClient(new Handler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(wrongCorrelation ? "other" : request.RequestId,
                 request.ExecutionId, new LiveUIInferenceResult(wrongCorrelation ? LiveUIInferenceProviderKind.Gateway :
                     LiveUIInferenceProviderKind.LocalWorker, null, "completed")))
-        }))) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        })))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var provider = new GatewayPlannerLiveUIInferenceProvider(client);
 
         var result = await provider.GeneratePlanAsync(request);
@@ -78,7 +87,7 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
     public async Task PlannerPreservesRateLimit()
     {
         using var client = new HttpClient(new Handler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests))))
-            { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var provider = new GatewayPlannerLiveUIInferenceProvider(client);
         var request = new LiveUIInferenceRequest("Show tasks", "session", "route", "openconnect.liveui/v1", []);
         var availability = await provider.GetAvailabilityAsync();
@@ -91,10 +100,13 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
     public async Task UnavailableGatewayPlannerFallsBackToLocalWorkerWhenPermitted()
     {
         using var client = new HttpClient(new Handler(message => Task.FromResult(message.Method == HttpMethod.Get
-            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new LiveUIInferenceAvailability(
-                LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available)) }
+            ? new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available))
+            }
             : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))))
-            { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var worker = new LocalFallback();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.GatewayFirst };
         settings.Gateway.Enabled = true;
@@ -120,13 +132,20 @@ public sealed class GatewayPlannerLiveUIInferenceProviderTests
         using var client = new HttpClient(new Handler(async message =>
         {
             if (message.Method == HttpMethod.Get)
-                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new LiveUIInferenceAvailability(
-                    LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available)) };
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                    LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available))
+                };
             var envelope = await message.Content!.ReadFromJsonAsync<GatewayLiveUIInferenceRequest>();
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new GatewayLiveUIInferenceResponse(
                 envelope!.RequestId, envelope.ExecutionId, new LiveUIInferenceResult(LiveUIInferenceProviderKind.Gateway,
-                    new LiveUIActionPlan(envelope.Request.SchemaVersion, [new("activate", "completed")]), outcome))) };
-        })) { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
+                    new LiveUIActionPlan(envelope.Request.SchemaVersion, [new("activate", "completed")]), outcome)))
+            };
+        }))
+        { BaseAddress = new Uri("https://gateway.example/openconnect/v1/") };
         var worker = new LocalFallback();
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.GatewayFirst };
         settings.Gateway.Enabled = true;

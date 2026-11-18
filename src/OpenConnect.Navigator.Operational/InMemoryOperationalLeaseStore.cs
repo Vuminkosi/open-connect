@@ -14,7 +14,8 @@ public sealed class InMemoryOperationalLeaseStore : IOperationalLeaseStore
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
-            if (_leases.TryGetValue(executionId, out var current) && current.ExpiresAt > now) return ValueTask.FromResult<OperationalLease?>(null);
+            if (_leases.TryGetValue(executionId, out var current) && current.ExpiresAt > now)
+                return ValueTask.FromResult<OperationalLease?>(null);
             var lease = new OperationalLease(Guid.NewGuid().ToString("N"), executionId, Interlocked.Increment(ref _fencingToken), now + duration);
             _leases[executionId] = lease;
             return ValueTask.FromResult<OperationalLease?>(lease);
@@ -26,7 +27,8 @@ public sealed class InMemoryOperationalLeaseStore : IOperationalLeaseStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            if (!IsCurrent(lease) || lease.ExpiresAt <= DateTimeOffset.UtcNow) return ValueTask.FromResult<OperationalLease?>(null);
+            if (!IsCurrent(lease) || lease.ExpiresAt <= DateTimeOffset.UtcNow)
+                return ValueTask.FromResult<OperationalLease?>(null);
             var renewed = lease with { ExpiresAt = DateTimeOffset.UtcNow + duration };
             _leases[lease.ExecutionId] = renewed;
             return ValueTask.FromResult<OperationalLease?>(renewed);
@@ -36,13 +38,16 @@ public sealed class InMemoryOperationalLeaseStore : IOperationalLeaseStore
     public ValueTask<bool> IsCurrentAsync(OperationalLease lease, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(IsCurrent(lease) && lease.ExpiresAt > DateTimeOffset.UtcNow);
+        lock (_gate)
+            return ValueTask.FromResult(IsCurrent(lease) && lease.ExpiresAt > DateTimeOffset.UtcNow);
     }
 
     public ValueTask ReleaseAsync(OperationalLease lease, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) if (IsCurrent(lease)) _leases.Remove(lease.ExecutionId);
+        lock (_gate)
+            if (IsCurrent(lease))
+                _leases.Remove(lease.ExecutionId);
         return ValueTask.CompletedTask;
     }
 

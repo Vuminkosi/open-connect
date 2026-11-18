@@ -101,7 +101,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Equal(LiveUIActionType.SelectTab, runtime.LastContext!.Action.Type);
 
         var response = new ClientInteractionResponse(request.CorrelationId, "action",
-            JsonSerializer.Serialize(browserReceipt, OpenConnectHttpJson.CreateOptions())) { ConnectionId = connection.ConnectionId };
+            JsonSerializer.Serialize(browserReceipt, OpenConnectHttpJson.CreateOptions()))
+        { ConnectionId = connection.ConnectionId };
         var httpContext = AuthenticatedContext(serviceProvider);
         var endpointResult = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, httpContext, sessions);
@@ -133,7 +134,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
         Assert.Equal(expectedHighlightDuration, runtime.LastContext.Action.Parameters.HighlightDurationMilliseconds);
 
         var highlightResponse = new ClientInteractionResponse(highlightRequest.CorrelationId, "action",
-            JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions())) { ConnectionId = connection.ConnectionId };
+            JsonSerializer.Serialize(highlightReceipt, OpenConnectHttpJson.CreateOptions()))
+        { ConnectionId = connection.ConnectionId };
         var highlightEndpointResult = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), highlightResponse, AuthenticatedContext(serviceProvider), sessions);
         var highlightHttpResponse = await ExecuteAsync(highlightEndpointResult, serviceProvider);
@@ -470,7 +472,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         using var cancellation = new CancellationTokenSource();
         var pending = store.RequestAsync(session.Id,
             new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab")
-                { ConnectionId = original.ConnectionId },
+            { ConnectionId = original.ConnectionId },
             "action", TimeSpan.FromSeconds(10), cancellation.Token);
         try
         {
@@ -490,7 +492,9 @@ public sealed class LiveUIClientInteractionRoundTripTests
         finally
         {
             cancellation.Cancel();
-            try { await pending; } catch (OperationCanceledException) { }
+            try
+            { await pending; }
+            catch (OperationCanceledException) { }
             original.Dispose();
         }
     }
@@ -504,7 +508,7 @@ public sealed class LiveUIClientInteractionRoundTripTests
         var correlation = Guid.NewGuid().ToString("D");
         var pending = store.RequestAsync(session.Id,
             new ClientInteractionRequest(correlation, "execute", "todo.completed", "SelectTab")
-                { ConnectionId = connection.ConnectionId }, "action", TimeSpan.FromSeconds(5));
+            { ConnectionId = connection.ConnectionId }, "action", TimeSpan.FromSeconds(5));
         await WaitForRequestAsync(store, session.Id.Value, "execute");
         using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
         var response = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
@@ -555,7 +559,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
         public void Dispose()
         {
             cancellation.Cancel();
-            try { task.GetAwaiter().GetResult(); }
+            try
+            { task.GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { }
             cancellation.Dispose();
             connection.Dispose();
@@ -601,7 +606,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
                 .Where(item => item.Type == ClientInteractionEventTypes.Request)
                 .Select(item => JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, OpenConnectHttpJson.CreateOptions()))
                 .FirstOrDefault(item => item?.Operation == operation);
-            if (request is not null) return request;
+            if (request is not null)
+                return request;
             await Task.Delay(10);
         }
         throw new TimeoutException("The LiveUI MAF tool did not append a client request.");
@@ -619,7 +625,8 @@ public sealed class LiveUIClientInteractionRoundTripTests
                 .Where(item => item is not null)
                 .Select(item => item!.CorrelationId)
                 .ToHashSet(StringComparer.Ordinal);
-            if (correlations.All(registered.Contains)) return;
+            if (correlations.All(registered.Contains))
+                return;
             await Task.Yield();
         }
 
@@ -630,10 +637,10 @@ public sealed class LiveUIClientInteractionRoundTripTests
         IServiceProvider services,
         string tenant = Tenant,
         string principal = Principal) => new()
-    {
-        RequestServices = services,
-        User = AuthenticatedUser(tenant, principal)
-    };
+        {
+            RequestServices = services,
+            User = AuthenticatedUser(tenant, principal)
+        };
 
     private static ClaimsPrincipal AuthenticatedUser(string tenant, string principal) =>
         new(new ClaimsIdentity(

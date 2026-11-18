@@ -29,7 +29,8 @@ public sealed class IsolatedBrowserSessionFactory
     {
         ArgumentNullException.ThrowIfNull(job);
         if (string.IsNullOrWhiteSpace(job.ExecutionId) || string.IsNullOrWhiteSpace(job.TenantScope) ||
-            string.IsNullOrWhiteSpace(job.ServicePrincipalRef)) throw new ArgumentException("Invalid browser job.", nameof(job));
+            string.IsNullOrWhiteSpace(job.ServicePrincipalRef))
+            throw new ArgumentException("Invalid browser job.", nameof(job));
         var path = Path.Combine(Path.GetTempPath(), "openconnect-browser", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return new IsolatedBrowserSession(Guid.NewGuid().ToString("N"), path, job.ServicePrincipalRef);
@@ -46,8 +47,10 @@ public sealed class IsolatedBrowserSessionFactory
             cancellationToken.ThrowIfCancellationRequested();
             var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "openconnect-browser")) + Path.DirectorySeparatorChar;
             var target = Path.GetFullPath(session.ProfileDir);
-            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Profile path is outside managed temp root.");
-            if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
+            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Profile path is outside managed temp root.");
+            if (Directory.Exists(target))
+                Directory.Delete(target, recursive: true);
             deleted = !Directory.Exists(target);
         }
         catch (Exception) { }

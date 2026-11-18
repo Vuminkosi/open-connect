@@ -52,7 +52,8 @@ public sealed class OperationalWorkerOptionsValidator : IValidateOptions<Operati
         var failures = new List<string>();
         if (options.Mode == OperationalAgentHostingMode.Standalone && options.EmbeddedEnabled)
             failures.Add("operational_standalone_requires_embedded_disabled: Standalone mode requires EmbeddedEnabled=false so two supervisors never fence the same executions.");
-        try { _ = Abstractions.Ulid.Parse(options.TenantUlid); }
+        try
+        { _ = Abstractions.Ulid.Parse(options.TenantUlid); }
         catch (Exception) { failures.Add("operational_tenant_ulid_invalid: TenantUlid must be a 26-character Crockford Base32 ULID."); }
         if (!string.Equals(options.DatabaseProvider, "npgsql", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(options.DatabaseProvider, "postgres", StringComparison.OrdinalIgnoreCase)

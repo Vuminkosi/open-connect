@@ -21,27 +21,33 @@ public sealed class DocumentationContentStore
 
     public void Load()
     {
-        if (IsLoaded) return;
+        if (IsLoaded)
+            return;
         var root = Path.Combine(AppContext.BaseDirectory, "Content");
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException($"Documentation content directory is missing: {root}");
+        if (!Directory.Exists(root))
+            throw new DirectoryNotFoundException($"Documentation content directory is missing: {root}");
         foreach (var file in Directory.EnumerateFiles(root, "*.md", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
             var parts = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2) throw new InvalidDataException($"Documentation files must use Content/<version>/<slug>.md: {relative}");
+            if (parts.Length != 2)
+                throw new InvalidDataException($"Documentation files must use Content/<version>/<slug>.md: {relative}");
             var version = parts[0];
             var slug = Path.GetFileNameWithoutExtension(parts[1]);
             var source = File.ReadAllText(file);
             var match = FrontMatter.Match(source);
-            if (!match.Success) throw new InvalidDataException($"Missing YAML front matter: {relative}");
+            if (!match.Success)
+                throw new InvalidDataException($"Missing YAML front matter: {relative}");
             var metadata = ParseYaml(match.Groups["yaml"].Value);
-            if (!metadata.TryGetValue("title", out var title) || string.IsNullOrWhiteSpace(title)) throw new InvalidDataException($"Missing title: {relative}");
+            if (!metadata.TryGetValue("title", out var title) || string.IsNullOrWhiteSpace(title))
+                throw new InvalidDataException($"Missing title: {relative}");
             metadata.TryGetValue("summary", out var summary);
             var order = metadata.TryGetValue("order", out var orderText) && int.TryParse(orderText, out var parsed) ? parsed : 0;
             var headings = Regex.Matches(match.Groups["body"].Value, "^#{1,3}\\s+(.+)$", RegexOptions.Multiline).Select(m => m.Groups[1].Value.Trim()).ToArray();
             _documents.Add(new DocumentationDocument(version, slug, title, summary ?? string.Empty, order, match.Groups["body"].Value.Trim(), headings));
         }
-        if (_documents.GroupBy(d => $"{d.Version}/{d.Slug}").Any(g => g.Count() > 1)) throw new InvalidDataException("Duplicate documentation route.");
+        if (_documents.GroupBy(d => $"{d.Version}/{d.Slug}").Any(g => g.Count() > 1))
+            throw new InvalidDataException("Duplicate documentation route.");
         _documents.Sort((left, right) => left.Order != right.Order ? left.Order.CompareTo(right.Order) : string.Compare(left.Title, right.Title, StringComparison.Ordinal));
         IsLoaded = true;
     }

@@ -25,7 +25,9 @@ public sealed class DelegationDepthReductionTests
     [Fact]
     public void PerAgent_MaxDepthOne_NarrowsFrameworkMax()
     {
-        var lead = Id("lead"); var middle = Id("middle"); var leaf = Id("leaf");
+        var lead = Id("lead");
+        var middle = Id("middle");
+        var leaf = Id("leaf");
         var catalog = new AgentCatalog();
         catalog.Register(Definition(leaf));
         catalog.Register(Definition(middle, [leaf], maxDepth: 1));
@@ -55,7 +57,9 @@ public sealed class DelegationDepthReductionTests
 
     private static (AgentCatalog Catalog, AgentId Lead, AgentId Middle, AgentId Leaf) CreateCatalog()
     {
-        var lead = Id("lead"); var middle = Id("middle"); var leaf = Id("leaf");
+        var lead = Id("lead");
+        var middle = Id("middle");
+        var leaf = Id("leaf");
         var catalog = new AgentCatalog();
         catalog.Register(Definition(leaf));
         catalog.Register(Definition(middle, [leaf]));

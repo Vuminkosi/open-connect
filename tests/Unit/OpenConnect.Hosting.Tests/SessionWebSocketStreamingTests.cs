@@ -46,7 +46,8 @@ public sealed class SessionWebSocketStreamingTests
         Assert.Equal("registered", events.Current.Type);
         using var registration = JsonDocument.Parse(events.Current.Data);
         Assert.Equal(session.Id.Value.ToString(), registration.RootElement.GetProperty("sessionId").GetString());
-        using (var claim = store.TryClaimSoleConnection(session.Id)) Assert.NotNull(claim);
+        using (var claim = store.TryClaimSoleConnection(session.Id))
+            Assert.NotNull(claim);
         Assert.True(await events.MoveNextAsync());
         Assert.Equal("message.delta", events.Current.Type);
         Assert.Equal("hello", events.Current.Data);
@@ -269,7 +270,8 @@ public sealed class SessionWebSocketStreamingTests
         public async ValueTask DisposeAsync()
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            try { await App.StopAsync(cts.Token); }
+            try
+            { await App.StopAsync(cts.Token); }
             finally { await App.DisposeAsync(); }
         }
     }
@@ -290,7 +292,8 @@ public sealed class SessionWebSocketStreamingTests
 
             var token = auth[(FixtureScheme.Length + 1)..].Trim();
             var parts = token.Split(':');
-            if (parts.Length != 2) return Task.FromResult(AuthenticateResult.Fail("Malformed token."));
+            if (parts.Length != 2)
+                return Task.FromResult(AuthenticateResult.Fail("Malformed token."));
 
             var claims = new[]
             {

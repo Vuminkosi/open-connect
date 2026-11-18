@@ -45,7 +45,8 @@ public sealed class OutboxRelayTests
         public string? MessageId { get; private set; }
         public ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> payload, string messageId, CancellationToken cancellationToken)
         {
-            if (Fail) throw new InvalidOperationException("No acknowledgement.");
+            if (Fail)
+                throw new InvalidOperationException("No acknowledgement.");
             MessageId = messageId;
             return ValueTask.CompletedTask;
         }

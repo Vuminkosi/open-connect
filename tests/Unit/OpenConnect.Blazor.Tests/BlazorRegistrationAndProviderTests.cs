@@ -404,7 +404,8 @@ public sealed class BlazorRegistrationAndProviderTests : OpenConnectBunitContext
                 sessionId = sessionId.Value.ToString()
             });
             yield return new EventRecord(sessionId, 0, "registered", data);
-            if (attempt == 1) throw new System.Net.WebSockets.WebSocketException("Disconnected");
+            if (attempt == 1)
+                throw new System.Net.WebSockets.WebSocketException("Disconnected");
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
     }

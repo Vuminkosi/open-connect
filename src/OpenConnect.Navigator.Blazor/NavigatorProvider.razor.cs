@@ -37,7 +37,8 @@ public partial class NavigatorProvider : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         Tour.Changed -= OnTourChanged;
         if (DisposeOnUnmount)

@@ -35,18 +35,21 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
 
     internal bool AddPending(string id, NavigatorCommand command, string tenant, string principal, DateTimeOffset expiresAt)
     {
-        if (Get(id, tenant, principal) is null || command.NavigatorSessionId != id || string.IsNullOrWhiteSpace(command.CommandId)) return false;
+        if (Get(id, tenant, principal) is null || command.NavigatorSessionId != id || string.IsNullOrWhiteSpace(command.CommandId))
+            return false;
         var key = $"{id}:{command.CommandId}";
         return _pendingCommands.TryAdd(key, new PendingCommand(command, tenant, principal, CommandGrant.ComputeArgsHash(command.Args), expiresAt));
     }
 
     internal bool ApprovePending(string id, string commandId, string digest, string tenant, string principal, DateTimeOffset now)
     {
-        if (!_pendingCommands.TryGetValue($"{id}:{commandId}", out var pending)) return false;
+        if (!_pendingCommands.TryGetValue($"{id}:{commandId}", out var pending))
+            return false;
         lock (pending.Gate)
         {
             if (pending.Consumed || pending.ExpiresAt <= now || pending.Tenant != tenant || pending.Principal != principal ||
-                !DigestMatches(pending.ArgsHash, digest)) return false;
+                !DigestMatches(pending.ArgsHash, digest))
+                return false;
             pending.Approved = true;
             pending.ApprovalId ??= Ulid.NewUlid().ToString();
             pending.ExpiresAt = now.AddMinutes(5);
@@ -56,10 +59,12 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
 
     internal NavigatorCommand? ConsumeApproved(string id, string commandId, string tenant, string principal, DateTimeOffset now)
     {
-        if (!_pendingCommands.TryGetValue($"{id}:{commandId}", out var pending)) return null;
+        if (!_pendingCommands.TryGetValue($"{id}:{commandId}", out var pending))
+            return null;
         lock (pending.Gate)
         {
-            if (!pending.Approved || pending.Consumed || pending.ExpiresAt <= now || pending.Tenant != tenant || pending.Principal != principal) return null;
+            if (!pending.Approved || pending.Consumed || pending.ExpiresAt <= now || pending.Tenant != tenant || pending.Principal != principal)
+                return null;
             pending.Consumed = true;
             return pending.Command;
         }
@@ -67,7 +72,8 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
 
     private static bool DigestMatches(string expected, string actual)
     {
-        try { return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expected), Convert.FromHexString(actual)); }
+        try
+        { return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expected), Convert.FromHexString(actual)); }
         catch (FormatException) { return false; }
     }
 
@@ -98,20 +104,25 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
     internal IReadOnlyList<NavigatorEvent> Events(string id, long after)
     {
         var entry = GetAny(id);
-        if (entry is null) return [];
+        if (entry is null)
+            return [];
         lock (entry.Gate)
             return entry.Events.Where(e => e.Sequence > after).ToArray();
     }
 
     internal bool AppendEvent(string id, NavigatorEvent value)
     {
-        if (!NavigatorEventTypes.IsSafe(value) || value.SessionId != id) return false;
+        if (!NavigatorEventTypes.IsSafe(value) || value.SessionId != id)
+            return false;
         var entry = GetAny(id);
-        if (entry is null) return false;
+        if (entry is null)
+            return false;
         lock (entry.Gate)
         {
-            if (entry.Events.Any(e => e.EventId == value.EventId)) return true;
-            if (entry.Events.Count >= 1000) entry.Events.RemoveAt(0);
+            if (entry.Events.Any(e => e.EventId == value.EventId))
+                return true;
+            if (entry.Events.Count >= 1000)
+                entry.Events.RemoveAt(0);
             entry.Events.Add(value);
             return true;
         }
@@ -119,7 +130,8 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
 
     internal bool AddApproval(string id, string approvalId, string digest, DateTimeOffset expiresAt)
     {
-        if (GetAny(id) is null || string.IsNullOrWhiteSpace(approvalId) || string.IsNullOrWhiteSpace(digest)) return false;
+        if (GetAny(id) is null || string.IsNullOrWhiteSpace(approvalId) || string.IsNullOrWhiteSpace(digest))
+            return false;
         return _approvals.TryAdd($"{id}:{approvalId}", new NavigatorApproval(digest, expiresAt));
     }
 
@@ -131,7 +143,8 @@ public sealed class NavigatorMemoryStore : INavigatorSessionStore
         var session = GetAny(id);
         if (session is null || !session.Grants.TryGetValue(command.CommandId, out var current) || !ReferenceEquals(current, grant) ||
             !grant.IsValidFor(id, session.Tenant, session.Principal, session.ClientInstance, command.CommandId,
-                command.Sequence, command.Action, command.TargetId, command.TargetRevision, command.ExpectedVersion, command.Args, now)) return false;
+                command.Sequence, command.Action, command.TargetId, command.TargetRevision, command.ExpectedVersion, command.Args, now))
+            return false;
         return session.Consumed.TryAdd(grant.Nonce, 0);
     }
 

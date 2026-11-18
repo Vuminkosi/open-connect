@@ -8,7 +8,8 @@ internal sealed class EfUnitOfWork<TContext>(TContext context) : IOpenConnectPer
     public async Task<TResult> ExecuteAsync<TResult>(Func<CancellationToken, Task<TResult>> work, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(work);
-        if (context.Database.CurrentTransaction is not null) return await work(cancellationToken).ConfigureAwait(false);
+        if (context.Database.CurrentTransaction is not null)
+            return await work(cancellationToken).ConfigureAwait(false);
         var strategy = context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {

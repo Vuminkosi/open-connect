@@ -147,8 +147,10 @@ builder.Services.Configure<LiveUIInferenceOptions>(options =>
     options.Worker.Enabled = !sameHostGatewayPlanner || sameHostWorkerConfigured;
     options.Gateway.Enabled = sameHostGatewayPlanner || externalGatewayPlanner;
     var configuredFallback = builder.Configuration.GetValue<LiveUIFallbackPolicy?>("OpenConnect:LiveUI:Inference:Gateway:FallbackPolicy");
-    if (configuredFallback.HasValue) options.Gateway.FallbackPolicy = configuredFallback.Value;
-    if (sameHostGatewayPlanner && !sameHostWorkerConfigured) options.Mode = LiveUIInferenceMode.GatewayOnly;
+    if (configuredFallback.HasValue)
+        options.Gateway.FallbackPolicy = configuredFallback.Value;
+    if (sameHostGatewayPlanner && !sameHostWorkerConfigured)
+        options.Mode = LiveUIInferenceMode.GatewayOnly;
 });
 if (sameHostGatewayPlanner)
     builder.Services.AddLiveUIGatewayInferenceProvider<SameHostGatewayPlanner>();

@@ -42,7 +42,8 @@ internal sealed class EfApprovalStore<TContext>(TContext context) : IApprovalSto
         var tenantScope = UlidGuidMapper.Scope(tenantId.Value);
         var principalScope = UlidGuidMapper.Scope(principalId.Value);
         var row = await context.Set<ApprovalEntity>().SingleOrDefaultAsync(x => x.ApprovalId == id && x.TenantScope == tenantScope && x.PrincipalScope == principalScope, ct).ConfigureAwait(false);
-        if (row is null) throw new KeyNotFoundException("approval_not_found");
+        if (row is null)
+            throw new KeyNotFoundException("approval_not_found");
         row.Decision = decision;
         row.State = "decided";
         row.DecidedUtc = DateTime.UtcNow;

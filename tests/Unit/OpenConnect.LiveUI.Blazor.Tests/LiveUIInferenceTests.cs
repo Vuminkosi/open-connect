@@ -487,7 +487,8 @@ public sealed class LiveUIInferenceTests
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
         var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
         {
-            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
         }));
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
@@ -573,14 +574,17 @@ public sealed class LiveUIInferenceTests
     {
         var handler = new RecordingHttpMessageHandler(request =>
         {
-            if (request.Method == HttpMethod.Get) return new HttpResponseMessage(HttpStatusCode.OK);
-            if (networkFailure) throw new HttpRequestException("connection failed");
+            if (request.Method == HttpMethod.Get)
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            if (networkFailure)
+                throw new HttpRequestException("connection failed");
             return new HttpResponseMessage(failureStatus);
         });
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
         var worker = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
         {
-            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
         }));
         var browser = new FakeProvider(LiveUIInferenceProviderKind.Browser, LiveUIInferenceAvailabilityStatus.Unavailable, null);
         var gateway = new FakeProvider(LiveUIInferenceProviderKind.Gateway, LiveUIInferenceAvailabilityStatus.Available,
@@ -633,7 +637,8 @@ public sealed class LiveUIInferenceTests
             Assert.False(actions[1].TryGetProperty("label", out _));
             var response = JsonSerializer.Serialize(new
             {
-                requestId = inferenceRequest.RequestId, schemaVersion = inferenceRequest.SchemaVersion,
+                requestId = inferenceRequest.RequestId,
+                schemaVersion = inferenceRequest.SchemaVersion,
                 plan = new { actions = new[] { new { type = "activate", target = "oc.runtime.active" } } }
             });
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(response, Encoding.UTF8, "application/json") };
@@ -641,7 +646,8 @@ public sealed class LiveUIInferenceTests
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://liveui-inference:8080/") };
         var provider = new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
         {
-            Endpoint = new Uri("http://liveui-inference:8080"), BearerToken = "worker-secret"
+            Endpoint = new Uri("http://liveui-inference:8080"),
+            BearerToken = "worker-secret"
         }));
 
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => provider.GeneratePlanAsync(inferenceRequest));
@@ -738,7 +744,8 @@ public sealed class LiveUIInferenceTests
         public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default)
         {
             GenerateCalls++;
-            if (failure is not null) throw failure;
+            if (failure is not null)
+                throw failure;
             return Task.FromResult(new LiveUIInferenceResult(kind, plan, "completed"));
         }
     }

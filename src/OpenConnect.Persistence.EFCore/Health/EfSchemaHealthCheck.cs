@@ -11,9 +11,11 @@ internal sealed class EfSchemaHealthCheck<TContext>(TContext context, IOptions<O
     {
         try
         {
-            if (options.Value.ValidateSchema == OpenConnectSchemaValidationMode.None) return (true, null);
+            if (options.Value.ValidateSchema == OpenConnectSchemaValidationMode.None)
+                return (true, null);
             EfRuntimeModelValidator.Validate(context);
-            if (options.Value.ValidateSchema == OpenConnectSchemaValidationMode.ValidateModel) return (true, null);
+            if (options.Value.ValidateSchema == OpenConnectSchemaValidationMode.ValidateModel)
+                return (true, null);
             if (!await context.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false))
                 return (false, $"{ErrorCodes.EfSchemaMissing}: database connection unavailable during schema validation.");
             return (true, "EF model is present; schema connectivity verified. Database object creation is never performed by this check.");

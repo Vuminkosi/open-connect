@@ -50,7 +50,8 @@ public sealed class MafRealAgentFactory
     {
         ArgumentNullException.ThrowIfNull(messages);
         var conversation = messages.ToList();
-        if (conversation.Count == 0) throw new ArgumentException("A conversation must contain at least one message.", nameof(messages));
+        if (conversation.Count == 0)
+            throw new ArgumentException("A conversation must contain at least one message.", nameof(messages));
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
         var parent = new ExecutionTraceRecord(Guid.NewGuid(), null, "execution", "lead", DateTimeOffset.UtcNow, null);
         var child = new ExecutionTraceRecord(Guid.NewGuid(), parent.Id, definition.Id.Value, "agent", DateTimeOffset.UtcNow, null);
@@ -77,8 +78,10 @@ public sealed class MafRealAgentFactory
 
     private static IChatClient Guard(IChatClient chatClient, IEgressGate? egressGate, IEgressContextProvider? egressContext)
     {
-        if (egressGate is null || egressContext is null) return chatClient;
-        if (chatClient is FirewallGuardedChatClient) return chatClient;
+        if (egressGate is null || egressContext is null)
+            return chatClient;
+        if (chatClient is FirewallGuardedChatClient)
+            return chatClient;
         return new FirewallGuardedChatClient(chatClient, egressGate, egressContext);
     }
 

@@ -21,15 +21,18 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
     {
         var expectedPath = context.CurrentPath;
         if (expectedPath is null || !LiveUIRouteMatcher.TryMatch(route.Path, expectedPath, out _) ||
-            !string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal)) return false;
+            !string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal))
+            return false;
         try
         {
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken,
                 "./_content/OpenConnect.LiveUI.Blazor/liveui.js").ConfigureAwait(false);
             var maximum = Math.Clamp(options.Value.Discovery.MaximumTargetsPerRoute, 0, 500);
             var observed = await _module.InvokeAsync<ObservedTarget[]>("discoverTargets", cancellationToken, maximum).ConfigureAwait(false);
-            if (observed is null) return false;
-            if (!string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal)) return false;
+            if (observed is null)
+                return false;
+            if (!string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal))
+                return false;
 
             List<LiveUITarget> existing = options.Value.Discovery.Mode == LiveUIDiscoveryMode.RuntimeOnly
                 ? []
@@ -37,21 +40,26 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
             var known = existing.Select(target => Key(target.Kind, target.Role, target.Label, target.ParentId)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var candidate in observed.Take(maximum))
             {
-                if (existing.Count >= maximum) break;
+                if (existing.Count >= maximum)
+                    break;
                 if (candidate is null || !Enum.TryParse<LiveUITargetKind>(candidate.Kind, out var kind) ||
                     candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) ||
-                    candidate.Role is { Length: > 32 } || candidate.ParentLabel is { Length: > 120 }) continue;
+                    candidate.Role is { Length: > 32 } || candidate.ParentLabel is { Length: > 120 })
+                    continue;
                 string? parentId = null;
                 if (candidate.ParentLabel is { Length: > 0 } parentLabel)
                 {
                     var parents = existing.Where(target => target.Kind == LiveUITargetKind.Region &&
                         string.Equals(target.Label, parentLabel, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
-                    if (parents.Length != 1) continue;
+                    if (parents.Length != 1)
+                        continue;
                     parentId = parents[0].Id;
                 }
-                if (!known.Add(Key(kind, candidate.Role, label, parentId))) continue;
+                if (!known.Add(Key(kind, candidate.Role, label, parentId)))
+                    continue;
                 var capabilities = Capabilities(kind);
-                if (capabilities.Count == 0) continue;
+                if (capabilities.Count == 0)
+                    continue;
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(route.Id + "\0" + Key(kind, candidate.Role, label, parentId)));
                 existing.Add(new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant(), kind, label,
                     capabilities, candidate.Role, ParentId: parentId,
@@ -66,9 +74,11 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
             {
                 if (candidate is null || candidate.Kind != "Link" || candidate.Path is not { Length: > 0 and <= 2048 } path ||
                     candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) ||
-                    candidate.ParentLabel is { Length: > 120 } || paths.Contains(path)) continue;
+                    candidate.ParentLabel is { Length: > 120 } || paths.Contains(path))
+                    continue;
                 var template = LiveUIRouteMatcher.Resolve(compiledRoutes, path);
-                if (template is null || !template.Path.Contains('{')) continue;
+                if (template is null || !template.Path.Contains('{'))
+                    continue;
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(path));
                 var routeId = LiveUIRuntimeRouteIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant();
                 routes.Add(new LiveUIRoute(routeId, path, label, []));
@@ -94,7 +104,8 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
     {
         if (_module is not null)
         {
-            try { await _module.DisposeAsync().ConfigureAwait(false); }
+            try
+            { await _module.DisposeAsync().ConfigureAwait(false); }
             catch (JSDisconnectedException) { }
         }
     }

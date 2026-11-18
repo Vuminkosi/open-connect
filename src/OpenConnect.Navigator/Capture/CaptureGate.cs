@@ -54,7 +54,8 @@ public sealed class CaptureGate
             return NavigatorCaptureDecision.Deny("redaction_unverified");
 
         var expiresAt = utcNow + options.Capture.ArtifactTtl;
-        if (consent.ExpiresAt < expiresAt) expiresAt = consent.ExpiresAt;
+        if (consent.ExpiresAt < expiresAt)
+            expiresAt = consent.ExpiresAt;
         return expiresAt <= utcNow
             ? NavigatorCaptureDecision.Deny("consent_expired")
             : new NavigatorCaptureDecision(true, expiresAt, string.Empty);

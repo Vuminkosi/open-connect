@@ -87,7 +87,9 @@ public sealed class SqliteLockContentionTests
             SqliteConnection.ClearAllPools();
             if (File.Exists(file))
             {
-                try { File.Delete(file); } catch { /* best effort cleanup */ }
+                try
+                { File.Delete(file); }
+                catch { /* best effort cleanup */ }
             }
         }
     }
@@ -147,7 +149,9 @@ public sealed class SqliteLockContentionTests
             SqliteConnection.ClearAllPools();
             if (File.Exists(file))
             {
-                try { File.Delete(file); } catch { }
+                try
+                { File.Delete(file); }
+                catch { }
             }
         }
     }

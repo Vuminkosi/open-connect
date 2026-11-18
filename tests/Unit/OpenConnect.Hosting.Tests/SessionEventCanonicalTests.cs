@@ -201,7 +201,8 @@ public sealed class SessionEventCanonicalTests
         Assert.Equal(JsonValueKind.Object, payload.RootElement.ValueKind);
         var builder = new StringBuilder("{");
         builder.Append($"\"eventId\":\"{eventId:D}\",\"occurredAt\":\"{occurredAt}\",");
-        if (correlationId is not null) builder.Append($"\"correlationId\":\"{correlationId}\",");
+        if (correlationId is not null)
+            builder.Append($"\"correlationId\":\"{correlationId}\",");
         foreach (var property in payload.RootElement.EnumerateObject())
             builder.Append($"\"{property.Name}\":{property.Value.GetRawText()},");
         builder.Length--;
@@ -225,7 +226,8 @@ public sealed class SessionEventCanonicalTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        if (resolver is not null) services.AddSingleton(resolver);
+        if (resolver is not null)
+            services.AddSingleton(resolver);
         var context = new DefaultHttpContext
         {
             RequestServices = services.BuildServiceProvider(),

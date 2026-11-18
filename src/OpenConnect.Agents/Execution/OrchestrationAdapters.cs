@@ -63,7 +63,8 @@ public sealed class OrchestrationAdapters
         _conversation = conversation ?? throw new ArgumentNullException(nameof(conversation));
         _gate = gate ?? throw new ArgumentNullException(nameof(gate));
         _isRevoked = isRevoked ?? throw new ArgumentNullException(nameof(isRevoked));
-        if (maxConcurrentSubagents < 1) throw new ArgumentOutOfRangeException(nameof(maxConcurrentSubagents));
+        if (maxConcurrentSubagents < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrentSubagents));
         _maxConcurrentSubagents = maxConcurrentSubagents;
         _budgetLedger = budgetLedger;
         _rateLimitGate = rateLimitGate;
@@ -114,7 +115,8 @@ public sealed class OrchestrationAdapters
         using var limiter = new SemaphoreSlim(_maxConcurrentSubagents);
         var tasks = grants.Select(async (grant, index) =>
         {
-            try { await limiter.WaitAsync(scopeCancellation.Token).ConfigureAwait(false); }
+            try
+            { await limiter.WaitAsync(scopeCancellation.Token).ConfigureAwait(false); }
             catch (OperationCanceledException) { return ChildOutcome.Cancelled(grant.ChildAgentId.Value); }
             try
             {
@@ -197,7 +199,8 @@ public sealed class OrchestrationAdapters
         if (profileSupported && mode != AgentOrchestrationMode.Direct)
             OrchestrationProfileRouter.ValidateRuntimeProfile("Workflow");
 
-        if (!profileSupported) throw new InvalidOperationException($"The {mode} orchestration profile is not supported by the configured host.");
+        if (!profileSupported)
+            throw new InvalidOperationException($"The {mode} orchestration profile is not supported by the configured host.");
     }
 
     private async Task<AgentResponse> RunAgentAsync(AgentId agentId, string prompt, AgentExecutionContext context)
@@ -247,7 +250,8 @@ public sealed class OrchestrationAdapters
     /// <exception cref="InvalidOperationException">The run-wide child budget is exhausted.</exception>
     private void AcquireSubagentBudget()
     {
-        if (_budgetLedger is null) return;
+        if (_budgetLedger is null)
+            return;
         // The ledger checks its own limits and reserves both resources under one lock.
         if (!_budgetLedger.TryReserveSubagentWithSlot())
             throw new InvalidOperationException("The run-wide subagent budget or concurrent subagent limit is exhausted.");
@@ -259,7 +263,8 @@ public sealed class OrchestrationAdapters
     /// <exception cref="InvalidOperationException">The gate denied the attempt or failed closed.</exception>
     private void ThrowIfRateLimited(AgentExecutionContext context, string application)
     {
-        if (_rateLimitGate is null) return;
+        if (_rateLimitGate is null)
+            return;
         try
         {
             var decision = _rateLimitGate.TryAcquire(
@@ -283,9 +288,12 @@ public sealed class OrchestrationAdapters
         var budget = grant.RemainingBudget;
         var mapped = new Dictionary<string, long>(StringComparer.Ordinal)
         {
-            ["MaxToolCalls"] = budget.MaxToolCalls, ["MaxModelCalls"] = budget.MaxModelCalls,
-            ["MaxTokens"] = budget.MaxTokens, ["MaxConcurrent"] = budget.MaxConcurrentAgents,
-            ["MaxQueued"] = budget.MaxQueuedAgents, ["MaxTotal"] = budget.MaxTotalAgents,
+            ["MaxToolCalls"] = budget.MaxToolCalls,
+            ["MaxModelCalls"] = budget.MaxModelCalls,
+            ["MaxTokens"] = budget.MaxTokens,
+            ["MaxConcurrent"] = budget.MaxConcurrentAgents,
+            ["MaxQueued"] = budget.MaxQueuedAgents,
+            ["MaxTotal"] = budget.MaxTotalAgents,
             ["MaxRuntimeTicks"] = budget.MaxRuntime?.Ticks ?? long.MaxValue
         };
         return parent.CreateChild(parent.TenantScope, parent.PrincipalOrWorkloadScope, mapped,
@@ -305,7 +313,8 @@ public sealed class OrchestrationAdapters
 
     private static void ValidateMergeMode(AgentResultMergeMode mode)
     {
-        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode));
     }
 
     private static Guid ToTraceId(ExecutionId id)

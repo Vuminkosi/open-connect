@@ -33,8 +33,10 @@ public static class LiveUIWorkerPrivacyScreen
         foreach (var capability in request.Capabilities)
         {
             metadata.AppendLine(capability.TargetId);
-            if (capability.Label is not null) metadata.AppendLine(capability.Label);
-            foreach (var action in capability.Actions) metadata.AppendLine(action);
+            if (capability.Label is not null)
+                metadata.AppendLine(capability.Label);
+            foreach (var action in capability.Actions)
+                metadata.AppendLine(action);
         }
         var content = metadata.ToString();
         var screened = await firewall.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false);
@@ -48,8 +50,13 @@ public static class LiveUIWorkerPrivacyScreen
     internal static string ComputeDigest(LiveUIInferenceRequest request) => Convert.ToHexString(SHA256.HashData(
         JsonSerializer.SerializeToUtf8Bytes(new
         {
-            request.Intent, request.SessionId, request.RouteId, request.SchemaVersion, request.ManifestHash,
-            request.RequestId, request.ExecutionId,
+            request.Intent,
+            request.SessionId,
+            request.RouteId,
+            request.SchemaVersion,
+            request.ManifestHash,
+            request.RequestId,
+            request.ExecutionId,
             Capabilities = request.Capabilities.Select(item => new { item.TargetId, item.Label, Actions = item.Actions.ToArray() }).ToArray()
         })));
 }

@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class ApprovalEntity
 {
     public Guid ApprovalId { get; set; }

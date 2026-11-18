@@ -53,7 +53,8 @@ public sealed class DelegationGate
     public DelegationGate(IAgentDefinitionRegistry catalog, int configuredMaxDepth = AgentCatalog.FrameworkMaxDepth)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        if (configuredMaxDepth < 0) throw new ArgumentOutOfRangeException(nameof(configuredMaxDepth));
+        if (configuredMaxDepth < 0)
+            throw new ArgumentOutOfRangeException(nameof(configuredMaxDepth));
         _configuredMaxDepth = Math.Min(configuredMaxDepth, AgentCatalog.FrameworkMaxDepth);
     }
 
@@ -74,7 +75,8 @@ public sealed class DelegationGate
             ?? throw new AgentCatalogException($"Child agent '{childAgentId}' is not registered.");
         var nextDepth = checked(parentCtx.Depth + 1);
         var maxDepth = Math.Min(_configuredMaxDepth, parent.Orchestration.MaxDepth);
-        if (nextDepth > maxDepth) throw new DelegationDepthExceededException(nextDepth, maxDepth);
+        if (nextDepth > maxDepth)
+            throw new DelegationDepthExceededException(nextDepth, maxDepth);
         if (parentCtx.Ancestors.Contains(childAgentId) || parentCtx.AgentId == childAgentId)
             throw new AgentCatalogException("Delegation cannot re-enter an agent already on the execution path.");
         if (parent.Orchestration.AllowedChildAgents?.Contains(childAgentId) != true)

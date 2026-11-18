@@ -55,7 +55,8 @@ public sealed record CommandGrant(
 
     private static bool DigestMatches(string expected, string actual)
     {
-        try { return CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expected), Convert.FromHexString(actual)); }
+        try
+        { return CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expected), Convert.FromHexString(actual)); }
         catch (FormatException) { return false; }
     }
 }
@@ -68,13 +69,15 @@ public sealed class NavigatorApproval(string digest, DateTimeOffset expiresAt)
     /// <summary>Consumes this approval if its digest matches and it has not expired or been used.</summary>
     public bool TryConsume(string requestedDigest, DateTimeOffset now)
     {
-        if (expiresAt <= now || !FixedDigestEquals(digest, requestedDigest)) return false;
+        if (expiresAt <= now || !FixedDigestEquals(digest, requestedDigest))
+            return false;
         return Interlocked.CompareExchange(ref _consumed, 1, 0) == 0;
     }
 
     private static bool FixedDigestEquals(string left, string right)
     {
-        try { return CryptographicOperations.FixedTimeEquals(Convert.FromHexString(left), Convert.FromHexString(right)); }
+        try
+        { return CryptographicOperations.FixedTimeEquals(Convert.FromHexString(left), Convert.FromHexString(right)); }
         catch (FormatException) { return false; }
     }
 }

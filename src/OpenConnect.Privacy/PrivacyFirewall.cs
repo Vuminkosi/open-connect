@@ -25,7 +25,8 @@ public sealed class PrivacyFirewall : IPrivacyFirewall
     {
         _options = options.Value;
         _policyEngine = policyEngine;
-        if (_options.DefaultTokenTtl <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(options), "Token TTL must be positive.");
+        if (_options.DefaultTokenTtl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(options), "Token TTL must be positive.");
     }
 
     /// <inheritdoc />

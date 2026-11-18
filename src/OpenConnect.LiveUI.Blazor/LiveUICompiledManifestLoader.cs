@@ -15,7 +15,8 @@ public static class LiveUICompiledManifestLoader
     public static LiveUIManifest? LoadFromEntryAssembly(Assembly? applicationAssembly = null)
     {
         var assembly = applicationAssembly ?? Assembly.GetEntryAssembly();
-        if (assembly is null) return null;
+        if (assembly is null)
+            return null;
 
         var resourceName = $"{assembly.GetName().Name}.openconnect.liveui.manifest.json";
         var cacheKey = new ManifestCacheKey(assembly.GetName().Name ?? string.Empty,
@@ -27,10 +28,12 @@ public static class LiveUICompiledManifestLoader
     private static LiveUIManifest? LoadAndValidate(Assembly assembly, string resourceName)
     {
         using var stream = assembly.GetManifestResourceStream(resourceName);
-        if (stream is null) return null;
+        if (stream is null)
+            return null;
 
         var manifest = JsonSerializer.Deserialize<LiveUIManifest>(stream, LiveUIManifestJson.CreateSerializerOptions());
-        if (manifest is null) return null;
+        if (manifest is null)
+            return null;
 
         var errors = new LiveUIManifestValidator().Validate(manifest);
         if (errors.Count != 0)

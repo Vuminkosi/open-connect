@@ -104,7 +104,8 @@ public sealed class GatewayRouteTests
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         using var connection = store.RegisterBoundConnection(session)!;
         var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "action",
-            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}") { ConnectionId = connection.ConnectionId };
+            "{\"outcome\":\"Completed\",\"postconditionVerified\":true}")
+        { ConnectionId = connection.ConnectionId };
         var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(response.CorrelationId, "execute", "todo-list", "Highlight"), "action", TimeSpan.FromSeconds(2));
 
         var first = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
@@ -172,7 +173,7 @@ public sealed class GatewayRouteTests
             "page", TimeSpan.FromSeconds(5));
         await WaitForRequestAsync(store, session.Id.Value);
         var response = new ClientInteractionResponse(correlationId, "page", "{\"label\":\"person\\u0040example.org\"}")
-            { ConnectionId = connection.ConnectionId };
+        { ConnectionId = connection.ConnectionId };
 
         var blocked = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, Context(app), store), app.Services);
@@ -194,7 +195,7 @@ public sealed class GatewayRouteTests
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         using var connection = store.RegisterBoundConnection(session)!;
         var response = new ClientInteractionResponse(Guid.NewGuid().ToString("D"), "page", "{\"label\":\"Tasks\"}")
-            { ConnectionId = connection.ConnectionId };
+        { ConnectionId = connection.ConnectionId };
 
         var result = await ExecuteAsync(await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
             session.Id.Value.ToString(), response, Context(app), store), app.Services);
@@ -238,8 +239,10 @@ public sealed class GatewayRouteTests
 
         var response = await pending.WaitAsync(TimeSpan.FromSeconds(2));
 
-        if (allowed) Assert.Equal(payload, response!.PayloadJson);
-        else Assert.Null(response);
+        if (allowed)
+            Assert.Equal(payload, response!.PayloadJson);
+        else
+            Assert.Null(response);
     }
 
     [Fact]
@@ -381,7 +384,8 @@ public sealed class GatewayRouteTests
         Assert.Equal(1, await journal.AppendAsync(new EventRecord(sessionId, 0, "first", "1")));
         Assert.Equal(2, await journal.AppendAsync(new EventRecord(sessionId, 0, "second", "2")));
         var replayed = new List<EventRecord>();
-        await foreach (var item in journal.ReplayAsync(sessionId, 0)) replayed.Add(item);
+        await foreach (var item in journal.ReplayAsync(sessionId, 0))
+            replayed.Add(item);
         Assert.Equal(new long[] { 1, 2 }, replayed.Select(item => item.Sequence));
     }
 
@@ -490,9 +494,11 @@ public sealed class GatewayRouteTests
     private static async Task CleanupAfterStartFailureAsync(WebApplication app)
     {
         using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try { await app.StopAsync(stopTimeout.Token); }
+        try
+        { await app.StopAsync(stopTimeout.Token); }
         catch (Exception) { /* Preserve the startup exception. */ }
-        try { await app.DisposeAsync(); }
+        try
+        { await app.DisposeAsync(); }
         catch (Exception) { /* Preserve the startup exception. */ }
     }
 
@@ -517,7 +523,8 @@ public sealed class GatewayRouteTests
     {
         for (var attempt = 0; attempt < 100; attempt++)
         {
-            if (store.GetEvents(sessionId, 0).Any(item => item.Type == ClientInteractionEventTypes.Request)) return;
+            if (store.GetEvents(sessionId, 0).Any(item => item.Type == ClientInteractionEventTypes.Request))
+                return;
             await Task.Delay(10);
         }
         throw new TimeoutException("The broker did not append its client interaction request.");
@@ -557,7 +564,8 @@ public sealed class GatewayRouteTests
         {
             Input = task;
             Started.TrySetResult();
-            try { await Task.Delay(Timeout.Infinite, cancellationToken); }
+            try
+            { await Task.Delay(Timeout.Infinite, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 CancellationObserved.TrySetResult();
@@ -575,7 +583,8 @@ public sealed class GatewayRouteTests
         {
             App.Services.GetService<TestExecutor>()?.ReleaseAfterCancellation.TrySetResult();
             using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            try { await App.StopAsync(stopTimeout.Token); }
+            try
+            { await App.StopAsync(stopTimeout.Token); }
             finally { await App.DisposeAsync(); }
         }
     }

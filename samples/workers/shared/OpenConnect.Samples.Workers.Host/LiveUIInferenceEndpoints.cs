@@ -83,7 +83,8 @@ public static class LiveUIInferenceEndpoints
             return Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The authenticated identity is missing required tenant or subject claims.");
 
         Ulid sessionUlid;
-        try { sessionUlid = Ulid.Parse(request.SessionId); }
+        try
+        { sessionUlid = Ulid.Parse(request.SessionId); }
         catch (FormatException)
         {
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");

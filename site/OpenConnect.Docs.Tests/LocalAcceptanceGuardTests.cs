@@ -100,7 +100,8 @@ public sealed class LocalAcceptanceGuardTests
     {
         var features = new Microsoft.AspNetCore.Http.Features.FeatureCollection();
         var addresses = new ServerAddressesFeature();
-        if (address is not null) addresses.Addresses.Add(address);
+        if (address is not null)
+            addresses.Addresses.Add(address);
         features.Set<IServerAddressesFeature>(addresses);
         var server = new StubServer(features);
         RequestDelegate next = context => { context.Response.StatusCode = 204; return Task.CompletedTask; };
@@ -114,10 +115,14 @@ public sealed class LocalAcceptanceGuardTests
         context.Request.Path = path;
         context.Request.Method = method;
         context.Request.Headers.Host = hostValues ?? host;
-        if (originValues.HasValue) context.Request.Headers.Origin = originValues.Value;
-        else if (origin is not null) context.Request.Headers.Origin = origin;
-        if (authorization.HasValue) context.Request.Headers.Authorization = authorization.Value;
-        if (guard.HasValue) context.Request.Headers["X-OpenConnect-Local-Guard"] = guard.Value;
+        if (originValues.HasValue)
+            context.Request.Headers.Origin = originValues.Value;
+        else if (origin is not null)
+            context.Request.Headers.Origin = origin;
+        if (authorization.HasValue)
+            context.Request.Headers.Authorization = authorization.Value;
+        if (guard.HasValue)
+            context.Request.Headers["X-OpenConnect-Local-Guard"] = guard.Value;
         await (Task)invoke.Invoke(instance, [context])!;
         return context.Response.StatusCode;
     }

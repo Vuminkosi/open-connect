@@ -22,8 +22,7 @@ public sealed class InstructionLoaderAdapter
     public Task<(string Content, string Revision)> LoadAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        var segments = path.Replace('\\', '/').Split('/');
-        if (Path.IsPathRooted(path) || path.StartsWith('/') || segments.Contains("..", StringComparer.Ordinal))
+        if (!InstructionPathPolicy.IsSafeRelative(path))
             throw new UnauthorizedAccessException("Instruction path must be a safe relative path.");
         return _loader(path, cancellationToken);
     }

@@ -121,7 +121,8 @@ public sealed class EndpointContractTests
         Assert.True(actual.IsSubsetOf(properties.EnumerateObject().Select(x => x.Name).ToHashSet(StringComparer.Ordinal)), $"Unexpected properties for {file}.");
         foreach (var property in value.EnumerateObject())
         {
-            if (!properties.TryGetProperty(property.Name, out var definition)) continue;
+            if (!properties.TryGetProperty(property.Name, out var definition))
+                continue;
             if (definition.TryGetProperty("enum", out var allowed))
                 Assert.Contains(property.Value.GetString(), allowed.EnumerateArray().Select(x => x.GetString()));
         }
@@ -130,7 +131,8 @@ public sealed class EndpointContractTests
     private static string ContractPath(string file)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "contracts", "navigator", "v1", file))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "contracts", "navigator", "v1", file)))
+            directory = directory.Parent;
         Assert.NotNull(directory);
         return Path.Combine(directory!.FullName, "contracts", "navigator", "v1", file);
     }

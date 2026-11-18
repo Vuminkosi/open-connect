@@ -43,7 +43,8 @@ public sealed class TokenRestorationService(ITokenVault vault) : ITokenRestorati
         ArgumentNullException.ThrowIfNull(context);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (content.Length == 0) return string.Empty;
+        if (content.Length == 0)
+            return string.Empty;
 
         // Never restore tokens in diagnostics, logs, or untrusted destinations
         if (context.Target == RestorationTarget.Diagnostics)
@@ -68,7 +69,8 @@ public sealed class TokenRestorationService(ITokenVault vault) : ITokenRestorati
     private async ValueTask<string> RestoreTokensInTextAsync(string text, PrivacyScope scope, CancellationToken cancellationToken)
     {
         var matches = TokenRegex.Matches(text);
-        if (matches.Count == 0) return text;
+        if (matches.Count == 0)
+            return text;
 
         var sb = new StringBuilder();
         var lastIndex = 0;

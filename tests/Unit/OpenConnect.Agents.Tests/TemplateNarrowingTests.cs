@@ -9,10 +9,30 @@ public sealed class TemplateNarrowingTests
     [Theory]
     [InlineData("../outside.md")]
     [InlineData("C:\\outside.md")]
+    [InlineData("C:/outside.md")]
+    [InlineData("C:outside.md")]
+    [InlineData("/outside.md")]
+    [InlineData(@"\outside.md")]
+    [InlineData(@"\\server\share\outside.md")]
+    [InlineData(@"folder\..\outside.md")]
+    [InlineData(@"folder/..\outside.md")]
+    [InlineData("instructions.md:stream")]
+    [InlineData("bad\0name.md")]
     public async Task InstructionAdapter_RejectsUnsafePaths(string path)
     {
         var adapter = new InstructionLoaderAdapter((_, _) => Task.FromResult(("text", "revision")));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => adapter.LoadAsync(path));
+    }
+
+    [Theory]
+    [InlineData("templates/lead.md")]
+    [InlineData(@"templates\lead.md")]
+    public async Task SafeRelativePaths_AreAcceptedByAdapterAndRegistry(string path)
+    {
+        var adapter = new InstructionLoaderAdapter((value, _) => Task.FromResult((value, "sha")));
+        Assert.Equal((path, "sha"), await adapter.LoadAsync(path));
+        var registry = new TemplateRegistry();
+        registry.Register(Template("safe", new HashSet<ToolId>()) with { InstructionsPath = path });
     }
 
     [Fact]
@@ -117,6 +137,15 @@ public sealed class TemplateNarrowingTests
     [Theory]
     [InlineData("../outside.md")]
     [InlineData("C:\\outside.md")]
+    [InlineData("C:/outside.md")]
+    [InlineData("C:outside.md")]
+    [InlineData("/outside.md")]
+    [InlineData(@"\outside.md")]
+    [InlineData(@"\\server\share\outside.md")]
+    [InlineData(@"folder\..\outside.md")]
+    [InlineData(@"folder/..\outside.md")]
+    [InlineData("instructions.md:stream")]
+    [InlineData("bad\0name.md")]
     public void Register_RejectsUnsafeInstructionPath(string path)
     {
         var registry = new TemplateRegistry();

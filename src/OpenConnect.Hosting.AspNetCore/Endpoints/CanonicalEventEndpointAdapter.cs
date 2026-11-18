@@ -38,8 +38,10 @@ public sealed class InMemorySessionUuidResolver : ISessionUuidResolver
     /// <summary>Registers a public UUID to runtime ULID mapping.</summary>
     public void Register(Guid sessionUuid, Ulid sessionUlid)
     {
-        if (sessionUuid == Guid.Empty) throw new ArgumentException("Session UUID must be non-empty.", nameof(sessionUuid));
-        if (sessionUlid == default) throw new ArgumentException("Session ULID must be non-default.", nameof(sessionUlid));
+        if (sessionUuid == Guid.Empty)
+            throw new ArgumentException("Session UUID must be non-empty.", nameof(sessionUuid));
+        if (sessionUlid == default)
+            throw new ArgumentException("Session ULID must be non-default.", nameof(sessionUlid));
         _byUuid[sessionUuid] = sessionUlid;
     }
 

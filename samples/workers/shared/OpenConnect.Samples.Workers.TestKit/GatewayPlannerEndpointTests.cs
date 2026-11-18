@@ -125,7 +125,7 @@ public sealed class GatewayPlannerEndpointTests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                { ["OpenConnect:LiveUI:ExternalPlanner:Enabled"] = enabled ? "true" : null });
+            { ["OpenConnect:LiveUI:ExternalPlanner:Enabled"] = enabled ? "true" : null });
             builder.Services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, TestAuth>("test", _ => { });
             builder.Services.AddAuthorization();
             builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("liveui-inference", limiter =>
@@ -162,8 +162,10 @@ public sealed class GatewayPlannerEndpointTests
             { RequestId = requestId, ExecutionId = executionId, ManifestHash = "sha256:test" };
             var request = new HttpRequestMessage(HttpMethod.Post, "/openconnect/v1/liveui/inference/planner/plan")
             { Content = JsonContent.Create(new GatewayLiveUIInferenceRequest(requestId, executionId, payload)) };
-            if (tenant.HasValue) request.Headers.Add("X-Test-Tenant", tenant.Value.ToString());
-            if (principal.HasValue) request.Headers.Add("X-Test-Principal", principal.Value.ToString());
+            if (tenant.HasValue)
+                request.Headers.Add("X-Test-Tenant", tenant.Value.ToString());
+            if (principal.HasValue)
+                request.Headers.Add("X-Test-Principal", principal.Value.ToString());
             return request;
         }
 

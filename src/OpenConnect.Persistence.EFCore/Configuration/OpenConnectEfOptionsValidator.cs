@@ -29,12 +29,18 @@ public sealed class OpenConnectEfOptionsValidator : IValidateOptions<OpenConnect
             options.IntegrationMode == OpenConnectEfIntegrationMode.ExistingDbContext)
             failures.Add("ef_migration_not_allowed");
 
-        if (!Enum.IsDefined(options.ValidateSchema)) failures.Add("ef_schema_validation_mode_invalid");
-        if (options.OutboxPollingInterval < TimeSpan.FromMilliseconds(100) || options.OutboxPollingInterval > TimeSpan.FromMinutes(5)) failures.Add("ef_outbox_poll_interval_invalid");
-        if (options.OutboxLeaseDuration < TimeSpan.FromSeconds(1) || options.OutboxLeaseDuration > TimeSpan.FromHours(1)) failures.Add("ef_outbox_lease_invalid");
-        if (options.OutboxBatchSize is < 1 or > 1000) failures.Add("ef_outbox_batch_invalid");
-        if (options.MaxOutboxDispatchers is < 0 or > 16) failures.Add("ef_outbox_dispatcher_limit_invalid");
-        if (options.OutboxMaxAttempts is < 1 or > 100) failures.Add("ef_outbox_attempt_limit_invalid");
+        if (!Enum.IsDefined(options.ValidateSchema))
+            failures.Add("ef_schema_validation_mode_invalid");
+        if (options.OutboxPollingInterval < TimeSpan.FromMilliseconds(100) || options.OutboxPollingInterval > TimeSpan.FromMinutes(5))
+            failures.Add("ef_outbox_poll_interval_invalid");
+        if (options.OutboxLeaseDuration < TimeSpan.FromSeconds(1) || options.OutboxLeaseDuration > TimeSpan.FromHours(1))
+            failures.Add("ef_outbox_lease_invalid");
+        if (options.OutboxBatchSize is < 1 or > 1000)
+            failures.Add("ef_outbox_batch_invalid");
+        if (options.MaxOutboxDispatchers is < 0 or > 16)
+            failures.Add("ef_outbox_dispatcher_limit_invalid");
+        if (options.OutboxMaxAttempts is < 1 or > 100)
+            failures.Add("ef_outbox_attempt_limit_invalid");
         if (options.OutboxLeaseDuration <= options.OutboxPollingInterval && options.MaxOutboxDispatchers > 1)
             failures.Add("ef_outbox_bounds_conflict");
 

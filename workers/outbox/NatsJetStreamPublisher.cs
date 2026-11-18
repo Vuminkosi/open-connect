@@ -40,7 +40,8 @@ public sealed class NatsJetStreamPublisher : Transport.Nats.IJetStreamPublisher,
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
         ArgumentException.ThrowIfNullOrWhiteSpace(messageId);
-        if (!_connected) await ConnectAsync(cancellationToken).ConfigureAwait(false);
+        if (!_connected)
+            await ConnectAsync(cancellationToken).ConfigureAwait(false);
         var headers = new NatsHeaders();
         headers.Add("Nats-Msg-Id", messageId);
         PubAckResponse ack = await _jetStream.PublishAsync(

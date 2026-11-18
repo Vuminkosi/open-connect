@@ -151,7 +151,8 @@ public sealed class RulesSecurityDetector : ISecurityDetector
     /// <summary>Calculates the number of Unicode code points (scalars) in the specified string segment.</summary>
     public static int CountUnicodeCodePoints(string str, int startIndex, int length)
     {
-        if (string.IsNullOrEmpty(str) || length <= 0) return 0;
+        if (string.IsNullOrEmpty(str) || length <= 0)
+            return 0;
         var count = 0;
         var end = startIndex + length;
         for (var i = startIndex; i < end; i++)
@@ -168,18 +169,21 @@ public sealed class RulesSecurityDetector : ISecurityDetector
     /// <summary>Validates a number string using the standard Luhn checksum algorithm.</summary>
     public static bool PassesLuhnCheck(string digits)
     {
-        if (string.IsNullOrWhiteSpace(digits)) return false;
+        if (string.IsNullOrWhiteSpace(digits))
+            return false;
         var sum = 0;
         var alternate = false;
         for (var i = digits.Length - 1; i >= 0; i--)
         {
             var c = digits[i];
-            if (c is < '0' or > '9') return false;
+            if (c is < '0' or > '9')
+                return false;
             var n = c - '0';
             if (alternate)
             {
                 n *= 2;
-                if (n > 9) n -= 9;
+                if (n > 9)
+                    n -= 9;
             }
             sum += n;
             alternate = !alternate;

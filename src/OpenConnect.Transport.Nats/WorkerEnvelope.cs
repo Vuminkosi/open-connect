@@ -11,11 +11,14 @@ public sealed record WorkerEnvelope(string SchemaVersion, Guid MessageId, string
     {
         using var document = JsonDocument.Parse(json.ToArray());
         var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object) throw new JsonException("Envelope must be an object.");
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new JsonException("Envelope must be an object.");
         string[] allowed = ["schemaVersion", "messageId", "taskId", "kind", "issuedAt", "expiresAt", "lease", "payloadRef", "correlationId"];
         foreach (var property in root.EnumerateObject())
-            if (!allowed.Contains(property.Name, StringComparer.Ordinal)) throw new JsonException("Envelope contains an unsupported field.");
-        if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1") throw new JsonException("Unsupported envelope version.");
+            if (!allowed.Contains(property.Name, StringComparer.Ordinal))
+                throw new JsonException("Envelope contains an unsupported field.");
+        if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1")
+            throw new JsonException("Unsupported envelope version.");
         var envelope = JsonSerializer.Deserialize<WorkerEnvelope>(json, SerializerOptions) ?? throw new JsonException("Envelope is required.");
         if (envelope.MessageId == Guid.Empty || string.IsNullOrWhiteSpace(envelope.TaskId) ||
             string.IsNullOrWhiteSpace(envelope.Kind) || envelope.Lease.LeaseId == Guid.Empty || envelope.Lease.FencingToken < 1 ||

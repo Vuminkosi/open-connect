@@ -80,7 +80,8 @@ public static class MafRuntimeProbe
         // (fail closed) instead of throwing here.
         foreach (var name in new[] { "Microsoft.Agents.AI", "Microsoft.Agents.AI.Abstractions", "Microsoft.Agents.AI.Workflows", "Microsoft.Agents.AI.Harness", "Microsoft.Agents.AI.Workflows.Declarative.Mcp" })
         {
-            try { _ = Assembly.Load(name); }
+            try
+            { _ = Assembly.Load(name); }
             catch (Exception exception) when (exception is FileNotFoundException or FileLoadException or BadImageFormatException) { }
         }
         return AppDomain.CurrentDomain.GetAssemblies()
@@ -90,7 +91,8 @@ public static class MafRuntimeProbe
 
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
     {
-        try { return assembly.GetExportedTypes(); }
+        try
+        { return assembly.GetExportedTypes(); }
         catch (ReflectionTypeLoadException exception) { return exception.Types.OfType<Type>(); }
     }
 }

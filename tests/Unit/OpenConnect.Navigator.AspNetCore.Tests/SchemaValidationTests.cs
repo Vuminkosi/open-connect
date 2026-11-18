@@ -56,7 +56,8 @@ public sealed class SchemaValidationTests
             "boolean" => value is JsonValue node && node.TryGetValue<bool>(out _),
             _ => true
         };
-        if (!matchesType) return [$"{path}: expected {type}"];
+        if (!matchesType)
+            return [$"{path}: expected {type}"];
 
         if (schema["enum"] is JsonArray allowed && !allowed.Any(item => JsonNode.DeepEquals(item, value)))
             errors.Add($"{path}: value is outside enum");
@@ -64,21 +65,28 @@ public sealed class SchemaValidationTests
         {
             if (schema["required"] is JsonArray required)
                 foreach (var key in required.Select(item => item!.GetValue<string>()))
-                    if (!obj.ContainsKey(key)) errors.Add($"{path}.{key}: required");
+                    if (!obj.ContainsKey(key))
+                        errors.Add($"{path}.{key}: required");
             var properties = schema["properties"] as JsonObject;
             foreach (var (key, child) in obj)
             {
-                if (properties?[key] is JsonNode childSchema) errors.AddRange(Validate(child, childSchema, $"{path}.{key}"));
-                else if ((bool?)schema["additionalProperties"] == false) errors.Add($"{path}.{key}: additional property");
+                if (properties?[key] is JsonNode childSchema)
+                    errors.AddRange(Validate(child, childSchema, $"{path}.{key}"));
+                else if ((bool?)schema["additionalProperties"] == false)
+                    errors.Add($"{path}.{key}: additional property");
             }
         }
         if (value is JsonArray array && schema["items"] is JsonNode itemSchema)
-            for (var index = 0; index < array.Count; index++) errors.AddRange(Validate(array[index], itemSchema, $"{path}[{index}]"));
+            for (var index = 0; index < array.Count; index++)
+                errors.AddRange(Validate(array[index], itemSchema, $"{path}[{index}]"));
         if (value is JsonValue stringValue && stringValue.TryGetValue<string>(out var text))
         {
-            if ((int?)schema["minLength"] is int minLength && text.Length < minLength) errors.Add($"{path}: too short");
-            if ((string?)schema["pattern"] is string pattern && !System.Text.RegularExpressions.Regex.IsMatch(text, pattern)) errors.Add($"{path}: pattern mismatch");
-            if ((string?)schema["format"] == "date-time" && !DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _)) errors.Add($"{path}: invalid date-time");
+            if ((int?)schema["minLength"] is int minLength && text.Length < minLength)
+                errors.Add($"{path}: too short");
+            if ((string?)schema["pattern"] is string pattern && !System.Text.RegularExpressions.Regex.IsMatch(text, pattern))
+                errors.Add($"{path}: pattern mismatch");
+            if ((string?)schema["format"] == "date-time" && !DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
+                errors.Add($"{path}: invalid date-time");
         }
         if (value is JsonValue integerValue && integerValue.TryGetValue<int>(out var number) && (int?)schema["minimum"] is int minimum && number < minimum)
             errors.Add($"{path}: below minimum");

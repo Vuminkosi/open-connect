@@ -24,7 +24,8 @@ public sealed class InMemorySemanticMemoryAdapter : IAgentSemanticMemory
         ArgumentException.ThrowIfNullOrWhiteSpace(request.TenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.AgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Query);
-        if (request.Limit <= 0) throw new ArgumentOutOfRangeException(nameof(request.Limit));
+        if (request.Limit <= 0)
+            throw new ArgumentOutOfRangeException(nameof(request.Limit));
         cancellationToken.ThrowIfCancellationRequested();
 
         // Query-time authorization gate

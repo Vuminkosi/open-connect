@@ -29,9 +29,11 @@ public sealed class JetStreamAgentEventSubscription(IAgentEventJetStream jetStre
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ConsumerName);
-        if (batchSize < 1) throw new InvalidOperationException("Batch size must be positive.");
+        if (batchSize < 1)
+            throw new InvalidOperationException("Batch size must be positive.");
         var types = options.EventTypes is { Length: > 0 } ? options.EventTypes : DefaultEventTypes;
-        if (types.Any(string.IsNullOrWhiteSpace)) throw new ArgumentException("Event types cannot be empty.", nameof(options));
+        if (types.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Event types cannot be empty.", nameof(options));
 
         await foreach (var delivery in jetStream.FetchAsync(options.ConsumerName, types, batchSize, cancellationToken)
                            .WithCancellation(cancellationToken).ConfigureAwait(false))
@@ -66,7 +68,8 @@ public sealed class JetStreamAgentEventSubscription(IAgentEventJetStream jetStre
             }
             finally
             {
-                if (!settled) await delivery.NakAsync(CancellationToken.None).ConfigureAwait(false);
+                if (!settled)
+                    await delivery.NakAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
     }

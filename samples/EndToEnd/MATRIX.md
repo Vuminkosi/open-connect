@@ -23,6 +23,17 @@ No new test framework, no scheduler/daemon, no product changes, no MAF changes.
   image fetches. A cache-missed image means that cell is NOT VERIFIED, never
   a pull.
 
+## Current CI coverage (2026-11-18)
+
+- Pull requests and pushes run **Minimal, Sqlite, InMemory, Blazor, and Navigator** with real local fixtures. Failures are blocking; they are not converted to skipped/success results.
+- PostgreSQL **offline model parity** is a separate automatic job. This checks the model, not a live database.
+- Live PostgreSQL/SQL Server are **NOT VERIFIED** by ordinary CI. Use the CI workflow's explicit `live_provider` dispatch only after configuring a disposable database reachable from the runner. This applies sample migrations and runs `run`/`verify`; never select a production/shared database.
+- PostgreSQL requires repository variable `OPENCONNECT_E2E_POSTGRES_HOST` and secret `OPENCONNECT_E2E_POSTGRESQL_CONNECTION`. SQL Server requires variable `OPENCONNECT_E2E_SQLSERVER_HOST` and secret `OPENCONNECT_E2E_SQLSERVER_CONNECTION`. The secrets flow to the samples' existing connection environment variables; their values must never be logged.
+- Missing fixtures still return **3 / NOT VERIFIED** and fail an explicitly requested live job. No database/container is provisioned automatically, no image/EULA is accepted, and no database or volume is deleted. Fixture owners remain responsible for disposal.
+- Script output includes scrubbed stdout **and stderr** so application exceptions are visible without printing secret-assignment lines.
+
+The original task baseline, restrictions, and recorded PASS/NOT VERIFIED matrix below are **historical evidence**, not a current CI result. In particular, the earlier prohibition on modifying workflows and the unconditional SQL Server skip described that original task, not the current explicit manual live-provider path.
+
 ## Conventions
 
 - Case exit codes: 0 = PASS, 1 = FAIL, 3 = NOT VERIFIED (missing fixture,

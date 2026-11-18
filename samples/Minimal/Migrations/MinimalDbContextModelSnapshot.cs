@@ -15,7 +15,7 @@ namespace OpenConnect.Samples.Minimal.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.ApprovalEntity", b =>
                 {
@@ -25,6 +25,17 @@ namespace OpenConnect.Samples.Minimal.Migrations
 
                     b.Property<string>("BoundArgumentsHash")
                         .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedUtc")
@@ -60,6 +71,8 @@ namespace OpenConnect.Samples.Minimal.Migrations
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("oc_approvals", (string)null);
                 });
@@ -531,6 +544,13 @@ namespace OpenConnect.Samples.Minimal.Migrations
                     b.Property<string>("PrincipalScope")
                         .IsRequired()
                         .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ResultRef")

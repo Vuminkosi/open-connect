@@ -55,7 +55,7 @@ public sealed class TelemetryPrivacyTests
 
     [Fact]
     public void Unapproved_dimension_value_is_dropped() =>
-        Assert.Empty(Filter().Filter([new("provider", "Bearer secret") ]));
+        Assert.Empty(Filter().Filter([new("provider", "Bearer secret")]));
 
     [Fact]
     public void Oversized_value_is_dropped()
@@ -85,9 +85,15 @@ public sealed class TelemetryPrivacyTests
     [Fact]
     public void Credential_rejection_cannot_be_opted_out()
     {
-        var options = new TelemetryPrivacyOptions { Mode = TelemetryPrivacyMode.Custom, DropUnknown = false,
-            AllowPrompt = true, AllowCompletion = true, AllowExceptionMessages = true };
-        Assert.Empty(Filter(options).Filter([new("authorization", "secret") ]));
+        var options = new TelemetryPrivacyOptions
+        {
+            Mode = TelemetryPrivacyMode.Custom,
+            DropUnknown = false,
+            AllowPrompt = true,
+            AllowCompletion = true,
+            AllowExceptionMessages = true
+        };
+        Assert.Empty(Filter(options).Filter([new("authorization", "secret")]));
     }
 
     [Theory]
@@ -96,8 +102,14 @@ public sealed class TelemetryPrivacyTests
     [InlineData(TelemetryPrivacyMode.Custom)]
     public void Export_validation_rejects_sensitive_and_unknown_activity_tags_in_every_mode(TelemetryPrivacyMode mode)
     {
-        var options = new TelemetryPrivacyOptions { Mode = mode, DropUnknown = false,
-            AllowPrompt = true, AllowCompletion = true, AllowExceptionMessages = true };
+        var options = new TelemetryPrivacyOptions
+        {
+            Mode = mode,
+            DropUnknown = false,
+            AllowPrompt = true,
+            AllowCompletion = true,
+            AllowExceptionMessages = true
+        };
         var filter = Filter(options);
         var validator = new TelemetryExportValidator(filter);
         using var activity = new System.Diagnostics.Activity("export-test")

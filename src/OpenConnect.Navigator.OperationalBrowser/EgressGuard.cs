@@ -29,10 +29,12 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
     {
         if (!destination.IsAbsoluteUri || destination.Scheme != Uri.UriSchemeHttps || destination.UserInfo.Length != 0 ||
             destination.IsDefaultPort is false && destination.Port != 443 ||
-            !allowedOrigins.Any(origin => SameOrigin(origin, destination))) return null;
+            !allowedOrigins.Any(origin => SameOrigin(origin, destination)))
+            return null;
 
         IPAddress[] addresses;
-        try { addresses = await resolver.ResolveAsync(destination.DnsSafeHost, cancellationToken).ConfigureAwait(false); }
+        try
+        { addresses = await resolver.ResolveAsync(destination.DnsSafeHost, cancellationToken).ConfigureAwait(false); }
         catch (SocketException) { return null; }
         return addresses.Length > 0 && addresses.All(IsPublicAddress)
             ? new ValidatedEgressTarget(destination, Array.AsReadOnly(addresses)) : null;
@@ -43,15 +45,18 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
         IReadOnlyList<Uri> redirectHops, IReadOnlyList<Uri> allowedOrigins, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(redirectHops);
-        if (redirectHops.Count > MaxRedirectHops) return null;
+        if (redirectHops.Count > MaxRedirectHops)
+            return null;
         var targets = new List<ValidatedEgressTarget>(redirectHops.Count + 1);
         var current = initialDestination;
         for (var i = 0; i <= redirectHops.Count; i++)
         {
             var validated = await ValidateTargetAsync(current, allowedOrigins, cancellationToken).ConfigureAwait(false);
-            if (validated is null) return null;
+            if (validated is null)
+                return null;
             targets.Add(validated);
-            if (i < redirectHops.Count) current = redirectHops[i];
+            if (i < redirectHops.Count)
+                current = redirectHops[i];
         }
         return targets.AsReadOnly();
     }
@@ -61,8 +66,10 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
 
     private static bool IsPublicAddress(IPAddress address)
     {
-        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-        if (IPAddress.IsLoopback(address)) return false;
+        if (address.IsIPv4MappedToIPv6)
+            address = address.MapToIPv4();
+        if (IPAddress.IsLoopback(address))
+            return false;
         if (address.AddressFamily == AddressFamily.InterNetwork)
         {
             var b = address.GetAddressBytes();
@@ -70,7 +77,8 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
                 !(b[0] == 172 && b[1] is >= 16 and <= 31) && !(b[0] == 192 && b[1] == 168) &&
                 !(b[0] == 100 && b[1] is >= 64 and <= 127) && b[0] < 224;
         }
-        if (address.AddressFamily != AddressFamily.InterNetworkV6) return false;
+        if (address.AddressFamily != AddressFamily.InterNetworkV6)
+            return false;
         var bytes = address.GetAddressBytes();
         return !address.IsIPv6LinkLocal && !address.IsIPv6SiteLocal && !(bytes[0] == 0xfc || bytes[0] == 0xfd) &&
             !(bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) && !address.Equals(IPAddress.IPv6None) &&

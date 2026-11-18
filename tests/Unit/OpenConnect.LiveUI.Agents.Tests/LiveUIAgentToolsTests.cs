@@ -40,8 +40,11 @@ public sealed class LiveUIAgentToolsTests
     {
         var stale = new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + "old", LiveUITargetKind.Heading, "Previous page",
             new HashSet<LiveUICapability> { LiveUICapability.Inspect });
-        var replacement = Manifest with { Routes = Manifest.Routes.Select(route => route.Id == "todo.home"
-            ? route with { Targets = route.Targets.Append(stale).ToArray() } : route).ToArray() };
+        var replacement = Manifest with
+        {
+            Routes = Manifest.Routes.Select(route => route.Id == "todo.home"
+            ? route with { Targets = route.Targets.Append(stale).ToArray() } : route).ToArray()
+        };
         replacement = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
         var provider = new MutableManifestProvider(replacement);
         var authorizer = new RecordingAuthorizer();
@@ -93,8 +96,11 @@ public sealed class LiveUIAgentToolsTests
             new LiveUIRoute("docs", "/docs/{version}/{slug}", "Docs", [target])]);
         manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
         var provider = new ManifestProvider(manifest);
-        var accessor = new MutableContextAccessor { Current = new LiveUIAgentContext("session", "docs")
-            { CurrentPath = "/docs/v1/install" } };
+        var accessor = new MutableContextAccessor
+        {
+            Current = new LiveUIAgentContext("session", "docs")
+            { CurrentPath = "/docs/v1/install" }
+        };
         var authorizer = new RecordingAuthorizer();
         var runtime = new RecordingRuntime();
         var options = Options.Create(new LiveUIOptions());
@@ -143,7 +149,8 @@ public sealed class LiveUIAgentToolsTests
             Assert.Equal(string.Empty, directResult.GetProperty("contentHash").GetString());
             Assert.Equal(1, discovery.Calls);
         }
-        else Assert.Empty(page.Targets);
+        else
+            Assert.Empty(page.Targets);
     }
 
     [Fact]
@@ -518,7 +525,8 @@ public sealed class LiveUIAgentToolsTests
         var retry = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(arguments));
 
         Assert.Equal(expectedRequests, broker.Requests.Count);
-        if (expectedRequests == 1) Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+        if (expectedRequests == 1)
+            Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
     }
 
     [Theory]
@@ -873,8 +881,11 @@ public sealed class LiveUIAgentToolsTests
             Calls++;
             var target = new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + "discovered", LiveUITargetKind.Button, "Save",
                 new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Inspect });
-            var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id
-                ? item with { Targets = item.Targets.Where(existing => existing.Id != target.Id).Append(target).ToArray() } : item).ToArray() };
+            var replacement = manifest with
+            {
+                Routes = manifest.Routes.Select(item => item.Id == route.Id
+                ? item with { Targets = item.Targets.Where(existing => existing.Id != target.Id).Append(target).ToArray() } : item).ToArray()
+            };
             provider.Current = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
             return ValueTask.FromResult(true);
         }

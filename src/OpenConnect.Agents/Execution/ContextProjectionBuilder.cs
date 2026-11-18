@@ -34,11 +34,14 @@ public sealed class ContextProjectionBuilder
         ArgumentNullException.ThrowIfNull(requestedItems);
         ArgumentNullException.ThrowIfNull(childAllowedToolIds);
         ArgumentNullException.ThrowIfNull(childScopes);
-        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode));
         if (mode == AgentContextSharingMode.None && requestedItems.Any())
             throw new UnauthorizedAccessException("Context sharing is disabled (None); no items may be projected.");
-        if (tokenBudget < 0) throw new ArgumentOutOfRangeException(nameof(tokenBudget));
-        if (ttl <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(ttl));
+        if (tokenBudget < 0)
+            throw new ArgumentOutOfRangeException(nameof(tokenBudget));
+        if (ttl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(ttl));
 
         var allowedClasses = dataClassAllowlist.ToImmutableHashSet(StringComparer.Ordinal);
         var requested = requestedItems.ToArray();

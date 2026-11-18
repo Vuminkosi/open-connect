@@ -20,7 +20,8 @@ public sealed class QdrantVectorStoreRest : IVectorStore
         ArgumentException.ThrowIfNullOrWhiteSpace(collectionName);
         if (!endpoint.IsAbsoluteUri || (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
             throw new ArgumentException("Endpoint must be an absolute HTTP(S) URI.", nameof(endpoint));
-        if (vectorSize <= 0) throw new ArgumentOutOfRangeException(nameof(vectorSize));
+        if (vectorSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vectorSize));
 
         _httpClient = httpClient;
         _httpClient.BaseAddress = endpoint.AbsoluteUri.EndsWith('/') ? endpoint : new Uri(endpoint.AbsoluteUri + "/");
@@ -65,11 +66,15 @@ public sealed class QdrantVectorStoreRest : IVectorStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (limit < 0)
+            throw new ArgumentOutOfRangeException(nameof(limit));
         ValidateVector(vector.Span);
         var body = new
         {
-            vector = vector.ToArray(), limit, with_payload = true, with_vector = true,
+            vector = vector.ToArray(),
+            limit,
+            with_payload = true,
+            with_vector = true,
             filter = new { must = new[] { Match("tenant", tenantId), Match("agent", agentId) } }
         };
         using var response = await _httpClient.PostAsJsonAsync($"collections/{_collectionName}/points/search", body, cancellationToken).ConfigureAwait(false);
@@ -83,9 +88,11 @@ public sealed class QdrantVectorStoreRest : IVectorStore
             var resultTenant = payload.GetProperty("tenant").GetString();
             var resultAgent = payload.GetProperty("agent").GetString();
             // The server filter is not an authorization boundary; reject malformed or cross-scope results too.
-            if (!string.Equals(resultTenant, tenantId, StringComparison.Ordinal) || !string.Equals(resultAgent, agentId, StringComparison.Ordinal)) continue;
+            if (!string.Equals(resultTenant, tenantId, StringComparison.Ordinal) || !string.Equals(resultAgent, agentId, StringComparison.Ordinal))
+                continue;
             var values = result.GetProperty("vector").EnumerateArray().Select(item => item.GetSingle()).ToArray();
-            if (values.Length != _vectorSize) continue;
+            if (values.Length != _vectorSize)
+                continue;
             points.Add(new VectorPoint(result.GetProperty("id").GetString() ?? string.Empty,
                 resultTenant!, resultAgent!, payload.TryGetProperty("content", out var content) ? content.GetString() ?? string.Empty : string.Empty,
                 values, payload.TryGetProperty("revision", out var revision) ? revision.GetInt64() : 0,
@@ -117,16 +124,19 @@ public sealed class QdrantVectorStoreRest : IVectorStore
 
     private void ValidateVector(ReadOnlySpan<float> vector)
     {
-        if (vector.Length != _vectorSize) throw new ArgumentException("Vector dimension does not match configured collection size.", nameof(vector));
+        if (vector.Length != _vectorSize)
+            throw new ArgumentException("Vector dimension does not match configured collection size.", nameof(vector));
         foreach (var value in vector)
-            if (!float.IsFinite(value)) throw new ArgumentException("Vector values must be finite.", nameof(vector));
+            if (!float.IsFinite(value))
+                throw new ArgumentException("Vector values must be finite.", nameof(vector));
     }
 
     private static object Match(string key, string value) => new { key, match = new { value } };
 
     private static Guid NormalizePointId(string id)
     {
-        if (Guid.TryParse(id, out var guid)) return guid;
+        if (Guid.TryParse(id, out var guid))
+            return guid;
         // Existing indexer IDs are deterministic SHA-256 hex. Derive a stable RFC 4122-shaped UUID from them.
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(id));
         Span<byte> uuid = stackalloc byte[16];

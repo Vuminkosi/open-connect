@@ -79,7 +79,8 @@ public sealed class JetStreamAgentEventSubscriptionV2Tests
         {
             _ackCallback = () => AckCount++;
             _nakCallback = (delivery, reason) => Nak(delivery, reason);
-            if (initialize) _pending.Enqueue(NewDelivery(first, false));
+            if (initialize)
+                _pending.Enqueue(NewDelivery(first, false));
         }
 
         public async IAsyncEnumerable<IAgentEventDeliveryV2> FetchAsync(string consumerName,

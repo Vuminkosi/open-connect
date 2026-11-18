@@ -24,7 +24,8 @@ public readonly record struct Ulid : IComparable<Ulid>
                 Span<byte> random = stackalloc byte[10];
                 System.Security.Cryptography.RandomNumberGenerator.Fill(random);
                 UInt128 randomness = 0;
-                foreach (var b in random) randomness = (randomness << 8) | b;
+                foreach (var b in random)
+                    randomness = (randomness << 8) | b;
                 _lastGenerated = ((UInt128)milliseconds << 80) | randomness;
             }
             return new Ulid(_lastGenerated);
@@ -35,16 +36,19 @@ public readonly record struct Ulid : IComparable<Ulid>
     public static Ulid Parse(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (value.Length != 26) throw new FormatException("A ULID must contain exactly 26 characters.");
+        if (value.Length != 26)
+            throw new FormatException("A ULID must contain exactly 26 characters.");
         UInt128 parsed = 0;
         foreach (var character in value)
         {
             var digit = Decode(character);
-            if (parsed > (UInt128.MaxValue >> 5)) throw new FormatException("The ULID value is out of range.");
+            if (parsed > (UInt128.MaxValue >> 5))
+                throw new FormatException("The ULID value is out of range.");
             parsed = (parsed << 5) | (uint)digit;
         }
         // The first Base32 digit has only three significant bits.
-        if (Decode(value[0]) > 7) throw new FormatException("The ULID value is out of range.");
+        if (Decode(value[0]) > 7)
+            throw new FormatException("The ULID value is out of range.");
         return new Ulid(parsed);
     }
 
@@ -68,10 +72,13 @@ public readonly record struct Ulid : IComparable<Ulid>
     {
         character = char.ToUpperInvariant(character);
         // Crockford's common O/I/L aliases are accepted on input.
-        if (character is 'O') character = '0';
-        if (character is 'I' or 'L') character = '1';
+        if (character is 'O')
+            character = '0';
+        if (character is 'I' or 'L')
+            character = '1';
         var index = Alphabet.IndexOf(character);
-        if (index < 0) throw new FormatException($"'{character}' is not a Crockford Base32 character.");
+        if (index < 0)
+            throw new FormatException($"'{character}' is not a Crockford Base32 character.");
         return index;
     }
 }

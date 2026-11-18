@@ -95,8 +95,10 @@ public sealed class MafLeadSessionTests
             var request = messages.ToArray();
             Requests.Add(request);
             var latest = request.Last(message => message.Role == ChatRole.User).Text;
-            if (latest == FailPrompt) throw new InvalidOperationException("expected test failure");
-            if (latest == CancelPrompt) Cancellation!.Cancel();
+            if (latest == FailPrompt)
+                throw new InvalidOperationException("expected test failure");
+            if (latest == CancelPrompt)
+                Cancellation!.Cancel();
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, latest)));
         }
 

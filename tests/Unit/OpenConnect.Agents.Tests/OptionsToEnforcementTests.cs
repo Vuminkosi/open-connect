@@ -29,9 +29,16 @@ public sealed class OptionsToEnforcementTests
             (_, _) => ValueTask.FromResult(false), options.MaxConcurrentSubagents, ledger);
         var context = new AgentExecutionContext
         {
-            TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-            SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()), AgentExecutionId = execution,
-            Depth = 0, CatalogRevision = 1, PolicyRevision = 1, AuthRevision = 1,
+            TenantScope = "tenant",
+            PrincipalOrWorkloadScope = "principal",
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = new SessionId(Ulid.NewUlid()),
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = execution,
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
             Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
             RemainingBudgets = ImmutableDictionary<string, long>.Empty.Add("MaxToolCalls", 10)
                 .Add("MaxModelCalls", 10).Add("MaxTokens", long.MaxValue).Add("MaxConcurrent", 2)

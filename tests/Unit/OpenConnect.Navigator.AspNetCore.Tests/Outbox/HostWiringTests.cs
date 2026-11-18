@@ -58,7 +58,8 @@ public sealed class HostWiringTests
         public List<string> MessageIds { get; } = [];
         public ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> payload, string messageId, CancellationToken cancellationToken)
         {
-            if (Fail) throw new InvalidOperationException("simulated broker failure");
+            if (Fail)
+                throw new InvalidOperationException("simulated broker failure");
             MessageIds.Add(messageId);
             return ValueTask.CompletedTask;
         }

@@ -12,21 +12,27 @@ internal static class ClientPageEgressScreen
     internal static async ValueTask<ClientPageScreenResult> EvaluateAsync(
         string payloadJson, SessionRecord session, IEgressGate? gate, CancellationToken cancellationToken)
     {
-        if (gate is null) return ClientPageScreenResult.Unavailable;
-        if (string.IsNullOrWhiteSpace(payloadJson) || payloadJson.Length > 65_536) return ClientPageScreenResult.Blocked;
+        if (gate is null)
+            return ClientPageScreenResult.Unavailable;
+        if (string.IsNullOrWhiteSpace(payloadJson) || payloadJson.Length > 65_536)
+            return ClientPageScreenResult.Blocked;
         JsonDocument parsedPage;
-        try { parsedPage = JsonDocument.Parse(payloadJson); }
+        try
+        { parsedPage = JsonDocument.Parse(payloadJson); }
         catch (JsonException) { return ClientPageScreenResult.Blocked; }
         using var page = parsedPage;
-        if (page.RootElement.ValueKind != JsonValueKind.Object) return ClientPageScreenResult.Blocked;
+        if (page.RootElement.ValueKind != JsonValueKind.Object)
+            return ClientPageScreenResult.Blocked;
         var content = new StringBuilder();
         var pendingValues = new Stack<JsonElement>();
         pendingValues.Push(page.RootElement);
         while (pendingValues.TryPop(out var item))
         {
-            if (item.ValueKind == JsonValueKind.String) content.AppendLine(item.GetString());
+            if (item.ValueKind == JsonValueKind.String)
+                content.AppendLine(item.GetString());
             else if (item.ValueKind == JsonValueKind.Array)
-                foreach (var child in item.EnumerateArray()) pendingValues.Push(child);
+                foreach (var child in item.EnumerateArray())
+                    pendingValues.Push(child);
             else if (item.ValueKind == JsonValueKind.Object)
                 foreach (var property in item.EnumerateObject())
                 {

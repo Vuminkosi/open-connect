@@ -19,7 +19,8 @@ public sealed class InMemoryDurableOperationalStore : IDurableOperationalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         lock (_gate)
         {
-            if (_leases.TryGetValue(executionId, out var current) && current.Lease.ExpiresAt > now) return ValueTask.FromResult<OperationalLease?>(null);
+            if (_leases.TryGetValue(executionId, out var current) && current.Lease.ExpiresAt > now)
+                return ValueTask.FromResult<OperationalLease?>(null);
             var token = _fences.TryGetValue(executionId, out var prior) ? checked(prior + 1) : 1;
             _fences[executionId] = token;
             var lease = new OperationalLease(Guid.NewGuid().ToString("N"), executionId, token, now + duration);
@@ -33,7 +34,8 @@ public sealed class InMemoryDurableOperationalStore : IDurableOperationalStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            if (!IsCurrent(lease) || lease.ExpiresAt <= now) return ValueTask.FromResult<OperationalLease?>(null);
+            if (!IsCurrent(lease) || lease.ExpiresAt <= now)
+                return ValueTask.FromResult<OperationalLease?>(null);
             var renewed = lease with { ExpiresAt = now + duration };
             _leases[lease.ExecutionId] = (renewed, _leases[lease.ExecutionId].Owner);
             return ValueTask.FromResult<OperationalLease?>(renewed);
@@ -43,20 +45,24 @@ public sealed class InMemoryDurableOperationalStore : IDurableOperationalStore
     public ValueTask<bool> IsLeaseCurrentAsync(OperationalLease lease, DateTimeOffset now, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(IsCurrent(lease) && lease.ExpiresAt > now);
+        lock (_gate)
+            return ValueTask.FromResult(IsCurrent(lease) && lease.ExpiresAt > now);
     }
 
     public ValueTask ReleaseLeaseAsync(OperationalLease lease, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) if (IsCurrent(lease)) _leases.Remove(lease.ExecutionId);
+        lock (_gate)
+            if (IsCurrent(lease))
+                _leases.Remove(lease.ExecutionId);
         return ValueTask.CompletedTask;
     }
 
     public ValueTask<OperationalReceipt?> GetReceiptAsync(string tenantScope, string idempotencyKey, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(_receipts.TryGetValue((tenantScope, idempotencyKey), out var value) ? value.Receipt : null);
+        lock (_gate)
+            return ValueTask.FromResult(_receipts.TryGetValue((tenantScope, idempotencyKey), out var value) ? value.Receipt : null);
     }
 
     public ValueTask<bool> TrySaveReceiptAsync(string tenantScope, string idempotencyKey, OperationalReceipt receipt, DateTimeOffset completedAt, CancellationToken cancellationToken)
@@ -65,7 +71,8 @@ public sealed class InMemoryDurableOperationalStore : IDurableOperationalStore
         lock (_gate)
         {
             var key = (tenantScope, idempotencyKey);
-            if (_receipts.ContainsKey(key)) return ValueTask.FromResult(false);
+            if (_receipts.ContainsKey(key))
+                return ValueTask.FromResult(false);
             _receipts.Add(key, (receipt, completedAt));
             return ValueTask.FromResult(true);
         }

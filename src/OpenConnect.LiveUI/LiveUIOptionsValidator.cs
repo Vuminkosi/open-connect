@@ -8,7 +8,8 @@ public sealed class LiveUIOptionsValidator : IValidateOptions<LiveUIOptions>
     {
         ArgumentNullException.ThrowIfNull(options);
         var failures = new List<string>();
-        if (!Enum.IsDefined(options.Discovery.Mode)) failures.Add("Discovery.Mode is unsupported.");
+        if (!Enum.IsDefined(options.Discovery.Mode))
+            failures.Add("Discovery.Mode is unsupported.");
         if (options.Discovery.MaximumTargetsPerRoute is < 1 or > 10_000)
             failures.Add("Discovery.MaximumTargetsPerRoute must be between 1 and 10000.");
         if (options.Interaction.DefaultActionTimeout <= TimeSpan.Zero || options.Interaction.DefaultActionTimeout > TimeSpan.FromMinutes(2))
