@@ -28,13 +28,14 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return measured(result("Denied", "code_content_not_interactive"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
+  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout);
   switch (action.type) {
     case "Open":
     case "Close":
     case "Click":
       element.click();
-      if (parameters.stateName) return measured(waitForState(element, parameters.stateName, parameters.stateValue, timeout));
-      if (action.type !== "Click") return measured(waitForState(element, "expanded", action.type === "Open" ? "true" : "false", timeout));
+      if (parameters.stateName) return measured(verifyState(parameters.stateName, parameters.stateValue));
+      if (action.type !== "Click") return measured(verifyState("expanded", action.type === "Open" ? "true" : "false"));
       return measured(result("Uncertain", "click_dispatched_without_postcondition"));
     case "Focus":
       element.focus({ preventScroll: true });
@@ -66,11 +67,11 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Select": return measured(selectValue(element, parameters.value));
     case "SelectTab":
       element.click();
-      return measured(waitForState(element, "selected", "true", timeout));
+      return measured(verifyState("selected", "true"));
     case "Inspect": return measured(inspect(element));
     case "WaitForState":
       if (!parameters.stateName) return measured(result("Failed", "state_name_required"));
-      return measured(waitForState(element, parameters.stateName, parameters.stateValue, timeout));
+      return measured(verifyState(parameters.stateName, parameters.stateValue));
     default: return measured(result("Failed", "action_unsupported"));
   }
 }
@@ -271,8 +272,12 @@ function inspect(element) {
   return result("Completed", "inspection_verified", true, "control_visible");
 }
 
-function waitForState(element, name, expected, timeoutMs) {
+function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs) {
   const matches = () => {
+    if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
+    const resolution = resolveTarget(target, enableRuntimeFallback, route);
+    if (resolution.status !== "resolved" || !resolution.element.isConnected) return false;
+    const element = resolution.element;
     switch (name) {
       case "selected": return (element.getAttribute("aria-selected") || element.getAttribute("aria-pressed")) === (expected || "true");
       case "checked": return "checked" in element && String(element.checked) === (expected || "true");
