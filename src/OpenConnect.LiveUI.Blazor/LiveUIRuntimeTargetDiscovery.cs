@@ -35,8 +35,9 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                 ? []
                 : route.Targets.Where(target => !target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)).ToList();
             var known = existing.Select(target => Key(target.Kind, target.Role, target.Label)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var candidate in observed.Take(Math.Max(0, maximum - existing.Count)))
+            foreach (var candidate in observed.Take(maximum))
             {
+                if (existing.Count >= maximum) break;
                 if (candidate is null || !Enum.TryParse<LiveUITargetKind>(candidate.Kind, out var kind) ||
                     candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) ||
                     candidate.Role is { Length: > 32 } || !known.Add(Key(kind, candidate.Role, label))) continue;
