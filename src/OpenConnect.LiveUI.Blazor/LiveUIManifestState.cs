@@ -21,4 +21,15 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate) return ValueTask.FromResult(_manifest);
     }
+
+    internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement)
+    {
+        if (validator.Validate(replacement).Count != 0) return false;
+        lock (_gate)
+        {
+            if (!ReferenceEquals(_manifest, expected)) return false;
+            _manifest = replacement;
+            return true;
+        }
+    }
 }

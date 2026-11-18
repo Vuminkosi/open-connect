@@ -5,6 +5,38 @@ const highlightAttribute = "data-openconnect-liveui-highlight";
 const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
 const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
+// Return bounded control labels and roles, never control values or code examples.
+export function discoverTargets(maximumTargets) {
+  const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
+  if (!limit) return [];
+  const selector = "button, a[href], input, textarea, select, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading']";
+  const candidates = [];
+  const elements = document.querySelectorAll(selector);
+  for (let index = 0; index < Math.min(elements.length, 5000); index++) {
+    const element = elements[index];
+    if (!isVisible(element) || element.closest("pre, code") || element.matches(":disabled")) continue;
+    const tag = element.tagName.toLowerCase();
+    const role = roleOf(element);
+    const kind = role === "tab" ? "Tab" : role === "button" ? "Button" : role === "link" ? "Link" :
+      role === "heading" ? "Heading" : tag === "select" ? "Select" :
+      tag === "input" && element.type === "checkbox" ? "Checkbox" :
+      tag === "input" || tag === "textarea" ? "Input" : null;
+    if (!kind || kind === "Link" && !isAllowedLinkActivation(element)) continue;
+    if (["Input", "Checkbox", "Select"].includes(kind) && isSensitiveField(element)) continue;
+    const label = accessibleNames(element).map((name) => String(name).replace(/\s+/g, " ").trim())
+      .find((name) => name.length > 0 && name.length <= 120);
+    if (!label || sensitiveFieldPattern.test(label)) continue;
+    candidates.push({ kind, label, role });
+  }
+  const counts = new Map();
+  for (const candidate of candidates) {
+    const key = `${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return candidates.filter((candidate) =>
+    counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}`) === 1).slice(0, limit);
+}
+
 export function execute(context, timeoutMs, enableRuntimeFallback) {
   const { manifest, route, target, action } = context;
   if (!manifest || !route || !action || action.schemaVersion !== "openconnect.liveui/v1") return result("Failed", "invalid_request");

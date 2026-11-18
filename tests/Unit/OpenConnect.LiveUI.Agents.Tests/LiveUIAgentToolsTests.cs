@@ -13,6 +13,39 @@ public sealed class LiveUIAgentToolsTests
 {
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Runtime_discovery_requires_route_inspection_and_filters_each_discovered_capability(bool allowRoute)
+    {
+        var provider = new MutableManifestProvider(Manifest);
+        var discovery = new RecordingDiscovery(provider);
+        var authorizer = new RecordingAuthorizer((_, context) => context.Target is null
+            ? allowRoute
+            : context.Target.Id == LiveUIRuntimeTargetIds.Prefix + "discovered" && context.Action.Type == LiveUIActionType.Inspect);
+        var options = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(provider, authorizer, new RecordingRuntime(), options, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home")),
+            provider, authorizer, new LiveUIManifestValidator(), orchestrator, options, runtimeDiscovery: discovery);
+
+        var page = await tools.GetCurrentPageAsync();
+
+        Assert.NotNull(page);
+        Assert.Equal(allowRoute ? 1 : 0, discovery.Calls);
+        if (allowRoute)
+        {
+            var target = Assert.Single(page.Targets, item => item.TargetId == LiveUIRuntimeTargetIds.Prefix + "discovered");
+            Assert.Equal([LiveUICapability.Inspect], target.Capabilities);
+            var directTool = Assert.IsAssignableFrom<AIFunction>(LiveUIAgentToolFactory.CreateTools(tools)
+                .Single(item => item.Name == "liveui_get_current_page"));
+            var directResult = Assert.IsType<System.Text.Json.JsonElement>(await directTool.InvokeAsync(new AIFunctionArguments()));
+            Assert.Empty(directResult.GetProperty("targets").EnumerateArray());
+            Assert.Equal(string.Empty, directResult.GetProperty("contentHash").GetString());
+            Assert.Equal(1, discovery.Calls);
+        }
+        else Assert.Empty(page.Targets);
+    }
+
     [Fact]
     public async Task ToolFactory_exposes_typed_MAF_functions_and_execution_uses_host_context()
     {
@@ -654,6 +687,29 @@ public sealed class LiveUIAgentToolsTests
     {
         public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<LiveUIManifest?>(manifest);
+    }
+
+    private sealed class MutableManifestProvider(LiveUIManifest manifest) : ILiveUIManifestProvider
+    {
+        public LiveUIManifest Current { get; set; } = manifest;
+        public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<LiveUIManifest?>(Current);
+    }
+
+    private sealed class RecordingDiscovery(MutableManifestProvider provider) : ILiveUIRuntimeTargetDiscovery
+    {
+        public int Calls { get; private set; }
+        public ValueTask RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            var target = new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + "discovered", LiveUITargetKind.Button, "Save",
+                new HashSet<LiveUICapability> { LiveUICapability.Activate, LiveUICapability.Inspect });
+            var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id
+                ? item with { Targets = item.Targets.Where(existing => existing.Id != target.Id).Append(target).ToArray() } : item).ToArray() };
+            provider.Current = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class RecordingAuthorizer(Func<RecordingAuthorizer, LiveUIExecutionContext, bool>? allow = null) : ILiveUIActionAuthorizer

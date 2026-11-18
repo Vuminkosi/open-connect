@@ -323,7 +323,7 @@
                 {
                     responseKind = "plan";
                     var router = Services.GetService(typeof(ILiveUIInferenceRouter)) as ILiveUIInferenceRouter;
-                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    var page = await _agentTools.GetCurrentPageForDirectAgentAsync(cancellationToken);
                     var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
                     if (router is null || page is null || manifest is null ||
                         page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion)

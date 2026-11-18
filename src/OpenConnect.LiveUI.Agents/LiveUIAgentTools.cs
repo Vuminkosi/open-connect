@@ -12,7 +12,8 @@ public sealed class LiveUIAgentTools(
     LiveUIManifestValidator manifestValidator,
     LiveUIOrchestrator orchestrator,
     IOptions<LiveUIOptions> options,
-    ICapabilityRegistry? capabilityRegistry = null) : IDisposable
+    ICapabilityRegistry? capabilityRegistry = null,
+    ILiveUIRuntimeTargetDiscovery? runtimeDiscovery = null) : IDisposable
 {
     private readonly SemaphoreSlim _actionGate = new(1, 1);
 
@@ -22,7 +23,10 @@ public sealed class LiveUIAgentTools(
         new CapabilityDescriptor(new CapabilityId("liveui.agent-tools"), CapabilityKind.Tool, DetectorState.Ready));
 
     /// <summary>Returns only the authorized current route and its authorized compiled targets.</summary>
-    public async ValueTask<LiveUIAgentPage?> GetCurrentPageAsync(CancellationToken cancellationToken = default)
+    public ValueTask<LiveUIAgentPage?> GetCurrentPageAsync(CancellationToken cancellationToken = default) =>
+        GetCurrentPageCoreAsync(true, cancellationToken);
+
+    private async ValueTask<LiveUIAgentPage?> GetCurrentPageCoreAsync(bool discover, CancellationToken cancellationToken)
     {
         var (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
         if (context is null || manifest is null || route is null) return null;
@@ -30,6 +34,16 @@ public sealed class LiveUIAgentTools(
         var routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
         var canInspectRoute = await IsAllowedAsync(
             new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
+
+        if (discover && canInspectRoute && options.Value.Discovery.EnableRuntimeFallback && runtimeDiscovery is not null)
+        {
+            await runtimeDiscovery.RefreshAsync(context, manifest, route, cancellationToken).ConfigureAwait(false);
+            (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
+            if (context is null || manifest is null || route is null) return null;
+            routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
+            canInspectRoute = await IsAllowedAsync(
+                new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
+        }
 
         var targets = new List<LiveUIAgentTarget>();
         foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0) : [])
@@ -68,6 +82,24 @@ public sealed class LiveUIAgentTools(
         return new LiveUIAgentPage(route.Id, route.Path, route.Title, manifest.BuildId, manifest.ContentHash, targets)
         {
             NavigableRoutes = navigableRoutes
+        };
+    }
+
+    // Direct tool calls have no authenticated gateway privacy context. Keep runtime-observed
+    // page labels out of that model path until an equivalent host egress gate is available.
+    /// <summary>Returns page metadata without runtime-observed labels for paths without a trusted egress context.</summary>
+    public async ValueTask<LiveUIAgentPage?> GetCurrentPageForDirectAgentAsync(CancellationToken cancellationToken = default)
+    {
+        var page = await GetCurrentPageCoreAsync(false, cancellationToken).ConfigureAwait(false);
+        if (page is null) return null;
+        var filteredTargets = page.Targets.Where(target => !target.TargetId.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)).ToArray();
+        var manifest = await manifestProvider.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+        var hasRuntimeTargets = manifest?.Routes.Any(route => route.Targets.Any(target =>
+            target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal))) != false;
+        return page with
+        {
+            Targets = filteredTargets,
+            ContentHash = hasRuntimeTargets || filteredTargets.Length != page.Targets.Count ? string.Empty : page.ContentHash
         };
     }
 
