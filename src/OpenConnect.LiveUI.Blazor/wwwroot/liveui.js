@@ -24,6 +24,8 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   if (resolution.status !== "resolved") return measured(result("MissingTarget", "target_missing"));
 
   const element = resolution.element;
+  if (element.closest("pre, code") && !["Inspect", "Highlight", "Scroll", "Focus", "WaitForState"].includes(action.type))
+    return measured(result("Denied", "code_content_not_interactive"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
   switch (action.type) {
@@ -113,15 +115,19 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
     scope = parentResolution.element;
   }
 
-  const marked = [...scope.querySelectorAll("[" + idAttribute + "]")]
+  const visibleMarked = [...scope.querySelectorAll("[" + idAttribute + "]")]
     .filter((element) => element.getAttribute(idAttribute) === target.id && isVisible(element));
+  const marked = visibleMarked.filter((element) => isEligibleTarget(element, target));
   if (marked.length > 1) return { status: "ambiguous" };
   if (marked.length === 1) return { status: "resolved", element: marked[0] };
+  if (visibleMarked.length > 0) return { status: "missing" };
   if (target.selector) {
     try {
-      const selected = [...scope.querySelectorAll(target.selector)].filter(isVisible);
+      const visibleSelected = [...scope.querySelectorAll(target.selector)].filter(isVisible);
+      const selected = visibleSelected.filter((element) => isEligibleTarget(element, target));
       if (selected.length > 1) return { status: "ambiguous" };
       if (selected.length === 1) return { status: "resolved", element: selected[0] };
+      if (visibleSelected.length > 0) return { status: "missing" };
     } catch {
       // Invalid compiler output falls through to semantic resolution.
     }
@@ -131,11 +137,17 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
   if (!label) return { status: "missing" };
   const matches = [...scope.querySelectorAll("*")]
     .filter(isVisible)
+    .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
       accessibleNames(element).some((name) => normalize(name) === label));
   if (matches.length > 1) return { status: "ambiguous" };
   return matches.length === 1 ? { status: "resolved", element: matches[0] } : { status: "missing" };
+}
+
+function isEligibleTarget(element, target) {
+  const codeContainer = element.closest("pre, code");
+  return !codeContainer || element === codeContainer && target.kind === "Region";
 }
 
 function kindMatches(kind, element) {
