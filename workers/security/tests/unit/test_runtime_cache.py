@@ -6,8 +6,8 @@ import concurrent.futures
 import hashlib
 from pathlib import Path
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from openconnect_security import app as app_module
 from openconnect_security import engine_mode

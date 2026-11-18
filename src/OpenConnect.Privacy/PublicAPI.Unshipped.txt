@@ -96,12 +96,12 @@ OpenConnect.Privacy.PrivacyFirewall.PrivacyFirewall(Microsoft.Extensions.Options
 OpenConnect.Privacy.PrivacyOptions
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.get -> System.TimeSpan
 OpenConnect.Privacy.PrivacyOptions.DefaultTokenTtl.set -> void
-OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
-OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
 OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.get -> bool
 OpenConnect.Privacy.PrivacyOptions.EnableOutputInspection.set -> void
 OpenConnect.Privacy.PrivacyOptions.EnableTokenization.get -> bool
 OpenConnect.Privacy.PrivacyOptions.EnableTokenization.set -> void
+OpenConnect.Privacy.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Privacy.PrivacyOptions.Enabled.set -> void
 OpenConnect.Privacy.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
 OpenConnect.Privacy.PrivacyOptions.Mode.set -> void
 OpenConnect.Privacy.PrivacyOptions.PrivacyOptions() -> void
@@ -141,9 +141,7 @@ OpenConnect.Privacy.Rules.CustomDetectorRule.EntityType.init -> void
 OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.get -> System.Text.RegularExpressions.Regex!
 OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.init -> void
 OpenConnect.Privacy.Rules.RulesSecurityDetector
-static OpenConnect.Privacy.Rules.RulesSecurityDetector.CountUnicodeCodePoints(string! str, int startIndex, int length) -> int
 OpenConnect.Privacy.Rules.RulesSecurityDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
-static OpenConnect.Privacy.Rules.RulesSecurityDetector.PassesLuhnCheck(string! digits) -> bool
 OpenConnect.Privacy.Rules.RulesSecurityDetector.RulesSecurityDetector(OpenConnect.Privacy.ITokenVault? vault = null, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Rules.CustomDetectorRule!>? customRules = null) -> void
 OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer
 OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
@@ -160,3 +158,5 @@ OpenConnect.Privacy.Tokenization.TokenVault.StoreAsync(string! value, string! en
 OpenConnect.Privacy.Tokenization.TokenVault.TokenVault(byte[]! key, System.TimeProvider? timeProvider = null) -> void
 static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.AddOpenConnectRulesDetector(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.EnsureHostPrivacyServices(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Privacy.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Privacy.Rules.RulesSecurityDetector.CountUnicodeCodePoints(string! str, int startIndex, int length) -> int
+static OpenConnect.Privacy.Rules.RulesSecurityDetector.PassesLuhnCheck(string! digits) -> bool
