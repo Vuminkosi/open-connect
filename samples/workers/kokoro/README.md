@@ -1,6 +1,8 @@
 # OpenConnect E2E Sample — `kokoro` (`workers/kokoro`)
 
-Standalone end-to-end sample and acceptance test suite for the Python Kokoro TTS worker (`workers/kokoro`), covering `WSE2E-AT-045` through `WSE2E-AT-051` and the 12-scenario runtime model cache protocol.
+Offline contract checks for the current local-only Kokoro worker (`workers/kokoro`). T1 checks real WAV/PCM encoding, input validation, fixed voice configuration, epoch metadata, and literal pipeline input. It does **not** demonstrate model-live synthesis, speech quality, downstream stale-chunk disposal, or the runtime cache lifecycle.
+
+The compose/model-live instructions below predate the real-engine migration and are not validated by T1. In particular, the current worker does not implement the old fake-engine/offline provisioning switches and accepts only `af_heart`. Do not use those switches as a guarantee that readiness or synthesis will avoid model downloads. Live execution requires separate review and authorization.
 
 ## 1. Exact Image Build Command
 
@@ -34,10 +36,10 @@ sh samples/workers/kokoro/tests/t1_contract.sh
 
 ## 4. Expected Capabilities & Synthesis Contract
 
-- **Audio Format & Sample Rate (`WSE2E-AT-045`)**: Synthesizes 24kHz mono audio with `af_heart` (or configured voices).
+- **Audio Format & Sample Rate (`WSE2E-AT-045`)**: The real codec emits 24kHz mono WAV/PCM; T1 uses numeric codec input, not fabricated successful speech.
 - **Voice Validation (`WSE2E-AT-047`)**: Unknown voices are rejected with HTTP 422 (`unknown_voice`).
-- **Dynamic Inventory (`WSE2E-AT-051`)**: Updating the `KOKORO_VOICES` list dynamically extends supported voices without code changes.
-- **SSML/Markup Safety (`WSE2E-AT-050`)**: Markup tags in input text are treated strictly as plain characters, avoiding injection.
+- **Dynamic Inventory (`WSE2E-AT-051`)**: The supported voice is fixed to `af_heart`; attempts to expand `KOKORO_VOICES` fail configuration validation.
+- **SSML/Markup Safety (`WSE2E-AT-050`)**: T1 verifies exact literal text is forwarded to a pipeline double and empty model output fails closed. It makes no model-level safety claim.
 
 ## 5. Offline Test Procedure
 
@@ -48,9 +50,9 @@ sh samples/workers/kokoro/scripts/run-cache-matrix.sh
 
 ## 6. Failure-Injection Commands
 
-- **Excessive input (`WSE2E-AT-046`)**: POST text >4096 characters -> HTTP `422` (`input_too_long`).
+- **Excessive input (`WSE2E-AT-046`)**: Text over 2000 characters is rejected by the real engine before model loading.
 - **Unknown voice (`WSE2E-AT-047`)**: POST `invalid-voice.json` -> HTTP `422` (`unknown_voice`).
-- **Empty input (`WSE2E-AT-048`)**: POST whitespace-only text -> HTTP `422` (`empty_input`).
+- **Empty input (`WSE2E-AT-048`)**: Whitespace-only text is rejected by the real engine before model loading.
 
 ## 7. Evidence Artifact Filenames
 

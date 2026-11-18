@@ -394,7 +394,8 @@ async function executeTool(tool, args, options = {}) {
   );
 }
 
-function createServer() {
+// Internal dependency injection only; HTTP payloads cannot select a DNS resolver.
+function createServer(options = {}) {
   return http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
@@ -433,7 +434,7 @@ function createServer() {
           return;
         }
         try {
-          const result = await executeTool(body.tool, body.args || {});
+          const result = await executeTool(body.tool, body.args || {}, { lookup: options.lookup });
           sendJson(res, 200, result);
         } catch (err) {
           sendError(res, err);

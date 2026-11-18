@@ -15,4 +15,4 @@ SHARED="$HERE/../shared/scripts"
 "$PYBIN" "$SHARED/check_fixtures.py" "$HERE/fixtures/changed-voice-manifest.json" schemaVersion,fixtureId,initialVoices,updatedVoices,expectedBehavior
 "$PYBIN" "$SHARED/check_fixtures.py" "$HERE/../shared/fixtures/worker-envelope.ping.json" schemaVersion,messageId,taskId,kind
 "$PYBIN" "$HERE/tests/test_e2e_acceptance.py"
-echo "PASS T1 kokoro: fixtures + WSE2E-AT-045..051 verified"
+echo "PASS T1 kokoro: offline encoding/validation contracts verified (no model-live synthesis or host epoch-disposal evidence)"

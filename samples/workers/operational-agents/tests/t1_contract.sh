@@ -21,10 +21,15 @@ sh "$HERE/tests/t0_static.sh"
 "$PYBIN" "$SHARED/check_fixtures.py" "$HERE/../shared/fixtures/worker-envelope.ping.json" schemaVersion,messageId,taskId,kind
 
 if command -v dotnet >/dev/null 2>&1; then
+  dotnet restore "$HERE/tests/OperationalAgentsSampleTests.csproj" --locked-mode
   dotnet test "$HERE/tests/OperationalAgentsSampleTests.csproj" -c Release --no-restore
 elif command -v dotnet.exe >/dev/null 2>&1; then
   WIN_CSPROJ="$(wslpath -w "$HERE/tests/OperationalAgentsSampleTests.csproj" 2>/dev/null || echo "$HERE/tests/OperationalAgentsSampleTests.csproj")"
+  dotnet.exe restore "$WIN_CSPROJ" --locked-mode
   dotnet.exe test "$WIN_CSPROJ" -c Release --no-restore
+else
+  echo "NOT VERIFIED: .NET SDK required for this contract suite" >&2
+  exit 3
 fi
 
 echo "PASS T1 operational-agents: fixtures and .NET test suite valid (WSE2E-AT-066..072)"
