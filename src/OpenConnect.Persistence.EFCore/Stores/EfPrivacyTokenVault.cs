@@ -12,6 +12,12 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context, TimeProvid
 
     public async Task StoreAsync(PrivacyTokenBinding binding, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(binding);
+        if (string.IsNullOrWhiteSpace(binding.TokenId))
+            throw new ArgumentException("TokenId must not be null, empty or whitespace.", nameof(binding));
+        if (string.IsNullOrWhiteSpace(binding.PrincipalOrWorkloadScope))
+            throw new ArgumentException("PrincipalOrWorkloadScope must not be null, empty or whitespace.", nameof(binding));
+
         var tenantScope = UlidGuidMapper.Scope(binding.TenantId.Value);
         var scope = binding.PrincipalOrWorkloadScope;
         var sessionId = UlidGuidMapper.ToGuid(binding.SessionId.Value);

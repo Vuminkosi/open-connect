@@ -28,6 +28,50 @@ public sealed class PrivacyTokenVaultScopeTests
     private static PrivacyTokenBinding Binding(string id, TenantId tenant, string principal, SessionId session, byte value, DateTimeOffset expires) =>
         new(id, tenant, principal, session, "email", [value], expires);
 
+    [Theory]
+    [InlineData(null, "alice", "TokenId")]
+    [InlineData("", "alice", "TokenId")]
+    [InlineData(" ", "alice", "TokenId")]
+    [InlineData("\t\r\n", "alice", "TokenId")]
+    [InlineData("tok", null, "PrincipalOrWorkloadScope")]
+    [InlineData("tok", "", "PrincipalOrWorkloadScope")]
+    [InlineData("tok", " ", "PrincipalOrWorkloadScope")]
+    [InlineData("tok", "\t\r\n", "PrincipalOrWorkloadScope")]
+    public async Task Store_rejects_blank_keys_without_changing_existing_binding(string? token, string? principal, string field)
+    {
+        var (connection, db) = await OpenAsync();
+        await using var _ = connection;
+        await using var __ = db;
+        var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
+        await vault.StoreAsync(Binding("tok", TenantA, "alice", Session, 1, Start.AddHours(1)));
+        db.ChangeTracker.Clear();
+        var error = await Assert.ThrowsAsync<ArgumentException>(() =>
+            vault.StoreAsync(Binding(token!, TenantA, principal!, Session, 2, Start.AddHours(2))));
+        Assert.Equal("binding", error.ParamName);
+        Assert.StartsWith($"{field} must not be null, empty or whitespace.", error.Message);
+        Assert.Empty(db.ChangeTracker.Entries());
+        await db.SaveChangesAsync();
+        var original = await vault.GetAsync("tok", TenantA, "alice", Session);
+        Assert.Equal([1], original!.EncryptedValue);
+        Assert.Equal(Start.AddHours(1), original.ExpiresAt);
+        Assert.Equal(1, await db.Set<OpenConnect.Persistence.EFCore.Entities.PrivacyTokenEntity>().CountAsync());
+        // A disposed context proves invalid input is rejected before any database access.
+        await db.DisposeAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            vault.StoreAsync(Binding(token!, TenantA, principal!, Session, 2, Start.AddHours(2))));
+    }
+
+    [Fact]
+    public async Task Store_rejects_null_binding_before_accessing_context()
+    {
+        var (connection, db) = await OpenAsync();
+        await using var _ = connection;
+        await db.DisposeAsync();
+        var vault = new EfPrivacyTokenVault<RelationalPersistenceTests.ApplicationDbContext>(db, new TestClock(Start));
+        var error = await Assert.ThrowsAsync<ArgumentNullException>(() => vault.StoreAsync(null!));
+        Assert.Equal("binding", error.ParamName);
+    }
+
     [Fact]
     public async Task Same_token_id_for_two_principals_resolves_each_without_exception()
     {
