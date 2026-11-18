@@ -157,7 +157,7 @@ public sealed class AuthenticatedTaskHttpTests
     }
 
     [Fact]
-    public async Task Lost_admission_response_can_be_retried_after_real_gateway_execution()
+    public async Task Lost_admission_response_can_be_retried_after_gateway_execution_and_reconnect()
     {
         await using var host = await HttpFixture.StartAsync();
         using var client = new HttpClient(new DropFirstAdmissionResponseHandler())
@@ -197,11 +197,31 @@ public sealed class AuthenticatedTaskHttpTests
                 seenMessage = events.Current.TaskId == admitted.Id.Value.ToString() && events.Current.Data == "Task list ready";
             if (events.Current.Type == "task.completed") seenCompletion = true;
         }
-        var retried = await sdk.CreateMiniComposerTaskAsync(request, timeout.Token);
+        await events.DisposeAsync();
+        var sessions = host.Services.GetRequiredService<InMemorySessionStore>();
+        while (true)
+        {
+            using var claim = sessions.TryClaimSoleConnection(session.Id);
+            if (claim is null) break;
+            await Task.Delay(20, timeout.Token);
+        }
+        await using var reconnectedEvents = sdk.SubscribeEventsWebSocketAsync(session.Id, cancellationToken: timeout.Token).GetAsyncEnumerator();
+        Assert.True(await reconnectedEvents.MoveNextAsync());
+        using var newRegistration = JsonDocument.Parse(reconnectedEvents.Current.Data);
+        var newConnectionId = newRegistration.RootElement.GetProperty("connectionId").GetString();
+        Assert.NotEqual(connectionId, newConnectionId);
+        var retried = await sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = newConnectionId }, timeout.Token);
         Assert.Equal(admitted.Id, retried.Id);
         Assert.Equal(AgentRunState.Completed, retried.State);
         Assert.Equal(1, host.Executor.Calls);
         Assert.Equal(1, host.TaskCount);
+        Assert.Equal(connectionId, host.Executor.LastTask!.ClientConnectionId);
+        var changed = await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = newConnectionId, Message = "Different request" }, timeout.Token));
+        Assert.Equal(409, changed.StatusCodeValue);
+        var wrongConnection = await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = "not-the-registered-connection" }, timeout.Token));
+        Assert.Equal(409, wrongConnection.StatusCodeValue);
     }
 
     [Theory]
@@ -503,11 +523,13 @@ public sealed class AuthenticatedTaskHttpTests
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Calls;
+        public HostTaskExecution? LastTask;
         public void Release() => _release.TrySetResult();
 
         public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Calls);
+            LastTask = task;
             Started.TrySetResult();
             await _release.Task.WaitAsync(cancellationToken);
         }

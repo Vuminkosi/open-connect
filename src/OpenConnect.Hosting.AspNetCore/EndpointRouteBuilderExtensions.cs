@@ -257,8 +257,10 @@ public static class EndpointRouteBuilderExtensions
         if (origin == HostTaskOrigin.MiniComposer &&
             (presenceClaim is null || !string.Equals(presenceClaim.ConnectionId, request.ClientConnectionId, StringComparison.Ordinal)))
             return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Exactly one active session connection is required.", type: "https://openconnect.dev/problems/session-presence");
+        // A reconnect may recover the same admitted task, but never changes the connection
+        // captured in its existing execution record or grants access to its pending work.
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{(int)origin}\n{request.ClientTaskId}\n{request.Message}\n{request.SessionId}\n{presenceClaim?.ConnectionId}")));
+            $"{(int)origin}\n{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
         var boundRequest = request with { BoundConnectionId = presenceClaim?.ConnectionId };
         var result = await dispatcher.AcceptAsync(boundRequest, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken, origin);
         return result.Status switch
