@@ -23,11 +23,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
+          global-json-file: global.json
           dotnet-version: 9.0.320
 
       - name: Restore locked dependencies
@@ -36,8 +37,12 @@ jobs:
       - name: Build Release
         run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
 
+      # Required legs exclude live-broker tests by default (S08): unit/fake
+      # tests gate; live NATS never gates. Opt-in locally/adhoc with:
+      #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
+      # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
       - name: Verify formatting
         run: dotnet format OpenConnect.slnx --verify-no-changes --no-restore
@@ -61,12 +66,12 @@ jobs:
     continue-on-error: true
     steps:
       - name: Check out source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET SDK 10
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
-          dotnet-version: 10.0.403
+          global-json-file: global.json
 
       - name: Restore locked dependencies
         run: dotnet restore OpenConnect.slnx --locked-mode
@@ -76,8 +81,12 @@ jobs:
 
       # Full suite. Container-gated tests self-skip without Docker (D-03:
       # no image pulls, no live containers, no Testcontainers execution in CI).
+      # Required legs exclude live-broker tests by default (S08): unit/fake
+      # tests gate; live NATS never gates. Opt-in locally/adhoc with:
+      #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
+      # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
   # Per-sample E2E matrix, windows-latest ONLY (orchestrator D-06 hardcodes
   # powershell.exe). Informational; never required, never gates.
@@ -95,11 +104,12 @@ jobs:
         case: [Minimal, Sqlite, InMemory, Blazor, Navigator, PostgreSql, SqlServer]
     steps:
       - name: Check out source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
+          global-json-file: global.json
           dotnet-version: 9.0.320
 
       # D-04: PG-related env vars are ABSENT. This guard fails the step (not

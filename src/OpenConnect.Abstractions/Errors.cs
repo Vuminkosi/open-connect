@@ -25,4 +25,8 @@ public static class ErrorCodes
     public const string EfPersistenceUnavailable = "ef_persistence_unavailable";
     public const string EfInmemoryNotDurable = "ef_inmemory_not_durable";
     public const string EfConcurrencyConflict = "ef_concurrency_conflict";
+    public const string ProviderUnavailable = "provider_unavailable";
+    public const string WorkerUnavailable = "worker_unavailable";
+    public const string WorkerHostingConflict = "worker_hosting_conflict";
+    public const string VoiceEgressDenied = "voice_egress_denied";
 }

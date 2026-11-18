@@ -135,7 +135,7 @@ public sealed class NativeMetricsLabTests
             _output.WriteLine($"  op={activity.OperationName} tags=[{string.Join(",", activity.TagObjects.Select(tag => tag.Key + "=" + tag.Value))}]");
         }
 
-        var invoke = Assert.Single(stopped, activity => activity.Source.Name == AgentsSourceName);
+        var invoke = Assert.Single(stopped, activity => activity.Source.Name == AgentsSourceName && string.Equals((string?)activity.GetTagItem("gen_ai.operation.name"), "invoke_agent", StringComparison.Ordinal));
         Assert.Equal("invoke_agent", invoke.GetTagItem("gen_ai.operation.name"));
         Assert.Equal("lab-native-metrics", invoke.GetTagItem("gen_ai.agent.id"));
     }

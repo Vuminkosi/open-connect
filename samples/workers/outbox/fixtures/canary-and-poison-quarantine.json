@@ -1,0 +1,22 @@
+{
+  "fixtureId": "outbox-canary-and-poison-quarantine",
+  "acceptanceId": "WSE2E-AT-080",
+  "maxAttempts": 5,
+  "quarantineCriteria": {
+    "poisonPayloadAttemptCount": 5,
+    "expectedTerminalStatus": "quarantined"
+  },
+  "canaryChecks": {
+    "forbiddenPlaintextFields": ["prompt", "audio", "secret", "password"],
+    "allowedEnvelopeFields": [
+      "schemaVersion",
+      "messageId",
+      "taskId",
+      "kind",
+      "issuedAt",
+      "expiresAt",
+      "lease",
+      "payloadRef"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-no-speech-session",
+  "sessionId": "123e4567-e89b-42d3-a456-426614174017",
+  "idleTimeoutSec": 5,
+  "expectedBehavior": {
+    "speechDetected": false,
+    "state": "listening",
+    "transcriptsCount": 0
+  }
+}

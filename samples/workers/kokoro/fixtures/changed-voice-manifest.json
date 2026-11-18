@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "kokoro-changed-voice-manifest",
+  "initialVoices": ["af_heart"],
+  "updatedVoices": ["af_heart", "af_bella", "am_adam"],
+  "expectedBehavior": {
+    "dynamicInventoryUpdated": true,
+    "previouslyUnknownVoiceNowAccepted": "af_bella"
+  }
+}

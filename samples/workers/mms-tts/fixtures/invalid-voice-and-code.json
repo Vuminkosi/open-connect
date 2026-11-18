@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-invalid-voice-and-code",
+  "cases": [
+    {
+      "id": "invalid-iso-code",
+      "language": "invalid_code_123",
+      "expectedStatus": 422,
+      "expectedReason": "invalid_language_code"
+    },
+    {
+      "id": "invalid-voice-specifier",
+      "language": "eng",
+      "voice": "non_existent_voice",
+      "expectedStatus": 422,
+      "expectedReason": "invalid_voice"
+    }
+  ]
+}

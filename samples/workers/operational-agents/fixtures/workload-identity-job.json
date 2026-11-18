@@ -1,0 +1,41 @@
+{
+  "fixtureId": "operational-workload-identity-job",
+  "acceptanceId": "WSE2E-AT-067",
+  "tenantScope": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "validJob": {
+    "servicePrincipalRef": "spn:operational:audit-sweeper-v1",
+    "planId": "plan-readonly-health-sweep",
+    "applicationAllowlist": ["portal-app"],
+    "executionId": "exec-workload-001",
+    "idempotencyKey": "idem-workload-001",
+    "policyRevision": "rev-2026-11",
+    "ambientHttpContextPresent": false,
+    "expectedStatus": "Completed",
+    "expectedCompletedSteps": 2
+  },
+  "negativeProbes": [
+    {
+      "name": "missing-workload-principal-denied",
+      "servicePrincipalRef": "",
+      "expectedStatus": "Rejected"
+    },
+    {
+      "name": "cross-tenant-workload-identity-mismatch-denied",
+      "servicePrincipalRef": "spn:operational:other-tenant",
+      "resolvedIdentityTenantScope": "01ARZ3NDEKTSV4RRFFQ69G5FB0",
+      "expectedStatus": "Rejected"
+    },
+    {
+      "name": "interactive-user-cookie-or-bearer-header-rejected",
+      "servicePrincipalRef": "Cookie: oc_session=interactive-user-do-not-use-in-prod",
+      "expectedStatus": "Rejected"
+    },
+    {
+      "name": "user-triggered-schedule-provenance-never-impersonates-user",
+      "triggeredByUserPrincipal": "user:alice@example.org",
+      "servicePrincipalRef": "spn:operational:audit-sweeper-v1",
+      "expectExecutedAsPrincipal": "spn:operational:audit-sweeper-v1",
+      "expectAmbientUserIdentityNull": true
+    }
+  ]
+}

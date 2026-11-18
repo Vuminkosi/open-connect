@@ -44,7 +44,7 @@ Model Endpoints or Local Pinned Model Assets
 | `OpenConnect.Core` | Core implementation, options, DI | Abstractions |
 | `OpenConnect.Agents` | Agent registry, MAF adapters | Core, Abstractions |
 | `OpenConnect.Privacy` | Firewall, policy engine, egress gates | Core, Abstractions |
-| `OpenConnect.Sessions` | Session management, state machines | Core, Abstractions |
+| `OpenConnect.Persistence.EFCore` | Provider-neutral session, task, event and outbox persistence | Abstractions, EF Core |
 | `OpenConnect.Tools` | Tool broker, discovery, authorization | Core, Abstractions |
 
 ### Infrastructure Packages
@@ -52,7 +52,7 @@ Model Endpoints or Local Pinned Model Assets
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
 | `OpenConnect.Transport.Nats` | JetStream publisher, consumer patterns | Core, Workers.Contracts |
-| `OpenConnect.Persistence.Postgres` | EF migrations, session/task/event stores | Sessions, Core |
+| `OpenConnect.Persistence.EFCore` | EF mappings and provider-neutral stores | Abstractions, EF Core |
 | `OpenConnect.Hosting.AspNetCore` | HTTP/WS endpoints, auth integration | All core packages |
 | `OpenConnect.Workers.Contracts` | Worker protocol, capability descriptors | Abstractions |
 

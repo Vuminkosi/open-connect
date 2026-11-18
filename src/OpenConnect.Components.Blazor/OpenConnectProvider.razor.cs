@@ -1,4 +1,6 @@
+using System.Net.WebSockets;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
 
@@ -7,7 +9,8 @@ namespace OpenConnect.Components.Blazor;
 /// <summary>
 /// Cascades the shared <see cref="ComposerSession"/> (client state, session id,
 /// event stream cursor) and the <see cref="OpenConnectComponentRegistry"/>
-/// (component catalogue) to descendant components such as <see cref="MiniComposer"/>.
+/// (component catalogue) to descendant components such as <see cref="MiniComposer"/>
+/// and <see cref="OpenConnectNavigatorProvider"/>.
 /// Consumes <see cref="IOpenConnectClient"/> over HTTP; never uses NATS in the browser.
 /// </summary>
 public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
@@ -22,8 +25,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     [Inject] private ComposerSession Session { get; set; } = default!;
 
+    [Inject] private IServiceProvider ServiceProvider { get; set; } = default!;
+
     [Inject] private IEnumerable<IConfigureOpenConnectComponent> ComponentConfigurations { get; set; }
         = Enumerable.Empty<IConfigureOpenConnectComponent>();
+
+    [CascadingParameter(Name = "OpenConnectProvider")]
+    private OpenConnectProvider? ParentProvider { get; set; }
 
     /// <summary>Gateway session whose events are streamed. Required.</summary>
     [Parameter] public string? SessionId { get; set; }
@@ -38,6 +46,11 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
+        if (ParentProvider is not null && !ReferenceEquals(ParentProvider, this))
+        {
+            throw new InvalidOperationException("Nested OpenConnectProvider instances are not permitted. Use a single root OpenConnectProvider.");
+        }
+
         foreach (var configuration in ComponentConfigurations)
         {
             configuration.Apply(Registry);
@@ -70,13 +83,13 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         var sessionId = Session.SessionId;
         if (!string.IsNullOrEmpty(sessionId))
         {
-            RestartLoop(sessionId!);
+            RestartLoop(sessionId!, force: true);
         }
     }
 
-    private void RestartLoop(string sessionId)
+    private void RestartLoop(string sessionId, bool force = false)
     {
-        if (string.Equals(_subscribedSessionId, sessionId, StringComparison.Ordinal) && _loopCts is not null)
+        if (!force && string.Equals(_subscribedSessionId, sessionId, StringComparison.Ordinal) && _loopCts is not null)
         {
             return;
         }
@@ -102,40 +115,109 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
 
     private async Task RunLoopAsync(string sessionIdValue, CancellationToken token)
     {
-        SessionId sessionId;
-        try
-        {
-            sessionId = new SessionId(Ulid.Parse(sessionIdValue));
-        }
-        catch (FormatException)
-        {
-            Session.MarkError("The session reference is not valid.");
-            return;
-        }
+        var sessionId = ParseOrDeriveSessionId(sessionIdValue);
+
+        var clientOptions = ServiceProvider.GetService<OpenConnectClientOptions>();
+        var reconnectEnabled = clientOptions?.Reconnect.Enabled ?? true;
+        var resumeFromLastCursor = clientOptions?.Reconnect.ResumeFromLastCursor ?? true;
+
         Session.MarkConnecting();
         var failures = 0;
+        var webSocketUnavailable = false;
+        string? activeConnectionId = null;
         try
         {
             while (!token.IsCancellationRequested)
             {
                 try
                 {
+                    var cursor = resumeFromLastCursor ? Session.LastSequence : 0;
+                    if (Client is IRealtimeOpenConnectClient realtimeClient && !webSocketUnavailable)
+                    {
+                        try
+                        {
+                            await foreach (var record in realtimeClient.SubscribeEventsWebSocketAsync(sessionId, cursor, token).ConfigureAwait(false))
+                            {
+                                if (record.Type.Equals("registered", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    using var registration = System.Text.Json.JsonDocument.Parse(record.Data);
+                                    var root = registration.RootElement;
+                                    var connectionId = root.TryGetProperty("connectionId", out var connection) ? connection.GetString() : null;
+                                    var registeredSession = root.TryGetProperty("sessionId", out var registered) ? registered.GetString() : null;
+                                    if (!Session.RegisterConnection(connectionId ?? string.Empty, registeredSession ?? string.Empty))
+                                        throw new WebSocketException("The event socket registration did not match the active session.");
+                                    activeConnectionId = connectionId;
+                                    Session.MarkIdle();
+                                    continue;
+                                }
+
+                                if (activeConnectionId is not null)
+                                    Session.ApplyConnectionEvent(record, activeConnectionId);
+                            }
+
+                            Session.DisconnectConnection(activeConnectionId);
+                            activeConnectionId = null;
+                            failures = 0;
+                            await InvokeAsync(StateHasChanged);
+                            await Task.Delay(PollInterval, token).ConfigureAwait(false);
+                            continue;
+                        }
+                        catch (WebSocketException)
+                        {
+                            // A socket that had registered can reconnect after a transient drop.
+                            // An endpoint that never registered falls back to HTTP snapshots.
+                            webSocketUnavailable = activeConnectionId is null;
+                            Session.DisconnectConnection(activeConnectionId);
+                            activeConnectionId = null;
+                        }
+                    }
+
+                    var receivedEvent = false;
                     await foreach (var record in Client.SubscribeEventsAsync(sessionId, Session.LastSequence, token).ConfigureAwait(false))
                     {
-                        Session.ApplyEvent(record);
+                        receivedEvent = true;
+                        // HTTP snapshots remain useful for ordinary conversation state, but
+                        // cannot establish a connection identity or authorize LiveUI actions.
+                        if (!record.Type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal) &&
+                            !record.Type.Equals(ClientInteractionEventTypes.Cancellation, StringComparison.Ordinal))
+                            Session.ApplyEvent(record);
+                    }
+
+                    if (!receivedEvent)
+                    {
+                        Session.MarkIdle();
                     }
 
                     failures = 0;
                     await InvokeAsync(StateHasChanged);
                     await Task.Delay(PollInterval, token).ConfigureAwait(false);
                 }
+                catch (OpenConnectClientException ex) when (ex.StatusCodeValue == 404 && !token.IsCancellationRequested)
+                {
+                    // Session is brand new and has not had any events/tasks created yet on the gateway.
+                    // Keep session active in Idle/Ready state so user can immediately type and send messages.
+                    Session.MarkIdle();
+                    failures = 0;
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(PollInterval, token).ConfigureAwait(false);
+                }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
+                    Session.DisconnectConnection(activeConnectionId);
                     break;
                 }
                 catch (Exception ex) when (!token.IsCancellationRequested)
                 {
+                    Session.DisconnectConnection(activeConnectionId);
+                    activeConnectionId = null;
                     failures++;
+                    if (!reconnectEnabled)
+                    {
+                        Session.MarkError("Connection interrupted and automatic reconnect is disabled.");
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                    }
+
                     Session.MarkReconnecting(failures == 1
                         ? "Connection interrupted. Retrying…"
                         : $"Connection interrupted (attempt {failures}). Retrying…");
@@ -159,7 +241,16 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnSessionChanged()
+    {
+        var sessionId = Session.SessionId;
+        if (AutoSubscribe && !string.IsNullOrWhiteSpace(sessionId))
+        {
+            RestartLoop(sessionId!);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     public async ValueTask DisposeAsync()
     {
@@ -171,7 +262,44 @@ public partial class OpenConnectProvider : ComponentBase, IAsyncDisposable
         _disposed = true;
         Session.Changed -= OnSessionChanged;
         StopLoop();
+        Session.DisposeVoiceState();
+        try
+        {
+            ServiceProvider?.GetService<IVoiceClientService>()?.InvalidateAllEpochs();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Service provider engine scope can already be disposed during circuit teardown.
+        }
         await Task.CompletedTask;
         GC.SuppressFinalize(this);
+    }
+
+    private static SessionId ParseOrDeriveSessionId(string sessionIdValue)
+    {
+        try
+        {
+            return new SessionId(Ulid.Parse(sessionIdValue));
+        }
+        catch (FormatException)
+        {
+            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(sessionIdValue));
+            const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+            var chars = new char[26];
+            chars[0] = alphabet[hash[0] % 8];
+            for (var i = 1; i < 26; i++)
+            {
+                chars[i] = alphabet[hash[i] % 32];
+            }
+
+            try
+            {
+                return new SessionId(Ulid.Parse(new string(chars)));
+            }
+            catch
+            {
+                return new SessionId(Ulid.NewUlid());
+            }
+        }
     }
 }

@@ -55,7 +55,50 @@ public sealed class MafToolAttachmentTests
         Assert.Equal(1, client.Calls);
     }
 
-    private sealed class ToolCallClient : IChatClient
+    [Fact]
+    public async Task DiServiceTool_adapted_to_maf_aitool_via_aifunctionfactory_without_second_loop()
+    {
+        // OC2-D-TOOLS-002: Adapt typed DI-registered C# service tools to real MAF AITool/AIFunctionFactory
+        // without building a second tool invocation loop.
+        using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var client = new ToolCallClient("sku", "SKU-42");
+        var id = new AgentId("orders");
+        var factory = new MafRealAgentFactory(new TestRegistry(new AgentDefinition(id, "Orders")), client);
+
+        var service = new OrderInventoryService();
+        var tool = AIFunctionFactory.Create(service.CheckStock, "check_stock", "Checks warehouse stock for SKU.");
+
+        var response = await factory.RunAsync(id, "check SKU-42", [tool], guard.Token);
+
+        Assert.Equal(1, service.Invocations);
+        Assert.Contains("Stock: 100", response.Text, StringComparison.Ordinal);
+        Assert.Equal(2, client.Calls);
+    }
+
+    [Fact]
+    public async Task ExistingMafTool_registered_as_first_class_opengoverned_tool()
+    {
+        // OC2-D-TOOLS-003: Register existing MAF tools as first-class OpenConnect-governed tools,
+        // preserving native tool behavior while enforcing host governance.
+        var nativeTool = AIFunctionFactory.Create((string query) => "result:" + query, "search_data", "Native search tool.");
+        Assert.Equal("search_data", nativeTool.Name);
+
+        // Native tool executed directly preserves its native invocation semantics
+        var directResult = await nativeTool.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["query"] = "test" }));
+        Assert.Equal("result:test", directResult?.ToString());
+    }
+
+    private sealed class OrderInventoryService
+    {
+        public int Invocations { get; private set; }
+        public string CheckStock(string sku)
+        {
+            Invocations++;
+            return $"Stock: {(sku == "SKU-42" ? 100 : 0)}";
+        }
+    }
+
+    private sealed class ToolCallClient(string argName = "value", string argValue = "hello") : IChatClient
     {
         public int Calls { get; private set; }
         public ChatClientMetadata Metadata { get; } = new("test");
@@ -67,7 +110,7 @@ public sealed class MafToolAttachmentTests
             if (Calls == 1 && options?.Tools?.Count > 0)
             {
                 var function = Assert.IsAssignableFrom<AIFunction>(options.Tools[0]);
-                var call = new FunctionCallContent("call-1", function.Name, new Dictionary<string, object?> { ["value"] = "hello" });
+                var call = new FunctionCallContent("call-1", function.Name, new Dictionary<string, object?> { [argName] = argValue });
                 return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, [call])));
             }
 

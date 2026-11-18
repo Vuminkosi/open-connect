@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-empty-and-long-text",
+  "maxTextChars": 10000,
+  "emptyCase": {
+    "sourceLang": "eng_Latn",
+    "targetLang": "fra_Latn",
+    "text": "   ",
+    "expectedTranslatedText": ""
+  },
+  "oversizedCase": {
+    "sourceLang": "eng_Latn",
+    "targetLang": "fra_Latn",
+    "repeatUnit": "Translate this sentence safely within bounds. ",
+    "repeatCount": 250,
+    "expectedStatus": 413,
+    "expectedErrorCode": "input_too_long"
+  }
+}

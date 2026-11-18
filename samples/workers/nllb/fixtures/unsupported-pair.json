@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "nllb-unsupported-pair",
+  "cases": [
+    {
+      "id": "unknown-source-lang",
+      "sourceLang": "tlh_Latn",
+      "targetLang": "eng_Latn",
+      "text": "nuqneH",
+      "expectedStatus": 422,
+      "expectedErrorCode": "language_unsupported"
+    },
+    {
+      "id": "same-source-and-target",
+      "sourceLang": "eng_Latn",
+      "targetLang": "eng_Latn",
+      "text": "Same language pair is not in SUPPORTED_PAIRS",
+      "expectedStatus": 422,
+      "expectedErrorCode": "language_unsupported"
+    }
+  ]
+}

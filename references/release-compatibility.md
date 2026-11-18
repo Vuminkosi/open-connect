@@ -1,0 +1,3 @@
+# SDK compatibility and release gates
+
+Public API changes require comparison with shipped API declarations, semver assessment, consumer compile and migration notes. Check generated schemas, JSON/MessagePack representations, TypeScript/C#/Python parity, error codes and wire compatibility. Preserve default-on fail-closed privacy. Validate TargetFramework definitions against compatibility manifest and actual csproj, not README alone. Version-sensitive MAF and other upstream dependency updates require official change notes, locked dependency state and targeted integration checks. Releases use trusted publishing and supply-chain policies established by repo; do not publish from the scheduled agent absent explicit authorization.

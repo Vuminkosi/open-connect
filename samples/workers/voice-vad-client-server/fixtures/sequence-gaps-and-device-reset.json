@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "vad-sequence-gaps-and-device-reset",
+  "sileroSpecs": {
+    "frameSizeSamples": 512,
+    "contextSizeSamples": 64,
+    "recurrentStateElements": 256
+  },
+  "events": [
+    { "type": "frame", "sampleOffset": 0, "size": 512, "expectReset": false },
+    { "type": "frame", "sampleOffset": 512, "size": 512, "expectReset": false },
+    { "type": "sequence-gap", "gapSamples": 1536, "expectReset": true },
+    { "type": "device-change", "deviceId": "audio-device-2", "expectReset": true }
+  ]
+}

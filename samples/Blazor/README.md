@@ -1,72 +1,50 @@
-# Blazor sample (`samples/Blazor`)
+# Blazor Todo sample
 
-A runnable Blazor Server page proving provider-neutral consumption of the hardened
-EFCore adapter against the simplest store (SQLite file). The single screen is organized
-around user jobs — not a data dump:
+The Blazor Server sample combines a Todo interface with MiniComposer and LiveUI. An interactive request stays in its existing OpenConnect session; the server can discover authorized UI capabilities, request a validated plan, execute actions on the connected page, and report verified receipts. The Todo list uses an in-memory store. The sample's EF Core infrastructure uses its own SQLite database and applies its migrations at startup.
 
-1. **Deliveries waiting** — pending outbox items via `IOutboxStore.GetPendingAsync`;
-   confirm one as handled (`MarkDeliveredAsync`) or refresh the queue.
-2. **Session history** — replay a session's recorded steps via `IEventJournal.ReplayAsync`
-   from a pasted session reference, oldest first.
-3. **Local store health** — reachability, stored record-type count, and applied vs.
-   pending updates through the provider-neutral EF Core API, with an idempotent
-   "apply pending updates" action (`MigrateAsync` over this sample's own history).
+The sample supports a development-only `SameHostGateway` and an `ExternalGateway`. The external mode requires a gateway with authentication configured by its host. The sample's optional local service credential is restricted to Development and a loopback gateway; it is not a production user-identity mechanism.
 
-Same owned-migration discipline as the Minimal console sample: own `BlazorDbContext`,
-own migrations + history table (`__BlazorMigrationsHistory`) in this sample's own
-SQLite file. The sample seeds no data.
+## Configuration
 
-## Configuration (environment, no production credentials)
+Set configuration through environment variables or another ASP.NET Core configuration provider. Supply secrets through a secret store or environment, not source control.
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `OPENCONNECT_BLAZOR_SQLITE_PATH` | Absolute SQLite file path | `<appdir>/blazor-sample.db` |
-| `ASPNETCORE_ENVIRONMENT` | Host environment | `Production` |
+| Setting | Purpose |
+| --- | --- |
+| `OpenConnect__Gateway__Mode` | `ExternalGateway` (default) or `SameHostGateway` (Development only). |
+| `GATEWAY_URL` | External gateway base URL when using `ExternalGateway`. |
+| `OpenConnect__Gateway__SameHostBaseUrl` | Sample base URL used by the same-host client. |
+| `OpenConnect__Gateway__LocalServiceBearer` | Optional 32-byte base64 local service credential for a Development loopback gateway. |
+| `TODO_INTERNAL_TOKEN` | Required credential for the internal Todo API and its server-side caller. |
+| `TODO_INTERNAL_TENANT` | Tenant allowed by the internal Todo API. |
+| `OpenConnect__ApiUrl`, `OpenConnect__ApiKey`, `OpenConnect__ReasoningModel` | Model endpoint, credential, and model used by the same-host agent or sample gateway. |
+| `OpenConnect__LiveUI__Inference__Worker__Endpoint`, `OpenConnect__LiveUI__Inference__Worker__Token` | Optional private worker endpoint and server-side credential. |
+| `OpenConnect__LiveUI__SameHostGatewayPlanner` | Explicitly enable guarded gateway planning in Development same-host mode. With a worker configured, it is used before the gateway planner; without one, planning uses the gateway directly. |
+| `OpenConnect__LiveUI__ExternalGatewayPlanner` | Opt in the ExternalGateway client to the gateway's guarded planner fallback. The gateway must also enable `OpenConnect__LiveUI__ExternalPlanner__Enabled`. Both settings default to disabled. |
+| `OpenConnect__LiveUI__Inference__Gateway__FallbackPolicy` | Optional fallback policy: `Disabled`, `OnUnavailable` (default), or `OnFailure`. An external planner must still be explicitly enabled on both client and gateway. |
+| `OPENCONNECT_BLAZOR_SQLITE_PATH` | Optional SQLite database path. |
 
-No other configuration is required. Connection values are never logged.
-
-## Startup commands (from the repository root)
+For same-host development, configure the model settings, Todo credential, gateway mode, and sample base URL, then run:
 
 ```powershell
-# 1. Generate this sample's own migration (verification lane owns execution).
-#    Creates Migrations/<timestamp>_Initial.cs (+ Designer/snapshot) scoped to
-#    BlazorDbContext with history table __BlazorMigrationsHistory.
-dotnet ef migrations add Initial `
-  --project samples/Blazor/OpenConnect.Samples.Blazor.csproj `
-  --context OpenConnect.Samples.Blazor.BlazorDbContext `
-  --output-dir Migrations
-
-# 2. Run the sample (startup applies this sample's own migrations, idempotent).
 dotnet run --project samples/Blazor/OpenConnect.Samples.Blazor.csproj
-
-# 3. Open the work overview (default profile): http://localhost:5199
 ```
 
-## Migrate / verify steps
+For an isolated external-gateway development setup, configure matching `OC_LOCAL_SERVICE_AUTH_ENABLED`, `OC_LOCAL_SERVICE_AUTH_SECRET`, `OC_LOCAL_SERVICE_AUTH_TENANT_ID`, and `OC_LOCAL_SERVICE_AUTH_PRINCIPAL_ID` on the gateway, and supply the secret as `OpenConnect__Gateway__LocalServiceBearer` to the sample. The gateway accepts this credential only on loopback in Development. Production deployments need their own authenticated identity and credential propagation.
 
-- Startup calls `Database.MigrateAsync()` through this sample's pipeline only
-  (`BlazorDbContext`, `MigrationsAssembly` = this sample, dedicated history table).
-- Restart-idempotent: re-running against an existing database file is a no-op for
-  already-applied migrations.
-- Manual check without the UI: point `OPENCONNECT_BLAZOR_SQLITE_PATH` at the same
-  file and run the Minimal sample's `verify` verb to confirm zero pending migrations.
+The optional worker is described in [its README](../../workers/liveui-inference/README.md). Worker plans are proposals: the application still authorizes each action and checks its receipt. If no permitted planner is available, the server agent can use the authorized page manifest and governed tools to continue.
 
-## Ownership
+## Verification
 
-- Own DbContext: `BlazorDbContext` (`BlazorDbContext.cs`).
-- Own migrations: `Migrations/` — created ONLY via the `dotnet ef migrations add`
-  command above (hand-authored migrations prohibited).
-- Own history: `__BlazorMigrationsHistory` in this sample's database file only.
-- Design-time factory: `BlazorDbContextFactory` (supports `dotnet ef migrations add`).
-- No `src/**` changes; no shared components, styles, or tokens added or changed;
-  `wwwroot/sample.css` and the `*.razor.css` files are sample-local.
+Run `dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release` to build the sample. The connected browser suite is `npm run test:liveui-connected` from `tests/Browser`; it uses scripted inference. The opt-in real-worker lane requires a configured private worker and must be reported separately from scripted tests.
 
-## Proposed verification (verification lane owns execution — NOT RUN by this task)
+The gateway planner's real-provider acceptance tests require `OPENCONNECT_LIVEUI_REAL_PROVIDER_RUN=1` and the `OPENCONNECT_LIVEUI_REAL_PROVIDER_ENDPOINT`, `OPENCONNECT_LIVEUI_REAL_PROVIDER_API_KEY`, and `OPENCONNECT_LIVEUI_REAL_PROVIDER_MODEL` settings. Run `dotnet test samples/workers/shared/OpenConnect.Samples.Workers.TestKit/OpenConnect.Samples.Workers.TestKit.csproj -c Release --filter FullyQualifiedName~LiveGatewayPlannerAcceptanceTests`. These tests send synthetic requests to the configured provider and verify proposed plans; they do not execute the plans in a browser.
 
-```powershell
-dotnet ef migrations add Initial --project samples/Blazor/OpenConnect.Samples.Blazor.csproj --context OpenConnect.Samples.Blazor.BlazorDbContext --output-dir Migrations
-dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release
-dotnet run --project samples/Blazor/OpenConnect.Samples.Blazor.csproj
-# Browse http://localhost:5199: confirm queue empty state, store "Ready",
-# history validation message for a blank reference; restart and re-open (idempotent).
-```
+The opt-in `Unavailable_worker_falls_back_to_real_firewall_guarded_gateway_planner` test in the same project checks a worker HTTP 503 followed by the configured real provider. It verifies the plan and confirms the external-model request passed through the privacy gate; the worker response is supplied by a disposable loopback server.
+
+The opt-in connected fallback lane requires the real-provider settings above and `OPENCONNECT_LIVEUI_REAL_GATEWAY_PLANNER_RUN=1`. From `tests/Browser`, run `npx playwright test --config=playwright.liveui-real-fallback.config.js`. A disposable loopback worker reports unavailable after readiness; the test verifies the real guarded planner, the Todo action, and its receipt.
+
+The `Invalid_real_worker_plan_falls_back_to_real_guarded_gateway` test in the worker test project requires both the real-provider settings and a configured loopback worker endpoint and token. It checks that `OnUnavailable` stops after an invalid worker plan, while `OnFailure` can use the privacy-guarded real planner. The connected `playwright.liveui-real-qwen-fallback.config.js` lane additionally requires `OPENCONNECT_LIVEUI_TEST_INVALID_PLAN=1`, `OPENCONNECT_LIVEUI_REAL_WORKER_CONTAINER`, and `OPENCONNECT_LIVEUI_WORKER_TOKEN`; it verifies a real worker rejection, gateway plan, UI actions, and receipts. These opt-in tests use a real model and may produce different results as model behavior changes.
+
+The external-gateway fallback lane uses the same real-provider settings and runs with `npx playwright test --config=playwright.liveui-real-external-fallback.config.js` from `tests/Browser`. Its isolated gateway enables the external planner, authenticates the session, applies the external-model privacy gate, and validates the returned plan. A disposable loopback worker supplies the unavailability response. Set `OPENCONNECT_LIVEUI_TEST_INVALID_PLAN=1` to exercise a worker 422 response with the explicit `OnFailure` policy instead.
+
+The combined real-provider and real-worker browser acceptance lane runs the specified Todo requests through the connected application and checks correlated action receipts. Set the real-provider settings above plus `OPENCONNECT_LIVEUI_REAL_WORKER_RUN=1`, `OPENCONNECT_LIVEUI_WORKER_ENDPOINT` (a loopback HTTP endpoint), `OPENCONNECT_LIVEUI_WORKER_TOKEN`, and `OPENCONNECT_LIVEUI_REAL_WORKER_CONTAINER` for a configured private worker. From `tests/Browser`, run `npx playwright test --config=playwright.liveui-real-gateway-worker.config.js`. This lane sends synthetic requests to the configured provider and may incur provider charges.

@@ -45,7 +45,8 @@ public sealed class BlazorDbContext : DbContext
             connectionString,
             sqlite => sqlite
                 .MigrationsAssembly(typeof(BlazorDbContext).Assembly.FullName)
-                .MigrationsHistoryTable(HistoryTable));
+                .MigrationsHistoryTable(HistoryTable))
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     }
 }
 

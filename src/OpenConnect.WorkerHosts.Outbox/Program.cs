@@ -21,10 +21,13 @@ var provider = builder.Configuration.GetValue<string>($"{OutboxWorkerOptions.Sec
 var connectionString = builder.Configuration.GetValue<string>($"{OutboxWorkerOptions.SectionName}:ConnectionString") ?? string.Empty;
 if (string.Equals(provider, "sqlite", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddDbContext<OpenConnectDbContext>(options => options.UseSqlite(connectionString));
-else if (string.Equals(provider, "npgsql", StringComparison.OrdinalIgnoreCase))
+else if (string.Equals(provider, "npgsql", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(provider, "postgres", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddDbContext<OpenConnectDbContext>(options => options.UseNpgsql(connectionString));
+else if (string.Equals(provider, "sqlserver", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddDbContext<OpenConnectDbContext>(options => options.UseSqlServer(connectionString));
 else
-    throw new InvalidOperationException("outbox_db_provider_invalid: DatabaseProvider must be npgsql or sqlite.");
+    throw new InvalidOperationException("outbox_db_provider_invalid: DatabaseProvider must be npgsql, postgres, sqlserver, or sqlite.");
 
 builder.Services.AddOpenConnectEntityFramework<OpenConnectDbContext>(ef =>
 {

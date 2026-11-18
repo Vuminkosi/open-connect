@@ -84,6 +84,63 @@ public sealed class AuthenticatedTaskExecutionTests
     }
 
     [Fact]
+    public async Task Queued_cancellation_publishes_one_terminal_event_before_queue_drains()
+    {
+        var executor = new ControlledExecutor();
+        var app = Build(executor, capacity: 2);
+        try
+        {
+            var sessions = app.Services.GetRequiredService<InMemorySessionStore>();
+            var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+            await Submit(app, "running", "first");
+            await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var queued = await Submit(app, "queued", "second", session.Id.Value.ToString());
+            var id = Ulid.Parse(queued.Location.Split('/').Last());
+            var dispatcher = app.Services.GetRequiredService<IHostTaskExecutionDispatcher>();
+
+            var cancelled = await dispatcher.CancelAsync(id, CancellationToken.None);
+            Assert.Equal(AgentRunState.Cancelled, cancelled!.State);
+            Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "task.cancelled");
+
+            executor.Release.TrySetResult();
+            await app.StopAsync();
+            Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "task.cancelled");
+            Assert.Equal(1, executor.Calls);
+        }
+        finally
+        {
+            executor.Release.TrySetResult();
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Cancellation_during_authorization_publishes_one_terminal_event()
+    {
+        var executor = new ControlledExecutor();
+        var authorizer = new BlockingAuthorizer();
+        var app = Build(executor, authorizer: authorizer);
+        try
+        {
+            var sessions = app.Services.GetRequiredService<InMemorySessionStore>();
+            var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+            var accepted = await Submit(app, "auth-cancel", "message", session.Id.Value.ToString());
+            var id = Ulid.Parse(accepted.Location.Split('/').Last());
+            await authorizer.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await app.Services.GetRequiredService<IHostTaskExecutionDispatcher>().CancelAsync(id, CancellationToken.None);
+            await WaitForState(app, accepted.Location, AgentRunState.Cancelled);
+            await app.StopAsync();
+            Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "task.cancelled");
+            Assert.Equal(0, executor.Calls);
+        }
+        finally
+        {
+            executor.Release.TrySetResult();
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task Retained_limit_rejects_new_tasks_but_preserves_retry_and_conflict_after_completion()
     {
         var executor = new ControlledExecutor();
@@ -160,14 +217,14 @@ public sealed class AuthenticatedTaskExecutionTests
         }
     }
 
-    private static WebApplication Build(ControlledExecutor? executor = null, bool registerExecutor = true, int capacity = 4, int workers = 1, int maxRetainedTasks = 10_000, TaskCompletionSource<TaskRecord>? lifecycleObserver = null)
+    private static WebApplication Build(ControlledExecutor? executor = null, bool registerExecutor = true, int capacity = 4, int workers = 1, int maxRetainedTasks = 10_000, TaskCompletionSource<TaskRecord>? lifecycleObserver = null, IHostTaskExecutionAuthorizer? authorizer = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
         builder.Services.AddOpenConnectTaskExecution(o => { o.Capacity = capacity; o.WorkerConcurrency = workers; o.MaxRetainedTasks = maxRetainedTasks; });
         if (lifecycleObserver is not null)
             builder.Services.AddSingleton<ITaskLifecycleStore>(services => new ObservingLifecycleStore(services.GetRequiredService<InMemoryTaskStore>(), lifecycleObserver));
-        builder.Services.AddSingleton<IHostTaskExecutionAuthorizer, AllowAuthorizer>();
+        builder.Services.AddSingleton(authorizer ?? new AllowAuthorizer());
         if (registerExecutor) builder.Services.AddSingleton<IHostTaskExecutor>(executor ?? new ControlledExecutor());
         var app = builder.Build();
         app.MapOpenConnect();
@@ -201,6 +258,16 @@ public sealed class AuthenticatedTaskExecutionTests
 
     private sealed class AllowAuthorizer : IHostTaskExecutionAuthorizer
     { public Task AuthorizeAsync(HostTaskExecution task, CancellationToken cancellationToken) => Task.CompletedTask; }
+
+    private sealed class BlockingAuthorizer : IHostTaskExecutionAuthorizer
+    {
+        public readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task AuthorizeAsync(HostTaskExecution task, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+    }
 
     private sealed class ObservingLifecycleStore(ITaskLifecycleStore inner, TaskCompletionSource<TaskRecord> terminalTransition) : ITaskLifecycleStore
     {

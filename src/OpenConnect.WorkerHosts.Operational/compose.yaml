@@ -6,6 +6,7 @@ services:
     build:
       context: ../..
       dockerfile: src/OpenConnect.WorkerHosts.Operational/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-operational-agents:${OC_IMAGE_TAG:-e2e-local}
     restart: unless-stopped
     depends_on:
       postgres:

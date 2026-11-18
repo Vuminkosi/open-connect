@@ -1,0 +1,27 @@
+{
+  "fixtureId": "navigator-cross-tenant-isolation",
+  "acceptanceId": "WSE2E-AT-063",
+  "tenantA": {
+    "tenantId": "tenant-alpha",
+    "sessionId": "sess-alpha-001",
+    "storageMarker": "alpha-isolated-marker-do-not-use-in-prod",
+    "tool": "observe",
+    "args": {
+      "url": "https://example.com/index.html"
+    }
+  },
+  "tenantB": {
+    "tenantId": "tenant-bravo",
+    "sessionId": "sess-bravo-002",
+    "storageMarker": "bravo-isolated-marker-do-not-use-in-prod",
+    "tool": "observe",
+    "args": {
+      "url": "https://example.com/index.html"
+    }
+  },
+  "invariants": {
+    "distinctProfileDirectories": true,
+    "profileRemovedOnCompletion": true,
+    "zeroSharedCookiesOrLocalStorage": true
+  }
+}
