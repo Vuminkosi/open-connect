@@ -274,6 +274,77 @@ public sealed class MiniComposerSessionCreationTests
         Assert.Equal("Show completed tasks.", rendered.FindComponent<MudTextField<string>>().Instance.Value);
     }
 
+    [Fact]
+    public async Task Stop_reply_cancels_the_admitted_gateway_task()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, _) = await RenderComposerAsync(context);
+        await rendered.Find("input").InputAsync("Show completed tasks.");
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+
+        await rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+
+        Assert.Equal(client.LastCreatedTaskId, Assert.Single(client.CancelledTaskIds));
+    }
+
+    [Fact]
+    public async Task Stop_during_admission_cancels_the_task_once_its_identity_arrives()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, _) = await RenderComposerAsync(context);
+        client.HoldTaskAdmission = true;
+        await rendered.Find("input").InputAsync("Show completed tasks.");
+        var send = rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+        await client.TaskAdmissionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+        Assert.Empty(client.CancelledTaskIds);
+        client.CompleteTaskAdmission();
+        await send.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(client.LastCreatedTaskId, Assert.Single(client.CancelledTaskIds));
+    }
+
+    [Fact]
+    public async Task Stop_failure_is_reported_instead_of_claiming_the_task_stopped()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, session) = await RenderComposerAsync(context);
+        client.CancelException = new HttpRequestException("private failure");
+        await rendered.Find("input").InputAsync("Show completed tasks.");
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+
+        await rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+
+        Assert.Equal("Could not stop the reply. Please try again.", session.LastError);
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.DoesNotContain("private failure", rendered.Markup);
+        client.CancelException = null;
+        await rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+        Assert.Equal(2, client.CancelledTaskIds.Count);
+    }
+
+    [Fact]
+    public async Task Late_stop_response_does_not_cancel_a_new_reply()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, session) = await RenderComposerAsync(context);
+        client.HoldCancellation = true;
+        await rendered.Find("input").InputAsync("First request");
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+        var stop = rendered.Find("button[aria-label='Stop reply']").ClickAsync();
+        await client.CancellationStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await rendered.InvokeAsync(session.CancelStreaming);
+        await rendered.Find("input").InputAsync("Second request");
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+
+        client.CompleteCancellation();
+        await stop.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
+        Assert.Equal(2, client.TaskRequests.Count);
+    }
+
     private class DelayedSessionClient : IOpenConnectClient
     {
         private readonly TaskCompletionSource<SessionRecord> _sessionCreation =
@@ -288,6 +359,17 @@ public sealed class MiniComposerSessionCreationTests
         public bool LoseFirstTaskResponseAfterAdmission { get; init; }
         public bool LoseTaskResponsesAfterAdmission { get; set; }
         public int TaskSubmissionCount { get; private set; }
+        public TaskId? LastCreatedTaskId { get; private set; }
+        public List<TaskId> CancelledTaskIds { get; } = [];
+        public bool HoldTaskAdmission { get; set; }
+        public Exception? CancelException { get; set; }
+        public bool HoldCancellation { get; set; }
+        public TaskCompletionSource CancellationStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<TaskRecord> _cancellation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskRecord? _cancelledRecord;
+        public TaskCompletionSource TaskAdmissionStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<TaskRecord> _taskAdmission = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskRecord? _pendingRecord;
         public TaskCompletionSource SessionCreationStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<SessionRecord> CreateSessionAsync(CancellationToken cancellationToken = default)
@@ -314,11 +396,24 @@ public sealed class MiniComposerSessionCreationTests
             if ((LoseFirstTaskResponseAfterAdmission && TaskSubmissionCount == 1) || LoseTaskResponsesAfterAdmission)
                 return Task.FromException<TaskRecord>(new HttpRequestException("Response was lost after admission."));
             if (TaskException is not null) return Task.FromException<TaskRecord>(TaskException);
-            return Task.FromResult(new TaskRecord(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()),
-                new PrincipalId(Ulid.NewUlid()), AgentRunState.Accepted));
+            LastCreatedTaskId = new TaskId(Ulid.NewUlid());
+            _pendingRecord = new TaskRecord(LastCreatedTaskId.Value, new TenantId(Ulid.NewUlid()),
+                new PrincipalId(Ulid.NewUlid()), AgentRunState.Accepted);
+            TaskAdmissionStarted.TrySetResult();
+            return HoldTaskAdmission ? _taskAdmission.Task : Task.FromResult(_pendingRecord);
         }
 
-        public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public void CompleteTaskAdmission() => _taskAdmission.TrySetResult(_pendingRecord!);
+
+        public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default)
+        {
+            CancelledTaskIds.Add(taskId);
+            if (CancelException is not null) return Task.FromException<TaskRecord>(CancelException);
+            _cancelledRecord = new TaskRecord(taskId, new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), AgentRunState.Cancelled);
+            CancellationStarted.TrySetResult();
+            return HoldCancellation ? _cancellation.Task : Task.FromResult(_cancelledRecord);
+        }
+        public void CompleteCancellation() => _cancellation.TrySetResult(_cancelledRecord!);
         public Task<TaskRecord> GetTaskAsync(TaskId taskId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<SessionRecord> GetSessionAsync(SessionId sessionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) =>

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
+using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using OpenConnect.Components.Contracts;
 
@@ -38,6 +39,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private string? _pendingSubmissionSessionId;
     private bool _pendingSubmissionDisplayed;
     private CancellationTokenSource? _sendCts;
+    private TaskId? _activeTaskId;
+    private bool _admissionInFlight;
+    private bool _stopRequested;
+    private readonly HashSet<TaskId> _cancellingTaskIds = [];
     private ElementReference _panelRef;
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
@@ -634,11 +639,11 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         _openedOnce = _openedOnce || _open;
     }
 
-    private void Close()
+    private async Task Close()
     {
         if (CloseBehavior is ComposerCloseBehavior.CancelActiveTask or ComposerCloseBehavior.EndSession)
         {
-            StopSending();
+            await StopSending();
         }
 
         _open = false;
@@ -707,6 +712,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         var session = Session ?? throw new InvalidOperationException("MiniComposer requires a composer session.");
         _sending = true;
+        _activeTaskId = null;
+        _stopRequested = false;
         var sendCts = new CancellationTokenSource();
         _sendCts = sendCts;
         var token = sendCts.Token;
@@ -769,13 +776,25 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             }
             sendStarted = true;
             token.ThrowIfCancellationRequested();
-            await Client.CreateMiniComposerTaskAsync(
-                new CreateTaskRequest(_pendingTaskId, _pendingIdempotencyKey, text, sessionId)
-                {
-                    ClientConnectionId = session.ConnectionId
-                },
-                token);
+            _admissionInFlight = true;
+            TaskRecord admitted;
+            try
+            {
+                admitted = await Client.CreateMiniComposerTaskAsync(
+                    new CreateTaskRequest(_pendingTaskId, _pendingIdempotencyKey, text, sessionId)
+                    {
+                        ClientConnectionId = session.ConnectionId
+                    },
+                    token);
+            }
+            finally
+            {
+                _admissionInFlight = false;
+            }
+            _activeTaskId = admitted.Id;
             ClearPendingSubmissionIdentity();
+            if (_stopRequested)
+                await CancelAdmittedTaskAsync(admitted.Id);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -915,8 +934,19 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void StopSending()
+    private async Task StopSending()
     {
+        if (_admissionInFlight)
+        {
+            // Wait for the admission response so cancellation targets the server-issued task ID.
+            _stopRequested = true;
+            return;
+        }
+        if (_activeTaskId is { } taskId)
+        {
+            await CancelAdmittedTaskAsync(taskId);
+            return;
+        }
         try
         {
             _sendCts?.Cancel();
@@ -924,6 +954,26 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         catch (ObjectDisposedException) { }
 
         Session?.CancelStreaming();
+    }
+
+    private async Task CancelAdmittedTaskAsync(TaskId taskId)
+    {
+        if (!_cancellingTaskIds.Add(taskId)) return;
+        try
+        {
+            var result = await Client.CancelTaskAsync(taskId);
+            if (_activeTaskId == taskId && result.State == AgentRunState.Cancelled)
+                Session?.CancelStreaming();
+        }
+        catch (Exception)
+        {
+            if (_activeTaskId == taskId)
+                Session?.ReportError("Could not stop the reply. Please try again.");
+        }
+        finally
+        {
+            _cancellingTaskIds.Remove(taskId);
+        }
     }
 
     private void Retry()

@@ -631,6 +631,16 @@ public sealed class ComposerSession
         Notify();
     }
 
+    internal void ReportError(string message)
+    {
+        lock (_gate)
+        {
+            _errors.Add(message);
+        }
+
+        Notify();
+    }
+
     public void CancelStreaming()
     {
         lock (_gate)

@@ -765,6 +765,12 @@ const server = http.createServer(async (request, response) => {
     if (toolMessages.length === 0) {
       const userText = messages.filter((item) => item?.role === 'user').at(-1)?.content ?? '';
       const normalizedUserText = typeof userText === 'string' ? userText : JSON.stringify(userText);
+      if (normalizedUserText === 'Wait for the cancellation test.') {
+        const pending = { userText: normalizedUserText, scenarioName: 'cancellation', aborted: false };
+        runs.push(pending);
+        response.on('close', () => { pending.aborted = true; });
+        return;
+      }
       const completedTaskLookup = /which task is completed|which tasks are completed|what task is completed|what tasks are completed/i.test(normalizedUserText);
       const mostRecentTask = /most recent|latest task|last task/i.test(normalizedUserText);
       const recommendation = /work on|recommend/i.test(normalizedUserText);
