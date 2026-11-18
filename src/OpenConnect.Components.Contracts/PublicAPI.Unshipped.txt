@@ -83,10 +83,10 @@ OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.PlaybackEpoch.get -
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.PlaybackEpoch.init -> void
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Stage.get -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.Stage.init -> void
-OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.SynchronizationOffsetMilliseconds.get -> double?
-OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.SynchronizationOffsetMilliseconds.init -> void
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.StartCharacter.get -> int
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.StartCharacter.init -> void
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.SynchronizationOffsetMilliseconds.get -> double?
+OpenConnect.Components.Contracts.ComposerSpeechPlaybackEvent.SynchronizationOffsetMilliseconds.init -> void
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.Interrupted = 4 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
 OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage.Progress = 1 -> OpenConnect.Components.Contracts.ComposerSpeechPlaybackStage
