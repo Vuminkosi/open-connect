@@ -43,16 +43,21 @@ internal sealed class EfPublicSessionMappingStore<TContext>(TContext context) wh
         PrincipalId principalId,
         CancellationToken ct = default)
     {
-        if (publicId == Guid.Empty) throw new ArgumentException("Public session id must be non-empty.", nameof(publicId));
-        if (tenantId.Value == default) throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
-        if (principalId.Value == default) throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
+        if (publicId == Guid.Empty)
+            throw new ArgumentException("Public session id must be non-empty.", nameof(publicId));
+        if (tenantId.Value == default)
+            throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
+        if (principalId.Value == default)
+            throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
 
         var tenant = tenantId.Value.ToString();
         var row = await context.Set<PublicSessionMappingEntity>().AsNoTracking()
             .SingleOrDefaultAsync(x => x.TenantId == tenant && x.PublicId == publicId, ct)
             .ConfigureAwait(false);
-        if (row is null) return null;
-        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal)) return null;
+        if (row is null)
+            return null;
+        if (!string.Equals(row.PrincipalId, principalId.Value.ToString(), StringComparison.Ordinal))
+            return null;
         Ulid ulid;
         try
         {
@@ -72,10 +77,14 @@ internal sealed class EfPublicSessionMappingStore<TContext>(TContext context) wh
         PrincipalId principalId,
         CancellationToken ct = default)
     {
-        if (publicId == Guid.Empty) throw new ArgumentException("Public session id must be non-empty.", nameof(publicId));
-        if (sessionId.Value == default) throw new ArgumentException("Session id must be non-default.", nameof(sessionId));
-        if (tenantId.Value == default) throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
-        if (principalId.Value == default) throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
+        if (publicId == Guid.Empty)
+            throw new ArgumentException("Public session id must be non-empty.", nameof(publicId));
+        if (sessionId.Value == default)
+            throw new ArgumentException("Session id must be non-default.", nameof(sessionId));
+        if (tenantId.Value == default)
+            throw new ArgumentException("Tenant id must be non-default.", nameof(tenantId));
+        if (principalId.Value == default)
+            throw new ArgumentException("Principal id must be non-default.", nameof(principalId));
 
         var tenant = tenantId.Value.ToString();
         var internalId = sessionId.Value.ToString();
@@ -136,11 +145,14 @@ internal sealed class EfPublicSessionMappingStore<TContext>(TContext context) wh
         {
             var type = current.GetType();
             var code = type.GetProperty("SqliteExtendedErrorCode")?.GetValue(current)?.ToString();
-            if (type.FullName == "Microsoft.Data.Sqlite.SqliteException" && (code == "1555" || code == "2067")) return true;
+            if (type.FullName == "Microsoft.Data.Sqlite.SqliteException" && (code == "1555" || code == "2067"))
+                return true;
             code = type.GetProperty("SqlState")?.GetValue(current)?.ToString();
-            if (type.FullName == "Npgsql.PostgresException" && code == "23505") return true;
+            if (type.FullName == "Npgsql.PostgresException" && code == "23505")
+                return true;
             code = type.GetProperty("Number")?.GetValue(current)?.ToString();
-            if (type.FullName == "Microsoft.Data.SqlClient.SqlException" && (code == "2601" || code == "2627")) return true;
+            if (type.FullName == "Microsoft.Data.SqlClient.SqlException" && (code == "2601" || code == "2627"))
+                return true;
         }
         return false;
     }

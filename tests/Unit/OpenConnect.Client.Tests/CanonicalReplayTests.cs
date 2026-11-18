@@ -4,6 +4,7 @@ using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using Xunit;
 namespace OpenConnect.Client.Tests;
+
 public sealed class CanonicalReplayTests
 {
     private static readonly Guid SessionUuid = Guid.Parse("123e4567-e89b-42d3-a456-426614174001");
@@ -30,7 +31,8 @@ public sealed class CanonicalReplayTests
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/openconnect/v1/") };
 
         var events = new List<CanonicalAgentEvent>();
-        await foreach (var item in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid, 17)) events.Add(item);
+        await foreach (var item in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid, 17))
+            events.Add(item);
 
         Assert.Equal(2, events.Count);
         Assert.Equal(firstId, events[0].EventId);
@@ -64,10 +66,12 @@ public sealed class CanonicalReplayTests
         var client = new OpenConnectClient(http);
 
         var first = new List<CanonicalAgentEvent>();
-        await foreach (var item in client.ReplayEventsAsync(SessionUuid)) first.Add(item);
+        await foreach (var item in client.ReplayEventsAsync(SessionUuid))
+            first.Add(item);
         var cursor = first.Max(item => item.Sequence);
         var resumed = new List<CanonicalAgentEvent>();
-        await foreach (var item in client.ReplayEventsAsync(SessionUuid, cursor)) resumed.Add(item);
+        await foreach (var item in client.ReplayEventsAsync(SessionUuid, cursor))
+            resumed.Add(item);
 
         Assert.Equal(["afterSequence=0", "afterSequence=2"], queries);
         Assert.Empty(resumed);
@@ -83,7 +87,8 @@ public sealed class CanonicalReplayTests
 
         var error = await Assert.ThrowsAsync<OpenConnectClientException>(async () =>
         {
-            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid)) { }
+            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid))
+            { }
         });
 
         Assert.Equal(422, error.StatusCodeValue);
@@ -101,7 +106,8 @@ public sealed class CanonicalReplayTests
 
         var error = await Assert.ThrowsAsync<OpenConnectClientException>(async () =>
         {
-            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid)) { }
+            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid))
+            { }
         });
 
         Assert.Equal(422, error.StatusCodeValue);
@@ -120,7 +126,8 @@ public sealed class CanonicalReplayTests
 
         var error = await Assert.ThrowsAsync<OpenConnectClientException>(async () =>
         {
-            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid)) { }
+            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(SessionUuid))
+            { }
         });
 
         Assert.Equal((int)status, error.StatusCodeValue);
@@ -134,11 +141,13 @@ public sealed class CanonicalReplayTests
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
         {
-            await foreach (var _ in client.ReplayEventsAsync(Guid.Empty)) { }
+            await foreach (var _ in client.ReplayEventsAsync(Guid.Empty))
+            { }
         });
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
         {
-            await foreach (var _ in client.ReplayEventsAsync(SessionUuid, -1)) { }
+            await foreach (var _ in client.ReplayEventsAsync(SessionUuid, -1))
+            { }
         });
     }
     [Fact]

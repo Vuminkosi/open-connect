@@ -91,11 +91,19 @@ public sealed class ModelBudgetEdgeTests
         var factory = new MafRealAgentFactory(new Registry(), client);
         var context = new AgentExecutionContext
         {
-            TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-            SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()),
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1,
-            PolicyRevision = 1, AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
-            RemainingBudgets = ImmutableDictionary<string, long>.Empty, CancellationToken = CancellationToken.None
+            TenantScope = "tenant",
+            PrincipalOrWorkloadScope = "principal",
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = new SessionId(Ulid.NewUlid()),
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
+            Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
+            RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+            CancellationToken = CancellationToken.None
         };
         var runner = new MafConversationRunner(factory, new AgentId("lead"), runLedger: ledger);
         return (new OrchestrationAdapters(factory, runner, (_, _, _) => ValueTask.FromResult<DelegationGrant?>(null),

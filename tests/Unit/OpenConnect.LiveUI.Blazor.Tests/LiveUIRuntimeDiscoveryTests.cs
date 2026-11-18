@@ -56,7 +56,7 @@ public sealed class LiveUIRuntimeDiscoveryTests
             var directAction = new LiveUIAction(Guid.NewGuid().ToString("N"), LiveUISchema.CurrentVersion,
                 "session", currentManifest.ContentHash, "docs", null, LiveUIActionType.Navigate,
                 new LiveUIActionParameters(DestinationRouteId: discovered[0].RouteId), TimeSpan.FromSeconds(1))
-                { ExpectedPath = "/docs/v1/other" };
+            { ExpectedPath = "/docs/v1/other" };
             var direct = await scope.ServiceProvider.GetRequiredService<LiveUIOrchestrator>().ExecuteAsync(directAction);
             Assert.Equal(LiveUIActionOutcome.Conflict, direct.Outcome);
             Assert.Equal("runtime_route_stale", direct.Code);
@@ -162,7 +162,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         var currentManifest = (await state.GetCurrentAsync())!;
         var directAction = new LiveUIAction(Guid.NewGuid().ToString("N"), LiveUISchema.CurrentVersion,
             "session", currentManifest.ContentHash, "docs", target.TargetId, LiveUIActionType.Inspect,
-            new LiveUIActionParameters(), TimeSpan.FromSeconds(1)) { ExpectedPath = new Uri(destination).AbsolutePath };
+            new LiveUIActionParameters(), TimeSpan.FromSeconds(1))
+        { ExpectedPath = new Uri(destination).AbsolutePath };
         var directReceipt = await scope.ServiceProvider.GetRequiredService<LiveUIOrchestrator>().ExecuteAsync(directAction);
         Assert.Equal(LiveUIActionOutcome.Conflict, directReceipt.Outcome);
         Assert.Equal("runtime_target_stale", directReceipt.Code);
@@ -188,7 +189,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
 
         var page = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
 
-        if (unavailable) Assert.Null(page);
+        if (unavailable)
+            Assert.Null(page);
         else
         {
             Assert.Equal("Tasks", Assert.Single(page!.Targets).Label);
@@ -248,7 +250,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         Assert.DoesNotContain(LiveUICapability.Focus, target.Capabilities);
         var receipt = await tools.ExecuteAsync(target.TargetId, "Select", "true");
         Assert.Equal(confirmed ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Denied, receipt.Outcome);
-        if (!confirmed) Assert.Equal("approval_required", receipt.Code);
+        if (!confirmed)
+            Assert.Equal("approval_required", receipt.Code);
         Assert.Equal(LiveUIActionOutcome.Denied, (await tools.ExecuteAsync(target.TargetId, "Select", "false")).Outcome);
     }
 
@@ -285,14 +288,17 @@ public sealed class LiveUIRuntimeDiscoveryTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "import")
+                return ValueTask.FromResult((TValue)(object)this);
             if (identifier == "prepareRoute")
             {
                 PreparedParent = args?[1] as string;
                 return ValueTask.FromResult((TValue)(object)"observation");
             }
-            if (identifier == "followRoute") { onFollow?.Invoke(); return ValueTask.FromResult((TValue)(object)true); }
-            if (identifier == "discoverTargets" && unavailable) throw new JSException("unavailable");
+            if (identifier == "followRoute")
+            { onFollow?.Invoke(); return ValueTask.FromResult((TValue)(object)true); }
+            if (identifier == "discoverTargets" && unavailable)
+                throw new JSException("unavailable");
             var json = identifier == "discoverTargets"
                 ? observations ?? "[{\"kind\":\"Heading\",\"label\":\"Tasks\",\"role\":\"heading\"}]"
                 : "{\"outcome\":\"Completed\",\"code\":\"inspection_verified\",\"postconditionVerified\":true,\"verifiedState\":\"control_visible\"}";

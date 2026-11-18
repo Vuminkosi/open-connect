@@ -36,7 +36,8 @@ public sealed class LeadResolver
     public LeadResolution ResolveBound(TaskId taskId,
         IReadOnlyList<AgentDefinition> catalog, AgentRegistrationExtensions.LeadAgentRegistration registration)
     {
-        if (taskId.Value == default) throw new ArgumentException("A task identifier is required.", nameof(taskId));
+        if (taskId.Value == default)
+            throw new ArgumentException("A task identifier is required.", nameof(taskId));
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(registration);
         if (registration.AgentId.Value is null)

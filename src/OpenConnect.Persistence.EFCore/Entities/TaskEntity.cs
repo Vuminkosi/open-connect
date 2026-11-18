@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class TaskEntity
 {
     public Guid TaskId { get; set; }

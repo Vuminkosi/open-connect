@@ -37,9 +37,12 @@ internal static class OutboxClaimOperations
     internal static async Task<IReadOnlyList<OutboxClaim>> ClaimBatchAsync(DbContext context, OutboxClaimRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.BatchSize is < 1 or > 1000) throw new ArgumentOutOfRangeException(nameof(request.BatchSize));
-        if (string.IsNullOrWhiteSpace(request.LeaseOwner)) throw new ArgumentException("A lease owner is required.", nameof(request.LeaseOwner));
-        if (request.LeaseDuration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(request.LeaseDuration));
+        if (request.BatchSize is < 1 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(request.BatchSize));
+        if (string.IsNullOrWhiteSpace(request.LeaseOwner))
+            throw new ArgumentException("A lease owner is required.", nameof(request.LeaseOwner));
+        if (request.LeaseDuration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(request.LeaseDuration));
 
         var now = DateTime.UtcNow;
         // The same owner may always redrive its rows (retry loop); a different owner may only take

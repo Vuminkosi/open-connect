@@ -20,7 +20,8 @@ public sealed class TokenVault : ITokenVault, IDisposable
     public TokenVault(byte[] key, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(key);
-        if (key.Length is not (16 or 24 or 32)) throw new ArgumentException("AES key must be 128, 192, or 256 bits.", nameof(key));
+        if (key.Length is not (16 or 24 or 32))
+            throw new ArgumentException("AES key must be 128, 192, or 256 bits.", nameof(key));
         _key = key.ToArray();
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
@@ -32,14 +33,16 @@ public sealed class TokenVault : ITokenVault, IDisposable
         ArgumentNullException.ThrowIfNull(value);
         ArgumentException.ThrowIfNullOrWhiteSpace(entityType);
         scope.Validate();
-        if (ttl <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(ttl));
+        if (ttl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(ttl));
         var token = "[OC_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)) + "]";
         var nonce = RandomNumberGenerator.GetBytes(12);
         var plaintext = Encoding.UTF8.GetBytes(value);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[16];
         var associatedData = Encoding.UTF8.GetBytes(token + "\0" + entityType + "\0" + scope.Tenant + "\0" + scope.Principal + "\0" + scope.Session + "\0" + scope.Purpose);
-        using (var aes = new AesGcm(_key, tag.Length)) aes.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
+        using (var aes = new AesGcm(_key, tag.Length))
+            aes.Encrypt(nonce, plaintext, ciphertext, tag, associatedData);
         CryptographicOperations.ZeroMemory(plaintext);
         CryptographicOperations.ZeroMemory(associatedData);
         _entries[token] = new Entry(nonce, ciphertext, tag, entityType, scope, _timeProvider.GetUtcNow().Add(ttl));
@@ -56,7 +59,8 @@ public sealed class TokenVault : ITokenVault, IDisposable
             _entries.TryRemove(token, out _);
             return ValueTask.FromResult<string?>(null);
         }
-        if (entry.Scope != scope) return ValueTask.FromResult<string?>(null);
+        if (entry.Scope != scope)
+            return ValueTask.FromResult<string?>(null);
         var plaintext = new byte[entry.Ciphertext.Length];
         var associatedData = Encoding.UTF8.GetBytes(token + "\0" + entry.EntityType + "\0" + scope.Tenant + "\0" + scope.Principal + "\0" + scope.Session + "\0" + scope.Purpose);
         try

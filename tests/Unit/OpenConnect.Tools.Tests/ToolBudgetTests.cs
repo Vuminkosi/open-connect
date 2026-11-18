@@ -111,7 +111,8 @@ public sealed class ToolBudgetTests
         private int _remaining = toolCallBudget;
         public bool TryReserveToolCall()
         {
-            if (_remaining <= 0) return false;
+            if (_remaining <= 0)
+                return false;
             _remaining--;
             return true;
         }

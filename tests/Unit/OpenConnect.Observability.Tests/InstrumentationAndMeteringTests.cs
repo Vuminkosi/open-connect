@@ -1,6 +1,6 @@
+using OpenConnect.Abstractions;
 using OpenConnect.Metering;
 using OpenConnect.Observability;
-using OpenConnect.Abstractions;
 using Xunit;
 
 namespace OpenConnect.Observability.Tests;

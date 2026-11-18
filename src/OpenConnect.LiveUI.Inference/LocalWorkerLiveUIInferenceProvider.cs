@@ -64,7 +64,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
                 {
                     var item = new Dictionary<string, string> { ["target"] = capability.TargetId, ["action"] = action };
                     if (capability.TargetId.StartsWith("oc.runtime.", StringComparison.Ordinal) &&
-                        !string.IsNullOrWhiteSpace(capability.Label)) item["label"] = capability.Label;
+                        !string.IsNullOrWhiteSpace(capability.Label))
+                        item["label"] = capability.Label;
                     return item;
                 })).ToArray()
             },
@@ -79,7 +80,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
                 return new(Kind, null, "rate_limited");
             if (response.StatusCode is System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.BadGateway)
                 return new(Kind, null, "worker_unavailable");
-            if (!response.IsSuccessStatusCode) return new(Kind, null, "worker_inference_failed");
+            if (!response.IsSuccessStatusCode)
+                return new(Kind, null, "worker_inference_failed");
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
             var root = document.RootElement;
@@ -117,7 +119,8 @@ public sealed class LocalWorkerLiveUIInferenceProvider(
         using var request = new HttpRequestMessage(method, path);
         if (!string.IsNullOrWhiteSpace(_options.BearerToken))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.BearerToken);
-        if (body is not null) request.Content = JsonContent.Create(body, options: JsonOptions);
+        if (body is not null)
+            request.Content = JsonContent.Create(body, options: JsonOptions);
         return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
     }
 }

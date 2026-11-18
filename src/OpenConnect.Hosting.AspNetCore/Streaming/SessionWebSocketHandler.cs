@@ -141,7 +141,8 @@ internal static class SessionWebSocketHandler
             if (durable is not null)
             {
                 var resolved = await durable.ResolveAsync(sessionUuid, tenantId, principalId, cancellationToken).ConfigureAwait(false);
-                if (resolved is not null) mapped = resolved.Value.Value;
+                if (resolved is not null)
+                    mapped = resolved.Value.Value;
             }
 
             if (mapped is null)
@@ -223,7 +224,8 @@ internal static class SessionWebSocketHandler
                     continue;
                 }
                 var sent = await SendRecordAsync(webSocket, record, isUuid, sessionUuid, token).ConfigureAwait(false);
-                if (!sent) return;
+                if (!sent)
+                    return;
                 if (record.Sequence > lastSentSequence)
                 {
                     lastSentSequence = record.Sequence;
@@ -271,7 +273,8 @@ internal static class SessionWebSocketHandler
                         continue;
                     }
                     var sent = await SendRecordAsync(webSocket, record, isUuid, sessionUuid, token).ConfigureAwait(false);
-                    if (!sent) return;
+                    if (!sent)
+                        return;
                     if (record.Sequence > lastSentSequence)
                     {
                         lastSentSequence = record.Sequence;
@@ -333,7 +336,8 @@ internal static class SessionWebSocketHandler
         Guid sessionUuid,
         CancellationToken token)
     {
-        if (webSocket.State != WebSocketState.Open) return false;
+        if (webSocket.State != WebSocketState.Open)
+            return false;
 
         byte[] payloadBytes;
         if (isUuid)

@@ -82,7 +82,9 @@ public sealed class JetStreamAgentEventSubscriptionTests
         public byte[]? Payload { get; private set; }
         public ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> payload, string messageId, CancellationToken cancellationToken)
         {
-            Subject = subject; MessageId = messageId; Payload = payload.ToArray();
+            Subject = subject;
+            MessageId = messageId;
+            Payload = payload.ToArray();
             return ValueTask.CompletedTask;
         }
     }

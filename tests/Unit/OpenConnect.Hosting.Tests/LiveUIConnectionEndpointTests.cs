@@ -76,7 +76,7 @@ public sealed class LiveUIConnectionEndpointTests
         var requestRecord = await WaitForRequestAsync(store, session.Id.Value);
         var request = JsonSerializer.Deserialize<ClientInteractionRequest>(requestRecord.Data, OpenConnectHttpJson.CreateOptions())!;
         var response = new ClientInteractionResponse(request.CorrelationId, "action", "{\"ok\":true}")
-            { ConnectionId = connection.ConnectionId };
+        { ConnectionId = connection.ConnectionId };
 
         var wrongConnection = await PostAsync(session, response with { ConnectionId = "stale-connection" }, store, services);
         Assert.Equal(StatusCodes.Status409Conflict, wrongConnection);
@@ -102,7 +102,8 @@ public sealed class LiveUIConnectionEndpointTests
         for (var attempt = 0; attempt < 200; attempt++)
         {
             var found = store.GetEvents(sessionId, 0).FirstOrDefault(item => item.Type == ClientInteractionEventTypes.Request);
-            if (found is not null) return found;
+            if (found is not null)
+                return found;
             await Task.Delay(5);
         }
         throw new TimeoutException("Broker did not append its request event.");

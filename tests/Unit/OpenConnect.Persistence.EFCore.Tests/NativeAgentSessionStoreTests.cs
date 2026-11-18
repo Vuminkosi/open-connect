@@ -15,7 +15,8 @@ public sealed class NativeAgentSessionStoreTests
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        await using (var create = Context(connection)) await create.Database.EnsureCreatedAsync();
+        await using (var create = Context(connection))
+            await create.Database.EnsureCreatedAsync();
         var binding = Binding();
         await using (var first = Context(connection))
         {
@@ -76,7 +77,8 @@ public sealed class NativeAgentSessionStoreTests
         try
         {
             var options = new DbContextOptionsBuilder<OpenConnectDbContext>().UseSqlite($"Data Source={file};Pooling=False").Options;
-            await using (var setup = new OpenConnectDbContext(options)) await setup.Database.EnsureCreatedAsync();
+            await using (var setup = new OpenConnectDbContext(options))
+                await setup.Database.EnsureCreatedAsync();
             var binding = Binding();
             async Task<NativeAgentSessionSaveOutcome> Create(byte ciphertext)
             {

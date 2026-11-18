@@ -35,8 +35,10 @@ public sealed class TelemetryPrivacyOptionsValidator
     public void Validate(TelemetryPrivacyOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (!Enum.IsDefined(options.Mode)) throw new ArgumentOutOfRangeException(nameof(options.Mode));
-        if (options.MaxAttributeLength is < 1 or > 4096) throw new ArgumentOutOfRangeException(nameof(options.MaxAttributeLength));
+        if (!Enum.IsDefined(options.Mode))
+            throw new ArgumentOutOfRangeException(nameof(options.Mode));
+        if (options.MaxAttributeLength is < 1 or > 4096)
+            throw new ArgumentOutOfRangeException(nameof(options.MaxAttributeLength));
     }
 }
 
@@ -46,10 +48,14 @@ public sealed class TelemetryDataClassifier(ITelemetrySecretDetector secrets, IT
         { "tenant.id", "tenant_id", "user.id", "user_id", "email", "prompt", "completion", "exception.message", "tool.arguments" };
     public TelemetryDataClassification Classify(string name, object? value)
     {
-        if (string.IsNullOrWhiteSpace(name) || value is null) return TelemetryDataClassification.Unknown;
-        if (secrets.IsSecret(name, value)) return TelemetryDataClassification.Credential;
-        if (PersonalNames.Contains(name) || pii.IsPersonalData(name, value)) return TelemetryDataClassification.PersonalData;
-        if (Instrumentation.IsApprovedDimension(name, value as string ?? "")) return TelemetryDataClassification.Operational;
+        if (string.IsNullOrWhiteSpace(name) || value is null)
+            return TelemetryDataClassification.Unknown;
+        if (secrets.IsSecret(name, value))
+            return TelemetryDataClassification.Credential;
+        if (PersonalNames.Contains(name) || pii.IsPersonalData(name, value))
+            return TelemetryDataClassification.PersonalData;
+        if (Instrumentation.IsApprovedDimension(name, value as string ?? ""))
+            return TelemetryDataClassification.Operational;
         return TelemetryDataClassification.Unknown;
     }
 }
@@ -59,11 +65,13 @@ public sealed class TelemetryPrivacyPolicy(TelemetryPrivacyOptions options) : IT
     public TelemetrySanitizationAction Decide(string name, TelemetryDataClassification classification)
     {
         // Credentials are unconditionally denied; opt-in flags cannot weaken this rule.
-        if (classification == TelemetryDataClassification.Credential) return TelemetrySanitizationAction.Drop;
+        if (classification == TelemetryDataClassification.Credential)
+            return TelemetrySanitizationAction.Drop;
         if (classification == TelemetryDataClassification.PersonalData)
         {
             if (name is "prompt" && options.AllowPrompt || name is "completion" && options.AllowCompletion ||
-                name is "exception.message" && options.AllowExceptionMessages) return TelemetrySanitizationAction.Redact;
+                name is "exception.message" && options.AllowExceptionMessages)
+                return TelemetrySanitizationAction.Redact;
             return TelemetrySanitizationAction.Drop;
         }
         if (classification == TelemetryDataClassification.Operational || classification == TelemetryDataClassification.Public)
@@ -77,8 +85,10 @@ public sealed class DefaultTelemetrySecretDetector : ITelemetrySecretDetector
     private static readonly string[] SensitiveNameParts = ["authorization", "cookie", "password", "secret", "token", "api_key", "apikey", "private_key", "connection_string", "credential"];
     public bool IsSecret(string name, object? value)
     {
-        if (SensitiveNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase))) return true;
-        if (value is not string text) return false;
+        if (SensitiveNameParts.Any(part => name.Contains(part, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        if (value is not string text)
+            return false;
         return text.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) || text.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase) ||
             text.StartsWith("-----BEGIN ", StringComparison.Ordinal) || text.Contains("://", StringComparison.Ordinal) && text.Contains('@');
     }
@@ -98,11 +108,14 @@ public sealed class TelemetryPrivacyFilter(ITelemetryDataClassifier classifier, 
         {
             try
             {
-                if (item.Value is not string text || text.Length > options.Options.MaxAttributeLength) continue;
+                if (item.Value is not string text || text.Length > options.Options.MaxAttributeLength)
+                    continue;
                 var classification = classifier.Classify(item.Key, item.Value);
-                if (policy.Decide(item.Key, classification) != TelemetrySanitizationAction.Allow) continue;
+                if (policy.Decide(item.Key, classification) != TelemetrySanitizationAction.Allow)
+                    continue;
                 if (classification is TelemetryDataClassification.Operational or TelemetryDataClassification.Public &&
-                    Instrumentation.IsApprovedDimension(item.Key, text)) result.Add(item);
+                    Instrumentation.IsApprovedDimension(item.Key, text))
+                    result.Add(item);
             }
             catch { /* Fail closed at every exporter boundary. */ }
         }
@@ -118,10 +131,12 @@ public sealed class HmacTelemetryPseudonymizer(ITelemetryPseudonymizationKeyProv
 {
     public string Pseudonymize(string domain, string tenantId, string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain); ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(value);
         var key = keys.GetKey(tenantId);
-        if (key.IsEmpty) throw new InvalidOperationException("No pseudonymization key is configured.");
+        if (key.IsEmpty)
+            throw new InvalidOperationException("No pseudonymization key is configured.");
         var bytes = Encoding.UTF8.GetBytes($"openconnect\0{keys.KeyId}\0{tenantId}\0{domain}\0{value}");
         return $"{keys.KeyId}:{Convert.ToHexString(HMACSHA256.HashData(key.Span, bytes)).ToLowerInvariant()}";
     }

@@ -26,7 +26,8 @@ public sealed class StructuredOutputValidator
     /// <exception cref="ArgumentOutOfRangeException">Max repairs is negative.</exception>
     public StructuredOutputValidator(int maxRepairs = 2)
     {
-        if (maxRepairs < 0) throw new ArgumentOutOfRangeException(nameof(maxRepairs), "Max repairs must be non-negative.");
+        if (maxRepairs < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxRepairs), "Max repairs must be non-negative.");
         _maxRepairs = maxRepairs;
     }
 

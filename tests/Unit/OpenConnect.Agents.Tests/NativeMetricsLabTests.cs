@@ -128,7 +128,8 @@ public sealed class NativeMetricsLabTests
 
         Assert.StartsWith("ack:lab-native-metrics-turn", response.Text, StringComparison.Ordinal);
         List<Activity> stopped;
-        lock (observed) { stopped = observed.ToList(); }
+        lock (observed)
+        { stopped = observed.ToList(); }
         _output.WriteLine($"Native agent run completed; activities on '{AgentsSourceName}': {stopped.Count}.");
         foreach (var activity in stopped)
         {
@@ -154,7 +155,8 @@ public sealed class NativeMetricsLabTests
         };
         listener.ActivityStopped += activity =>
         {
-            lock (observed) { observed.Add((activity.Source.Name, activity.OperationName)); }
+            lock (observed)
+            { observed.Add((activity.Source.Name, activity.OperationName)); }
         };
         ActivitySource.AddActivityListener(listener);
 
@@ -173,7 +175,8 @@ public sealed class NativeMetricsLabTests
 
         Assert.NotEmpty(result.Events);
         List<(string Source, string Operation)> stopped;
-        lock (observed) { stopped = observed.ToList(); }
+        lock (observed)
+        { stopped = observed.ToList(); }
         _output.WriteLine($"Native workflow run completed with {result.Events.Count} events; activities on '{WorkflowsSourceName}': {stopped.Count} (expected 0: telemetry is opt-in only on MAF 1.27.0).");
         Assert.Empty(stopped);
     }
@@ -192,7 +195,8 @@ public sealed class NativeMetricsLabTests
         };
         activityListener.ActivityStopped += activity =>
         {
-            lock (activities) { activities.Add((activity.Source.Name, activity.OperationName)); }
+            lock (activities)
+            { activities.Add((activity.Source.Name, activity.OperationName)); }
         };
         ActivitySource.AddActivityListener(activityListener);
 
@@ -207,15 +211,18 @@ public sealed class NativeMetricsLabTests
         };
         meterListener.SetMeasurementEventCallback<long>((instrument, value, tags, state) =>
         {
-            lock (measurements) { measurements.Add((instrument.Meter.Name, instrument.Name)); }
+            lock (measurements)
+            { measurements.Add((instrument.Meter.Name, instrument.Name)); }
         });
         meterListener.SetMeasurementEventCallback<double>((instrument, value, tags, state) =>
         {
-            lock (measurements) { measurements.Add((instrument.Meter.Name, instrument.Name)); }
+            lock (measurements)
+            { measurements.Add((instrument.Meter.Name, instrument.Name)); }
         });
         meterListener.SetMeasurementEventCallback<int>((instrument, value, tags, state) =>
         {
-            lock (measurements) { measurements.Add((instrument.Meter.Name, instrument.Name)); }
+            lock (measurements)
+            { measurements.Add((instrument.Meter.Name, instrument.Name)); }
         });
         meterListener.Start();
 
@@ -227,9 +234,11 @@ public sealed class NativeMetricsLabTests
         Assert.StartsWith("ack:lab-meai-metrics-turn", response.Text, StringComparison.Ordinal);
 
         List<(string Source, string Operation)> stoppedActivities;
-        lock (activities) { stoppedActivities = activities.ToList(); }
+        lock (activities)
+        { stoppedActivities = activities.ToList(); }
         List<(string Meter, string Instrument)> observedMeasurements;
-        lock (measurements) { observedMeasurements = measurements.ToList(); }
+        lock (measurements)
+        { observedMeasurements = measurements.ToList(); }
         _output.WriteLine($"MEAI wrapper call completed; activities on '{MeaiSourceName}': {stoppedActivities.Count}; measurements: {observedMeasurements.Count}.");
         foreach (var (source, operation) in stoppedActivities)
         {
@@ -274,7 +283,8 @@ public sealed class NativeMetricsLabTests
         await agent.RunAsync("lab-native-diagnostics-turn", session, cancellationToken: ct);
 
         List<string> names;
-        lock (listenerNames) { names = listenerNames.Distinct(StringComparer.Ordinal).ToList(); }
+        lock (listenerNames)
+        { names = listenerNames.Distinct(StringComparer.Ordinal).ToList(); }
         _output.WriteLine($"DiagnosticListeners observed during native runs: [{string.Join(", ", names)}].");
         Assert.DoesNotContain(names, name =>
             name.Contains("Agents.AI", StringComparison.Ordinal) ||
@@ -442,7 +452,8 @@ public sealed class NativeMetricsLabTests
     {
         public void OnNext(DiagnosticListener value)
         {
-            lock (names) { names.Add(value.Name); }
+            lock (names)
+            { names.Add(value.Name); }
         }
 
         public void OnError(Exception error)

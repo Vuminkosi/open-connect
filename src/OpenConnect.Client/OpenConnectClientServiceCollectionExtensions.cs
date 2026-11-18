@@ -53,7 +53,8 @@ public static class OpenConnectClientServiceCollectionExtensions
         var headers = options.WebSocketHeaders
             .Where(pair => pair.Key.StartsWith("X-OpenConnect-Test-", StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        if (headers.Length == 0) return;
+        if (headers.Length == 0)
+            return;
         builder.ConfigureHttpClient(client =>
         {
             foreach (var header in headers)

@@ -156,7 +156,8 @@ public sealed class NavigatorTourService
     /// </summary>
     public bool Unregister(string targetId)
     {
-        if (string.IsNullOrWhiteSpace(targetId)) return false;
+        if (string.IsNullOrWhiteSpace(targetId))
+            return false;
         lock (_gate)
         {
             var owned = _targets.Keys.Where(k => k.TargetId == targetId).ToArray();
@@ -177,8 +178,10 @@ public sealed class NavigatorTourService
     /// </summary>
     public bool Unregister(string targetId, string routeId)
     {
-        if (string.IsNullOrWhiteSpace(targetId)) return false;
-        if (string.IsNullOrWhiteSpace(routeId)) return false;
+        if (string.IsNullOrWhiteSpace(targetId))
+            return false;
+        if (string.IsNullOrWhiteSpace(routeId))
+            return false;
         lock (_gate)
         {
             var key = (routeId, targetId);
@@ -202,7 +205,8 @@ public sealed class NavigatorTourService
     /// </summary>
     public NavigatorTarget? Get(string targetId, string? routeId)
     {
-        if (string.IsNullOrWhiteSpace(targetId)) return null;
+        if (string.IsNullOrWhiteSpace(targetId))
+            return null;
         lock (_gate)
         {
             if (!string.IsNullOrWhiteSpace(routeId))
@@ -284,7 +288,8 @@ public sealed class NavigatorTourService
     /// </summary>
     public NavigatorTargetRect? GetTargetRect(string targetId, string? routeId)
     {
-        if (string.IsNullOrWhiteSpace(targetId)) return null;
+        if (string.IsNullOrWhiteSpace(targetId))
+            return null;
         lock (_gate)
         {
             if (!string.IsNullOrWhiteSpace(routeId))
@@ -366,7 +371,8 @@ public sealed class NavigatorTourService
     public static string RenderTextTour(IReadOnlyList<NavigatorTourStep> steps)
     {
         ArgumentNullException.ThrowIfNull(steps);
-        if (steps.Count == 0) return "No tour steps available.";
+        if (steps.Count == 0)
+            return "No tour steps available.";
         var lines = new List<string> { $"App tour — {steps.Count} {(steps.Count == 1 ? "step" : "steps")}" };
         for (var i = 0; i < steps.Count; i++)
         {
@@ -398,7 +404,8 @@ public sealed class NavigatorTourService
         lock (_gate)
         {
             _lastProblems = validation.Problems;
-            if (!validation.Ok) return false;
+            if (!validation.Ok)
+                return false;
             _steps = [.. steps];
             _index = 0;
             _status = NavigatorTourStatus.Active;
@@ -415,7 +422,8 @@ public sealed class NavigatorTourService
         bool finished = false;
         lock (_gate)
         {
-            if (_status != NavigatorTourStatus.Active || _steps.Count == 0) return;
+            if (_status != NavigatorTourStatus.Active || _steps.Count == 0)
+                return;
             if (_index + 1 >= _steps.Count)
             {
                 _status = NavigatorTourStatus.Finished;
@@ -429,8 +437,10 @@ public sealed class NavigatorTourService
             changed = true;
         }
 
-        if (finished) TryRestoreFocus();
-        if (changed) Notify();
+        if (finished)
+            TryRestoreFocus();
+        if (changed)
+            Notify();
     }
 
     public void Back()
@@ -438,13 +448,15 @@ public sealed class NavigatorTourService
         bool changed = false;
         lock (_gate)
         {
-            if (_status != NavigatorTourStatus.Active || _steps.Count == 0) return;
+            if (_status != NavigatorTourStatus.Active || _steps.Count == 0)
+                return;
             var next = Math.Max(0, _index - 1);
             changed = next != _index;
             _index = next;
         }
 
-        if (changed) Notify();
+        if (changed)
+            Notify();
     }
 
     public void GoTo(int stepIndex)
@@ -452,14 +464,16 @@ public sealed class NavigatorTourService
         bool changed = false;
         lock (_gate)
         {
-            if (_status is not (NavigatorTourStatus.Active or NavigatorTourStatus.Paused) || _steps.Count == 0) return;
+            if (_status is not (NavigatorTourStatus.Active or NavigatorTourStatus.Paused) || _steps.Count == 0)
+                return;
             var clamped = Math.Min(Math.Max(0, stepIndex), _steps.Count - 1);
             changed = clamped != _index || _status == NavigatorTourStatus.Paused;
             _index = clamped;
             _status = NavigatorTourStatus.Active;
         }
 
-        if (changed) Notify();
+        if (changed)
+            Notify();
     }
 
     /// <summary>
@@ -481,7 +495,8 @@ public sealed class NavigatorTourService
             }
         }
 
-        if (changed) Notify();
+        if (changed)
+            Notify();
     }
 
     public void Resume()
@@ -496,7 +511,8 @@ public sealed class NavigatorTourService
             }
         }
 
-        if (changed) Notify();
+        if (changed)
+            Notify();
     }
 
     /// <summary>
@@ -541,8 +557,10 @@ public sealed class NavigatorTourService
             _lastProblems = Array.Empty<NavigatorTourProblem>();
         }
 
-        if (inProgress) TryRestoreFocus();
-        if (changed) Notify();
+        if (inProgress)
+            TryRestoreFocus();
+        if (changed)
+            Notify();
     }
 
     private void Notify() => Changed?.Invoke();
@@ -564,8 +582,10 @@ public sealed class NavigatorTourService
             _priorFocusHandle = null;
         }
 
-        if (restore is null) return;
-        try { restore(handle); }
+        if (restore is null)
+            return;
+        try
+        { restore(handle); }
         catch { /* Best effort: host focus work must never break tour state. */ }
     }
 

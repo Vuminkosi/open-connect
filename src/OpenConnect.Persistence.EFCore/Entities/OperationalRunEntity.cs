@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class OperationalRunEntity
 {
     public Guid Id { get; set; }

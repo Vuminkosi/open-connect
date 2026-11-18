@@ -417,7 +417,8 @@ public sealed class MiniComposerSessionCreationTests
         {
             SessionCreationCount++;
             SessionCreationStarted.TrySetResult();
-            if (SessionCreationException is not null) return Task.FromException<SessionRecord>(SessionCreationException);
+            if (SessionCreationException is not null)
+                return Task.FromException<SessionRecord>(SessionCreationException);
             return CompleteSessionCreationImmediately
                 ? Task.FromResult(new SessionRecord(new SessionId(SessionId), new TenantId(Ulid.NewUlid()),
                     new PrincipalId(Ulid.NewUlid()), DateTimeOffset.UtcNow))
@@ -439,7 +440,8 @@ public sealed class MiniComposerSessionCreationTests
                 LastCreatedTaskId = new TaskId(Ulid.NewUlid());
                 return Task.FromException<TaskRecord>(new HttpRequestException("Response was lost after admission."));
             }
-            if (TaskException is not null) return Task.FromException<TaskRecord>(TaskException);
+            if (TaskException is not null)
+                return Task.FromException<TaskRecord>(TaskException);
             if (!(LoseFirstTaskResponseAfterAdmission && TaskSubmissionCount == 2 &&
                 TaskRequests[0].IdempotencyKey == request.IdempotencyKey))
                 LastCreatedTaskId = new TaskId(Ulid.NewUlid());
@@ -454,7 +456,8 @@ public sealed class MiniComposerSessionCreationTests
         public Task<TaskRecord> CancelTaskAsync(TaskId taskId, CancellationToken cancellationToken = default)
         {
             CancelledTaskIds.Add(taskId);
-            if (CancelException is not null) return Task.FromException<TaskRecord>(CancelException);
+            if (CancelException is not null)
+                return Task.FromException<TaskRecord>(CancelException);
             _cancelledRecord = new TaskRecord(taskId, new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), AgentRunState.Cancelled);
             CancellationStarted.TrySetResult();
             return HoldCancellation ? _cancellation.Task : Task.FromResult(_cancelledRecord);

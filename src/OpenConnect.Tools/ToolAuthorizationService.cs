@@ -26,8 +26,14 @@ public sealed class ToolApproval
     internal ToolApproval(string id, AgentId agentId, ToolId toolId, PrincipalId principalId,
         TenantId tenantId, TaskId taskId, string argumentsHash, DateTimeOffset expiresAt)
     {
-        Id = id; AgentId = agentId; ToolId = toolId; PrincipalId = principalId;
-        TenantId = tenantId; TaskId = taskId; ArgumentsHash = argumentsHash; ExpiresAt = expiresAt;
+        Id = id;
+        AgentId = agentId;
+        ToolId = toolId;
+        PrincipalId = principalId;
+        TenantId = tenantId;
+        TaskId = taskId;
+        ArgumentsHash = argumentsHash;
+        ExpiresAt = expiresAt;
     }
 
     public string Id { get; }
@@ -51,7 +57,8 @@ public sealed class ToolAuthorizationService(IToolAccessPolicy policy, TimeProvi
 
     public ToolApproval CreateApproval(ToolAccessRequest request, JsonElement arguments, TimeSpan lifetime)
     {
-        if (lifetime <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(lifetime));
+        if (lifetime <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(lifetime));
         return new ToolApproval(Guid.NewGuid().ToString("N"), request.AgentId, request.ToolId,
             request.PrincipalId, request.TenantId, request.TaskId, HashArguments(arguments), _timeProvider.GetUtcNow() + lifetime);
     }
@@ -66,7 +73,8 @@ public sealed class ToolAuthorizationService(IToolAccessPolicy policy, TimeProvi
 
         var expected = Convert.FromHexString(HashArguments(arguments));
         byte[] actual;
-        try { actual = Convert.FromHexString(approval.ArgumentsHash); }
+        try
+        { actual = Convert.FromHexString(approval.ArgumentsHash); }
         catch (FormatException) { return false; }
 
         return CryptographicOperations.FixedTimeEquals(expected, actual) &&
@@ -77,7 +85,8 @@ public sealed class ToolAuthorizationService(IToolAccessPolicy policy, TimeProvi
     public static string HashArguments(JsonElement arguments)
     {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) WriteCanonical(writer, arguments);
+        using (var writer = new Utf8JsonWriter(stream))
+            WriteCanonical(writer, arguments);
         return Convert.ToHexString(SHA256.HashData(stream.ToArray()));
     }
 
@@ -89,10 +98,17 @@ public sealed class ToolAuthorizationService(IToolAccessPolicy policy, TimeProvi
                 writer.WriteStartObject();
                 foreach (var property in element.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal))
                 { writer.WritePropertyName(property.Name); WriteCanonical(writer, property.Value); }
-                writer.WriteEndObject(); break;
+                writer.WriteEndObject();
+                break;
             case JsonValueKind.Array:
-                writer.WriteStartArray(); foreach (var item in element.EnumerateArray()) WriteCanonical(writer, item); writer.WriteEndArray(); break;
-            default: element.WriteTo(writer); break;
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray())
+                    WriteCanonical(writer, item);
+                writer.WriteEndArray();
+                break;
+            default:
+                element.WriteTo(writer);
+                break;
         }
     }
 }

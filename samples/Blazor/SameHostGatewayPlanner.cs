@@ -35,7 +35,8 @@ public sealed class SameHostGatewayPlanner(
             !string.Equals(current.CurrentRouteId, request.RouteId, StringComparison.Ordinal))
             throw new UnauthorizedAccessException("The interactive session is unavailable.");
         Ulid sessionId;
-        try { sessionId = Ulid.Parse(request.SessionId); }
+        try
+        { sessionId = Ulid.Parse(request.SessionId); }
         catch (Exception exception) when (exception is FormatException or ArgumentNullException)
         { throw new UnauthorizedAccessException("The interactive session is unavailable."); }
 

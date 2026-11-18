@@ -99,14 +99,14 @@ public sealed class CrossModeFreshTaskGateTests
     private static AgentDefinition Definition(AgentId id, AgentId[]? children = null, int maxChildren = 0,
         AgentExecutionMode mode = AgentExecutionMode.Interactive, AgentBudget? budget = null,
         ToolId[]? tools = null, string[]? scopes = null) => new(id, id.Value)
-    {
-        ExecutionMode = mode,
-        IdentityMode = mode == AgentExecutionMode.Operational ? AgentIdentityMode.WorkloadIdentity : AgentIdentityMode.ActiveUser,
-        Operational = mode == AgentExecutionMode.Operational ? new OperationalPolicy(WorkloadIdentityRef: "test") : null,
-        Orchestration = new(MaxChildren: maxChildren, AllowedChildAgents: children ?? []),
-        ToolPolicy = new(tools ?? [Tool("tool")], scopes ?? ["read"]),
-        Budget = budget ?? Budget()
-    };
+        {
+            ExecutionMode = mode,
+            IdentityMode = mode == AgentExecutionMode.Operational ? AgentIdentityMode.WorkloadIdentity : AgentIdentityMode.ActiveUser,
+            Operational = mode == AgentExecutionMode.Operational ? new OperationalPolicy(WorkloadIdentityRef: "test") : null,
+            Orchestration = new(MaxChildren: maxChildren, AllowedChildAgents: children ?? []),
+            ToolPolicy = new(tools ?? [Tool("tool")], scopes ?? ["read"]),
+            Budget = budget ?? Budget()
+        };
 
     private static DelegationParentContext OperationalContext(AgentId id, AgentBudget? budget = null,
         AgentId[]? ancestors = null, int childCount = 0, int active = 0, int queued = 0) =>

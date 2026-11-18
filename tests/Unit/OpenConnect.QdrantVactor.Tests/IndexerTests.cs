@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
-using OpenConnect.QdrantVactor;
 using OpenConnect.Observability;
-using System.Diagnostics;
+using OpenConnect.QdrantVactor;
 using Xunit;
 
 namespace OpenConnect.QdrantVactor.Tests;

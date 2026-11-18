@@ -27,7 +27,8 @@ public static class MemoryCompaction
         ArgumentNullException.ThrowIfNull(mustRetain);
         approvalRefs ??= [];
         ArgumentException.ThrowIfNullOrWhiteSpace(handoffSummary);
-        if (tokenBudget < 0) throw new ArgumentOutOfRangeException(nameof(tokenBudget));
+        if (tokenBudget < 0)
+            throw new ArgumentOutOfRangeException(nameof(tokenBudget));
         var required = mustRetain.Select((text, i) => NewItem(text, $"must-retain:{i}", true)).ToList();
         required.AddRange(approvalRefs.Select((text, i) => NewItem(text, $"approval:{i}", true)));
         var candidates = new List<Item>();
@@ -45,7 +46,8 @@ public static class MemoryCompaction
         var included = new List<Item>(required);
         foreach (var item in optional)
         {
-            if (Estimate(included.Append(item)) <= tokenBudget) included.Add(item);
+            if (Estimate(included.Append(item)) <= tokenBudget)
+                included.Add(item);
         }
         var includedSet = included.ToHashSet();
         var truncated = optional.Where(item => !includedSet.Contains(item)).Select(item => item.Lineage).ToArray();

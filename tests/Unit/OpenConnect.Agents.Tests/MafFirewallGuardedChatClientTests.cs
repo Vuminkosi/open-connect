@@ -1,6 +1,6 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using System.Security.Cryptography;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Privacy;

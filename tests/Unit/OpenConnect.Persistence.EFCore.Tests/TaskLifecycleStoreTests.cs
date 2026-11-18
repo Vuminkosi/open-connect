@@ -123,7 +123,8 @@ public sealed class TaskLifecycleStoreTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 

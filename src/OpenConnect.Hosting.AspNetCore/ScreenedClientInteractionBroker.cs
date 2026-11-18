@@ -15,7 +15,8 @@ internal sealed class ScreenedClientInteractionBroker(InMemorySessionStore store
         ClientInteractionRequest request, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Operation != "get_current_page" || gate is null) return null;
+        if (request.Operation != "get_current_page" || gate is null)
+            return null;
         var response = await store.RequestAsync(sessionId, request, "page", timeout, cancellationToken).ConfigureAwait(false);
         var session = store.Get(sessionId.Value);
         if (session is null || response is null || response.CorrelationId != request.CorrelationId || response.ResultKind != "page")

@@ -124,10 +124,18 @@ public sealed class ProfileIdentityTests
 
     private static AgentExecutionContext Context(AgentIdentityMode identity, string scope) => new()
     {
-        TenantScope = "tenant:1", PrincipalOrWorkloadScope = scope, IdentityKind = identity,
-        SessionId = new(Ulid.NewUlid()), TaskId = new(Ulid.NewUlid()), AgentExecutionId = new(Ulid.NewUlid()),
-        Depth = 0, CatalogRevision = 1, PolicyRevision = 1, AuthRevision = 1,
-        Deadline = DateTimeOffset.UtcNow.AddMinutes(1), RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+        TenantScope = "tenant:1",
+        PrincipalOrWorkloadScope = scope,
+        IdentityKind = identity,
+        SessionId = new(Ulid.NewUlid()),
+        TaskId = new(Ulid.NewUlid()),
+        AgentExecutionId = new(Ulid.NewUlid()),
+        Depth = 0,
+        CatalogRevision = 1,
+        PolicyRevision = 1,
+        AuthRevision = 1,
+        Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
+        RemainingBudgets = ImmutableDictionary<string, long>.Empty,
         CancellationToken = CancellationToken.None
     };
 }

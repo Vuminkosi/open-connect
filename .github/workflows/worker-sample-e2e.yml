@@ -119,6 +119,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set up .NET SDK for provider contracts
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
       - name: Run sample for provider
         run: ./samples/workers/shared/scripts/run-one.sh "${{ matrix.worker }}" --tier "${{ inputs.tier || 'contract' }}" --provider "${{ matrix.provider }}"
 

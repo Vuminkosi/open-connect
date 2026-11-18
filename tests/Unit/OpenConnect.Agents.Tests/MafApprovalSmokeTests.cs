@@ -1,5 +1,5 @@
-using Microsoft.Extensions.AI;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using Xunit;

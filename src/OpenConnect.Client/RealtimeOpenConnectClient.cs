@@ -23,7 +23,8 @@ public partial class OpenConnectClient : IRealtimeOpenConnectClient
         long afterSequence = 0,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (afterSequence < 0) throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        if (afterSequence < 0)
+            throw new ArgumentOutOfRangeException(nameof(afterSequence));
 
         var baseAddress = _httpClient.BaseAddress
             ?? throw new InvalidOperationException("The OpenConnect client requires an HTTP base address for realtime events.");
@@ -47,7 +48,8 @@ public partial class OpenConnectClient : IRealtimeOpenConnectClient
         }
         foreach (var header in _httpClient.DefaultRequestHeaders)
         {
-            if (string.Equals(header.Key, "Host", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.Equals(header.Key, "Host", StringComparison.OrdinalIgnoreCase))
+                continue;
             socket.Options.SetRequestHeader(header.Key, string.Join(", ", header.Value));
         }
 
@@ -61,12 +63,14 @@ public partial class OpenConnectClient : IRealtimeOpenConnectClient
             do
             {
                 result = await socket.ReceiveAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
-                if (result.MessageType == WebSocketMessageType.Close) yield break;
+                if (result.MessageType == WebSocketMessageType.Close)
+                    yield break;
                 if (message.Length + result.Count > maximumMessageBytes)
                     throw new WebSocketException("The session event exceeds the maximum message size.");
                 message.Write(buffer, 0, result.Count);
             } while (!result.EndOfMessage);
-            if (result.MessageType != WebSocketMessageType.Text) continue;
+            if (result.MessageType != WebSocketMessageType.Text)
+                continue;
 
             using var document = JsonDocument.Parse(message.GetBuffer().AsMemory(0, (int)message.Length));
             if (document.RootElement.TryGetProperty("type", out var type) &&

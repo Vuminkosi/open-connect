@@ -197,7 +197,8 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
             bool shouldCancel;
             try
             {
-                if (_disposed || _completed) return;
+                if (_disposed || _completed)
+                    return;
                 Volatile.Write(ref _pendingRequest, null);
                 _completed = true;
                 shouldCancel = true;
@@ -231,7 +232,8 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
             bool needCancel;
             try
             {
-                if (_disposed) return;
+                if (_disposed)
+                    return;
                 needCancel = !_completed;
                 Volatile.Write(ref _pendingRequest, null);
                 _completed = true;
@@ -339,8 +341,10 @@ public sealed class NativeWorkflowInteraction : IAsyncDisposable
         // Callers must hold _operationLock; keeps ReferenceEquals, consumed-id,
         // and completed/disposed transitions atomic and fail-closed.
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_started || _completed) throw new InvalidOperationException("The native workflow is no longer accepting responses.");
-        if (_pendingRequest is null) throw new InvalidOperationException("The native workflow has no pending request.");
+        if (!_started || _completed)
+            throw new InvalidOperationException("The native workflow is no longer accepting responses.");
+        if (_pendingRequest is null)
+            throw new InvalidOperationException("The native workflow has no pending request.");
     }
 
     private async Task CancelRunUnderGateAsync()

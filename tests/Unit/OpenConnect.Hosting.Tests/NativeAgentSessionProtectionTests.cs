@@ -27,8 +27,14 @@ public sealed class NativeAgentSessionProtectionTests
     }
 
     [Theory]
-    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
-    [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
     public async Task Every_binding_field_is_authenticated(int field)
     {
         var protector = CreateProtector();
@@ -106,15 +112,32 @@ public sealed class NativeAgentSessionProtectionTests
         Assert.NotEqual(original, changed);
         switch (field)
         {
-            case 0: Assert.NotEqual(original.SessionId, changed.SessionId); break;
-            case 1: Assert.NotEqual(original.TenantId, changed.TenantId); break;
-            case 2: Assert.NotEqual(original.PrincipalId, changed.PrincipalId); break;
-            case 3: Assert.NotEqual(original.AgentId, changed.AgentId); break;
-            case 4: Assert.NotEqual(original.DefinitionRevision, changed.DefinitionRevision); break;
-            case 5: Assert.NotEqual(original.MafVersion, changed.MafVersion); break;
-            case 6: Assert.NotEqual(original.SchemaVersion, changed.SchemaVersion); break;
-            case 7: Assert.NotEqual(original.ProviderId, changed.ProviderId); break;
-            default: throw new ArgumentOutOfRangeException(nameof(field));
+            case 0:
+                Assert.NotEqual(original.SessionId, changed.SessionId);
+                break;
+            case 1:
+                Assert.NotEqual(original.TenantId, changed.TenantId);
+                break;
+            case 2:
+                Assert.NotEqual(original.PrincipalId, changed.PrincipalId);
+                break;
+            case 3:
+                Assert.NotEqual(original.AgentId, changed.AgentId);
+                break;
+            case 4:
+                Assert.NotEqual(original.DefinitionRevision, changed.DefinitionRevision);
+                break;
+            case 5:
+                Assert.NotEqual(original.MafVersion, changed.MafVersion);
+                break;
+            case 6:
+                Assert.NotEqual(original.SchemaVersion, changed.SchemaVersion);
+                break;
+            case 7:
+                Assert.NotEqual(original.ProviderId, changed.ProviderId);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(field));
         }
     }
 

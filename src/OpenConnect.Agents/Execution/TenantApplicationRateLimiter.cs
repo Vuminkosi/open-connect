@@ -63,8 +63,10 @@ public sealed class TenantApplicationRateLimiter : IRateLimitGate
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _clock = clock ?? TimeProvider.System;
         var resolved = options ?? new RateLimitOptions();
-        if (resolved.BurstPerMinute < 0) throw new ArgumentOutOfRangeException(nameof(options), "Burst limit cannot be negative.");
-        if (resolved.SustainedPerDay < 0) throw new ArgumentOutOfRangeException(nameof(options), "Sustained limit cannot be negative.");
+        if (resolved.BurstPerMinute < 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "Burst limit cannot be negative.");
+        if (resolved.SustainedPerDay < 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "Sustained limit cannot be negative.");
         _burstPerMinute = resolved.BurstPerMinute;
         _sustainedPerDay = resolved.SustainedPerDay;
     }

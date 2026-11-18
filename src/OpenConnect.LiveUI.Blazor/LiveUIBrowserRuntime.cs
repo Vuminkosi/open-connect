@@ -21,7 +21,8 @@ public sealed class LiveUIBrowserRuntime(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (_disposed) return Failed("runtime_disposed");
+        if (_disposed)
+            return Failed("runtime_disposed");
 
         var currentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath;
         var expectedPath = context.Action.ExpectedPath ?? navigationManager.ToAbsoluteUri(context.Route.Path).AbsolutePath;
@@ -76,11 +77,13 @@ public sealed class LiveUIBrowserRuntime(
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         if (_module is not null)
         {
-            try { await _module.DisposeAsync().ConfigureAwait(false); }
+            try
+            { await _module.DisposeAsync().ConfigureAwait(false); }
             catch (JSDisconnectedException) { }
         }
     }
@@ -105,15 +108,18 @@ public sealed class LiveUIBrowserRuntime(
             if (destination.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal))
             {
                 var current = new LiveUIAgentContext(context.Action.SessionId, context.Route.Id)
-                    { CurrentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath };
+                { CurrentPath = navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath };
                 if (manifestState is null || !manifestState.TryGetRuntimeRouteContext(current, context.Manifest, destination.Id, out var parentLabel))
                     return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "runtime_route_stale", false);
                 observation = await _module.InvokeAsync<string?>("prepareRoute", cancellationToken, destination, parentLabel).ConfigureAwait(false);
-                if (observation is null) return new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "route_observation_missing", false);
+                if (observation is null)
+                    return new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "route_observation_missing", false);
                 var dispatched = await _module.InvokeAsync<bool>("followRoute", cancellationToken, destination, observation).ConfigureAwait(false);
-                if (!dispatched) return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_link_stale", false);
+                if (!dispatched)
+                    return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_link_stale", false);
             }
-            else navigationManager.NavigateTo(destination.Path);
+            else
+                navigationManager.NavigateTo(destination.Path);
             var result = await _module.InvokeAsync<BrowserResult>(
                 "awaitRoute", cancellationToken, expectedPath, destination, (int)context.Action.Timeout.TotalMilliseconds,
                 options.Value.Discovery.EnableRuntimeFallback, observation)

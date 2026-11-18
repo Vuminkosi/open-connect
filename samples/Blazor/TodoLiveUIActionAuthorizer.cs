@@ -30,7 +30,8 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
         if (context.Action.Type == LiveUIActionType.ClearHighlight)
             return context.Route.Path == "/" ? Allow("todo_visual_clear") : Deny();
 
-        if (context.Route.Path != "/") return Deny();
+        if (context.Route.Path != "/")
+            return Deny();
 
         if (context.Target is null)
             return context.Action.Type == LiveUIActionType.Inspect ? Allow("todo_page_inspection") : Deny();

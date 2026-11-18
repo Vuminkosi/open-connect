@@ -16,12 +16,22 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context) : IPrivacy
         // EF-02F master-approved interim mapping. Envelope is opaque; this adapter never decrypts it.
         context.Set<PrivacyTokenEntity>().Add(new PrivacyTokenEntity
         {
-            Id = Guid.NewGuid(), TenantScope = tenantScope, PrincipalOrWorkloadScope = scope,
-            SessionId = sessionId, TurnId = null, TokenId = binding.TokenId, EntityType = binding.EntityType,
-            EncryptedValue = binding.EncryptedValue, Nonce = [], AuthenticationTag = [], WrappedDataKey = [],
-            KeyProviderId = "envelope", KeyVersion = "v1",
+            Id = Guid.NewGuid(),
+            TenantScope = tenantScope,
+            PrincipalOrWorkloadScope = scope,
+            SessionId = sessionId,
+            TurnId = null,
+            TokenId = binding.TokenId,
+            EntityType = binding.EntityType,
+            EncryptedValue = binding.EncryptedValue,
+            Nonce = [],
+            AuthenticationTag = [],
+            WrappedDataKey = [],
+            KeyProviderId = "envelope",
+            KeyVersion = "v1",
             BindingDigest = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{tenantScope}|{scope}|{sessionId}|{binding.TokenId}|{binding.EntityType}"))).ToLowerInvariant(),
-            CreatedUtc = DateTime.UtcNow, ExpiresUtc = binding.ExpiresAt.UtcDateTime
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = binding.ExpiresAt.UtcDateTime
         });
         await context.SaveChangesAsync(ct).ConfigureAwait(false);
     }

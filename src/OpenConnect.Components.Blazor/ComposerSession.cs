@@ -105,11 +105,13 @@ public sealed class ComposerSession
     internal async Task PublishSpeechPlaybackChangedAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
         var handlers = SpeechPlaybackChanged;
-        if (handlers is null) return;
+        if (handlers is null)
+            return;
 
         foreach (var handler in handlers.GetInvocationList().Cast<Func<ComposerSpeechPlaybackEvent, Task>>())
         {
-            try { await handler(playbackEvent).ConfigureAwait(false); }
+            try
+            { await handler(playbackEvent).ConfigureAwait(false); }
             catch (Exception) { }
         }
     }
@@ -212,7 +214,8 @@ public sealed class ComposerSession
     {
         lock (_gate)
         {
-            if (!_trackingTask || (expectedSessionId is not null && !string.Equals(SessionId, expectedSessionId, StringComparison.Ordinal))) return;
+            if (!_trackingTask || (expectedSessionId is not null && !string.Equals(SessionId, expectedSessionId, StringComparison.Ordinal)))
+                return;
             _trackedTaskId = taskId.Value.ToString();
             if (_earlyTaskBufferFailed)
             {
@@ -241,7 +244,8 @@ public sealed class ComposerSession
 
     private void ApplyTrackedTerminalCore(string type, long sequence)
     {
-        if (_trackedTerminalHandled && _streamingRole is null && _streamingText.Length == 0) return;
+        if (_trackedTerminalHandled && _streamingRole is null && _streamingText.Length == 0)
+            return;
         var alreadyHandled = _trackedTerminalHandled;
         _trackedTerminalHandled = true;
         if (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
@@ -251,7 +255,8 @@ public sealed class ComposerSession
         }
         if (type.Equals("task.failed", StringComparison.OrdinalIgnoreCase))
         {
-            if (!alreadyHandled) _errors.Add("The assistant could not complete the request.");
+            if (!alreadyHandled)
+                _errors.Add("The assistant could not complete the request.");
             _messages.Add(new ComposerMessage("assistant", _streamingText, sequence, ComposerMessageState.Failed));
             _streamingText = string.Empty;
             _streamingRole = null;
@@ -552,12 +557,14 @@ public sealed class ComposerSession
             var type = record.Type ?? string.Empty;
             if (type.Equals("navigator.action", StringComparison.OrdinalIgnoreCase))
             {
-                try { PendingNavigatorAction = JsonSerializer.Deserialize<ComposerNavigatorAction>(record.Data ?? "{}"); }
+                try
+                { PendingNavigatorAction = JsonSerializer.Deserialize<ComposerNavigatorAction>(record.Data ?? "{}"); }
                 catch (JsonException) { PendingNavigatorAction = null; }
             }
             else if (type.Equals(ClientInteractionEventTypes.Request, StringComparison.Ordinal))
             {
-                try { PendingClientInteraction = JsonSerializer.Deserialize<ClientInteractionRequest>(record.Data ?? "{}", OpenConnectHttpJson.CreateOptions()); }
+                try
+                { PendingClientInteraction = JsonSerializer.Deserialize<ClientInteractionRequest>(record.Data ?? "{}", OpenConnectHttpJson.CreateOptions()); }
                 catch (JsonException) { PendingClientInteraction = null; }
                 PendingClientInteractionCancellationId = null;
             }

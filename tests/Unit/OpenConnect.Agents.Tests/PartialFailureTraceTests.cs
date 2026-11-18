@@ -97,9 +97,16 @@ public sealed class PartialFailureTraceTests
         var execution = new ExecutionId(Ulid.NewUlid());
         var context = new AgentExecutionContext
         {
-            TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-            SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()), AgentExecutionId = execution,
-            Depth = 0, CatalogRevision = 1, PolicyRevision = 1, AuthRevision = 1,
+            TenantScope = "tenant",
+            PrincipalOrWorkloadScope = "principal",
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = new SessionId(Ulid.NewUlid()),
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = execution,
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
             Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
             RemainingBudgets = ImmutableDictionary<string, long>.Empty
                 .Add("MaxToolCalls", 1).Add("MaxModelCalls", 1).Add("MaxTokens", 100)

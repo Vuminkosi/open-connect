@@ -109,7 +109,10 @@ public sealed class TodoServiceClientTests
         using var http = new HttpClient { BaseAddress = new Uri(baseUrl) };
         var client = new TodoServiceClient(http, Options.Create(new MetaCloudOptions
         {
-            TodoServiceUrl = serviceUrl, TodoInternalToken = token, TodoTenant = Tenant, LocalGuardCredential = guard
+            TodoServiceUrl = serviceUrl,
+            TodoInternalToken = token,
+            TodoTenant = Tenant,
+            LocalGuardCredential = guard
         }));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.ListAsync(CancellationToken.None));
@@ -129,7 +132,10 @@ public sealed class TodoServiceClientTests
 
     private static MetaCloudOptions OptionsFor(string url) => new()
     {
-        TodoServiceUrl = url, TodoInternalToken = Token, TodoTenant = Tenant, LocalGuardCredential = Guard
+        TodoServiceUrl = url,
+        TodoInternalToken = Token,
+        TodoTenant = Tenant,
+        LocalGuardCredential = Guard
     };
 
     private static IConfigurationRoot Configuration(string url) => new ConfigurationBuilder()

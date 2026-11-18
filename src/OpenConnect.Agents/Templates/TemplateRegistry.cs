@@ -218,13 +218,20 @@ public sealed class TemplateRegistry
 
     private static (string Field, object ChildValue, object ParentValue)? GetBudgetViolation(AgentBudget child, AgentBudget parent)
     {
-        if (child.MaxToolCalls > parent.MaxToolCalls) return (nameof(child.MaxToolCalls), child.MaxToolCalls, parent.MaxToolCalls);
-        if (child.MaxModelCalls > parent.MaxModelCalls) return (nameof(child.MaxModelCalls), child.MaxModelCalls, parent.MaxModelCalls);
-        if (child.MaxTokens > parent.MaxTokens) return (nameof(child.MaxTokens), child.MaxTokens, parent.MaxTokens);
-        if (child.MaxConcurrentAgents > parent.MaxConcurrentAgents) return (nameof(child.MaxConcurrentAgents), child.MaxConcurrentAgents, parent.MaxConcurrentAgents);
-        if (child.MaxQueuedAgents > parent.MaxQueuedAgents) return (nameof(child.MaxQueuedAgents), child.MaxQueuedAgents, parent.MaxQueuedAgents);
-        if (child.MaxTotalAgents > parent.MaxTotalAgents) return (nameof(child.MaxTotalAgents), child.MaxTotalAgents, parent.MaxTotalAgents);
-        if (child.MaxCostMicrocents > parent.MaxCostMicrocents) return (nameof(child.MaxCostMicrocents), child.MaxCostMicrocents, parent.MaxCostMicrocents);
+        if (child.MaxToolCalls > parent.MaxToolCalls)
+            return (nameof(child.MaxToolCalls), child.MaxToolCalls, parent.MaxToolCalls);
+        if (child.MaxModelCalls > parent.MaxModelCalls)
+            return (nameof(child.MaxModelCalls), child.MaxModelCalls, parent.MaxModelCalls);
+        if (child.MaxTokens > parent.MaxTokens)
+            return (nameof(child.MaxTokens), child.MaxTokens, parent.MaxTokens);
+        if (child.MaxConcurrentAgents > parent.MaxConcurrentAgents)
+            return (nameof(child.MaxConcurrentAgents), child.MaxConcurrentAgents, parent.MaxConcurrentAgents);
+        if (child.MaxQueuedAgents > parent.MaxQueuedAgents)
+            return (nameof(child.MaxQueuedAgents), child.MaxQueuedAgents, parent.MaxQueuedAgents);
+        if (child.MaxTotalAgents > parent.MaxTotalAgents)
+            return (nameof(child.MaxTotalAgents), child.MaxTotalAgents, parent.MaxTotalAgents);
+        if (child.MaxCostMicrocents > parent.MaxCostMicrocents)
+            return (nameof(child.MaxCostMicrocents), child.MaxCostMicrocents, parent.MaxCostMicrocents);
         if (parent.MaxRuntime is not null && (child.MaxRuntime is null || child.MaxRuntime > parent.MaxRuntime))
             return (nameof(child.MaxRuntime), child.MaxRuntime?.ToString() ?? "unlimited", parent.MaxRuntime.Value.ToString());
         return null;
@@ -246,7 +253,7 @@ public sealed class TemplateRegistry
             string.IsNullOrWhiteSpace(template.Description) || string.IsNullOrWhiteSpace(template.InstructionsPath) ||
             string.IsNullOrWhiteSpace(template.SafetyLabel))
             throw new ArgumentException("Template id, version, description, instruction path, and safety label are required.", nameof(template));
-        if (Path.IsPathRooted(template.InstructionsPath) || template.InstructionsPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains("..", StringComparer.Ordinal))
+        if (!InstructionPathPolicy.IsSafeRelative(template.InstructionsPath))
             throw new ArgumentException("Template instruction path must be a safe relative path.", nameof(template));
         ArgumentNullException.ThrowIfNull(template.AllowedToolIds);
         ArgumentNullException.ThrowIfNull(template.Budget);

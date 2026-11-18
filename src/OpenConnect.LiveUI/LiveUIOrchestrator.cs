@@ -52,7 +52,8 @@ public sealed class LiveUIOrchestrator(
                 return Receipt(action, LiveUIActionOutcome.Denied, "highlighting_disabled", false);
 
             var route = manifest.Routes.SingleOrDefault(candidate => candidate.Id == action.RouteId);
-            if (route is null) return Receipt(action, LiveUIActionOutcome.Failed, "route_unknown", false);
+            if (route is null)
+                return Receipt(action, LiveUIActionOutcome.Failed, "route_unknown", false);
 
             var target = action.TargetId is null ? null : route.Targets.SingleOrDefault(candidate => candidate.Id == action.TargetId);
             if (action.TargetId is not null && target is null)
@@ -122,7 +123,8 @@ public sealed class LiveUIOrchestrator(
         var removed = 0;
         foreach (var entry in _seenActions.Where(entry => entry.Key.SessionId == sessionId && entry.Value == Finished))
         {
-            if (((ICollection<KeyValuePair<(string SessionId, string ActionId), byte>>)_seenActions).Remove(entry)) removed++;
+            if (((ICollection<KeyValuePair<(string SessionId, string ActionId), byte>>)_seenActions).Remove(entry))
+                removed++;
         }
         return removed;
     }

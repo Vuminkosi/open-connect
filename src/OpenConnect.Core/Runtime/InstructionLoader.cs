@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
 namespace OpenConnect.Core.Runtime;

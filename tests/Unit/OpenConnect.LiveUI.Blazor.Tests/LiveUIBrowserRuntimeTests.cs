@@ -107,7 +107,8 @@ public sealed class LiveUIBrowserRuntimeTests
         manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
         var route = Assert.Single(manifest.Routes);
         var action = new LiveUIAction("action-stale", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
-            route.Id, null, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5)) { ExpectedPath = expectedPath };
+            route.Id, null, LiveUIActionType.Inspect, new LiveUIActionParameters(), TimeSpan.FromSeconds(5))
+        { ExpectedPath = expectedPath };
         var navigation = new TestNavigationManager("https://localhost/", "https://localhost" + actualPath);
         var javascript = new TestJsRuntime(new TestJsModule("{}"));
         await using var runtime = new LiveUIBrowserRuntime(javascript, navigation, Options.Create(new LiveUIOptions()));
@@ -137,9 +138,12 @@ public sealed class LiveUIBrowserRuntimeTests
     [Fact]
     public async Task NavigateAsync_does_not_navigate_to_an_unresolved_route_template()
     {
-        var manifest = CreateManifest() with { Routes = [
+        var manifest = CreateManifest() with
+        {
+            Routes = [
             new LiveUIRoute("home", "/start", "Start", []),
-            new LiveUIRoute("docs", "/docs/{Version}/{Slug}", "Document", [])] };
+            new LiveUIRoute("docs", "/docs/{Version}/{Slug}", "Document", [])]
+        };
         manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
         var route = manifest.Routes[0];
         var action = new LiveUIAction("action-template", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
@@ -227,7 +231,8 @@ public sealed class LiveUIBrowserRuntimeTests
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier != "import") throw new JSException("Unexpected JavaScript invocation.");
+            if (identifier != "import")
+                throw new JSException("Unexpected JavaScript invocation.");
             ImportedModule = module;
             return ValueTask.FromResult((TValue)(object)module);
         }

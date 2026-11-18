@@ -1,4 +1,5 @@
 namespace OpenConnect.Persistence.EFCore.Entities;
+
 internal sealed class SessionEntity
 {
     public Guid SessionId { get; set; }

@@ -165,7 +165,8 @@ public sealed class SequentialTenTurnDurableRestartTests
         public Task<NativeAgentSessionSaveOutcome> SaveAsync(NativeAgentSessionRecord record, long expectedVersion, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
-            if ((_record?.Version ?? 0) != expectedVersion) return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
+            if ((_record?.Version ?? 0) != expectedVersion)
+                return Task.FromResult(NativeAgentSessionSaveOutcome.Conflict);
             _record = record;
             Saves++;
             return Task.FromResult(NativeAgentSessionSaveOutcome.Saved);

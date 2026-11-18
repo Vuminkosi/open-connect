@@ -154,7 +154,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
         lock (_lock)
         {
             var item = _items.FirstOrDefault(i => i.Id == id);
-            if (item == null) return Task.FromResult(false);
+            if (item == null)
+                return Task.FromResult(false);
             item.IsCompleted = isCompleted;
             return Task.FromResult(true);
         }
@@ -173,7 +174,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
     private List<TodoItem> ForTenant(TenantId tenantId)
     {
         var key = tenantId.Value.ToString();
-        if (_tenantItems.TryGetValue(key, out var existing)) return existing;
+        if (_tenantItems.TryGetValue(key, out var existing))
+            return existing;
         var seeded = _items.Select(Clone).ToList();
         _tenantItems[key] = seeded;
         return seeded;
@@ -181,7 +183,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
 
     public Task<IReadOnlyList<TodoItem>> GetAllAsync(TenantId tenantId, CancellationToken ct = default)
     {
-        lock (_lock) return Task.FromResult<IReadOnlyList<TodoItem>>(ForTenant(tenantId).OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAtUtc).Select(Clone).ToList());
+        lock (_lock)
+            return Task.FromResult<IReadOnlyList<TodoItem>>(ForTenant(tenantId).OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAtUtc).Select(Clone).ToList());
     }
 
     public Task<TodoItem> AddAsync(TenantId tenantId, string title, string? description = null, TodoPriority priority = TodoPriority.Medium, DateTime? dueDate = null, CancellationToken ct = default)
@@ -199,7 +202,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
         lock (_lock)
         {
             var item = ForTenant(tenantId).FirstOrDefault(i => i.Id == id);
-            if (item is null) return Task.FromResult(false);
+            if (item is null)
+                return Task.FromResult(false);
             item.IsCompleted = isCompleted;
             return Task.FromResult(true);
         }
@@ -207,7 +211,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
 
     public Task<bool> DeleteAsync(TenantId tenantId, Guid id, CancellationToken ct = default)
     {
-        lock (_lock) return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
+        lock (_lock)
+            return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
     }
 
     private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc };

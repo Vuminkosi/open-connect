@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using OpenConnect.Abstractions;
 using OpenConnect.Observability;
-using System.Diagnostics;
 
 namespace OpenConnect.QdrantVactor;
 
@@ -14,7 +14,8 @@ public sealed class SemanticMemorySearchProvider(IEmbeddingGenerator embeddings,
         if (!authorizer.Authorize(request.TenantId, request.AgentId))
             throw new UnauthorizedAccessException("The requested tenant and agent scope is not authorized.");
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Query);
-        if (request.Limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(request.Limit));
+        if (request.Limit is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(request.Limit));
         var started = Stopwatch.GetTimestamp();
         var outcome = "success";
         using var activity = Instrumentation.SafeStartActivity("vectors", "search", [new("operation", "search"), new("component", "qdrantvactor")]);

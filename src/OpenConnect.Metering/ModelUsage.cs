@@ -39,7 +39,8 @@ public sealed record ModelUsageEvent(Ulid EventId, Ulid AttemptId, string Provid
         ArgumentException.ThrowIfNullOrWhiteSpace(Provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(Model);
         Usage.Validate();
-        if (Cost < 0) throw new ArgumentOutOfRangeException(nameof(Cost));
+        if (Cost < 0)
+            throw new ArgumentOutOfRangeException(nameof(Cost));
         if ((CostState == CostState.Unknown) != (Cost is null))
             throw new ArgumentException("Unknown costs must remain null; known costs must have a value.");
         return this;
@@ -62,7 +63,8 @@ public sealed class InMemoryUsageLedger : IUsageLedger
     {
         cancellationToken.ThrowIfCancellationRequested();
         usage.Validate();
-        if (_events.TryAdd(usage.EventId, usage)) return ValueTask.FromResult(true);
+        if (_events.TryAdd(usage.EventId, usage))
+            return ValueTask.FromResult(true);
         if (_events.TryGetValue(usage.EventId, out var existing) && existing == usage)
             return ValueTask.FromResult(false);
         throw new InvalidOperationException("An event with this identifier already exists with different content.");
@@ -79,11 +81,13 @@ public sealed record ModelPrice(decimal InputPerMillion, decimal OutputPerMillio
     {
         usage.Validate();
         var q = usage.Quantity;
-        if (q.Input is null || q.Output is null) throw new InvalidOperationException("Cannot price incomplete usage.");
+        if (q.Input is null || q.Output is null)
+            throw new InvalidOperationException("Cannot price incomplete usage.");
         if (new[] { InputPerMillion, OutputPerMillion, CacheReadPerMillion, CacheWritePerMillion }.Any(x => x < 0))
             throw new InvalidOperationException("Prices cannot be negative.");
         var regularInput = q.Input.Value - (q.CacheRead ?? 0) - (q.CacheWrite ?? 0);
-        if (regularInput < 0) throw new ArgumentException("Cache usage cannot exceed input usage.");
+        if (regularInput < 0)
+            throw new ArgumentException("Cache usage cannot exceed input usage.");
         return (regularInput * InputPerMillion + q.Output.Value * OutputPerMillion +
                 (q.CacheRead ?? 0) * CacheReadPerMillion + (q.CacheWrite ?? 0) * CacheWritePerMillion) / 1_000_000m;
     }

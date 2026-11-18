@@ -31,7 +31,8 @@ public sealed class NavigatorTargetRegistry
         if (descriptor.AllowedActions.Any(action => !Enum.IsDefined(action)))
             throw new ArgumentException("Target descriptor contains an unsupported action.", nameof(descriptor));
         var target = new NavigatorRegisteredTarget(descriptor, tenantId, principalId, revision);
-        lock (_gate) _targets[(tenantId, principalId, descriptor.RouteId, descriptor.TargetId)] = target;
+        lock (_gate)
+            _targets[(tenantId, principalId, descriptor.RouteId, descriptor.TargetId)] = target;
     }
 
     public IReadOnlyList<NavigatorRegisteredTarget> Resolve(string targetId, NavigatorTargetScope scope)
@@ -45,7 +46,8 @@ public sealed class NavigatorTargetRegistry
     public IReadOnlyList<NavigatorRegisteredTarget> ListByRoute(string routeId, NavigatorTargetScope scope)
     {
         ArgumentNullException.ThrowIfNull(scope);
-        if (string.IsNullOrWhiteSpace(routeId) || routeId != scope.RouteId) return Array.Empty<NavigatorRegisteredTarget>();
+        if (string.IsNullOrWhiteSpace(routeId) || routeId != scope.RouteId)
+            return Array.Empty<NavigatorRegisteredTarget>();
         lock (_gate)
             return _targets.Values.Where(t => t.TenantId == scope.TenantId && t.PrincipalId == scope.PrincipalId &&
                 t.Descriptor.RouteId == routeId && t.Descriptor.RequiredCapabilities.All(scope.Capabilities.Contains)).ToArray();
@@ -56,19 +58,22 @@ public sealed class NavigatorTargetRegistry
         string expectedPrincipal, string sessionId, long policyRevision, DateTimeOffset utcNow, out string reason)
     {
         reason = "invalid_grant";
-        if (grant is null || string.IsNullOrWhiteSpace(normalizedArgsJson)) return false;
+        if (grant is null || string.IsNullOrWhiteSpace(normalizedArgsJson))
+            return false;
         try
         {
             using var document = System.Text.Json.JsonDocument.Parse(normalizedArgsJson);
             if (!grant.IsValidFor(sessionId, expectedTenant, expectedPrincipal, grant.ClientInstance,
                     grant.CommandId, grant.Sequence, grant.Action, grant.TargetId, grant.TargetRevision,
-                    policyRevision, document.RootElement, utcNow)) return false;
+                    policyRevision, document.RootElement, utcNow))
+                return false;
             lock (_gate)
             {
                 var registered = _targets.Values.Where(t => t.TenantId == expectedTenant && t.PrincipalId == expectedPrincipal &&
                     t.Descriptor.TargetId == grant.TargetId && t.Revision == grant.TargetRevision &&
                     t.Descriptor.AllowedActions.Contains(grant.Action)).Take(2).Count();
-                if (registered != 1) return false;
+                if (registered != 1)
+                    return false;
             }
             reason = string.Empty;
             return true;

@@ -26,14 +26,16 @@ public sealed class MafAgentFactory
     /// <summary>Returns a stable snapshot of recorded execution traces.</summary>
     public IReadOnlyList<ExecutionTraceRecord> GetTrace()
     {
-        lock (_sync) return _traces.ToArray();
+        lock (_sync)
+            return _traces.ToArray();
     }
 
     private AgentRun Create(AgentId agentId, Guid? parentId, string kind)
     {
         var definition = _registry.Get(agentId) ?? throw new InvalidOperationException("Agent definition is not registered.");
         var trace = new ExecutionTraceRecord(Guid.NewGuid(), parentId, definition.Id.Value, kind, DateTimeOffset.UtcNow, null);
-        lock (_sync) _traces.Add(trace);
+        lock (_sync)
+            _traces.Add(trace);
         return new AgentRun(trace.Id, definition);
     }
 }

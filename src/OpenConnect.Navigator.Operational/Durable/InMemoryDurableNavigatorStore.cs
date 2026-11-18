@@ -1,6 +1,6 @@
 using OpenConnect.Navigator;
-using OpenConnect.Navigator.Operational.Durable;
 using OpenConnect.Navigator.Operational;
+using OpenConnect.Navigator.Operational.Durable;
 
 namespace OpenConnect.Navigator.Operational.Durable;
 
@@ -23,18 +23,22 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     public ValueTask<NavigatorSession?> GetSessionAsync(string id, string tenant, string principal, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(_sessions.TryGetValue(id, out var session) && IsOwned(session.Session, tenant, principal) ? session.Session : null);
+        lock (_gate)
+            return ValueTask.FromResult(_sessions.TryGetValue(id, out var session) && IsOwned(session.Session, tenant, principal) ? session.Session : null);
     }
 
     public ValueTask<NavigatorStoreOutcome> UpdateSessionSnapshotAsync(string id, string tenant, string principal, NavigatorSessionSnapshot snapshot, long expectedRevision, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (snapshot is null) return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
-        try { snapshot.Validate(); }
+        if (snapshot is null)
+            return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
+        try
+        { snapshot.Validate(); }
         catch (ArgumentException) { return ValueTask.FromResult(NavigatorStoreOutcome.Conflict); }
         lock (_gate)
         {
-            if (!Owned(id, tenant, principal)) return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
+            if (!Owned(id, tenant, principal))
+                return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
             var current = _sessions[id];
             if (!StringComparer.Ordinal.Equals(snapshot.SessionId, id) || !StringComparer.Ordinal.Equals(snapshot.TenantId, tenant) || !StringComparer.Ordinal.Equals(snapshot.PrincipalId, principal))
                 return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
@@ -65,7 +69,8 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
         ArgumentNullException.ThrowIfNull(approval);
         lock (_gate)
         {
-            if (!Owned(id, tenant, principal)) return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
+            if (!Owned(id, tenant, principal))
+                return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
             var key = (id, approval.CommandId);
             return ValueTask.FromResult(_approvals.TryAdd(key, approval) ? NavigatorStoreOutcome.Succeeded : NavigatorStoreOutcome.Conflict);
         }
@@ -77,19 +82,24 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
         ArgumentNullException.ThrowIfNull(receipt);
         lock (_gate)
         {
-            if (!Owned(id, tenant, principal)) return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.NotFound));
+            if (!Owned(id, tenant, principal))
+                return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.NotFound));
             var key = (id, commandId);
             var receiptKey = (tenant, principal, receipt.IdempotencyKey);
             if (_receipts.TryGetValue(receiptKey, out var previous))
             {
                 // An expired idempotency key cannot replay, even when the retry payload matches.
-                if (previous.ExpiresAt <= now) return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Expired));
+                if (previous.ExpiresAt <= now)
+                    return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Expired));
                 var matches = ReceiptMatches(previous, receipt);
                 return ValueTask.FromResult(new NavigatorStoreResult(matches ? NavigatorStoreOutcome.Succeeded : NavigatorStoreOutcome.Conflict, matches));
             }
-            if (!_approvals.TryGetValue(key, out var approval)) return ValueTask.FromResult(new NavigatorStoreResult(_consumed.Contains(key) ? NavigatorStoreOutcome.AlreadyConsumed : NavigatorStoreOutcome.NotFound));
-            if (approval.ExpiresAt <= now) return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Expired));
-            if (!StringComparer.Ordinal.Equals(approval.Digest, digest) || !StringComparer.Ordinal.Equals(approval.CommandId, receipt.CommandId)) return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Conflict));
+            if (!_approvals.TryGetValue(key, out var approval))
+                return ValueTask.FromResult(new NavigatorStoreResult(_consumed.Contains(key) ? NavigatorStoreOutcome.AlreadyConsumed : NavigatorStoreOutcome.NotFound));
+            if (approval.ExpiresAt <= now)
+                return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Expired));
+            if (!StringComparer.Ordinal.Equals(approval.Digest, digest) || !StringComparer.Ordinal.Equals(approval.CommandId, receipt.CommandId))
+                return ValueTask.FromResult(new NavigatorStoreResult(NavigatorStoreOutcome.Conflict));
             _approvals.Remove(key);
             _consumed.Add(key);
             _receipts.Add(receiptKey, receipt);
@@ -102,7 +112,8 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            if (!_receipts.TryGetValue((tenant, principal, idempotencyKey), out var receipt)) return ValueTask.FromResult<NavigatorReceiptRecord?>(null);
+            if (!_receipts.TryGetValue((tenant, principal, idempotencyKey), out var receipt))
+                return ValueTask.FromResult<NavigatorReceiptRecord?>(null);
             return ValueTask.FromResult<NavigatorReceiptRecord?>(receipt.ExpiresAt <= now ? null : receipt);
         }
     }
@@ -113,11 +124,14 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
         ArgumentNullException.ThrowIfNull(value);
         lock (_gate)
         {
-            if (!Owned(id, tenant, principal)) return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
-            if (!NavigatorEventTypes.IsSafe(value) || value.SessionId != id) return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
+            if (!Owned(id, tenant, principal))
+                return ValueTask.FromResult(NavigatorStoreOutcome.NotFound);
+            if (!NavigatorEventTypes.IsSafe(value) || value.SessionId != id)
+                return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
             var events = _events[id];
             var next = events.Count == 0 ? 1 : events[^1].Sequence + 1;
-            if (next != expectedSequence || value.Sequence != expectedSequence) return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
+            if (next != expectedSequence || value.Sequence != expectedSequence)
+                return ValueTask.FromResult(NavigatorStoreOutcome.Conflict);
             events.Add(value);
             return ValueTask.FromResult(NavigatorStoreOutcome.Succeeded);
         }
@@ -126,7 +140,8 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     public ValueTask<IReadOnlyList<NavigatorEvent>> GetEventsAsync(string id, string tenant, string principal, long afterSequence, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult<IReadOnlyList<NavigatorEvent>>(Owned(id, tenant, principal) ? _events[id].Where(item => item.Sequence > afterSequence).ToArray() : Array.Empty<NavigatorEvent>());
+        lock (_gate)
+            return ValueTask.FromResult<IReadOnlyList<NavigatorEvent>>(Owned(id, tenant, principal) ? _events[id].Where(item => item.Sequence > afterSequence).ToArray() : Array.Empty<NavigatorEvent>());
     }
 
     /// <summary>
@@ -136,7 +151,8 @@ public sealed class InMemoryDurableNavigatorStore : IDurableNavigatorStore
     public ValueTask<bool> IsFenceCurrentAsync(string tenant, string executionId, long fencingToken, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(executionId)) return ValueTask.FromResult(false);
+        if (string.IsNullOrWhiteSpace(tenant) || string.IsNullOrWhiteSpace(executionId))
+            return ValueTask.FromResult(false);
         lock (_gate)
         {
             var key = (tenant, executionId);

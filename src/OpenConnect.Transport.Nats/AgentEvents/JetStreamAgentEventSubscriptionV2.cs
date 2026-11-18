@@ -37,7 +37,8 @@ public sealed class JetStreamAgentEventSubscriptionV2(
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ConsumerName);
-        if (batchSize < 1) throw new InvalidOperationException("Batch size must be positive.");
+        if (batchSize < 1)
+            throw new InvalidOperationException("Batch size must be positive.");
         var types = options.EventTypes is { Length: > 0 } ? options.EventTypes : DefaultEventTypes;
         if (types.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("Event types cannot be empty.", nameof(options));

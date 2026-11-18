@@ -83,10 +83,17 @@ public sealed class MergeSynthesizeCompositionTests
         var ledger = new RunBudgetLedger(new AgentBudget(10, modelCalls, 1_000, TimeSpan.FromMinutes(1), 2, 2, 2));
         var context = new AgentExecutionContext
         {
-            TenantScope = "tenant", PrincipalOrWorkloadScope = "principal", IdentityKind = AgentIdentityMode.ActiveUser,
-            SessionId = new SessionId(Ulid.NewUlid()), TaskId = new TaskId(Ulid.NewUlid()),
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1,
-            PolicyRevision = 1, AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
+            TenantScope = "tenant",
+            PrincipalOrWorkloadScope = "principal",
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = new SessionId(Ulid.NewUlid()),
+            TaskId = new TaskId(Ulid.NewUlid()),
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
+            Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
             RemainingBudgets = ImmutableDictionary<string, long>.Empty
                 .Add("MaxToolCalls", 1).Add("MaxModelCalls", 1).Add("MaxTokens", 100)
                 .Add("MaxConcurrent", 2).Add("MaxQueued", 2).Add("MaxTotal", 2)

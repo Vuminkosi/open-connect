@@ -13,32 +13,30 @@
 // own DbContext (own pooled connection) to prove the fence is enforced by
 // persisted state, not by in-memory tracking.
 //
-// Image policy: postgres:16-alpine must already exist locally. If Docker or
-// the image is unavailable the test skips (returns) like the legacy suite;
-// it must never trigger a network pull in an offline lane.
+// Explicit opt-in only: OPENCONNECT_REQUIRE_POSTGRES_DOCKER_TESTS=true.
+// Ordinary runs report real xUnit skips before touching Docker. Opted-in runs
+// require the preloaded official postgres:16-alpine image and fail on startup errors.
 
+using DotNet.Testcontainers.Images;
 using Microsoft.EntityFrameworkCore;
 using OpenConnect.Persistence.EFCore.Context;
 using OpenConnect.Persistence.EFCore.Navigator;
 using Testcontainers.PostgreSql;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace OpenConnect.Persistence.EFCore.Tests;
 
 [Trait("Category", "PostgresDocker")]
-public sealed class NavigatorLeaseSeamFencingTests(ITestOutputHelper output)
+public sealed class NavigatorLeaseSeamFencingTests
 {
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
     private static readonly DateTimeOffset T0 =
         new DateTimeOffset(2026, 11, 9, 12, 0, 0, TimeSpan.Zero).AddTicks(1234567);
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Concurrent_acquire_from_independent_contexts_elects_single_holder_with_token_one()
     {
         await using var postgres = await StartPostgresAsync("navigator_seam_fencing_race");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -71,12 +69,10 @@ public sealed class NavigatorLeaseSeamFencingTests(ITestOutputHelper output)
         Assert.True(await new EfNavigatorLeaseSeam<OpenConnectDbContext>(witness).IsCurrentAsync(winner, T0));
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Takeover_after_expiry_advances_token_and_stale_lease_is_denied()
     {
         await using var postgres = await StartPostgresAsync("navigator_seam_fencing_takeover");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -115,12 +111,10 @@ public sealed class NavigatorLeaseSeamFencingTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresDockerFact]
     public async Task Release_retains_row_and_next_acquire_advances_token_one_two_three()
     {
         await using var postgres = await StartPostgresAsync("navigator_seam_fencing_release");
-        if (postgres is null)
-            return;
         var connectionString = postgres.GetConnectionString();
         await using (var init = CreateDb(connectionString))
             await init.Database.EnsureCreatedAsync();
@@ -165,32 +159,21 @@ public sealed class NavigatorLeaseSeamFencingTests(ITestOutputHelper output)
                 .IsCurrentAsync(reacquired, reacquireNow));
     }
 
-    private async Task<PostgreSqlContainer?> StartPostgresAsync(string database)
+    private static async Task<PostgreSqlContainer> StartPostgresAsync(string database)
     {
         var postgres = new PostgreSqlBuilder("postgres:16-alpine").WithDatabase(database)
+            .WithImagePullPolicy(PullPolicy.Never)
             .WithUsername("test").WithPassword("test").Build();
-        Exception? startupError = null;
-        for (var attempt = 1; attempt <= 2; attempt++)
+        try
         {
-            try
-            {
-                await postgres.StartAsync();
-                startupError = null;
-                break;
-            }
-            catch (Exception exception)
-            {
-                startupError = exception;
-            }
-        }
-
-        if (startupError is null)
+            await postgres.StartAsync();
             return postgres;
-        output.WriteLine(
-            $"SKIP PostgresDocker: Docker/Testcontainers could not start postgres:16-alpine " +
-            $"after 2 attempts: {startupError.Message}");
-        await postgres.DisposeAsync();
-        return null;
+        }
+        catch
+        {
+            await postgres.DisposeAsync();
+            throw;
+        }
     }
 
     private static OpenConnectDbContext CreateDb(string connectionString) =>

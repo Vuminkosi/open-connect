@@ -14,7 +14,7 @@ public sealed class MemoryStoreTests
         var document = await store.UpsertAsync(Write() with { ConsentToken = "approved" });
         Assert.Equal(1, document.Revision);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => store.UpsertAsync(Write() with
-            { WritePolicy = AgentMemoryWritePolicy.ExplicitApproved }).AsTask());
+        { WritePolicy = AgentMemoryWritePolicy.ExplicitApproved }).AsTask());
     }
 
     [Fact]
@@ -22,9 +22,9 @@ public sealed class MemoryStoreTests
     {
         var store = new InMemorySessionMemoryStore(["session"]);
         Assert.Equal("session", (await store.UpsertAsync(Write() with
-            { WritePolicy = AgentMemoryWritePolicy.ApplicationPolicy })).DataClass);
+        { WritePolicy = AgentMemoryWritePolicy.ApplicationPolicy })).DataClass);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => store.UpsertAsync(Write() with
-            { DataClass = "sensitive", WritePolicy = AgentMemoryWritePolicy.ApplicationPolicy }).AsTask());
+        { DataClass = "sensitive", WritePolicy = AgentMemoryWritePolicy.ApplicationPolicy }).AsTask());
     }
 
     [Fact]

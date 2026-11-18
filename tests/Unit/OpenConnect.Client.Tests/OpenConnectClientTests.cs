@@ -1,9 +1,10 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 namespace OpenConnect.Client.Tests;
+
 public sealed class OpenConnectClientTests
 {
     [Fact]
@@ -90,11 +91,13 @@ public sealed class OpenConnectClientTests
         Assert.Equal(CapabilityKind.Security, capability.Kind);
         Assert.Equal(DetectorState.Ready, capability.State);
     }
-    [Fact] public async Task Cancellation_is_forwarded()
+    [Fact]
+    public async Task Cancellation_is_forwarded()
     {
         var handler = new StubHandler(async (_, token) => { await Task.Delay(Timeout.Infinite, token); return new HttpResponseMessage(); });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
-        using var cts = new CancellationTokenSource(); cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid()), cts.Token));
     }
     [Fact]
@@ -113,7 +116,8 @@ public sealed class OpenConnectClientTests
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/openconnect/v1/") };
 
         var events = new List<EventRecord>();
-        await foreach (var item in new OpenConnectClient(http).SubscribeEventsAsync(sessionId, 17)) events.Add(item);
+        await foreach (var item in new OpenConnectClient(http).SubscribeEventsAsync(sessionId, 17))
+            events.Add(item);
 
         Assert.Empty(events);
     }
@@ -162,7 +166,8 @@ public sealed class OpenConnectClientTests
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
         {
-            await foreach (var _ in client.SubscribeEventsAsync(new SessionId(Ulid.NewUlid()), -1)) { }
+            await foreach (var _ in client.SubscribeEventsAsync(new SessionId(Ulid.NewUlid()), -1))
+            { }
         });
     }
     [Fact]

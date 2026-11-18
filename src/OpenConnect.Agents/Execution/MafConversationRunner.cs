@@ -41,7 +41,8 @@ public sealed class MafConversationRunner
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _leadAgentId = leadAgentId;
-        if (!Enum.IsDefined(concurrency)) throw new ArgumentOutOfRangeException(nameof(concurrency));
+        if (!Enum.IsDefined(concurrency))
+            throw new ArgumentOutOfRangeException(nameof(concurrency));
         _concurrency = concurrency;
         _runLedger = runLedger;
         _rateLimitGate = rateLimitGate;
@@ -60,7 +61,8 @@ public sealed class MafConversationRunner
     /// <summary>Returns trace records for actual calls made by this runner.</summary>
     public IReadOnlyList<ExecutionTraceRecord> GetTrace()
     {
-        lock (_sync) return _trace.ToArray();
+        lock (_sync)
+            return _trace.ToArray();
     }
 
     /// <summary>Runs a budgeted turn using conversation history and appends the actual response.</summary>
@@ -75,7 +77,8 @@ public sealed class MafConversationRunner
         PinMode(false, null);
         if (_concurrency == SessionTurnConcurrency.RejectConflict)
         {
-            if (!_turnGate.Wait(0)) throw new InvalidOperationException("A conversation turn is already active; concurrent turns are not allowed.");
+            if (!_turnGate.Wait(0))
+                throw new InvalidOperationException("A conversation turn is already active; concurrent turns are not allowed.");
         }
         else
         {
@@ -86,7 +89,8 @@ public sealed class MafConversationRunner
         try
         {
             // Fail before invoking MAF or recording trace/history when no monotonic sequence remains.
-            lock (_sync) _ = checked(_turnSequence + 1);
+            lock (_sync)
+                _ = checked(_turnSequence + 1);
             ThrowIfRateLimited(tenant, _leadAgentId.Value, Guid.NewGuid().ToString("N"), cancellationToken);
             ReserveModelCall(prompt);
             var agent = _leadAgent ?? _factory.CreateAgent(_leadAgentId);
@@ -131,7 +135,8 @@ public sealed class MafConversationRunner
                 if (promptIndex >= 0 && promptIndex < _history.Count && _history[promptIndex].Role == ChatRole.User && _history[promptIndex].Text == prompt)
                     _history.RemoveAt(promptIndex);
             }
-            if (executionId != Guid.Empty) CompleteTrace(executionId);
+            if (executionId != Guid.Empty)
+                CompleteTrace(executionId);
             throw;
         }
         finally
@@ -175,7 +180,8 @@ public sealed class MafConversationRunner
         }
 
         AgentSession? session;
-        lock (_sync) _childSessions.TryGetValue((childAgentId, childSessionKey), out session);
+        lock (_sync)
+            _childSessions.TryGetValue((childAgentId, childSessionKey), out session);
         if (session is null)
         {
             var createdSession = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
@@ -253,7 +259,8 @@ public sealed class MafConversationRunner
             try
             {
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
-                lock (_sync) _ = checked(_turnSequence + 1);
+                lock (_sync)
+                    _ = checked(_turnSequence + 1);
                 var agent = _factory.CreateAgent(_leadAgentId);
                 var loaded = await persistenceContext.Persistence.LoadAsync(agent, binding, ct).ConfigureAwait(false);
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
@@ -295,7 +302,8 @@ public sealed class MafConversationRunner
                     if (promptIndex >= 0 && promptIndex < _history.Count && _history[promptIndex].Role == ChatRole.User && _history[promptIndex].Text == prompt)
                         _history.RemoveAt(promptIndex);
                 }
-                if (executionId != Guid.Empty) CompleteTrace(executionId);
+                if (executionId != Guid.Empty)
+                    CompleteTrace(executionId);
                 throw;
             }
             finally
@@ -306,7 +314,8 @@ public sealed class MafConversationRunner
                 }
                 catch
                 {
-                    lock (_sync) _unusable = true;
+                    lock (_sync)
+                        _unusable = true;
                     // A known durable commit must remain an accurately reported success. If the turn
                     // itself failed, preserve that original failure rather than masking it with cleanup.
                     // No logging/diagnostic hook exists on this runner; future use fails closed.
@@ -326,7 +335,8 @@ public sealed class MafConversationRunner
             if (_durableMode is not null && (_durableMode != durable || (durable && _durableBinding != binding)))
                 throw new InvalidOperationException("A conversation runner cannot change persistence mode or durable session binding.");
             _durableMode ??= durable;
-            if (durable) _durableBinding ??= binding;
+            if (durable)
+                _durableBinding ??= binding;
         }
     }
 
@@ -383,7 +393,8 @@ public sealed class MafConversationRunner
     /// <remarks>Truly unattributed calls (missing tenant) deny fail-closed with no audit. Cancellation propagates as <see cref="OperationCanceledException"/>; other gate failures deny fail-closed.</remarks>
     private void ThrowIfRateLimited(string? tenant, string application, string executionId, CancellationToken cancellationToken)
     {
-        if (_rateLimitGate is null) return;
+        if (_rateLimitGate is null)
+            return;
         try
         {
             if (string.IsNullOrWhiteSpace(tenant))
@@ -418,7 +429,8 @@ public sealed class MafConversationRunner
 
     private void AddTrace(ExecutionTraceRecord record)
     {
-        lock (_sync) _trace.Add(record);
+        lock (_sync)
+            _trace.Add(record);
     }
 
     private void CompleteTrace(Guid id)
@@ -426,7 +438,8 @@ public sealed class MafConversationRunner
         lock (_sync)
         {
             var index = _trace.FindIndex(record => record.Id == id);
-            if (index >= 0) _trace[index] = _trace[index] with { CompletedAt = DateTimeOffset.UtcNow };
+            if (index >= 0)
+                _trace[index] = _trace[index] with { CompletedAt = DateTimeOffset.UtcNow };
         }
     }
 }

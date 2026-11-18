@@ -22,15 +22,18 @@ public sealed class OutboxRelay(IOutboxRelaySource source, NatsPublisher publish
 {
     public async Task<int> RelayOnceAsync(string subject, int limit, Guid leaseId, CancellationToken cancellationToken = default)
     {
-        if (limit < 1) throw new ArgumentOutOfRangeException(nameof(limit));
-        if (leaseId == Guid.Empty) throw new ArgumentException("Lease id is required.", nameof(leaseId));
+        if (limit < 1)
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        if (leaseId == Guid.Empty)
+            throw new ArgumentException("Lease id is required.", nameof(leaseId));
         var entries = await source.GetPendingAsync(limit, cancellationToken).ConfigureAwait(false);
         var delivered = 0;
         foreach (var entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var envelope = WorkerEnvelope.Parse(Encoding.UTF8.GetBytes(entry.Payload));
-            if (envelope.MessageId != entry.Id) throw new InvalidDataException("Outbox entry id must match envelope message id.");
+            if (envelope.MessageId != entry.Id)
+                throw new InvalidDataException("Outbox entry id must match envelope message id.");
             await publisher.PublishAsync(subject, Encoding.UTF8.GetBytes(entry.Payload), cancellationToken).ConfigureAwait(false);
             // Mark only after successful broker acknowledgement; exceptions leave the entry pending.
             await source.MarkDeliveredAsync(entry.Id, leaseId, cancellationToken).ConfigureAwait(false);

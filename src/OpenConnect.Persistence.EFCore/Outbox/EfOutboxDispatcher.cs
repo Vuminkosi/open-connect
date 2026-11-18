@@ -14,7 +14,8 @@ internal sealed class EfOutboxDispatcher
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(publisher);
-        if (maxAttempts is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
+        if (maxAttempts is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(maxAttempts));
 
         var dialect = EfOutboxClaimDialectSelector.Select(db, strategy);
         var claims = await dialect.ClaimBatchAsync(db, request, ct).ConfigureAwait(false);
@@ -24,17 +25,21 @@ internal sealed class EfOutboxDispatcher
             try
             {
                 var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                if (row is null) continue;
+                if (row is null)
+                    continue;
                 await publisher.PublishAsync(row.Subject, row.EventId, row.SanitizedPayload, ct).ConfigureAwait(false);
-                if (await dialect.CompleteClaimAsync(db, claim, ct).ConfigureAwait(false)) delivered++;
+                if (await dialect.CompleteClaimAsync(db, claim, ct).ConfigureAwait(false))
+                    delivered++;
             }
             catch (Exception)
             {
                 var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                if (row is null) continue;
+                if (row is null)
+                    continue;
                 row.Attempts++;
                 row.NextAttemptUtc = DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Math.Min(row.Attempts, 8))));
-                if (row.Attempts >= maxAttempts) row.Status = "quarantined";
+                if (row.Attempts >= maxAttempts)
+                    row.Status = "quarantined";
                 try
                 {
                     await db.SaveChangesAsync(ct).ConfigureAwait(false);

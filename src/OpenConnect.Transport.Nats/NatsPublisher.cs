@@ -11,7 +11,8 @@ public sealed class NatsPublisher(IJetStreamPublisher broker, int maxMessageByte
     public async ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> envelopeJson, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(subject);
-        if (envelopeJson.Length > maxMessageBytes) throw new ArgumentOutOfRangeException(nameof(envelopeJson), "Envelope exceeds the configured size limit.");
+        if (envelopeJson.Length > maxMessageBytes)
+            throw new ArgumentOutOfRangeException(nameof(envelopeJson), "Envelope exceeds the configured size limit.");
         var envelope = WorkerEnvelope.Parse(envelopeJson.Span);
         await broker.PublishAsync(subject, envelopeJson, envelope.MessageId.ToString("D"), cancellationToken).ConfigureAwait(false);
     }

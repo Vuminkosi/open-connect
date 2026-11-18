@@ -27,16 +27,19 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
     public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_gate) return ValueTask.FromResult(_manifest);
+        lock (_gate)
+            return ValueTask.FromResult(_manifest);
     }
 
     internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement, string routeId, string path,
         IReadOnlyDictionary<string, string?> destinationParents)
     {
-        if (validator.Validate(replacement).Count != 0) return false;
+        if (validator.Validate(replacement).Count != 0)
+            return false;
         lock (_gate)
         {
-            if (!ReferenceEquals(_manifest, expected)) return false;
+            if (!ReferenceEquals(_manifest, expected))
+                return false;
             _manifest = replacement;
             _runtimePaths[routeId] = path;
             _runtimeDestinations.Clear();
@@ -58,7 +61,8 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
             parentLabel = null;
             if (!(ReferenceEquals(_manifest, manifest) && context.CurrentPath is not null &&
                 _runtimeDestinations.TryGetValue(destinationId, out var source) &&
-                source.RouteId == context.CurrentRouteId && string.Equals(source.Path, context.CurrentPath, StringComparison.Ordinal))) return false;
+                source.RouteId == context.CurrentRouteId && string.Equals(source.Path, context.CurrentPath, StringComparison.Ordinal)))
+                return false;
             parentLabel = source.ParentLabel;
             return true;
         }

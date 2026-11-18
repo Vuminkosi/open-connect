@@ -114,7 +114,7 @@ public sealed class LiveUIProviderClientInteractionTests
                 builder.CloseComponent();
             }));
         var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page")
-            { ConnectionId = "test-connection" };
+        { ConnectionId = "test-connection" };
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
             JsonSerializer.Serialize(pageRequest, OpenConnectHttpJson.CreateOptions()))));
@@ -122,10 +122,11 @@ public sealed class LiveUIProviderClientInteractionTests
         var pageJson = client.Response!.PayloadJson;
         Assert.Contains("oc.runtime.discovered", pageJson, StringComparison.Ordinal);
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pageJson)));
-        if (pageChanged) context.Services.GetRequiredService<StaticRuntimeDiscovery>().Label = "Different control";
+        if (pageChanged)
+            context.Services.GetRequiredService<StaticRuntimeDiscovery>().Label = "Different control";
 
         var inference = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: "Open the control")
-            { ConnectionId = "test-connection", ScreenedPageDigest = digest };
+        { ConnectionId = "test-connection", ScreenedPageDigest = digest };
         await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
             new SessionId(Ulid.Parse(Session)), 2, ClientInteractionEventTypes.Request,
             JsonSerializer.Serialize(inference, OpenConnectHttpJson.CreateOptions()))));

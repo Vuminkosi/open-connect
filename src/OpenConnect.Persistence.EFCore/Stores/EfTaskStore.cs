@@ -17,7 +17,8 @@ internal sealed class EfTaskStore<TContext>(TContext context) : ITaskStore, ITas
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{acceptance.TaskId}:{acceptance.IdempotencyKey}"))).ToLowerInvariant();
         if (existing is not null)
         {
-            if (existing.TaskId != id) throw new InvalidOperationException($"{ErrorCodes.Conflict}: idempotency key already belongs to another task.");
+            if (existing.TaskId != id)
+                throw new InvalidOperationException($"{ErrorCodes.Conflict}: idempotency key already belongs to another task.");
             return new(acceptance.TaskId, acceptance.TenantId, acceptance.PrincipalId, Enum.Parse<AgentRunState>(existing.State));
         }
         // EF-02D master-approved interim mapping: no session is carried; payload-free canonical binding.
@@ -29,13 +30,15 @@ internal sealed class EfTaskStore<TContext>(TContext context) : ITaskStore, ITas
     public async Task<TaskRecord?> GetAsync(TaskId taskId, CancellationToken cancellationToken = default)
     {
         var e = await context.Set<TaskEntity>().AsNoTracking().SingleOrDefaultAsync(x => x.TaskId == UlidGuidMapper.ToGuid(taskId.Value), cancellationToken).ConfigureAwait(false);
-        if (e is null) return null;
+        if (e is null)
+            return null;
         return new(taskId, new(Ulid.Parse(e.TenantScope)), new(Ulid.Parse(e.PrincipalScope)), Enum.Parse<AgentRunState>(e.State));
     }
 
     public async Task<TaskRecord?> GetByIdempotencyKeyAsync(string clientTaskId, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken = default)
     {
-        var t = UlidGuidMapper.Scope(tenant.Value); var p = UlidGuidMapper.Scope(principal.Value);
+        var t = UlidGuidMapper.Scope(tenant.Value);
+        var p = UlidGuidMapper.Scope(principal.Value);
         var e = await context.Set<TaskEntity>().AsNoTracking().SingleOrDefaultAsync(x => x.ClientTaskId == clientTaskId && x.TenantScope == t && x.PrincipalScope == p, cancellationToken).ConfigureAwait(false);
         return e is null ? null : new(new(UlidGuidMapper.FromGuid(e.TaskId)), tenant, principal, Enum.Parse<AgentRunState>(e.State));
     }
@@ -53,7 +56,8 @@ internal sealed class EfTaskStore<TContext>(TContext context) : ITaskStore, ITas
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.State, newState.ToString()), cancellationToken)
             .ConfigureAwait(false);
 
-        if (affected == 0) return null;
+        if (affected == 0)
+            return null;
 
         // Observe the current scoped state after the successful compare-and-set. A later
         // lifecycle update may already have advanced it, so this is not necessarily newState.

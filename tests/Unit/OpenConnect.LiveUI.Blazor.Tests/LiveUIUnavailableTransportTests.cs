@@ -32,7 +32,8 @@ public sealed class LiveUIUnavailableTransportTests
             ? new GatewayWorkerLiveUIInferenceProvider(client)
             : new LocalWorkerLiveUIInferenceProvider(client, Options.Create(new LiveUIWorkerClientOptions
             {
-                Endpoint = client.BaseAddress, BearerToken = "acceptance-token"
+                Endpoint = client.BaseAddress,
+                BearerToken = "acceptance-token"
             }));
         var fallback = new RecordingFallback();
         var options = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.BrowserFirst };
@@ -71,8 +72,10 @@ public sealed class LiveUIUnavailableTransportTests
         using var connection = await listener.AcceptTcpClientAsync(cancellationToken);
         await using var stream = connection.GetStream();
         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
-        while (await reader.ReadLineAsync(cancellationToken) is { Length: > 0 }) { }
-        if (stop) listener.Stop();
+        while (await reader.ReadLineAsync(cancellationToken) is { Length: > 0 })
+        { }
+        if (stop)
+            listener.Stop();
         var payload = Encoding.UTF8.GetBytes(body);
         var headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(headers, cancellationToken);

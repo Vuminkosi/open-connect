@@ -31,8 +31,10 @@ public static class PlaywrightToolAllowlist
         toolName = string.Empty;
         normalizedArguments = default;
         denialReason = "action_not_allowed";
-        if (!Tools.TryGetValue(action, out var candidate)) return false;
-        if (arguments.ValueKind != JsonValueKind.Object) { denialReason = "invalid_arguments"; return false; }
+        if (!Tools.TryGetValue(action, out var candidate))
+            return false;
+        if (arguments.ValueKind != JsonValueKind.Object)
+        { denialReason = "invalid_arguments"; return false; }
 
         var allowedProperties = action switch
         {
@@ -64,15 +66,18 @@ public static class PlaywrightToolAllowlist
 
         if (action == NavigatorActionType.Fill)
         {
-            if (ContainsCredentialField(arguments)) { denialReason = "sensitive_input_denied"; return false; }
-            if (!HasTarget(arguments) || !TryGetString(arguments, "value", out var fillValue)) { denialReason = "explicit_target_required"; return false; }
+            if (ContainsCredentialField(arguments))
+            { denialReason = "sensitive_input_denied"; return false; }
+            if (!HasTarget(arguments) || !TryGetString(arguments, "value", out var fillValue))
+            { denialReason = "explicit_target_required"; return false; }
             TryGetString(arguments, "target", out var fillTarget);
             normalized["target"] = fillTarget.Trim();
             normalized["value"] = fillValue;
         }
         if (action == NavigatorActionType.Select)
         {
-            if (!HasTarget(arguments) || !TryGetString(arguments, "value", out var selectValue)) { denialReason = "invalid_arguments"; return false; }
+            if (!HasTarget(arguments) || !TryGetString(arguments, "value", out var selectValue))
+            { denialReason = "invalid_arguments"; return false; }
             TryGetString(arguments, "target", out var selectTarget);
             normalized["target"] = selectTarget.Trim();
             normalized["value"] = selectValue.Trim();
@@ -98,7 +103,8 @@ public static class PlaywrightToolAllowlist
     private static bool TryGetString(JsonElement value, string property, out string result)
     {
         result = string.Empty;
-        if (!value.TryGetProperty(property, out var element) || element.ValueKind != JsonValueKind.String) return false;
+        if (!value.TryGetProperty(property, out var element) || element.ValueKind != JsonValueKind.String)
+            return false;
         result = element.GetString() ?? string.Empty;
         return true;
     }
@@ -119,7 +125,8 @@ public static class PlaywrightToolAllowlist
                 name.Contains("credential", StringComparison.OrdinalIgnoreCase) ||
                 name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
                 name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("private", StringComparison.OrdinalIgnoreCase)) return true;
+                name.Contains("private", StringComparison.OrdinalIgnoreCase))
+                return true;
         }
         return false;
     }

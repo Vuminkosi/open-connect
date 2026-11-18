@@ -1,16 +1,16 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using System.Text;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
 using OpenConnect.Persistence.EFCore.Entities;
-using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Health;
+using OpenConnect.Persistence.EFCore.Model;
 using OpenConnect.Persistence.EFCore.Stores;
 using Xunit;
 
@@ -66,7 +66,8 @@ public sealed class RelationalPersistenceTests
                 Assert.Equal(1, await journal.AppendAsync(new(sessionId, 0, "created", "one")));
                 Assert.Equal(2, await journal.AppendAsync(new(sessionId, 0, "updated", "two")));
                 var events = new List<EventRecord>();
-                await foreach (var item in journal.ReplayAsync(sessionId)) events.Add(item);
+                await foreach (var item in journal.ReplayAsync(sessionId))
+                    events.Add(item);
                 Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Sequence));
                 Assert.Equal(new[] { "created", "updated" }, events.Select(e => e.Type));
                 var outbox = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
@@ -347,7 +348,8 @@ public sealed class RelationalPersistenceTests
         }
         finally
         {
-            if (File.Exists(file)) File.Delete(file);
+            if (File.Exists(file))
+                File.Delete(file);
         }
     }
 

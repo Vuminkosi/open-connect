@@ -89,7 +89,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
             throw FailClosed();
         }
 
-        if (context is null) throw FailClosed();
+        if (context is null)
+            throw FailClosed();
 
         var guarded = new List<ChatMessage>();
         foreach (var message in messages)
@@ -113,7 +114,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
             {
                 if (content is TextContent)
                 {
-                    if (!addedText && safeText is not null) contents.Add(new TextContent(safeText));
+                    if (!addedText && safeText is not null)
+                        contents.Add(new TextContent(safeText));
                     addedText = true;
                 }
                 else if (content is FunctionCallContent call && call.Arguments is not null)
@@ -140,7 +142,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
                     }
                     catch (JsonException) { throw FailClosed(); }
                 }
-                else contents.Add(content);
+                else
+                    contents.Add(content);
             }
             sanitized.Contents = contents;
             sanitized.RawRepresentation = null;
@@ -169,7 +172,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
     private async Task<string> SanitizeJsonAsync(object value, EgressContext context, CancellationToken cancellationToken)
     {
         string json;
-        try { json = JsonSerializer.Serialize(value, EgressJsonOptions); }
+        try
+        { json = JsonSerializer.Serialize(value, EgressJsonOptions); }
         catch (Exception exception) when (exception is not OperationCanceledException) { throw FailClosed(); }
         return await SanitizeAsync(json, context, cancellationToken).ConfigureAwait(false);
     }
@@ -177,10 +181,12 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
     private async Task<string> SanitizeAsync(string content, EgressContext context, CancellationToken cancellationToken)
     {
         EgressDecision decision;
-        try { decision = await _gate.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false); }
+        try
+        { decision = await _gate.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) { throw; }
         catch { throw FailClosed(); }
-        if (decision is null || !decision.Allowed || decision.SanitizedContent is null) throw FailClosed();
+        if (decision is null || !decision.Allowed || decision.SanitizedContent is null)
+            throw FailClosed();
         return decision.SanitizedContent;
     }
 
