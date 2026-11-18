@@ -11,6 +11,7 @@ OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.MarkStarted
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.ReportProgress(OpenConnect.Abstractions.Ulid invocationId, string! phase, long completedUnits, long? totalUnits, string? localizedStatusKey = null, bool isHeartbeat = false) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker.RequestCancellation(OpenConnect.Abstractions.Ulid invocationId) -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord!
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CanonicalArgumentHash.get -> string!
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CanonicalArgumentHash.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CompletedAt.get -> System.DateTimeOffset?
@@ -21,7 +22,9 @@ OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CreatedAt.g
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CreatedAt.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CurrentPhase.get -> string?
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.CurrentPhase.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Deconstruct(out OpenConnect.Abstractions.Ulid InvocationId, out OpenConnect.Abstractions.TaskId TaskId, out OpenConnect.Abstractions.SessionId SessionId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! ToolId, out string! ToolRevision, out OpenConnect.Abstractions.ToolExecutionMode ExecutionMode, out OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus Status, out string! CanonicalArgumentHash, out string? CurrentPhase, out long CompletedUnits, out long? TotalUnits, out string? LocalizedStatusKey, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset? LastHeartbeatAt, out System.DateTimeOffset? CompletedAt, out string? ErrorMessage) -> void
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.DurableToolInvocationRecord(OpenConnect.Abstractions.Ulid InvocationId, OpenConnect.Abstractions.TaskId TaskId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! ToolId, string! ToolRevision, OpenConnect.Abstractions.ToolExecutionMode ExecutionMode, OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus Status, string! CanonicalArgumentHash, string? CurrentPhase, long CompletedUnits, long? TotalUnits, string? LocalizedStatusKey, System.DateTimeOffset CreatedAt, System.DateTimeOffset? LastHeartbeatAt, System.DateTimeOffset? CompletedAt, string? ErrorMessage) -> void
+OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Equals(OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? other) -> bool
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ErrorMessage.get -> string?
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ErrorMessage.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ExecutionMode.get -> OpenConnect.Abstractions.ToolExecutionMode
@@ -56,8 +59,11 @@ OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.IsExecutionRevok
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.PersistenceContext.get -> OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext!
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskAgentExecution.Runner.get -> OpenConnect.Agents.Execution.MafConversationRunner!
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution!
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.ClientConnectionId.get -> string?
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.ClientConnectionId.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.Deconstruct(out OpenConnect.Abstractions.TaskId TaskId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.SessionId SessionId, out string! Message, out string! IdempotencyKey) -> void
+OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.Equals(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution? other) -> bool
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.HostTaskExecution(OpenConnect.Abstractions.TaskId TaskId, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, string! Message, string! IdempotencyKey) -> void
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.IdempotencyKey.get -> string!
 OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.IdempotencyKey.init -> void
@@ -94,10 +100,13 @@ OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWork
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWorkflowApprovalBridge(OpenConnect.Agents.Execution.NativeWorkflowInteraction! interaction, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope! expectedScope, string! expectedArgumentsHash, string! expectedToolRevision, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isExecutionRevokedAsync, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>? isGrantValidAsync, System.TimeProvider? timeProvider, System.Func<string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! tryConsumeNonceAsync) -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.PendingRequest.get -> Microsoft.Agents.AI.Workflows.ExternalRequest?
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision!
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Approved.get -> bool
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Approved.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ArgumentsHash.get -> string!
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ArgumentsHash.init -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Deconstruct(out bool Approved, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.SessionId SessionId, out OpenConnect.Abstractions.TaskId TaskId, out string! RequestId, out string! ArgumentsHash, out string! ToolRevision, out string! Nonce, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Equals(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision? other) -> bool
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ExpiresAt.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.NativeWorkflowApprovalDecision(bool Approved, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TaskId TaskId, string! RequestId, string! ArgumentsHash, string! ToolRevision, string! Nonce, System.DateTimeOffset ExpiresAt) -> void
@@ -116,6 +125,9 @@ OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.TenantId
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ToolRevision.get -> string!
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ToolRevision.init -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope!
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.SessionId SessionId, out OpenConnect.Abstractions.TaskId TaskId) -> void
+OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.Equals(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope? other) -> bool
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.NativeWorkflowApprovalScope(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.SessionId SessionId, OpenConnect.Abstractions.TaskId TaskId) -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.PrincipalId.init -> void
@@ -173,8 +185,11 @@ OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtec
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.UnprotectAsync(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding! binding, System.ReadOnlyMemory<byte> ciphertext, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
 OpenConnect.Hosting.AspNetCore.Protection.NativeAgentSessionProtectionServiceCollectionExtensions
 OpenConnect.Hosting.AspNetCore.SessionRecord
+OpenConnect.Hosting.AspNetCore.SessionRecord.<Clone>$() -> OpenConnect.Hosting.AspNetCore.SessionRecord!
 OpenConnect.Hosting.AspNetCore.SessionRecord.CreatedAt.get -> System.DateTimeOffset
 OpenConnect.Hosting.AspNetCore.SessionRecord.CreatedAt.init -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.Deconstruct(out OpenConnect.Abstractions.SessionId Id, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Hosting.AspNetCore.SessionRecord.Equals(OpenConnect.Hosting.AspNetCore.SessionRecord? other) -> bool
 OpenConnect.Hosting.AspNetCore.SessionRecord.Id.get -> OpenConnect.Abstractions.SessionId
 OpenConnect.Hosting.AspNetCore.SessionRecord.Id.init -> void
 OpenConnect.Hosting.AspNetCore.SessionRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
@@ -183,24 +198,65 @@ OpenConnect.Hosting.AspNetCore.SessionRecord.SessionRecord(OpenConnect.Abstracti
 OpenConnect.Hosting.AspNetCore.SessionRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Hosting.AspNetCore.SessionRecord.TenantId.init -> void
 OpenConnect.Hosting.AspNetCore.SessionRequest
+OpenConnect.Hosting.AspNetCore.SessionRequest.<Clone>$() -> OpenConnect.Hosting.AspNetCore.SessionRequest!
+OpenConnect.Hosting.AspNetCore.SessionRequest.Deconstruct(out string? Name) -> void
+OpenConnect.Hosting.AspNetCore.SessionRequest.Equals(OpenConnect.Hosting.AspNetCore.SessionRequest? other) -> bool
 OpenConnect.Hosting.AspNetCore.SessionRequest.Name.get -> string?
 OpenConnect.Hosting.AspNetCore.SessionRequest.Name.init -> void
 OpenConnect.Hosting.AspNetCore.SessionRequest.SessionRequest(string? Name = null) -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest
+OpenConnect.Hosting.AspNetCore.TaskRequest.<Clone>$() -> OpenConnect.Hosting.AspNetCore.TaskRequest!
 OpenConnect.Hosting.AspNetCore.TaskRequest.ClientConnectionId.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.ClientConnectionId.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.ClientTaskId.get -> string!
 OpenConnect.Hosting.AspNetCore.TaskRequest.ClientTaskId.init -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest.Deconstruct(out string! ClientTaskId, out string? Message, out string? SessionId) -> void
+OpenConnect.Hosting.AspNetCore.TaskRequest.Equals(OpenConnect.Hosting.AspNetCore.TaskRequest? other) -> bool
 OpenConnect.Hosting.AspNetCore.TaskRequest.Message.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.Message.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.TaskRequest(string! ClientTaskId, string? Message = null, string? SessionId = null) -> void
+override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.SessionRecord.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.SessionRecord.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.SessionRecord.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.SessionRequest.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.SessionRequest.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.SessionRequest.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.TaskRequest.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.TaskRequest.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.TaskRequest.ToString() -> string!
 static OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter.TryToCanonical(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionUuid, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnect(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectMcp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectNavigator(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectVoice(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.operator !=(OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? left, OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.operator ==(OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? left, OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.operator !=(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution? left, OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution.operator ==(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution? left, OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution? right) -> bool
 static OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecutionServiceCollectionExtensions.AddOpenConnectTaskExecution(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Hosting.AspNetCore.Execution.OpenConnectTaskExecutionOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutionServiceCollectionExtensions.AddMafHostTaskExecutor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.operator !=(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision? left, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision.operator ==(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision? left, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.operator !=(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope? left, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope.operator ==(OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope? left, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope? right) -> bool
 static OpenConnect.Hosting.AspNetCore.Protection.NativeAgentSessionProtectionServiceCollectionExtensions.AddOpenConnectNativeAgentSessionProtection(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.SessionRecord.operator !=(OpenConnect.Hosting.AspNetCore.SessionRecord? left, OpenConnect.Hosting.AspNetCore.SessionRecord? right) -> bool
+static OpenConnect.Hosting.AspNetCore.SessionRecord.operator ==(OpenConnect.Hosting.AspNetCore.SessionRecord? left, OpenConnect.Hosting.AspNetCore.SessionRecord? right) -> bool
+static OpenConnect.Hosting.AspNetCore.SessionRequest.operator !=(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
+static OpenConnect.Hosting.AspNetCore.SessionRequest.operator ==(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
+static OpenConnect.Hosting.AspNetCore.TaskRequest.operator !=(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
+static OpenConnect.Hosting.AspNetCore.TaskRequest.operator ==(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool

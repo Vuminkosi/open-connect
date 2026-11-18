@@ -33,8 +33,11 @@ OpenConnect.Observability.SafeActivityListener.Dispose() -> void
 OpenConnect.Observability.SafeActivityListener.SafeActivityListener(OpenConnect.Observability.ITelemetryPrivacyFilter? filter = null) -> void
 OpenConnect.Observability.SafeExporter
 OpenConnect.Observability.TelemetryAttribute
+OpenConnect.Observability.TelemetryAttribute.<Clone>$() -> OpenConnect.Observability.TelemetryAttribute!
 OpenConnect.Observability.TelemetryAttribute.Classification.get -> OpenConnect.Observability.TelemetryDataClassification
 OpenConnect.Observability.TelemetryAttribute.Classification.init -> void
+OpenConnect.Observability.TelemetryAttribute.Deconstruct(out string! Name, out object? Value, out OpenConnect.Observability.TelemetryDataClassification Classification) -> void
+OpenConnect.Observability.TelemetryAttribute.Equals(OpenConnect.Observability.TelemetryAttribute? other) -> bool
 OpenConnect.Observability.TelemetryAttribute.Name.get -> string!
 OpenConnect.Observability.TelemetryAttribute.Name.init -> void
 OpenConnect.Observability.TelemetryAttribute.TelemetryAttribute(string! Name, object? Value, OpenConnect.Observability.TelemetryDataClassification Classification = OpenConnect.Observability.TelemetryDataClassification.Unknown) -> void
@@ -97,8 +100,13 @@ OpenConnect.Observability.TelemetrySanitizationAction.Mask = 3 -> OpenConnect.Ob
 OpenConnect.Observability.TelemetrySanitizationAction.Pseudonymize = 4 -> OpenConnect.Observability.TelemetrySanitizationAction
 OpenConnect.Observability.TelemetrySanitizationAction.Redact = 2 -> OpenConnect.Observability.TelemetrySanitizationAction
 const OpenConnect.Observability.Instrumentation.MetadataOnly = "MetadataOnly" -> string!
+override OpenConnect.Observability.TelemetryAttribute.Equals(object? obj) -> bool
+override OpenConnect.Observability.TelemetryAttribute.GetHashCode() -> int
+override OpenConnect.Observability.TelemetryAttribute.ToString() -> string!
 static OpenConnect.Observability.Instrumentation.AllowlistedTags(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>! dimensions) -> System.Collections.Generic.KeyValuePair<string!, object?>[]!
 static OpenConnect.Observability.Instrumentation.SafeRecordVector(double durationMilliseconds, string! operation, string! outcome) -> void
 static OpenConnect.Observability.Instrumentation.SafeStartActivity(string! source, string! operation, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, object?>>? tags = null, System.Diagnostics.ActivityKind kind = System.Diagnostics.ActivityKind.Internal) -> System.Diagnostics.Activity?
 static OpenConnect.Observability.SafeExporter.ValidateAndSanitizeActivity(System.Diagnostics.Activity! activity, OpenConnect.Observability.ITelemetryPrivacyFilter? filter = null) -> bool
+static OpenConnect.Observability.TelemetryAttribute.operator !=(OpenConnect.Observability.TelemetryAttribute? left, OpenConnect.Observability.TelemetryAttribute? right) -> bool
+static OpenConnect.Observability.TelemetryAttribute.operator ==(OpenConnect.Observability.TelemetryAttribute? left, OpenConnect.Observability.TelemetryAttribute? right) -> bool
 static OpenConnect.Observability.TelemetryPrivacy.CreateDefault() -> (OpenConnect.Observability.ITelemetryPrivacyFilter! Filter, OpenConnect.Observability.ITelemetryExportValidator! Validator)

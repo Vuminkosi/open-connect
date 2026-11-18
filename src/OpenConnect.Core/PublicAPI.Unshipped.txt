@@ -22,9 +22,12 @@ OpenConnect.Core.CloudTranscriptionPolicyEvaluator
 OpenConnect.Core.CloudTranscriptionPolicyEvaluator.CloudTranscriptionPolicyEvaluator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.CloudTranscriptionOptions!>! options, Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectOptions!>! coreOptions) -> void
 OpenConnect.Core.CloudTranscriptionPolicyEvaluator.EvaluateAudioEgress() -> OpenConnect.Core.CloudTranscriptionRouteDecision!
 OpenConnect.Core.CloudTranscriptionRouteDecision
+OpenConnect.Core.CloudTranscriptionRouteDecision.<Clone>$() -> OpenConnect.Core.CloudTranscriptionRouteDecision!
 OpenConnect.Core.CloudTranscriptionRouteDecision.Allowed.get -> bool
 OpenConnect.Core.CloudTranscriptionRouteDecision.Allowed.init -> void
 OpenConnect.Core.CloudTranscriptionRouteDecision.CloudTranscriptionRouteDecision(bool Allowed, string? ErrorCode, string! Reason) -> void
+OpenConnect.Core.CloudTranscriptionRouteDecision.Deconstruct(out bool Allowed, out string? ErrorCode, out string! Reason) -> void
+OpenConnect.Core.CloudTranscriptionRouteDecision.Equals(OpenConnect.Core.CloudTranscriptionRouteDecision? other) -> bool
 OpenConnect.Core.CloudTranscriptionRouteDecision.ErrorCode.get -> string?
 OpenConnect.Core.CloudTranscriptionRouteDecision.ErrorCode.init -> void
 OpenConnect.Core.CloudTranscriptionRouteDecision.Reason.get -> string!
@@ -443,10 +446,13 @@ OpenConnect.Core.OpenConnectOptionsValidator
 OpenConnect.Core.OpenConnectOptionsValidator.OpenConnectOptionsValidator() -> void
 OpenConnect.Core.OpenConnectOptionsValidator.Validate(string? name, OpenConnect.Core.Configuration.OpenConnectOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 OpenConnect.Core.RecordedAudioUpload
+OpenConnect.Core.RecordedAudioUpload.<Clone>$() -> OpenConnect.Core.RecordedAudioUpload!
 OpenConnect.Core.RecordedAudioUpload.ByteLength.get -> int
 OpenConnect.Core.RecordedAudioUpload.ByteLength.init -> void
 OpenConnect.Core.RecordedAudioUpload.ConfirmedByUser.get -> bool
 OpenConnect.Core.RecordedAudioUpload.ConfirmedByUser.init -> void
+OpenConnect.Core.RecordedAudioUpload.Deconstruct(out string! MimeType, out int ByteLength, out string! Sha256Hex, out bool ConfirmedByUser) -> void
+OpenConnect.Core.RecordedAudioUpload.Equals(OpenConnect.Core.RecordedAudioUpload? other) -> bool
 OpenConnect.Core.RecordedAudioUpload.MimeType.get -> string!
 OpenConnect.Core.RecordedAudioUpload.MimeType.init -> void
 OpenConnect.Core.RecordedAudioUpload.RecordedAudioUpload(string! MimeType, int ByteLength, string! Sha256Hex, bool ConfirmedByUser) -> void
@@ -456,8 +462,11 @@ OpenConnect.Core.Runtime.InstructionLoader
 OpenConnect.Core.Runtime.InstructionLoader.InstructionLoader(string! contentRoot, int maximumBytes = 65536) -> void
 OpenConnect.Core.Runtime.InstructionLoader.LoadAsync(string! relativePath = "agent-runtime.md", System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Core.Runtime.LoadedInstructions!>!
 OpenConnect.Core.Runtime.LoadedInstructions
+OpenConnect.Core.Runtime.LoadedInstructions.<Clone>$() -> OpenConnect.Core.Runtime.LoadedInstructions!
 OpenConnect.Core.Runtime.LoadedInstructions.Content.get -> string!
 OpenConnect.Core.Runtime.LoadedInstructions.Content.init -> void
+OpenConnect.Core.Runtime.LoadedInstructions.Deconstruct(out string! Content, out string! Revision) -> void
+OpenConnect.Core.Runtime.LoadedInstructions.Equals(OpenConnect.Core.Runtime.LoadedInstructions? other) -> bool
 OpenConnect.Core.Runtime.LoadedInstructions.LoadedInstructions(string! Content, string! Revision) -> void
 OpenConnect.Core.Runtime.LoadedInstructions.Revision.get -> string!
 OpenConnect.Core.Runtime.LoadedInstructions.Revision.init -> void
@@ -468,8 +477,11 @@ OpenConnect.Core.ServerSileroVadEngine.ProcessPcmFrame(string! captureId, OpenCo
 OpenConnect.Core.ServerSileroVadEngine.ServerSileroVadEngine(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.ServerVadSileroOptions!>! options) -> void
 OpenConnect.Core.ServerSileroVadEngine.TryGetRecurrentStateSnapshot(string! captureId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, out float[]! recurrentState, out float[]! context) -> bool
 OpenConnect.Core.ServerVadFrameResult
+OpenConnect.Core.ServerVadFrameResult.<Clone>$() -> OpenConnect.Core.ServerVadFrameResult!
 OpenConnect.Core.ServerVadFrameResult.CaptureId.get -> string!
 OpenConnect.Core.ServerVadFrameResult.CaptureId.init -> void
+OpenConnect.Core.ServerVadFrameResult.Deconstruct(out string! CaptureId, out long Sequence, out long SourceSampleOffset, out int ProcessedFrames16k, out float SpeechProbability, out bool IsSpeech, out bool StateWasReset, out int ResetCount) -> void
+OpenConnect.Core.ServerVadFrameResult.Equals(OpenConnect.Core.ServerVadFrameResult? other) -> bool
 OpenConnect.Core.ServerVadFrameResult.IsSpeech.get -> bool
 OpenConnect.Core.ServerVadFrameResult.IsSpeech.init -> void
 OpenConnect.Core.ServerVadFrameResult.ProcessedFrames16k.get -> int
@@ -496,8 +508,11 @@ OpenConnect.Core.VadLocation.Disabled = 0 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VadLocation.Hybrid = 3 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VadLocation.Server = 2 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VoiceTurnCommitResult
+OpenConnect.Core.VoiceTurnCommitResult.<Clone>$() -> OpenConnect.Core.VoiceTurnCommitResult!
 OpenConnect.Core.VoiceTurnCommitResult.Committed.get -> bool
 OpenConnect.Core.VoiceTurnCommitResult.Committed.init -> void
+OpenConnect.Core.VoiceTurnCommitResult.Deconstruct(out bool Committed, out string? TurnId, out long SpeechEpoch, out string? Transcript, out string? RejectionReason) -> void
+OpenConnect.Core.VoiceTurnCommitResult.Equals(OpenConnect.Core.VoiceTurnCommitResult? other) -> bool
 OpenConnect.Core.VoiceTurnCommitResult.RejectionReason.get -> string?
 OpenConnect.Core.VoiceTurnCommitResult.RejectionReason.init -> void
 OpenConnect.Core.VoiceTurnCommitResult.SpeechEpoch.get -> long
@@ -519,10 +534,33 @@ const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> 
 const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
 const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
 const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
+override OpenConnect.Core.CloudTranscriptionRouteDecision.Equals(object? obj) -> bool
+override OpenConnect.Core.CloudTranscriptionRouteDecision.GetHashCode() -> int
+override OpenConnect.Core.CloudTranscriptionRouteDecision.ToString() -> string!
+override OpenConnect.Core.RecordedAudioUpload.Equals(object? obj) -> bool
+override OpenConnect.Core.RecordedAudioUpload.GetHashCode() -> int
+override OpenConnect.Core.RecordedAudioUpload.ToString() -> string!
+override OpenConnect.Core.Runtime.LoadedInstructions.Equals(object? obj) -> bool
+override OpenConnect.Core.Runtime.LoadedInstructions.GetHashCode() -> int
+override OpenConnect.Core.Runtime.LoadedInstructions.ToString() -> string!
+override OpenConnect.Core.ServerVadFrameResult.Equals(object? obj) -> bool
+override OpenConnect.Core.ServerVadFrameResult.GetHashCode() -> int
+override OpenConnect.Core.ServerVadFrameResult.ToString() -> string!
+override OpenConnect.Core.VoiceTurnCommitResult.Equals(object? obj) -> bool
+override OpenConnect.Core.VoiceTurnCommitResult.GetHashCode() -> int
+override OpenConnect.Core.VoiceTurnCommitResult.ToString() -> string!
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.CanonicalDockerImages.get -> System.Collections.Generic.IReadOnlyDictionary<OpenConnect.Abstractions.OpenConnectWorkerKind, string!>!
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetCanonicalDockerImage(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> string!
+static OpenConnect.Core.CloudTranscriptionRouteDecision.operator !=(OpenConnect.Core.CloudTranscriptionRouteDecision? left, OpenConnect.Core.CloudTranscriptionRouteDecision? right) -> bool
+static OpenConnect.Core.CloudTranscriptionRouteDecision.operator ==(OpenConnect.Core.CloudTranscriptionRouteDecision? left, OpenConnect.Core.CloudTranscriptionRouteDecision? right) -> bool
 static OpenConnect.Core.Configuration.AgentOptionsMapping.ToRunBudget(OpenConnect.Core.Configuration.AgentRegistryOptions! options) -> OpenConnect.Abstractions.AgentBudget!
 static OpenConnect.Core.Configuration.OpenConnectConfigurationBinder.Bind(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! configurationValues, string! sectionPrefix = "OpenConnect") -> OpenConnect.Core.Configuration.OpenConnectOptions!
+static OpenConnect.Core.RecordedAudioUpload.operator !=(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
+static OpenConnect.Core.RecordedAudioUpload.operator ==(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
+static OpenConnect.Core.Runtime.LoadedInstructions.operator !=(OpenConnect.Core.Runtime.LoadedInstructions? left, OpenConnect.Core.Runtime.LoadedInstructions? right) -> bool
+static OpenConnect.Core.Runtime.LoadedInstructions.operator ==(OpenConnect.Core.Runtime.LoadedInstructions? left, OpenConnect.Core.Runtime.LoadedInstructions? right) -> bool
+static OpenConnect.Core.ServerVadFrameResult.operator !=(OpenConnect.Core.ServerVadFrameResult? left, OpenConnect.Core.ServerVadFrameResult? right) -> bool
+static OpenConnect.Core.ServerVadFrameResult.operator ==(OpenConnect.Core.ServerVadFrameResult? left, OpenConnect.Core.ServerVadFrameResult? right) -> bool
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnect(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectClassificationWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.ClassificationWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectCloudTranscription(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.CloudTranscriptionOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
@@ -546,5 +584,7 @@ static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTool<TTool>(th
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranscriptionWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranscriptionWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranslationWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranslationWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectVoice(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.VoiceTurnCommitResult.operator !=(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
+static OpenConnect.Core.VoiceTurnCommitResult.operator ==(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
 static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
 virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!

@@ -1,16 +1,22 @@
 #nullable enable
 OpenConnect.Privacy.DetectorResult
+OpenConnect.Privacy.DetectorResult.<Clone>$() -> OpenConnect.Privacy.DetectorResult!
 OpenConnect.Privacy.DetectorResult.Available.get -> bool
 OpenConnect.Privacy.DetectorResult.Available.init -> void
+OpenConnect.Privacy.DetectorResult.Deconstruct(out bool Available, out string! SanitizedContent, out System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities) -> void
 OpenConnect.Privacy.DetectorResult.DetectedEntities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>!
 OpenConnect.Privacy.DetectorResult.DetectedEntities.init -> void
 OpenConnect.Privacy.DetectorResult.DetectorResult(bool Available, string! SanitizedContent, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities) -> void
+OpenConnect.Privacy.DetectorResult.Equals(OpenConnect.Privacy.DetectorResult? other) -> bool
 OpenConnect.Privacy.DetectorResult.SanitizedContent.get -> string!
 OpenConnect.Privacy.DetectorResult.SanitizedContent.init -> void
 OpenConnect.Privacy.EgressContext
+OpenConnect.Privacy.EgressContext.<Clone>$() -> OpenConnect.Privacy.EgressContext!
+OpenConnect.Privacy.EgressContext.Deconstruct(out OpenConnect.Abstractions.TenantId Tenant, out OpenConnect.Abstractions.PrincipalId Principal, out OpenConnect.Abstractions.SessionId Session, out OpenConnect.Privacy.EgressDestination Destination) -> void
 OpenConnect.Privacy.EgressContext.Destination.get -> OpenConnect.Privacy.EgressDestination
 OpenConnect.Privacy.EgressContext.Destination.init -> void
 OpenConnect.Privacy.EgressContext.EgressContext(OpenConnect.Abstractions.TenantId Tenant, OpenConnect.Abstractions.PrincipalId Principal, OpenConnect.Abstractions.SessionId Session, OpenConnect.Privacy.EgressDestination Destination) -> void
+OpenConnect.Privacy.EgressContext.Equals(OpenConnect.Privacy.EgressContext? other) -> bool
 OpenConnect.Privacy.EgressContext.Principal.get -> OpenConnect.Abstractions.PrincipalId
 OpenConnect.Privacy.EgressContext.Principal.init -> void
 OpenConnect.Privacy.EgressContext.Session.get -> OpenConnect.Abstractions.SessionId
@@ -18,13 +24,16 @@ OpenConnect.Privacy.EgressContext.Session.init -> void
 OpenConnect.Privacy.EgressContext.Tenant.get -> OpenConnect.Abstractions.TenantId
 OpenConnect.Privacy.EgressContext.Tenant.init -> void
 OpenConnect.Privacy.EgressDecision
+OpenConnect.Privacy.EgressDecision.<Clone>$() -> OpenConnect.Privacy.EgressDecision!
 OpenConnect.Privacy.EgressDecision.Action.get -> OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Privacy.EgressDecision.Action.init -> void
 OpenConnect.Privacy.EgressDecision.Allowed.get -> bool
 OpenConnect.Privacy.EgressDecision.Allowed.init -> void
+OpenConnect.Privacy.EgressDecision.Deconstruct(out bool Allowed, out string? SanitizedContent, out System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities, out OpenConnect.Abstractions.SecurityPolicyAction Action, out string! Reason) -> void
 OpenConnect.Privacy.EgressDecision.DetectedEntities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>!
 OpenConnect.Privacy.EgressDecision.DetectedEntities.init -> void
 OpenConnect.Privacy.EgressDecision.EgressDecision(bool Allowed, string? SanitizedContent, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! DetectedEntities, OpenConnect.Abstractions.SecurityPolicyAction Action, string! Reason) -> void
+OpenConnect.Privacy.EgressDecision.Equals(OpenConnect.Privacy.EgressDecision? other) -> bool
 OpenConnect.Privacy.EgressDecision.Reason.get -> string!
 OpenConnect.Privacy.EgressDecision.Reason.init -> void
 OpenConnect.Privacy.EgressDecision.SanitizedContent.get -> string?
@@ -38,9 +47,12 @@ OpenConnect.Privacy.EgressDestination.Tool = 1 -> OpenConnect.Privacy.EgressDest
 OpenConnect.Privacy.EgressDestination.WebSocket = 5 -> OpenConnect.Privacy.EgressDestination
 OpenConnect.Privacy.EgressDestination.Worker = 2 -> OpenConnect.Privacy.EgressDestination
 OpenConnect.Privacy.EntitySpan
+OpenConnect.Privacy.EntitySpan.<Clone>$() -> OpenConnect.Privacy.EntitySpan!
+OpenConnect.Privacy.EntitySpan.Deconstruct(out int Start, out int Length, out string! EntityType) -> void
 OpenConnect.Privacy.EntitySpan.EntitySpan(int Start, int Length, string! EntityType) -> void
 OpenConnect.Privacy.EntitySpan.EntityType.get -> string!
 OpenConnect.Privacy.EntitySpan.EntityType.init -> void
+OpenConnect.Privacy.EntitySpan.Equals(OpenConnect.Privacy.EntitySpan? other) -> bool
 OpenConnect.Privacy.EntitySpan.Length.get -> int
 OpenConnect.Privacy.EntitySpan.Length.init -> void
 OpenConnect.Privacy.EntitySpan.Start.get -> int
@@ -58,8 +70,11 @@ OpenConnect.Privacy.Gates.ModalityEgressGate
 OpenConnect.Privacy.Gates.ModalityEgressGate.EvaluateModality(OpenConnect.Privacy.Gates.ModalityEgressRequest! request, OpenConnect.Abstractions.FirewallMode mode) -> OpenConnect.Privacy.EgressDecision!
 OpenConnect.Privacy.Gates.ModalityEgressGate.ModalityEgressGate(OpenConnect.Privacy.IPrivacyFirewall! firewall) -> void
 OpenConnect.Privacy.Gates.ModalityEgressRequest
+OpenConnect.Privacy.Gates.ModalityEgressRequest.<Clone>$() -> OpenConnect.Privacy.Gates.ModalityEgressRequest!
 OpenConnect.Privacy.Gates.ModalityEgressRequest.Context.get -> OpenConnect.Privacy.EgressContext!
 OpenConnect.Privacy.Gates.ModalityEgressRequest.Context.init -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Deconstruct(out OpenConnect.Privacy.Gates.ContentModality Modality, out OpenConnect.Privacy.EgressContext! Context, out bool HasVerifiedLocalRedaction) -> void
+OpenConnect.Privacy.Gates.ModalityEgressRequest.Equals(OpenConnect.Privacy.Gates.ModalityEgressRequest? other) -> bool
 OpenConnect.Privacy.Gates.ModalityEgressRequest.HasVerifiedLocalRedaction.get -> bool
 OpenConnect.Privacy.Gates.ModalityEgressRequest.HasVerifiedLocalRedaction.init -> void
 OpenConnect.Privacy.Gates.ModalityEgressRequest.Modality.get -> OpenConnect.Privacy.Gates.ContentModality
@@ -108,6 +123,9 @@ OpenConnect.Privacy.PrivacyOptions.PrivacyOptions() -> void
 OpenConnect.Privacy.PrivacyOptions.RequireEgressValidation.get -> bool
 OpenConnect.Privacy.PrivacyOptions.RequireEgressValidation.set -> void
 OpenConnect.Privacy.PrivacyScope
+OpenConnect.Privacy.PrivacyScope.<Clone>$() -> OpenConnect.Privacy.PrivacyScope!
+OpenConnect.Privacy.PrivacyScope.Deconstruct(out OpenConnect.Abstractions.TenantId Tenant, out OpenConnect.Abstractions.PrincipalId Principal, out OpenConnect.Abstractions.SessionId Session, out string! Purpose) -> void
+OpenConnect.Privacy.PrivacyScope.Equals(OpenConnect.Privacy.PrivacyScope? other) -> bool
 OpenConnect.Privacy.PrivacyScope.Principal.get -> OpenConnect.Abstractions.PrincipalId
 OpenConnect.Privacy.PrivacyScope.Principal.init -> void
 OpenConnect.Privacy.PrivacyScope.PrivacyScope(OpenConnect.Abstractions.TenantId Tenant, OpenConnect.Abstractions.PrincipalId Principal, OpenConnect.Abstractions.SessionId Session, string! Purpose) -> void
@@ -122,8 +140,11 @@ OpenConnect.Privacy.PrivacyServiceCollectionExtensions
 OpenConnect.Privacy.Restoration.ITokenRestorationService
 OpenConnect.Privacy.Restoration.ITokenRestorationService.RestoreAsync(string! content, OpenConnect.Privacy.PrivacyScope! scope, OpenConnect.Privacy.Restoration.RestorationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Restoration.RestorationContext
+OpenConnect.Privacy.Restoration.RestorationContext.<Clone>$() -> OpenConnect.Privacy.Restoration.RestorationContext!
 OpenConnect.Privacy.Restoration.RestorationContext.AllowedFieldPaths.get -> System.Collections.Generic.IReadOnlySet<string!>?
 OpenConnect.Privacy.Restoration.RestorationContext.AllowedFieldPaths.init -> void
+OpenConnect.Privacy.Restoration.RestorationContext.Deconstruct(out OpenConnect.Privacy.Restoration.RestorationTarget Target, out System.Collections.Generic.IReadOnlySet<string!>? AllowedFieldPaths) -> void
+OpenConnect.Privacy.Restoration.RestorationContext.Equals(OpenConnect.Privacy.Restoration.RestorationContext? other) -> bool
 OpenConnect.Privacy.Restoration.RestorationContext.RestorationContext(OpenConnect.Privacy.Restoration.RestorationTarget Target, System.Collections.Generic.IReadOnlySet<string!>? AllowedFieldPaths = null) -> void
 OpenConnect.Privacy.Restoration.RestorationContext.Target.get -> OpenConnect.Privacy.Restoration.RestorationTarget
 OpenConnect.Privacy.Restoration.RestorationContext.Target.init -> void
@@ -135,9 +156,12 @@ OpenConnect.Privacy.Restoration.TokenRestorationService
 OpenConnect.Privacy.Restoration.TokenRestorationService.RestoreAsync(string! content, OpenConnect.Privacy.PrivacyScope! scope, OpenConnect.Privacy.Restoration.RestorationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Restoration.TokenRestorationService.TokenRestorationService(OpenConnect.Privacy.ITokenVault! vault) -> void
 OpenConnect.Privacy.Rules.CustomDetectorRule
+OpenConnect.Privacy.Rules.CustomDetectorRule.<Clone>$() -> OpenConnect.Privacy.Rules.CustomDetectorRule!
 OpenConnect.Privacy.Rules.CustomDetectorRule.CustomDetectorRule(string! EntityType, System.Text.RegularExpressions.Regex! Pattern) -> void
+OpenConnect.Privacy.Rules.CustomDetectorRule.Deconstruct(out string! EntityType, out System.Text.RegularExpressions.Regex! Pattern) -> void
 OpenConnect.Privacy.Rules.CustomDetectorRule.EntityType.get -> string!
 OpenConnect.Privacy.Rules.CustomDetectorRule.EntityType.init -> void
+OpenConnect.Privacy.Rules.CustomDetectorRule.Equals(OpenConnect.Privacy.Rules.CustomDetectorRule? other) -> bool
 OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.get -> System.Text.RegularExpressions.Regex!
 OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.init -> void
 OpenConnect.Privacy.Rules.RulesSecurityDetector
@@ -156,7 +180,47 @@ OpenConnect.Privacy.Tokenization.TokenVault.Dispose() -> void
 OpenConnect.Privacy.Tokenization.TokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 OpenConnect.Privacy.Tokenization.TokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Tokenization.TokenVault.TokenVault(byte[]! key, System.TimeProvider? timeProvider = null) -> void
+override OpenConnect.Privacy.DetectorResult.Equals(object? obj) -> bool
+override OpenConnect.Privacy.DetectorResult.GetHashCode() -> int
+override OpenConnect.Privacy.DetectorResult.ToString() -> string!
+override OpenConnect.Privacy.EgressContext.Equals(object? obj) -> bool
+override OpenConnect.Privacy.EgressContext.GetHashCode() -> int
+override OpenConnect.Privacy.EgressContext.ToString() -> string!
+override OpenConnect.Privacy.EgressDecision.Equals(object? obj) -> bool
+override OpenConnect.Privacy.EgressDecision.GetHashCode() -> int
+override OpenConnect.Privacy.EgressDecision.ToString() -> string!
+override OpenConnect.Privacy.EntitySpan.Equals(object? obj) -> bool
+override OpenConnect.Privacy.EntitySpan.GetHashCode() -> int
+override OpenConnect.Privacy.EntitySpan.ToString() -> string!
+override OpenConnect.Privacy.Gates.ModalityEgressRequest.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Gates.ModalityEgressRequest.GetHashCode() -> int
+override OpenConnect.Privacy.Gates.ModalityEgressRequest.ToString() -> string!
+override OpenConnect.Privacy.PrivacyScope.Equals(object? obj) -> bool
+override OpenConnect.Privacy.PrivacyScope.GetHashCode() -> int
+override OpenConnect.Privacy.PrivacyScope.ToString() -> string!
+override OpenConnect.Privacy.Restoration.RestorationContext.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Restoration.RestorationContext.GetHashCode() -> int
+override OpenConnect.Privacy.Restoration.RestorationContext.ToString() -> string!
+override OpenConnect.Privacy.Rules.CustomDetectorRule.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Rules.CustomDetectorRule.GetHashCode() -> int
+override OpenConnect.Privacy.Rules.CustomDetectorRule.ToString() -> string!
+static OpenConnect.Privacy.DetectorResult.operator !=(OpenConnect.Privacy.DetectorResult? left, OpenConnect.Privacy.DetectorResult? right) -> bool
+static OpenConnect.Privacy.DetectorResult.operator ==(OpenConnect.Privacy.DetectorResult? left, OpenConnect.Privacy.DetectorResult? right) -> bool
+static OpenConnect.Privacy.EgressContext.operator !=(OpenConnect.Privacy.EgressContext? left, OpenConnect.Privacy.EgressContext? right) -> bool
+static OpenConnect.Privacy.EgressContext.operator ==(OpenConnect.Privacy.EgressContext? left, OpenConnect.Privacy.EgressContext? right) -> bool
+static OpenConnect.Privacy.EgressDecision.operator !=(OpenConnect.Privacy.EgressDecision? left, OpenConnect.Privacy.EgressDecision? right) -> bool
+static OpenConnect.Privacy.EgressDecision.operator ==(OpenConnect.Privacy.EgressDecision? left, OpenConnect.Privacy.EgressDecision? right) -> bool
+static OpenConnect.Privacy.EntitySpan.operator !=(OpenConnect.Privacy.EntitySpan? left, OpenConnect.Privacy.EntitySpan? right) -> bool
+static OpenConnect.Privacy.EntitySpan.operator ==(OpenConnect.Privacy.EntitySpan? left, OpenConnect.Privacy.EntitySpan? right) -> bool
+static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator !=(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
+static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator ==(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
+static OpenConnect.Privacy.PrivacyScope.operator !=(OpenConnect.Privacy.PrivacyScope? left, OpenConnect.Privacy.PrivacyScope? right) -> bool
+static OpenConnect.Privacy.PrivacyScope.operator ==(OpenConnect.Privacy.PrivacyScope? left, OpenConnect.Privacy.PrivacyScope? right) -> bool
 static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.AddOpenConnectRulesDetector(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Privacy.PrivacyServiceCollectionExtensions.EnsureHostPrivacyServices(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Privacy.PrivacyOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Privacy.Restoration.RestorationContext.operator !=(OpenConnect.Privacy.Restoration.RestorationContext? left, OpenConnect.Privacy.Restoration.RestorationContext? right) -> bool
+static OpenConnect.Privacy.Restoration.RestorationContext.operator ==(OpenConnect.Privacy.Restoration.RestorationContext? left, OpenConnect.Privacy.Restoration.RestorationContext? right) -> bool
+static OpenConnect.Privacy.Rules.CustomDetectorRule.operator !=(OpenConnect.Privacy.Rules.CustomDetectorRule? left, OpenConnect.Privacy.Rules.CustomDetectorRule? right) -> bool
+static OpenConnect.Privacy.Rules.CustomDetectorRule.operator ==(OpenConnect.Privacy.Rules.CustomDetectorRule? left, OpenConnect.Privacy.Rules.CustomDetectorRule? right) -> bool
 static OpenConnect.Privacy.Rules.RulesSecurityDetector.CountUnicodeCodePoints(string! str, int startIndex, int length) -> int
 static OpenConnect.Privacy.Rules.RulesSecurityDetector.PassesLuhnCheck(string! digits) -> bool
