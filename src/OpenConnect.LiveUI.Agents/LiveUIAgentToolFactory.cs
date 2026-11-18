@@ -21,7 +21,7 @@ public static class LiveUIAgentToolFactory
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
                 "Executes a supported action on a compiled target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
-                "Waits for a supported state on a compiled target and returns a verified receipt."),
+                "Waits for a supported state on an authorized target and returns a verified receipt. stateName must be exactly selected, checked, expanded, visible, exists, textContains, or textNotContains. For textContains and textNotContains supply nonempty stateValue; for other states stateValue is true or false and defaults to true. A state check does not prove that a matching record is unique."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
                 "Use this function whenever the user requests a highlight. It highlights a compiled target without opening a Navigator tour popup. For an authorized list or table, optionally provide matchText to highlight the unique visible row containing that text; an ambiguous or missing match fails. Report success only when the receipt outcome is Completed and postconditionVerified is true. Optionally set durationMilliseconds from 1 to 30000 for a temporary highlight. When speech synchronization is enabled, playback lifecycle events control cleanup."),
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",

@@ -188,6 +188,10 @@ public sealed class LiveUIAgentToolsTests
             ["liveui_get_current_page", "liveui_navigate", "liveui_inspect", "liveui_execute", "liveui_await_state", "liveui_highlight", "liveui_clear_highlight"],
             tools.Select(tool => tool.Name));
 
+        var awaitState = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_await_state"));
+        Assert.Contains("textContains", awaitState.Description, StringComparison.Ordinal);
+        Assert.Contains("does not prove", awaitState.Description, StringComparison.Ordinal);
+
         var pageFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_get_current_page"));
         var pageResult = Assert.IsType<System.Text.Json.JsonElement>(await pageFunction.InvokeAsync(new AIFunctionArguments()));
         Assert.Equal("todo.home", pageResult.GetProperty("routeId").GetString());
@@ -422,6 +426,8 @@ public sealed class LiveUIAgentToolsTests
         _ = await inspectFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["targetId"] = "todo.list" }));
         var awaitFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_await_state"));
+        Assert.Contains("textContains", awaitFunction.Description, StringComparison.Ordinal);
+        Assert.Contains("does not prove", awaitFunction.Description, StringComparison.Ordinal);
         _ = await awaitFunction.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["stateName"] = "selected" }));
         var highlightFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_highlight"));
