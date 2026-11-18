@@ -6,9 +6,18 @@ using OpenConnect.Persistence.EFCore.Providers;
 
 namespace OpenConnect.Persistence.EFCore.Outbox;
 
-internal sealed class EfOutboxDispatcher
+/// <summary>Dispatches durable claims with bounded retries and lease-fenced completion.</summary>
+public sealed class EfOutboxDispatcher
 {
-    public async Task<int> ExecuteBatchAsync<TContext>(TContext db, OpenConnectOutboxClaimStrategy strategy, OutboxClaimRequest request, ICommittedOutboxPublisher publisher, int maxAttempts, CancellationToken ct)
+    /// <summary>Claims due entries and independently persists delivery, backoff, or quarantine.</summary>
+    public Task<int> ExecuteBatchAsync<TContext>(TContext db, ICommittedOutboxPublisher publisher,
+        string leaseOwner, TimeSpan leaseDuration, int batchSize = 50, int maxAttempts = 5,
+        CancellationToken cancellationToken = default) where TContext : DbContext =>
+        ExecuteBatchAsync(db, OpenConnectOutboxClaimStrategy.Auto,
+            new OutboxClaimRequest(batchSize, DateTime.UtcNow, leaseOwner, leaseDuration),
+            publisher, maxAttempts, cancellationToken);
+
+    internal async Task<int> ExecuteBatchAsync<TContext>(TContext db, OpenConnectOutboxClaimStrategy strategy, OutboxClaimRequest request, ICommittedOutboxPublisher publisher, int maxAttempts, CancellationToken ct)
         where TContext : DbContext
     {
         ArgumentNullException.ThrowIfNull(db);
@@ -25,21 +34,35 @@ internal sealed class EfOutboxDispatcher
             try
             {
                 var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                if (row is null)
+                // Earlier publishes may outlast later claims in the same batch.
+                // Never begin a publish using a claim already known to be stale.
+                if (row is null || row.Status != "pending" || row.LeaseOwner != claim.LeaseOwner ||
+                    row.FencingVersion != claim.FencingVersion || row.LeaseExpiresUtc is null ||
+                    row.LeaseExpiresUtc <= DateTime.UtcNow)
                     continue;
                 await publisher.PublishAsync(row.Subject, row.EventId, row.SanitizedPayload, ct).ConfigureAwait(false);
                 if (await dialect.CompleteClaimAsync(db, claim, ct).ConfigureAwait(false))
                     delivered++;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception)
             {
                 var row = await db.Set<OutboxEntity>().FindAsync([Guid.Parse(claim.EntryId)], ct).ConfigureAwait(false);
-                if (row is null)
+                // A stale publisher must not mutate a row reclaimed by another
+                // dispatcher. SaveChanges also CAS-checks the original fencing token.
+                if (row is null || row.Status != "pending" || row.LeaseOwner != claim.LeaseOwner ||
+                    row.FencingVersion != claim.FencingVersion || row.LeaseExpiresUtc is null ||
+                    row.LeaseExpiresUtc <= DateTime.UtcNow)
                     continue;
                 row.Attempts++;
                 row.NextAttemptUtc = DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Math.Min(row.Attempts, 8))));
                 if (row.Attempts >= maxAttempts)
                     row.Status = "quarantined";
+                row.LeaseOwner = null;
+                row.LeaseExpiresUtc = null;
                 try
                 {
                     await db.SaveChangesAsync(ct).ConfigureAwait(false);

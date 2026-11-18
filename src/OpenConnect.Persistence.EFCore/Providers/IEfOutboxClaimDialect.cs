@@ -48,7 +48,7 @@ internal static class OutboxClaimOperations
         // The same owner may always redrive its rows (retry loop); a different owner may only take
         // rows never leased or whose lease expired (fenced handoff). The fencing token and
         // CompleteClaimAsync checks remain the second line of defense.
-        var candidates = await context.Set<OutboxEntity>()
+        var candidates = await context.Set<OutboxEntity>().AsTracking()
             .Where(x => x.Status == "pending" && x.NextAttemptUtc <= request.DueBeforeUtc && (x.LeaseOwner == null || x.LeaseOwner == request.LeaseOwner || x.LeaseExpiresUtc == null || x.LeaseExpiresUtc <= now))
             .OrderBy(x => x.NextAttemptUtc).ThenBy(x => x.Id).Take(request.BatchSize)
             .ToListAsync(ct).ConfigureAwait(false);

@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
-using OpenConnect.Transport.Nats;
 
 namespace OpenConnect.WorkerHosts.Outbox;
 
@@ -62,8 +61,8 @@ public sealed class OutboxDispatcherService(
 
             try
             {
-                var relay = provider.GetRequiredService<OutboxRelay>();
-                var delivered = await relay.RelayOnceAsync(config.Subject, config.BatchSize, Guid.NewGuid(), stoppingToken).ConfigureAwait(false);
+                var relay = provider.GetRequiredService<OutboxBatchDispatcher>();
+                var delivered = await relay.DispatchAsync(_instanceId, stoppingToken).ConfigureAwait(false);
                 if (delivered > 0)
                     logger.LogInformation("Outbox relay delivered {Delivered} entries.", delivered);
             }
@@ -74,7 +73,7 @@ public sealed class OutboxDispatcherService(
             catch (Exception ex)
             {
                 // Entries stay pending and are redriven on the next poll; never crash the loop on a transient broker/store fault.
-                logger.LogError(ex, "Outbox relay batch failed; entries remain pending for redrive.");
+                logger.LogError("Outbox relay batch failed ({ErrorType}); unfinished entries remain pending for redrive.", ex.GetType().Name);
             }
 
             await Task.Delay(config.PollingInterval, stoppingToken).ConfigureAwait(false);
@@ -94,7 +93,7 @@ public sealed class OutboxDispatcherService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Outbox dispatcher lease release failed for instance {InstanceId}; the lease expires on its own.", _instanceId);
+            logger.LogWarning("Outbox dispatcher lease release failed ({ErrorType}) for instance {InstanceId}; the lease expires on its own.", ex.GetType().Name, _instanceId);
         }
         await base.StopAsync(cancellationToken).ConfigureAwait(false);
     }

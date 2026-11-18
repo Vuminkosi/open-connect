@@ -40,8 +40,7 @@ var natsUrl = builder.Configuration.GetValue<string>($"{OutboxWorkerOptions.Sect
 builder.Services.AddSingleton(_ => new NatsJetStreamPublisher(natsUrl, "openconnect-outbox-host"));
 builder.Services.AddSingleton<IJetStreamPublisher>(services => services.GetRequiredService<NatsJetStreamPublisher>());
 builder.Services.AddSingleton(services => new NatsPublisher(services.GetRequiredService<IJetStreamPublisher>()));
-builder.Services.AddScoped<IOutboxRelaySource, OutboxStoreRelaySource>();
-builder.Services.AddScoped<OutboxRelay>();
+builder.Services.AddScoped<OutboxBatchDispatcher>();
 builder.Services.AddHostedService<OutboxDispatcherService>();
 
 var host = builder.Build();

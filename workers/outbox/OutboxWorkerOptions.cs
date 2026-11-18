@@ -44,6 +44,9 @@ public sealed class OutboxWorkerOptions
     /// <summary>Gets or sets the maximum entries per relay batch (1-1000).</summary>
     public int BatchSize { get; set; } = 50;
 
+    /// <summary>Gets or sets the publish attempts allowed before quarantine (1-100).</summary>
+    public int MaxAttempts { get; set; } = 5;
+
     /// <summary>Gets or sets the NATS server URL used for JetStream publishes.</summary>
     public string NatsUrl { get; set; } = "nats://localhost:4222";
 
@@ -75,6 +78,8 @@ public sealed class OutboxWorkerOptionsValidator : IValidateOptions<OutboxWorker
             failures.Add("outbox_lease_duration_invalid: SupervisorLeaseDuration must be between 5 seconds and 1 hour.");
         if (options.PollingInterval < TimeSpan.FromMilliseconds(100) || options.PollingInterval > TimeSpan.FromMinutes(5))
             failures.Add("outbox_poll_interval_invalid: PollingInterval must be between 100ms and 5 minutes.");
+        if (options.MaxAttempts is < 1 or > 100)
+            failures.Add("outbox_max_attempts_invalid: MaxAttempts must be between 1 and 100.");
         if (options.BatchSize is < 1 or > 1000)
             failures.Add("outbox_batch_invalid: BatchSize must be between 1 and 1000.");
         if (string.IsNullOrWhiteSpace(options.NatsUrl) || !Uri.TryCreate(options.NatsUrl, UriKind.Absolute, out _))

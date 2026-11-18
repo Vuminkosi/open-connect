@@ -1,9 +1,11 @@
 # OpenConnect.WorkerHosts.Outbox
 
 Standalone .NET Generic Host that relays committed outbox entries to JetStream
-(workers-spec §6.11, WRK-REQ-108–112). Reuses `OutboxRelay`,
-`OutboxStoreRelaySource`, and `NatsPublisher` from `OpenConnect.Transport.Nats`;
-never duplicates them.
+(workers-spec §6.11, WRK-REQ-108–112). Uses the EF `EfOutboxDispatcher` claim/retry engine and the existing
+`NatsPublisher` envelope validator. The legacy `OutboxStoreRelaySource` adapter
+is not used by this host. Its legacy interface cannot persist attempts, backoff,
+or quarantine; the compatibility relay processes later batch entries before
+rethrowing the first failure, but durable delivery requires the EF dispatch path.
 
 ## Dispatch contract
 
@@ -12,15 +14,25 @@ Per batch, in order:
 1. **Acquire/renew fence** — renew the durable supervisor lease `oc/outbox/supervisor`
    (`ILeaseStore`, EF-backed). Exactly one dispatcher is active across replicas;
    a duplicate fails startup and a lost lease stops the host fail-closed.
-2. **Publish** — `OutboxRelay` reads pending entries, validates each envelope
-   (entry id must match envelope message id), and publishes via `NatsPublisher`
+2. **Claim and publish** — `OutboxBatchDispatcher` claims due entries with a
+   per-row owner, expiry and fencing token, validates each envelope
+   (persisted event id must match envelope message id), and publishes via `NatsPublisher`
    with the JetStream `Nats-Msg-Id` header set to the envelope message id.
 3. **PUBACK** — `NatsJetStreamPublisher` awaits the JetStream publish
    acknowledgement (`EnsureSuccess`); a NACK/timeout throws and the entry stays
-   pending for redrive.
-4. **CAS mark delivered** — the entry is marked delivered only after PUBACK, in a
+   pending with durable exponential backoff, then quarantined at `MaxAttempts`.
+   A failing entry never aborts publication of later valid entries in the batch.
+4. **CAS mark delivered** — the entry is marked delivered only after PUBACK and a matching, unexpired
+   row lease/fencing token, in a
    short independent `SaveChanges`. No database transaction is ever held across
-   the broker call. Crash-redelivery is idempotent via message-id dedup.
+   the broker call. Both completion and failure updates are fenced. A crash after PUBACK can
+   cause redelivery: delivery is at-least-once, and JetStream deduplication is
+   limited to its configured duplicate window; consumers must remain idempotent.
+   Cancellation propagates without consuming a retry attempt.
+
+Failures are logged using exception type only, never exception messages or
+payload contents. Quarantined entries are excluded from future polls; inspection
+and any replay require an explicit operator action outside this host.
 
 ## Configuration (`WorkerHosts:Outbox`, env `WorkerHosts__Outbox__*`)
 
@@ -32,8 +44,9 @@ Per batch, in order:
 | `DatabaseProvider` | `npgsql` | `npgsql` / `postgres` (same as gateway), `sqlserver`, or `sqlite`. Provider package is bundled because the host owns its `DbContext`. |
 | `ConnectionString` | — | Required. Never logged. |
 | `SupervisorLeaseDuration` | `00:00:30` | 5s–1h. |
-| `PollingInterval` | `00:00:02` | 100ms–5min. Failures keep entries pending; the next poll redrives. |
+| `PollingInterval` | `00:00:02` | 100ms–5min. Only due pending entries are claimed. |
 | `BatchSize` | `50` | 1–1000. |
+| `MaxAttempts` | `5` | 1–100. Failed attempts back off exponentially (2–256 seconds); reaching the limit quarantines the row. |
 | `NatsUrl` | `nats://localhost:4222` | Absolute NATS server URL (publisher env). |
 | `Subject` | `oc.v1.notifications.inapp` | JetStream publish subject (publisher env). |
 
