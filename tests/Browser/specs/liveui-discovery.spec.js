@@ -59,3 +59,32 @@ test('discovers duplicate headings in distinct named sections without guessing b
   expect(highlighted.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(highlighted.sections).toEqual([false, true]);
 });
+
+test('uses a section heading as context when the section has no annotations', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <section><h2>Desktop setup<span hidden> hidden secret</span></h2><h3>Configuration</h3></section>
+      <section><h2>Mobile setup</h2><h3>Configuration</h3></section>` }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { discoverTargets, execute } = await import('/liveui.js');
+    const targets = discoverTargets(20).map((item, index) => ({ ...item, id: `runtime-${index}` }));
+    for (const target of targets)
+      if (target.parentLabel) target.parentId = targets.find((parent) => parent.kind === 'Region' && parent.label === target.parentLabel)?.id;
+    const selected = targets.find((target) => target.label === 'Configuration' && target.parentLabel === 'Mobile setup');
+    const receipt = await execute({ manifest: {}, route: { path: '/', targets }, target: selected,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Highlight', parameters: {} } }, 1000, true);
+    return { targets, receipt, highlighted: [...document.querySelectorAll('h3')].map((heading) =>
+      heading.hasAttribute('data-openconnect-liveui-highlight')) };
+  });
+  expect(result.targets).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'Region', label: 'Desktop setup' }),
+    expect.objectContaining({ kind: 'Region', label: 'Mobile setup' }),
+    expect.objectContaining({ kind: 'Heading', label: 'Configuration', parentLabel: 'Mobile setup' }),
+  ]));
+  expect(result.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(result.highlighted).toEqual([false, true]);
+  expect(JSON.stringify(result.targets)).not.toContain('hidden secret');
+});

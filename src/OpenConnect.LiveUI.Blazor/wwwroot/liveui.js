@@ -10,14 +10,16 @@ export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
   if (!limit) return [];
   const selector = "button, a[href], input, textarea, select, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading']";
-  const sections = document.querySelectorAll("section[aria-label], section[aria-labelledby]");
+  const sections = document.querySelectorAll("section");
   const regionCandidates = [];
   for (let index = 0; index < Math.min(sections.length, 5000); index++) {
     const section = sections[index];
-    if (!isVisible(section) || section.closest("pre, code") || roleOf(section) !== "region") continue;
-    const label = accessibleNames(section).map((name) => String(name).replace(/\s+/g, " ").trim())
+    if (!isVisible(section) || section.closest("pre, code")) continue;
+    const explicitName = roleOf(section) === "region" ? accessibleNames(section).slice(0, 1) : [];
+    const headingName = section.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6");
+    const label = [...explicitName, headingName && isVisible(headingName) ? headingName.innerText : ""].map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
-    if (label && !sensitiveFieldPattern.test(label)) regionCandidates.push({ element: section, label });
+    if (label && !sensitiveFieldPattern.test(label)) regionCandidates.push({ element: section, label, role: roleOf(section) });
   }
   const regionCounts = new Map();
   for (const region of regionCandidates) regionCounts.set(normalize(region.label), (regionCounts.get(normalize(region.label)) || 0) + 1);
@@ -40,7 +42,7 @@ export function discoverTargets(maximumTargets) {
     const label = accessibleNames(element).map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
-    const parentLabel = regionLabels.get(element.closest("section[aria-label], section[aria-labelledby]"));
+    const parentLabel = regionLabels.get(element.closest("section"));
     candidates.push(parentLabel ? { kind, label, role, parentLabel } : { kind, label, role });
   }
   const counts = new Map();
@@ -50,7 +52,7 @@ export function discoverTargets(maximumTargets) {
   }
   const unique = candidates.filter((candidate) =>
     counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}\0${normalize(candidate.parentLabel || "")}`) === 1);
-  return [...regions.map((region) => ({ kind: "Region", label: region.label, role: "region" })), ...unique].slice(0, limit);
+  return [...regions.map((region) => ({ kind: "Region", label: region.label, role: region.role })), ...unique].slice(0, limit);
 }
 
 export function execute(context, timeoutMs, enableRuntimeFallback) {
@@ -269,6 +271,10 @@ function accessibleNames(element) {
   const labelledBy = element.getAttribute("aria-labelledby");
   if (labelledBy) names.push(labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" "));
   if (element.labels) for (const label of element.labels) names.push(label.textContent || "");
+  if (element.tagName.toLowerCase() === "section") {
+    const heading = element.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6");
+    if (heading && isVisible(heading)) names.push(heading.innerText || "");
+  }
   for (const attribute of ["placeholder", "title", "alt"]) {
     const value = element.getAttribute(attribute);
     if (value) names.push(value);
