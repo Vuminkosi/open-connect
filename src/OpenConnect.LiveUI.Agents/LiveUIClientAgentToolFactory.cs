@@ -139,10 +139,35 @@ public static class LiveUIClientAgentToolFactory
             try
             {
                 using var payload = JsonDocument.Parse(response.PayloadJson);
-                if (payload.RootElement.ValueKind == JsonValueKind.Object) return payload.RootElement.Clone();
+                if (payload.RootElement.ValueKind == JsonValueKind.Object &&
+                    (expectedResultKind != "action" || IsValidActionReceipt(payload.RootElement)))
+                    return payload.RootElement.Clone();
             }
             catch (JsonException) { }
             return UnverifiedResult("client_response_invalid", expectedResultKind);
+        }
+
+        private static bool IsValidActionReceipt(JsonElement payload)
+        {
+            string? outcomeText = null;
+            bool? verified = null;
+            foreach (var property in payload.EnumerateObject())
+            {
+                if (property.NameEquals("outcome"))
+                {
+                    if (outcomeText is not null || property.Value.ValueKind != JsonValueKind.String) return false;
+                    outcomeText = property.Value.GetString();
+                }
+                else if (property.NameEquals("postconditionVerified"))
+                {
+                    if (verified is not null || property.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
+                    verified = property.Value.GetBoolean();
+                }
+            }
+            return outcomeText is not null && verified is not null &&
+                Enum.TryParse<LiveUIActionOutcome>(outcomeText, out var outcome) &&
+                Enum.IsDefined(outcome) && string.Equals(outcome.ToString(), outcomeText, StringComparison.Ordinal) &&
+                (outcome != LiveUIActionOutcome.Completed || verified.Value);
         }
 
         private static JsonElement UnverifiedResult(string error, string expectedResultKind) =>

@@ -251,6 +251,48 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"outcome\":\"Completed\",\"postconditionVerified\":false}")]
+    [InlineData("{\"outcome\":\"Completed\",\"postconditionVerified\":\"true\"}")]
+    [InlineData("{\"outcome\":\"MadeUp\",\"postconditionVerified\":true}")]
+    [InlineData("{\"outcome\":\"Failed\",\"outcome\":\"Completed\",\"postconditionVerified\":true}")]
+    [InlineData("{\"outcome\":\"Completed\",\"postconditionVerified\":false,\"postconditionVerified\":true}")]
+    public async Task Structurally_invalid_action_receipt_is_uncertain(string payload)
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind, payload)));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
+
+        Assert.Equal("client_response_invalid", result.GetProperty("error").GetString());
+        Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());
+        Assert.False(result.GetProperty("retrySafe").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("Denied")]
+    [InlineData("Uncertain")]
+    public async Task Valid_noncompleted_receipt_keeps_its_original_outcome(string outcome)
+    {
+        var payload = $"{{\"outcome\":\"{outcome}\",\"postconditionVerified\":false}}";
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+            Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind, payload)));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SelectTab" })));
+
+        Assert.Equal(outcome, result.GetProperty("outcome").GetString());
+        Assert.False(result.TryGetProperty("error", out _));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("x")]
