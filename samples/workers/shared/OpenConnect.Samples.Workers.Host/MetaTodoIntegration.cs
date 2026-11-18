@@ -226,10 +226,21 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             }
             if (_options.AllowMutations && _options.MutationApprovalGranted && coreRequest)
             {
-                tools.Add(AIFunctionFactory.Create((string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => RunToolAsync("creating that Todo", innerCt => todo.CreateAsync(title, description, priority, dueDateUtc, innerCt), task, ct), "todo.create", "Create a Todo for the current tenant."));
-                tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("completing that Todo", innerCt => todo.CompleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.complete", "Complete a Todo by id."));
-                tools.Add(AIFunctionFactory.Create((string todoId, bool isCompleted, CancellationToken ct) => RunToolAsync("updating that Todo", innerCt => todo.UpdateAsync(Guid.Parse(todoId), isCompleted, innerCt), task, ct), "todo.update", "Update Todo completion state."));
-                tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("deleting that Todo", innerCt => todo.DeleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.delete", "Delete a Todo by id."));
+                switch (RequestedTodoMutation(task.Message))
+                {
+                    case "create":
+                        tools.Add(AIFunctionFactory.Create((string title, string? description, string priority, DateTime? dueDateUtc, CancellationToken ct) => RunToolAsync("creating that Todo", innerCt => todo.CreateAsync(title, description, priority, dueDateUtc, innerCt), task, ct), "todo.create", "Create a Todo for the current tenant."));
+                        break;
+                    case "complete":
+                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("completing that Todo", innerCt => todo.CompleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.complete", "Complete a Todo by id."));
+                        break;
+                    case "update":
+                        tools.Add(AIFunctionFactory.Create((string todoId, bool isCompleted, CancellationToken ct) => RunToolAsync("updating that Todo", innerCt => todo.UpdateAsync(Guid.Parse(todoId), isCompleted, innerCt), task, ct), "todo.update", "Update Todo completion state."));
+                        break;
+                    case "delete":
+                        tools.Add(AIFunctionFactory.Create((string todoId, CancellationToken ct) => RunToolAsync("deleting that Todo", innerCt => todo.DeleteAsync(Guid.Parse(todoId), innerCt), task, ct), "todo.delete", "Delete a Todo by id."));
+                        break;
+                }
             }
 
             var egressContext = new EgressContext(task.TenantId, task.PrincipalId, task.SessionId, EgressDestination.ExternalModel);
@@ -333,6 +344,24 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
     private static bool IsTodoReference(string message) => Regex.IsMatch(message,
         @"\b(?:which\s+ones?|that\s+one|those|them|it|its|the\s+next\s+one|what\s+should\s+i\s+do\s+next)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+
+    private static string? RequestedTodoMutation(string message)
+    {
+        if (message.Contains('?') || Regex.IsMatch(message, @"\b(?:not|never|without|don't|do\s+not)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100))) return null;
+        var match = Regex.Match(message,
+            @"^\s*(?:please\s+)?(?<operation>create|add|complete|finish|delete|remove|update|change)\s+(?:(?:a|an|the|my|this)\s+)?(?:new\s+)?(?:todo|to-do|task)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        if (!match.Success) return null;
+        return match.Groups["operation"].Value.ToLowerInvariant() switch
+        {
+            "create" or "add" => "create",
+            "complete" or "finish" => "complete",
+            "delete" or "remove" => "delete",
+            "update" or "change" => "update",
+            _ => null
+        };
+    }
 }
 
 public static class MetaCloudRegistration

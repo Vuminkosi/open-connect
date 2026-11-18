@@ -183,6 +183,68 @@ public sealed class MetaTodoPrivacyEgressTests
         Assert.DoesNotContain("todo.list", chat.ToolNames);
     }
 
+    [Theory]
+    [InlineData("Show my tasks.")]
+    [InlineData("How do I delete a task?")]
+    [InlineData("Do not complete this task.")]
+    [InlineData("Delete a task?")]
+    [InlineData("Complete the task but do not do it.")]
+    public async Task Read_only_task_requests_do_not_expose_mutations_even_when_enabled(string message)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), AllowMutations = true, MutationApprovalGranted = true });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            message, Guid.NewGuid().ToString())
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.Contains("todo.list", chat.ToolNames);
+        Assert.DoesNotContain(chat.ToolNames, name => name is "todo.create" or "todo.complete" or "todo.update" or "todo.delete");
+    }
+
+    [Theory]
+    [InlineData("Create a task called report", "todo.create", true, true, true)]
+    [InlineData("Complete the task report", "todo.complete", true, true, true)]
+    [InlineData("Delete the task report", "todo.delete", true, true, true)]
+    [InlineData("Update the task report", "todo.update", true, true, true)]
+    [InlineData("Delete the task report", "todo.delete", false, true, false)]
+    [InlineData("Delete the task report", "todo.delete", true, false, false)]
+    public async Task Explicit_task_commands_expose_only_the_requested_mutation(string message, string expectedTool,
+        bool allowMutations, bool approved, bool exposed)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal).Id;
+        using var vault = new TokenVault(RandomNumberGenerator.GetBytes(32));
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector(vault))));
+        var chat = new CapturingChatClient();
+        var options = Options.Create(new MetaCloudOptions
+        { TodoTenant = tenant.Value.ToString(), AllowMutations = allowMutations, MutationApprovalGranted = approved });
+        var todo = new TodoServiceClient(new HttpClient { BaseAddress = new Uri("http://127.0.0.1/") }, options);
+        var executor = new MetaTodoTaskExecutor(new TestAgentRegistry(), chat, gate, todo, sessions,
+            new NoopInteractionBroker(), options, NullLogger<MetaTodoTaskExecutor>.Instance);
+
+        await executor.ExecuteAsync(new HostTaskExecution(new TaskId(Ulid.NewUlid()), tenant, principal, session,
+            message, Guid.NewGuid().ToString())
+            { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "bound-client" }, CancellationToken.None);
+
+        Assert.Equal(exposed ? new[] { expectedTool } : [],
+            chat.ToolNames.Where(name => name is "todo.create" or "todo.complete" or "todo.update" or "todo.delete"));
+    }
+
     [Fact]
     public async Task Conversation_context_is_session_scoped_and_passes_through_the_privacy_gate()
     {
