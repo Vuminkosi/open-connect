@@ -11,6 +11,6 @@ public static class LiveUIRuntimeTargetIds
 /// <summary>Refreshes runtime targets for an already authorized route in the active client circuit.</summary>
 public interface ILiveUIRuntimeTargetDiscovery
 {
-    ValueTask RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+    ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
         CancellationToken cancellationToken = default);
 }

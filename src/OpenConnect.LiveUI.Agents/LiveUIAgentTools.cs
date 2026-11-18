@@ -35,15 +35,18 @@ public sealed class LiveUIAgentTools(
         var canInspectRoute = await IsAllowedAsync(
             new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
 
+        var runtimeOnly = options.Value.Discovery.Mode == LiveUIDiscoveryMode.RuntimeOnly;
         if (discover && canInspectRoute && options.Value.Discovery.EnableRuntimeFallback && runtimeDiscovery is not null)
         {
-            await runtimeDiscovery.RefreshAsync(context, manifest, route, cancellationToken).ConfigureAwait(false);
+            var refreshed = await runtimeDiscovery.RefreshAsync(context, manifest, route, cancellationToken).ConfigureAwait(false);
+            if (!refreshed && runtimeOnly) return null;
             (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
             if (context is null || manifest is null || route is null) return null;
             routeAction = CreateAction(context, manifest, route, null, LiveUIActionType.Inspect, new());
             canInspectRoute = await IsAllowedAsync(
                 new LiveUIExecutionContext(manifest, route, null, routeAction), cancellationToken).ConfigureAwait(false);
         }
+        else if (runtimeOnly && canInspectRoute) return null;
 
         var targets = new List<LiveUIAgentTarget>();
         foreach (var target in canInspectRoute ? route.Targets.Where(target => target.Capabilities.Count > 0) : [])

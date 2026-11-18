@@ -11,6 +11,34 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 
 public sealed class LiveUIRuntimeDiscoveryTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Runtime_only_uses_discovered_targets_and_fails_closed_when_discovery_is_unavailable(bool unavailable)
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(unavailable));
+        services.AddScoped<ILiveUIActionAuthorizer, InspectOnlyAuthorizer>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var compiled = new LiveUITarget("compiled", LiveUITargetKind.Heading, "Compiled only",
+            new HashSet<LiveUICapability> { LiveUICapability.Inspect });
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [compiled])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        var page = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
+
+        if (unavailable) Assert.Null(page);
+        else
+        {
+            Assert.Equal("Tasks", Assert.Single(page!.Targets).Label);
+            Assert.DoesNotContain(page.Targets, target => target.TargetId == "compiled");
+        }
+    }
+
     [Fact]
     public async Task Discovered_control_flows_through_manifest_and_authorization_to_runtime()
     {
@@ -49,12 +77,13 @@ public sealed class LiveUIRuntimeDiscoveryTests
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect, "policy"));
     }
 
-    private sealed class Browser : IJSRuntime, IJSObjectReference
+    private sealed class Browser(bool unavailable = false) : IJSRuntime, IJSObjectReference
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "discoverTargets" && unavailable) throw new JSException("unavailable");
             var json = identifier == "discoverTargets"
                 ? "[{\"kind\":\"Heading\",\"label\":\"Tasks\",\"role\":\"heading\"}]"
                 : "{\"outcome\":\"Completed\",\"code\":\"inspection_verified\",\"postconditionVerified\":true,\"verifiedState\":\"control_visible\"}";

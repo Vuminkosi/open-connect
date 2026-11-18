@@ -699,7 +699,7 @@ public sealed class LiveUIAgentToolsTests
     private sealed class RecordingDiscovery(MutableManifestProvider provider) : ILiveUIRuntimeTargetDiscovery
     {
         public int Calls { get; private set; }
-        public ValueTask RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+        public ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
             CancellationToken cancellationToken = default)
         {
             Calls++;
@@ -708,7 +708,7 @@ public sealed class LiveUIAgentToolsTests
             var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id
                 ? item with { Targets = item.Targets.Where(existing => existing.Id != target.Id).Append(target).ToArray() } : item).ToArray() };
             provider.Current = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(true);
         }
     }
 
