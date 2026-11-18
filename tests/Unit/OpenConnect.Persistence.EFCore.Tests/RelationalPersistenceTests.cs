@@ -148,9 +148,9 @@ public sealed class RelationalPersistenceTests
         var encrypted = System.Text.Encoding.UTF8.GetBytes("ciphertext-only");
         await vault.StoreAsync(new("token-live", Tenant, "principal", session, "email", encrypted, DateTimeOffset.UtcNow.AddHours(1)));
         await vault.StoreAsync(new("token-expired", Tenant, "principal", session, "email", [9, 8, 7], DateTimeOffset.UtcNow.AddMinutes(-1)));
-        Assert.Equal(encrypted, (await vault.GetAsync("token-live", Tenant))!.EncryptedValue);
+        Assert.Equal(encrypted, (await vault.GetAsync("token-live", Tenant, "principal", session))!.EncryptedValue);
         await vault.DeleteExpiredAsync(DateTimeOffset.UtcNow);
-        Assert.Null(await vault.GetAsync("token-expired", Tenant));
+        Assert.Null(await vault.GetAsync("token-expired", Tenant, "principal", session));
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = "SELECT EncryptedValue FROM oc_PrivacyTokens";
         await using var reader = await command.ExecuteReaderAsync();

@@ -6,8 +6,10 @@ using OpenConnect.Persistence.EFCore.Entities;
 
 namespace OpenConnect.Persistence.EFCore.Stores;
 
-internal sealed class EfPrivacyTokenVault<TContext>(TContext context) : IPrivacyTokenVault where TContext : DbContext
+internal sealed class EfPrivacyTokenVault<TContext>(TContext context, TimeProvider? timeProvider = null) : IPrivacyTokenVault where TContext : DbContext
 {
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+
     public async Task StoreAsync(PrivacyTokenBinding binding, CancellationToken ct = default)
     {
         var tenantScope = UlidGuidMapper.Scope(binding.TenantId.Value);
@@ -30,17 +32,26 @@ internal sealed class EfPrivacyTokenVault<TContext>(TContext context) : IPrivacy
             KeyProviderId = "envelope",
             KeyVersion = "v1",
             BindingDigest = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{tenantScope}|{scope}|{sessionId}|{binding.TokenId}|{binding.EntityType}"))).ToLowerInvariant(),
-            CreatedUtc = DateTime.UtcNow,
+            CreatedUtc = _time.GetUtcNow().UtcDateTime,
             ExpiresUtc = binding.ExpiresAt.UtcDateTime
         });
         await context.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
-    public async Task<PrivacyTokenBinding?> GetAsync(string tokenId, TenantId tenantId, CancellationToken ct = default)
+    public async Task<PrivacyTokenBinding?> GetAsync(string tokenId, TenantId tenantId, string principalOrWorkloadScope, SessionId sessionId, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(tokenId) || string.IsNullOrWhiteSpace(principalOrWorkloadScope))
+            return null;
         var tenantScope = UlidGuidMapper.Scope(tenantId.Value);
+        var session = UlidGuidMapper.ToGuid(sessionId.Value);
+        var nowUtc = _time.GetUtcNow().UtcDateTime;
+        // Fail closed: a binding is visible only to its exact tenant, principal/workload and session, and only before expiry.
         var row = await context.Set<PrivacyTokenEntity>().AsNoTracking()
-            .SingleOrDefaultAsync(x => x.TokenId == tokenId && x.TenantScope == tenantScope, ct).ConfigureAwait(false);
+            .Where(x => x.TokenId == tokenId && x.TenantScope == tenantScope
+                && x.PrincipalOrWorkloadScope == principalOrWorkloadScope && x.SessionId == session
+                && x.ExpiresUtc > nowUtc)
+            .OrderByDescending(x => x.CreatedUtc).ThenBy(x => x.Id)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
         return row is null ? null : new PrivacyTokenBinding(row.TokenId, tenantId, row.PrincipalOrWorkloadScope,
             new SessionId(UlidGuidMapper.FromGuid(row.SessionId)), row.EntityType, row.EncryptedValue,
             new DateTimeOffset(DateTime.SpecifyKind(row.ExpiresUtc, DateTimeKind.Utc)));

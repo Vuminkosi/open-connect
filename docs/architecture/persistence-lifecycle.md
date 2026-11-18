@@ -42,6 +42,7 @@ This operational architecture guide documents backup/restore, forward-compatible
 
 ### 3.2 Vault Token Scrubbing
 - `IPrivacyTokenVault.DeleteExpiredAsync`: Expired privacy tokens are deleted based on `ExpiresUtc < UtcNow` regardless of whether the overarching session remains retained.
+- `IPrivacyTokenVault.GetAsync`: Lookups require tenant, principal/workload scope and session, and ignore bindings whose `ExpiresUtc` is at or before the current time (from an injectable `TimeProvider`), so expired tokens are never returned while awaiting purge. Uniqueness is `(TenantScope, PrincipalOrWorkloadScope, TokenId, SessionId)`; `TurnId` is not part of the key because it is always null and nulls are not unique on PostgreSQL or SQL Server.
 - Raw PII is never stored in plaintext in the database or logs; all token mappings store AES-256-GCM ciphertext.
 
 ### 3.3 Legal Hold Freeze
