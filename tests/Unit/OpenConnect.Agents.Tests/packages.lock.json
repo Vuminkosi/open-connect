@@ -625,8 +625,8 @@
       "openconnect.agents": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Agents.AI": "[1.27.0, )",
-          "Microsoft.Agents.AI.Workflows": "[1.27.0, )",
+          "Microsoft.Agents.AI": "[1.28.0, )",
+          "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
@@ -676,7 +676,7 @@
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
+        "requested": "[1.28.0, )",
         "resolved": "1.28.0",
         "contentHash": "PyT62X25Exr12ELJakcQZSIJdaBTouyPzXbDwcCWHpK/sjMxV4sJDnBqjz6xYxfYifO16cAXC93FHVKb+mk1gg==",
         "dependencies": {
@@ -694,19 +694,19 @@
       },
       "Microsoft.Agents.AI.Workflows": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "K2YDHHtDFPySenOvPfowpj1vs7TtlQwJJXv9HhbwEva+fSSWmeGTVfJSoUL4YxDnk2DkU99LOPYmfLHZYb215w==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "080pHZ6z9Y3FMigIZfzd2zoeBghvog1yfdIkNSYH4A4/cJTh4FZynPdP54gsOQzLDyxo76uUbJAIuX7lKF9Tdw==",
         "dependencies": {
-          "Microsoft.Agents.AI": "1.27.0",
-          "Microsoft.Agents.AI.Abstractions": "1.27.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Agents.AI": "1.28.0",
+          "Microsoft.Agents.AI.Abstractions": "1.28.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "OpenTelemetry.Api": "1.18.0"
@@ -1502,8 +1502,8 @@
       "openconnect.agents": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Agents.AI": "[1.27.0, )",
-          "Microsoft.Agents.AI.Workflows": "[1.27.0, )",
+          "Microsoft.Agents.AI": "[1.28.0, )",
+          "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
@@ -1553,7 +1553,7 @@
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
+        "requested": "[1.28.0, )",
         "resolved": "1.28.0",
         "contentHash": "PyT62X25Exr12ELJakcQZSIJdaBTouyPzXbDwcCWHpK/sjMxV4sJDnBqjz6xYxfYifO16cAXC93FHVKb+mk1gg==",
         "dependencies": {
@@ -1574,25 +1574,25 @@
       },
       "Microsoft.Agents.AI.Workflows": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "K2YDHHtDFPySenOvPfowpj1vs7TtlQwJJXv9HhbwEva+fSSWmeGTVfJSoUL4YxDnk2DkU99LOPYmfLHZYb215w==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "080pHZ6z9Y3FMigIZfzd2zoeBghvog1yfdIkNSYH4A4/cJTh4FZynPdP54gsOQzLDyxo76uUbJAIuX7lKF9Tdw==",
         "dependencies": {
-          "Microsoft.Agents.AI": "1.27.0",
-          "Microsoft.Agents.AI.Abstractions": "1.27.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Agents.AI": "1.28.0",
+          "Microsoft.Agents.AI.Abstractions": "1.28.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "OpenTelemetry.Api": "1.18.0",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Agents.AI.Workflows.Declarative.Mcp": {
@@ -2386,8 +2386,8 @@
       "openconnect.agents": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Agents.AI": "[1.27.0, )",
-          "Microsoft.Agents.AI.Workflows": "[1.27.0, )",
+          "Microsoft.Agents.AI": "[1.28.0, )",
+          "Microsoft.Agents.AI.Workflows": "[1.28.0, )",
           "Microsoft.Agents.AI.Workflows.Declarative.Mcp": "[1.27.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
@@ -2437,7 +2437,7 @@
       },
       "Microsoft.Agents.AI": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
+        "requested": "[1.28.0, )",
         "resolved": "1.28.0",
         "contentHash": "PyT62X25Exr12ELJakcQZSIJdaBTouyPzXbDwcCWHpK/sjMxV4sJDnBqjz6xYxfYifO16cAXC93FHVKb+mk1gg==",
         "dependencies": {
@@ -2458,25 +2458,25 @@
       },
       "Microsoft.Agents.AI.Workflows": {
         "type": "CentralTransitive",
-        "requested": "[1.27.0, )",
-        "resolved": "1.27.0",
-        "contentHash": "K2YDHHtDFPySenOvPfowpj1vs7TtlQwJJXv9HhbwEva+fSSWmeGTVfJSoUL4YxDnk2DkU99LOPYmfLHZYb215w==",
+        "requested": "[1.28.0, )",
+        "resolved": "1.28.0",
+        "contentHash": "080pHZ6z9Y3FMigIZfzd2zoeBghvog1yfdIkNSYH4A4/cJTh4FZynPdP54gsOQzLDyxo76uUbJAIuX7lKF9Tdw==",
         "dependencies": {
-          "Microsoft.Agents.AI": "1.27.0",
-          "Microsoft.Agents.AI.Abstractions": "1.27.0",
-          "Microsoft.Extensions.AI": "10.10.0",
-          "Microsoft.Extensions.AI.Abstractions": "10.10.1",
-          "Microsoft.Extensions.AI.Evaluation": "10.10.0",
+          "Microsoft.Agents.AI": "1.28.0",
+          "Microsoft.Agents.AI.Abstractions": "1.28.0",
+          "Microsoft.Extensions.AI": "10.11.0",
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.0",
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13",
           "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13",
           "Microsoft.Extensions.VectorData.Abstractions": "10.10.0",
           "Microsoft.ML.Tokenizers": "2.0.0",
           "OpenTelemetry.Api": "1.18.0",
-          "System.Diagnostics.DiagnosticSource": "10.0.12",
-          "System.Text.Json": "10.0.12",
-          "System.Threading.Channels": "10.0.12"
+          "System.Diagnostics.DiagnosticSource": "10.0.13",
+          "System.Text.Json": "10.0.13",
+          "System.Threading.Channels": "10.0.13"
         }
       },
       "Microsoft.Agents.AI.Workflows.Declarative.Mcp": {
