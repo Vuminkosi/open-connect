@@ -51,12 +51,15 @@ OpenConnect.QdrantVactor.SemanticMemorySearchProvider.SemanticMemorySearchProvid
 OpenConnect.QdrantVactor.SemanticMemorySearchProvider.UpsertAsync(OpenConnect.Abstractions.MemoryDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.QdrantVactor.ServiceCollectionExtensions
 OpenConnect.QdrantVactor.VectorPoint
+OpenConnect.QdrantVactor.VectorPoint.<Clone>$() -> OpenConnect.QdrantVactor.VectorPoint!
 OpenConnect.QdrantVactor.VectorPoint.AgentId.get -> string!
 OpenConnect.QdrantVactor.VectorPoint.AgentId.init -> void
 OpenConnect.QdrantVactor.VectorPoint.Content.get -> string!
 OpenConnect.QdrantVactor.VectorPoint.Content.init -> void
 OpenConnect.QdrantVactor.VectorPoint.CreatedAt.get -> System.DateTimeOffset?
 OpenConnect.QdrantVactor.VectorPoint.CreatedAt.init -> void
+OpenConnect.QdrantVactor.VectorPoint.Deconstruct(out string! Id, out string! TenantId, out string! AgentId, out string! Content, out System.ReadOnlyMemory<float> Vector, out long Revision, out string? EventId, out string? SessionId, out string? PrivacyClass, out System.DateTimeOffset? CreatedAt, out double? Score) -> void
+OpenConnect.QdrantVactor.VectorPoint.Equals(OpenConnect.QdrantVactor.VectorPoint? other) -> bool
 OpenConnect.QdrantVactor.VectorPoint.EventId.get -> string?
 OpenConnect.QdrantVactor.VectorPoint.EventId.init -> void
 OpenConnect.QdrantVactor.VectorPoint.Id.get -> string!
@@ -74,13 +77,10 @@ OpenConnect.QdrantVactor.VectorPoint.TenantId.init -> void
 OpenConnect.QdrantVactor.VectorPoint.Vector.get -> System.ReadOnlyMemory<float>
 OpenConnect.QdrantVactor.VectorPoint.Vector.init -> void
 OpenConnect.QdrantVactor.VectorPoint.VectorPoint(string! Id, string! TenantId, string! AgentId, string! Content, System.ReadOnlyMemory<float> Vector, long Revision, string? EventId = null, string? SessionId = null, string? PrivacyClass = "Sanitized", System.DateTimeOffset? CreatedAt = null, double? Score = null) -> void
-static OpenConnect.QdrantVactor.ServiceCollectionExtensions.AddQdrantVactor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.QdrantVactor.QdrantVactorOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
-static OpenConnect.QdrantVactor.ServiceCollectionExtensions.UseQdrantRestVectorStore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
-OpenConnect.QdrantVactor.VectorPoint.<Clone>$() -> OpenConnect.QdrantVactor.VectorPoint!
-OpenConnect.QdrantVactor.VectorPoint.Deconstruct(out string! Id, out string! TenantId, out string! AgentId, out string! Content, out System.ReadOnlyMemory<float> Vector, out long Revision, out string? EventId, out string? SessionId, out string? PrivacyClass, out System.DateTimeOffset? CreatedAt, out double? Score) -> void
-OpenConnect.QdrantVactor.VectorPoint.Equals(OpenConnect.QdrantVactor.VectorPoint? other) -> bool
 override OpenConnect.QdrantVactor.VectorPoint.Equals(object? obj) -> bool
 override OpenConnect.QdrantVactor.VectorPoint.GetHashCode() -> int
 override OpenConnect.QdrantVactor.VectorPoint.ToString() -> string!
+static OpenConnect.QdrantVactor.ServiceCollectionExtensions.AddQdrantVactor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.QdrantVactor.QdrantVactorOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.QdrantVactor.ServiceCollectionExtensions.UseQdrantRestVectorStore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.QdrantVactor.VectorPoint.operator !=(OpenConnect.QdrantVactor.VectorPoint? left, OpenConnect.QdrantVactor.VectorPoint? right) -> bool
 static OpenConnect.QdrantVactor.VectorPoint.operator ==(OpenConnect.QdrantVactor.VectorPoint? left, OpenConnect.QdrantVactor.VectorPoint? right) -> bool

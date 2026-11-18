@@ -1,8 +1,11 @@
 #nullable enable
 OpenConnect.Metering.BudgetReservation
+OpenConnect.Metering.BudgetReservation.<Clone>$() -> OpenConnect.Metering.BudgetReservation!
 OpenConnect.Metering.BudgetReservation.Amount.get -> decimal
 OpenConnect.Metering.BudgetReservation.Amount.init -> void
 OpenConnect.Metering.BudgetReservation.BudgetReservation(System.Guid Id, string! ScopeKey, decimal Amount) -> void
+OpenConnect.Metering.BudgetReservation.Deconstruct(out System.Guid Id, out string! ScopeKey, out decimal Amount) -> void
+OpenConnect.Metering.BudgetReservation.Equals(OpenConnect.Metering.BudgetReservation? other) -> bool
 OpenConnect.Metering.BudgetReservation.Id.get -> System.Guid
 OpenConnect.Metering.BudgetReservation.Id.init -> void
 OpenConnect.Metering.BudgetReservation.ScopeKey.get -> string!
@@ -33,23 +36,29 @@ OpenConnect.Metering.MissingCostPolicy
 OpenConnect.Metering.MissingCostPolicy.Deny = 0 -> OpenConnect.Metering.MissingCostPolicy
 OpenConnect.Metering.MissingCostPolicy.TreatAsReserved = 1 -> OpenConnect.Metering.MissingCostPolicy
 OpenConnect.Metering.ModelPrice
+OpenConnect.Metering.ModelPrice.<Clone>$() -> OpenConnect.Metering.ModelPrice!
 OpenConnect.Metering.ModelPrice.CacheReadPerMillion.get -> decimal
 OpenConnect.Metering.ModelPrice.CacheReadPerMillion.init -> void
 OpenConnect.Metering.ModelPrice.CacheWritePerMillion.get -> decimal
 OpenConnect.Metering.ModelPrice.CacheWritePerMillion.init -> void
 OpenConnect.Metering.ModelPrice.Calculate(OpenConnect.Metering.NormalizedUsage! usage) -> decimal
+OpenConnect.Metering.ModelPrice.Deconstruct(out decimal InputPerMillion, out decimal OutputPerMillion, out decimal CacheReadPerMillion, out decimal CacheWritePerMillion) -> void
+OpenConnect.Metering.ModelPrice.Equals(OpenConnect.Metering.ModelPrice? other) -> bool
 OpenConnect.Metering.ModelPrice.InputPerMillion.get -> decimal
 OpenConnect.Metering.ModelPrice.InputPerMillion.init -> void
 OpenConnect.Metering.ModelPrice.ModelPrice(decimal InputPerMillion, decimal OutputPerMillion, decimal CacheReadPerMillion = 0, decimal CacheWritePerMillion = 0) -> void
 OpenConnect.Metering.ModelPrice.OutputPerMillion.get -> decimal
 OpenConnect.Metering.ModelPrice.OutputPerMillion.init -> void
 OpenConnect.Metering.ModelUsageEvent
+OpenConnect.Metering.ModelUsageEvent.<Clone>$() -> OpenConnect.Metering.ModelUsageEvent!
 OpenConnect.Metering.ModelUsageEvent.AttemptId.get -> OpenConnect.Abstractions.Ulid
 OpenConnect.Metering.ModelUsageEvent.AttemptId.init -> void
 OpenConnect.Metering.ModelUsageEvent.Cost.get -> decimal?
 OpenConnect.Metering.ModelUsageEvent.Cost.init -> void
 OpenConnect.Metering.ModelUsageEvent.CostState.get -> OpenConnect.Metering.CostState
 OpenConnect.Metering.ModelUsageEvent.CostState.init -> void
+OpenConnect.Metering.ModelUsageEvent.Deconstruct(out OpenConnect.Abstractions.Ulid EventId, out OpenConnect.Abstractions.Ulid AttemptId, out string! Provider, out string! Model, out OpenConnect.Metering.NormalizedUsage! Usage, out decimal? Cost, out OpenConnect.Metering.CostState CostState, out OpenConnect.Metering.UsageProvenance Provenance) -> void
+OpenConnect.Metering.ModelUsageEvent.Equals(OpenConnect.Metering.ModelUsageEvent? other) -> bool
 OpenConnect.Metering.ModelUsageEvent.EventId.get -> OpenConnect.Abstractions.Ulid
 OpenConnect.Metering.ModelUsageEvent.EventId.init -> void
 OpenConnect.Metering.ModelUsageEvent.Model.get -> string!
@@ -63,6 +72,9 @@ OpenConnect.Metering.ModelUsageEvent.Usage.get -> OpenConnect.Metering.Normalize
 OpenConnect.Metering.ModelUsageEvent.Usage.init -> void
 OpenConnect.Metering.ModelUsageEvent.Validate() -> OpenConnect.Metering.ModelUsageEvent!
 OpenConnect.Metering.NormalizedUsage
+OpenConnect.Metering.NormalizedUsage.<Clone>$() -> OpenConnect.Metering.NormalizedUsage!
+OpenConnect.Metering.NormalizedUsage.Deconstruct(out OpenConnect.Metering.UsageQuantity! Quantity) -> void
+OpenConnect.Metering.NormalizedUsage.Equals(OpenConnect.Metering.NormalizedUsage? other) -> bool
 OpenConnect.Metering.NormalizedUsage.NormalizedUsage(OpenConnect.Metering.UsageQuantity! Quantity) -> void
 OpenConnect.Metering.NormalizedUsage.Quantity.get -> OpenConnect.Metering.UsageQuantity!
 OpenConnect.Metering.NormalizedUsage.Quantity.init -> void
@@ -72,10 +84,13 @@ OpenConnect.Metering.UsageProvenance.Estimated = 1 -> OpenConnect.Metering.Usage
 OpenConnect.Metering.UsageProvenance.ProviderReported = 0 -> OpenConnect.Metering.UsageProvenance
 OpenConnect.Metering.UsageProvenance.Unavailable = 2 -> OpenConnect.Metering.UsageProvenance
 OpenConnect.Metering.UsageQuantity
+OpenConnect.Metering.UsageQuantity.<Clone>$() -> OpenConnect.Metering.UsageQuantity!
 OpenConnect.Metering.UsageQuantity.CacheRead.get -> decimal?
 OpenConnect.Metering.UsageQuantity.CacheRead.init -> void
 OpenConnect.Metering.UsageQuantity.CacheWrite.get -> decimal?
 OpenConnect.Metering.UsageQuantity.CacheWrite.init -> void
+OpenConnect.Metering.UsageQuantity.Deconstruct(out decimal? Input, out decimal? Output, out decimal? CacheRead, out decimal? CacheWrite) -> void
+OpenConnect.Metering.UsageQuantity.Equals(OpenConnect.Metering.UsageQuantity? other) -> bool
 OpenConnect.Metering.UsageQuantity.Input.get -> decimal?
 OpenConnect.Metering.UsageQuantity.Input.init -> void
 OpenConnect.Metering.UsageQuantity.Output.get -> decimal?
@@ -85,21 +100,6 @@ OpenConnect.Metering.UsageQuantity.Validate() -> OpenConnect.Metering.UsageQuant
 OpenConnect.Metering.UsageUnit
 OpenConnect.Metering.UsageUnit.Requests = 1 -> OpenConnect.Metering.UsageUnit
 OpenConnect.Metering.UsageUnit.Tokens = 0 -> OpenConnect.Metering.UsageUnit
-OpenConnect.Metering.BudgetReservation.<Clone>$() -> OpenConnect.Metering.BudgetReservation!
-OpenConnect.Metering.BudgetReservation.Deconstruct(out System.Guid Id, out string! ScopeKey, out decimal Amount) -> void
-OpenConnect.Metering.BudgetReservation.Equals(OpenConnect.Metering.BudgetReservation? other) -> bool
-OpenConnect.Metering.ModelPrice.<Clone>$() -> OpenConnect.Metering.ModelPrice!
-OpenConnect.Metering.ModelPrice.Deconstruct(out decimal InputPerMillion, out decimal OutputPerMillion, out decimal CacheReadPerMillion, out decimal CacheWritePerMillion) -> void
-OpenConnect.Metering.ModelPrice.Equals(OpenConnect.Metering.ModelPrice? other) -> bool
-OpenConnect.Metering.ModelUsageEvent.<Clone>$() -> OpenConnect.Metering.ModelUsageEvent!
-OpenConnect.Metering.ModelUsageEvent.Deconstruct(out OpenConnect.Abstractions.Ulid EventId, out OpenConnect.Abstractions.Ulid AttemptId, out string! Provider, out string! Model, out OpenConnect.Metering.NormalizedUsage! Usage, out decimal? Cost, out OpenConnect.Metering.CostState CostState, out OpenConnect.Metering.UsageProvenance Provenance) -> void
-OpenConnect.Metering.ModelUsageEvent.Equals(OpenConnect.Metering.ModelUsageEvent? other) -> bool
-OpenConnect.Metering.NormalizedUsage.<Clone>$() -> OpenConnect.Metering.NormalizedUsage!
-OpenConnect.Metering.NormalizedUsage.Deconstruct(out OpenConnect.Metering.UsageQuantity! Quantity) -> void
-OpenConnect.Metering.NormalizedUsage.Equals(OpenConnect.Metering.NormalizedUsage? other) -> bool
-OpenConnect.Metering.UsageQuantity.<Clone>$() -> OpenConnect.Metering.UsageQuantity!
-OpenConnect.Metering.UsageQuantity.Deconstruct(out decimal? Input, out decimal? Output, out decimal? CacheRead, out decimal? CacheWrite) -> void
-OpenConnect.Metering.UsageQuantity.Equals(OpenConnect.Metering.UsageQuantity? other) -> bool
 override OpenConnect.Metering.BudgetReservation.Equals(object? obj) -> bool
 override OpenConnect.Metering.BudgetReservation.GetHashCode() -> int
 override OpenConnect.Metering.BudgetReservation.ToString() -> string!

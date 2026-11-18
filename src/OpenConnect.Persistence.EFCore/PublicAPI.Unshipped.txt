@@ -58,6 +58,9 @@ OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider
 OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider.ModelOptions.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.<Clone>$() -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Equals(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? other) -> bool
+OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.OpenConnectModelOptions() -> void
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Schema.get -> string!
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Schema.init -> void
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.SqliteTablePrefix.get -> string!
@@ -76,6 +79,9 @@ OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.ReleaseAsync(OpenCo
 OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.RenewAsync(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease! lease, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
 OpenConnect.Persistence.EFCore.Navigator.INavigatorLeaseSeam.TryAcquireAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Navigator.NavigatorLease?>
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.<Clone>$() -> OpenConnect.Persistence.EFCore.Navigator.NavigatorLease!
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.Deconstruct(out string! LeaseId, out string! ExecutionId, out long FencingToken, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.Equals(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? other) -> bool
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExecutionId.get -> string!
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExecutionId.init -> void
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.ExpiresAt.get -> System.DateTimeOffset
@@ -89,11 +95,14 @@ OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping
 OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher
 OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher.PublishAsync(string! subject, string! eventId, string! payload, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.CommandId.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.CommandId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out System.Text.Json.JsonElement Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Digest.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Digest.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.EfNavigatorReceiptInput(string! CommandId, string! IdempotencyKey, string! Digest, System.Text.Json.JsonElement Result, System.DateTimeOffset ExpiresAt, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? other) -> bool
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.ExpiresAt.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.FencingToken.get -> long
@@ -109,7 +118,10 @@ OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.Expired = 3 -> O
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.NotFound = 1 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome.Succeeded = 0 -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult!
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Deconstruct(out OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome Outcome, out bool IsReplay) -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.EfNavigatorReceiptResult(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome Outcome, bool IsReplay = false) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult? other) -> bool
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.IsReplay.get -> bool
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.IsReplay.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Outcome.get -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome
@@ -121,11 +133,14 @@ OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.GetOpera
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.GetReceiptAsync(string! tenant, string! principal, string! idempotencyKey, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView?>
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptStore<TContext>.TrySaveOperationalReceiptAsync(string! tenantScope, string! idempotencyKey, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.CommandId.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.CommandId.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out System.Text.Json.JsonElement Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Digest.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Digest.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.EfNavigatorReceiptView(string! CommandId, string! IdempotencyKey, string! Digest, System.Text.Json.JsonElement Result, System.DateTimeOffset ExpiresAt, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView? other) -> bool
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.ExpiresAt.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.FencingToken.get -> long
@@ -135,9 +150,12 @@ OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.IdempotencyKey.init
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Result.get -> System.Text.Json.JsonElement
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Result.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput!
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.CompletedSteps.get -> int
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.CompletedSteps.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Deconstruct(out string! ExecutionId, out OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken) -> void
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.EfOperationalReceiptInput(string! ExecutionId, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, int CompletedSteps, string? SafeSummary, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Equals(OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput? other) -> bool
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.ExecutionId.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.ExecutionId.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.FencingToken.get -> long
@@ -154,9 +172,12 @@ OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.LeaseLost = 4 -
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Rejected = 5 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus.Uncertain = 3 -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView!
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.CompletedSteps.get -> int
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.CompletedSteps.init -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Deconstruct(out string! ExecutionId, out OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken) -> void
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.EfOperationalReceiptView(string! ExecutionId, OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, int CompletedSteps, string? SafeSummary, long FencingToken) -> void
+OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Equals(OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView? other) -> bool
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ExecutionId.get -> string!
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ExecutionId.init -> void
 OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.FencingToken.get -> long
@@ -172,32 +193,6 @@ OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.TryAdd
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.EfSessionUuidResolver(TContext! context) -> void
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.ResolveAsync(System.Guid publicId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.SessionId?>!
-static OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions.AddOpenConnectEntityFramework<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
-static OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
-static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Default.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
-static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptClientTaskId(string! idempotencyKey) -> string!
-static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptTaskId(System.Guid tenant, System.Guid principal, string! idempotencyKey) -> System.Guid
-OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.<Clone>$() -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
-OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Equals(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? other) -> bool
-OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.OpenConnectModelOptions() -> void
-OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.<Clone>$() -> OpenConnect.Persistence.EFCore.Navigator.NavigatorLease!
-OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.Deconstruct(out string! LeaseId, out string! ExecutionId, out long FencingToken, out System.DateTimeOffset ExpiresAt) -> void
-OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.Equals(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? other) -> bool
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput!
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out System.Text.Json.JsonElement Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? other) -> bool
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult!
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Deconstruct(out OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptOutcome Outcome, out bool IsReplay) -> void
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult? other) -> bool
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView!
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out System.Text.Json.JsonElement Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
-OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView.Equals(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptView? other) -> bool
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput!
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Deconstruct(out string! ExecutionId, out OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken) -> void
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.Equals(OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput? other) -> bool
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.<Clone>$() -> OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView!
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Deconstruct(out string! ExecutionId, out OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken) -> void
-OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Equals(OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView? other) -> bool
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Equals(object? obj) -> bool
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.ToString() -> string!
@@ -219,10 +214,15 @@ override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptInput.ToStrin
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Equals(object? obj) -> bool
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ToString() -> string!
+static OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions.AddOpenConnectEntityFramework<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
+static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Default.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.operator !=(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? left, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? right) -> bool
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.operator ==(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? left, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? right) -> bool
 static OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.operator !=(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? left, OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? right) -> bool
 static OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.operator ==(OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? left, OpenConnect.Persistence.EFCore.Navigator.NavigatorLease? right) -> bool
+static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptClientTaskId(string! idempotencyKey) -> string!
+static OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping.ReceiptTaskId(System.Guid tenant, System.Guid principal, string! idempotencyKey) -> System.Guid
 static OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.operator !=(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? left, OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? right) -> bool
 static OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput.operator ==(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? left, OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput? right) -> bool
 static OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult.operator !=(OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult? left, OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptResult? right) -> bool

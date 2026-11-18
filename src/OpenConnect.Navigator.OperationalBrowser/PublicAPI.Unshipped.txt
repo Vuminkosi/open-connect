@@ -1,10 +1,13 @@
 #nullable enable
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt!
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.BrowserAuditReceipt(string! ExecutionId, string! SessionId, System.DateTimeOffset CompletedAt, bool ProfileDeleted, bool CleanupRequiresOperatorAlert = false) -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.CleanupRequiresOperatorAlert.get -> bool
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.CleanupRequiresOperatorAlert.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.CompletedAt.get -> System.DateTimeOffset
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.CompletedAt.init -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Deconstruct(out string! ExecutionId, out string! SessionId, out System.DateTimeOffset CompletedAt, out bool ProfileDeleted, out bool CleanupRequiresOperatorAlert) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? other) -> bool
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.ExecutionId.get -> string!
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.ExecutionId.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.ProfileDeleted.get -> bool
@@ -15,11 +18,14 @@ OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary
 OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary.BrowserJobBoundary(OpenConnect.Navigator.OperationalBrowser.EgressGuard! egress) -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary.ValidateAsync(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec! job, System.Uri! destination, int step, long bytes, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<(bool Allowed, string! DenialReason)>!
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec!
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.AllowedOrigins.get -> System.Collections.Generic.IReadOnlyList<System.Uri!>!
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.AllowedOrigins.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.BrowserJobSpec(string! ExecutionId, string! TenantScope, string! ServicePrincipalRef, System.Collections.Generic.IReadOnlyList<System.Uri!>! AllowedOrigins, string! PolicyRevision, System.DateTimeOffset Deadline, string! IdempotencyKey, OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget! ResourceBudget) -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Deadline.get -> System.DateTimeOffset
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Deadline.init -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Deconstruct(out string! ExecutionId, out string! TenantScope, out string! ServicePrincipalRef, out System.Collections.Generic.IReadOnlyList<System.Uri!>! AllowedOrigins, out string! PolicyRevision, out System.DateTimeOffset Deadline, out string! IdempotencyKey, out OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget! ResourceBudget) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? other) -> bool
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.ExecutionId.get -> string!
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.ExecutionId.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.IdempotencyKey.get -> string!
@@ -33,7 +39,10 @@ OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.ServicePrincipalRef.init
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.TenantScope.get -> string!
 OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.TenantScope.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget!
 OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.BrowserResourceBudget(int MaxMs, int MaxSteps, long MaxBytes) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Deconstruct(out int MaxMs, out int MaxSteps, out long MaxBytes) -> void
+OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? other) -> bool
 OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.MaxBytes.get -> long
 OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.MaxBytes.init -> void
 OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.MaxMs.get -> int
@@ -50,6 +59,9 @@ OpenConnect.Navigator.OperationalBrowser.IBrowserSessionTerminator.TerminateAsyn
 OpenConnect.Navigator.OperationalBrowser.IHostAddressResolver
 OpenConnect.Navigator.OperationalBrowser.IHostAddressResolver.ResolveAsync(string! host, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Net.IPAddress![]!>!
 OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession!
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Deconstruct(out string! SessionId, out string! ProfileDir, out string! WorkloadIdentityRef) -> void
+OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Equals(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? other) -> bool
 OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.IsolatedBrowserSession(string! SessionId, string! ProfileDir, string! WorkloadIdentityRef) -> void
 OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.ProfileDir.get -> string!
 OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.ProfileDir.init -> void
@@ -66,32 +78,17 @@ OpenConnect.Navigator.OperationalBrowser.SystemHostAddressResolver
 OpenConnect.Navigator.OperationalBrowser.SystemHostAddressResolver.ResolveAsync(string! host, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Net.IPAddress![]!>!
 OpenConnect.Navigator.OperationalBrowser.SystemHostAddressResolver.SystemHostAddressResolver() -> void
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget!
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Addresses.get -> System.Collections.Generic.IReadOnlyList<System.Net.IPAddress!>!
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Addresses.init -> void
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Deconstruct(out System.Uri! Destination, out System.Collections.Generic.IReadOnlyList<System.Net.IPAddress!>! Addresses) -> void
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Destination.get -> System.Uri!
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Destination.init -> void
+OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Equals(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? other) -> bool
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.TransportContract.get -> string!
 OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.ValidatedEgressTarget(System.Uri! Destination, System.Collections.Generic.IReadOnlyList<System.Net.IPAddress!>! Addresses) -> void
 OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist
 const OpenConnect.Navigator.OperationalBrowser.EgressGuard.MaxRedirectHops = 10 -> int
-static OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary.IsAllowedTool(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement args, System.Uri! origin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
-static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
-static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out string! denialReason) -> bool
-OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt!
-OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Deconstruct(out string! ExecutionId, out string! SessionId, out System.DateTimeOffset CompletedAt, out bool ProfileDeleted, out bool CleanupRequiresOperatorAlert) -> void
-OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? other) -> bool
-OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec!
-OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Deconstruct(out string! ExecutionId, out string! TenantScope, out string! ServicePrincipalRef, out System.Collections.Generic.IReadOnlyList<System.Uri!>! AllowedOrigins, out string! PolicyRevision, out System.DateTimeOffset Deadline, out string! IdempotencyKey, out OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget! ResourceBudget) -> void
-OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? other) -> bool
-OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget!
-OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Deconstruct(out int MaxMs, out int MaxSteps, out long MaxBytes) -> void
-OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.Equals(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? other) -> bool
-OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession!
-OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Deconstruct(out string! SessionId, out string! ProfileDir, out string! WorkloadIdentityRef) -> void
-OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.Equals(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? other) -> bool
-OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.<Clone>$() -> OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget!
-OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Deconstruct(out System.Uri! Destination, out System.Collections.Generic.IReadOnlyList<System.Net.IPAddress!>! Addresses) -> void
-OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.Equals(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? other) -> bool
 override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.Equals(object? obj) -> bool
 override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.GetHashCode() -> int
 override OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.ToString() -> string!
@@ -109,6 +106,7 @@ override OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.GetHashC
 override OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.ToString() -> string!
 static OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? left, OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? right) -> bool
 static OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt.operator ==(OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? left, OpenConnect.Navigator.OperationalBrowser.BrowserAuditReceipt? right) -> bool
+static OpenConnect.Navigator.OperationalBrowser.BrowserJobBoundary.IsAllowedTool(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement args, System.Uri! origin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
 static OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? left, OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? right) -> bool
 static OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec.operator ==(OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? left, OpenConnect.Navigator.OperationalBrowser.BrowserJobSpec? right) -> bool
 static OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget.operator !=(OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? left, OpenConnect.Navigator.OperationalBrowser.BrowserResourceBudget? right) -> bool
@@ -117,3 +115,5 @@ static OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.operator 
 static OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession.operator ==(OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? left, OpenConnect.Navigator.OperationalBrowser.IsolatedBrowserSession? right) -> bool
 static OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.operator !=(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? left, OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? right) -> bool
 static OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget.operator ==(OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? left, OpenConnect.Navigator.OperationalBrowser.ValidatedEgressTarget? right) -> bool
+static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out System.Text.Json.JsonElement normalizedArguments, out string! denialReason) -> bool
+static OpenConnect.Navigator.Playwright.PlaywrightToolAllowlist.TryResolve(OpenConnect.Navigator.NavigatorActionType action, System.Text.Json.JsonElement arguments, System.Uri? approvedOrigin, bool screenshotConsent, out string! toolName, out string! denialReason) -> bool

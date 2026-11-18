@@ -60,20 +60,26 @@ OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.RenewL
 OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.TryAcquireLeaseAsync(string! executionId, string! owner, System.TimeSpan duration, System.DateTimeOffset now, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
 OpenConnect.Navigator.Operational.Durable.InMemoryDurableOperationalStore.TrySaveReceiptAsync(string! tenantScope, string! idempotencyKey, OpenConnect.Navigator.Operational.OperationalReceipt! receipt, System.DateTimeOffset completedAt, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord!
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.CommandId.get -> string!
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.CommandId.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Deconstruct(out string! SessionId, out string! CommandId, out string! Digest, out System.DateTimeOffset ExpiresAt) -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Digest.get -> string!
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Digest.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord? other) -> bool
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.ExpiresAt.init -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.NavigatorApprovalRecord(string! SessionId, string! CommandId, string! Digest, System.DateTimeOffset ExpiresAt) -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.SessionId.get -> string!
 OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.SessionId.init -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord!
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.CommandId.get -> string!
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.CommandId.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out object? Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Digest.get -> string!
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Digest.init -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord? other) -> bool
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.ExpiresAt.init -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.FencingToken.get -> long
@@ -91,6 +97,9 @@ OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.NotFound = 1 -> 
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.StaleFence = 5 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome.Succeeded = 0 -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Deconstruct(out OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome Outcome, out bool IsReplay) -> void
+OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult? other) -> bool
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.IsReplay.get -> bool
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.IsReplay.init -> void
 OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.NavigatorStoreResult(OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome Outcome, bool IsReplay = false) -> void
@@ -120,10 +129,13 @@ OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.ReleaseAsync(Ope
 OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.RenewAsync(OpenConnect.Navigator.Operational.OperationalLease! lease, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
 OpenConnect.Navigator.Operational.InMemoryOperationalLeaseStore.TryAcquireAsync(string! executionId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<OpenConnect.Navigator.Operational.OperationalLease?>
 OpenConnect.Navigator.Operational.OperationalJob
+OpenConnect.Navigator.Operational.OperationalJob.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalJob!
 OpenConnect.Navigator.Operational.OperationalJob.ApplicationAllowlist.get -> System.Collections.Generic.IReadOnlySet<string!>!
 OpenConnect.Navigator.Operational.OperationalJob.ApplicationAllowlist.init -> void
 OpenConnect.Navigator.Operational.OperationalJob.Deadline.get -> System.DateTimeOffset
 OpenConnect.Navigator.Operational.OperationalJob.Deadline.init -> void
+OpenConnect.Navigator.Operational.OperationalJob.Deconstruct(out string! TenantScope, out string! ServicePrincipalRef, out string! PlanId, out System.Collections.Generic.IReadOnlySet<string!>! ApplicationAllowlist, out string! ExecutionId, out System.DateTimeOffset Deadline, out string! IdempotencyKey, out string! PolicyRevision) -> void
+OpenConnect.Navigator.Operational.OperationalJob.Equals(OpenConnect.Navigator.Operational.OperationalJob? other) -> bool
 OpenConnect.Navigator.Operational.OperationalJob.ExecutionId.get -> string!
 OpenConnect.Navigator.Operational.OperationalJob.ExecutionId.init -> void
 OpenConnect.Navigator.Operational.OperationalJob.IdempotencyKey.get -> string!
@@ -138,6 +150,9 @@ OpenConnect.Navigator.Operational.OperationalJob.ServicePrincipalRef.init -> voi
 OpenConnect.Navigator.Operational.OperationalJob.TenantScope.get -> string!
 OpenConnect.Navigator.Operational.OperationalJob.TenantScope.init -> void
 OpenConnect.Navigator.Operational.OperationalLease
+OpenConnect.Navigator.Operational.OperationalLease.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalLease!
+OpenConnect.Navigator.Operational.OperationalLease.Deconstruct(out string! LeaseId, out string! ExecutionId, out long FencingToken, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Navigator.Operational.OperationalLease.Equals(OpenConnect.Navigator.Operational.OperationalLease? other) -> bool
 OpenConnect.Navigator.Operational.OperationalLease.ExecutionId.get -> string!
 OpenConnect.Navigator.Operational.OperationalLease.ExecutionId.init -> void
 OpenConnect.Navigator.Operational.OperationalLease.ExpiresAt.get -> System.DateTimeOffset
@@ -151,8 +166,11 @@ OpenConnect.Navigator.Operational.OperationalNavigatorHandler
 OpenConnect.Navigator.Operational.OperationalNavigatorHandler.HandleAsync(OpenConnect.Navigator.Operational.OperationalJob! job, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Navigator.Operational.OperationalReceipt!>!
 OpenConnect.Navigator.Operational.OperationalNavigatorHandler.OperationalNavigatorHandler(OpenConnect.Navigator.Operational.IOperationalLeaseStore! leases, OpenConnect.Navigator.Operational.IOperationalWorkloadIdentityProvider! identities, OpenConnect.Navigator.Operational.IOperationalPlanProvider! plans, OpenConnect.Navigator.Operational.IOperationalStepExecutor! executor, OpenConnect.Navigator.Operational.Durable.DurableIdempotencyStore? receipts = null, OpenConnect.Abstractions.IRateLimitGate? rateLimitGate = null) -> void
 OpenConnect.Navigator.Operational.OperationalReceipt
+OpenConnect.Navigator.Operational.OperationalReceipt.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalReceipt!
 OpenConnect.Navigator.Operational.OperationalReceipt.CompletedSteps.get -> int
 OpenConnect.Navigator.Operational.OperationalReceipt.CompletedSteps.init -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.Deconstruct(out string! ExecutionId, out OpenConnect.Navigator.Operational.OperationalRunStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken, out bool IsReplay) -> void
+OpenConnect.Navigator.Operational.OperationalReceipt.Equals(OpenConnect.Navigator.Operational.OperationalReceipt? other) -> bool
 OpenConnect.Navigator.Operational.OperationalReceipt.ExecutionId.get -> string!
 OpenConnect.Navigator.Operational.OperationalReceipt.ExecutionId.init -> void
 OpenConnect.Navigator.Operational.OperationalReceipt.FencingToken.get -> long
@@ -172,6 +190,9 @@ OpenConnect.Navigator.Operational.OperationalRunStatus.LeaseLost = 4 -> OpenConn
 OpenConnect.Navigator.Operational.OperationalRunStatus.Rejected = 5 -> OpenConnect.Navigator.Operational.OperationalRunStatus
 OpenConnect.Navigator.Operational.OperationalRunStatus.Uncertain = 3 -> OpenConnect.Navigator.Operational.OperationalRunStatus
 OpenConnect.Navigator.Operational.OperationalStepResult
+OpenConnect.Navigator.Operational.OperationalStepResult.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalStepResult!
+OpenConnect.Navigator.Operational.OperationalStepResult.Deconstruct(out bool Succeeded, out bool Uncertain, out string? SafeSummary) -> void
+OpenConnect.Navigator.Operational.OperationalStepResult.Equals(OpenConnect.Navigator.Operational.OperationalStepResult? other) -> bool
 OpenConnect.Navigator.Operational.OperationalStepResult.OperationalStepResult(bool Succeeded, bool Uncertain, string? SafeSummary) -> void
 OpenConnect.Navigator.Operational.OperationalStepResult.SafeSummary.get -> string?
 OpenConnect.Navigator.Operational.OperationalStepResult.SafeSummary.init -> void
@@ -179,27 +200,6 @@ OpenConnect.Navigator.Operational.OperationalStepResult.Succeeded.get -> bool
 OpenConnect.Navigator.Operational.OperationalStepResult.Succeeded.init -> void
 OpenConnect.Navigator.Operational.OperationalStepResult.Uncertain.get -> bool
 OpenConnect.Navigator.Operational.OperationalStepResult.Uncertain.init -> void
-OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord!
-OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Deconstruct(out string! SessionId, out string! CommandId, out string! Digest, out System.DateTimeOffset ExpiresAt) -> void
-OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord? other) -> bool
-OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord!
-OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Deconstruct(out string! CommandId, out string! IdempotencyKey, out string! Digest, out object? Result, out System.DateTimeOffset ExpiresAt, out long FencingToken) -> void
-OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorReceiptRecord? other) -> bool
-OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.<Clone>$() -> OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult!
-OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Deconstruct(out OpenConnect.Navigator.Operational.Durable.NavigatorStoreOutcome Outcome, out bool IsReplay) -> void
-OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult.Equals(OpenConnect.Navigator.Operational.Durable.NavigatorStoreResult? other) -> bool
-OpenConnect.Navigator.Operational.OperationalJob.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalJob!
-OpenConnect.Navigator.Operational.OperationalJob.Deconstruct(out string! TenantScope, out string! ServicePrincipalRef, out string! PlanId, out System.Collections.Generic.IReadOnlySet<string!>! ApplicationAllowlist, out string! ExecutionId, out System.DateTimeOffset Deadline, out string! IdempotencyKey, out string! PolicyRevision) -> void
-OpenConnect.Navigator.Operational.OperationalJob.Equals(OpenConnect.Navigator.Operational.OperationalJob? other) -> bool
-OpenConnect.Navigator.Operational.OperationalLease.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalLease!
-OpenConnect.Navigator.Operational.OperationalLease.Deconstruct(out string! LeaseId, out string! ExecutionId, out long FencingToken, out System.DateTimeOffset ExpiresAt) -> void
-OpenConnect.Navigator.Operational.OperationalLease.Equals(OpenConnect.Navigator.Operational.OperationalLease? other) -> bool
-OpenConnect.Navigator.Operational.OperationalReceipt.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalReceipt!
-OpenConnect.Navigator.Operational.OperationalReceipt.Deconstruct(out string! ExecutionId, out OpenConnect.Navigator.Operational.OperationalRunStatus Status, out int CompletedSteps, out string? SafeSummary, out long FencingToken, out bool IsReplay) -> void
-OpenConnect.Navigator.Operational.OperationalReceipt.Equals(OpenConnect.Navigator.Operational.OperationalReceipt? other) -> bool
-OpenConnect.Navigator.Operational.OperationalStepResult.<Clone>$() -> OpenConnect.Navigator.Operational.OperationalStepResult!
-OpenConnect.Navigator.Operational.OperationalStepResult.Deconstruct(out bool Succeeded, out bool Uncertain, out string? SafeSummary) -> void
-OpenConnect.Navigator.Operational.OperationalStepResult.Equals(OpenConnect.Navigator.Operational.OperationalStepResult? other) -> bool
 override OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.Equals(object? obj) -> bool
 override OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.GetHashCode() -> int
 override OpenConnect.Navigator.Operational.Durable.NavigatorApprovalRecord.ToString() -> string!
