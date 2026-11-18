@@ -37,7 +37,12 @@ async function verifyPlan(page, request, expectedActions) {
     headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
   });
   expect(response.status()).toBe(200);
-  const events = (await response.json()).filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
+  const sessionEvents = await response.json();
+  const taskId = JSON.parse(sessionEvents.find((event) => event.type === 'task.accepted').data).taskId;
+  const messages = sessionEvents.filter((event) => event.type === 'message');
+  expect(messages.length).toBeGreaterThan(0);
+  expect(messages.every((event) => event.taskId === taskId)).toBe(true);
+  const events = sessionEvents.filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
     .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
   const plans = events.filter((event) => event.type === 'liveui.response' && event.payload.resultKind === 'plan')
     .map((event) => ({ event, plan: JSON.parse(event.payload.payloadJson) }))
