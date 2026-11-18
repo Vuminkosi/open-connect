@@ -53,7 +53,7 @@ OpenConnect.Tools.ToolRegistration.RequiresApproval.get -> bool
 OpenConnect.Tools.ToolRegistration.RequiresApproval.init -> void
 OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.ToolDescriptor! Descriptor, string! JsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! InvokeAsync, bool RequiresApproval = false) -> void
 OpenConnect.Tools.ToolRetryClassifier
-static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
 OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
 static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
+static OpenConnect.Tools.ToolRetryClassifier.CanRetry(OpenConnect.Abstractions.ToolIdempotency idempotency, OpenConnect.Abstractions.ToolExecutionState executionState) -> bool
