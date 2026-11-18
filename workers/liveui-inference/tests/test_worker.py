@@ -242,7 +242,8 @@ def test_deterministic_shortcut_does_not_drop_negation_or_other_operations(inten
 
 
 @pytest.mark.parametrize("intent", [
-    "Show completed tasks containing report", "List finished tasks containing report"
+    "Show completed tasks containing report", "List finished tasks containing report",
+    "show only completed tasks containing report", "Show only my completed tasks containing report"
 ])
 def test_compound_status_search_builds_a_bounded_plan_from_available_actions(intent):
     request = PlanRequest.model_validate(

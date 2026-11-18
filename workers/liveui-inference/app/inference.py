@@ -82,7 +82,7 @@ def normalize_explained_filter(intent: str) -> tuple[bool, str | None]:
 def expected_status_and_text_filter(request: PlanRequest) -> tuple[PlannedAction, PlannedAction] | None:
     """Resolve a status and literal text filter only when both controls are unambiguous."""
     match = re.search(
-        r"^\s*(?:list|show|display|open|filter|view)\s+(?:my\s+)?"
+        r"^\s*(?:list|show|display|open|filter|view)\s+(?:only\s+)?(?:my\s+)?"
         r"(all|completed|done|finished|active|incomplete|pending)\s+"
         r"(?:todo\s+)?(?:tasks|items|todos)\s+(?:containing|matching)\s+(.+?)\s*[?.!]*\s*$",
         request.intent,
@@ -340,7 +340,7 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
                 actions=[PlannedAction(type="highlight", target=candidates[0].target)],
             )
     match = re.fullmatch(
-        r"\s*(show|display|open|filter|list)\s+(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
+        r"\s*(show|display|open|filter|list)\s+(?:only\s+)?(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
         request.intent,
         re.IGNORECASE,
     )
