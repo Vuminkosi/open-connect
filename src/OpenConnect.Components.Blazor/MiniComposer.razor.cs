@@ -793,9 +793,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             }
             if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal)) return;
             _activeTaskId = admitted.Id;
-            session.BindTrackedTask(admitted.Id, sessionId);
+            session.BindTrackedTask(admitted.Id, sessionId, admitted.State);
             ClearPendingSubmissionIdentity();
-            if (_stopRequested)
+            if (_stopRequested && admitted.State is not (AgentRunState.Completed or AgentRunState.Cancelled or AgentRunState.Failed))
                 await CancelAdmittedTaskAsync(admitted.Id);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)

@@ -203,6 +203,39 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Terminal_admission_and_replayed_events_do_not_duplicate_failure()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task, state: AgentRunState.Failed);
+        var count = session.Messages.Count;
+
+        session.ApplyEvent(Event(1, "task.failed", $$"""{"taskId":"{{task.Value}}"}"""));
+
+        Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal(count, session.Messages.Count);
+        Assert.Single(session.Messages, static message => message.State == ComposerMessageState.Failed);
+    }
+
+    [Fact]
+    public void Terminal_admission_allows_later_replayed_text_to_finish()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("question");
+        session.BindTrackedTask(task, state: AgentRunState.Completed);
+
+        session.ApplyEvent(Event(1, "message.delta", "Finished answer"));
+        session.ApplyEvent(Event(2, "task.completed", $$"""{"taskId":"{{task.Value}}"}"""));
+
+        Assert.Equal(ComposerConnectionState.Idle, session.Connection);
+        Assert.Contains(session.Messages, static message => message.Text == "Finished answer");
+    }
+
+    [Fact]
     public void Unknown_event_types_are_ignored_without_render_change()
     {
         var session = new ComposerSession();

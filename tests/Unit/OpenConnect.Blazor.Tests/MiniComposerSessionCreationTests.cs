@@ -287,6 +287,23 @@ public sealed class MiniComposerSessionCreationTests
         Assert.Equal(client.LastCreatedTaskId, Assert.Single(client.CancelledTaskIds));
     }
 
+    [Theory]
+    [InlineData(AgentRunState.Completed, ComposerConnectionState.Idle)]
+    [InlineData(AgentRunState.Cancelled, ComposerConnectionState.Idle)]
+    [InlineData(AgentRunState.Failed, ComposerConnectionState.Error)]
+    public async Task Already_terminal_admission_does_not_leave_the_composer_streaming(
+        AgentRunState state, ComposerConnectionState expected)
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, session) = await RenderComposerAsync(context);
+        client.AdmissionState = state;
+        await rendered.Find("input").InputAsync("Check the finished task");
+
+        await rendered.Find("button[aria-label='Send to Ellai']").ClickAsync();
+
+        Assert.Equal(expected, session.Connection);
+    }
+
     [Fact]
     public async Task Stop_during_admission_cancels_the_task_once_its_identity_arrives()
     {
@@ -362,6 +379,7 @@ public sealed class MiniComposerSessionCreationTests
         public TaskId? LastCreatedTaskId { get; private set; }
         public List<TaskId> CancelledTaskIds { get; } = [];
         public bool HoldTaskAdmission { get; set; }
+        public AgentRunState AdmissionState { get; set; } = AgentRunState.Accepted;
         public Exception? CancelException { get; set; }
         public bool HoldCancellation { get; set; }
         public TaskCompletionSource CancellationStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -398,7 +416,7 @@ public sealed class MiniComposerSessionCreationTests
             if (TaskException is not null) return Task.FromException<TaskRecord>(TaskException);
             LastCreatedTaskId = new TaskId(Ulid.NewUlid());
             _pendingRecord = new TaskRecord(LastCreatedTaskId.Value, new TenantId(Ulid.NewUlid()),
-                new PrincipalId(Ulid.NewUlid()), AgentRunState.Accepted);
+                new PrincipalId(Ulid.NewUlid()), AdmissionState);
             TaskAdmissionStarted.TrySetResult();
             return HoldTaskAdmission ? _taskAdmission.Task : Task.FromResult(_pendingRecord);
         }

@@ -36,6 +36,7 @@ public sealed class ComposerSession
     private string? _streamingRole;
     private string _streamingText = string.Empty;
     private bool _trackingTask;
+    private bool _trackedTerminalHandled;
     private string? _trackedTaskId;
     private readonly Dictionary<string, EventRecord> _earlyTaskTerminals = new(StringComparer.OrdinalIgnoreCase);
     private string _livePartialTranscript = string.Empty;
@@ -132,6 +133,7 @@ public sealed class ComposerSession
             _streamingText = string.Empty;
             _streamingRole = pendingInitialUserMessage is null ? null : "assistant";
             _trackingTask = false;
+            _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
             _livePartialTranscript = string.Empty;
@@ -164,6 +166,7 @@ public sealed class ComposerSession
             _streamingRole = "assistant";
             _streamingText = string.Empty;
             _trackingTask = tracked;
+            _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
             Connection = ComposerConnectionState.Streaming;
@@ -179,6 +182,7 @@ public sealed class ComposerSession
             _streamingRole = "assistant";
             _streamingText = string.Empty;
             _trackingTask = true;
+            _trackedTerminalHandled = false;
             _trackedTaskId = null;
             _earlyTaskTerminals.Clear();
             Connection = ComposerConnectionState.Streaming;
@@ -186,37 +190,42 @@ public sealed class ComposerSession
         Notify();
     }
 
-    internal void BindTrackedTask(TaskId taskId, string? expectedSessionId = null)
+    internal void BindTrackedTask(TaskId taskId, string? expectedSessionId = null, AgentRunState? state = null)
     {
         lock (_gate)
         {
             if (!_trackingTask || (expectedSessionId is not null && !string.Equals(SessionId, expectedSessionId, StringComparison.Ordinal))) return;
             _trackedTaskId = taskId.Value.ToString();
             if (_earlyTaskTerminals.TryGetValue(_trackedTaskId, out var terminal))
-                ApplyTrackedTerminalCore(terminal);
+                ApplyTrackedTerminalCore(terminal.Type, terminal.Sequence);
+            else if (state is AgentRunState.Completed or AgentRunState.Cancelled or AgentRunState.Failed)
+                ApplyTrackedTerminalCore("task." + state.Value.ToString().ToLowerInvariant(), LastSequence);
             _earlyTaskTerminals.Clear();
         }
         Notify();
     }
 
-    private void ApplyTrackedTerminalCore(EventRecord record)
+    private void ApplyTrackedTerminalCore(string type, long sequence)
     {
-        if (record.Type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
+        if (_trackedTerminalHandled && _streamingRole is null && _streamingText.Length == 0) return;
+        var alreadyHandled = _trackedTerminalHandled;
+        _trackedTerminalHandled = true;
+        if (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
         {
             CancelStreamingCore();
             return;
         }
-        if (record.Type.Equals("task.failed", StringComparison.OrdinalIgnoreCase))
+        if (type.Equals("task.failed", StringComparison.OrdinalIgnoreCase))
         {
-            _errors.Add("The assistant could not complete the request.");
-            _messages.Add(new ComposerMessage("assistant", _streamingText, record.Sequence, ComposerMessageState.Failed));
+            if (!alreadyHandled) _errors.Add("The assistant could not complete the request.");
+            _messages.Add(new ComposerMessage("assistant", _streamingText, sequence, ComposerMessageState.Failed));
             _streamingText = string.Empty;
             _streamingRole = null;
             Connection = ComposerConnectionState.Error;
             return;
         }
         if (_streamingText.Length > 0)
-            _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, record.Sequence));
+            _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, sequence));
         _streamingText = string.Empty;
         _streamingRole = null;
         if (Connection == ComposerConnectionState.Streaming)
@@ -564,7 +573,7 @@ public sealed class ComposerSession
                 else if (!string.Equals(_trackedTaskId, taskId, StringComparison.OrdinalIgnoreCase))
                     notify = false;
                 else
-                    ApplyTrackedTerminalCore(record);
+                    ApplyTrackedTerminalCore(type, record.Sequence);
             }
             else if (type.Equals("task.cancelled", StringComparison.OrdinalIgnoreCase))
             {
