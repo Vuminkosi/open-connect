@@ -33,6 +33,11 @@ test('real agent uses an interactive follow-up to filter the previously selected
   expect(response.status()).toBe(200);
   const events = (await response.json()).filter((event) => event.type === 'liveui.request' || event.type === 'liveui.response')
     .map((event) => ({ ...event, payload: JSON.parse(event.data) }));
+  const plans = events.filter((event) => event.type === 'liveui.response' && event.payload.resultKind === 'plan')
+    .map((event) => JSON.parse(event.payload.payloadJson))
+    .filter((plan) => plan.provider === process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND && plan.outcome === 'completed');
+  expect(plans.length).toBeGreaterThanOrEqual(2);
+  expect(plans.some((plan) => plan.plan.actions.some((action) => action.type === 'setValue' && action.value === 'report'))).toBe(true);
   const search = events.find((event) => event.type === 'liveui.request' && event.payload.operation === 'execute' &&
     event.payload.action === 'SetValue' && event.payload.value === 'report');
   expect(search).toBeTruthy();
