@@ -304,7 +304,9 @@ public sealed class LiveUIAgentTools(
     };
 
     private static LiveUIActionParameters GetCapabilityProbeParameters(LiveUITarget target, LiveUIActionType actionType) =>
-        actionType == LiveUIActionType.SetValue
+        actionType == LiveUIActionType.Select && target.Kind == LiveUITargetKind.Checkbox
+            ? new(Value: "true")
+            : actionType == LiveUIActionType.SetValue
             ? new(Value: string.Empty)
             : actionType == LiveUIActionType.WaitForState && (target.Kind is LiveUITargetKind.List or LiveUITargetKind.Table or LiveUITargetKind.Region)
                 ? new(StateName: "textContains", StateValue: "probe")

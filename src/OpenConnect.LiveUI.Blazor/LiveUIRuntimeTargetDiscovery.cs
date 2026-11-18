@@ -107,6 +107,7 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
         LiveUITargetKind.Button or LiveUITargetKind.Link or LiveUITargetKind.Tab =>
             [LiveUICapability.Activate, LiveUICapability.Focus, LiveUICapability.Highlight, LiveUICapability.Inspect, LiveUICapability.WaitForState],
         LiveUITargetKind.Input => [LiveUICapability.SetValue, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
+        LiveUITargetKind.Checkbox => [LiveUICapability.Select, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
         LiveUITargetKind.Select => [LiveUICapability.Select, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
         LiveUITargetKind.Heading or LiveUITargetKind.Region => [LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll],
         _ => []

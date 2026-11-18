@@ -144,7 +144,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
       return measured(result("Completed", "highlight_active", true, "highlighted"));
     }
     case "SetValue": return measured(setValue(element, parameters.value, isCurrentTarget));
-    case "Select": return measured(selectValue(element, parameters.value, isCurrentTarget));
+    case "Select": return measured(selectValue(element, target.kind, parameters.value, isCurrentTarget, verifyState));
     case "SelectTab":
       if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
       element.click();
@@ -390,8 +390,18 @@ function setValue(element, value, isCurrentTarget) {
   return isCurrentTarget() && element.value === value ? result("Completed", "value_set", true, "value_set") : result("Uncertain", "value_unverified");
 }
 
-function selectValue(element, value, isCurrentTarget) {
+function selectValue(element, targetKind, value, isCurrentTarget, verifyState) {
   if (isSensitiveField(element)) return result("Denied", "sensitive_input_blocked");
+  if (element instanceof HTMLInputElement && element.type === "checkbox") {
+    if (targetKind !== "Checkbox") return result("Denied", "control_kind_mismatch");
+    if (value !== "true" && value !== "false") return result("Failed", "checkbox_value_invalid");
+    if (isDisabled(element)) return result("Denied", "control_disabled");
+    if (element.readOnly || element.getAttribute("aria-readonly")?.toLowerCase() === "true") return result("Denied", "control_readonly");
+    if (element.checked === (value === "true")) return result("Completed", "state_already_verified", true, element.checked ? "checked" : "unchecked");
+    element.click();
+    return verifyState("checked", value);
+  }
+  if (targetKind !== "Select") return result("Denied", "control_kind_mismatch");
   if (!(element instanceof HTMLSelectElement) || typeof value !== "string") return result("Failed", "select_not_supported");
   if (isDisabled(element)) return result("Denied", "select_disabled");
   const options = [...element.options];

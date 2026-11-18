@@ -201,3 +201,41 @@ test('opening or closing an already matching disclosure does not toggle it', asy
     expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(results.clicks).toBe(1);
 });
+
+test('checkbox selection is explicit, verified and idempotent', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<input type="checkbox" aria-label="Complete task">' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute, discoverTargets } = await import('/liveui.js');
+    const observed = discoverTargets(20).find((item) => item.kind === 'Checkbox' && item.label === 'Complete task');
+    const target = { ...observed, id: 'complete' };
+    const input = document.querySelector('input');
+    let changes = 0;
+    input.addEventListener('change', () => changes++);
+    const run = (value) => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Select', parameters: { value } },
+    }, 100, true);
+    const checked = await run('true');
+    const alreadyChecked = await run('true');
+    const invalid = await run('yes');
+    const unchecked = await run('false');
+    const wrongKind = await execute({ manifest: {}, route: { path: '/', targets: [] },
+      target: { id: 'wrong-kind', kind: 'Select', label: 'Control', selector: 'input' },
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Select', parameters: { value: 'true' } },
+    }, 100, true);
+    input.setAttribute('aria-readonly', 'true');
+    const readOnly = await run('true');
+    return { observed, checked, alreadyChecked, invalid, unchecked, wrongKind, readOnly, changes, final: input.checked };
+  });
+  expect(results.observed).toMatchObject({ kind: 'Checkbox', label: 'Complete task' });
+  for (const receipt of [results.checked, results.alreadyChecked, results.unchecked])
+    expect(receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.invalid).toMatchObject({ outcome: 'Failed', code: 'checkbox_value_invalid' });
+  expect(results.wrongKind).toMatchObject({ outcome: 'Denied', code: 'control_kind_mismatch' });
+  expect(results.readOnly).toMatchObject({ outcome: 'Denied', code: 'control_readonly' });
+  expect(results.changes).toBe(2);
+  expect(results.final).toBe(false);
+});

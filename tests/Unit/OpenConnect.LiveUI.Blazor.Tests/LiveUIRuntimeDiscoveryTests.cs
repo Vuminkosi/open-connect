@@ -222,6 +222,30 @@ public sealed class LiveUIRuntimeDiscoveryTests
         Assert.Equal(LiveUIActionOutcome.Denied, denied.Outcome);
     }
 
+    [Fact]
+    public async Task Discovered_checkbox_exposes_selection_only_when_authorized()
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, "[{\"kind\":\"Checkbox\",\"label\":\"Complete task\",\"role\":\"checkbox\"}]"));
+        services.AddScoped<ILiveUIActionAuthorizer, CheckboxAuthorizer>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+        var tools = scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>();
+
+        var page = await tools.GetCurrentPageAsync();
+        var target = Assert.Single(page!.Targets);
+        Assert.Equal("Complete task", target.Label);
+        Assert.Contains(LiveUICapability.Select, target.Capabilities);
+        Assert.DoesNotContain(LiveUICapability.Focus, target.Capabilities);
+        Assert.Equal(LiveUIActionOutcome.Completed, (await tools.ExecuteAsync(target.TargetId, "Select", "true")).Outcome);
+        Assert.Equal(LiveUIActionOutcome.Denied, (await tools.ExecuteAsync(target.TargetId, "Select", "false")).Outcome);
+    }
+
     private sealed class Navigation : NavigationManager
     {
         public Navigation(string uri = "https://example.test/") => Initialize("https://example.test/", uri);
@@ -233,6 +257,13 @@ public sealed class LiveUIRuntimeDiscoveryTests
     {
         public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect, "policy"));
+    }
+
+    private sealed class CheckboxAuthorizer : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect ||
+                context.Action.Type == LiveUIActionType.Select && context.Action.Parameters.Value == "true", "policy", UserConfirmed: true));
     }
 
     private sealed class NavigationAuthorizer(bool allowNavigation) : ILiveUIActionAuthorizer
