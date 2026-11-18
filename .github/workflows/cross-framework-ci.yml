@@ -227,15 +227,48 @@ jobs:
             "## Unit tests (${{ matrix.tfm }})`n`nNOT APPLICABLE: no test projects target this TFM in-tree. Pending test multi-targeting decision." >> $env:GITHUB_STEP_SUMMARY
             exit 0
           }
+          'PostgresDocker: NOT VERIFIED in this offline lane; see required disposable PostgreSQL job.' >> $env:GITHUB_STEP_SUMMARY
           foreach ($p in $applicable) {
             # The explicit matrix includes test projects outside OpenConnect.slnx.
             # Restore each selected project without permitting lockfile drift.
             dotnet restore $p --locked-mode
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "TEST: $p -f $tfm"
-            dotnet test $p -c Release -f $tfm --no-restore
+            dotnet test $p -c Release -f $tfm --no-restore --filter "Category!=PostgresDocker"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+
+  postgres-docker:
+    name: PostgreSQL Navigator receipts and fencing (live, net10.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENCONNECT_REQUIRE_POSTGRES_DOCKER_TESTS: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Prepare official disposable PostgreSQL image
+        run: |
+          docker info > /dev/null
+          docker pull postgres:16-alpine
+      - name: Restore locked test dependencies
+        run: dotnet restore tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj --locked-mode
+      - name: Run all eight real PostgreSQL receipt and fencing tests
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=PostgresDocker"
+          --logger "trx;LogFileName=postgres-docker.trx" --results-directory artifacts/postgres-docker
+      - name: Require eight executed tests with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/postgres-docker/postgres-docker.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 8 -or [int]$counts.executed -ne 8 -or [int]$counts.passed -ne 8 -or [int]$counts.failed -ne 0) {
+            throw 'Expected all eight PostgresDocker tests to execute and pass; empty or skipped coverage is not accepted.'
+          }
+          'PostgresDocker: VERIFIED all eight tests against isolated disposable PostgreSQL containers; no production data or credentials used.' >> $env:GITHUB_STEP_SUMMARY
 
   contract:
     name: Contract + public API checks
@@ -299,7 +332,16 @@ jobs:
         run: dotnet restore OpenConnect.slnx
 
       - name: Verify formatting (no changes allowed)
-        run: dotnet format OpenConnect.slnx --verify-no-changes --no-restore
+        shell: pwsh
+        env:
+          OpenConnectFormatWorkspace: 'true'
+        run: |
+          # Prepare genuine Razor .g.cs files for dotnet format's design-time workspace.
+          # The sample target cleans only its disposable Razor outputs first.
+          dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Debug --no-restore -m:1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet format OpenConnect.slnx --verify-no-changes --no-restore
+          exit $LASTEXITCODE
 
   locks:
     name: Lockfile consistency gate

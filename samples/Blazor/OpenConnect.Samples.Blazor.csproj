@@ -4,6 +4,10 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>OpenConnect.Samples.Blazor</RootNamespace>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- dotnet format does not run the Razor generator. Its explicit preparation
+         build uses the SDK's physical generation pipeline; normal builds and
+         IDE workspaces retain the default source generator. -->
+    <UseRazorSourceGenerator Condition="'$(OpenConnectFormatWorkspace)' == 'true'">false</UseRazorSourceGenerator>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
@@ -31,5 +35,24 @@
   <Target Name="GenerateOpenConnectLiveUIManifest" BeforeTargets="PrepareResourceNames" DependsOnTargets="ResolveProjectReferences">
     <Error Condition="'@(OpenConnectLiveUICompiler)' == ''" Text="The LiveUI compiler project output could not be resolved." />
     <Exec Command="dotnet &quot;@(OpenConnectLiveUICompiler)&quot; --root &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(IntermediateOutputPath)openconnect.liveui.manifest.json&quot;" />
+  </Target>
+  <Target Name="CleanRazorFormattingOutputs"
+          BeforeTargets="RazorGenerateComponentDeclaration"
+          Condition="'$(OpenConnectFormatWorkspace)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <!-- Only disposable compiler outputs for this sample; force fresh generation. -->
+    <RemoveDir Directories="$(RazorGenerateIntermediateOutputPath);$(_RazorComponentDeclarationOutputPath)" />
+    <Delete Files="$(_RazorComponentDeclarationOutputCacheFile)" />
+  </Target>
+  <Target Name="IncludePreparedRazorForFormatting"
+          BeforeTargets="CoreCompile"
+          DependsOnTargets="ResolveRazorComponentInputs;AssignRazorComponentTargetPaths;_ResolveRazorComponentOutputs"
+          Condition="'$(OpenConnectFormatWorkspace)' == 'true' and '$(DesignTimeBuild)' == 'true'">
+    <Error Condition="'@(_RazorComponentDefinition)' == ''"
+           Text="No Razor component outputs were resolved for the formatting workspace." />
+    <Error Condition="!Exists('%(_RazorComponentDefinition.Identity)')"
+           Text="Build this sample with OpenConnectFormatWorkspace=true before formatting; generated Razor component is missing: %(_RazorComponentDefinition.Identity)" />
+    <ItemGroup>
+      <Compile Include="@(_RazorComponentDefinition)" />
+    </ItemGroup>
   </Target>
 </Project>

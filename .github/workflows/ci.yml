@@ -49,10 +49,23 @@ jobs:
       #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
       # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive&Category!=PostgresDocker"
+
+      - name: State live PostgreSQL coverage boundary
+        shell: pwsh
+        run: "'PostgresDocker: NOT VERIFIED in this offline lane; required disposable PostgreSQL job runs in Cross-Framework CI.' >> $env:GITHUB_STEP_SUMMARY"
 
       - name: Verify formatting
-        run: dotnet format OpenConnect.slnx --verify-no-changes --no-restore
+        shell: pwsh
+        env:
+          OpenConnectFormatWorkspace: 'true'
+        run: |
+          # Prepare genuine Razor .g.cs files for dotnet format's design-time workspace.
+          # The sample target cleans only its disposable Razor outputs first.
+          dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Debug --no-restore -m:1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet format OpenConnect.slnx --verify-no-changes --no-restore
+          exit $LASTEXITCODE
 
       - name: Check vulnerable dependencies
         shell: pwsh
@@ -86,14 +99,14 @@ jobs:
       - name: Build Release
         run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
 
-      # Full suite. Container-gated tests self-skip without Docker (D-03:
-      # no image pulls, no live containers, no Testcontainers execution in CI).
+      # Offline suite. PostgresDocker runs in the required Cross-Framework CI
+      # disposable PostgreSQL job, not in this ordinary test lane.
       # Required legs exclude live-broker tests by default (S08): unit/fake
       # tests gate; live NATS never gates. Opt-in locally/adhoc with:
       #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
       # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive&Category!=PostgresDocker"
 
   # Real local-fixture cases run automatically and fail the workflow on errors.
   # Live server providers are separate explicit manual checks, not fake passes.
