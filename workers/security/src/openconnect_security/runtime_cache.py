@@ -486,7 +486,7 @@ class RuntimeModelCacheManager:
                     "modelId": manifest.modelId,
                     "activeFingerprint": fingerprint,
                     "immutableRevision": manifest.immutableRevision,
-                    "activatedAtUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "activatedAtUtc": datetime.datetime.now(datetime.UTC).isoformat(),
                 },
             )
 
@@ -623,7 +623,7 @@ class RuntimeModelCacheManager:
                                 "reason": reason,
                                 "failedAsset": asset.relativePath,
                                 "timestampUtc": datetime.datetime.now(
-                                    datetime.timezone.utc
+                                    datetime.UTC
                                 ).isoformat(),
                             },
                         )
@@ -640,7 +640,7 @@ class RuntimeModelCacheManager:
                             license_approved=True,
                         )
 
-                now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                now_iso = datetime.datetime.now(datetime.UTC).isoformat()
                 _atomic_write_json(
                     staging_dir / "manifest.lock.json",
                     {
@@ -669,7 +669,7 @@ class RuntimeModelCacheManager:
                     shutil.rmtree(dest_dir)
                 os.replace(staging_dir, dest_dir)
                 self._activate(paths, manifest, fingerprint)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - Provisioning failures must preserve the active cache.
                 with contextlib.suppress(OSError):
                     _atomic_write_json(
                         staging_dir / "incomplete.json",
@@ -678,7 +678,7 @@ class RuntimeModelCacheManager:
                             "reason": "provision_failed",
                             "error": type(exc).__name__,
                             "timestampUtc": datetime.datetime.now(
-                                datetime.timezone.utc
+                                datetime.UTC
                             ).isoformat(),
                         },
                     )

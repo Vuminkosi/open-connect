@@ -1,8 +1,4 @@
 #nullable enable
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
 OpenConnect.Agents.Catalog.AgentCatalog
 OpenConnect.Agents.Catalog.AgentCatalog.AgentCatalog() -> void
 OpenConnect.Agents.Catalog.AgentCatalog.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -487,7 +483,6 @@ OpenConnect.Agents.Execution.ParallelPartialFailureException.Error.get -> System
 OpenConnect.Agents.Execution.ParallelPartialFailureException.FailedChildId.get -> string!
 OpenConnect.Agents.Execution.ParallelPartialFailureException.ParallelPartialFailureException(string! failedChildId, System.Exception! error, System.Collections.Generic.IReadOnlyList<string!>! completedIds, System.Collections.Generic.IReadOnlyList<string!>! cancelledIds) -> void
 OpenConnect.Agents.Execution.PerCallToolReauthorizer
-static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
 OpenConnect.Agents.Execution.QuarantinedChildResult
 OpenConnect.Agents.Execution.QuarantinedChildResult.QuarantinedChildResult(OpenConnect.Agents.Execution.ChildResult! Result, string! Reason) -> void
 OpenConnect.Agents.Execution.QuarantinedChildResult.Reason.get -> string!
@@ -547,10 +542,9 @@ OpenConnect.Agents.Providers.EchoProvider.SendAsync(OpenConnect.Agents.Providers
 OpenConnect.Agents.Providers.IProviderAdapter
 OpenConnect.Agents.Providers.IProviderAdapter.Descriptor.get -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.IProviderAdapter.SendAsync(OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
+OpenConnect.Agents.Providers.ModelRouteSelector
 OpenConnect.Agents.Providers.ProviderAdapter
 OpenConnect.Agents.Providers.ProviderAdapter.ProviderAdapter(System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.IProviderAdapter!>! providers) -> void
-OpenConnect.Agents.Providers.ModelRouteSelector
-static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.ProviderAdapter.Providers.get -> System.Collections.Generic.IReadOnlyCollection<OpenConnect.Agents.Providers.ProviderDescriptor!>!
 OpenConnect.Agents.Providers.ProviderAdapter.SendAsync(string! providerId, OpenConnect.Agents.Providers.ProviderRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Agents.Providers.ProviderResponse!>
 OpenConnect.Agents.Providers.ProviderDescriptor
@@ -720,6 +714,10 @@ OpenConnect.Agents.Templates.TemplateVariables.TaskGoal.init -> void
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.init -> void
 const OpenConnect.Agents.Catalog.AgentCatalog.FrameworkMaxDepth = 2 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
 const OpenConnect.Agents.Execution.ConversationCheckpointCodec.CurrentVersion = "oc-checkpoint/v1" -> string!
 const OpenConnect.Agents.Execution.ConversationCheckpointCodec.MaxCheckpointChildren = 64 -> int
 override OpenConnect.Agents.Execution.FirewallGuardedChatClient.GetResponseAsync(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>! messages, Microsoft.Extensions.AI.ChatOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Microsoft.Extensions.AI.ChatResponse!>!
@@ -749,8 +747,10 @@ static OpenConnect.Agents.Execution.OrchestrationProfileRouter.Resolve(OpenConne
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateAgentProfile(OpenConnect.Abstractions.AgentDefinition! definition, bool mafDirect, bool mafSequential, bool mafParallel, bool mafHandoff, bool mafSupervisor) -> void
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateExecutionProfile(string! profile) -> void
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateRuntimeProfile(string! profile) -> void
+static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
 static OpenConnect.Agents.Execution.RateLimitServiceCollectionExtensions.AddTenantApplicationRateLimiting(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Execution.ResultMerger.Merge(System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>! children, System.Guid expectedParentExecutionId, string! expectedTenantScope, OpenConnect.Abstractions.AgentResultMergeMode mode, System.Func<OpenConnect.Agents.Execution.ChildResult!, bool>? validator = null, System.Func<System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ChildResult!>!, OpenConnect.Agents.Execution.MergedAgentResult!>? explicitReducer = null) -> OpenConnect.Agents.Execution.MergedAgentResult!
+static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectAgent(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentDefinitionBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectAgentTemplate(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentTemplateBuilder!>? configure = null, bool allowWidening = false) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Templates.AgentRegistrationExtensions.AddOpenConnectLeadAgent(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! id, System.Action<OpenConnect.Agents.Templates.AgentRegistrationExtensions.AgentDefinitionBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
