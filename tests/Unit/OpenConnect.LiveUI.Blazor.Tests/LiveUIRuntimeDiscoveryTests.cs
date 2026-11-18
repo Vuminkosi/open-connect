@@ -24,7 +24,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         var services = new ServiceCollection();
         services.AddOpenConnectLiveUIBlazor();
         services.AddScoped<NavigationManager>(_ => navigation);
-        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations));
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations,
+            () => navigation.MoveTo("https://example.test/docs/v1/install")));
         services.AddScoped<ILiveUIActionAuthorizer>(_ => new NavigationAuthorizer(allowNavigation));
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -239,13 +240,14 @@ public sealed class LiveUIRuntimeDiscoveryTests
                 allowNavigation && context.Action.Type == LiveUIActionType.Navigate, "policy"));
     }
 
-    private sealed class Browser(bool unavailable = false, string? observations = null) : IJSRuntime, IJSObjectReference
+    private sealed class Browser(bool unavailable = false, string? observations = null, Action? onFollow = null) : IJSRuntime, IJSObjectReference
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
             if (identifier == "prepareRoute") return ValueTask.FromResult((TValue)(object)"observation");
+            if (identifier == "followRoute") { onFollow?.Invoke(); return ValueTask.FromResult((TValue)(object)true); }
             if (identifier == "discoverTargets" && unavailable) throw new JSException("unavailable");
             var json = identifier == "discoverTargets"
                 ? observations ?? "[{\"kind\":\"Heading\",\"label\":\"Tasks\",\"role\":\"heading\"}]"

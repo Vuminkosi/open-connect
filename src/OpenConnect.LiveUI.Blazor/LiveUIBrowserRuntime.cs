@@ -106,8 +106,10 @@ public sealed class LiveUIBrowserRuntime(
             {
                 observation = await _module.InvokeAsync<string?>("prepareRoute", cancellationToken, destination).ConfigureAwait(false);
                 if (observation is null) return new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "route_observation_missing", false);
+                var dispatched = await _module.InvokeAsync<bool>("followRoute", cancellationToken, destination, observation).ConfigureAwait(false);
+                if (!dispatched) return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_link_stale", false);
             }
-            navigationManager.NavigateTo(destination.Path);
+            else navigationManager.NavigateTo(destination.Path);
             var result = await _module.InvokeAsync<BrowserResult>(
                 "awaitRoute", cancellationToken, expectedPath, destination, (int)context.Action.Timeout.TotalMilliseconds,
                 options.Value.Discovery.EnableRuntimeFallback, observation)

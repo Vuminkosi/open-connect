@@ -184,26 +184,40 @@ function matchingRouteHeadings(title) {
     .filter((heading) => accessibleNames(heading).some((name) => normalize(name) === label));
 }
 
-export function prepareRoute(route) {
-  if (!route?.id?.startsWith("oc.runtime.route.") || typeof route.title !== "string" || !route.title.trim() || pendingRoutes.size >= 32) return null;
-  const currentLink = [...document.querySelectorAll("a[href]")].some((link) => {
-    if (!isVisible(link) || !isAllowedLinkActivation(link) || link.closest("pre, code")) return false;
+function matchingRouteLinks(route) {
+  return [...document.querySelectorAll("a[href]")].filter((link) => {
+    if (!isVisible(link) || isDisabled(link) || !isAllowedLinkActivation(link) || link.closest("pre, code")) return false;
     const destination = new URL(link.getAttribute("href"), document.baseURI);
     return !destination.search && !destination.hash && destination.pathname === route.path &&
       accessibleNames(link).some((name) => normalize(name) === normalize(route.title));
   });
-  if (!currentLink) return null;
+}
+
+export function prepareRoute(route) {
+  if (!route?.id?.startsWith("oc.runtime.route.") || typeof route.title !== "string" || !route.title.trim() || pendingRoutes.size >= 32) return null;
+  if (matchingRouteLinks(route).length !== 1) return null;
   const token = String(++nextRouteObservation);
   const timer = setTimeout(() => pendingRoutes.delete(token), 120000);
   pendingRoutes.set(token, { routeId: route.id, path: route.path, title: route.title,
-    previousHeadings: new Set(matchingRouteHeadings(route.title)), timer });
+    sourcePath: location.pathname, dispatched: false, previousHeadings: new Set(matchingRouteHeadings(route.title)), timer });
   return token;
+}
+
+export function followRoute(route, observationToken) {
+  const observation = pendingRoutes.get(observationToken);
+  if (!observation || observation.dispatched || observation.sourcePath !== location.pathname ||
+      observation.routeId !== route?.id || observation.path !== route.path || observation.title !== route.title) return false;
+  const links = matchingRouteLinks(route);
+  if (links.length !== 1) return false;
+  observation.dispatched = true;
+  links[0].click();
+  return true;
 }
 
 export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback, observationToken = null) {
   const dynamicRoute = route?.id?.startsWith("oc.runtime.route.");
   const observation = dynamicRoute ? pendingRoutes.get(observationToken) : null;
-  if (dynamicRoute && (!observation || observation.routeId !== route.id || observation.path !== route.path || observation.title !== route.title))
+  if (dynamicRoute && (!observation || !observation.dispatched || observation.routeId !== route.id || observation.path !== route.path || observation.title !== route.title))
     return Promise.resolve(result("Uncertain", "route_observation_missing"));
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(expectedPath)) return false;
@@ -314,6 +328,10 @@ function accessibleNames(element) {
   const labelledBy = element.getAttribute("aria-labelledby");
   if (labelledBy) names.push(labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" "));
   if (element.labels) for (const label of element.labels) names.push(label.textContent || "");
+  if (element.tagName.toLowerCase() === "a") {
+    const titles = element.querySelectorAll(":scope > strong");
+    if (titles.length === 1 && isVisible(titles[0])) names.push(titles[0].innerText || "");
+  }
   if (element.tagName.toLowerCase() === "section") {
     const heading = element.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6");
     if (heading && isVisible(heading)) names.push(heading.innerText || "");
