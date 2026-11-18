@@ -8,6 +8,8 @@
 @using OpenConnect.Abstractions
 @using System.Collections.Concurrent
 @using System.Text.Json
+@using System.Text
+@using System.Security.Cryptography
 @using Microsoft.Extensions.Options
 @using Microsoft.Extensions.Logging
 @inject LiveUIManifestState ManifestState
@@ -323,10 +325,16 @@
                 {
                     responseKind = "plan";
                     var router = Services.GetService(typeof(ILiveUIInferenceRouter)) as ILiveUIInferenceRouter;
-                    var page = await _agentTools.GetCurrentPageForDirectAgentAsync(cancellationToken);
+                    var page = request.ScreenedPageDigest is null
+                        ? await _agentTools.GetCurrentPageForDirectAgentAsync(cancellationToken)
+                        : await _agentTools.GetCurrentPageAsync(cancellationToken);
                     var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
                     if (router is null || page is null || manifest is null ||
-                        page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion)
+                        page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion ||
+                        request.ScreenedPageDigest is { } digest &&
+                        (digest.Length != 64 || !string.Equals(digest,
+                            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(page, JsonOptions)))),
+                            StringComparison.Ordinal)))
                     {
                         payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", plan = (LiveUIActionPlan?)null }, JsonOptions);
                     }

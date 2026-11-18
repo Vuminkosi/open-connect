@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
 
@@ -57,7 +59,19 @@ public static class LiveUIClientAgentToolFactory
         {
             if (string.IsNullOrWhiteSpace(intent) || intent.Length > 8_000)
                 return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
-            var response = await RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent),
+            string? screenedDigest = null;
+            if (interactionBroker is IScreenedClientPageBroker screenedBroker)
+            {
+                var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
+                var screenedPage = await screenedBroker.RequestScreenedPageAsync(sessionId, pageRequest, timeout, cancellationToken)
+                    .ConfigureAwait(false);
+                if (screenedPage is null || screenedPage.CorrelationId != pageRequest.CorrelationId || screenedPage.ResultKind != "page")
+                    return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
+                screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
+            }
+            var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
+                { ScreenedPageDigest = screenedDigest };
+            var response = await RequestAsync(request,
                 "plan", cancellationToken).ConfigureAwait(false);
             if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String &&
                 outcome.GetString() == "rate_limited")

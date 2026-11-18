@@ -20,6 +20,36 @@ public sealed class LiveUIClientInteractionRoundTripTests
     private const string Principal = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
     private const string OtherPrincipal = "01ARZ3NDEKTSV4RRFFQ69G5FAY";
 
+    [Fact]
+    public async Task Inference_request_is_bound_to_a_screened_page_from_the_same_session()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOpenConnectTaskExecution();
+        using var provider = services.BuildServiceProvider();
+        var store = provider.GetRequiredService<InMemorySessionStore>();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var tools = LiveUIClientAgentToolFactory.CreateTools(provider.GetRequiredService<IClientInteractionBroker>(),
+            session.Id, TimeSpan.FromSeconds(3));
+        var infer = Assert.IsAssignableFrom<Microsoft.Extensions.AI.AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+        var pending = infer.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments(
+            new Dictionary<string, object?> { ["intent"] = "Open tasks" })).AsTask();
+
+        var pageRequest = await WaitForRequestAsync(store, session.Id.Value, "get_current_page");
+        const string page = "{\"routeId\":\"home\",\"targets\":[{\"label\":\"Tasks\"}]}";
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            JsonSerializer.Serialize(new ClientInteractionResponse(pageRequest.CorrelationId, "page", page)));
+        var planRequest = await WaitForRequestAsync(store, session.Id.Value, "infer_plan");
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(page)));
+        Assert.Equal(expected, planRequest.ScreenedPageDigest);
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            JsonSerializer.Serialize(new ClientInteractionResponse(planRequest.CorrelationId, "plan", "{\"outcome\":\"completed\",\"plan\":{}}")));
+
+        var result = Assert.IsType<JsonElement>(await pending.WaitAsync(TimeSpan.FromSeconds(3)));
+        Assert.Equal("completed", result.GetProperty("outcome").GetString());
+    }
+
     [Theory]
     [InlineData(false, 1_500)]
     [InlineData(true, 0)]

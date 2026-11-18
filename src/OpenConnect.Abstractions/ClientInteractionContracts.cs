@@ -29,6 +29,10 @@ public sealed record ClientInteractionRequest(
 
     /// <summary>Optional opaque identifier for the authenticated client connection bound to this interaction.</summary>
     public string? ConnectionId { get; init; }
+
+    /// <summary>Gateway-computed SHA-256 digest of an independently screened page snapshot.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ScreenedPageDigest { get; init; }
 }
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>

@@ -182,6 +182,8 @@ OpenConnect.Abstractions.ClientInteractionRequest.Action.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.Action.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.ConnectionId.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.ConnectionId.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.ScreenedPageDigest.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.ScreenedPageDigest.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.ClientInteractionRequest(string! CorrelationId, string! Operation, string? TargetId = null, string? Action = null, string? Value = null, string? RouteId = null, string? StateName = null, string? StateValue = null, int HighlightDurationMilliseconds = 0) -> void
 OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.get -> string!
 OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.init -> void

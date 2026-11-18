@@ -308,6 +308,34 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("todo.home", Assert.Single(page.NavigableRoutes).RouteId);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Client_inference_uses_only_a_screened_page_digest(bool allowed)
+    {
+        var broker = new ScreenedInteractionBroker(allowed);
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var infer = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await infer.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["intent"] = "Open tasks" })));
+
+        Assert.Equal(1, broker.PageRequests);
+        if (allowed)
+        {
+            var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(ScreenedInteractionBroker.PageJson)));
+            Assert.Equal(expected, broker.PlanRequest!.ScreenedPageDigest);
+            Assert.Equal("completed", result.GetProperty("outcome").GetString());
+        }
+        else
+        {
+            Assert.Null(broker.PlanRequest);
+            Assert.Equal("page_unavailable", result.GetProperty("outcome").GetString());
+        }
+    }
+
     [Fact]
     public async Task Client_inference_rate_limit_is_reported_without_a_plan_or_retry()
     {
@@ -881,6 +909,28 @@ public sealed class LiveUIAgentToolsTests
             cancellationToken.ThrowIfCancellationRequested();
             Requests.Add(request);
             return respond(sessionId, request, expectedResultKind);
+        }
+    }
+
+    private sealed class ScreenedInteractionBroker(bool allowed) : IClientInteractionBroker, IScreenedClientPageBroker
+    {
+        public const string PageJson = "{\"routeId\":\"home\",\"targets\":[]}";
+        public int PageRequests { get; private set; }
+        public ClientInteractionRequest? PlanRequest { get; private set; }
+
+        public Task<ClientInteractionResponse?> RequestScreenedPageAsync(SessionId sessionId, ClientInteractionRequest request,
+            TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            PageRequests++;
+            return Task.FromResult(allowed ? new ClientInteractionResponse(request.CorrelationId, "page", PageJson) : null);
+        }
+
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            PlanRequest = request;
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, expectedResultKind,
+                "{\"outcome\":\"completed\",\"plan\":{}}"));
         }
     }
 

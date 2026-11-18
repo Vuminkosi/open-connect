@@ -1,4 +1,6 @@
 using System.Diagnostics.Metrics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Bunit;
 using Microsoft.AspNetCore.Components;
@@ -40,7 +42,7 @@ public sealed class LiveUIProviderClientInteractionTests
     [Fact]
     public async Task Server_dispatched_inference_uses_current_authorized_manifest_and_returns_plan()
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var router = new RecordingInferenceRouter();
@@ -82,10 +84,70 @@ public sealed class LiveUIProviderClientInteractionTests
         Assert.Equal("todo.completed", payload.RootElement.GetProperty("plan").GetProperty("actions")[0].GetProperty("targetId").GetString());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Screened_page_digest_binds_runtime_targets_before_inference(bool pageChanged)
+    {
+        await using var context = new BunitContext();
+        var client = new RecordingClient();
+        var router = new RecordingInferenceRouter();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIInferenceRouter>(_ => router);
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => new RecordingRuntime());
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        context.Services.AddScoped<StaticRuntimeDiscovery>();
+        context.Services.AddScoped<ILiveUIRuntimeTargetDiscovery>(provider => provider.GetRequiredService<StaticRuntimeDiscovery>());
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ =>
+            new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home") { CurrentPath = "/" }));
+
+        var composerSession = new ComposerSession();
+        composerSession.AttachSession(Session);
+        composerSession.RegisterConnection("test-connection", Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, composerSession)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), CreateManifest());
+                builder.CloseComponent();
+            }));
+        var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page")
+            { ConnectionId = "test-connection" };
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 1, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(pageRequest, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.Equal(pageRequest.CorrelationId, client.Response?.CorrelationId));
+        var pageJson = client.Response!.PayloadJson;
+        Assert.Contains("oc.runtime.discovered", pageJson, StringComparison.Ordinal);
+        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pageJson)));
+        if (pageChanged) context.Services.GetRequiredService<StaticRuntimeDiscovery>().Label = "Different control";
+
+        var inference = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: "Open the control")
+            { ConnectionId = "test-connection", ScreenedPageDigest = digest };
+        await rendered.InvokeAsync(() => composerSession.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), 2, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(inference, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.Equal(inference.CorrelationId, client.Response?.CorrelationId));
+
+        if (pageChanged)
+        {
+            Assert.Null(router.Request);
+            using var response = JsonDocument.Parse(client.Response!.PayloadJson);
+            Assert.Equal("page_unavailable", response.RootElement.GetProperty("outcome").GetString());
+        }
+        else
+        {
+            Assert.NotNull(router.Request);
+            Assert.Contains(router.Request.Capabilities, item => item.TargetId == "oc.runtime.discovered");
+        }
+    }
+
     [Fact]
     public async Task Provider_cancels_the_matching_browser_action_and_suppresses_a_stale_receipt()
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var runtime = new CancellationAwareRuntime();
@@ -126,7 +188,7 @@ public sealed class LiveUIProviderClientInteractionTests
     [Fact]
     public async Task Provider_binds_browser_action_to_the_originating_composer_session()
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var runtime = new RecordingRuntime();
@@ -161,7 +223,7 @@ public sealed class LiveUIProviderClientInteractionTests
     [Fact]
     public async Task Provider_cancels_interaction_when_composer_session_changes()
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var runtime = new CancellationAwareRuntime();
@@ -197,7 +259,7 @@ public sealed class LiveUIProviderClientInteractionTests
     [Fact]
     public async Task Provider_clears_highlight_when_cancellation_arrives_after_the_action_receipt()
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var runtime = new RecordingRuntime();
@@ -439,7 +501,7 @@ public sealed class LiveUIProviderClientInteractionTests
     public async Task Provider_executes_correlated_operations_and_posts_verified_receipts(
         ClientInteractionRequest request, string expectedAction)
     {
-        using var context = new BunitContext();
+        await using var context = new BunitContext();
         var manifest = CreateManifest();
         var client = new RecordingClient();
         var runtime = new RecordingRuntime();
@@ -520,6 +582,25 @@ public sealed class LiveUIProviderClientInteractionTests
             return Task.FromResult(new LiveUIInferenceResult(LiveUIInferenceProviderKind.Browser,
                 new LiveUIActionPlan(request.SchemaVersion, [new("activate", "todo.completed")]), "completed"));
         }
+    }
+
+    private sealed class StaticRuntimeDiscovery(LiveUIManifestState state) : ILiveUIRuntimeTargetDiscovery
+    {
+        public string Label { get; set; } = "Open control";
+
+        public ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+            CancellationToken cancellationToken = default)
+        {
+            var discovered = new LiveUITarget("oc.runtime.discovered", LiveUITargetKind.Button, Label,
+                new HashSet<LiveUICapability> { LiveUICapability.Activate }, RequiresConfirmation: true);
+            var targets = route.Targets.Where(item => item.Id != discovered.Id).Append(discovered).ToArray();
+            var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id ? item with { Targets = targets } : item).ToArray(), ContentHash = "" };
+            state.SetManifest(replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) });
+            return ValueTask.FromResult(true);
+        }
+
+        public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) =>
+            targetId == "oc.runtime.discovered";
     }
 
     private sealed class AllowAuthorizer : ILiveUIActionAuthorizer
