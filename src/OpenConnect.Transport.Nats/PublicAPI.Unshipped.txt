@@ -1,0 +1,66 @@
+#nullable enable
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDelivery
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDelivery.AckAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDelivery.Data.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDelivery.NakAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2.AckAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2.Data.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2.NakAsync(string? reason, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2.Redelivered.get -> bool
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStream
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStream.FetchAsync(string! consumerName, System.Collections.Generic.IReadOnlyCollection<string!>! eventTypes, int batchSize, System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Transport.Nats.AgentEvents.IAgentEventDelivery!>!
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStreamV2
+OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStreamV2.FetchAsync(string! consumerName, System.Collections.Generic.IReadOnlyCollection<string!>! eventTypes, int batchSize, System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Transport.Nats.AgentEvents.IAgentEventDeliveryV2!>!
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscription
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscription.JetStreamAgentEventSubscription(OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStream! jetStream, int batchSize = 32) -> void
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscription.SubscribeAsync(OpenConnect.Abstractions.AgentEventSubscriptionOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CommittedAgentEvent!>!
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscriptionV2
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscriptionV2.JetStreamAgentEventSubscriptionV2(OpenConnect.Transport.Nats.AgentEvents.IAgentEventJetStreamV2! jetStream, int batchSize = 32) -> void
+OpenConnect.Transport.Nats.AgentEvents.JetStreamAgentEventSubscriptionV2.SubscribeAsync(OpenConnect.Abstractions.AgentEventSubscriptionOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.CommittedEventDelivery!>!
+OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher
+OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher.OutboxEventPublisher(OpenConnect.Transport.Nats.IJetStreamPublisher! publisher) -> void
+OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher.PublishAsync(OpenConnect.Abstractions.CommittedAgentEvent! committedEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.IJetStreamPublisher
+OpenConnect.Transport.Nats.IJetStreamPublisher.PublishAsync(string! subject, System.ReadOnlyMemory<byte> payload, string! messageId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.IOutboxRelaySource
+OpenConnect.Transport.Nats.IOutboxRelaySource.GetPendingAsync(int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.OutboxEntry!>!>!
+OpenConnect.Transport.Nats.IOutboxRelaySource.MarkDeliveredAsync(System.Guid entryId, System.Guid leaseId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Transport.Nats.NatsPublisher
+OpenConnect.Transport.Nats.NatsPublisher.NatsPublisher(OpenConnect.Transport.Nats.IJetStreamPublisher! broker, int maxMessageBytes = 65536) -> void
+OpenConnect.Transport.Nats.NatsPublisher.PublishAsync(string! subject, System.ReadOnlyMemory<byte> envelopeJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Transport.Nats.OutboxRelay
+OpenConnect.Transport.Nats.OutboxRelay.OutboxRelay(OpenConnect.Transport.Nats.IOutboxRelaySource! source, OpenConnect.Transport.Nats.NatsPublisher! publisher) -> void
+OpenConnect.Transport.Nats.OutboxRelay.RelayOnceAsync(string! subject, int limit, System.Guid leaseId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
+OpenConnect.Transport.Nats.OutboxStoreRelaySource
+OpenConnect.Transport.Nats.OutboxStoreRelaySource.GetPendingAsync(int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.OutboxEntry!>!>!
+OpenConnect.Transport.Nats.OutboxStoreRelaySource.MarkDeliveredAsync(System.Guid entryId, System.Guid leaseId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Transport.Nats.OutboxStoreRelaySource.OutboxStoreRelaySource(OpenConnect.Abstractions.IOutboxStore! store) -> void
+OpenConnect.Transport.Nats.WorkerEnvelope
+OpenConnect.Transport.Nats.WorkerEnvelope.CorrelationId.get -> string?
+OpenConnect.Transport.Nats.WorkerEnvelope.CorrelationId.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Transport.Nats.WorkerEnvelope.ExpiresAt.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.IssuedAt.get -> System.DateTimeOffset
+OpenConnect.Transport.Nats.WorkerEnvelope.IssuedAt.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.Kind.get -> string!
+OpenConnect.Transport.Nats.WorkerEnvelope.Kind.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.Lease.get -> OpenConnect.Transport.Nats.WorkerLease!
+OpenConnect.Transport.Nats.WorkerEnvelope.Lease.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.MessageId.get -> System.Guid
+OpenConnect.Transport.Nats.WorkerEnvelope.MessageId.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.PayloadRef.get -> string!
+OpenConnect.Transport.Nats.WorkerEnvelope.PayloadRef.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.SchemaVersion.get -> string!
+OpenConnect.Transport.Nats.WorkerEnvelope.SchemaVersion.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.TaskId.get -> string!
+OpenConnect.Transport.Nats.WorkerEnvelope.TaskId.init -> void
+OpenConnect.Transport.Nats.WorkerEnvelope.WorkerEnvelope(string! SchemaVersion, System.Guid MessageId, string! TaskId, string! Kind, System.DateTimeOffset IssuedAt, System.DateTimeOffset ExpiresAt, OpenConnect.Transport.Nats.WorkerLease! Lease, string! PayloadRef, string? CorrelationId = null) -> void
+OpenConnect.Transport.Nats.WorkerLease
+OpenConnect.Transport.Nats.WorkerLease.FencingToken.get -> long
+OpenConnect.Transport.Nats.WorkerLease.FencingToken.init -> void
+OpenConnect.Transport.Nats.WorkerLease.LeaseId.get -> System.Guid
+OpenConnect.Transport.Nats.WorkerLease.LeaseId.init -> void
+OpenConnect.Transport.Nats.WorkerLease.WorkerLease(System.Guid LeaseId, long FencingToken) -> void
+const OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher.Subject = "oc.v1.execution.event" -> string!
+static OpenConnect.Transport.Nats.WorkerEnvelope.Parse(System.ReadOnlySpan<byte> json) -> OpenConnect.Transport.Nats.WorkerEnvelope!

@@ -1,0 +1,14 @@
+{
+  "fixtureId": "outbox-provider-matrix-no-auto-ddl",
+  "acceptanceId": "WSE2E-AT-079",
+  "providers": [
+    { "name": "sqlite", "tablePrefix": "oc_", "schema": null },
+    { "name": "npgsql", "tablePrefix": "", "schema": "openconnect" },
+    { "name": "sqlserver", "tablePrefix": "", "schema": "openconnect" }
+  ],
+  "schemaGuards": {
+    "autoDdlForbiddenInWorker": true,
+    "efMigrationNotAllowedErrorCode": "ef_migration_not_allowed",
+    "efInmemoryNotDurableErrorCode": "ef_inmemory_not_durable"
+  }
+}

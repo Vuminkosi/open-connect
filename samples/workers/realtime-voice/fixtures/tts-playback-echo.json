@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-tts-playback-echo",
+  "echoCancellationEnabled": true,
+  "ttsPlaybackBufferMs": 300,
+  "expectedBehavior": {
+    "echoSuppressed": true,
+    "speechTriggeredByTts": false
+  }
+}

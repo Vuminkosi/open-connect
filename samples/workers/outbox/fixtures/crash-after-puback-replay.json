@@ -1,0 +1,8 @@
+{
+  "fixtureId": "outbox-crash-after-puback-replay",
+  "acceptanceId": "WSE2E-AT-076",
+  "scenario": "Simulates container crash immediately after NATS JetStream PUBACK but before database CompleteClaimAsync marks row delivered. Subsequent redelivery uses deterministic Nats-Msg-Id for deduplication.",
+  "deterministicMessageIdFormat": "canonical-guid-d",
+  "expectJetStreamDeduplication": true,
+  "expectDuplicatePublishSafe": true
+}

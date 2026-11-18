@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-two-approved-revisions",
+  "revisions": [
+    { "language": "eng", "revision": "rev-eng-2026-01", "checkpointHash": "hash-eng-1" },
+    { "language": "spa", "revision": "rev-spa-2026-01", "checkpointHash": "hash-spa-1" }
+  ],
+  "maxRamCacheEntries": 2,
+  "expectedBehavior": {
+    "bothRevisionsCachedInRam": true,
+    "diskPersistenceAttempted": false
+  }
+}

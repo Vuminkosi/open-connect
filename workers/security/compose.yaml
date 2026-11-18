@@ -1,0 +1,48 @@
+# OpenConnect security worker compose profile.
+#
+# By default, only the CPU rules detector is enabled (no model weights or
+# downloads). Optional model-backed detectors (GLiNER, DeBERTa, Qwen3Guard,
+# PaddleOCR, YuNet) remain disabled unless explicitly enabled and provisioned
+# in the oc_security_models volume.
+name: openconnect-security
+
+services:
+  security:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vuminkosimatibe/openconnect-worker-security:${OC_IMAGE_TAG:-e2e-local}
+    ports:
+      - "${SECURITY_PORT:-8080}:8080"
+    environment:
+      OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:?set OPENCONNECT_SCAN_TOKEN}
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+      OC_SECURITY_RULES_ENABLED: ${OC_SECURITY_RULES_ENABLED:-true}
+      OC_SECURITY_GLINER_ENABLED: ${OC_SECURITY_GLINER_ENABLED:-false}
+      OC_SECURITY_DEBERTA_ENABLED: ${OC_SECURITY_DEBERTA_ENABLED:-false}
+      OC_SECURITY_QWEN3GUARD_ENABLED: ${OC_SECURITY_QWEN3GUARD_ENABLED:-false}
+      OC_SECURITY_PADDLEOCR_ENABLED: ${OC_SECURITY_PADDLEOCR_ENABLED:-false}
+      OC_SECURITY_YUNET_ENABLED: ${OC_SECURITY_YUNET_ENABLED:-false}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      MODEL_DIR: /models
+    volumes:
+      - oc_security_models:/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/live', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  oc_security_models:
+    name: oc_security_models

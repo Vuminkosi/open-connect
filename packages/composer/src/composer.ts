@@ -81,6 +81,15 @@ export interface MiniComposerOptions {
   theme?: ComposerTheme;
   suggestions?: readonly string[];
   placeholder?: string;
+  /**
+   * When true or when a ShadowRoot mode is provided, mounts the composer inside a ShadowRoot
+   * to ensure strict CSS isolation and zero global host stylesheet leakage.
+   */
+  useShadowRoot?: boolean | ShadowRootMode;
+  /**
+   * Optional custom CSS string to inject into the ShadowRoot when useShadowRoot is enabled.
+   */
+  shadowRootStyles?: string;
 }
 
 export type ComposerListener = (state: ComposerState) => void;
@@ -166,6 +175,7 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
   };
 
   // ---- mount-owned resources (created in mount, released in dispose) ----
+  let wrapperNode: HTMLElement | null = null;
   let host: HTMLDivElement | null = null;
   let fab: HTMLButtonElement | null = null;
   let bubble: HTMLElement | null = null;
@@ -552,7 +562,24 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
 
       host.appendChild(fab);
       host.appendChild(bubble);
-      container.appendChild(host);
+
+      if (options.useShadowRoot) {
+        const mode: ShadowRootMode =
+          typeof options.useShadowRoot === "string" ? options.useShadowRoot : "open";
+        const shadowWrapper = el("div", "oc-composer-shadow-host");
+        wrapperNode = shadowWrapper;
+        const shadowRoot = shadowWrapper.attachShadow({ mode });
+        if (options.shadowRootStyles) {
+          const style = document.createElement("style");
+          style.textContent = options.shadowRootStyles;
+          shadowRoot.appendChild(style);
+        }
+        shadowRoot.appendChild(host);
+        container.appendChild(shadowWrapper);
+      } else {
+        wrapperNode = host;
+        container.appendChild(host);
+      }
       mounted = true;
 
       document.addEventListener("keydown", onDocumentKeydown, { signal });
@@ -600,9 +627,10 @@ export function createMiniComposer(options: MiniComposerOptions = {}): MiniCompo
         // Disposal must never throw.
       }
       abort = null;
-      if (host?.parentNode !== null && host?.parentNode !== undefined) {
-        host?.parentNode.removeChild(host as Node);
+      if (wrapperNode?.parentNode !== null && wrapperNode?.parentNode !== undefined) {
+        wrapperNode?.parentNode.removeChild(wrapperNode as Node);
       }
+      wrapperNode = null;
       host = null;
       fab = null;
       bubble = null;

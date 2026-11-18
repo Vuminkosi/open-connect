@@ -1,0 +1,68 @@
+schemaVersion: openconnect.privacy.policy/v1
+policyId: e2e-security-coverage-matrix
+mode: strict-local
+onFailure: deny
+vault:
+  owner: dotnet-host
+  encryption: AES-256-GCM
+  workerHasVaultKey: false
+  approvedRestorationFields:
+    - customerEmail
+    - authorizedRecipientPhone
+
+detectors:
+  rules:
+    enabledByDefault: true
+    requiresModelWeights: false
+    capabilities:
+      - EMAIL
+      - PHONE
+      - SECRET
+  gliner-pii:
+    enabledByDefault: false
+    requiresModelWeights: true
+    modelVolume: oc_security_models
+    onMissingWhenRequired: deny
+  deberta-injection:
+    enabledByDefault: false
+    requiresModelWeights: true
+    modelVolume: oc_security_models
+    onMissingWhenRequired: deny
+  qwen3guard:
+    enabledByDefault: false
+    requiresModelWeights: true
+    modelVolume: oc_security_models
+    onMissingWhenRequired: deny
+  paddle-ocr:
+    enabledByDefault: false
+    requiresModelWeights: true
+    modelVolume: oc_security_models
+    onMissingWhenRequired: deny
+    imageRedaction:
+      scrubExifAndTextChunks: true
+      redactBoundingBoxPixels: true
+  yunet:
+    enabledByDefault: false
+    requiresModelWeights: true
+    modelVolume: oc_security_models
+    onMissingWhenRequired: deny
+    imageRedaction:
+      scrubExifAndTextChunks: true
+      redactBoundingBoxPixels: true
+
+egressProfiles:
+  rules-only-text:
+    requiredDetectors: [rules]
+    allowExternalSinkWhenReady: true
+  semantic-pii-strict:
+    requiredDetectors: [rules, gliner-pii]
+    allowExternalSinkWhenMissing: false
+  injection-guarded:
+    requiredDetectors: [rules, deberta-injection]
+    allowExternalSinkWhenMissing: false
+  safety-guarded:
+    requiredDetectors: [rules, qwen3guard]
+    allowExternalSinkWhenMissing: false
+  image-redaction-strict:
+    requiredDetectors: [paddle-ocr, yunet]
+    allowExternalSinkWhenMissing: false

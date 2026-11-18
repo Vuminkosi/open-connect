@@ -1,4 +1,16 @@
 <Solution>
+  <Folder Name="/samples/Blazor/">
+    <Project Path="samples/Blazor/OpenConnect.Samples.Blazor.csproj" />
+  </Folder>
+  <Folder Name="/site/OpenConnect.Docs/">
+    <Project Path="site/OpenConnect.Docs/OpenConnect.Docs.csproj" />
+  </Folder>
+  <Folder Name="/site/OpenConnect.Docs.Tests/">
+    <Project Path="site/OpenConnect.Docs.Tests/OpenConnect.Docs.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/_shared/">
+    <Project Path="samples/_shared/OpenConnect.Samples.Shared/OpenConnect.Samples.Shared.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <Project Path="src/OpenConnect.Agents/OpenConnect.Agents.csproj" />
@@ -13,6 +25,11 @@
     <Project Path="src/OpenConnect.Navigator.Blazor/OpenConnect.Navigator.Blazor.csproj" />
     <Project Path="src/OpenConnect.Navigator.Operational/OpenConnect.Navigator.Operational.csproj" />
     <Project Path="src/OpenConnect.Navigator.OperationalBrowser/OpenConnect.Navigator.OperationalBrowser.csproj" />
+    <Project Path="src/OpenConnect.LiveUI/OpenConnect.LiveUI.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Inference/OpenConnect.LiveUI.Inference.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Blazor/OpenConnect.LiveUI.Blazor.csproj" />
+    <Project Path="src/OpenConnect.LiveUI.Compiler/OpenConnect.LiveUI.Compiler.csproj" />
     <Project Path="src/OpenConnect.Observability/OpenConnect.Observability.csproj" />
     <Project Path="src/OpenConnect.Persistence.EFCore/OpenConnect.Persistence.EFCore.csproj" />
     <Project Path="src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
@@ -35,6 +52,10 @@
     <Project Path="tests/Unit/OpenConnect.QdrantVactor.Tests/OpenConnect.QdrantVactor.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Tools.Tests/OpenConnect.Tools.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Transport.Tests/OpenConnect.Transport.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.LiveUI.Tests/OpenConnect.LiveUI.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.LiveUI.Agents.Tests/OpenConnect.LiveUI.Agents.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.LiveUI.Blazor.Tests/OpenConnect.LiveUI.Blazor.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.LiveUI.Compiler.Tests/OpenConnect.LiveUI.Compiler.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ArchitectureAtlas/OpenConnect.Samples.ArchitectureAtlas.csproj" />

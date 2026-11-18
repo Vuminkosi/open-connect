@@ -1,19 +1,159 @@
 @inherits LayoutComponentBase
+@using MudBlazor
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
+@using OpenConnect.LiveUI.Blazor
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 
-<header class="sample-header">
-    <div class="sample-header-inner">
-        <span class="sample-mark" aria-hidden="true">OC</span>
+<MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" ObserveSystemThemeChange="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout Style="min-height: 100vh;">
+    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true" Dense="false">
+        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
+            <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
+        </MudAvatar>
         <div>
-            <p class="sample-eyebrow">OpenConnect sample</p>
-            <p class="sample-title">Work overview</p>
+            <MudText Typo="Typo.h6" Class="font-weight-bold" Color="Color.Primary">OpenConnect</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="margin-top: -4px; display: block;">Task Management Platform</MudText>
         </div>
-    </div>
-</header>
 
-<main class="sample-main">
-    @Body
-</main>
+        <MudSpacer />
 
-<footer class="sample-footer">
-    <p>Local demonstration store (SQLite file). Nothing here leaves this machine.</p>
-</footer>
+        <div class="d-none d-sm-flex align-center px-3 py-1 rounded-pill mr-3"
+             style="background-color: var(--mud-palette-background); border: 1px solid var(--mud-palette-lines-default);">
+            <span class="oc-pulse-dot mr-2"></span>
+            <MudText Typo="Typo.caption" Class="font-weight-medium">Agent Active</MudText>
+        </div>
+
+        <MudTooltip Text="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
+            <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Default"
+                           OnClick="@ToggleThemeAsync" />
+        </MudTooltip>
+        <LiveUIInferenceModelSetup />
+    </MudAppBar>
+
+    <MudMainContent Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
+        <OpenConnectProvider>
+          <OpenConnectLiveUIProvider>
+            @Body
+            <MiniComposer Placement="ComposerPlacement.BottomRight"
+                          AssistantName="Ellai"
+                          FabIcon="@Icons.Material.Filled.SmartToy"
+                          Placeholder="Ask Ellai..."
+                          CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
+            <OpenConnectNavigatorProvider />
+          </OpenConnectLiveUIProvider>
+        </OpenConnectProvider>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private MudThemeProvider _mudThemeProvider = null!;
+    private bool _isDarkMode = false;
+    private bool _userExplicitlySetTheme = false;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#2563EB",
+            PrimaryDarken = "#1D4ED8",
+            PrimaryLighten = "#3B82F6",
+            Secondary = "#0D9488",
+            Background = "#F1F5F9",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#FFFFFF",
+            AppbarText = "#0F172A",
+            TextPrimary = "#0F172A",
+            TextSecondary = "#475569",
+            LinesDefault = "#E2E8F0",
+            TableLines = "#E2E8F0",
+            ActionDefault = "#64748B",
+            Success = "#16A34A",
+            Warning = "#D97706",
+            Error = "#DC2626",
+            Info = "#0284C7"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#3B82F6",
+            PrimaryDarken = "#2563EB",
+            PrimaryLighten = "#60A5FA",
+            Secondary = "#14B8A6",
+            Background = "#090D16",
+            Surface = "#111827",
+            AppbarBackground = "#111827",
+            AppbarText = "#F8FAFC",
+            TextPrimary = "#F8FAFC",
+            TextSecondary = "#94A3B8",
+            LinesDefault = "#1F2937",
+            TableLines = "#1F2937",
+            ActionDefault = "#94A3B8",
+            Success = "#22C55E",
+            Warning = "#F59E0B",
+            Error = "#EF4444",
+            Info = "#38BDF8"
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "10px"
+        }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _mudThemeProvider != null)
+        {
+            try
+            {
+                var storedTheme = await JS.InvokeAsync<string?>("localStorage.getItem", "openconnect-theme-dark");
+                if (bool.TryParse(storedTheme, out var storedDark))
+                {
+                    _isDarkMode = storedDark;
+                    _userExplicitlySetTheme = true;
+                }
+                else
+                {
+                    var systemDark = await _mudThemeProvider.GetSystemDarkModeAsync();
+                    _isDarkMode = systemDark;
+                }
+                StateHasChanged();
+
+                await _mudThemeProvider.WatchSystemDarkModeAsync(OnSystemPreferenceChanged);
+            }
+            catch
+            {
+                // Fallback gracefully if browser interop is not ready yet
+            }
+        }
+    }
+
+    private Task OnSystemPreferenceChanged(bool newValue)
+    {
+        if (!_userExplicitlySetTheme)
+        {
+            _isDarkMode = newValue;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        _userExplicitlySetTheme = true;
+        _isDarkMode = !_isDarkMode;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "openconnect-theme-dark", _isDarkMode.ToString().ToLowerInvariant());
+        }
+        catch (JSException)
+        {
+            // Theme remains active for the current circuit when storage is unavailable.
+        }
+    }
+}

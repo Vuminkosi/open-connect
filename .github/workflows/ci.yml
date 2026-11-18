@@ -36,8 +36,12 @@ jobs:
       - name: Build Release
         run: dotnet build OpenConnect.slnx -c Release --no-restore -warnaserror
 
+      # Required legs exclude live-broker tests by default (S08): unit/fake
+      # tests gate; live NATS never gates. Opt-in locally/adhoc with:
+      #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
+      # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
       - name: Verify formatting
         run: dotnet format OpenConnect.slnx --verify-no-changes --no-restore
@@ -76,8 +80,12 @@ jobs:
 
       # Full suite. Container-gated tests self-skip without Docker (D-03:
       # no image pulls, no live containers, no Testcontainers execution in CI).
+      # Required legs exclude live-broker tests by default (S08): unit/fake
+      # tests gate; live NATS never gates. Opt-in locally/adhoc with:
+      #   $env:OPENCONNECT_TEST_NATS_URL='nats://localhost:4222'; dotnet test --filter "Category=NatsLive"
+      # Disposable broker: docker run --rm -p 4222:4222 nats -js
       - name: Run tests
-        run: dotnet test OpenConnect.slnx -c Release --no-build
+        run: dotnet test OpenConnect.slnx -c Release --no-build --filter "Category!=NatsLive"
 
   # Per-sample E2E matrix, windows-latest ONLY (orchestrator D-06 hardcodes
   # powershell.exe). Informational; never required, never gates.

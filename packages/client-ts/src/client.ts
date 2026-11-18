@@ -49,7 +49,11 @@ export type WebSocketFactory = (url: string, protocols?: string | string[]) => E
 
 export interface OpenConnectClientOptions {
   /** e.g. "https://host/openconnect/v1". Trailing slash is stripped. */
-  baseUrl: string;
+  baseUrl?: string;
+  /** Normalized alias for baseUrl matching the registration spec. */
+  apiBaseUrl?: string;
+  /** Explicit WebSocket endpoint or base URL (e.g. "wss://example.test/openconnect/v1/events"). */
+  eventUrl?: string;
   /** Bearer token sent as `Authorization: Bearer <token>` when set. */
   token?: string;
   /** Override for tests / custom transports. Defaults to globalThis.fetch. */
@@ -77,7 +81,7 @@ const EMPTY_UUID_D = "00000000-0000-0000-0000-000000000000";
 function statusToCode(
   status: number,
   bodyCode?: string,
-  options?: { path?: string; bodyType?: string },
+  options?: { path?: string | undefined; bodyType?: string | undefined },
 ): OpenConnectErrorCode {
   if (bodyCode !== undefined) {
     const known: OpenConnectErrorCode[] = [
@@ -140,16 +144,21 @@ function assertEventCursor(sessionId: string, afterSequence: number): void {
  */
 export class OpenConnectClient {
   private readonly baseUrl: string;
+  private readonly eventUrl?: string;
   private readonly token?: string;
   private readonly fetchImpl: FetchImpl;
   private readonly websocketImpl?: WebSocketFactory;
   private readonly defaultHeaders: Record<string, string>;
 
   constructor(options: OpenConnectClientOptions) {
-    if (options.baseUrl.trim().length === 0) {
-      throw new OpenConnectError("invalid_request", "baseUrl must not be empty.");
+    const rawUrl = options.baseUrl ?? options.apiBaseUrl;
+    if (!rawUrl || rawUrl.trim().length === 0) {
+      throw new OpenConnectError("invalid_request", "baseUrl (or apiBaseUrl) must not be empty.");
     }
-    this.baseUrl = options.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = rawUrl.replace(/\/+$/, "");
+    if (options.eventUrl !== undefined && options.eventUrl.trim().length > 0) {
+      this.eventUrl = options.eventUrl.trim().replace(/\/+$/, "");
+    }
     if (options.token !== undefined) this.token = options.token;
     const configuredFetch = options.fetchImpl ?? (globalThis.fetch as FetchImpl | undefined);
     if (configuredFetch === undefined) {
@@ -231,9 +240,12 @@ export class OpenConnectClient {
         "No WebSocket implementation available. Provide options.websocketImpl.",
       );
     }
-    const wsBase = this.baseUrl.replace(/^http/, "ws");
+    const rawWsBase = (this.eventUrl ?? this.baseUrl).replace(/^http/, "ws").replace(/\/+$/, "");
+    const baseWithoutEvents = rawWsBase.endsWith("/events")
+      ? rawWsBase.slice(0, -"/events".length)
+      : rawWsBase;
     const url =
-      `${wsBase}/sessions/${encodeURIComponent(sessionId)}/events` +
+      `${baseWithoutEvents}/sessions/${encodeURIComponent(sessionId)}/events` +
       `?afterSequence=${encodeURIComponent(String(after))}`;
     const socket = this.websocketImpl(url, "openconnect.v1");
     const onMessage = (ev: unknown): void => {
@@ -313,4 +325,12 @@ export class OpenConnectClient {
       retryable: response.status === 429 || response.status >= 500,
     });
   }
+}
+
+/**
+ * Creates an OpenConnectClient instance from configuration options.
+ * Conforms to openconnect-registration-spec §3.5.
+ */
+export function createOpenConnectClient(options: OpenConnectClientOptions): OpenConnectClient {
+  return new OpenConnectClient(options);
 }

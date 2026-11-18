@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
+using OpenConnectClient = OpenConnect.Client.OpenConnectClient;
+using CreateTaskRequest = OpenConnect.Client.CreateTaskRequest;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using Xunit;
@@ -154,6 +156,74 @@ public sealed class AuthenticatedTaskHttpTests
         Assert.Equal(Ulid.Parse(PrincipalA), fetched.PrincipalId.Value);
     }
 
+    [Fact]
+    public async Task Lost_admission_response_can_be_retried_after_gateway_execution_and_reconnect()
+    {
+        await using var host = await HttpFixture.StartAsync();
+        using var client = new HttpClient(new DropFirstAdmissionResponseHandler())
+        {
+            BaseAddress = new Uri(host.Client.BaseAddress!, "/openconnect/v1/")
+        };
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(FixtureScheme, $"{TenantA}:{PrincipalA}");
+        var sdk = new OpenConnectClient(client);
+        var session = await sdk.CreateSessionAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var events = sdk.SubscribeEventsWebSocketAsync(session.Id, cancellationToken: timeout.Token).GetAsyncEnumerator();
+        Assert.True(await events.MoveNextAsync());
+        using var registration = JsonDocument.Parse(events.Current.Data);
+        var connectionId = registration.RootElement.GetProperty("connectionId").GetString();
+        var request = new CreateTaskRequest("client-task", "idempotency-key", "Show tasks", session.Id.Value.ToString())
+        { ClientConnectionId = connectionId };
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => sdk.CreateMiniComposerTaskAsync(request, timeout.Token));
+        await host.Executor.Started.Task.WaitAsync(timeout.Token);
+        var admitted = Assert.Single(host.Services.GetRequiredService<InMemoryTaskStore>().All());
+        await host.Services.GetRequiredService<InMemorySessionStore>().AppendTaskEventAsync(
+            session.Id.Value, admitted.Id, "message", "Task list ready", timeout.Token);
+        host.Executor.Release();
+        TaskRecord? state = null;
+        while (state?.State != AgentRunState.Completed)
+        {
+            state = await sdk.GetTaskAsync(admitted.Id, timeout.Token);
+            if (state.State != AgentRunState.Completed) await Task.Delay(20, timeout.Token);
+        }
+
+        var seenMessage = false;
+        var seenCompletion = false;
+        while (!seenMessage || !seenCompletion)
+        {
+            Assert.True(await events.MoveNextAsync());
+            if (events.Current.Type == "message")
+                seenMessage = events.Current.TaskId == admitted.Id.Value.ToString() && events.Current.Data == "Task list ready";
+            if (events.Current.Type == "task.completed") seenCompletion = true;
+        }
+        await events.DisposeAsync();
+        var sessions = host.Services.GetRequiredService<InMemorySessionStore>();
+        while (true)
+        {
+            using var claim = sessions.TryClaimSoleConnection(session.Id);
+            if (claim is null) break;
+            await Task.Delay(20, timeout.Token);
+        }
+        await using var reconnectedEvents = sdk.SubscribeEventsWebSocketAsync(session.Id, cancellationToken: timeout.Token).GetAsyncEnumerator();
+        Assert.True(await reconnectedEvents.MoveNextAsync());
+        using var newRegistration = JsonDocument.Parse(reconnectedEvents.Current.Data);
+        var newConnectionId = newRegistration.RootElement.GetProperty("connectionId").GetString();
+        Assert.NotEqual(connectionId, newConnectionId);
+        var retried = await sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = newConnectionId }, timeout.Token);
+        Assert.Equal(admitted.Id, retried.Id);
+        Assert.Equal(AgentRunState.Completed, retried.State);
+        Assert.Equal(1, host.Executor.Calls);
+        Assert.Equal(1, host.TaskCount);
+        Assert.Equal(connectionId, host.Executor.LastTask!.ClientConnectionId);
+        var changed = await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = newConnectionId, Message = "Different request" }, timeout.Token));
+        Assert.Equal(409, changed.StatusCodeValue);
+        var wrongConnection = await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            sdk.CreateMiniComposerTaskAsync(request with { ClientConnectionId = "not-the-registered-connection" }, timeout.Token));
+        Assert.Equal(409, wrongConnection.StatusCodeValue);
+    }
+
     [Theory]
     [InlineData(TenantB, PrincipalA)]
     [InlineData(TenantA, PrincipalB)]
@@ -250,6 +320,49 @@ public sealed class AuthenticatedTaskHttpTests
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Tool_invocation_status_endpoint_enforces_tenant_isolation_and_returns_sanitized_status()
+    {
+        await using var host = await HttpFixture.StartAsync();
+        var tracker = host.Services.GetRequiredService<DurableToolExecutionTracker>();
+
+        var taskId = new TaskId(Ulid.Parse(TenantA));
+        var sessionId = new SessionId(Ulid.Parse(TenantA));
+        var tenantId = new TenantId(Ulid.Parse(TenantA));
+        var principalId = new PrincipalId(Ulid.Parse(PrincipalA));
+
+        var record = tracker.AcceptInvocation(
+            taskId,
+            sessionId,
+            tenantId,
+            principalId,
+            toolId: "indexer",
+            toolRevision: "v1.0",
+            executionMode: ToolExecutionMode.BackgroundDurable,
+            canonicalArgumentsJson: "{\"batch\":1}",
+            requiresApproval: false);
+
+        tracker.MarkStarted(record.InvocationId);
+        tracker.ReportProgress(record.InvocationId, "indexing", completedUnits: 25, totalUnits: 100);
+
+        // Own tenant client can read status
+        using var clientA = host.AuthenticatedClient(TenantA, PrincipalA);
+        using var responseA = await clientA.GetAsync($"/openconnect/v1/tasks/{taskId.Value}/tools/{record.InvocationId}");
+        Assert.Equal(HttpStatusCode.OK, responseA.StatusCode);
+
+        var body = await responseA.Content.ReadFromJsonAsync<DurableToolInvocationRecord>(IdentifierJsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(ToolInvocationStatus.Progressing, body.Status);
+        Assert.Equal(25, body.CompletedUnits);
+        Assert.Equal(100, body.TotalUnits);
+        Assert.NotEmpty(body.CanonicalArgumentHash);
+
+        // Foreign tenant client receives 404 (isolation/concealment)
+        using var clientB = host.AuthenticatedClient(TenantB, PrincipalB);
+        using var responseB = await clientB.GetAsync($"/openconnect/v1/tasks/{taskId.Value}/tools/{record.InvocationId}");
+        Assert.Equal(HttpStatusCode.NotFound, responseB.StatusCode);
+    }
+
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 
     private static async Task<HttpResponseMessage> Post(HttpClient client, string path, HttpContent content, string key)
@@ -263,6 +376,7 @@ public sealed class AuthenticatedTaskHttpTests
     {
         private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
         private readonly WebApplication _app;
+        public IServiceProvider Services => _app.Services;
         public HttpClient Client { get; }
         public RecordingExecutor Executor { get; }
         public int TaskCount => _app.Services.GetRequiredService<InMemoryTaskStore>().All().Count;
@@ -295,6 +409,7 @@ public sealed class AuthenticatedTaskHttpTests
             var app = builder.Build();
             try
             {
+                app.UseWebSockets();
                 app.UseAuthentication();
                 app.UseAuthorization();
                 app.MapOpenConnect();
@@ -333,6 +448,24 @@ public sealed class AuthenticatedTaskHttpTests
             Executor.Release();
             try { await StopBoundedAsync(_app); }
             finally { await _app.DisposeAsync(); }
+        }
+    }
+
+    private sealed class DropFirstAdmissionResponseHandler : DelegatingHandler
+    {
+        private int _dropped;
+        public DropFirstAdmissionResponseHandler() : base(new HttpClientHandler()) { }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken);
+            if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/minicomposer/tasks", StringComparison.Ordinal) == true &&
+                response.StatusCode == HttpStatusCode.Accepted && Interlocked.Exchange(ref _dropped, 1) == 0)
+            {
+                response.Dispose();
+                throw new HttpRequestException("Simulated lost admission response after gateway acceptance.");
+            }
+            return response;
         }
     }
 
@@ -390,11 +523,13 @@ public sealed class AuthenticatedTaskHttpTests
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Calls;
+        public HostTaskExecution? LastTask;
         public void Release() => _release.TrySetResult();
 
         public async Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Calls);
+            LastTask = task;
             Started.TrySetResult();
             await _release.Task.WaitAsync(cancellationToken);
         }

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AssemblyName>OpenConnect.Docs</AssemblyName>
+    <RootNamespace>OpenConnect.Docs</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Content/**/*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="generated/**/*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('generated')" />
+    <Content Include="generated/api/**/*.yml" CopyToOutputDirectory="PreserveNewest" Condition="Exists('generated/api')" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,75 @@
+@using OpenConnect.Samples.Blazor.Models
+@inject ITodoStore Store
+
+<MudGrid Class="mb-6">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="oc-surface-card pa-4 d-flex align-center" data-oc-target="todo-progress">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="mr-3">
+                <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Total Tasks</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">@_totalCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="oc-surface-card pa-4 d-flex align-center">
+            <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Large" Class="mr-3">
+                <MudIcon Icon="@Icons.Material.Filled.HourglassTop" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">In Progress</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Warning">@(_totalCount - @_completedCount)</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="oc-surface-card pa-4 d-flex align-center">
+            <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Large" Class="mr-3">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Completed</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Success">@_completedCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="oc-surface-card pa-4 d-flex align-center">
+            <MudAvatar Color="Color.Info" Variant="Variant.Filled" Size="Size.Large" Class="mr-3">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" />
+            </MudAvatar>
+            <div style="flex: 1;">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Completion</MudText>
+                    <MudText Typo="Typo.caption" Class="font-weight-bold">@_percentage%</MudText>
+                </div>
+                <MudProgressLinear Color="Color.Success" Value="@_percentage" Size="Size.Medium" Rounded="true" Class="mt-1" />
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private int _completedCount;
+    private int _totalCount;
+    private int _percentage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshProgressAsync();
+    }
+
+    public async Task RefreshProgressAsync()
+    {
+        var items = await Store.GetAllAsync();
+        _totalCount = items.Count;
+        _completedCount = items.Count(i => i.IsCompleted);
+        _percentage = _totalCount > 0 ? (int)Math.Round((double)_completedCount / _totalCount * 100) : 0;
+        StateHasChanged();
+    }
+}

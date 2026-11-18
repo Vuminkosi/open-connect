@@ -1,0 +1,76 @@
+@using OpenConnect.Abstractions
+@using OpenConnect.Client
+@using MudBlazor
+@inject IOpenConnectClient Client
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Composer settings</MudText>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">Worker and gateway monitoring</MudText>
+                <MudText Typo="Typo.body2" Color="@(_gatewayAvailable == true ? Color.Success : _gatewayAvailable == false ? Color.Error : Color.Secondary)">
+                    Gateway: @(_loading ? "Checking…" : _gatewayAvailable == true ? "Available" : "Unavailable")
+                </MudText>
+                <MudText Typo="Typo.body2">Advertised capabilities: @_capabilities.Count</MudText>
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error">@_error</MudText>
+                }
+                <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync" Disabled="@_loading">Refresh availability</MudButton>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">Voice</MudText>
+                <MudText Typo="Typo.body2">Provider: Kokoro</MudText>
+                <MudText Typo="Typo.body2">Voice: af_heart</MudText>
+                <MudText Typo="Typo.body2">Microphone: @(MicrophoneOn ? "On" : "Off")</MudText>
+                <MudText Typo="Typo.body2">Output: @(SpeechOn ? "On" : "Off")</MudText>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">Composer configuration</MudText>
+                <MudText Typo="Typo.body2">Placement: @Placement</MudText>
+                <MudText Typo="Typo.body2">Close behavior: @CloseBehavior</MudText>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public bool SpeechOn { get; set; }
+    [Parameter] public bool MicrophoneOn { get; set; }
+    [Parameter] public ComposerPlacement Placement { get; set; }
+    [Parameter] public ComposerCloseBehavior CloseBehavior { get; set; }
+
+    private IReadOnlyList<CapabilityDescriptor> _capabilities = Array.Empty<CapabilityDescriptor>();
+    private bool _loading;
+    private bool? _gatewayAvailable;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _capabilities = await Client.GetCapabilitiesAsync();
+            _gatewayAvailable = true;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or OpenConnectClientException or InvalidOperationException)
+        {
+            _gatewayAvailable = false;
+            _error = "Gateway unavailable. Worker availability could not be read.";
+        }
+        finally { _loading = false; }
+    }
+
+    private void Close() => Dialog.Close();
+}

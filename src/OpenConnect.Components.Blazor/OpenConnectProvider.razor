@@ -1,7 +1,9 @@
 @using OpenConnect.Abstractions
 @using OpenConnect.Components.Contracts
-<CascadingValue Value="Session" IsFixed="false">
-    <CascadingValue Value="Registry" IsFixed="true">
-        @ChildContent
+<CascadingValue Value="this" Name="OpenConnectProvider" IsFixed="true">
+    <CascadingValue Value="Session" IsFixed="false">
+        <CascadingValue Value="Registry" IsFixed="true">
+            @ChildContent
+        </CascadingValue>
     </CascadingValue>
 </CascadingValue>
