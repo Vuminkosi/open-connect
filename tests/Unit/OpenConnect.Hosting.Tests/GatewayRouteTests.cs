@@ -220,6 +220,43 @@ public sealed class GatewayRouteTests
     }
 
     [Theory]
+    [InlineData("{\"label\":\"Tasks\"}", true)]
+    [InlineData("{\"label\":\"person\\u0040example.org\"}", false)]
+    [InlineData("[]", false)]
+    public async Task Screened_page_broker_checks_even_directly_journaled_responses(string payload, bool allowed)
+    {
+        await using var host = await CreateAppAsync();
+        var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
+        var broker = Assert.IsAssignableFrom<IScreenedClientPageBroker>(host.App.Services.GetRequiredService<IClientInteractionBroker>());
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = store.RegisterBoundConnection(session)!;
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
+        var pending = broker.RequestScreenedPageAsync(session.Id, request, TimeSpan.FromSeconds(2));
+        await WaitForRequestAsync(store, session.Id.Value);
+        await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,
+            System.Text.Json.JsonSerializer.Serialize(new ClientInteractionResponse(request.CorrelationId, "page", payload)));
+
+        var response = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+
+        if (allowed) Assert.Equal(payload, response!.PayloadJson);
+        else Assert.Null(response);
+    }
+
+    [Fact]
+    public async Task Screened_page_broker_fails_closed_without_a_gate()
+    {
+        var store = new InMemorySessionStore();
+        var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var broker = new ScreenedClientInteractionBroker(store, null);
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
+
+        var response = await broker.RequestScreenedPageAsync(session.Id, request, TimeSpan.FromSeconds(2));
+
+        Assert.Null(response);
+        Assert.Empty(store.GetEvents(session.Id.Value, 0));
+    }
+
+    [Theory]
     [InlineData("navigate")]
     [InlineData("inspect")]
     [InlineData("await_state")]
@@ -250,11 +287,12 @@ public sealed class GatewayRouteTests
     {
         await using var host = await CreateAppAsync();
         var store = host.App.Services.GetRequiredService<InMemorySessionStore>();
-        Assert.Same(store, host.App.Services.GetRequiredService<IClientInteractionBroker>());
+        var broker = host.App.Services.GetRequiredService<IClientInteractionBroker>();
+        Assert.IsAssignableFrom<IScreenedClientPageBroker>(broker);
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         using var connection = store.RegisterBoundConnection(session)!;
         var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo-list", "Highlight");
-        var pending = store.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(2));
+        var pending = broker.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(2));
 
         await WaitForRequestAsync(store, session.Id.Value);
         await store.AppendEventAsync(session.Id.Value, ClientInteractionEventTypes.Response,

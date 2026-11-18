@@ -62,3 +62,14 @@ public interface IClientInteractionBroker
         TimeSpan timeout,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>Provides page snapshots independently screened for the session's privacy context.</summary>
+public interface IScreenedClientPageBroker
+{
+    /// <summary>Requests a current page and returns it only when its decoded content passes privacy screening unchanged.</summary>
+    Task<ClientInteractionResponse?> RequestScreenedPageAsync(
+        SessionId sessionId,
+        ClientInteractionRequest request,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default);
+}

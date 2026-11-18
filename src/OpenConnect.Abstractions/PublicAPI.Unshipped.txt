@@ -175,6 +175,8 @@ const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.req
 const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
 OpenConnect.Abstractions.IClientInteractionBroker
 OpenConnect.Abstractions.IClientInteractionBroker.RequestAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionRequest! request, string! expectedResultKind, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.ClientInteractionResponse?>!
+OpenConnect.Abstractions.IScreenedClientPageBroker
+OpenConnect.Abstractions.IScreenedClientPageBroker.RequestScreenedPageAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionRequest! request, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.ClientInteractionResponse?>!
 OpenConnect.Abstractions.ClientInteractionRequest
 OpenConnect.Abstractions.ClientInteractionRequest.Action.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.Action.init -> void
