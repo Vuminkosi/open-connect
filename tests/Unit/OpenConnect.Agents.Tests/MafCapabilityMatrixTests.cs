@@ -82,14 +82,14 @@ public sealed class MafCapabilityMatrixTests
     }
 
     [Fact]
-    public void Declarative_mcp_adapter_implements_tool_handler_with_async_dispose()
+    public void Declarative_mcp_adapter_uses_named_client_factory_without_handler_disposal()
     {
-        // Minimal local evidence that the native MAF adapter is resolvable: no
-        // server, no network, no instantiation. The adapter exposes DisposeAsync
-        // (IAsyncDisposable), not the synchronous IDisposable pattern.
+        // Each invocation owns its client wrapper; the application owns the factory.
         Assert.True(typeof(IMcpToolHandler).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
-        Assert.True(typeof(IAsyncDisposable).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
-        Assert.NotNull(typeof(DefaultMcpToolHandler).GetMethod("DisposeAsync", Type.EmptyTypes));
+        Assert.NotNull(typeof(DefaultMcpToolHandler).GetConstructor(new[] { typeof(IHttpClientFactory), typeof(string) }));
+        Assert.False(typeof(IAsyncDisposable).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
+        Assert.False(typeof(IDisposable).IsAssignableFrom(typeof(DefaultMcpToolHandler)));
+        Assert.Null(typeof(DefaultMcpToolHandler).GetMethod("DisposeAsync", Type.EmptyTypes));
     }
 
     [Fact]
