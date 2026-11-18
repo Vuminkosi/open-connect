@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>OpenConnect.Samples.Persistence.SqlServer</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>OpenConnect.Samples.Persistence.SqlServer</RootNamespace>
+    <NoWarn>$(NoWarn);1591;NU1902;NU1903</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1902;NU1903</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\OpenConnect.Persistence.EFCore\OpenConnect.Persistence.EFCore.csproj" />
+    <ProjectReference Include="..\..\_shared\OpenConnect.Samples.Shared\OpenConnect.Samples.Shared.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+  </ItemGroup>
+</Project>

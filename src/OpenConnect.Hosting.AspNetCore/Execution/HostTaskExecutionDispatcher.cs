@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,7 +26,7 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
     public HostTaskExecutionDispatcher(ExecutionQueue queue, InMemoryTaskStore store, ITaskLifecycleStore lifecycle, InMemorySessionStore sessions, IServiceScopeFactory scopeFactory, ExecutionRuntimeState runtime, OpenConnectTaskExecutionOptions options)
     { _queue = queue; _store = store; _lifecycle = lifecycle; _sessions = sessions; _scopeFactory = scopeFactory; _runtime = runtime; _options = options; }
 
-    public Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken)
+    public Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant, PrincipalId principal, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var scopedKey = $"{tenant.Value}:{principal.Value}:{key}";
@@ -48,9 +49,14 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
             {
                 var session = createdSession?.Id ?? new SessionId(Ulid.Parse(request.SessionId!));
                 record = new TaskRecord(new TaskId(Ulid.NewUlid()), tenant, principal, AgentRunState.Accepted);
-                var input = new HostTaskExecution(record.Id, tenant, principal, session, request.Message ?? string.Empty, key);
+                var input = new HostTaskExecution(record.Id, tenant, principal, session, request.Message ?? string.Empty, key)
+                {
+                    Origin = origin,
+                    ClientConnectionId = request.BoundConnectionId
+                };
                 work = new ExecutionWork(input, record, new CancellationTokenSource());
                 _store.Put(record);
+                _sessions.AppendEvent(session.Value, "task.accepted", JsonSerializer.Serialize(new { taskId = record.Id.Value.ToString(), state = "accepted" }));
                 _keys[scopedKey] = (fingerprint, work);
                 if (!_queue.Channel.Writer.TryWrite(work))
                 {
@@ -89,8 +95,10 @@ internal sealed class HostTaskExecutionDispatcher : IHostTaskExecutionDispatcher
             {
                 if (!await WorkCancellation.For(queued).CancelAsync(queued))
                     return await _store.GetAsync(taskId, cancellationToken);
-                return await _lifecycle.TransitionAsync(record.Id, record.TenantId, record.PrincipalId, AgentRunState.Accepted, AgentRunState.Cancelled, cancellationToken)
-                    ?? await _store.GetAsync(taskId, cancellationToken);
+                var transitioned = await _lifecycle.TransitionAsync(record.Id, record.TenantId, record.PrincipalId, AgentRunState.Accepted, AgentRunState.Cancelled, cancellationToken);
+                if (transitioned is not null)
+                    await HostTaskEvents.PublishAsync(_sessions, queued.Input, AgentRunState.Cancelled, CancellationToken.None);
+                return transitioned ?? await _store.GetAsync(taskId, cancellationToken);
             }
         }
         if (work is not null) await WorkCancellation.For(work).CancelAsync(work);
@@ -106,8 +114,9 @@ internal sealed class HostTaskExecutionWorker : BackgroundService
     private readonly OpenConnectTaskExecutionOptions _options;
     private readonly ILogger<HostTaskExecutionWorker> _logger;
     private readonly ExecutionRuntimeState _runtime;
-    public HostTaskExecutionWorker(ExecutionQueue queue, ITaskLifecycleStore lifecycle, IServiceScopeFactory scopeFactory, OpenConnectTaskExecutionOptions options, ILogger<HostTaskExecutionWorker> logger, ExecutionRuntimeState runtime)
-    { _queue = queue; _lifecycle = lifecycle; _scopeFactory = scopeFactory; _options = options; _logger = logger; _runtime = runtime; }
+    private readonly InMemorySessionStore _sessions;
+    public HostTaskExecutionWorker(ExecutionQueue queue, ITaskLifecycleStore lifecycle, IServiceScopeFactory scopeFactory, OpenConnectTaskExecutionOptions options, ILogger<HostTaskExecutionWorker> logger, ExecutionRuntimeState runtime, InMemorySessionStore sessions)
+    { _queue = queue; _lifecycle = lifecycle; _scopeFactory = scopeFactory; _options = options; _logger = logger; _runtime = runtime; _sessions = sessions; }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -121,7 +130,8 @@ internal sealed class HostTaskExecutionWorker : BackgroundService
         while (_queue.Channel.Reader.TryRead(out var pending))
         {
             await WorkCancellation.For(pending).CancelAsync(pending);
-            await TransitionAsync(pending, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None);
+            if (await TransitionAsync(pending, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None) is not null)
+                await PublishEventAsync(pending.Input, AgentRunState.Cancelled, CancellationToken.None);
             await WorkCancellation.For(pending).DisposeAsync(pending);
         }
         await base.StopAsync(cancellationToken);
@@ -133,7 +143,13 @@ internal sealed class HostTaskExecutionWorker : BackgroundService
         {
             await foreach (var work in _queue.Channel.Reader.ReadAllAsync(stoppingToken))
             {
-                if (work.Cancellation.IsCancellationRequested) { await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, stoppingToken); await WorkCancellation.For(work).DisposeAsync(work); continue; }
+                if (work.Cancellation.IsCancellationRequested)
+                {
+                    if (await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None) is not null)
+                        await PublishEventAsync(work.Input, AgentRunState.Cancelled, CancellationToken.None);
+                    await WorkCancellation.For(work).DisposeAsync(work);
+                    continue;
+                }
                 _runtime.Active[work.Record.Id.Value] = work;
                 try
                 {
@@ -142,26 +158,41 @@ internal sealed class HostTaskExecutionWorker : BackgroundService
                     var auth = scope.ServiceProvider.GetRequiredService<IHostTaskExecutionAuthorizer>();
                     var executor = scope.ServiceProvider.GetRequiredService<IHostTaskExecutor>();
                     await auth.AuthorizeAsync(work.Input, linked.Token);
-                    if (work.Cancellation.IsCancellationRequested) { await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, stoppingToken); continue; }
+                    if (work.Cancellation.IsCancellationRequested)
+                    {
+                        if (await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None) is not null)
+                            await PublishEventAsync(work.Input, AgentRunState.Cancelled, CancellationToken.None);
+                        continue;
+                    }
                     var running = await _lifecycle.TransitionAsync(work.Record.Id, work.Record.TenantId, work.Record.PrincipalId, AgentRunState.Accepted, AgentRunState.Running, stoppingToken);
                     if (running is null || running.State != AgentRunState.Running || work.Cancellation.IsCancellationRequested)
                     {
-                        if (running?.State == AgentRunState.Running) await TransitionAsync(work, AgentRunState.Running, AgentRunState.Cancelled, stoppingToken);
+                        if (running?.State == AgentRunState.Running)
+                        {
+                            if (await TransitionAsync(work, AgentRunState.Running, AgentRunState.Cancelled, CancellationToken.None) is not null)
+                                await PublishEventAsync(work.Input, AgentRunState.Cancelled, CancellationToken.None);
+                        }
                         continue;
                     }
+                    await PublishEventAsync(work.Input, AgentRunState.Running, stoppingToken);
                     await executor.ExecuteAsync(work.Input, linked.Token);
-                    await TransitionAsync(work, AgentRunState.Running, work.Cancellation.IsCancellationRequested ? AgentRunState.Cancelled : AgentRunState.Completed, stoppingToken);
+                    var terminalState = work.Cancellation.IsCancellationRequested ? AgentRunState.Cancelled : AgentRunState.Completed;
+                    await TransitionAsync(work, AgentRunState.Running, terminalState, stoppingToken);
+                    await PublishEventAsync(work.Input, terminalState, stoppingToken);
                 }
                 catch (OperationCanceledException) when (work.Cancellation.IsCancellationRequested || stoppingToken.IsCancellationRequested)
                 {
-                    if (await TransitionAsync(work, AgentRunState.Running, AgentRunState.Cancelled, CancellationToken.None) is null)
-                        await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None);
+                    var cancelled = await TransitionAsync(work, AgentRunState.Running, AgentRunState.Cancelled, CancellationToken.None)
+                        ?? await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Cancelled, CancellationToken.None);
+                    if (cancelled is not null)
+                        await PublishEventAsync(work.Input, AgentRunState.Cancelled, CancellationToken.None);
                 }
                 catch (Exception exception)
                 {
                     _logger.LogWarning("Host task execution failed for task {TaskId}; failure type {FailureType}.", work.Record.Id.Value, exception.GetType().Name);
                     if (await TransitionAsync(work, AgentRunState.Accepted, AgentRunState.Failed, CancellationToken.None) is null)
                         await TransitionAsync(work, AgentRunState.Running, AgentRunState.Failed, CancellationToken.None);
+                    await PublishEventAsync(work.Input, AgentRunState.Failed, CancellationToken.None);
                 }
                 finally
                 {
@@ -177,6 +208,15 @@ internal sealed class HostTaskExecutionWorker : BackgroundService
     {
         return _lifecycle.TransitionAsync(work.Record.Id, work.Record.TenantId, work.Record.PrincipalId, expected, state, cancellationToken);
     }
+
+    private Task PublishEventAsync(HostTaskExecution input, AgentRunState state, CancellationToken cancellationToken)
+        => HostTaskEvents.PublishAsync(_sessions, input, state, cancellationToken);
+}
+
+internal static class HostTaskEvents
+{
+    public static Task PublishAsync(InMemorySessionStore sessions, HostTaskExecution input, AgentRunState state, CancellationToken cancellationToken)
+        => sessions.AppendEventAsync(input.SessionId.Value, "task." + state.ToString().ToLowerInvariant(), JsonSerializer.Serialize(new { taskId = input.TaskId.Value.ToString(), state = state.ToString().ToLowerInvariant() }), cancellationToken);
 }
 
 /// <summary>Coordinates cancellation calls with disposal without holding a lock while callbacks run.</summary>

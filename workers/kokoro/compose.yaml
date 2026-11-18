@@ -1,0 +1,20 @@
+name: oc-kokoro
+
+services:
+  serve:
+    build: .
+    image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
+    ports:
+      - "${OC_KOKORO_PORT:-8080}:8080"
+    environment:
+      OC_MODEL_CACHE_DIR: /models
+      OC_KOKORO_MODEL: "hexgrad/Kokoro-82M"
+      OC_KOKORO_VOICE: "af_heart"
+      KOKORO_VOICES: "af_heart"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?set a worker token}
+    volumes:
+      - oc_kokoro_models:/models
+
+volumes:
+  oc_kokoro_models:
+    name: oc_kokoro_models

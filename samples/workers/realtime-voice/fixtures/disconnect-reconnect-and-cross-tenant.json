@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-disconnect-reconnect-and-cross-tenant",
+  "tenantA": "tenant-alpha",
+  "tenantB": "tenant-bravo",
+  "sessionA": "123e4567-e89b-42d3-a456-426614174018",
+  "sessionB": "123e4567-e89b-42d3-a456-426614174019",
+  "expectedBehavior": {
+    "crossTenantAccessForbidden": true,
+    "reconnectResumesStateWithEpochVerification": true
+  }
+}

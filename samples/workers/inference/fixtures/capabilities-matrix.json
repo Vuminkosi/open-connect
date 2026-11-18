@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "inference-capabilities-matrix",
+  "baseCapabilities": ["chat", "stream"],
+  "optionalCapabilities": ["tools", "structured-output", "embeddings"],
+  "configurations": [
+    {
+      "modelId": null,
+      "enableTools": true,
+      "enableStructuredOutput": true,
+      "enableEmbeddings": true,
+      "expectedCapabilities": ["chat", "stream"]
+    },
+    {
+      "modelId": "muse-spark-1.3",
+      "enableTools": true,
+      "enableStructuredOutput": true,
+      "enableEmbeddings": false,
+      "expectedCapabilities": ["chat", "stream", "tools", "structured-output"]
+    },
+    {
+      "modelId": "muse-spark-1.3",
+      "enableTools": false,
+      "enableStructuredOutput": false,
+      "enableEmbeddings": false,
+      "expectedCapabilities": ["chat", "stream"]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/schemas/compatibility-report/v1",
+  "title": "OpenConnect cross-framework compatibility report",
+  "description": "Machine-readable evidence for the net8.0/net9.0/net10.0 support matrix (CF-IMP-017). Produced by CI package-inspect + consumer-smoke jobs and consumed by build/scripts/render-compatibility-matrix.py. Cells without evidence stay pending; absence of evidence is never rendered as support.",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAtUtc", "packages"],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.compatibility/v1",
+      "description": "Schema identifier. Must equal openconnect.compatibility/v1."
+    },
+    "generatedAtUtc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of report generation."
+    },
+    "commit": {
+      "type": "string",
+      "description": "Source commit SHA the evidence was collected from."
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "targetFrameworks"],
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "string" },
+          "targetFrameworks": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "minItems": 1
+          },
+          "assets": {
+            "type": "object",
+            "description": "Observed lib/<tfm>/ entries per TFM in the packed nupkg.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          },
+          "dependencyGroups": {
+            "type": "object",
+            "description": "Dependency IDs observed per TFM group in the nuspec.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          },
+          "consumerSmoke": {
+            "type": "object",
+            "description": "Per-TFM external consumer restore/build/run outcome.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": { "type": "string", "enum": ["pass", "fail", "pending"] }
+          },
+          "testSuites": {
+            "type": "object",
+            "description": "Per-TFM unit/integration suite totals from canonical history runs. A TFM entry qualifies as evidence only when total>0, failed==0, passed>0 and passed+skipped==total.",
+            "propertyNames": { "enum": ["net8.0", "net9.0", "net10.0"] },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["passed", "total"],
+              "properties": {
+                "passed": { "type": "integer", "minimum": 0 },
+                "failed": { "type": "integer", "minimum": 0 },
+                "skipped": { "type": "integer", "minimum": 0 },
+                "total": { "type": "integer", "minimum": 0 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "crossTfm": {
+      "type": "object",
+      "description": "Cross-TFM client/host smoke evidence (CF-POSTVERIFY-024). Optional; renderer lists forward/reverse runs verbatim.",
+      "required": ["forward", "reverse", "harness"],
+      "properties": {
+        "forward": {
+          "type": "object",
+          "required": ["clientTfm", "hostTfm", "result"],
+          "properties": {
+            "clientTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "hostTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "result": { "type": "string", "enum": ["pass", "SMOKE_PASS", "fail"] },
+            "commit": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "reverse": {
+          "type": "object",
+          "required": ["clientTfm", "hostTfm", "result"],
+          "properties": {
+            "clientTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "hostTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+            "result": { "type": "string", "enum": ["pass", "SMOKE_PASS", "fail"] },
+            "commit": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "harness": {
+          "type": "object",
+          "required": ["script", "result"],
+          "properties": {
+            "script": { "type": "string" },
+            "commit": { "type": "string" },
+            "result": { "type": "string", "enum": ["pass", "SMOKE_PASS", "fail"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "string",
+      "description": "Top-level note-only evidence (e.g. Contracts.Tests net8.0-by-design) that must not render as a package support cell."
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "recommendedTfm": { "type": "string", "enum": ["net8.0", "net9.0", "net10.0"] },
+        "compatibilityOnly": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "eosDates": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "format": "date" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

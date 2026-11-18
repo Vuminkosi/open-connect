@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "transcription-unexpected-channels",
+  "taskId": "123e4567-e89b-42d3-a456-426614174012",
+  "declaredChannels": 6,
+  "sampleRateHz": 16000,
+  "bitsPerSample": 16,
+  "mimeType": "audio/pcm",
+  "expectedBehavior": {
+    "expectedStatus": 422,
+    "expectedReason": "unsupported_channels"
+  }
+}

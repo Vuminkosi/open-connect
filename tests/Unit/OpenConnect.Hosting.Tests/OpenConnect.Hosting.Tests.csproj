@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -11,5 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
   </ItemGroup>
 </Project>

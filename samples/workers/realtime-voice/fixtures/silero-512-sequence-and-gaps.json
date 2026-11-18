@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "realtime-voice-silero-512-sequence-and-gaps",
+  "sileroFrameSize": 512,
+  "contextSize": 64,
+  "recurrentStateSize": 256,
+  "cases": [
+    {
+      "id": "contiguous-sequence",
+      "frameOffsets": [0, 512, 1024, 1536],
+      "expectStatePreserved": true
+    },
+    {
+      "id": "sequence-gap",
+      "frameOffsets": [0, 512, 2048],
+      "expectStateReset": true
+    }
+  ]
+}

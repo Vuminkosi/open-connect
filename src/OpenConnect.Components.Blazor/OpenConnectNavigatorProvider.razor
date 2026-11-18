@@ -1,0 +1,13 @@
+@using OpenConnect.Client
+<CascadingValue Value="Navigator" IsFixed="false">
+    @if (Navigator.HighlightedTargetId is not null || Navigator.IsTourActive)
+    {
+        <div class="oc-navigator-host"
+             role="status"
+             aria-live="polite"
+             data-oc-navigator-highlight="@Navigator.HighlightedTargetId"
+             data-oc-navigator-tour="@Navigator.ActiveTourId">
+        </div>
+    }
+    @ChildContent
+</CascadingValue>

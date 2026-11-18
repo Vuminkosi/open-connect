@@ -127,7 +127,8 @@ public sealed class DelegationGate
         Min(current.MaxRuntime, child.MaxRuntime),
         Math.Min(current.MaxConcurrentAgents, child.MaxConcurrentAgents),
         Math.Min(current.MaxQueuedAgents, child.MaxQueuedAgents),
-        Math.Min(Math.Max(0, current.MaxTotalAgents - 1), child.MaxTotalAgents));
+        Math.Min(Math.Max(0, current.MaxTotalAgents - 1), child.MaxTotalAgents),
+        Math.Min(current.MaxCostMicrocents, child.MaxCostMicrocents));
 
     private static TimeSpan? Min(TimeSpan? left, TimeSpan? right) => (left, right) switch
     {

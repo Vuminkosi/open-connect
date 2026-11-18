@@ -18,6 +18,13 @@ internal sealed class EfSchemaHealthCheck<TContext>(TContext context, IOptions<O
                 return (false, $"{ErrorCodes.EfSchemaMissing}: database connection unavailable during schema validation.");
             return (true, "EF model is present; schema connectivity verified. Database object creation is never performed by this check.");
         }
-        catch { return (false, $"{ErrorCodes.EfSchemaMismatch}: schema validation failed."); }
+        catch (InvalidOperationException ex)
+        {
+            return (false, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"{ErrorCodes.EfSchemaMismatch}: schema validation failed: {ex.Message}");
+        }
     }
 }

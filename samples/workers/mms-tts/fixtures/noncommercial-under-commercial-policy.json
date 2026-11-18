@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-noncommercial-under-commercial-policy",
+  "commercialPolicy": true,
+  "checkpointLicense": "CC-BY-NC-4.0",
+  "language": "eng",
+  "expectedBehavior": {
+    "synthesisBlocked": true,
+    "expectedStatus": 503,
+    "expectedReason": "license_blocked"
+  }
+}

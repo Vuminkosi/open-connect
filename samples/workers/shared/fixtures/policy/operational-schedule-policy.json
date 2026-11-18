@@ -1,0 +1,1 @@
+{"identityMode":"workload-identity","ambientHttpContextAllowed":false,"misfirePolicy":"skip","concurrencyPolicy":"forbid","migrationMode":"manual"}

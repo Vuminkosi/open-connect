@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OpenConnect.Samples.Workers.Contracts</AssemblyName>
+    <RootNamespace>OpenConnect.Samples.Workers.Contracts</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Core\OpenConnect.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Privacy\OpenConnect.Privacy.csproj" />
+    <ProjectReference Include="..\..\..\..\src\OpenConnect.Transport.Nats\OpenConnect.Transport.Nats.csproj" />
+  </ItemGroup>
+</Project>

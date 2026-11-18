@@ -224,6 +224,7 @@ public sealed class TemplateRegistry
         if (child.MaxConcurrentAgents > parent.MaxConcurrentAgents) return (nameof(child.MaxConcurrentAgents), child.MaxConcurrentAgents, parent.MaxConcurrentAgents);
         if (child.MaxQueuedAgents > parent.MaxQueuedAgents) return (nameof(child.MaxQueuedAgents), child.MaxQueuedAgents, parent.MaxQueuedAgents);
         if (child.MaxTotalAgents > parent.MaxTotalAgents) return (nameof(child.MaxTotalAgents), child.MaxTotalAgents, parent.MaxTotalAgents);
+        if (child.MaxCostMicrocents > parent.MaxCostMicrocents) return (nameof(child.MaxCostMicrocents), child.MaxCostMicrocents, parent.MaxCostMicrocents);
         if (parent.MaxRuntime is not null && (child.MaxRuntime is null || child.MaxRuntime > parent.MaxRuntime))
             return (nameof(child.MaxRuntime), child.MaxRuntime?.ToString() ?? "unlimited", parent.MaxRuntime.Value.ToString());
         return null;
@@ -233,6 +234,7 @@ public sealed class TemplateRegistry
         Within(child.MaxToolCalls, parent.MaxToolCalls) && Within(child.MaxModelCalls, parent.MaxModelCalls) &&
         Within(child.MaxTokens, parent.MaxTokens) && Within(child.MaxConcurrentAgents, parent.MaxConcurrentAgents) &&
         Within(child.MaxQueuedAgents, parent.MaxQueuedAgents) && Within(child.MaxTotalAgents, parent.MaxTotalAgents) &&
+        Within(child.MaxCostMicrocents, parent.MaxCostMicrocents) &&
         (parent.MaxRuntime is null || child.MaxRuntime is not null && child.MaxRuntime <= parent.MaxRuntime);
 
     // Zero represents no allowance; it is not an unbounded value.
@@ -251,6 +253,7 @@ public sealed class TemplateRegistry
         ArgumentNullException.ThrowIfNull(template.MemoryPolicy);
         if (template.Budget.MaxToolCalls < 0 || template.Budget.MaxModelCalls < 0 || template.Budget.MaxTokens < 0 ||
             template.Budget.MaxConcurrentAgents < 0 || template.Budget.MaxQueuedAgents < 0 || template.Budget.MaxTotalAgents < 0 ||
+            template.Budget.MaxCostMicrocents < 0 ||
             template.Budget.MaxRuntime < TimeSpan.Zero)
             throw new ArgumentException("Template budget limits cannot be negative.", nameof(template));
     }

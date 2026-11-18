@@ -1,0 +1,8 @@
+{
+  "fixtureId": "outbox-broker-outage-retention",
+  "acceptanceId": "WSE2E-AT-077",
+  "scenario": "NATS broker outage throws during publish. Dispatcher records retry attempt, applies exponential backoff, and leaves rows in pending status without marking false completion.",
+  "maxRetryBackoffSeconds": 300,
+  "expectTaskAcceptanceRemainsIntact": true,
+  "expectOutboxRowRetained": true
+}

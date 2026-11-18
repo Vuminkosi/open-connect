@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,11 +9,14 @@ using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Serialization;
 using OpenConnect.Abstractions.Persistence;
+using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Privacy;
 
 [assembly: InternalsVisibleTo("OpenConnect.Hosting.Tests")]
 
@@ -20,32 +25,204 @@ namespace OpenConnect.Hosting.AspNetCore;
 /// <summary>Maps the versioned OpenConnect HTTP API.</summary>
 public static class EndpointRouteBuilderExtensions
 {
+    private static readonly ConditionalWeakTable<IEndpointRouteBuilder, HashSet<string>> MappedEndpointGroups = new();
+    private static readonly JsonSerializerOptions JsonOptions = OpenConnectHttpJson.CreateOptions();
+
+    private static bool TryMarkMapped(IEndpointRouteBuilder endpoints, string groupName)
+    {
+        var set = MappedEndpointGroups.GetOrCreateValue(endpoints);
+        lock (set)
+        {
+            return set.Add(groupName);
+        }
+    }
+
     /// <summary>Maps OpenConnect endpoints under <c>/openconnect/v1</c>.</summary>
     public static IEndpointRouteBuilder MapOpenConnect(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        var group = endpoints.MapGroup("/openconnect/v1");
 
-        group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+        if (TryMarkMapped(endpoints, "core"))
         {
-            var store = context.RequestServices.GetService<InMemoryTaskStore>();
-            return store is null
-                ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
-                : await HandleCreateTaskAsync(context, request, store, cancellationToken);
-        }).RequireAuthorization();
-        group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
-        group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
-        group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
-        group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
-        group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
-        group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
-        group.MapGet("/components", HandleComponents).RequireAuthorization();
-        group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-        group.MapGet("/health/ready", HandleReady).RequireAuthorization();
+            var group = endpoints.MapGroup("/openconnect/v1");
+
+            group.MapPost("/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+            {
+                var store = context.RequestServices.GetService<InMemoryTaskStore>();
+                return store is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register bounded task execution to enable task submission.")
+                    : await HandleCreateTaskAsync(context, request, store, cancellationToken);
+            }).RequireAuthorization();
+            group.MapPost("/minicomposer/tasks", async (HttpContext context, TaskRequest request, CancellationToken cancellationToken) =>
+            {
+                var store = context.RequestServices.GetService<InMemoryTaskStore>();
+                return store is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured.")
+                    : await HandleCreateTaskAsync(context, request, store, cancellationToken, HostTaskOrigin.MiniComposer);
+            }).RequireAuthorization();
+            group.MapGet("/tasks/{id}", HandleGetTaskAsync).RequireAuthorization();
+            group.MapPost("/tasks/{id}/cancel", HandleCancelTaskAsync).RequireAuthorization();
+            group.MapGet("/tasks/{id}/tools/{invocationId}", (string id, string invocationId, HttpContext context, IServiceProvider services) =>
+            {
+                var tracker = services.GetService<DurableToolExecutionTracker>();
+                return tracker is null ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Tool tracking is not configured.") : HandleGetToolInvocationStatus(id, invocationId, context, tracker);
+            }).RequireAuthorization();
+            group.MapPost("/sessions", HandleCreateSessionAsync).RequireAuthorization();
+            group.MapGet("/sessions/{id}", HandleGetSession).RequireAuthorization();
+            group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
+            group.MapPost("/sessions/{id}/liveui/responses", HandlePostClientInteractionResponseAsync).RequireAuthorization();
+            group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
+            group.MapPost("/speech/synthesize", async (HttpContext context, SpeechRequest request, CancellationToken cancellationToken) =>
+            {
+                var httpClientFactory = context.RequestServices.GetService<IHttpClientFactory>();
+                return httpClientFactory is null
+                    ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Speech synthesis is not configured.")
+                    : await HandleSpeechSynthesisAsync(request, context.RequestServices.GetRequiredService<IConfiguration>(), httpClientFactory, cancellationToken);
+            }).RequireAuthorization();
+            group.MapGet("/components", HandleComponents).RequireAuthorization();
+            group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+            group.MapGet("/health/ready", HandleReady).RequireAuthorization();
+        }
+
+        // Sub-feature endpoints are idempotent and safe to map here or call explicitly
+        endpoints.MapOpenConnectVoice();
+        endpoints.MapOpenConnectNavigator();
+        endpoints.MapOpenConnectMcp();
+
         return endpoints;
     }
 
-    internal static async Task<IResult> HandleCreateTaskAsync(HttpContext context, TaskRequest request, InMemoryTaskStore store, CancellationToken cancellationToken)
+    /// <summary>Maps OpenConnect voice endpoints under <c>/openconnect/v1/voice</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectVoice(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "voice")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/voice");
+        group.MapGet("/status", (IServiceProvider services) =>
+        {
+            var vad = services.GetService<ServerSileroVadEngine>();
+            return Results.Ok(new { vadConfigured = vad is not null });
+        }).RequireAuthorization();
+
+        group.MapPost("/audio", (HttpContext context) =>
+        {
+            if (!context.Request.HasFormContentType && !context.Request.ContentType?.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Audio payload must be audio/* or multipart form.");
+            }
+            if (context.Request.ContentLength > 10 * 1024 * 1024)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Audio payload exceeds maximum allowed size.");
+            }
+            return Results.Ok(new { status = "accepted" });
+        }).RequireAuthorization();
+
+        group.Map("/realtime/{sessionId}", async (HttpContext context, string sessionId, CancellationToken cancellationToken) =>
+        {
+            await VoiceRealtimeWebSocketHandler.HandleAsync(context, sessionId, cancellationToken).ConfigureAwait(false);
+        }).RequireAuthorization();
+
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect navigator endpoints under <c>/openconnect/v1/navigator</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectNavigator(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "navigator")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/navigator");
+        group.MapGet("/status", (IServiceProvider services) =>
+        {
+            var registry = services.GetService<IWorkerCapabilityRegistry>();
+            var ready = registry?.GetReady().Where(w => w.Kind == OpenConnectWorkerKind.NavigatorPlaywright).ToArray() ?? [];
+            return Results.Ok(new { ready = ready.Length > 0, count = ready.Length });
+        }).RequireAuthorization();
+
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect MCP endpoints under <c>/openconnect/v1/mcp</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectMcp(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "mcp")) return endpoints;
+
+        var group = endpoints.MapGroup("/openconnect/v1/mcp");
+        group.MapGet("/tools", (IServiceProvider services) =>
+        {
+            var catalog = services.GetService<IToolCatalog>();
+            return Results.Ok(catalog is not null ? catalog.GetForAgent(new AgentId("default")) : Array.Empty<ToolDescriptor>());
+        }).RequireAuthorization();
+
+        return endpoints;
+    }
+
+    private static async Task<IResult> HandleSpeechSynthesisAsync(
+        SpeechRequest request,
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000 ||
+            !string.Equals(request.VoiceId, "af_heart", StringComparison.Ordinal) ||
+            request.Format is not ("pcm" or "wav"))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["speech"] = ["Only af_heart PCM or WAV synthesis is supported."] });
+
+        var endpoint = configuration["Workers:Kokoro:Endpoint"];
+        var token = configuration["OPENCONNECT_WORKER_TOKEN"];
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var workerUri) || string.IsNullOrWhiteSpace(token))
+            return Results.Problem(statusCode: 503, title: "Kokoro speech worker is not configured.");
+
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(workerUri, "/internal/v1/execute"));
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        message.Content = JsonContent.Create(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId = $"tts-{Guid.NewGuid():N}",
+            kind = "speech.synthesize",
+            payload = new
+            {
+                schemaVersion = "openconnect.v1",
+                text = request.Text,
+                voiceId = "af_heart",
+                locale = request.Locale,
+                format = request.Format,
+                speechEpoch = request.SpeechEpoch,
+                idempotencyKey = request.IdempotencyKey
+            }
+        });
+
+        using var response = await httpClientFactory.CreateClient("openconnect-kokoro").SendAsync(message, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            return Results.Problem(statusCode: (int)response.StatusCode, title: "Kokoro speech synthesis failed.");
+
+        JsonDocument document;
+        try
+        {
+            document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
+            return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("result", out var result) ||
+                result.ValueKind != JsonValueKind.Object)
+                return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
+            return Results.Json(result.Clone());
+        }
+    }
+
+    private sealed record SpeechRequest(string Text, string VoiceId = "af_heart", string Locale = "en-US", string Format = "pcm", long SpeechEpoch = 0, string? IdempotencyKey = null);
+
+    internal static async Task<IResult> HandleCreateTaskAsync(HttpContext context, TaskRequest request, InMemoryTaskStore store, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.ClientTaskId) || request.ClientTaskId.Length > 128)
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["clientTaskId"] = ["A client task ID of at most 128 characters is required."] });
@@ -68,11 +245,25 @@ public static class EndpointRouteBuilderExtensions
         if (services.GetService<IHostTaskExecutionDispatcher>() is not { } dispatcher ||
             services.GetService<IHostTaskExecutionAuthorizer>() is null || services.GetService<IHostTaskExecutor>() is null)
             return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Task execution is not configured. Register an executor and authorizer to enable task submission.");
+        if (origin == HostTaskOrigin.MiniComposer && request.SessionId is null)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["sessionId"] = ["An existing session is required."] });
+        if (origin == HostTaskOrigin.MiniComposer && string.IsNullOrWhiteSpace(request.ClientConnectionId))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["clientConnectionId"] = ["An active client connection is required."] });
         if (request.SessionId is not null && (!UlidTryParse(request.SessionId, out var sessionId) ||
             services.GetService<InMemorySessionStore>()?.Get(sessionId) is not { } session || session.TenantId.Value != tenant || session.PrincipalId.Value != principal))
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
-        var result = await dispatcher.AcceptAsync(request, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken);
+        using var presenceClaim = origin == HostTaskOrigin.MiniComposer
+            ? services.GetService<InMemorySessionStore>()?.TryClaimSoleConnection(new SessionId(Ulid.Parse(request.SessionId!)))
+            : null;
+        if (origin == HostTaskOrigin.MiniComposer &&
+            (presenceClaim is null || !string.Equals(presenceClaim.ConnectionId, request.ClientConnectionId, StringComparison.Ordinal)))
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Exactly one active session connection is required.", type: "https://openconnect.dev/problems/session-presence");
+        // A reconnect may recover the same admitted task, but never changes the connection
+        // captured in its existing execution record or grants access to its pending work.
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{(int)origin}\n{request.ClientTaskId}\n{request.Message}\n{request.SessionId}")));
+        var boundRequest = request with { BoundConnectionId = presenceClaim?.ConnectionId };
+        var result = await dispatcher.AcceptAsync(boundRequest, key, fingerprint, new TenantId(tenant), new PrincipalId(principal), cancellationToken, origin);
         return result.Status switch
         {
             ExecutionAdmissionStatus.Conflict => Results.Problem(statusCode: 409, title: "The idempotency key was already used with a different request.", type: "https://openconnect.dev/problems/idempotency-conflict"),
@@ -104,6 +295,21 @@ public static class EndpointRouteBuilderExtensions
         if (dispatcher is null) return Results.Problem(statusCode: 503, title: "Task execution is not configured.");
         var cancelled = await dispatcher.CancelAsync(value, cancellationToken);
         return cancelled is null ? Results.Json(null, options: OpenConnectHttpJson.CreateOptions()) : IdentifierJson(cancelled, StatusCodes.Status200OK);
+    }
+
+    internal static IResult HandleGetToolInvocationStatus(string id, string invocationId, HttpContext context, DurableToolExecutionTracker tracker)
+    {
+        if (!UlidTryParse(id, out var taskId) || !UlidTryParse(invocationId, out var invId))
+            return Results.Problem(statusCode: 400, title: "The task or tool invocation ID is invalid.");
+
+        if (!TryIdentity(context, out var tenant, out var principal))
+            return IdentityError();
+
+        var record = tracker.GetSanitized(invId, new TenantId(tenant), new PrincipalId(principal));
+        if (record is null || record.TaskId.Value != taskId)
+            return Results.Problem(statusCode: 404, title: "Tool invocation not found.");
+
+        return IdentifierJson(record, StatusCodes.Status200OK);
     }
 
     internal static IResult HandleCreateSession(HttpContext context, SessionRequest? request, InMemorySessionStore store)
@@ -163,6 +369,89 @@ public static class EndpointRouteBuilderExtensions
         var session = store.Get(value);
         return session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal
             ? Results.Problem(statusCode: 404, title: "Session not found.") : IdentifierJson(session, StatusCodes.Status200OK);
+    }
+
+    internal static async Task<IResult> HandlePostClientInteractionResponseAsync(
+        string id,
+        ClientInteractionResponse response,
+        HttpContext context,
+        InMemorySessionStore store,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UlidTryParse(id, out var value) ||
+            !Guid.TryParseExact(response.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+            response.ResultKind is not ("page" or "plan" or "action") ||
+            string.IsNullOrWhiteSpace(response.PayloadJson) || response.PayloadJson.Length > 65_536)
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response is invalid.");
+        try
+        {
+            using var payload = JsonDocument.Parse(response.PayloadJson);
+            if (payload.RootElement.ValueKind != JsonValueKind.Object)
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+        }
+        catch (JsonException)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The client interaction response payload is invalid.");
+        }
+        if (!TryIdentity(context, out var tenant, out var principal)) return IdentityError();
+        var session = store.Get(value);
+        if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != principal)
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found.");
+
+        if (string.IsNullOrWhiteSpace(response.ConnectionId))
+            return Results.Problem(statusCode: 400, title: "The client interaction response is invalid.");
+        if (response.ResultKind == "page")
+        {
+            var gate = context.RequestServices.GetService<IEgressGate>();
+            if (gate is null) return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable.");
+            using var page = JsonDocument.Parse(response.PayloadJson);
+            var content = new StringBuilder();
+            var pendingValues = new Stack<JsonElement>();
+            pendingValues.Push(page.RootElement);
+            while (pendingValues.TryPop(out var item))
+            {
+                if (item.ValueKind == JsonValueKind.String) content.AppendLine(item.GetString());
+                else if (item.ValueKind == JsonValueKind.Array)
+                    foreach (var child in item.EnumerateArray()) pendingValues.Push(child);
+                else if (item.ValueKind == JsonValueKind.Object)
+                    foreach (var property in item.EnumerateObject())
+                    {
+                        content.AppendLine(property.Name);
+                        pendingValues.Push(property.Value);
+                    }
+            }
+            var decodedContent = content.ToString();
+            EgressDecision decision;
+            try
+            {
+                decision = await gate.EvaluateAsync(decodedContent,
+                    new EgressContext(session.TenantId, session.PrincipalId, session.Id, EgressDestination.Tool), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { return Results.Problem(statusCode: 503, title: "Privacy protection is unavailable."); }
+            if (decision is null || !decision.Allowed || !string.Equals(decision.SanitizedContent, decodedContent, StringComparison.Ordinal))
+                return Results.Problem(statusCode: 403, title: "Page content was blocked by privacy policy.");
+        }
+        var eventData = JsonSerializer.Serialize(response, JsonOptions);
+        var appendResult = store.TryAppendClientInteractionResponse(value, response.ConnectionId, response, eventData);
+        var result = appendResult switch
+        {
+            ClientInteractionResponseAppendResult.Accepted =>
+                Results.Ok(new { response.CorrelationId, accepted = true }),
+            ClientInteractionResponseAppendResult.Duplicate =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The client interaction response was already completed."),
+            ClientInteractionResponseAppendResult.RequestNotFound =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "No matching client interaction request exists."),
+            ClientInteractionResponseAppendResult.ConflictingResponse =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "A different response already exists for this interaction."),
+            ClientInteractionResponseAppendResult.Cancelled =>
+                Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The client interaction request was cancelled."),
+            ClientInteractionResponseAppendResult.SessionNotFound =>
+                Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Session not found."),
+            _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError)
+        };
+        return result;
     }
 
     internal static IResult HandleGetSessionEvents(string id, long? after, HttpContext context, InMemorySessionStore store)
@@ -293,6 +582,12 @@ public static class EndpointRouteBuilderExtensions
             !TryReadCursor(query, hasAfterSequence ? "afterSequence" : "after", out var cursor))
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The event position is invalid.", type: "https://openconnect.dev/problems/invalid_request");
 
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            await Streaming.SessionWebSocketHandler.HandleAsync(context, id, cursor, store, cancellationToken).ConfigureAwait(false);
+            return Results.Empty;
+        }
+
         return await HandleGetSessionEventsAsync(id, cursor, context, store, cancellationToken).ConfigureAwait(false);
     }
 
@@ -388,7 +683,12 @@ public static class EndpointRouteBuilderExtensions
 }
 
 /// <summary>Task submission body. Tenant and principal are always taken from authenticated claims.</summary>
-public sealed record TaskRequest(string ClientTaskId, string? Message = null, string? SessionId = null);
+public sealed record TaskRequest(string ClientTaskId, string? Message = null, string? SessionId = null)
+{
+    /// <summary>Untrusted connection identifier checked against the authenticated session.</summary>
+    public string? ClientConnectionId { get; init; }
+    internal string? BoundConnectionId { get; init; }
+}
 public sealed record SessionRequest(string? Name = null);
 public sealed record SessionRecord(SessionId Id, TenantId TenantId, PrincipalId PrincipalId, DateTimeOffset CreatedAt);
 
@@ -438,9 +738,10 @@ public sealed class InMemoryTaskStore : ITaskLifecycleStore
 }
 
 /// <summary>Process-local session and bounded event store.</summary>
-public sealed class InMemorySessionStore
+public sealed class InMemorySessionStore : IClientInteractionBroker
 {
     private const int EventLimit = 1000;
+    private static readonly JsonSerializerOptions InteractionJsonOptions = OpenConnectHttpJson.CreateOptions();
     private readonly ConcurrentDictionary<Ulid, SessionRecord> _sessions = new();
     private readonly InMemoryEventJournal _journal;
 
@@ -457,10 +758,126 @@ public sealed class InMemorySessionStore
     internal int Count => _sessions.Count;
     internal bool Remove(Ulid id) => _sessions.TryRemove(id, out _);
     public IReadOnlyList<EventRecord> GetEvents(Ulid id, long afterSequence) => _journal.GetEvents(new SessionId(id), afterSequence);
+    internal int GetConnectionCount(SessionId id) => _journal.GetConnectionCount(id);
+    internal InMemoryEventJournal.BoundConnectionRegistration? RegisterBoundConnection(SessionRecord session) =>
+        _journal.TryRegisterBoundConnection(session.Id, session.TenantId, session.PrincipalId);
+    internal bool IsInteractionEventForConnection(EventRecord record, string connectionId) =>
+        _journal.IsInteractionEventForConnection(record, connectionId);
+    internal bool TryExpirePendingInteraction(SessionId sessionId, string correlationId) =>
+        _journal.TryExpirePendingInteraction(sessionId, correlationId);
+    internal InMemoryEventJournal.ConnectionClaim? TryClaimSoleConnection(SessionId id) => _journal.TryClaimSoleConnection(id);
+
+    internal ClientInteractionResponseAppendResult TryAppendClientInteractionResponse(
+        Ulid id, string connectionId, ClientInteractionResponse response, string eventData)
+    {
+        if (!_sessions.TryGetValue(id, out var session)) return ClientInteractionResponseAppendResult.SessionNotFound;
+        return _journal.TryAppendBoundClientInteractionResponse(connectionId, session.Id, session.TenantId,
+            session.PrincipalId, response, eventData);
+    }
+
+    internal long AppendEvent(Ulid id, string type, string data)
+    {
+        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        return _journal.Append(new EventRecord(new SessionId(id), 0, type, data));
+    }
 
     public Task<long> AppendEventAsync(Ulid id, string type, string data, CancellationToken cancellationToken = default)
     {
         if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
         return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data), cancellationToken);
+    }
+
+    /// <summary>Appends an event associated with a task in an existing session.</summary>
+    public Task<long> AppendTaskEventAsync(Ulid id, TaskId taskId, string type, string data, CancellationToken cancellationToken = default)
+    {
+        if (!_sessions.ContainsKey(id)) throw new KeyNotFoundException("Session not found.");
+        return _journal.AppendAsync(new EventRecord(new SessionId(id), 0, type, data) { TaskId = taskId.Value.ToString() }, cancellationToken);
+    }
+
+    public async Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+        string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var operationResultKind = request.Operation switch
+        {
+            "get_current_page" => "page",
+            "infer_plan" => "plan",
+            "execute" or "navigate" or "inspect" or "await_state" or "highlight" or "clear_highlight" => "action",
+            _ => null
+        };
+        if (sessionId.Value == default || !_sessions.ContainsKey(sessionId.Value) ||
+            !Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
+            expectedResultKind is not ("page" or "plan" or "action") || operationResultKind != expectedResultKind ||
+            timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
+            throw new ArgumentException("The client interaction request is invalid.", nameof(request));
+
+        var session = _sessions[sessionId.Value];
+        var connectionId = _journal.TryClaimAndBindPendingInteraction(sessionId, session.TenantId,
+            session.PrincipalId, request.CorrelationId, request.ConnectionId);
+        if (connectionId is null) return null;
+        request = request with { ConnectionId = connectionId };
+        var requestSequence = await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, InteractionJsonOptions), cancellationToken).ConfigureAwait(false);
+        using var responseTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        responseTimeout.CancelAfter(timeout);
+        var cursor = requestSequence;
+        var delay = TimeSpan.FromMilliseconds(40);
+
+        try
+        {
+            while (true)
+            {
+                foreach (var record in GetEvents(sessionId.Value, cursor))
+                {
+                    cursor = Math.Max(cursor, record.Sequence);
+                    if (!record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal)) continue;
+                    ClientInteractionResponse? response;
+                    try { response = JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                    catch (JsonException) { continue; }
+                    if (response?.CorrelationId == request.CorrelationId && response.ResultKind == expectedResultKind)
+                        return response;
+                }
+
+                if (_journal.IsPendingInteractionDisconnected(sessionId, request.CorrelationId, connectionId))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return null;
+                }
+                await Task.Delay(delay, responseTimeout.Token).ConfigureAwait(false);
+                delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, 500));
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (!_journal.TryExpirePendingInteraction(sessionId, request.CorrelationId))
+            {
+                var response = GetEvents(sessionId.Value, requestSequence)
+                    .Where(record => record.Type.Equals(ClientInteractionEventTypes.Response, StringComparison.Ordinal))
+                    .Select(record =>
+                    {
+                        try { return JsonSerializer.Deserialize<ClientInteractionResponse>(record.Data, InteractionJsonOptions); }
+                        catch (JsonException) { return null; }
+                    })
+                    .FirstOrDefault(response => response?.CorrelationId == request.CorrelationId &&
+                                                response.ResultKind == expectedResultKind);
+                if (response is not null) return response;
+            }
+            return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _journal.TryExpirePendingInteraction(sessionId, request.CorrelationId);
+            try
+            {
+                await AppendEventAsync(sessionId.Value, ClientInteractionEventTypes.Cancellation,
+                    JsonSerializer.Serialize(new ClientInteractionCancellation(request.CorrelationId), InteractionJsonOptions),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Preserve the caller's cancellation even if the session is already gone.
+            }
+            throw;
+        }
     }
 }

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "fixtureId": "mms-tts-valid-languages",
+  "optInLanguages": ["eng", "spa"],
+  "cases": [
+    {
+      "language": "eng",
+      "text": "Hello from MMS text to speech synthesis.",
+      "expectedStatus": 200,
+      "expectedSampleRateHz": 16000,
+      "expectedChannels": 1
+    },
+    {
+      "language": "spa",
+      "text": "Hola desde la sintesis de voz MMS.",
+      "expectedStatus": 200,
+      "expectedSampleRateHz": 16000,
+      "expectedChannels": 1
+    }
+  ]
+}
