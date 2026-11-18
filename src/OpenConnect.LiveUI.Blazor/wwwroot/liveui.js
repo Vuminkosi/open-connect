@@ -29,6 +29,11 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
   const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout);
+  const isCurrentTarget = () => {
+    if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
+    const current = resolveTarget(target, enableRuntimeFallback, route);
+    return current.status === "resolved" && current.element === element && element.isConnected;
+  };
   switch (action.type) {
     case "Open":
     case "Close":
@@ -63,8 +68,8 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
       }
       return measured(result("Completed", "highlight_active", true, "highlighted"));
     }
-    case "SetValue": return measured(setValue(element, parameters.value));
-    case "Select": return measured(selectValue(element, parameters.value));
+    case "SetValue": return measured(setValue(element, parameters.value, isCurrentTarget));
+    case "Select": return measured(selectValue(element, parameters.value, isCurrentTarget));
     case "SelectTab":
       element.click();
       return measured(verifyState("selected", "true"));
@@ -214,7 +219,7 @@ function isVisible(element) {
     element.getClientRects().length > 0;
 }
 
-function setValue(element, value) {
+function setValue(element, value, isCurrentTarget) {
   if (typeof value !== "string" || !("value" in element)) return result("Failed", "value_not_supported");
   if (isSensitiveField(element)) {
     return result("Denied", "sensitive_input_blocked");
@@ -224,11 +229,12 @@ function setValue(element, value) {
   if (!setter) return result("Failed", "value_setter_unavailable");
   setter.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  if (!isCurrentTarget()) return result("Uncertain", "value_unverified");
   element.dispatchEvent(new Event("change", { bubbles: true }));
-  return element.value === value ? result("Completed", "value_set", true, "value_set") : result("Uncertain", "value_unverified");
+  return isCurrentTarget() && element.value === value ? result("Completed", "value_set", true, "value_set") : result("Uncertain", "value_unverified");
 }
 
-function selectValue(element, value) {
+function selectValue(element, value, isCurrentTarget) {
   if (isSensitiveField(element)) return result("Denied", "sensitive_input_blocked");
   if (!(element instanceof HTMLSelectElement) || typeof value !== "string") return result("Failed", "select_not_supported");
   if (element.matches(":disabled")) return result("Denied", "select_disabled");
@@ -241,8 +247,9 @@ function selectValue(element, value) {
   if (option.disabled || option.parentElement?.matches("optgroup:disabled")) return result("Denied", "option_disabled");
   element.value = option.value;
   element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  if (!isCurrentTarget()) return result("Uncertain", "selection_unverified");
   element.dispatchEvent(new Event("change", { bubbles: true }));
-  return element.value === option.value ? result("Completed", "selection_verified", true, "selected") : result("Uncertain", "selection_unverified");
+  return isCurrentTarget() && element.value === option.value ? result("Completed", "selection_verified", true, "selected") : result("Uncertain", "selection_unverified");
 }
 
 function isSensitiveField(element) {

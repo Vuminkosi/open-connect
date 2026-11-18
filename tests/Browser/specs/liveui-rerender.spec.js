@@ -40,3 +40,38 @@ test('tab state verification follows rerenders without clicking twice or trustin
   expect(results.navigation.result.outcome).not.toBe('Completed');
   for (const result of Object.values(results)) expect(result.clicks).toBe(1);
 });
+
+test('value and selection receipts do not verify detached controls after an input rerender', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<main></main>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    async function run(kind, type) {
+      document.querySelector('main').innerHTML = kind === 'Input'
+        ? '<input aria-label="Title">'
+        : '<select aria-label="Priority"><option value="normal">Normal</option><option value="high">High</option></select>';
+      const element = document.querySelector(kind === 'Input' ? 'input' : 'select');
+      let changes = 0;
+      element.addEventListener('change', () => changes++);
+      element.addEventListener('input', () => {
+        const replacement = element.cloneNode(true);
+        replacement.value = kind === 'Input' ? '' : 'normal';
+        element.replaceWith(replacement);
+      });
+      const target = { id: kind, kind, label: kind === 'Input' ? 'Title' : 'Priority' };
+      const result = await execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+        action: { schemaVersion: 'openconnect.liveui/v1', type, parameters: { value: kind === 'Input' ? 'Example' : 'high' } },
+      }, 100, true);
+      return { result, changes };
+    }
+    return [await run('Input', 'SetValue'), await run('Select', 'Select')];
+  });
+  for (const { result, changes } of results) {
+    expect(result.outcome).not.toBe('Completed');
+    expect(result.postconditionVerified).toBe(false);
+    expect(changes).toBe(0);
+  }
+});
