@@ -13,4 +13,7 @@ public interface ILiveUIRuntimeTargetDiscovery
 {
     ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Checks that a runtime target belongs to the currently observed concrete route.</summary>
+    bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) => false;
 }

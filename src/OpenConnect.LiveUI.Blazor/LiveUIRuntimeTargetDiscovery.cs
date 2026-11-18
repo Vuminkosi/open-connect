@@ -21,7 +21,7 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
     {
         var expectedPath = context.CurrentPath;
         if (expectedPath is null || !LiveUIRouteMatcher.TryMatch(route.Path, expectedPath, out _) ||
-            !string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.OrdinalIgnoreCase)) return false;
+            !string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal)) return false;
         try
         {
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken,
@@ -29,7 +29,7 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
             var maximum = Math.Clamp(options.Value.Discovery.MaximumTargetsPerRoute, 0, 500);
             var observed = await _module.InvokeAsync<ObservedTarget[]>("discoverTargets", cancellationToken, maximum).ConfigureAwait(false);
             if (observed is null) return false;
-            if (!string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.OrdinalIgnoreCase)) return false;
+            if (!string.Equals(navigationManager.ToAbsoluteUri(navigationManager.Uri).AbsolutePath, expectedPath, StringComparison.Ordinal)) return false;
 
             List<LiveUITarget> existing = options.Value.Discovery.Mode == LiveUIDiscoveryMode.RuntimeOnly
                 ? []
@@ -49,12 +49,15 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
             var routes = manifest.Routes.Select(item => item.Id == route.Id ? item with { Targets = existing.ToArray() } : item).ToArray();
             var replacement = manifest with { Routes = routes, ContentHash = string.Empty };
             replacement = replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) };
-            return state.TryReplace(manifest, replacement);
+            return state.TryReplace(manifest, replacement, route.Id, expectedPath);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (JSException) { return false; }
         catch (InvalidOperationException) { return false; }
     }
+
+    public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) =>
+        state.IsRuntimeTargetCurrent(context, manifest, targetId);
 
     public async ValueTask DisposeAsync()
     {

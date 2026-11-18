@@ -1,4 +1,5 @@
 using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Agents;
 
 namespace OpenConnect.LiveUI.Blazor;
 
@@ -6,6 +7,7 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
 {
     private readonly object _gate = new();
     private LiveUIManifest? _manifest;
+    private readonly Dictionary<string, string> _runtimePaths = new(StringComparer.Ordinal);
 
     public void SetManifest(LiveUIManifest manifest)
     {
@@ -13,7 +15,11 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
         var errors = validator.Validate(manifest);
         if (errors.Count != 0)
             throw new ArgumentException($"The LiveUI manifest is invalid ({errors[0]}).", nameof(manifest));
-        lock (_gate) _manifest = manifest;
+        lock (_gate)
+        {
+            _manifest = manifest;
+            _runtimePaths.Clear();
+        }
     }
 
     public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default)
@@ -22,14 +28,24 @@ public sealed class LiveUIManifestState(LiveUIManifestValidator validator) : ILi
         lock (_gate) return ValueTask.FromResult(_manifest);
     }
 
-    internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement)
+    internal bool TryReplace(LiveUIManifest expected, LiveUIManifest replacement, string routeId, string path)
     {
         if (validator.Validate(replacement).Count != 0) return false;
         lock (_gate)
         {
             if (!ReferenceEquals(_manifest, expected)) return false;
             _manifest = replacement;
+            _runtimePaths[routeId] = path;
             return true;
         }
+    }
+
+    internal bool IsRuntimeTargetCurrent(LiveUIAgentContext context, LiveUIManifest manifest, string targetId)
+    {
+        lock (_gate)
+            return ReferenceEquals(_manifest, manifest) && context.CurrentPath is not null &&
+                _runtimePaths.TryGetValue(context.CurrentRouteId, out var path) &&
+                string.Equals(path, context.CurrentPath, StringComparison.Ordinal) &&
+                manifest.Routes.Any(route => route.Id == context.CurrentRouteId && route.Targets.Any(target => target.Id == targetId));
     }
 }

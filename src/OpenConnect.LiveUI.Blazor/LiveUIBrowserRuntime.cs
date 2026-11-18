@@ -2,13 +2,15 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Agents;
 
 namespace OpenConnect.LiveUI.Blazor;
 
 public sealed class LiveUIBrowserRuntime(
     IJSRuntime jsRuntime,
     NavigationManager navigationManager,
-    IOptions<LiveUIOptions> options) : ILiveUIRuntime, IAsyncDisposable
+    IOptions<LiveUIOptions> options,
+    LiveUIManifestState? manifestState = null) : ILiveUIRuntime, IAsyncDisposable
 {
     private const string ModulePath = "./_content/OpenConnect.LiveUI.Blazor/liveui.js";
     private IJSObjectReference? _module;
@@ -28,6 +30,11 @@ public sealed class LiveUIBrowserRuntime(
             return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_mismatch", false);
         if (!string.Equals(currentPath, expectedPath, StringComparison.OrdinalIgnoreCase))
             return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "route_mismatch", false);
+        if (context.Target?.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal) == true &&
+            (manifestState is null || !manifestState.IsRuntimeTargetCurrent(
+                new LiveUIAgentContext(context.Action.SessionId, context.Route.Id) { CurrentPath = currentPath },
+                context.Manifest, context.Target.Id)))
+            return new LiveUIRuntimeResult(LiveUIActionOutcome.Conflict, "runtime_target_stale", false);
 
         if (context.Action.Type == LiveUIActionType.Navigate)
             return await NavigateAsync(context, cancellationToken).ConfigureAwait(false);

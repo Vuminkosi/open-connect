@@ -184,6 +184,10 @@ public sealed class LiveUIAgentTools(
         {
             var (context, manifest, route) = await GetCurrentRouteAsync(cancellationToken).ConfigureAwait(false);
             if (context is null || manifest is null || route is null) return Rejected("session_context_unavailable");
+            if (targetId is not null && targetId.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal) &&
+                (runtimeDiscovery is null || !runtimeDiscovery.IsCurrentTarget(context, manifest, targetId)))
+                return new LiveUIActionReceipt(Guid.NewGuid().ToString("N"), context.SessionId,
+                    LiveUIActionOutcome.Conflict, "runtime_target_stale", false, DateTimeOffset.UtcNow);
             var action = CreateAction(context, manifest, route, targetId, type, parameters);
             return await orchestrator.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
         }

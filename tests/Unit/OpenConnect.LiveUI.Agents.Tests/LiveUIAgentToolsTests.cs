@@ -699,6 +699,7 @@ public sealed class LiveUIAgentToolsTests
     private sealed class RecordingDiscovery(MutableManifestProvider provider) : ILiveUIRuntimeTargetDiscovery
     {
         public int Calls { get; private set; }
+        public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) => true;
         public ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
             CancellationToken cancellationToken = default)
         {
