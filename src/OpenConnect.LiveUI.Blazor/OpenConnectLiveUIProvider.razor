@@ -16,6 +16,7 @@
 @inject IServiceProvider Services
 @inject IOptions<LiveUIOptions> LiveUIOptions
 @inject ILogger<OpenConnectLiveUIProvider> Logger
+@inject LiveUIInteractionReplayFence InteractionReplayFence
 @implements IDisposable
 
 @ChildContent
@@ -39,9 +40,6 @@
     private ComposerSession? _boundSession;
     private string? _observedSessionId;
     private LiveUIAgentTools? _agentTools;
-    private readonly object _interactionReplayGate = new();
-    private readonly HashSet<(string Session, string Correlation)> _seenInteractions = [];
-    private const int MaximumSeenInteractions = 4096;
     private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
     private sealed record LiveUISpeechCue(string TargetId, string? MatchText, int StartCharacter, int EndCharacter);
@@ -109,12 +107,8 @@
 
         if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty)
             return;
-        lock (_interactionReplayGate)
-        {
-            if (_seenInteractions.Count >= MaximumSeenInteractions ||
-                !_seenInteractions.Add((sessionId, correlationId.ToString("D"))))
-                return;
-        }
+        if (!InteractionReplayFence.TryBegin(sessionId, correlationId))
+            return;
         var cancellation = new CancellationTokenSource();
         if (!_activeInteractions.TryAdd(request.CorrelationId, cancellation))
         {

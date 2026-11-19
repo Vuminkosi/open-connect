@@ -19,6 +19,7 @@ public static class LiveUIBlazorServiceCollectionExtensions
         services.TryAddScoped<BrowserPromptApiInferenceProvider>();
         services.TryAddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<BrowserPromptApiInferenceProvider>());
         services.TryAddScoped<LiveUIManifestState>();
+        services.TryAddScoped<LiveUIInteractionReplayFence>();
         services.TryAddScoped<ILiveUIManifestProvider>(provider => provider.GetRequiredService<LiveUIManifestState>());
         services.TryAddScoped<ILiveUIRuntime, LiveUIBrowserRuntime>();
         services.TryAddScoped<ILiveUIActionAuthorizer, DenyLiveUIActionAuthorizer>();

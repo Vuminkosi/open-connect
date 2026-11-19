@@ -24,6 +24,41 @@ public sealed class LiveUIProviderClientInteractionTests
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
     [Fact]
+    public async Task Provider_recreation_in_same_scope_does_not_replay_a_request()
+    {
+        await using var context = new BunitContext();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ => new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        session.RegisterConnection("test-connection", Session);
+        var first = Render();
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab") { ConnectionId = "test-connection" };
+        await first.InvokeAsync(() => Send(1));
+        first.WaitForAssertion(() => Assert.Equal(1, runtime.Calls));
+        first.Dispose();
+        var second = Render();
+        await second.InvokeAsync(() => Send(2));
+        Assert.Equal(1, runtime.Calls);
+
+        IRenderedComponent<CascadingValue<ComposerSession>> Render() => context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), CreateManifest());
+                builder.CloseComponent();
+            }));
+        void Send(long sequence) => session.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), sequence,
+            ClientInteractionEventTypes.Request, JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions())));
+    }
+
+    [Fact]
     public async Task Provider_does_not_execute_a_nonconsecutive_replayed_request()
     {
         await using var context = new BunitContext();
