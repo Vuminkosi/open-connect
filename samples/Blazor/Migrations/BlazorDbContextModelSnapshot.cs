@@ -609,6 +609,67 @@ namespace OpenConnect.Samples.Blazor.Migrations
 
                     b.ToTable("oc_turns", (string)null);
                 });
+
+            modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoItem", b =>
+                {
+                    b.Property<string>("Scope")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DueDateUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Scope", "Id");
+
+                    b.ToTable("todo_items", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoScope", b =>
+                {
+                    b.Property<string>("Scope")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Scope");
+
+                    b.ToTable("todo_scopes", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoItem", b =>
+                {
+                    b.HasOne("OpenConnect.Samples.Blazor.PersistedTodoScope", "ScopeRecord")
+                        .WithMany("Items")
+                        .HasForeignKey("Scope")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScopeRecord");
+                });
+
+            modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoScope", b =>
+                {
+                    b.Navigation("Items");
+                });
 #pragma warning restore 612, 618
         }
     }

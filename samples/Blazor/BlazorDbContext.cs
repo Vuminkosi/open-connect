@@ -30,6 +30,21 @@ public sealed class BlazorDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyOpenConnectModel(new OpenConnectModelOptions { UseSqlitePrefix = true });
+        modelBuilder.Entity<PersistedTodoScope>(entity =>
+        {
+            entity.ToTable("todo_scopes");
+            entity.HasKey(item => item.Scope);
+            entity.Property(item => item.Scope).HasMaxLength(64);
+        });
+        modelBuilder.Entity<PersistedTodoItem>(entity =>
+        {
+            entity.ToTable("todo_items");
+            entity.HasKey(item => new { item.Scope, item.Id });
+            entity.Property(item => item.Scope).HasMaxLength(64);
+            entity.Property(item => item.Title).HasMaxLength(200).IsRequired();
+            entity.HasOne(item => item.ScopeRecord).WithMany(scope => scope.Items)
+                .HasForeignKey(item => item.Scope).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     /// <summary>

@@ -51,8 +51,10 @@ public static class TodoInternalApiExtensions
         {
             if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["title"] = ["A title of 1-200 characters is required."] });
-            if (!Enum.TryParse<TodoPriority>(request.Priority, true, out var priority))
+            if (!Enum.TryParse<TodoPriority>(request.Priority, true, out var priority) || !Enum.IsDefined(priority))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["priority"] = ["A valid Todo priority is required."] });
+            if (request.DueDateUtc is { Kind: DateTimeKind.Unspecified })
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["dueDateUtc"] = ["A due date must include a timezone."] });
             return Results.Ok(await store.AddAsync(Tenant(context), request.Title.Trim(), request.Description?.Trim(), priority, request.DueDateUtc, ct));
         });
         group.MapPut("/{id:guid}", async (Guid id, HttpContext context, TodoUpdateRequest request, ITenantTodoStore store, CancellationToken ct) =>

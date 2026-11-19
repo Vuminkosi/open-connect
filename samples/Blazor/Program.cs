@@ -201,10 +201,9 @@ var exposeLiveUIMetricsForAcceptance = builder.Environment.IsDevelopment() && us
 if (exposeLiveUIMetricsForAcceptance)
     builder.Services.AddSingleton<LiveUIMetricsAcceptanceRecorder>();
 
-builder.Services.AddSingleton<ITodoStore>(_ => useAcceptanceTodoData
-    ? InMemoryTodoStore.CreateAcceptanceStore()
-    : new InMemoryTodoStore());
-builder.Services.AddSingleton<ITenantTodoStore>(sp => (InMemoryTodoStore)sp.GetRequiredService<ITodoStore>());
+builder.Services.AddSingleton(sp => new SqliteTodoStore(sp.GetRequiredService<IServiceScopeFactory>(), useAcceptanceTodoData));
+builder.Services.AddSingleton<ITodoStore>(sp => sp.GetRequiredService<SqliteTodoStore>());
+builder.Services.AddSingleton<ITenantTodoStore>(sp => sp.GetRequiredService<SqliteTodoStore>());
 builder.Services.AddSingleton(_ => TodoInternalOptions.FromConfiguration(builder.Configuration));
 
 // OpenConnect Core & EFCore adapter
