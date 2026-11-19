@@ -29,6 +29,40 @@ public sealed class LiveUIOrchestratorTests
 
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
+    [Fact]
+    public async Task Authorization_timeout_denies_without_dispatch_even_if_authorizer_completes_late()
+    {
+        var authorizer = new DelayedAuthorizer();
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(Manifest), authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+
+        var receipt = await orchestrator.ExecuteAsync(Action() with { Timeout = TimeSpan.FromMilliseconds(50) });
+
+        Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal("authorization_timeout", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+        authorizer.Release.SetResult(new LiveUIAuthorizationDecision(true, "allowed", UserConfirmed: true));
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_interrupts_authorization_without_dispatch()
+    {
+        var authorizer = new DelayedAuthorizer();
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(Manifest), authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator());
+        using var cancellation = new CancellationTokenSource();
+        var execution = orchestrator.ExecuteAsync(Action(), cancellation.Token).AsTask();
+        cancellation.Cancel();
+        var receipt = await execution;
+        Assert.Equal(LiveUIActionOutcome.Uncertain, receipt.Outcome);
+        Assert.Equal("action_cancelled", receipt.Code);
+        authorizer.Release.SetResult(new LiveUIAuthorizationDecision(true, "allowed"));
+        Assert.Equal(0, runtime.Calls);
+    }
+
     private static LiveUIAction Action(string id = "action-001", string? hash = null) =>
         new(id, LiveUISchema.CurrentVersion, "session-001", hash ?? Manifest.ContentHash, "todo.home", "todo.completed",
             LiveUIActionType.SelectTab, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
@@ -456,6 +490,13 @@ public sealed class LiveUIOrchestratorTests
             Calls++;
             return ValueTask.FromResult(new LiveUIAuthorizationDecision(allowed, allowed ? "allowed" : "policy_denied"));
         }
+    }
+
+    private sealed class DelayedAuthorizer : ILiveUIActionAuthorizer
+    {
+        public TaskCompletionSource<LiveUIAuthorizationDecision> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            new(Release.Task);
     }
 
     private sealed class RecordingRuntime(LiveUIRuntimeResult? result = null) : ILiveUIRuntime

@@ -66,15 +66,27 @@ public sealed class LiveUIOrchestrator(
                 return Receipt(action, LiveUIActionOutcome.Denied, "filtering_disabled", false);
 
             var context = new LiveUIExecutionContext(manifest, route, target, action);
-            var decision = await authorizer.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(action.Timeout);
+            LiveUIAuthorizationDecision decision;
+            try
+            {
+                decision = await authorizer.AuthorizeAsync(context, timeout.Token).AsTask()
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
+            {
+                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (timeout.IsCancellationRequested)
+                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false);
             if (!decision.Allowed)
                 return Receipt(action, LiveUIActionOutcome.Denied,
                     string.IsNullOrWhiteSpace(decision.Code) ? "unauthorized" : decision.Code, false);
             if (config.Security.RequireConfirmationForWrites && target?.RequiresConfirmation == true && !decision.UserConfirmed)
                 return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(action.Timeout);
             var runtimeStartedAt = Stopwatch.GetTimestamp();
             var result = await runtime.ExecuteAsync(context, timeout.Token).ConfigureAwait(false);
             var runtimeDuration = Stopwatch.GetElapsedTime(runtimeStartedAt).TotalMilliseconds;
