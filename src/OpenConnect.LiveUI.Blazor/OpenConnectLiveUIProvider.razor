@@ -39,7 +39,9 @@
     private ComposerSession? _boundSession;
     private string? _observedSessionId;
     private LiveUIAgentTools? _agentTools;
-    private string? _lastRequestId;
+    private readonly object _interactionReplayGate = new();
+    private readonly HashSet<(string Session, string Correlation)> _seenInteractions = [];
+    private const int MaximumSeenInteractions = 4096;
     private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
     private sealed record LiveUISpeechCue(string TargetId, string? MatchText, int StartCharacter, int EndCharacter);
@@ -99,11 +101,20 @@
         }
 
         var request = session?.PendingClientInteraction;
-        if (request is null || request.CorrelationId == _lastRequestId ||
+        if (request is null || string.IsNullOrWhiteSpace(sessionId) ||
+            string.IsNullOrWhiteSpace(session?.ConnectionId) ||
+            !string.Equals(request.ConnectionId, session.ConnectionId, StringComparison.Ordinal) ||
             Services.GetService(typeof(IOpenConnectClient)) is not IOpenConnectClient client)
             return;
 
-        _lastRequestId = request.CorrelationId;
+        if (!Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty)
+            return;
+        lock (_interactionReplayGate)
+        {
+            if (_seenInteractions.Count >= MaximumSeenInteractions ||
+                !_seenInteractions.Add((sessionId, correlationId.ToString("D"))))
+                return;
+        }
         var cancellation = new CancellationTokenSource();
         if (!_activeInteractions.TryAdd(request.CorrelationId, cancellation))
         {

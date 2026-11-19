@@ -23,6 +23,44 @@ public sealed class LiveUIProviderClientInteractionTests
 {
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
+    [Fact]
+    public async Task Provider_does_not_execute_a_nonconsecutive_replayed_request()
+    {
+        await using var context = new BunitContext();
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer, AllowAuthorizer>();
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ => new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        session.RegisterConnection("test-connection", Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), CreateManifest());
+                builder.CloseComponent();
+            }));
+        var first = new ClientInteractionRequest("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "execute", "todo.completed", "SelectTab") { ConnectionId = "test-connection" };
+        var second = first with { CorrelationId = Guid.NewGuid().ToString("D") };
+        await Send(first, 1);
+        rendered.WaitForAssertion(() => Assert.Equal(1, runtime.Calls));
+        await Send(second, 2);
+        rendered.WaitForAssertion(() => Assert.Equal(2, runtime.Calls));
+        await Send(first, 3);
+        Assert.Equal(2, runtime.Calls);
+        await Send(first with { CorrelationId = first.CorrelationId.ToUpperInvariant() }, 4);
+        Assert.Equal(2, runtime.Calls);
+
+        Task Send(ClientInteractionRequest request, long sequence) => rendered.InvokeAsync(() => session.ApplyEvent(new EventRecord(
+            new SessionId(Ulid.Parse(Session)), sequence, ClientInteractionEventTypes.Request,
+            JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+    }
+
     public static TheoryData<ClientInteractionRequest, string> Requests => new()
     {
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000001", "navigate", RouteId: "todo.home"), "Navigate" },
@@ -625,6 +663,7 @@ public sealed class LiveUIProviderClientInteractionTests
 
     private sealed class RecordingRuntime : ILiveUIRuntime
     {
+        public int Calls { get; private set; }
         public string? LastAction { get; private set; }
         public string? LastTargetId { get; private set; }
         public string? LastSessionId { get; private set; }
@@ -637,6 +676,7 @@ public sealed class LiveUIProviderClientInteractionTests
         public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default)
         {
+            Calls++;
             LastAction = context.Action.Type.ToString();
             LastTargetId = context.Target?.Id;
             LastSessionId = context.Action.SessionId;
