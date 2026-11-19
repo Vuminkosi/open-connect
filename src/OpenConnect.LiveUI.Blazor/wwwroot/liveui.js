@@ -112,8 +112,8 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
         return measured(result("Completed", "state_already_verified", true, "state_verified"));
       }
       const wasSatisfied = parameters.stateName && stateMatches(element, parameters.stateName, parameters.stateValue);
+      if (wasSatisfied) return measured(result("Denied", "postcondition_already_satisfied"));
       element.click();
-      if (wasSatisfied) return measured(result("Uncertain", "postcondition_already_satisfied"));
       if (parameters.stateName) return measured(verifyState(parameters.stateName, parameters.stateValue));
       if (action.type !== "Click") return measured(verifyState("expanded", action.type === "Open" ? "true" : "false"));
       return measured(result("Uncertain", "click_dispatched_without_postcondition"));

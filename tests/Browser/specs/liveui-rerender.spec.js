@@ -153,7 +153,7 @@ test('waits for a known target to render without accepting ambiguous or wrong-ro
   expect(results.navigated).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
 });
 
-test('a click cannot verify a postcondition that was already true', async ({ page }) => {
+test('a click does not dispatch when its postcondition was already true', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
     ? route.fulfill({ contentType: 'text/javascript', body: runtime })
@@ -173,8 +173,8 @@ test('a click cannot verify a postcondition that was already true', async ({ pag
     return { changed, alreadyTrue, clicks };
   });
   expect(results.changed).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
-  expect(results.alreadyTrue).toMatchObject({ outcome: 'Uncertain', code: 'postcondition_already_satisfied', postconditionVerified: false });
-  expect(results.clicks).toBe(2);
+  expect(results.alreadyTrue).toMatchObject({ outcome: 'Denied', code: 'postcondition_already_satisfied', postconditionVerified: false });
+  expect(results.clicks).toBe(1);
 });
 
 test('opening or closing an already matching disclosure does not toggle it', async ({ page }) => {
