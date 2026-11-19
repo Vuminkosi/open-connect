@@ -51,7 +51,7 @@ public sealed class LiveUncertainActionAcceptanceTests
         Assert.Equal(1, observed.Invocations);
         Assert.Equal(new[] { "textNotContains", "Click", "textContains" }, broker.ActionSteps.Take(3));
         Assert.Single(broker.ActionSteps, step => step == "Click");
-        Assert.All(broker.ActionSteps.Skip(3), step => Assert.Equal("textContains", step));
+        Assert.All(broker.ActionSteps.Skip(3), step => Assert.Contains(step, new[] { "textContains", "inspect" }));
         Assert.False(string.IsNullOrWhiteSpace(response.Text));
         Assert.Matches("(?i)(visible|appear|show|uncertain|unverified|cannot|can't|not confirm)", response.Text);
     }
@@ -121,6 +121,8 @@ public sealed class LiveUncertainActionAcceptanceTests
                 ActionSteps.Add(request.Operation == "execute" ? request.Action ?? "" : request.StateName ?? request.Operation);
                 payload = request.Operation == "execute"
                     ? "{\"outcome\":\"Uncertain\",\"code\":\"click_dispatched_without_postcondition\",\"postconditionVerified\":false}"
+                    : request.Operation == "inspect"
+                    ? "{\"outcome\":\"Completed\",\"code\":\"inspection_verified\",\"postconditionVerified\":true,\"verifiedState\":\"control_visible\"}"
                     : "{\"outcome\":\"Completed\",\"code\":\"state_verified\",\"postconditionVerified\":true}";
             }
             else
