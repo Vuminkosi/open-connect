@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 test('asks which duplicate task to complete without changing either task', async ({ page, request }, testInfo) => {
   await page.goto('/');
@@ -43,7 +45,10 @@ test('asks which duplicate task to complete without changing either task', async
       outcome: result?.outcome ?? null, code: result?.code ?? null, verified: result?.postconditionVerified ?? null,
       verifiedState: result?.verifiedState ?? null };
   });
-  await testInfo.attach('sanitized-liveui-trace', { body: JSON.stringify(trace, null, 2), contentType: 'application/json' });
+  const tracePath = testInfo.outputPath('sanitized-liveui-trace.json');
+  await fs.mkdir(path.dirname(tracePath), { recursive: true });
+  await fs.writeFile(tracePath, JSON.stringify(trace, null, 2), 'utf8');
+  await testInfo.attach('sanitized-liveui-trace', { path: tracePath, contentType: 'application/json' });
   console.log(`Sanitized LiveUI trace: ${JSON.stringify(trace)}`);
   await page.reload();
   await expect(page.getByText('Submit report', { exact: true })).toHaveCount(2);
