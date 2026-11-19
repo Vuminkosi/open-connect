@@ -34,6 +34,7 @@ def settings_for(path: Path, checksum: str) -> Settings:
         ("Show completed tasks", "todo.completed"),
         ("Show all tasks", "todo.all"),
         ("Show COMPLETED tasks", "todo.completed"),
+        ("Show me only incomplete tasks.", "todo.active"),
     ]
 )
 def test_exact_status_request_uses_one_matching_authorized_action(intent: str, target: str):

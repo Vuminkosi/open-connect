@@ -13,6 +13,8 @@ const cases = [
     actions: [{ type: 'activate', targetSuffix: '-tab-completed' }] },
   { name: 'active tasks', prompt: 'Show active tasks.',
     actions: [{ type: 'activate', targetSuffix: '-tab-active' }] },
+  { name: 'incomplete tasks', prompt: 'Show me only incomplete tasks.',
+    actions: [{ type: 'activate', targetSuffix: '-tab-active' }] },
   { name: 'search report', prompt: 'Search for report.',
     actions: [{ type: 'setValue', targetSuffix: '-input-search-tasks-by-title-or-description', value: 'report' }] },
   { name: 'quoted search', prompt: 'Search for "Report?!".', searchValue: 'Report?!',
@@ -98,7 +100,7 @@ for (const scenario of cases) {
       await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
     if (scenario.name === 'all tasks')
       await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
-    if (scenario.name === 'active tasks') {
+    if (scenario.name === 'active tasks' || scenario.name === 'incomplete tasks') {
       await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
       await expect(page.getByText('Gather feedback for report', { exact: true })).toBeVisible();
       await expect(page.getByText('Prepare a launch checklist', { exact: true })).toBeVisible();

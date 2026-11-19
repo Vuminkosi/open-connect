@@ -343,7 +343,7 @@ def deterministic_plan(request: PlanRequest) -> ActionPlan | None:
                 actions=[PlannedAction(type="highlight", target=candidates[0].target)],
             )
     match = re.fullmatch(
-        r"\s*(show|display|open|filter|list)\s+(?:only\s+)?(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
+        r"\s*(show|display|open|filter|list)\s+(?:me\s+)?(?:only\s+)?(?:my\s+)?(all|completed|done|finished|active|incomplete|pending)\s+(?:todo\s+)?(?:tasks|items|todos)(?:\s+(?:containing|contains|matching|with)\s+(.+?))?\s*[?.!]*\s*",
         request.intent,
         re.IGNORECASE,
     )
