@@ -15,4 +15,7 @@
   <ItemGroup>
     <Content Include="../OpenConnect.Docs/Content/**/*.md" Link="Content/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../tests/Shared/ScriptedVoiceSocket.cs" Link="ScriptedVoiceSocket.cs" />
+  </ItemGroup>
 </Project>

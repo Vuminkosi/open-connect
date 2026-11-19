@@ -14,4 +14,7 @@
     <ProjectReference Include="../../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../Shared/ScriptedVoiceSocket.cs" Link="ScriptedVoiceSocket.cs" />
+  </ItemGroup>
 </Project>

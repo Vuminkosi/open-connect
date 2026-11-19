@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Made realtime voice transcript admission domain-neutral by default (#73).
+  The SDK retains its existing best-final stream-end fallback but no longer applies
+  Todo-specific early admission or word substitutions. Hosts can opt into additive
+  `IVoiceTranscriptAdmissionPolicy` timing/text customization; this is not an
+  authorization or rejection policy. Both Todo sample hosts explicitly retain their
+  old behavior through shared registration. Applications depending on the previous
+  implicit sample heuristics must register their own policy.
+
 - Fixed speech synthesis worker failure handling (#66): transport/read failures now
   return generic 502 Problem Details and worker timeouts return 504. Worker 503 is
   preserved; worker 408/504 map to 504; all other unsuccessful worker statuses,
