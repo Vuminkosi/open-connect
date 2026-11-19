@@ -23,6 +23,48 @@ public sealed class LiveUIProviderClientInteractionTests
 {
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Provider_dispatches_only_after_browser_confirmation(bool hostAllows, bool approved)
+    {
+        await using var context = new BunitContext();
+        var module = context.JSInterop.SetupModule("./_content/OpenConnect.LiveUI.Blazor/liveui.js");
+        module.Setup<bool>("confirmAction", _ => true).SetResult(approved);
+        var client = new RecordingClient();
+        var runtime = new RecordingRuntime();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer>(_ => new ConditionalAuthorizer(hostAllows));
+        context.Services.AddScoped<ILiveUIRuntime>(_ => runtime);
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ => new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        var manifest = CreateManifest();
+        var route = manifest.Routes[0];
+        var targets = route.Targets.Select(target => target.Id == "todo.completed" ? target with { RequiresConfirmation = true } : target).ToArray();
+        manifest = manifest with { Routes = [route with { Targets = targets }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        session.RegisterConnection("test-connection", Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab") { ConnectionId = "test-connection" };
+        await rendered.InvokeAsync(() => session.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 1,
+            ClientInteractionEventTypes.Request, JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        using var receipt = JsonDocument.Parse(client.Response!.PayloadJson);
+        Assert.Equal(hostAllows && approved ? "Completed" : "Denied", receipt.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(hostAllows && approved ? 1 : 0, runtime.Calls);
+        Assert.Equal(hostAllows ? 1 : 0, module.Invocations.Count(invocation => invocation.Identifier == "confirmAction"));
+    }
+
     [Fact]
     public async Task Provider_recreation_in_same_scope_does_not_replay_a_request()
     {
@@ -688,6 +730,12 @@ public sealed class LiveUIProviderClientInteractionTests
         public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new LiveUIAuthorizationDecision(true, "allowed"));
+    }
+
+    private sealed class ConditionalAuthorizer(bool allowed) : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(new LiveUIAuthorizationDecision(allowed, "policy"));
     }
 
     private sealed class FixedContextAccessor(LiveUIAgentContext context) : ILiveUIAgentContextAccessor
