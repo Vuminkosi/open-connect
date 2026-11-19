@@ -29,6 +29,87 @@ public sealed class LiveUIOrchestratorTests
 
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
+    [Theory]
+    [InlineData(false, true, true, 0, 0)]
+    [InlineData(true, false, true, 1, 0)]
+    [InlineData(true, true, false, 1, 0)]
+    [InlineData(true, true, true, 1, 1)]
+    public async Task Confirmation_never_bypasses_host_authorization(bool firstAllow, bool confirmed, bool secondAllow,
+        int expectedConfirmations, int expectedExecutions)
+    {
+        var route = Manifest.Routes[0];
+        var manifest = Manifest with { Routes = [route with { Targets = [route.Targets[0] with { RequiresConfirmation = true }] }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var authorizer = new SequencedAuthorizer(firstAllow, secondAllow);
+        var confirmation = new TestConfirmation(confirmed);
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(manifest), authorizer, runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [confirmation]);
+
+        var action = Action(hash: manifest.ContentHash);
+        var receipt = await orchestrator.ExecuteAsync(action);
+
+        Assert.Equal(expectedConfirmations, confirmation.Calls);
+        Assert.Equal(expectedExecutions, runtime.Calls);
+        Assert.Equal(expectedExecutions == 1 ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Denied, receipt.Outcome);
+        if (expectedConfirmations == 1) Assert.Equal(action.ActionId, confirmation.ActionId);
+    }
+
+    [Fact]
+    public async Task Confirmation_does_not_dispatch_after_manifest_changes()
+    {
+        var route = Manifest.Routes[0];
+        var manifest = Manifest with { Routes = [route with { Targets = [route.Targets[0] with { RequiresConfirmation = true }] }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var provider = new ChangingManifestProvider(manifest);
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(provider, new RecordingAuthorizer(true), runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [new TestConfirmation(true)]);
+
+        var receipt = await orchestrator.ExecuteAsync(Action(hash: manifest.ContentHash));
+
+        Assert.Equal(LiveUIActionOutcome.Conflict, receipt.Outcome);
+        Assert.Equal("manifest_stale", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task Confirmation_timeout_denies_and_late_confirmation_does_not_dispatch()
+    {
+        var route = Manifest.Routes[0];
+        var manifest = Manifest with { Routes = [route with { Targets = [route.Targets[0] with { RequiresConfirmation = true }] }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var confirmation = new DelayedConfirmation();
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(manifest), new RecordingAuthorizer(true), runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [confirmation]);
+
+        var receipt = await orchestrator.ExecuteAsync(Action(hash: manifest.ContentHash) with { Timeout = TimeSpan.FromMilliseconds(50) });
+        Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal("approval_timeout", receipt.Code);
+        confirmation.Release.SetResult(true);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
+    public async Task Multiple_confirmation_providers_fail_closed()
+    {
+        var route = Manifest.Routes[0];
+        var manifest = Manifest with { Routes = [route with { Targets = [route.Targets[0] with { RequiresConfirmation = true }] }] };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var first = new TestConfirmation(true);
+        var second = new TestConfirmation(true);
+        var runtime = new RecordingRuntime();
+        var orchestrator = new LiveUIOrchestrator(new RecordingManifestProvider(manifest), new RecordingAuthorizer(true), runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [first, second]);
+
+        var receipt = await orchestrator.ExecuteAsync(Action(hash: manifest.ContentHash));
+        Assert.Equal("approval_required", receipt.Code);
+        Assert.Equal(0, first.Calls);
+        Assert.Equal(0, second.Calls);
+        Assert.Equal(0, runtime.Calls);
+    }
+
     [Fact]
     public async Task Authorization_timeout_denies_without_dispatch_even_if_authorizer_completes_late()
     {
@@ -480,6 +561,17 @@ public sealed class LiveUIOrchestratorTests
             ValueTask.FromResult<LiveUIManifest?>(manifest);
     }
 
+    private sealed class ChangingManifestProvider(LiveUIManifest manifest) : ILiveUIManifestProvider
+    {
+        private int _calls;
+        public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default)
+        {
+            if (_calls++ == 0) return ValueTask.FromResult<LiveUIManifest?>(manifest);
+            var changed = manifest with { BuildId = "new-build" };
+            return ValueTask.FromResult<LiveUIManifest?>(changed with { ContentHash = LiveUIManifestHasher.ComputeContentHash(changed) });
+        }
+    }
+
     private sealed class RecordingAuthorizer(bool allowed) : ILiveUIActionAuthorizer
     {
         public int Calls { get; private set; }
@@ -490,6 +582,31 @@ public sealed class LiveUIOrchestratorTests
             Calls++;
             return ValueTask.FromResult(new LiveUIAuthorizationDecision(allowed, allowed ? "allowed" : "policy_denied"));
         }
+    }
+
+    private sealed class SequencedAuthorizer(bool first, bool second) : ILiveUIActionAuthorizer
+    {
+        private int _calls;
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(_calls++ == 0 ? first : second, "policy"));
+    }
+
+    private sealed class TestConfirmation(bool result) : ILiveUIActionConfirmation
+    {
+        public int Calls { get; private set; }
+        public string? ActionId { get; private set; }
+        public ValueTask<bool> ConfirmAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            ActionId = context.Action.ActionId;
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    private sealed class DelayedConfirmation : ILiveUIActionConfirmation
+    {
+        public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ValueTask<bool> ConfirmAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) => new(Release.Task);
     }
 
     private sealed class DelayedAuthorizer : ILiveUIActionAuthorizer

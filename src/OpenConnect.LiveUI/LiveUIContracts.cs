@@ -117,6 +117,13 @@ public interface ILiveUIActionAuthorizer
     ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Asks the trusted host user to confirm a single already-authorized action.</summary>
+public interface ILiveUIActionConfirmation
+{
+    /// <summary>Returns true only when the user confirms the exact supplied action.</summary>
+    ValueTask<bool> ConfirmAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default);
+}
+
 public interface ILiveUIRuntime
 {
     ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default);

@@ -14,6 +14,16 @@ public sealed class LiveUIOrchestrator(
     private const byte InFlight = 0;
     private const byte Finished = 1;
     private readonly ConcurrentDictionary<(string SessionId, string ActionId), byte> _seenActions = new();
+    private readonly ILiveUIActionConfirmation? _confirmation;
+
+    public LiveUIOrchestrator(ILiveUIManifestProvider manifestProvider, ILiveUIActionAuthorizer authorizer,
+        ILiveUIRuntime runtime, IOptions<LiveUIOptions> options, LiveUIManifestValidator manifestValidator,
+        IEnumerable<ILiveUIActionConfirmation> confirmations)
+        : this(manifestProvider, authorizer, runtime, options, manifestValidator)
+    {
+        var candidates = confirmations.Take(2).ToArray();
+        _confirmation = candidates.Length == 1 ? candidates[0] : null;
+    }
 
     public async ValueTask<LiveUIActionReceipt> ExecuteAsync(LiveUIAction action, CancellationToken cancellationToken = default)
     {
@@ -85,7 +95,29 @@ public sealed class LiveUIOrchestrator(
                 return Receipt(action, LiveUIActionOutcome.Denied,
                     string.IsNullOrWhiteSpace(decision.Code) ? "unauthorized" : decision.Code, false);
             if (config.Security.RequireConfirmationForWrites && target?.RequiresConfirmation == true && !decision.UserConfirmed)
-                return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
+            {
+                if (_confirmation is null)
+                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
+                try
+                {
+                    if (!await _confirmation.ConfirmAsync(context, timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false))
+                        return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
+                    var latest = await manifestProvider.GetCurrentAsync(timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (manifestValidator.Validate(latest).Count > 0 || !string.Equals(latest?.ContentHash, action.ManifestHash, StringComparison.Ordinal))
+                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false);
+                    var rechecked = await authorizer.AuthorizeAsync(context, timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (!rechecked.Allowed)
+                        return Receipt(action, LiveUIActionOutcome.Denied, "unauthorized", false);
+                    latest = await manifestProvider.GetCurrentAsync(timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (manifestValidator.Validate(latest).Count > 0 || !string.Equals(latest?.ContentHash, action.ManifestHash, StringComparison.Ordinal))
+                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false);
+                    timeout.Token.ThrowIfCancellationRequested();
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
+                {
+                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_timeout", false);
+                }
+            }
 
             var runtimeStartedAt = Stopwatch.GetTimestamp();
             var result = await runtime.ExecuteAsync(context, timeout.Token).ConfigureAwait(false);
