@@ -383,6 +383,82 @@ public sealed class LiveUIAgentToolsTests
         await search;
     }
 
+    [Theory]
+    [InlineData("highlight_active")]
+    [InlineData("highlight_temporary")]
+    public async Task Missing_row_blocks_mutation_until_the_same_list_has_a_verified_match(string successCode)
+    {
+        var searches = 0;
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+        {
+            var payload = request.Operation == "highlight" && ++searches == 1
+                ? "{\"outcome\":\"MissingTarget\",\"code\":\"text_match_missing\",\"postconditionVerified\":false}"
+                : $"{{\"outcome\":\"Completed\",\"code\":\"{successCode}\",\"postconditionVerified\":true}}";
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind, payload));
+        });
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var find = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_find_matching_rows"));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        AIFunctionArguments Find(string target, string text) => new(new Dictionary<string, object?>
+        { ["targetId"] = target, ["matchText"] = text });
+        var action = new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "item.complete", ["action"] = "Click" });
+
+        await find.InvokeAsync(Find("todo.list", "report"));
+        var missing = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(action));
+        await find.InvokeAsync(Find("other.list", "report"));
+        var unrelated = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(action));
+        await find.InvokeAsync(Find("todo.list", "quarterly report"));
+        var verified = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(action));
+
+        Assert.Equal("selection_unverified", missing.GetProperty("code").GetString());
+        Assert.Equal("selection_unverified", unrelated.GetProperty("code").GetString());
+        Assert.Equal("Completed", verified.GetProperty("outcome").GetString());
+        Assert.Equal(1, broker.Requests.Count(request => request.Operation == "execute"));
+    }
+
+    [Fact]
+    public async Task Timed_out_row_match_blocks_mutation_on_another_target()
+    {
+        var broker = new RecordingInteractionBroker((_, _, _) => Task.FromResult<ClientInteractionResponse?>(null));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var find = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_find_matching_rows"));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        await find.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.list", ["matchText"] = "report" }));
+
+        var blocked = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.complete", ["action"] = "Click" })));
+
+        Assert.Equal("selection_unverified", blocked.GetProperty("code").GetString());
+        Assert.Single(broker.Requests);
+    }
+
+    [Fact]
+    public async Task Refining_a_match_does_not_clear_a_prior_ambiguity_in_the_same_turn()
+    {
+        var searches = 0;
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, ++searches == 1
+                ? "{\"outcome\":\"Ambiguous\",\"code\":\"text_match_ambiguous\",\"postconditionVerified\":false}"
+                : "{\"outcome\":\"Completed\",\"code\":\"highlight_active\",\"postconditionVerified\":true}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var find = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_find_matching_rows"));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        foreach (var text in new[] { "report", "quarterly report" })
+            await find.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+            { ["targetId"] = "todo.list", ["matchText"] = text }));
+
+        var blocked = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.complete", ["action"] = "Click" })));
+
+        Assert.Equal("selection_ambiguous", blocked.GetProperty("code").GetString());
+        Assert.Equal(2, broker.Requests.Count);
+    }
+
     [Fact]
     public async Task Current_page_contains_only_targets_with_authorized_capabilities()
     {

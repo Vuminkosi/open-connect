@@ -56,6 +56,7 @@ public static class LiveUIClientAgentToolFactory
         private readonly object _actionGate = new();
         private readonly HashSet<(string Kind, string Target)> _inFlightActions = [];
         private readonly HashSet<(string Kind, string Target)> _uncertainActions = [];
+        private readonly HashSet<string> _unresolvedRowMatches = new(StringComparer.Ordinal);
         private int _pendingRowMatches;
         private bool _ambiguousRowMatch;
 
@@ -252,6 +253,8 @@ public static class LiveUIClientAgentToolFactory
                         return SelectionFenceResult("selection_ambiguous", "More than one visible record matched. Ask the user to clarify before changing a record.");
                     if (_pendingRowMatches > 0)
                         return SelectionFenceResult("selection_pending", "Wait for the record match result before changing a record.");
+                    if (_unresolvedRowMatches.Count > 0)
+                        return SelectionFenceResult("selection_unverified", "A visible record match was not verified. Find the intended record or ask the user to clarify before changing a record.");
                 }
                 if (_uncertainActions.Contains(key))
                     return ActionFenceResult("action_retry_unsafe",
@@ -264,6 +267,7 @@ public static class LiveUIClientAgentToolFactory
             }
             var uncertain = true;
             var ambiguousMatch = false;
+            var verifiedRowMatch = false;
             try
             {
                 var result = await RequestAsync(request, "action", cancellationToken).ConfigureAwait(false);
@@ -277,6 +281,8 @@ public static class LiveUIClientAgentToolFactory
                         ((value == "Ambiguous" && code.GetString() == "text_match_ambiguous") ||
                          (value == "MissingTarget" && code.GetString() == "text_match_missing"));
                     ambiguousMatch = matchingSearchDidNotHighlight && value == "Ambiguous";
+                    verifiedRowMatch = isRowMatch && (HasReceipt(result, "Completed", "highlight_active", true) ||
+                        HasReceipt(result, "Completed", "highlight_temporary", true));
                     uncertain = value is not ("Completed" or "Denied") && !matchingSearchDidNotHighlight;
                 }
                 return result;
@@ -287,7 +293,13 @@ public static class LiveUIClientAgentToolFactory
                 {
                     _inFlightActions.Remove(key);
                     if (isRowMatch)
+                    {
                         _pendingRowMatches--;
+                        if (verifiedRowMatch)
+                            _unresolvedRowMatches.Remove(request.TargetId!);
+                        else
+                            _unresolvedRowMatches.Add(request.TargetId!);
+                    }
                     _ambiguousRowMatch |= ambiguousMatch;
                     if (uncertain)
                         _uncertainActions.Add(key);
