@@ -37,7 +37,8 @@ test('creates the requested Todo through an authorized live agent and keeps it a
     const result = responseEvent ? JSON.parse(responseEvent.payload.payloadJson) : null;
     return { operation: payload.operation, action: payload.action ?? null, outcome: result?.outcome ?? null,
       code: result?.code ?? null, verified: result?.postconditionVerified ?? null,
-      matchesRequestedTitle: payload.value === title || payload.stateValue === title };
+      matchesRequestedTitle: payload.value === title || payload.stateValue === title,
+      stateName: payload.stateName ?? null, targetId: payload.targetId ?? null };
   });
   await testInfo.attach('sanitized-liveui-trace', { body: JSON.stringify(trace, null, 2), contentType: 'application/json' });
   console.log(`Sanitized LiveUI trace: ${JSON.stringify(trace)}`);
@@ -46,8 +47,13 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   expect(trace.some((item) => item.operation === 'execute' && item.verified === true)).toBe(true);
   const clickIndex = trace.findIndex((item) => item.operation === 'execute' && item.action === 'Click' && item.code === 'click_dispatched_without_postcondition');
   expect(clickIndex).toBeGreaterThanOrEqual(0);
-  expect(trace.slice(clickIndex + 1).some((item) => item.operation === 'highlight' && item.matchesRequestedTitle &&
-    item.outcome === 'Completed' && item.code === 'highlight_active' && item.verified === true)).toBe(true);
+  const matchedRow = trace.slice(clickIndex + 1).some((item) => item.operation === 'highlight' && item.matchesRequestedTitle &&
+    item.outcome === 'Completed' && item.code === 'highlight_active' && item.verified === true);
+  const observedChange = trace.slice(clickIndex + 1).some((after) => after.operation === 'await_state' &&
+    after.stateName === 'textContains' && after.matchesRequestedTitle && after.verified === true &&
+    trace.slice(0, clickIndex).some((before) => before.operation === 'await_state' && before.targetId === after.targetId &&
+      before.stateName === 'textNotContains' && before.matchesRequestedTitle && before.verified === true));
+  expect(matchedRow || observedChange).toBe(true);
   expect(assistantResponse).toMatch(/\b(created|added|visible|showing|appears)\b/i);
   expect(assistantResponse).toContain(title);
   expect(assistantResponse).not.toMatch(/\b(unable|failed|could not|couldn't|not created|not added)\b/i);

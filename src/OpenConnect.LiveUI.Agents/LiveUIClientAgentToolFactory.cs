@@ -39,7 +39,9 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.FindMatchingRowsAsync, "liveui_find_matching_rows",
                 "Finds visible rows containing matchText in an authorized list or table. Supply the identifying words from the user's request, not the entire instruction. A text_match_ambiguous receipt means multiple visible rows match: ask which record, using a detail that distinguishes them, and do not change any record. A text_match_missing receipt means no visible match was found; it does not prove a record is absent from hidden rows or other pages. A unique result highlights that row but does not establish uniqueness elsewhere. Never treat a generic row count as proof of matching records."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. When a click should make known text appear on a different target, use liveui_click_and_observe_text before clicking. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
+            AIFunctionFactory.Create(tools.ClickAndObserveTextAsync, "liveui_click_and_observe_text",
+                "For a permitted click expected to make specific text appear in another authorized visible target, checks that text is initially absent, dispatches the click once, and checks for the text. Supply target IDs from the current page and the exact expected text. This verifies only a visible change, not causation, record uniqueness, or persistence. The click remains uncertain; do not retry it or claim a saved result without independent evidence."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on an authorized target and returns a verified receipt. stateName must be exactly selected, checked, expanded, visible, exists, textContains, or textNotContains. For textContains and textNotContains supply nonempty stateValue; for other states stateValue is true or false and defaults to true. A state check does not prove that a matching record is unique."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
@@ -129,6 +131,42 @@ public static class LiveUIClientAgentToolFactory
             return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "await_state",
                 targetId, StateName: stateName, StateValue: stateValue), "action", cancellationToken);
         }
+
+        public async Task<JsonElement> ClickAndObserveTextAsync(string targetId, string observationTargetId, string expectedText,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
+                string.IsNullOrWhiteSpace(observationTargetId) || observationTargetId.Length > 256 ||
+                string.IsNullOrWhiteSpace(expectedText) || expectedText.Length > 256)
+                return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
+
+            var before = await AwaitStateAsync(observationTargetId, "textNotContains", expectedText, cancellationToken).ConfigureAwait(false);
+            if (!IsVerifiedState(before))
+                return JsonSerializer.SerializeToElement(new { outcome = "Uncertain", code = "precondition_unverified", postconditionVerified = false, retrySafe = true });
+
+            var click = await ExecuteAsync(targetId, "Click", cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!HasReceipt(click, "Uncertain", "click_dispatched_without_postcondition", false))
+                return click;
+
+            var after = await AwaitStateAsync(observationTargetId, "textContains", expectedText, cancellationToken).ConfigureAwait(false);
+            var observed = IsVerifiedState(after);
+            return JsonSerializer.SerializeToElement(new
+            {
+                outcome = "Uncertain",
+                code = observed ? "visible_change_observed" : "visible_change_unverified",
+                postconditionVerified = false,
+                visibleChangeObserved = observed,
+                retrySafe = false,
+                message = "The click may have happened. A visible change does not prove causation, uniqueness, or persistence; do not retry the click."
+            });
+        }
+
+        private static bool IsVerifiedState(JsonElement receipt) => HasReceipt(receipt, "Completed", "state_verified", true);
+
+        private static bool HasReceipt(JsonElement receipt, string outcome, string code, bool verified) =>
+            receipt.TryGetProperty("outcome", out var outcomeValue) && outcomeValue.ValueKind == JsonValueKind.String && outcomeValue.GetString() == outcome &&
+            receipt.TryGetProperty("code", out var codeValue) && codeValue.ValueKind == JsonValueKind.String && codeValue.GetString() == code &&
+            receipt.TryGetProperty("postconditionVerified", out var verifiedValue) && verifiedValue.ValueKind == (verified ? JsonValueKind.True : JsonValueKind.False);
 
         public Task<JsonElement> HighlightAsync(
             string targetId,

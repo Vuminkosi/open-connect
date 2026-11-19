@@ -13,6 +13,50 @@ public sealed class LiveUIAgentToolsTests
 {
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
+    [Theory]
+    [InlineData(true, true, true, "visible_change_observed", 3)]
+    [InlineData(true, true, false, "visible_change_unverified", 3)]
+    [InlineData(false, true, true, "precondition_unverified", 1)]
+    [InlineData(true, false, true, "unauthorized", 2)]
+    public async Task Client_click_and_observe_respects_preconditions_authorization_and_retry_fencing(
+        bool beforeVerified, bool clickAllowed, bool afterVerified, string expectedCode, int expectedRequests)
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) =>
+        {
+            var payload = request.Operation == "execute"
+                ? clickAllowed
+                    ? "{\"outcome\":\"Uncertain\",\"code\":\"click_dispatched_without_postcondition\",\"postconditionVerified\":false}"
+                    : "{\"outcome\":\"Denied\",\"code\":\"unauthorized\",\"postconditionVerified\":false}"
+                : (request.StateName == "textNotContains" ? beforeVerified : afterVerified)
+                    ? "{\"outcome\":\"Completed\",\"code\":\"state_verified\",\"postconditionVerified\":true}"
+                    : "{\"outcome\":\"Uncertain\",\"code\":\"state_not_verified\",\"postconditionVerified\":false}";
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, kind, payload));
+        });
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker, new SessionId(Ulid.NewUlid()), TimeSpan.FromSeconds(1));
+        var composite = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_click_and_observe_text"));
+        var args = new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "save", ["observationTargetId"] = "results", ["expectedText"] = "Review insurance" });
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await composite.InvokeAsync(args));
+
+        Assert.Equal(expectedCode, result.GetProperty("code").GetString());
+        Assert.False(result.GetProperty("postconditionVerified").GetBoolean());
+        Assert.Equal(expectedRequests, broker.Requests.Count);
+        Assert.Equal("textNotContains", broker.Requests[0].StateName);
+        if (expectedRequests == 3)
+        {
+            Assert.Equal("Click", broker.Requests[1].Action);
+            Assert.Equal("textContains", broker.Requests[2].StateName);
+            Assert.Equal(afterVerified, result.GetProperty("visibleChangeObserved").GetBoolean());
+            Assert.False(result.GetProperty("retrySafe").GetBoolean());
+            var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+            var retry = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+                new Dictionary<string, object?> { ["targetId"] = "save", ["action"] = "Click" })));
+            Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+            Assert.Equal(3, broker.Requests.Count);
+        }
+    }
+
     [Fact]
     public async Task Client_execution_forwards_same_target_postcondition()
     {

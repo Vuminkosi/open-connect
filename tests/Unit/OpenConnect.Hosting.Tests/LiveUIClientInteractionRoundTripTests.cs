@@ -21,6 +21,59 @@ public sealed class LiveUIClientInteractionRoundTripTests
     private const string OtherPrincipal = "01ARZ3NDEKTSV4RRFFQ69G5FAY";
 
     [Fact]
+    public async Task Composite_click_round_trips_authorized_observations_without_claiming_persistence()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOpenConnectTaskExecution();
+        using var provider = services.BuildServiceProvider();
+        var sessions = provider.GetRequiredService<InMemorySessionStore>();
+        var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        using var connection = sessions.RegisterBoundConnection(session)!;
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "",
+        [new LiveUIRoute("home", "/", "Home",
+        [
+            new LiveUITarget("save", LiveUITargetKind.Button, "Save", new HashSet<LiveUICapability> { LiveUICapability.Activate }),
+            new LiveUITarget("results", LiveUITargetKind.List, "Results", new HashSet<LiveUICapability> { LiveUICapability.WaitForState })
+        ])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var manifestProvider = new TestManifestProvider(manifest);
+        var options = Options.Create(new LiveUIOptions());
+        var authorizer = new AllowAuthorizer();
+        var validator = new LiveUIManifestValidator();
+        var orchestrator = new LiveUIOrchestrator(manifestProvider, authorizer, new CompositeRuntime(), options, validator);
+        var host = new LiveUIAgentTools(new TestContextAccessor(new LiveUIAgentContext("circuit", "home")),
+            manifestProvider, authorizer, validator, orchestrator, options);
+        var tools = LiveUIClientAgentToolFactory.CreateTools(provider.GetRequiredService<IClientInteractionBroker>(), session.Id, TimeSpan.FromSeconds(3));
+        var composite = Assert.IsAssignableFrom<Microsoft.Extensions.AI.AIFunction>(tools.Single(tool => tool.Name == "liveui_click_and_observe_text"));
+        var pending = composite.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "save", ["observationTargetId"] = "results", ["expectedText"] = "New item" })).AsTask();
+
+        var first = await WaitForRequestAsync(sessions, session.Id.Value, "await_state");
+        Assert.Equal("textNotContains", first.StateName);
+        await ReplyAsync(first, await host.AwaitStateAsync(first.TargetId!, first.StateName!, first.StateValue));
+        var click = await WaitForRequestAsync(sessions, session.Id.Value, "execute");
+        await ReplyAsync(click, await host.ExecuteAsync(click.TargetId!, click.Action!, click.Value));
+        var last = await WaitForRequestAsync(sessions, session.Id.Value, "await_state", first.CorrelationId);
+        Assert.Equal("textContains", last.StateName);
+        await ReplyAsync(last, await host.AwaitStateAsync(last.TargetId!, last.StateName!, last.StateValue));
+        var result = Assert.IsType<JsonElement>(await pending.WaitAsync(TimeSpan.FromSeconds(3)));
+        Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());
+        Assert.True(result.GetProperty("visibleChangeObserved").GetBoolean());
+        Assert.False(result.GetProperty("postconditionVerified").GetBoolean());
+        Assert.False(result.GetProperty("retrySafe").GetBoolean());
+
+        async Task ReplyAsync(ClientInteractionRequest request, LiveUIActionReceipt receipt)
+        {
+            var response = new ClientInteractionResponse(request.CorrelationId, "action", JsonSerializer.Serialize(receipt, OpenConnectHttpJson.CreateOptions()))
+            { ConnectionId = connection.ConnectionId };
+            var endpoint = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
+                session.Id.Value.ToString(), response, AuthenticatedContext(provider), sessions);
+            Assert.Equal(StatusCodes.Status200OK, (await ExecuteAsync(endpoint, provider)).StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task Inference_request_is_bound_to_a_screened_page_from_the_same_session()
     {
         var services = new ServiceCollection();
@@ -598,14 +651,14 @@ public sealed class LiveUIClientInteractionRoundTripTests
     }
 
     private static async Task<ClientInteractionRequest> WaitForRequestAsync(
-        InMemorySessionStore sessions, Ulid sessionId, string operation)
+        InMemorySessionStore sessions, Ulid sessionId, string operation, string? excludeCorrelation = null)
     {
         for (var attempt = 0; attempt < 100; attempt++)
         {
             var request = sessions.GetEvents(sessionId, 0)
                 .Where(item => item.Type == ClientInteractionEventTypes.Request)
                 .Select(item => JsonSerializer.Deserialize<ClientInteractionRequest>(item.Data, OpenConnectHttpJson.CreateOptions()))
-                .FirstOrDefault(item => item?.Operation == operation);
+                .FirstOrDefault(item => item?.Operation == operation && item.CorrelationId != excludeCorrelation);
             if (request is not null)
                 return request;
             await Task.Delay(10);
@@ -706,5 +759,13 @@ public sealed class LiveUIClientInteractionRoundTripTests
             LastContext = context;
             return ValueTask.FromResult(new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "selected", true, "selected"));
         }
+    }
+
+    private sealed class CompositeRuntime : ILiveUIRuntime
+    {
+        public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(context.Action.Type == LiveUIActionType.Click
+                ? new LiveUIRuntimeResult(LiveUIActionOutcome.Uncertain, "click_dispatched_without_postcondition", false)
+                : new LiveUIRuntimeResult(LiveUIActionOutcome.Completed, "state_verified", true, "state_verified"));
     }
 }
