@@ -53,7 +53,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.FindMatchingRowsAsync, "liveui_find_matching_rows",
                 "Finds visible rows containing matchText in an authorized list or table. Supply the identifying words from the user's request, not the entire instruction. A text_match_ambiguous receipt means multiple visible rows match: ask which record, using a detail that distinguishes them, and do not change any record. A text_match_missing receipt means no visible match was found; it does not prove a record is absent from hidden rows or other pages. A unique result highlights that row but does not establish uniqueness elsewhere. Never treat a generic row count as proof of matching records."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. When a click should make known text appear on a different target, use liveui_click_and_observe_text before clicking. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For a checkbox Select, provide the explicit value true to check it or false to clear it. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. When a click should make known text appear on a different target, use liveui_click_and_observe_text before clicking. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
             AIFunctionFactory.Create(tools.ClickAndObserveTextAsync, "liveui_click_and_observe_text",
                 "For a permitted click expected to make specific text appear in another authorized visible target, checks that text is initially absent, dispatches the click once, and checks for the text. Supply target IDs from the current page and the exact expected text. This verifies only a visible change, not causation, record uniqueness, or persistence. The click remains uncertain; do not retry it or claim a saved result without independent evidence."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
@@ -154,6 +154,12 @@ public static class LiveUIClientAgentToolFactory
         private Task<JsonElement> ExecuteCoreAsync(string targetId, string action, string? value,
             string? stateName, string? stateValue, string? originTool, CancellationToken cancellationToken)
         {
+            if (string.Equals(action, "Select", StringComparison.OrdinalIgnoreCase) && value is null)
+                return Task.FromResult(JsonSerializer.SerializeToElement(new
+                {
+                    error = "invalid_request",
+                    message = "Select requires an explicit value. For a checkbox use true or false. No action was dispatched."
+                }));
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
                 string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 } ||
                 stateName is { Length: > 32 } || stateValue is { Length: > 256 } ||

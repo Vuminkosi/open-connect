@@ -649,6 +649,25 @@ public sealed class LiveUIAgentToolsTests
         Assert.Null(request.ScreenedPageDigest);
     }
 
+    [Fact]
+    public async Task Select_without_a_value_is_rejected_before_dispatch_and_can_be_corrected()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, "{\"outcome\":\"Completed\",\"postconditionVerified\":true}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var invalid = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.checkbox", ["action"] = "Select" })));
+        Assert.Equal("invalid_request", invalid.GetProperty("error").GetString());
+        Assert.Empty(broker.Requests);
+        var corrected = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.checkbox", ["action"] = "Select", ["value"] = "true" })));
+        Assert.Equal("Completed", corrected.GetProperty("outcome").GetString());
+        Assert.Equal("true", Assert.Single(broker.Requests).Value);
+    }
+
     [Theory]
     [InlineData(false, false, 2, "completed")]
     [InlineData(true, false, 2, "page_unavailable")]
