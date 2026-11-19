@@ -56,10 +56,36 @@ test('Todo created in the UI survives an application process restart', async ({ 
     }).toPass({ timeout: 15_000, intervals: [250] });
     await page.getByRole('button', { name: 'Add Task' }).click();
     await expect(page.getByText('Persistent insurance renewal', { exact: true })).toHaveCount(1);
+
+    // Exercise the SDK's browser runtime separately from the agent and host authorization.
+    const runtimeTitle = 'Runtime insurance renewal';
+    const valueReceipt = await page.evaluate(async (value) => {
+      const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+      const found = runtime.discoverTargets(500).filter((item) => item.kind === 'Input' && item.label === 'Task Title');
+      if (found.length !== 1) throw new Error('Task title input was not uniquely discovered');
+      const target = { ...found[0], id: 'test-runtime-title' };
+      return runtime.execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+        action: { schemaVersion: 'openconnect.liveui/v1', type: 'SetValue', parameters: { value } },
+      }, 5000, true);
+    }, runtimeTitle);
+    expect(valueReceipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+    await expect(page.getByRole('button', { name: 'Add Task' })).toBeEnabled();
+    const clickReceipt = await page.evaluate(async () => {
+      const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+      const found = runtime.discoverTargets(500).filter((item) => item.kind === 'Button' && /^add task$/i.test(item.label));
+      if (found.length !== 1) throw new Error('Add Task button was not uniquely discovered');
+      const target = { ...found[0], id: 'test-runtime-add' };
+      return runtime.execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+        action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: {} },
+      }, 5000, true);
+    });
+    expect(clickReceipt).toMatchObject({ outcome: 'Uncertain', code: 'click_dispatched_without_postcondition', postconditionVerified: false });
+    await expect(page.getByText(runtimeTitle, { exact: true })).toHaveCount(1);
     await stop();
     await start();
     await page.goto(origin);
     await expect(page.getByText('Persistent insurance renewal', { exact: true })).toHaveCount(1);
+    await expect(page.getByText(runtimeTitle, { exact: true })).toHaveCount(1);
   } finally {
     await stop();
     const resolvedDirectory = await fs.realpath(directory);
