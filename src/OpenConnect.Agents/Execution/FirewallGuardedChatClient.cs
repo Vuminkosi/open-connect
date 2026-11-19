@@ -34,6 +34,10 @@ public sealed class FixedEgressContextProvider : IEgressContextProvider
 /// before reaching the inner client; sanitized content is forwarded and denials throw without echoing content.
 /// Function arguments are materialized as JSON-compatible values. String results remain strings; other
 /// structured results are forwarded as sanitized JSON values rather than their original CLR instances.
+/// Only text, text reasoning, function call and function result content are screened. Any other content
+/// (for example <see cref="DataContent"/> or <see cref="UriContent"/> media, or unknown <see cref="AIContent"/>
+/// subtypes) bound for <see cref="EgressDestination.ExternalModel"/> is denied with <c>privacy_blocked</c>
+/// before the inner client is called, including for streaming.
 /// Service resolution and disposal delegate to the inner client via <see cref="DelegatingChatClient"/>.</remarks>
 public sealed class FirewallGuardedChatClient : DelegatingChatClient
 {
@@ -96,7 +100,13 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
         foreach (var message in messages)
         {
             ArgumentNullException.ThrowIfNull(message);
-            if (string.IsNullOrEmpty(message.Text) && !message.Contents.Any(content => content is FunctionCallContent or FunctionResultContent))
+            // Fail closed on media and unrecognized content before any other processing. No local
+            // redaction verification is available to this client, so DataContent, UriContent and unknown
+            // AIContent subtypes cannot be proven safe for external model egress.
+            if (context.Destination == EgressDestination.ExternalModel && message.Contents.Any(content => !IsScreenedContent(content)))
+                throw FailClosed();
+
+            if (string.IsNullOrEmpty(message.Text) && !message.Contents.Any(content => content is FunctionCallContent or FunctionResultContent or TextReasoningContent))
             {
                 guarded.Add(message);
                 continue;
@@ -142,6 +152,11 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
                     }
                     catch (JsonException) { throw FailClosed(); }
                 }
+                else if (content is TextReasoningContent reasoning && !string.IsNullOrEmpty(reasoning.Text))
+                {
+                    var safeReasoning = await SanitizeAsync(reasoning.Text, context, cancellationToken).ConfigureAwait(false);
+                    contents.Add(new TextReasoningContent(safeReasoning) { ProtectedData = reasoning.ProtectedData });
+                }
                 else
                     contents.Add(content);
             }
@@ -152,6 +167,9 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
 
         return guarded;
     }
+
+    private static bool IsScreenedContent(AIContent content) =>
+        content is TextContent or FunctionCallContent or FunctionResultContent or TextReasoningContent;
 
     private static object? ReadJsonValue(JsonElement element) => element.ValueKind switch
     {

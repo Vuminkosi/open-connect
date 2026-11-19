@@ -204,6 +204,70 @@ public sealed class MafFirewallGuardedChatClientTests
     }
 
     [Fact]
+    public async Task Media_only_message_is_denied_before_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        var message = new ChatMessage(ChatRole.User, [new DataContent(new byte[] { 1, 2, 3 }, "image/png")]);
+
+        var ex = await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([message]));
+
+        Assert.Contains(ErrorCodes.PrivacyBlocked, ex.Message, StringComparison.Ordinal);
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
+    public async Task Text_plus_data_content_is_denied_before_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        var message = new ChatMessage(ChatRole.User, [new TextContent("describe SYNTH-USER-0001"), new DataContent(new byte[] { 9 }, "audio/wav")]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([message]));
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
+    public async Task Uri_content_is_denied_before_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        var message = new ChatMessage(ChatRole.User, [new UriContent(new Uri("https://example.invalid/synthetic.pdf"), "application/pdf")]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([message]));
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
+    public async Task Unknown_content_subtype_is_denied_before_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        var message = new ChatMessage(ChatRole.User, [new UnknownContent()]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([message]));
+        Assert.Equal(0, inner.Calls);
+    }
+
+    [Fact]
+    public async Task Streaming_media_is_denied_before_first_provider_call()
+    {
+        var inner = new TestChatClient();
+        var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
+        var message = new ChatMessage(ChatRole.User, [new DataContent(new byte[] { 1 }, "image/jpeg")]);
+
+        await Assert.ThrowsAsync<PrivacyBlockedException>(async () =>
+        {
+            await foreach (var _ in guarded.GetStreamingResponseAsync([message]))
+            {
+            }
+        });
+        Assert.Equal(0, inner.Calls);
+    }
+
+    private sealed class UnknownContent : AIContent;
+
+    [Fact]
     public async Task Streaming_is_blocked_before_first_token()
     {
         var inner = new TestChatClient();
