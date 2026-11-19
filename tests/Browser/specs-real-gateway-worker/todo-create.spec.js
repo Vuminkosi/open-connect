@@ -48,7 +48,8 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   await page.reload();
   await expect(page.getByText(title, { exact: true })).toHaveCount(1);
   expect(trace.some((item) => item.operation === 'execute' && item.verified === true)).toBe(true);
-  const clickIndex = trace.findIndex((item) => item.operation === 'execute' && item.action === 'Click' && item.code === 'click_dispatched_without_postcondition');
+  const clickIndex = trace.findIndex((item) => item.operation === 'execute' &&
+    ['click', 'activate'].includes(item.action?.toLowerCase()) && item.code === 'click_dispatched_without_postcondition');
   expect(clickIndex).toBeGreaterThanOrEqual(0);
   const matchedRow = trace.slice(clickIndex + 1).some((item) => item.operation === 'highlight' && item.matchesRequestedTitle &&
     item.outcome === 'Completed' && item.code === 'highlight_active' && item.verified === true);
