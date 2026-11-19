@@ -49,6 +49,9 @@ test('asks which duplicate task to complete without changing either task', async
   await expect(page.getByText('Submit report', { exact: true })).toHaveCount(2);
   await expect.poll(checkboxStates).toEqual(before);
   expect(trace.length).toBeGreaterThan(0);
+  expect(trace).toContainEqual(expect.objectContaining({
+    outcome: 'Ambiguous', code: 'text_match_ambiguous', verified: false,
+  }));
   expect(answer).toMatch(/\b(two|2|multiple|duplicate|more than one)\b/i);
   expect(answer).toMatch(/\b(which|clarif\w*|specify|choose|give me)\b/i);
   expect(answer).not.toMatch(/\b(no matching|couldn.t find|no report task appeared)\b/i);
