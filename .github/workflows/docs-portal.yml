@@ -53,6 +53,22 @@ jobs:
         run: dotnet test site/OpenConnect.Docs.Tests/OpenConnect.Docs.Tests.csproj -c Release --no-restore
       - name: Todo source regression build
         run: dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release --no-restore -warnaserror
+      - name: Build and check framework-only voice fixture
+        run: |
+          dotnet restore tests/Browser/VoiceFixture/VoiceFixture.csproj --locked-mode --configfile tests/Browser/VoiceFixture/NuGet.Config
+          dotnet build tests/Browser/VoiceFixture/VoiceFixture.csproj -c Release --no-restore
+          dotnet tests/Browser/VoiceFixture/bin/Release/net10.0/VoiceFixture.dll --self-test
+      - name: Set up pinned browser-test Node runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Deterministic voice to persisted Todo (synthetic providers only)
+        working-directory: tests/Browser
+        run: |
+          node --test VoiceFixture/local-network.test.js
+          npm ci
+          npx --no-install playwright install --with-deps chromium
+          npx --no-install playwright test --config=playwright.voice-local.config.js
 
   published-consumers:
     name: Published NuGet consumers
