@@ -166,7 +166,8 @@ public sealed class LiveUIAgentTools(
     {
         if (string.Equals(operation, "activate", StringComparison.OrdinalIgnoreCase))
         {
-            if (value is not null) return ValueTask.FromResult(Rejected("operation_unsupported"));
+            if (value is not null)
+                return ValueTask.FromResult(Rejected("operation_unsupported"));
             return ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Click, new(), cancellationToken, resolveActivate: true);
         }
 
