@@ -269,3 +269,27 @@ test('list inspection reports only coarse recognized visible row counts', async 
   expect(results.table).toMatchObject({ outcome: 'Completed', verifiedState: 'one_recognized_visible_item' });
   expect(JSON.stringify(results)).not.toMatch(/private|nested/);
 });
+
+test('ambiguous row matching leaves the page unchanged and can be refined', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<ul aria-label="Results"><li>Quarterly report</li><li>Annual report</li></ul>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'results', kind: 'List', label: 'Results' };
+    const run = (value) => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Highlight', parameters: { value } },
+    }, 100, true);
+    const ambiguous = await run('report');
+    const highlightedAfterAmbiguous = document.querySelectorAll('[data-openconnect-liveui-highlight="true"]').length;
+    const unique = await run('quarterly report');
+    const highlighted = [...document.querySelectorAll('[data-openconnect-liveui-highlight="true"]')].map((element) => element.textContent);
+    return { ambiguous, highlightedAfterAmbiguous, unique, highlighted };
+  });
+  expect(results.ambiguous).toMatchObject({ outcome: 'Ambiguous', code: 'text_match_ambiguous', postconditionVerified: false });
+  expect(results.highlightedAfterAmbiguous).toBe(0);
+  expect(results.unique).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.highlighted).toEqual(['Quarterly report']);
+});
