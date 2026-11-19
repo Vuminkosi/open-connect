@@ -209,6 +209,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     case "Select": return measured(selectValue(element, target.kind, parameters.value, isCurrentTarget, verifyState));
     case "SelectTab":
       if (isDisabled(element)) return measured(result("Denied", "control_disabled"));
+      if (!isAllowedLinkActivation(element)) return measured(result("Denied", "navigation_boundary"));
       element.click();
       return measured(verifyState("selected", "true"));
     case "Inspect": return measured(inspect(element, target));

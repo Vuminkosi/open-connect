@@ -40,3 +40,34 @@ test('disabled and readonly controls reject synthetic actions without dispatchin
   expect(results.events).toBe(0);
   expect(results.values).toEqual(['original', 'original', 'original']);
 });
+
+test('tab activation respects link navigation boundaries', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <a id="external" role="tab" aria-selected="false" href="https://external.example/">External</a>
+      <a id="new-window" role="tab" aria-selected="false" href="/local" target="_blank">New window</a>
+      <a id="download" role="tab" aria-selected="false" href="/local" download>Download</a>
+      <a id="local" role="tab" aria-selected="false" href="/local">Local</a>` }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const clicks = [];
+    document.querySelectorAll('a').forEach((link) => link.addEventListener('click', (event) => {
+      event.preventDefault();
+      clicks.push(link.id);
+      link.setAttribute('aria-selected', 'true');
+    }));
+    const run = (id) => execute({
+      manifest: {}, route: { path: '/' }, target: { id, kind: 'Tab', selector: `#${id}` },
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'SelectTab', parameters: {} },
+    }, 100, false);
+    return { external: await run('external'), newWindow: await run('new-window'),
+      download: await run('download'), local: await run('local'), clicks };
+  });
+  for (const receipt of [results.external, results.newWindow, results.download])
+    expect(receipt).toMatchObject({ outcome: 'Denied', code: 'navigation_boundary', postconditionVerified: false });
+  expect(results.local).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.clicks).toEqual(['local']);
+});
