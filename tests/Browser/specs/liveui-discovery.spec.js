@@ -5,6 +5,35 @@ import { fileURLToPath } from 'node:url';
 
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
+test('discovers explicitly named lists without exposing their contents', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <h2 id="label">Open items</h2><ul aria-labelledby="label"><li>Private record</li></ul>
+      <ul><li>Open items</li><li>Unlabelled private record</li></ul>
+      <ul id="self" aria-labelledby="self"><li>Self referenced private record</li></ul>
+      <ul aria-label="Hidden items" hidden><li>Hidden private record</li></ul>
+      <ul aria-label="Duplicate"><li>First</li></ul><ul aria-label="Duplicate"><li>Second</li></ul>` }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { discoverTargets, execute } = await import('/liveui.js');
+    const observed = discoverTargets(100);
+    const target = { ...observed.find((item) => item.kind === 'List'), id: 'oc.runtime.test-list' };
+    const context = { manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'WaitForState',
+        parameters: { stateName: 'textContains', stateValue: 'Private record' } } };
+    const receipt = await execute(context, 100, true);
+    document.querySelector('[aria-labelledby="label"]').remove();
+    const stale = await execute(context, 100, true);
+    return { observed, receipt, stale };
+  });
+  expect(result.observed.filter((item) => item.kind === 'List')).toEqual([{ kind: 'List', label: 'Open items', role: 'list' }]);
+  expect(JSON.stringify(result.observed)).not.toMatch(/private record/i);
+  expect(result.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(result.stale).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+});
+
 test('infers only unique nearby checkbox text and restricts resolution to confirmed runtime targets', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')

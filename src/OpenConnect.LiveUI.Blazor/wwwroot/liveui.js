@@ -70,7 +70,7 @@ export function cancelConfirmation(confirmationId) {
 export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
   if (!limit) return [];
-  const selector = "button, a[href], input, textarea, select, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading']";
+  const selector = "button, a[href], input, textarea, select, ul, ol, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading'], [role='list'], [role='listbox']";
   const sections = document.querySelectorAll("section");
   const regionCandidates = [];
   for (let index = 0; index < Math.min(sections.length, 5000); index++) {
@@ -95,12 +95,13 @@ export function discoverTargets(maximumTargets) {
     const role = roleOf(element);
     if (tag === "input" && element.type === "radio") continue;
     const kind = role === "tab" ? "Tab" : role === "button" ? "Button" : role === "link" ? "Link" :
-      role === "heading" ? "Heading" : tag === "select" ? "Select" :
+      role === "heading" ? "Heading" : role === "list" || role === "listbox" ? "List" : tag === "select" ? "Select" :
       tag === "input" && element.type === "checkbox" ? "Checkbox" :
       tag === "input" || tag === "textarea" ? "Input" : null;
     if (!kind || kind === "Link" && !isAllowedLinkActivation(element)) continue;
     if (["Input", "Checkbox", "Select"].includes(kind) && isSensitiveField(element)) continue;
-    const label = accessibleNames(element, true).map((name) => String(name).replace(/\s+/g, " ").trim())
+    const names = kind === "List" ? explicitListNames(element) : accessibleNames(element, true);
+    const label = names.map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
     const parentLabel = regionLabels.get(element.closest("section"));
@@ -122,6 +123,19 @@ export function discoverTargets(maximumTargets) {
   const unique = candidates.filter((candidate) =>
     counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}\0${normalize(candidate.parentLabel || "")}`) === 1);
   return [...regions.map((region) => ({ kind: "Region", label: region.label, role: region.role })), ...unique].slice(0, limit);
+}
+
+function explicitListNames(element) {
+  const names = [];
+  const label = element.getAttribute("aria-label");
+  if (label) names.push(label);
+  const labelledBy = element.getAttribute("aria-labelledby");
+  if (labelledBy) {
+    const references = labelledBy.split(/\s+/).map((id) => document.getElementById(id));
+    if (references.every((node) => node && node !== element && !element.contains(node)))
+      names.push(references.map((node) => node.textContent || "").join(" "));
+  }
+  return names;
 }
 
 export function execute(context, timeoutMs, enableRuntimeFallback) {
@@ -351,7 +365,9 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
     .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
-      accessibleNames(element, target.id?.startsWith("oc.runtime.") && target.requiresConfirmation === true)
+      (target.kind === "List" && target.id?.startsWith("oc.runtime.")
+        ? explicitListNames(element)
+        : accessibleNames(element, target.id?.startsWith("oc.runtime.") && target.requiresConfirmation === true))
         .some((name) => normalize(name) === label));
   if (matches.length > 1) return { status: "ambiguous" };
   return matches.length === 1 ? { status: "resolved", element: matches[0] } : { status: "missing" };

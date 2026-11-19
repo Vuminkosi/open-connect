@@ -63,7 +63,7 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(route.Id + "\0" + Key(kind, candidate.Role, label, parentId)));
                 existing.Add(new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant(), kind, label,
                     capabilities, candidate.Role, ParentId: parentId,
-                    RequiresConfirmation: kind is not (LiveUITargetKind.Heading or LiveUITargetKind.Region)));
+                    RequiresConfirmation: kind is not (LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.List)));
             }
             var compiledRoutes = manifest.Routes.Where(item => !item.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal)).ToArray();
             var routes = manifest.Routes.Where(item => !item.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal) || item.Id == route.Id)
@@ -120,6 +120,7 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
         LiveUITargetKind.Input => [LiveUICapability.SetValue, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
         LiveUITargetKind.Checkbox => [LiveUICapability.Select, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
         LiveUITargetKind.Select => [LiveUICapability.Select, LiveUICapability.Focus, LiveUICapability.Inspect, LiveUICapability.WaitForState],
+        LiveUITargetKind.List => [LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll, LiveUICapability.WaitForState],
         LiveUITargetKind.Heading or LiveUITargetKind.Region => [LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll],
         _ => []
     };

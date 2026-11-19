@@ -12,6 +12,35 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class LiveUIRuntimeDiscoveryTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Named_runtime_list_exposes_only_authorized_read_capabilities(bool allowWait)
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, "[{\"kind\":\"List\",\"label\":\"Open items\",\"role\":\"list\"}]"));
+        services.AddScoped<ILiveUIActionAuthorizer>(_ => new ListReadAuthorizer(allowWait));
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        var page = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
+
+        var target = Assert.Single(Assert.IsType<LiveUIAgentPage>(page).Targets);
+        Assert.Equal("List", target.Kind);
+        Assert.Equal("Open items", target.Label);
+        Assert.Contains(LiveUICapability.Inspect, target.Capabilities);
+        Assert.Equal(allowWait, target.Capabilities.Contains(LiveUICapability.WaitForState));
+        var discovered = Assert.Single((await state.GetCurrentAsync())!.Routes[0].Targets);
+        Assert.Contains(LiveUICapability.WaitForState, discovered.Capabilities);
+        Assert.DoesNotContain(LiveUICapability.Activate, discovered.Capabilities);
+        Assert.False(discovered.RequiresConfirmation);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task Discovered_internal_link_to_template_is_exposed_only_when_navigation_is_authorized(bool allowNavigation)
@@ -266,6 +295,13 @@ public sealed class LiveUIRuntimeDiscoveryTests
     {
         public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect, "policy"));
+    }
+
+    private sealed class ListReadAuthorizer(bool allowWait) : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Action.Type == LiveUIActionType.Inspect ||
+                allowWait && context.Action.Type == LiveUIActionType.WaitForState, "policy"));
     }
 
     private sealed class CheckboxAuthorizer(bool confirmed) : ILiveUIActionAuthorizer
