@@ -814,6 +814,7 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         if (sessionId.Value == default || !_sessions.ContainsKey(sessionId.Value) ||
             !Guid.TryParseExact(request.CorrelationId, "D", out var correlationId) || correlationId == Guid.Empty ||
             expectedResultKind is not ("page" or "plan" or "action") || operationResultKind != expectedResultKind ||
+            request.OriginTool is not (null or "liveui_click_and_observe_text") ||
             timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
             throw new ArgumentException("The client interaction request is invalid.", nameof(request));
 

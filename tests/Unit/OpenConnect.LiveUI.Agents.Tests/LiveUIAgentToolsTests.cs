@@ -42,6 +42,7 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal(expectedCode, result.GetProperty("code").GetString());
         Assert.False(result.GetProperty("postconditionVerified").GetBoolean());
         Assert.Equal(expectedRequests, broker.Requests.Count);
+        Assert.All(broker.Requests, request => Assert.Equal("liveui_click_and_observe_text", request.OriginTool));
         Assert.Equal("textNotContains", broker.Requests[0].StateName);
         if (expectedRequests == 3)
         {
@@ -535,6 +536,7 @@ public sealed class LiveUIAgentToolsTests
         var request = Assert.Single(broker.Requests, item => item.Operation == "execute");
         Assert.Equal("todo.completed", request.TargetId);
         Assert.Equal("SelectTab", request.Action);
+        Assert.Null(request.OriginTool);
 
         var navigateFunction = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_navigate"));
         Assert.Contains("call liveui_get_current_page again", navigateFunction.Description, StringComparison.Ordinal);

@@ -49,13 +49,15 @@ test('creates the requested Todo through an authorized live agent and keeps it a
       code: result?.code ?? null, verified: result?.postconditionVerified ?? null,
       matchesRequestedTitle: payload.value === title || payload.stateValue === title,
       stateName: payload.stateName ?? null, targetId: digest(payload.targetId), correlationId: digest(payload.correlationId),
-      provider: ['Browser', 'LocalWorker', 'Gateway'].includes(result?.provider) ? result.provider : null };
+      provider: ['Browser', 'LocalWorker', 'Gateway'].includes(result?.provider) ? result.provider : null,
+      originTool: payload.originTool === 'liveui_click_and_observe_text' ? payload.originTool : null };
   });
   await page.reload();
   await expect.poll(() => page.getByText(title, { exact: true }).count()).toBe(1).catch(() => {});
   const persistedCount = await page.getByText(title, { exact: true }).count();
   const diagnostics = {
-    traceId: digest(sessionId), selectedTool: null, discoveryStrategy: null,
+    traceId: digest(sessionId), selectedTool: trace.some((item) => item.originTool === 'liveui_click_and_observe_text')
+      ? 'liveui_click_and_observe_text' : null, discoveryStrategy: null,
     authorizationOutcome: null, finalResponse: null,
     finalResponseContainsRequestedTitle: assistantResponse.includes(title),
     persistedMatchCount: persistedCount, interactions: trace,
@@ -77,7 +79,10 @@ test('creates the requested Todo through an authorized live agent and keeps it a
     trace.slice(0, clickIndex).some((before) => before.operation === 'await_state' && before.targetId === after.targetId &&
       before.stateName === 'textNotContains' && before.matchesRequestedTitle && before.verified === true));
   expect(matchedRow || observedChange).toBe(true);
-  if (requireObservedChange) expect(observedChange).toBe(true);
+  if (requireObservedChange) {
+    expect(observedChange).toBe(true);
+    expect(trace[clickIndex].originTool).toBe('liveui_click_and_observe_text');
+  }
   expect(assistantResponse).toMatch(/\b(created|added|visible|showing|appears)\b/i);
   expect(assistantResponse).toContain(title);
   expect(assistantResponse).not.toMatch(/\b(unable|failed|could not|couldn't|not created|not added)\b/i);

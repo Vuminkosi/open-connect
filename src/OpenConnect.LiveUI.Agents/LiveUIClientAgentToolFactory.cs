@@ -107,7 +107,11 @@ public static class LiveUIClientAgentToolFactory
 
         public Task<JsonElement> ExecuteAsync(string targetId, string action, string? value = null,
             string? stateName = null, string? stateValue = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) =>
+            ExecuteCoreAsync(targetId, action, value, stateName, stateValue, null, cancellationToken);
+
+        private Task<JsonElement> ExecuteCoreAsync(string targetId, string action, string? value,
+            string? stateName, string? stateValue, string? originTool, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
                 string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 } ||
@@ -118,18 +122,22 @@ public static class LiveUIClientAgentToolFactory
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
 
             return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value,
-                    StateName: stateName, StateValue: stateValue),
+                    StateName: stateName, StateValue: stateValue) { OriginTool = originTool },
                 ("target", targetId), cancellationToken);
         }
 
         public Task<JsonElement> AwaitStateAsync(string targetId, string stateName, string? stateValue = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default) =>
+            AwaitStateCoreAsync(targetId, stateName, stateValue, null, cancellationToken);
+
+        private Task<JsonElement> AwaitStateCoreAsync(string targetId, string stateName, string? stateValue,
+            string? originTool, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
                 string.IsNullOrWhiteSpace(stateName) || stateName.Length > 64 || stateValue is { Length: > 256 })
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
             return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "await_state",
-                targetId, StateName: stateName, StateValue: stateValue), "action", cancellationToken);
+                targetId, StateName: stateName, StateValue: stateValue) { OriginTool = originTool }, "action", cancellationToken);
         }
 
         public async Task<JsonElement> ClickAndObserveTextAsync(string targetId, string observationTargetId, string expectedText,
@@ -140,15 +148,16 @@ public static class LiveUIClientAgentToolFactory
                 string.IsNullOrWhiteSpace(expectedText) || expectedText.Length > 256)
                 return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
 
-            var before = await AwaitStateAsync(observationTargetId, "textNotContains", expectedText, cancellationToken).ConfigureAwait(false);
+            const string originTool = "liveui_click_and_observe_text";
+            var before = await AwaitStateCoreAsync(observationTargetId, "textNotContains", expectedText, originTool, cancellationToken).ConfigureAwait(false);
             if (!IsVerifiedState(before))
                 return JsonSerializer.SerializeToElement(new { outcome = "Uncertain", code = "precondition_unverified", postconditionVerified = false, retrySafe = true });
 
-            var click = await ExecuteAsync(targetId, "Click", cancellationToken: cancellationToken).ConfigureAwait(false);
+            var click = await ExecuteCoreAsync(targetId, "Click", null, null, null, originTool, cancellationToken).ConfigureAwait(false);
             if (!HasReceipt(click, "Uncertain", "click_dispatched_without_postcondition", false))
                 return click;
 
-            var after = await AwaitStateAsync(observationTargetId, "textContains", expectedText, cancellationToken).ConfigureAwait(false);
+            var after = await AwaitStateCoreAsync(observationTargetId, "textContains", expectedText, originTool, cancellationToken).ConfigureAwait(false);
             var observed = IsVerifiedState(after);
             return JsonSerializer.SerializeToElement(new
             {

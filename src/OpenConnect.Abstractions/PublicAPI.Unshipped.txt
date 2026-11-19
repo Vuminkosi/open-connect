@@ -233,6 +233,8 @@ OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.
 OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Operation.get -> string!
 OpenConnect.Abstractions.ClientInteractionRequest.Operation.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.OriginTool.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.OriginTool.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.RouteId.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.RouteId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.ScreenedPageDigest.get -> string?

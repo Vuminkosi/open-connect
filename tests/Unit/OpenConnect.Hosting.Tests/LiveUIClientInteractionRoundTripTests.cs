@@ -21,6 +21,23 @@ public sealed class LiveUIClientInteractionRoundTripTests
     private const string OtherPrincipal = "01ARZ3NDEKTSV4RRFFQ69G5FAY";
 
     [Fact]
+    public async Task Broker_rejects_unapproved_tool_diagnostic_values_before_recording_events()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOpenConnectTaskExecution();
+        using var provider = services.BuildServiceProvider();
+        var sessions = provider.GetRequiredService<InMemorySessionStore>();
+        var session = sessions.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
+        var broker = provider.GetRequiredService<IClientInteractionBroker>();
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "target", "Click")
+        { OriginTool = "untrusted diagnostic text" };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => broker.RequestAsync(session.Id, request, "action", TimeSpan.FromSeconds(1)));
+        Assert.DoesNotContain(sessions.GetEvents(session.Id.Value, 0), item => item.Type == ClientInteractionEventTypes.Request);
+    }
+
+    [Fact]
     public async Task Composite_click_round_trips_authorized_observations_without_claiming_persistence()
     {
         var services = new ServiceCollection();
@@ -51,11 +68,14 @@ public sealed class LiveUIClientInteractionRoundTripTests
 
         var first = await WaitForRequestAsync(sessions, session.Id.Value, "await_state");
         Assert.Equal("textNotContains", first.StateName);
+        Assert.Equal("liveui_click_and_observe_text", first.OriginTool);
         await ReplyAsync(first, await host.AwaitStateAsync(first.TargetId!, first.StateName!, first.StateValue));
         var click = await WaitForRequestAsync(sessions, session.Id.Value, "execute");
+        Assert.Equal("liveui_click_and_observe_text", click.OriginTool);
         await ReplyAsync(click, await host.ExecuteAsync(click.TargetId!, click.Action!, click.Value));
         var last = await WaitForRequestAsync(sessions, session.Id.Value, "await_state", first.CorrelationId);
         Assert.Equal("textContains", last.StateName);
+        Assert.Equal("liveui_click_and_observe_text", last.OriginTool);
         await ReplyAsync(last, await host.AwaitStateAsync(last.TargetId!, last.StateName!, last.StateValue));
         var result = Assert.IsType<JsonElement>(await pending.WaitAsync(TimeSpan.FromSeconds(3)));
         Assert.Equal("Uncertain", result.GetProperty("outcome").GetString());

@@ -33,6 +33,10 @@ public sealed record ClientInteractionRequest(
     /// <summary>Gateway-computed SHA-256 digest of an independently screened page snapshot.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? ScreenedPageDigest { get; init; }
+
+    /// <summary>Optional host-generated tool identifier for diagnostics; never an authorization input.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? OriginTool { get; init; }
 }
 
 /// <summary>The connected client's serialized result for one interaction request.</summary>
