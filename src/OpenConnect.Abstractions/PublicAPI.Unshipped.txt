@@ -210,22 +210,58 @@ OpenConnect.Abstractions.CapabilityKind.Model = 1 -> OpenConnect.Abstractions.Ca
 OpenConnect.Abstractions.CapabilityKind.Security = 0 -> OpenConnect.Abstractions.CapabilityKind
 OpenConnect.Abstractions.CapabilityKind.Tool = 2 -> OpenConnect.Abstractions.CapabilityKind
 OpenConnect.Abstractions.CapabilityKind.Transport = 3 -> OpenConnect.Abstractions.CapabilityKind
+OpenConnect.Abstractions.ClientInteractionCancellation
 OpenConnect.Abstractions.ClientInteractionCancellation.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionCancellation!
+OpenConnect.Abstractions.ClientInteractionCancellation.ClientInteractionCancellation(string! CorrelationId) -> void
+OpenConnect.Abstractions.ClientInteractionCancellation.CorrelationId.get -> string!
+OpenConnect.Abstractions.ClientInteractionCancellation.CorrelationId.init -> void
 OpenConnect.Abstractions.ClientInteractionCancellation.Deconstruct(out string! CorrelationId) -> void
 OpenConnect.Abstractions.ClientInteractionCancellation.Equals(OpenConnect.Abstractions.ClientInteractionCancellation? other) -> bool
+OpenConnect.Abstractions.ClientInteractionEventTypes
+OpenConnect.Abstractions.ClientInteractionRequest
 OpenConnect.Abstractions.ClientInteractionRequest.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionRequest!
+OpenConnect.Abstractions.ClientInteractionRequest.Action.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.Action.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.ClientInteractionRequest(string! CorrelationId, string! Operation, string? TargetId = null, string? Action = null, string? Value = null, string? RouteId = null, string? StateName = null, string? StateValue = null, int HighlightDurationMilliseconds = 0) -> void
+OpenConnect.Abstractions.ClientInteractionRequest.ConnectionId.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.ConnectionId.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.get -> string!
+OpenConnect.Abstractions.ClientInteractionRequest.CorrelationId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Deconstruct(out string! CorrelationId, out string! Operation, out string? TargetId, out string? Action, out string? Value, out string? RouteId, out string? StateName, out string? StateValue, out int HighlightDurationMilliseconds) -> void
 OpenConnect.Abstractions.ClientInteractionRequest.Equals(OpenConnect.Abstractions.ClientInteractionRequest? other) -> bool
+OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.get -> int
+OpenConnect.Abstractions.ClientInteractionRequest.HighlightDurationMilliseconds.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.Operation.get -> string!
+OpenConnect.Abstractions.ClientInteractionRequest.Operation.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.RouteId.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.RouteId.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.ScreenedPageDigest.get -> string?
 OpenConnect.Abstractions.ClientInteractionRequest.ScreenedPageDigest.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.SpeechEndCharacter.get -> int?
 OpenConnect.Abstractions.ClientInteractionRequest.SpeechEndCharacter.init -> void
 OpenConnect.Abstractions.ClientInteractionRequest.SpeechStartCharacter.get -> int?
 OpenConnect.Abstractions.ClientInteractionRequest.SpeechStartCharacter.init -> void
-
+OpenConnect.Abstractions.ClientInteractionRequest.StateName.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.StateName.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.StateValue.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.StateValue.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.TargetId.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.TargetId.init -> void
+OpenConnect.Abstractions.ClientInteractionRequest.Value.get -> string?
+OpenConnect.Abstractions.ClientInteractionRequest.Value.init -> void
+OpenConnect.Abstractions.ClientInteractionResponse
 OpenConnect.Abstractions.ClientInteractionResponse.<Clone>$() -> OpenConnect.Abstractions.ClientInteractionResponse!
+OpenConnect.Abstractions.ClientInteractionResponse.ClientInteractionResponse(string! CorrelationId, string! ResultKind, string! PayloadJson) -> void
+OpenConnect.Abstractions.ClientInteractionResponse.ConnectionId.get -> string?
+OpenConnect.Abstractions.ClientInteractionResponse.ConnectionId.init -> void
+OpenConnect.Abstractions.ClientInteractionResponse.CorrelationId.get -> string!
+OpenConnect.Abstractions.ClientInteractionResponse.CorrelationId.init -> void
 OpenConnect.Abstractions.ClientInteractionResponse.Deconstruct(out string! CorrelationId, out string! ResultKind, out string! PayloadJson) -> void
 OpenConnect.Abstractions.ClientInteractionResponse.Equals(OpenConnect.Abstractions.ClientInteractionResponse? other) -> bool
+OpenConnect.Abstractions.ClientInteractionResponse.PayloadJson.get -> string!
+OpenConnect.Abstractions.ClientInteractionResponse.PayloadJson.init -> void
+OpenConnect.Abstractions.ClientInteractionResponse.ResultKind.get -> string!
+OpenConnect.Abstractions.ClientInteractionResponse.ResultKind.init -> void
 OpenConnect.Abstractions.CloudTranscriptionMode
 OpenConnect.Abstractions.CloudTranscriptionMode.Batch = 2 -> OpenConnect.Abstractions.CloudTranscriptionMode
 OpenConnect.Abstractions.CloudTranscriptionMode.Disabled = 0 -> OpenConnect.Abstractions.CloudTranscriptionMode
@@ -354,6 +390,8 @@ OpenConnect.Abstractions.ICapabilityRegistry.Get(OpenConnect.Abstractions.Capabi
 OpenConnect.Abstractions.ICapabilityRegistry.GetReady(OpenConnect.Abstractions.CapabilityKind kind) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!
 OpenConnect.Abstractions.ICapabilityRegistry.MarkStale(OpenConnect.Abstractions.CapabilityId capabilityId) -> void
 OpenConnect.Abstractions.ICapabilityRegistry.Register(OpenConnect.Abstractions.CapabilityDescriptor! descriptor) -> void
+OpenConnect.Abstractions.IClientInteractionBroker
+OpenConnect.Abstractions.IClientInteractionBroker.RequestAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionRequest! request, string! expectedResultKind, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.ClientInteractionResponse?>!
 OpenConnect.Abstractions.IClock
 OpenConnect.Abstractions.IClock.UtcNow.get -> System.DateTimeOffset
 OpenConnect.Abstractions.IEventJournal
@@ -967,6 +1005,9 @@ OpenConnect.Abstractions.WorkerReadiness.Provisioning = 1 -> OpenConnect.Abstrac
 OpenConnect.Abstractions.WorkerReadiness.Ready = 3 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Unavailable = 5 -> OpenConnect.Abstractions.WorkerReadiness
 const OpenConnect.Abstractions.CanonicalAgentEvent.CurrentSchemaVersion = "openconnect.v1" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
 const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
 const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
 const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
