@@ -179,6 +179,18 @@ public sealed class LiveUIAgentTools(
         return ExecuteOnCurrentRouteAsync(targetId, type, new(Value: value), cancellationToken);
     }
 
+    /// <summary>Executes a supported activation and verifies a state change on the same target.</summary>
+    public ValueTask<LiveUIActionReceipt> ExecuteWithPostconditionAsync(
+        string targetId, string operation, string stateName, string? stateValue = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<LiveUIActionType>(operation, ignoreCase: true, out var type) ||
+            type is not (LiveUIActionType.Click or LiveUIActionType.Open or LiveUIActionType.Close) ||
+            string.IsNullOrWhiteSpace(stateName) || stateName.Length > 32 || stateValue is { Length: > 256 })
+            return ValueTask.FromResult(Rejected("invalid_request"));
+        return ExecuteOnCurrentRouteAsync(targetId, type, new(StateName: stateName, StateValue: stateValue), cancellationToken);
+    }
+
     /// <summary>Waits for a supported state on one compiled target.</summary>
     public ValueTask<LiveUIActionReceipt> AwaitStateAsync(
         string targetId,

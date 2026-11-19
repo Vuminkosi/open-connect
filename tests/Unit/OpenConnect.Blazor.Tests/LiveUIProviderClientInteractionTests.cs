@@ -28,6 +28,7 @@ public sealed class LiveUIProviderClientInteractionTests
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000001", "navigate", RouteId: "todo.home"), "Navigate" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000002", "inspect", TargetId: "todo.list"), "Inspect" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000003", "execute", TargetId: "todo.completed", Action: "SelectTab"), "SelectTab" },
+        { new ClientInteractionRequest("00000000-0000-0000-0000-000000000010", "execute", TargetId: "todo.completed", Action: "Click", StateName: "selected", StateValue: "true"), "Click" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000004", "await_state", TargetId: "todo.completed", StateName: "selected"), "WaitForState" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000005", "highlight", TargetId: "todo.list", HighlightDurationMilliseconds: 1_250), "Highlight" },
         { new ClientInteractionRequest("00000000-0000-0000-0000-000000000009", "highlight", TargetId: "todo.list", Value: "Review the quarterly report"), "Highlight" },
@@ -550,6 +551,11 @@ public sealed class LiveUIProviderClientInteractionTests
             Assert.Equal(request.Value, runtime.LastParameters!.Value);
         if (request.Operation == "highlight")
             Assert.Equal(request.HighlightDurationMilliseconds, runtime.LastParameters!.HighlightDurationMilliseconds);
+        if (request.Operation == "execute" && request.StateName is not null)
+        {
+            Assert.Equal(request.StateName, runtime.LastParameters!.StateName);
+            Assert.Equal(request.StateValue, runtime.LastParameters.StateValue);
+        }
         Assert.Equal("Completed", receipt.RootElement.GetProperty("outcome").GetString());
         Assert.True(receipt.RootElement.GetProperty("postconditionVerified").GetBoolean());
     }

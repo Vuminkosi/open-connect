@@ -14,6 +14,25 @@ public sealed class LiveUIAgentToolsTests
     private static readonly LiveUIManifest Manifest = CreateManifest();
 
     [Fact]
+    public async Task Client_execution_forwards_same_target_postcondition()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, "{\"outcome\":\"Completed\",\"postconditionVerified\":true}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+        await execute.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+        { ["targetId"] = "todo.completed", ["action"] = "Click", ["stateName"] = "expanded", ["stateValue"] = "true" }));
+        var request = Assert.Single(broker.Requests);
+        Assert.Equal("expanded", request.StateName);
+        Assert.Equal("true", request.StateValue);
+        var invalid = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SetValue", ["value"] = "x", ["stateName"] = "visible" })));
+        Assert.Equal("invalid_request", invalid.GetProperty("error").GetString());
+        Assert.Single(broker.Requests);
+    }
+
+    [Fact]
     public async Task Activate_resolves_tab_from_manifest_and_preserves_authorization()
     {
         var authorizer = new RecordingAuthorizer((_, context) => context.Target?.Id != "todo.secret");
@@ -192,7 +211,7 @@ public sealed class LiveUIAgentToolsTests
         var tools = LiveUIAgentToolFactory.CreateTools(service);
 
         Assert.Equal(
-            ["liveui_get_current_page", "liveui_navigate", "liveui_inspect", "liveui_find_matching_rows", "liveui_execute", "liveui_await_state", "liveui_highlight", "liveui_clear_highlight"],
+            ["liveui_get_current_page", "liveui_navigate", "liveui_inspect", "liveui_find_matching_rows", "liveui_execute", "liveui_execute_with_postcondition", "liveui_await_state", "liveui_highlight", "liveui_clear_highlight"],
             tools.Select(tool => tool.Name));
 
         var awaitState = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_await_state"));

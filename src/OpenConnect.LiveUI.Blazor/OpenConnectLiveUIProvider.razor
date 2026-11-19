@@ -377,10 +377,15 @@
                 else if (request.Operation == "execute" &&
                          request.TargetId is { Length: > 0 and <= 256 } &&
                          request.Value is not { Length: > 2_000 } &&
+                         request.StateName is not { Length: > 32 } && request.StateValue is not { Length: > 256 } &&
                          request.Action is { Length: > 0 and <= 32 })
                 {
-                    var receipt = await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value, cancellationToken);
-                    payloadJson = JsonSerializer.Serialize(receipt, JsonOptions);
+                    var receipt = request.StateName is null && request.StateValue is null
+                        ? await _agentTools.ExecuteAsync(request.TargetId, request.Action, request.Value, cancellationToken)
+                        : request.StateName is not null && request.Value is null
+                            ? await _agentTools.ExecuteWithPostconditionAsync(request.TargetId, request.Action, request.StateName, request.StateValue, cancellationToken)
+                            : null;
+                    payloadJson = receipt is null ? "{\"error\":\"invalid_request\"}" : JsonSerializer.Serialize(receipt, JsonOptions);
                 }
                 else if (request.Operation == "await_state" &&
                          request.TargetId is { Length: > 0 and <= 256 } &&

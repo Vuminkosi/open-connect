@@ -39,7 +39,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.FindMatchingRowsAsync, "liveui_find_matching_rows",
                 "Finds visible rows containing matchText in an authorized list or table. Supply the identifying words from the user's request, not the entire instruction. A text_match_ambiguous receipt means multiple visible rows match: ask which record, using a detail that distinguishes them, and do not change any record. A text_match_missing receipt means no visible match was found; it does not prove a record is absent from hidden rows or other pages. A unique result highlights that row but does not establish uniqueness elsewhere. Never treat a generic row count as proof of matching records."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. Click alone has no verified postcondition; use it only when a separate state check can confirm the result. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
                 "Waits for a supported state on an authorized target and returns a verified receipt. stateName must be exactly selected, checked, expanded, visible, exists, textContains, or textNotContains. For textContains and textNotContains supply nonempty stateValue; for other states stateValue is true or false and defaults to true. A state check does not prove that a matching record is unique."),
             AIFunctionFactory.Create(tools.HighlightAsync, "liveui_highlight",
@@ -104,13 +104,19 @@ public static class LiveUIClientAgentToolFactory
                 : HighlightAsync(targetId, matchText: matchText, cancellationToken: cancellationToken);
 
         public Task<JsonElement> ExecuteAsync(string targetId, string action, string? value = null,
+            string? stateName = null, string? stateValue = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
-                string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 })
+                string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 } ||
+                stateName is { Length: > 32 } || stateValue is { Length: > 256 } ||
+                stateName is not null && (string.IsNullOrWhiteSpace(stateName) || value is not null ||
+                    !new[] { "Click", "Open", "Close" }.Contains(action, StringComparer.OrdinalIgnoreCase)) ||
+                stateName is null && stateValue is not null)
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
 
-            return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value),
+            return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value,
+                    StateName: stateName, StateValue: stateValue),
                 ("target", targetId), cancellationToken);
         }
 
