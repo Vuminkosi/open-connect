@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OpenConnect.Abstractions;
 
 namespace OpenConnect.Samples.Blazor.Models;
@@ -49,9 +49,12 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
     private async Task<TodoItem> AddCoreAsync(string scope, string title, string? description, TodoPriority priority, DateTime? dueDate, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        if (title.Length > 200) throw new ArgumentOutOfRangeException(nameof(title));
-        if (!Enum.IsDefined(priority)) throw new ArgumentOutOfRangeException(nameof(priority));
-        if (dueDate is { Kind: DateTimeKind.Unspecified }) throw new ArgumentException("A due date must include a timezone.", nameof(dueDate));
+        if (title.Length > 200)
+            throw new ArgumentOutOfRangeException(nameof(title));
+        if (!Enum.IsDefined(priority))
+            throw new ArgumentOutOfRangeException(nameof(priority));
+        if (dueDate is { Kind: DateTimeKind.Unspecified })
+            throw new ArgumentException("A due date must include a timezone.", nameof(dueDate));
         await using var serviceScope = scopes.CreateAsyncScope();
         var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
         await EnsureSeedAsync(db, scope, ct);
@@ -76,7 +79,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
         await EnsureSeedAsync(db, scope, ct);
         var row = await db.Set<PersistedTodoItem>().SingleOrDefaultAsync(item => item.Scope == scope && item.Id == id, ct);
-        if (row is null) return false;
+        if (row is null)
+            return false;
         row.IsCompleted = completed;
         await db.SaveChangesAsync(ct);
         return true;
@@ -88,7 +92,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
         await EnsureSeedAsync(db, scope, ct);
         var row = await db.Set<PersistedTodoItem>().SingleOrDefaultAsync(item => item.Scope == scope && item.Id == id, ct);
-        if (row is null) return false;
+        if (row is null)
+            return false;
         db.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
@@ -96,11 +101,13 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
 
     private async Task EnsureSeedAsync(BlazorDbContext db, string scope, CancellationToken ct)
     {
-        if (await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct)) return;
+        if (await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct))
+            return;
         await _seedGate.WaitAsync(ct);
         try
         {
-            if (await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct)) return;
+            if (await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct))
+                return;
             var seed = await _seed.GetAllAsync(ct);
             var record = new PersistedTodoScope
             {
@@ -118,11 +125,13 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
                 }).ToList()
             };
             db.Set<PersistedTodoScope>().Add(record);
-            try { await db.SaveChangesAsync(ct); }
+            try
+            { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException)
             {
                 db.ChangeTracker.Clear();
-                if (!await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct)) throw;
+                if (!await db.Set<PersistedTodoScope>().AsNoTracking().AnyAsync(item => item.Scope == scope, ct))
+                    throw;
             }
         }
         finally
@@ -133,7 +142,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
 
     private static string TenantScope(TenantId tenantId)
     {
-        if (tenantId.Value == default) throw new ArgumentException("Tenant is required.", nameof(tenantId));
+        if (tenantId.Value == default)
+            throw new ArgumentException("Tenant is required.", nameof(tenantId));
         return "tenant:" + tenantId.Value;
     }
 

@@ -28,8 +28,10 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime) : IL
         try
         {
             var message = $"Allow {context.Action.Type} on '{label}'?";
-            if (value is not null) message += $"\nValue: {value}";
-            if (state is not null) message += $"\nExpected state: {state} = {stateValue ?? "true"}";
+            if (value is not null)
+                message += $"\nValue: {value}";
+            if (state is not null)
+                message += $"\nExpected state: {state} = {stateValue ?? "true"}";
             module = await jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken,
                 "./_content/OpenConnect.LiveUI.Blazor/liveui.js").ConfigureAwait(false);
             prompt = module.InvokeAsync<bool>("confirmAction", CancellationToken.None, message,
@@ -40,7 +42,8 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime) : IL
         {
             if (module is not null)
             {
-                try { await module.InvokeVoidAsync("cancelConfirmation", confirmationId).ConfigureAwait(false); }
+                try
+                { await module.InvokeVoidAsync("cancelConfirmation", confirmationId).ConfigureAwait(false); }
                 catch (Exception) { }
             }
             throw;
@@ -53,7 +56,8 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime) : IL
         {
             if (module is not null)
             {
-                try { await module.DisposeAsync().ConfigureAwait(false); }
+                try
+                { await module.DisposeAsync().ConfigureAwait(false); }
                 catch (Exception) { }
             }
             if (prompt is null || prompt.IsCompleted)

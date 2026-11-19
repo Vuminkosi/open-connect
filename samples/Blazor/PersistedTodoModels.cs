@@ -1,4 +1,4 @@
-﻿using OpenConnect.Samples.Blazor.Models;
+using OpenConnect.Samples.Blazor.Models;
 
 namespace OpenConnect.Samples.Blazor;
 

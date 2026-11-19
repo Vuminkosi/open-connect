@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.JSInterop;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 using Xunit;
@@ -27,7 +27,8 @@ public sealed class BrowserLiveUIActionConfirmationTests
         var orchestrator = new LiveUIOrchestrator(new TestManifest(manifest), new TestAuthorizer(hostAllows), runtime,
             Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [confirmation]);
         var execution = orchestrator.ExecuteAsync(action).AsTask();
-        if (hostAllows) browser.Answer.SetResult(userAllows);
+        if (hostAllows)
+            browser.Answer.SetResult(userAllows);
         var receipt = await execution;
         Assert.Equal(expectedPrompts, browser.Calls);
         Assert.Equal(expectedExecutions, runtime.Calls);
@@ -126,8 +127,10 @@ public sealed class BrowserLiveUIActionConfirmationTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier == "import") return (TValue)(object)this;
-            if (identifier == "cancelConfirmation") return default!;
+            if (identifier == "import")
+                return (TValue)(object)this;
+            if (identifier == "cancelConfirmation")
+                return default!;
             Calls++;
             Identifier = identifier;
             Arguments = args;

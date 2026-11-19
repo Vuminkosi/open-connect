@@ -329,7 +329,8 @@ public sealed class LiveUIAgentToolsTests
         var retry = Assert.IsType<System.Text.Json.JsonElement>(await find.InvokeAsync(Arguments("quarterly report")));
 
         Assert.Equal(safeToRefine ? 2 : 1, broker.Requests.Count);
-        if (!safeToRefine) Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+        if (!safeToRefine)
+            Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
     }
 
     [Fact]
