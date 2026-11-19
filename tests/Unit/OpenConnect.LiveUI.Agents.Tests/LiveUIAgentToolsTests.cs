@@ -243,6 +243,31 @@ public sealed class LiveUIAgentToolsTests
         Assert.Equal("report", request.Value);
     }
 
+    [Theory]
+    [InlineData("Ambiguous", "text_match_ambiguous", false, true)]
+    [InlineData("MissingTarget", "text_match_missing", false, true)]
+    [InlineData("Ambiguous", "target_ambiguous", false, false)]
+    [InlineData("Uncertain", "text_match_ambiguous", false, false)]
+    [InlineData("Ambiguous", "text_match_ambiguous", true, false)]
+    public async Task Row_search_allows_refinement_only_when_no_highlight_was_dispatched(
+        string outcome, string code, bool verified, bool safeToRefine)
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind,
+                $"{{\"outcome\":\"{outcome}\",\"code\":\"{code}\",\"postconditionVerified\":{verified.ToString().ToLowerInvariant()}}}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var find = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_find_matching_rows"));
+        AIFunctionArguments Arguments(string text) => new(new Dictionary<string, object?>
+        { ["targetId"] = "todo.list", ["matchText"] = text });
+
+        await find.InvokeAsync(Arguments("report"));
+        var retry = Assert.IsType<System.Text.Json.JsonElement>(await find.InvokeAsync(Arguments("quarterly report")));
+
+        Assert.Equal(safeToRefine ? 2 : 1, broker.Requests.Count);
+        if (!safeToRefine) Assert.Equal("action_retry_unsafe", retry.GetProperty("error").GetString());
+    }
+
     [Fact]
     public async Task Current_page_contains_only_targets_with_authorized_capabilities()
     {

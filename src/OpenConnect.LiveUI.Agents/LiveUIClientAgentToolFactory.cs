@@ -204,7 +204,13 @@ public static class LiveUIClientAgentToolFactory
                 if (result.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String)
                 {
                     var value = outcome.GetString();
-                    uncertain = value is not ("Completed" or "Denied");
+                    var matchingSearchDidNotHighlight = request.Operation == "highlight" &&
+                        !string.IsNullOrWhiteSpace(request.Value) &&
+                        result.TryGetProperty("postconditionVerified", out var verified) && verified.ValueKind == JsonValueKind.False &&
+                        result.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String &&
+                        ((value == "Ambiguous" && code.GetString() == "text_match_ambiguous") ||
+                         (value == "MissingTarget" && code.GetString() == "text_match_missing"));
+                    uncertain = value is not ("Completed" or "Denied") && !matchingSearchDidNotHighlight;
                 }
                 return result;
             }
