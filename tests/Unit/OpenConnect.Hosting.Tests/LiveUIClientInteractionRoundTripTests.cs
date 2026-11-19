@@ -85,7 +85,11 @@ public sealed class LiveUIClientInteractionRoundTripTests
 
         async Task ReplyAsync(ClientInteractionRequest request, LiveUIActionReceipt receipt)
         {
-            var response = new ClientInteractionResponse(request.CorrelationId, "action", JsonSerializer.Serialize(receipt, OpenConnectHttpJson.CreateOptions()))
+            Assert.Equal(LiveUIAuthorizationOutcome.Allowed, receipt.AuthorizationOutcome);
+            var payload = JsonSerializer.Serialize(receipt, OpenConnectHttpJson.CreateOptions());
+            using var parsed = JsonDocument.Parse(payload);
+            Assert.Equal("Allowed", parsed.RootElement.GetProperty("authorizationOutcome").GetString());
+            var response = new ClientInteractionResponse(request.CorrelationId, "action", payload)
             { ConnectionId = connection.ConnectionId };
             var endpoint = await EndpointRouteBuilderExtensions.HandlePostClientInteractionResponseAsync(
                 session.Id.Value.ToString(), response, AuthenticatedContext(provider), sessions);

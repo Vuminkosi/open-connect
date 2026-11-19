@@ -50,7 +50,8 @@ test('creates the requested Todo through an authorized live agent and keeps it a
       matchesRequestedTitle: payload.value === title || payload.stateValue === title,
       stateName: payload.stateName ?? null, targetId: digest(payload.targetId), correlationId: digest(payload.correlationId),
       provider: ['Browser', 'LocalWorker', 'Gateway'].includes(result?.provider) ? result.provider : null,
-      originTool: payload.originTool === 'liveui_click_and_observe_text' ? payload.originTool : null };
+      originTool: payload.originTool === 'liveui_click_and_observe_text' ? payload.originTool : null,
+      authorizationOutcome: ['Allowed', 'Denied', 'TimedOut'].includes(result?.authorizationOutcome) ? result.authorizationOutcome : null };
   });
   await page.reload();
   await expect.poll(() => page.getByText(title, { exact: true }).count()).toBe(1).catch(() => {});
@@ -58,7 +59,8 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   const diagnostics = {
     traceId: digest(sessionId), selectedTool: trace.some((item) => item.originTool === 'liveui_click_and_observe_text')
       ? 'liveui_click_and_observe_text' : null, discoveryStrategy: null,
-    authorizationOutcome: null, finalResponse: null,
+    authorizationOutcome: trace.find((item) => item.originTool === 'liveui_click_and_observe_text' && item.action === 'Click')?.authorizationOutcome ?? null,
+    finalResponse: null,
     finalResponseContainsRequestedTitle: assistantResponse.includes(title),
     persistedMatchCount: persistedCount, interactions: trace,
   };
@@ -82,6 +84,7 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   if (requireObservedChange) {
     expect(observedChange).toBe(true);
     expect(trace[clickIndex].originTool).toBe('liveui_click_and_observe_text');
+    expect(trace[clickIndex].authorizationOutcome).toBe('Allowed');
   }
   expect(assistantResponse).toMatch(/\b(created|added|visible|showing|appears)\b/i);
   expect(assistantResponse).toContain(title);

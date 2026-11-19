@@ -9,6 +9,22 @@ namespace OpenConnect.LiveUI.Tests;
 public sealed class LiveUIOrchestratorTests
 {
     [Fact]
+    public void Authorization_diagnostics_are_optional_and_legacy_readers_ignore_them()
+    {
+        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var legacy = new LiveUIActionReceipt("action", "session", LiveUIActionOutcome.Uncertain, "test", false, DateTimeOffset.UtcNow);
+        var oldJson = System.Text.Json.JsonSerializer.Serialize(legacy, options);
+        Assert.DoesNotContain("authorizationOutcome", oldJson, StringComparison.Ordinal);
+        Assert.Null(System.Text.Json.JsonSerializer.Deserialize<LiveUIActionReceipt>(oldJson, options)!.AuthorizationOutcome);
+        var json = System.Text.Json.JsonSerializer.Serialize(legacy with { AuthorizationOutcome = LiveUIAuthorizationOutcome.Allowed }, options);
+        Assert.Equal(LiveUIAuthorizationOutcome.Allowed,
+            System.Text.Json.JsonSerializer.Deserialize<LiveUIActionReceipt>(json, options)!.AuthorizationOutcome);
+        Assert.Equal("action", System.Text.Json.JsonSerializer.Deserialize<LegacyReceipt>(json, options)!.ActionId);
+    }
+
+    private sealed record LegacyReceipt(string ActionId);
+
+    [Fact]
     public void ManifestJson_RoundTripsReadOnlyCapabilitySet()
     {
         var manifest = new LiveUIManifest(
@@ -52,6 +68,8 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(expectedConfirmations, confirmation.Calls);
         Assert.Equal(expectedExecutions, runtime.Calls);
         Assert.Equal(expectedExecutions == 1 ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal(!firstAllow || confirmed && !secondAllow ? LiveUIAuthorizationOutcome.Denied : LiveUIAuthorizationOutcome.Allowed,
+            receipt.AuthorizationOutcome);
         if (expectedConfirmations == 1) Assert.Equal(action.ActionId, confirmation.ActionId);
     }
 
@@ -87,6 +105,7 @@ public sealed class LiveUIOrchestratorTests
         var receipt = await orchestrator.ExecuteAsync(Action(hash: manifest.ContentHash) with { Timeout = TimeSpan.FromMilliseconds(50) });
         Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
         Assert.Equal("approval_timeout", receipt.Code);
+        Assert.Equal(LiveUIAuthorizationOutcome.Allowed, receipt.AuthorizationOutcome);
         confirmation.Release.SetResult(true);
         Assert.Equal(0, runtime.Calls);
     }
@@ -122,6 +141,7 @@ public sealed class LiveUIOrchestratorTests
 
         Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
         Assert.Equal("authorization_timeout", receipt.Code);
+        Assert.Equal(LiveUIAuthorizationOutcome.TimedOut, receipt.AuthorizationOutcome);
         Assert.Equal(0, runtime.Calls);
         authorizer.Release.SetResult(new LiveUIAuthorizationDecision(true, "allowed", UserConfirmed: true));
         Assert.Equal(0, runtime.Calls);
@@ -140,6 +160,7 @@ public sealed class LiveUIOrchestratorTests
         var receipt = await execution;
         Assert.Equal(LiveUIActionOutcome.Uncertain, receipt.Outcome);
         Assert.Equal("action_cancelled", receipt.Code);
+        Assert.Null(receipt.AuthorizationOutcome);
         authorizer.Release.SetResult(new LiveUIAuthorizationDecision(true, "allowed"));
         Assert.Equal(0, runtime.Calls);
     }
@@ -239,6 +260,7 @@ public sealed class LiveUIOrchestratorTests
 
         Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
         Assert.Equal("policy_denied", receipt.Code);
+        Assert.Equal(LiveUIAuthorizationOutcome.Denied, receipt.AuthorizationOutcome);
         Assert.False(receipt.PostconditionVerified);
         Assert.Equal(0, runtime.Calls);
     }
@@ -351,6 +373,7 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(LiveUIActionOutcome.Conflict, receipt.Outcome);
         Assert.Equal("manifest_stale", receipt.Code);
         Assert.Equal(0, authorizer.Calls);
+        Assert.Null(receipt.AuthorizationOutcome);
     }
 
     [Fact]
@@ -364,6 +387,7 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(LiveUIActionOutcome.Uncertain, receipt.Outcome);
         Assert.Equal("postcondition_unverified", receipt.Code);
         Assert.False(receipt.PostconditionVerified);
+        Assert.Equal(LiveUIAuthorizationOutcome.Allowed, receipt.AuthorizationOutcome);
     }
 
     [Fact]

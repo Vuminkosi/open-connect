@@ -37,6 +37,7 @@ public sealed class LiveUIOrchestrator(
         if (!_seenActions.TryAdd(actionKey, InFlight))
             return Receipt(action, LiveUIActionOutcome.Conflict, "duplicate_action", false);
 
+        LiveUIAuthorizationOutcome? authorizationOutcome = null;
         try
         {
             var manifestLoadStartedAt = Stopwatch.GetTimestamp();
@@ -86,36 +87,40 @@ public sealed class LiveUIOrchestrator(
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
             {
-                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false);
+                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false, authorization: LiveUIAuthorizationOutcome.TimedOut);
             }
             cancellationToken.ThrowIfCancellationRequested();
             if (timeout.IsCancellationRequested)
-                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false);
+                return Receipt(action, LiveUIActionOutcome.Denied, "authorization_timeout", false, authorization: LiveUIAuthorizationOutcome.TimedOut);
             if (!decision.Allowed)
                 return Receipt(action, LiveUIActionOutcome.Denied,
-                    string.IsNullOrWhiteSpace(decision.Code) ? "unauthorized" : decision.Code, false);
+                    string.IsNullOrWhiteSpace(decision.Code) ? "unauthorized" : decision.Code, false, authorization: LiveUIAuthorizationOutcome.Denied);
+            authorizationOutcome = LiveUIAuthorizationOutcome.Allowed;
             if (config.Security.RequireConfirmationForWrites && target?.RequiresConfirmation == true && !decision.UserConfirmed)
             {
                 if (_confirmation is null)
-                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
+                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false, authorization: authorizationOutcome);
                 try
                 {
                     if (!await _confirmation.ConfirmAsync(context, timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false))
-                        return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false);
+                        return Receipt(action, LiveUIActionOutcome.Denied, "approval_required", false, authorization: authorizationOutcome);
                     var latest = await manifestProvider.GetCurrentAsync(timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
                     if (manifestValidator.Validate(latest).Count > 0 || !string.Equals(latest?.ContentHash, action.ManifestHash, StringComparison.Ordinal))
-                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false);
+                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false, authorization: authorizationOutcome);
+                    authorizationOutcome = null;
                     var rechecked = await authorizer.AuthorizeAsync(context, timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
                     if (!rechecked.Allowed)
-                        return Receipt(action, LiveUIActionOutcome.Denied, "unauthorized", false);
+                        return Receipt(action, LiveUIActionOutcome.Denied, "unauthorized", false, authorization: LiveUIAuthorizationOutcome.Denied);
+                    authorizationOutcome = LiveUIAuthorizationOutcome.Allowed;
                     latest = await manifestProvider.GetCurrentAsync(timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
                     if (manifestValidator.Validate(latest).Count > 0 || !string.Equals(latest?.ContentHash, action.ManifestHash, StringComparison.Ordinal))
-                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false);
+                        return Receipt(action, LiveUIActionOutcome.Conflict, "manifest_stale", false, authorization: authorizationOutcome);
                     timeout.Token.ThrowIfCancellationRequested();
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
                 {
-                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_timeout", false);
+                    return Receipt(action, LiveUIActionOutcome.Denied, "approval_timeout", false,
+                        authorization: authorizationOutcome ?? LiveUIAuthorizationOutcome.TimedOut);
                 }
             }
 
@@ -139,20 +144,20 @@ public sealed class LiveUIOrchestrator(
             if (action.Type == LiveUIActionType.WaitForState && result.PostconditionVerified)
                 LiveUIMetrics.ConfirmedStateDuration.Record(Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds, tags);
             if (result.Outcome == LiveUIActionOutcome.Completed && !result.PostconditionVerified)
-                return Receipt(action, LiveUIActionOutcome.Uncertain, "postcondition_unverified", false);
-            return Receipt(action, result.Outcome, result.Code, result.PostconditionVerified, result.VerifiedState);
+                return Receipt(action, LiveUIActionOutcome.Uncertain, "postcondition_unverified", false, authorization: authorizationOutcome);
+            return Receipt(action, result.Outcome, result.Code, result.PostconditionVerified, result.VerifiedState, authorizationOutcome);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return Receipt(action, LiveUIActionOutcome.Uncertain, "action_timeout", false);
+            return Receipt(action, LiveUIActionOutcome.Uncertain, "action_timeout", false, authorization: authorizationOutcome);
         }
         catch (OperationCanceledException)
         {
-            return Receipt(action, LiveUIActionOutcome.Uncertain, "action_cancelled", false);
+            return Receipt(action, LiveUIActionOutcome.Uncertain, "action_cancelled", false, authorization: authorizationOutcome);
         }
         catch
         {
-            return Receipt(action, LiveUIActionOutcome.Failed, "execution_failed", false);
+            return Receipt(action, LiveUIActionOutcome.Failed, "execution_failed", false, authorization: authorizationOutcome);
         }
         finally
         {
@@ -229,6 +234,6 @@ public sealed class LiveUIOrchestrator(
     };
 
     private static LiveUIActionReceipt Receipt(LiveUIAction action, LiveUIActionOutcome outcome, string code,
-        bool verified, string? state = null) =>
-        new(action.ActionId, action.SessionId, outcome, code, verified, DateTimeOffset.UtcNow, state);
+        bool verified, string? state = null, LiveUIAuthorizationOutcome? authorization = null) =>
+        new(action.ActionId, action.SessionId, outcome, code, verified, DateTimeOffset.UtcNow, state) { AuthorizationOutcome = authorization };
 }

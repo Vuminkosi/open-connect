@@ -18,6 +18,8 @@ public enum LiveUICapability { Activate, Close, Filter, Focus, Highlight, Inspec
 public enum LiveUIActionType { Navigate, Open, Close, Click, Focus, Scroll, Highlight, ClearHighlight, SetValue, Select, SelectTab, Inspect, WaitForState }
 [JsonConverter(typeof(JsonStringEnumConverter<LiveUIActionOutcome>))]
 public enum LiveUIActionOutcome { Completed, Denied, Ambiguous, MissingTarget, Uncertain, Failed, Conflict }
+[JsonConverter(typeof(JsonStringEnumConverter<LiveUIAuthorizationOutcome>))]
+public enum LiveUIAuthorizationOutcome { Allowed, Denied, TimedOut }
 
 public sealed record LiveUIManifest(string SchemaVersion, string BuildId, string ContentHash, IReadOnlyList<LiveUIRoute> Routes);
 public sealed record LiveUIRoute(string Id, string Path, string? Title, IReadOnlyList<LiveUITarget> Targets);
@@ -63,7 +65,12 @@ public sealed record LiveUIActionReceipt(
     string Code,
     bool PostconditionVerified,
     DateTimeOffset CompletedAt,
-    string? VerifiedState = null);
+    string? VerifiedState = null)
+{
+    /// <summary>Host policy decision when evaluated; this does not indicate user confirmation or action success.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LiveUIAuthorizationOutcome? AuthorizationOutcome { get; init; }
+}
 
 public sealed record LiveUIExecutionContext(LiveUIManifest Manifest, LiveUIRoute Route, LiveUITarget? Target, LiveUIAction Action);
 public sealed record LiveUIAuthorizationDecision(bool Allowed, string Code, bool UserConfirmed = false);
