@@ -56,6 +56,8 @@ public static class LiveUIClientAgentToolFactory
         private readonly object _actionGate = new();
         private readonly HashSet<(string Kind, string Target)> _inFlightActions = [];
         private readonly HashSet<(string Kind, string Target)> _uncertainActions = [];
+        private int _pendingRowMatches;
+        private bool _ambiguousRowMatch;
 
         public Task<JsonElement> GetCurrentPageAsync(CancellationToken cancellationToken = default) =>
             RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page"), "page", cancellationToken);
@@ -241,16 +243,27 @@ public static class LiveUIClientAgentToolFactory
             (string Kind, string Target) key, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var isRowMatch = request.Operation == "highlight" && !string.IsNullOrWhiteSpace(request.Value);
             lock (_actionGate)
             {
+                if (request.Operation == "execute" && !string.Equals(request.Action, "Focus", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_ambiguousRowMatch)
+                        return SelectionFenceResult("selection_ambiguous", "More than one visible record matched. Ask the user to clarify before changing a record.");
+                    if (_pendingRowMatches > 0)
+                        return SelectionFenceResult("selection_pending", "Wait for the record match result before changing a record.");
+                }
                 if (_uncertainActions.Contains(key))
                     return ActionFenceResult("action_retry_unsafe",
                     "The previous action may already have happened. Do not dispatch another action for this target in this turn.");
                 if (!_inFlightActions.Add(key))
                     return ActionFenceResult("action_in_progress",
                     "An action for this target is already in progress. Wait for its receipt.");
+                if (isRowMatch)
+                    _pendingRowMatches++;
             }
             var uncertain = true;
+            var ambiguousMatch = false;
             try
             {
                 var result = await RequestAsync(request, "action", cancellationToken).ConfigureAwait(false);
@@ -263,6 +276,7 @@ public static class LiveUIClientAgentToolFactory
                         result.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String &&
                         ((value == "Ambiguous" && code.GetString() == "text_match_ambiguous") ||
                          (value == "MissingTarget" && code.GetString() == "text_match_missing"));
+                    ambiguousMatch = matchingSearchDidNotHighlight && value == "Ambiguous";
                     uncertain = value is not ("Completed" or "Denied") && !matchingSearchDidNotHighlight;
                 }
                 return result;
@@ -272,11 +286,17 @@ public static class LiveUIClientAgentToolFactory
                 lock (_actionGate)
                 {
                     _inFlightActions.Remove(key);
+                    if (isRowMatch)
+                        _pendingRowMatches--;
+                    _ambiguousRowMatch |= ambiguousMatch;
                     if (uncertain)
                         _uncertainActions.Add(key);
                 }
             }
         }
+
+        private static JsonElement SelectionFenceResult(string code, string message) =>
+            JsonSerializer.SerializeToElement(new { outcome = "Denied", code, postconditionVerified = false, message });
 
         private static JsonElement ActionFenceResult(string error, string message) =>
             JsonSerializer.SerializeToElement(new
