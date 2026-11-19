@@ -356,16 +356,20 @@
                         ? await _agentTools.GetCurrentPageForDirectAgentAsync(cancellationToken)
                         : await _agentTools.GetCurrentPageAsync(cancellationToken);
                     var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
-                    if (router is null || page is null || manifest is null ||
-                        page.ContentHash != manifest.ContentHash || manifest.SchemaVersion != LiveUISchema.CurrentVersion ||
+                    var pageFailure = router is null ? "router_unavailable" :
+                        page is null ? "page_missing" :
+                        manifest is null ? "manifest_missing" :
+                        page.ContentHash != manifest.ContentHash ? "manifest_changed" :
+                        manifest.SchemaVersion != LiveUISchema.CurrentVersion ? "manifest_schema_unsupported" :
                         request.ScreenedPageDigest is { } digest &&
                         (digest.Length != 64 || !string.Equals(digest,
                             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(page, JsonOptions)))),
-                            StringComparison.Ordinal)))
+                            StringComparison.Ordinal)) ? "screened_page_changed" : null;
+                    if (pageFailure is not null)
                     {
-                        payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", plan = (LiveUIActionPlan?)null }, JsonOptions);
+                        payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", code = pageFailure, plan = (LiveUIActionPlan?)null }, JsonOptions);
                     }
-                    else
+                    else if (router is not null && page is not null && manifest is not null)
                     {
                         var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
                                 target.TargetId,
@@ -383,6 +387,10 @@
                         };
                         var result = await router.GeneratePlanAsync(inferenceRequest, cancellationToken);
                         payloadJson = JsonSerializer.Serialize(result, JsonOptions);
+                    }
+                    else
+                    {
+                        payloadJson = JsonSerializer.Serialize(new { outcome = "page_unavailable", code = "page_missing", plan = (LiveUIActionPlan?)null }, JsonOptions);
                     }
                 }
                 else if (request.Operation == "get_current_page")

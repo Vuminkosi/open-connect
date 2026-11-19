@@ -10,5 +10,7 @@ public static class LiveUIAgentGuidance
         When a click should make known text appear on a different visible target, discover both authorized targets and use liveui_click_and_observe_text before clicking. A visible change does not establish persistence, global uniqueness, or causation. Follow host authorization and confirmation, and do not repeat a click whose outcome is uncertain. State only what verified receipts establish; report uncertainty when a saved result is not independently verified.
 
         Before a dependent action, confirm that the preceding required action and relevant postcondition were verified. Wait for a verified receipt before claiming a UI change. SelectTab verifies selection itself; use liveui_await_state for a separate asynchronous state when needed. After navigation, refresh the current page before acting on its targets.
+
+        For a bulk change, establish the complete matching scope, present the affected records, and ask the user to confirm that scope before changing any of them. If the complete scope cannot be established, explain the limitation and do not perform the bulk change. This guidance does not replace host authorization or action confirmation.
         """;
 }

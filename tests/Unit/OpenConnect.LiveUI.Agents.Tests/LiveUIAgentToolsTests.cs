@@ -618,6 +618,86 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Connection_bound_tools_preserve_screening_and_bind_both_requests()
+    {
+        var broker = new ScreenedInteractionBroker(true);
+        var tools = LiveUIClientAgentToolFactory.CreateToolsForConnection(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), "trusted-connection", TimeSpan.FromSeconds(1));
+        var infer = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await infer.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["intent"] = "Open tasks" })));
+
+        Assert.Equal("completed", result.GetProperty("outcome").GetString());
+        Assert.Equal("trusted-connection", broker.PageRequest!.ConnectionId);
+        Assert.Equal("trusted-connection", broker.PlanRequest!.ConnectionId);
+        Assert.NotNull(broker.PlanRequest.ScreenedPageDigest);
+    }
+
+    [Fact]
+    public async Task Connection_bound_tools_preserve_unscreened_broker_behavior()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, "{\"outcome\":\"completed\",\"plan\":{}}")));
+        var tools = LiveUIClientAgentToolFactory.CreateToolsForConnection(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), "trusted-connection", TimeSpan.FromSeconds(1));
+        var infer = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+
+        await infer.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["intent"] = "Open tasks" }));
+
+        var request = Assert.Single(broker.Requests);
+        Assert.Equal("trusted-connection", request.ConnectionId);
+        Assert.Null(request.ScreenedPageDigest);
+    }
+
+    [Fact]
+    public async Task Select_without_a_value_is_rejected_before_dispatch_and_can_be_corrected()
+    {
+        var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
+            new(request.CorrelationId, kind, "{\"outcome\":\"Completed\",\"postconditionVerified\":true}")));
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
+
+        var invalid = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.checkbox", ["action"] = "Select" })));
+        Assert.Equal("invalid_request", invalid.GetProperty("error").GetString());
+        Assert.Empty(broker.Requests);
+        var corrected = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["targetId"] = "item.checkbox", ["action"] = "Select", ["value"] = "true" })));
+        Assert.Equal("Completed", corrected.GetProperty("outcome").GetString());
+        Assert.Equal("true", Assert.Single(broker.Requests).Value);
+    }
+
+    [Theory]
+    [InlineData(false, false, 2, "completed")]
+    [InlineData(true, false, 2, "page_unavailable")]
+    [InlineData(false, true, 1, "page_unavailable")]
+    public async Task Client_inference_rescreens_a_changed_page_once(bool alwaysUnavailable, bool denySecondScreen,
+        int expectedPlans, string expectedOutcome)
+    {
+        var broker = new RetryingScreenedInteractionBroker(alwaysUnavailable, denySecondScreen);
+        var tools = LiveUIClientAgentToolFactory.CreateTools(broker,
+            new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
+        var infer = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_infer_plan"));
+
+        var result = Assert.IsType<System.Text.Json.JsonElement>(await infer.InvokeAsync(new AIFunctionArguments(
+            new Dictionary<string, object?> { ["intent"] = "Show active tasks" })));
+
+        Assert.Equal(expectedOutcome, result.GetProperty("outcome").GetString());
+        Assert.Equal(2, broker.PageRequests);
+        Assert.Equal(expectedPlans, broker.PlanRequests.Count);
+        for (var index = 0; index < broker.PlanRequests.Count; index++)
+        {
+            var page = $"{{\"routeId\":\"home\",\"version\":{index + 1}}}";
+            var expectedDigest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(page)));
+            Assert.Equal(expectedDigest, broker.PlanRequests[index].ScreenedPageDigest);
+        }
+        if (broker.PlanRequests.Count == 2)
+            Assert.NotEqual(broker.PlanRequests[0].CorrelationId, broker.PlanRequests[1].CorrelationId);
+    }
+
+    [Fact]
     public async Task Client_inference_rate_limit_is_reported_without_a_plan_or_retry()
     {
         var broker = new RecordingInteractionBroker((_, request, kind) =>
@@ -1206,12 +1286,14 @@ public sealed class LiveUIAgentToolsTests
     {
         public const string PageJson = "{\"routeId\":\"home\",\"targets\":[]}";
         public int PageRequests { get; private set; }
+        public ClientInteractionRequest? PageRequest { get; private set; }
         public ClientInteractionRequest? PlanRequest { get; private set; }
 
         public Task<ClientInteractionResponse?> RequestScreenedPageAsync(SessionId sessionId, ClientInteractionRequest request,
             TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             PageRequests++;
+            PageRequest = request;
             return Task.FromResult(allowed ? new ClientInteractionResponse(request.CorrelationId, "page", PageJson) : null);
         }
 
@@ -1221,6 +1303,32 @@ public sealed class LiveUIAgentToolsTests
             PlanRequest = request;
             return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, expectedResultKind,
                 "{\"outcome\":\"completed\",\"plan\":{}}"));
+        }
+    }
+
+    private sealed class RetryingScreenedInteractionBroker(bool alwaysUnavailable, bool denySecondScreen)
+        : IClientInteractionBroker, IScreenedClientPageBroker
+    {
+        public int PageRequests { get; private set; }
+        public List<ClientInteractionRequest> PlanRequests { get; } = [];
+
+        public Task<ClientInteractionResponse?> RequestScreenedPageAsync(SessionId sessionId, ClientInteractionRequest request,
+            TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            PageRequests++;
+            if (denySecondScreen && PageRequests == 2)
+                return Task.FromResult<ClientInteractionResponse?>(null);
+            var page = $"{{\"routeId\":\"home\",\"version\":{PageRequests}}}";
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, "page", page));
+        }
+
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            PlanRequests.Add(request);
+            var outcome = alwaysUnavailable || PlanRequests.Count == 1 ? "page_unavailable" : "completed";
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, expectedResultKind,
+                $"{{\"outcome\":\"{outcome}\",\"plan\":null}}"));
         }
     }
 

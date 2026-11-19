@@ -166,13 +166,6 @@ public sealed class TodoServiceClient(HttpClient httpClient, IOptions<MetaCloudO
 
 public sealed record TodoServiceRecord(Guid Id, string Title, string? Description, bool IsCompleted, int Priority, DateTime CreatedAtUtc, DateTime? DueDateUtc);
 
-internal sealed class ConnectionBoundInteractionBroker(IClientInteractionBroker inner, string connectionId) : IClientInteractionBroker
-{
-    public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
-        string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default) =>
-        inner.RequestAsync(sessionId, request with { ConnectionId = connectionId }, expectedResultKind, timeout, cancellationToken);
-}
-
 public sealed class SampleTodoTaskAuthorizer(IOptions<MetaCloudOptions> options) : IHostTaskExecutionAuthorizer
 {
     public Task AuthorizeAsync(HostTaskExecution task, CancellationToken cancellationToken)
@@ -220,8 +213,8 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
             {
                 if (string.IsNullOrWhiteSpace(task.ClientConnectionId))
                     throw new InvalidOperationException("An interactive task requires its original client connection.");
-                tools.AddRange(LiveUIClientAgentToolFactory.CreateTools(
-                    new ConnectionBoundInteractionBroker(interactionBroker, task.ClientConnectionId), task.SessionId));
+                tools.AddRange(LiveUIClientAgentToolFactory.CreateToolsForConnection(
+                    interactionBroker, task.SessionId, task.ClientConnectionId));
             }
             if (readTodoRequest)
             {

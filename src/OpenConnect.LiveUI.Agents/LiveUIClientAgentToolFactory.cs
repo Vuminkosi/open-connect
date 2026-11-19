@@ -9,6 +9,20 @@ namespace OpenConnect.LiveUI.Agents;
 /// <summary>Creates MAF tools that ask the authenticated connected client to run LiveUI actions.</summary>
 public static class LiveUIClientAgentToolFactory
 {
+    /// <summary>Creates tools bound to one trusted client connection while retaining any page-screening capability.</summary>
+    public static IReadOnlyList<AITool> CreateToolsForConnection(
+        IClientInteractionBroker interactionBroker, SessionId sessionId, string connectionId, TimeSpan? responseTimeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(interactionBroker);
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
+        if (connectionId.Length > 128)
+            throw new ArgumentOutOfRangeException(nameof(connectionId));
+        IClientInteractionBroker bound = interactionBroker is IScreenedClientPageBroker screened
+            ? new ScreenedConnectionBroker(interactionBroker, screened, connectionId)
+            : new ConnectionBroker(interactionBroker, connectionId);
+        return CreateTools(bound, sessionId, responseTimeout);
+    }
+
     /// <summary>
     /// Creates tools for a trusted session. The session identifier is supplied by the host and is never a model argument.
     /// Each tool waits for the matching client response before returning to the model.
@@ -39,7 +53,7 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.FindMatchingRowsAsync, "liveui_find_matching_rows",
                 "Finds visible rows containing matchText in an authorized list or table. Supply the identifying words from the user's request, not the entire instruction. A text_match_ambiguous receipt means multiple visible rows match: ask which record, using a detail that distinguishes them, and do not change any record. A text_match_missing receipt means no visible match was found; it does not prove a record is absent from hidden rows or other pages. A unique result highlights that row but does not establish uniqueness elsewhere. Never treat a generic row count as proof of matching records."),
             AIFunctionFactory.Create(tools.ExecuteAsync, "liveui_execute",
-                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. When a click should make known text appear on a different target, use liveui_click_and_observe_text before clicking. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
+                "Executes one authorized action on a compiled UI target and returns its verified receipt. Use SelectTab for Tab targets, SetValue for text inputs, and Select for selection controls. For a checkbox Select, provide the explicit value true to check it or false to clear it. For Click, Open, or Close, stateName and optional stateValue verify a change on the same target; supported states are selected, checked, expanded, visible, exists, textContains, and textNotContains. This cannot verify another target or persisted data. When a click should make known text appear on a different target, use liveui_click_and_observe_text before clicking. Click without a state has no verified postcondition. An Uncertain result may mean the action already happened; inspect the current state and do not dispatch another action for that target in this turn."),
             AIFunctionFactory.Create(tools.ClickAndObserveTextAsync, "liveui_click_and_observe_text",
                 "For a permitted click expected to make specific text appear in another authorized visible target, checks that text is initially absent, dispatches the click once, and checks for the text. Supply target IDs from the current page and the exact expected text. This verifies only a visible change, not causation, record uniqueness, or persistence. The click remains uncertain; do not retry it or claim a saved result without independent evidence."),
             AIFunctionFactory.Create(tools.AwaitStateAsync, "liveui_await_state",
@@ -49,6 +63,23 @@ public static class LiveUIClientAgentToolFactory
             AIFunctionFactory.Create(tools.ClearHighlightAsync, "liveui_clear_highlight",
                 "Clears LiveUI highlighting from the current page.")
         ];
+    }
+
+    private class ConnectionBroker(IClientInteractionBroker inner, string connectionId) : IClientInteractionBroker
+    {
+        protected string ConnectionId { get; } = connectionId;
+
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default) =>
+            inner.RequestAsync(sessionId, request with { ConnectionId = ConnectionId }, expectedResultKind, timeout, cancellationToken);
+    }
+
+    private sealed class ScreenedConnectionBroker(IClientInteractionBroker inner, IScreenedClientPageBroker screened, string connectionId)
+        : ConnectionBroker(inner, connectionId), IScreenedClientPageBroker
+    {
+        public Task<ClientInteractionResponse?> RequestScreenedPageAsync(SessionId sessionId, ClientInteractionRequest request,
+            TimeSpan timeout, CancellationToken cancellationToken = default) =>
+            screened.RequestScreenedPageAsync(sessionId, request with { ConnectionId = ConnectionId }, timeout, cancellationToken);
     }
 
     private sealed class SessionTools(IClientInteractionBroker interactionBroker, SessionId sessionId, TimeSpan timeout)
@@ -67,29 +98,36 @@ public static class LiveUIClientAgentToolFactory
         {
             if (string.IsNullOrWhiteSpace(intent) || intent.Length > 8_000)
                 return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
-            string? screenedDigest = null;
-            if (interactionBroker is IScreenedClientPageBroker screenedBroker)
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
-                var screenedPage = await screenedBroker.RequestScreenedPageAsync(sessionId, pageRequest, timeout, cancellationToken)
-                    .ConfigureAwait(false);
-                if (screenedPage is null || screenedPage.CorrelationId != pageRequest.CorrelationId || screenedPage.ResultKind != "page")
-                    return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
-                screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
-            }
-            var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
-            { ScreenedPageDigest = screenedDigest };
-            var response = await RequestAsync(request,
-                "plan", cancellationToken).ConfigureAwait(false);
-            if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String &&
-                outcome.GetString() == "rate_limited")
-                return JsonSerializer.SerializeToElement(new
+                string? screenedDigest = null;
+                if (interactionBroker is IScreenedClientPageBroker screenedBroker)
                 {
-                    outcome = "rate_limited",
-                    plan = (object?)null,
-                    message = "UI planning is temporarily rate limited and did not perform an action. Tell the user and do not retry planning in this turn."
-                });
-            return response;
+                    var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
+                    var screenedPage = await screenedBroker.RequestScreenedPageAsync(sessionId, pageRequest, timeout, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (screenedPage is null || screenedPage.CorrelationId != pageRequest.CorrelationId || screenedPage.ResultKind != "page")
+                        return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
+                    screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
+                }
+                var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
+                { ScreenedPageDigest = screenedDigest };
+                var response = await RequestAsync(request, "plan", cancellationToken).ConfigureAwait(false);
+                if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String)
+                {
+                    if (outcome.GetString() == "page_unavailable" && screenedDigest is not null && attempt == 0)
+                        continue;
+                    if (outcome.GetString() == "rate_limited")
+                        return JsonSerializer.SerializeToElement(new
+                        {
+                            outcome = "rate_limited",
+                            plan = (object?)null,
+                            message = "UI planning is temporarily rate limited and did not perform an action. Tell the user and do not retry planning in this turn."
+                        });
+                }
+                return response;
+            }
+            return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
         }
 
         public Task<JsonElement> NavigateAsync(string routeId, CancellationToken cancellationToken = default)
@@ -116,6 +154,12 @@ public static class LiveUIClientAgentToolFactory
         private Task<JsonElement> ExecuteCoreAsync(string targetId, string action, string? value,
             string? stateName, string? stateValue, string? originTool, CancellationToken cancellationToken)
         {
+            if (string.Equals(action, "Select", StringComparison.OrdinalIgnoreCase) && value is null)
+                return Task.FromResult(JsonSerializer.SerializeToElement(new
+                {
+                    error = "invalid_request",
+                    message = "Select requires an explicit value. For a checkbox use true or false. No action was dispatched."
+                }));
             if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 256 ||
                 string.IsNullOrWhiteSpace(action) || action.Length > 32 || value is { Length: > 2_000 } ||
                 stateName is { Length: > 32 } || stateValue is { Length: > 256 } ||

@@ -993,7 +993,10 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(5110, process.env.OPENCONNECT_LIVEUI_FIXTURE_HOST ?? '127.0.0.1');
+const fixturePort = Number(process.env.OPENCONNECT_LIVEUI_FIXTURE_PORT ?? '5110');
+if (!Number.isInteger(fixturePort) || fixturePort < 1024 || fixturePort > 65535)
+  throw new Error('OPENCONNECT_LIVEUI_FIXTURE_PORT must be a valid non-privileged port.');
+server.listen(fixturePort, process.env.OPENCONNECT_LIVEUI_FIXTURE_HOST ?? '127.0.0.1');
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => server.close(() => process.exit(0)));

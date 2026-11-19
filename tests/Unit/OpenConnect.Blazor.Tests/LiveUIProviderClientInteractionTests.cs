@@ -293,6 +293,7 @@ public sealed class LiveUIProviderClientInteractionTests
             Assert.Null(router.Request);
             using var response = JsonDocument.Parse(client.Response!.PayloadJson);
             Assert.Equal("page_unavailable", response.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal("screened_page_changed", response.RootElement.GetProperty("code").GetString());
         }
         else
         {
