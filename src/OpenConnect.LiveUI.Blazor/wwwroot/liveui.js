@@ -92,6 +92,9 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   const element = resolution.element;
   if (element.closest("pre, code") && !["Inspect", "Highlight", "Scroll", "Focus", "WaitForState"].includes(action.type))
     return measured(result("Denied", "code_content_not_interactive"));
+  if (["Open", "Close", "Click", "SetValue", "Select", "SelectTab"].includes(action.type) &&
+      !kindMatches(target.kind, element))
+    return measured(result("Denied", "control_kind_mismatch"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
   const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout);
@@ -304,7 +307,8 @@ function kindMatches(kind, element) {
   switch (kind) {
     case "Button": return tag === "button" || element.getAttribute("role") === "button";
     case "Link": return tag === "a" || element.getAttribute("role") === "link";
-    case "Input": return tag === "input" || tag === "textarea";
+    case "Input": return tag === "textarea" || tag === "input" &&
+      !["checkbox", "radio", "button", "submit", "reset", "image"].includes(element.type);
     case "Select": return tag === "select";
     case "Checkbox": return tag === "input" && element.type === "checkbox";
     case "Tab": return roleOf(element) === "tab";

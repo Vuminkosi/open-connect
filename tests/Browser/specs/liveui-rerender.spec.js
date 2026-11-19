@@ -293,3 +293,28 @@ test('ambiguous row matching leaves the page unchanged and can be refined', asyn
   expect(results.unique).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
   expect(results.highlighted).toEqual(['Quarterly report']);
 });
+
+test('stale marked and selected targets cannot dispatch to a different control kind', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<a href="/other" data-openconnect-liveui-id="save">Save</a><input id="title" type="checkbox" aria-label="Title">' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    let clicks = 0;
+    document.querySelector('a').addEventListener('click', (event) => { event.preventDefault(); clicks++; });
+    const button = { id: 'save', kind: 'Button', label: 'Save' };
+    const input = { id: 'title', kind: 'Input', label: 'Title', selector: '#title' };
+    const route = { path: '/', targets: [button, input] };
+    const run = (target, type, parameters) => execute({ manifest: {}, route, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type, parameters } }, 100, false);
+    const staleButton = await run(button, 'Click', {});
+    const staleInput = await run(input, 'SetValue', { value: 'changed' });
+    return { staleButton, staleInput, clicks, value: document.querySelector('input').value };
+  });
+  for (const receipt of [results.staleButton, results.staleInput])
+    expect(receipt).toMatchObject({ outcome: 'Denied', code: 'control_kind_mismatch', postconditionVerified: false });
+  expect(results.clicks).toBe(0);
+  expect(results.value).toBe('on');
+});
