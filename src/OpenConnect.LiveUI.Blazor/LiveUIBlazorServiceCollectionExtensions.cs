@@ -19,12 +19,17 @@ public static class LiveUIBlazorServiceCollectionExtensions
         services.AddOpenConnectLiveUIInference();
         services.TryAddScoped<BrowserPromptApiInferenceProvider>();
         services.TryAddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<BrowserPromptApiInferenceProvider>());
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(OpenConnectClientOptions)) &&
-            !services.Any(descriptor => descriptor.ServiceType == typeof(GatewayWorkerLiveUIInferenceProvider)))
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(GatewayWorkerLiveUIInferenceProvider)))
         {
+            services.AddHttpClient();
             services.AddScoped(provider =>
             {
-                var clientOptions = provider.GetRequiredService<OpenConnectClientOptions>();
+                var clientOptions = provider.GetService<OpenConnectClientOptions>();
+                if (clientOptions is null)
+                    return new GatewayWorkerLiveUIInferenceProvider(new HttpClient(new UnavailableGatewayHandler())
+                    {
+                        BaseAddress = new Uri("http://openconnect.invalid/")
+                    });
                 var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IOpenConnectClient));
                 client.BaseAddress = clientOptions.ApiBaseAddress;
                 client.Timeout = Timeout.InfiniteTimeSpan;
@@ -46,5 +51,14 @@ public static class LiveUIBlazorServiceCollectionExtensions
         services.TryAddScoped<ILiveUIAgentContextAccessor, BlazorLiveUIAgentContextAccessor>();
         services.TryAddScoped<ILiveUIRuntimeTargetDiscovery, LiveUIRuntimeTargetDiscovery>();
         return services;
+    }
+
+    private sealed class UnavailableGatewayHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
+        }
     }
 }

@@ -32,11 +32,15 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
         Assert.Equal(1, worker.Calls);
     }
 
-    [Fact]
-    public async Task BlazorRegistration_ReusesGatewayClientTransportAndCredentials()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BlazorRegistration_ReusesGatewayClientTransportAndCredentials(bool registerClientFirst)
     {
         var requests = 0;
         var services = new ServiceCollection();
+        if (!registerClientFirst)
+            services.AddOpenConnectLiveUIBlazor();
         services.AddOpenConnectClient(options =>
         {
             options.ApiBaseAddress = new Uri("https://gateway.example/openconnect/v1/");
@@ -55,8 +59,8 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
                     LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
             });
         }));
-        services.AddOpenConnectLiveUIBlazor();
-        services.AddOpenConnectLiveUIBlazor();
+        if (registerClientFirst)
+            services.AddOpenConnectLiveUIBlazor();
         using var serviceProvider = services.BuildServiceProvider();
         using var scope = serviceProvider.CreateScope();
 
@@ -66,6 +70,31 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
         Assert.Equal(LiveUIInferenceAvailabilityStatus.Available, result.Status);
         Assert.Equal(1, requests);
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(GatewayWorkerLiveUIInferenceProvider));
+    }
+
+    [Fact]
+    public void BlazorRegistration_DoesNotRegisterGatewayWorkerTwice()
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor();
+        services.AddOpenConnectLiveUIBlazor();
+
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(GatewayWorkerLiveUIInferenceProvider));
+    }
+
+    [Fact]
+    public async Task BlazorRegistration_WithoutGatewayClientReportsWorkerUnavailable()
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor();
+        using var serviceProvider = services.BuildServiceProvider();
+        using var scope = serviceProvider.CreateScope();
+
+        var worker = scope.ServiceProvider.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>();
+        var result = await worker.GetAvailabilityAsync();
+
+        Assert.Equal(LiveUIInferenceAvailabilityStatus.Unavailable, result.Status);
+        Assert.Equal("gateway_worker_unavailable", result.Reason);
     }
 
     [Fact]
