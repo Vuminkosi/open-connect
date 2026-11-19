@@ -23,6 +23,46 @@ public sealed class LiveUIProviderClientInteractionTests
 {
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
+    [Fact]
+    public async Task Provider_rerender_preserves_discovery_but_session_or_provider_replacement_resets_it()
+    {
+        await using var context = new BunitContext();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        var source = CreateManifest();
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        var rendered = Render();
+        var state = context.Services.GetRequiredService<LiveUIManifestState>();
+        var discovered = source with { BuildId = "runtime-discovery", ContentHash = "" };
+        discovered = discovered with { ContentHash = LiveUIManifestHasher.ComputeContentHash(discovered) };
+        state.SetManifest(discovered);
+
+        var liveProvider = rendered.FindComponent<OpenConnectLiveUIProvider>();
+        await rendered.InvokeAsync(() => liveProvider.Render(parameters => parameters.Add(component => component.Manifest, source)));
+        Assert.Same(discovered, await state.GetCurrentAsync());
+
+        await rendered.InvokeAsync(() =>
+        {
+            session.AttachSession("01ARZ3NDEKTSV4RRFFQ69G5FB0");
+        });
+        Assert.Same(source, await state.GetCurrentAsync());
+
+        state.SetManifest(discovered);
+        rendered.Dispose();
+        var replacement = Render();
+        Assert.Same(source, await state.GetCurrentAsync());
+        replacement.Dispose();
+
+        IRenderedComponent<CascadingValue<ComposerSession>> Render() => context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), source);
+                builder.CloseComponent();
+            }));
+    }
+
     [Theory]
     [InlineData(true, true)]
     [InlineData(true, false)]

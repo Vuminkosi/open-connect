@@ -17,6 +17,7 @@
 @inject IOptions<LiveUIOptions> LiveUIOptions
 @inject ILogger<OpenConnectLiveUIProvider> Logger
 @inject LiveUIInteractionReplayFence InteractionReplayFence
+@inject LiveUIManifestValidator ManifestValidator
 @implements IDisposable
 
 @ChildContent
@@ -39,6 +40,10 @@
 
     private ComposerSession? _boundSession;
     private string? _observedSessionId;
+    private string? _installedManifestHash;
+    private string? _installedSessionId;
+    private ComposerSession? _installedSession;
+    private LiveUIManifest? _installedManifest;
     private LiveUIAgentTools? _agentTools;
     private string? _lastHandledCancellationId;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeInteractions = new(StringComparer.Ordinal);
@@ -71,7 +76,19 @@
 
         var manifest = Manifest ?? LiveUICompiledManifestLoader.LoadFromEntryAssembly()
             ?? throw new InvalidOperationException("No embedded LiveUI manifest was found. Enable the LiveUI Razor compiler for this application.");
-        ManifestState.SetManifest(manifest);
+        var errors = ManifestValidator.Validate(manifest);
+        if (errors.Count != 0)
+            throw new ArgumentException($"The LiveUI manifest is invalid ({errors[0]}).", nameof(Manifest));
+        if (!string.Equals(_installedManifestHash, manifest.ContentHash, StringComparison.Ordinal) ||
+            !ReferenceEquals(_installedSession, ComposerSession) ||
+            !string.Equals(_installedSessionId, ComposerSession?.SessionId, StringComparison.Ordinal))
+        {
+            ManifestState.SetManifest(manifest);
+            _installedManifestHash = manifest.ContentHash;
+            _installedManifest = manifest;
+            _installedSession = ComposerSession;
+            _installedSessionId = ComposerSession?.SessionId;
+        }
     }
 
     private void OnComposerSessionChanged()
@@ -82,6 +99,11 @@
         {
             _observedSessionId = sessionId;
             CancelActiveInteractions();
+            if (_installedManifest is not null)
+            {
+                ManifestState.SetManifest(_installedManifest);
+                _installedSessionId = sessionId;
+            }
             if (_agentTools is not null) _ = InvokeAsync(() => ClearHighlightsAfterCancellationAsync(sessionId));
         }
 
