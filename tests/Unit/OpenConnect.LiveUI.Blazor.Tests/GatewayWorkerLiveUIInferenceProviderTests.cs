@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using OpenConnect.Client;
+using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using Xunit;
 
@@ -8,6 +11,63 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 
 public sealed class GatewayWorkerLiveUIInferenceProviderTests
 {
+    [Fact]
+    public async Task Router_PrefersExplicitWorkerOverGatewayWorkerFallback()
+    {
+        using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Fallback must not be used.")))
+        {
+            BaseAddress = new Uri("https://gateway.example/openconnect/v1/")
+        };
+        var worker = new ExplicitWorker();
+        var settings = new LiveUIInferenceOptions();
+        settings.Worker.Enabled = true;
+        var router = new LiveUIInferenceRouter([new GatewayWorkerLiveUIInferenceProvider(client), worker],
+            new LiveUIActionPlanValidator(), Options.Create(settings));
+        var request = new LiveUIInferenceRequest("Show completed tasks", "session", "todo", "openconnect.liveui/v1",
+            [new("completed-tab", ["activate"])]);
+
+        var result = await router.GeneratePlanAsync(request);
+
+        Assert.Equal("completed", result.Outcome);
+        Assert.Equal(1, worker.Calls);
+    }
+
+    [Fact]
+    public async Task BlazorRegistration_ReusesGatewayClientTransportAndCredentials()
+    {
+        var requests = 0;
+        var services = new ServiceCollection();
+        services.AddOpenConnectClient(options =>
+        {
+            options.ApiBaseAddress = new Uri("https://gateway.example/openconnect/v1/");
+            options.WebSocketHeaders["Authorization"] = "Bearer test-token";
+            options.WebSocketHeaders["X-OpenConnect-Test-Tenant"] = "test-tenant";
+        });
+        services.AddHttpClient(nameof(IOpenConnectClient)).ConfigurePrimaryHttpMessageHandler(() => new StubHandler(request =>
+        {
+            requests++;
+            Assert.Equal("https://gateway.example/openconnect/v1/liveui/inference/worker/availability", request.RequestUri?.AbsoluteUri);
+            Assert.Equal("test-token", request.Headers.Authorization?.Parameter);
+            Assert.Equal("test-tenant", Assert.Single(request.Headers.GetValues("X-OpenConnect-Test-Tenant")));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new LiveUIInferenceAvailability(
+                    LiveUIInferenceProviderKind.LocalWorker, LiveUIInferenceAvailabilityStatus.Available))
+            });
+        }));
+        services.AddOpenConnectLiveUIBlazor();
+        services.AddOpenConnectLiveUIBlazor();
+        using var serviceProvider = services.BuildServiceProvider();
+        using var scope = serviceProvider.CreateScope();
+
+        var worker = scope.ServiceProvider.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>();
+        var result = await worker.GetAvailabilityAsync();
+
+        Assert.Equal(LiveUIInferenceAvailabilityStatus.Available, result.Status);
+        Assert.Equal(1, requests);
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(GatewayWorkerLiveUIInferenceProvider));
+    }
+
     [Fact]
     public async Task GeneratePlanAsync_PreservesRequestAndExecutionCorrelationAcrossGateway()
     {
@@ -177,6 +237,20 @@ public sealed class GatewayWorkerLiveUIInferenceProviderTests
 
         Assert.Equal("completed", result.Outcome);
         Assert.Equal(1, fallback.Calls);
+    }
+
+    private sealed class ExplicitWorker : ILiveUIInferenceProvider
+    {
+        public int Calls { get; private set; }
+        public LiveUIInferenceProviderKind Kind => LiveUIInferenceProviderKind.LocalWorker;
+        public Task<LiveUIInferenceAvailability> GetAvailabilityAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LiveUIInferenceAvailability(Kind, LiveUIInferenceAvailabilityStatus.Available));
+        public Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new LiveUIInferenceResult(Kind,
+                new LiveUIActionPlan(request.SchemaVersion, [new("activate", "completed-tab")]), "completed"));
+        }
     }
 
     private sealed class SuccessfulGateway : ILiveUIInferenceProvider

@@ -10,7 +10,18 @@ public sealed class LiveUIInferenceRouter(
     IOptions<LiveUIInferenceOptions> options) : ILiveUIInferenceRouter
 {
     private readonly IReadOnlyDictionary<LiveUIInferenceProviderKind, ILiveUIInferenceProvider> _providers =
-        providers.ToDictionary(provider => provider.Kind);
+        SelectProviders(providers);
+
+    private static IReadOnlyDictionary<LiveUIInferenceProviderKind, ILiveUIInferenceProvider> SelectProviders(
+        IEnumerable<ILiveUIInferenceProvider> providers)
+    {
+        var candidates = providers.ToArray();
+        // The gateway worker is a default transport; an explicitly registered local worker takes precedence.
+        var hasExplicitWorker = candidates.Any(provider => provider.Kind == LiveUIInferenceProviderKind.LocalWorker &&
+            provider is not GatewayWorkerLiveUIInferenceProvider);
+        return candidates.Where(provider => !hasExplicitWorker || provider is not GatewayWorkerLiveUIInferenceProvider)
+            .ToDictionary(provider => provider.Kind);
+    }
 
     public async Task<LiveUIInferenceResult> GeneratePlanAsync(LiveUIInferenceRequest request, CancellationToken cancellationToken = default)
     {

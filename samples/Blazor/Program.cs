@@ -154,16 +154,6 @@ builder.Services.Configure<LiveUIInferenceOptions>(options =>
 });
 if (sameHostGatewayPlanner)
     builder.Services.AddLiveUIGatewayInferenceProvider<SameHostGatewayPlanner>();
-var gatewayWorkerClient = builder.Services.AddHttpClient<GatewayWorkerLiveUIInferenceProvider>((services, client) =>
-{
-    var gatewayClientOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenConnectClientOptions>>().Value;
-    client.BaseAddress = gatewayClientOptions.ApiBaseAddress;
-    foreach (var header in gatewayClientOptions.WebSocketHeaders)
-        client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
-    client.Timeout = Timeout.InfiniteTimeSpan;
-});
-if (!string.IsNullOrEmpty(localGatewayBearer))
-    gatewayWorkerClient.ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
 if (externalGatewayPlanner)
 {
     var gatewayPlannerClient = builder.Services.AddHttpClient<GatewayPlannerLiveUIInferenceProvider>((services, client) =>
@@ -178,8 +168,6 @@ if (externalGatewayPlanner)
         gatewayPlannerClient.ConfigurePrimaryHttpMessageHandler(CreateLocalGatewayTransport);
     builder.Services.AddLiveUIGatewayInferenceProvider<GatewayPlannerLiveUIInferenceProvider>();
 }
-builder.Services.AddScoped<ILiveUIInferenceProvider>(services =>
-    services.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
 builder.Services.AddOpenConnectComposer(options =>
 {
     options.Position = ComposerPosition.BottomRight;
