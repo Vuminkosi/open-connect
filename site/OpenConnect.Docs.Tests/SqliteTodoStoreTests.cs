@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,7 +66,8 @@ public sealed class SqliteTodoStoreTests
                 Assert.Equal(DateTimeKind.Utc, local.DueDateUtc!.Value.Kind);
                 Assert.Contains(await store.GetAllAsync(tenantA), item => item.Id == tenantId);
                 Assert.DoesNotContain(await store.GetAllAsync(tenantB), item => item.Id == tenantId || item.Id == localId);
-                foreach (var item in await store.GetAllAsync()) Assert.True(await store.DeleteAsync(item.Id));
+                foreach (var item in await store.GetAllAsync())
+                    Assert.True(await store.DeleteAsync(item.Id));
             }
             await using (var services = CreateServices(connection))
             {
@@ -79,7 +80,8 @@ public sealed class SqliteTodoStoreTests
         }
         finally
         {
-            foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+            foreach (var file in Directory.EnumerateFiles(directory))
+                File.Delete(file);
             Directory.Delete(directory);
         }
     }
