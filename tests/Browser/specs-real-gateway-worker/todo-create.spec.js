@@ -24,9 +24,7 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   await page.locator('.oc-anchored-fab').click();
   await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
   await expect(page.locator('.oc-status__text')).toHaveText('Ready');
-  await page.getByRole('textbox', { name: /message ellai/i }).fill(requireObservedChange
-    ? `Create a task called ${title} and verify that it appears in the list.`
-    : `Create a task called ${title}.`);
+  await page.getByRole('textbox', { name: /message ellai/i }).fill(`Create a task called ${title}.`);
   await page.getByRole('button', { name: /send to ellai/i }).click();
   await expect(page.locator('.oc-status__text')).toHaveText(/Replying/, { timeout: 30_000 });
   await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
@@ -35,7 +33,8 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
   expect(sessionId).toBeTruthy();
-  const response = await request.get(`http://127.0.0.1:5120/openconnect/v1/sessions/${sessionId}/events`, {
+  const gatewayUrl = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_URL ?? 'http://127.0.0.1:5120';
+  const response = await request.get(`${gatewayUrl}/openconnect/v1/sessions/${sessionId}/events`, {
     headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
   });
   expect(response.status()).toBe(200);

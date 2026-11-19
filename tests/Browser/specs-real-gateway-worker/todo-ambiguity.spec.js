@@ -31,7 +31,8 @@ test('asks which duplicate task to complete without changing either task', async
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
   expect(sessionId).toBeTruthy();
-  const eventsResponse = await request.get(`http://127.0.0.1:5120/openconnect/v1/sessions/${sessionId}/events`, {
+  const gatewayUrl = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_URL ?? 'http://127.0.0.1:5120';
+  const eventsResponse = await request.get(`${gatewayUrl}/openconnect/v1/sessions/${sessionId}/events`, {
     headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
   });
   expect(eventsResponse.status()).toBe(200);

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const plannerKind = process.env.OPENCONNECT_ACCEPTANCE_PLANNER_KIND ?? 'LocalWorker';
+const gatewayUrl = process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_URL ?? 'http://127.0.0.1:5120';
 
 const cases = [
   { name: 'open Todo', prompt: 'Open my Todo list.', route: '/workspace-guide',
@@ -35,7 +36,7 @@ async function verifyPlan(page, request, expectedActions) {
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
   expect(sessionId).toBeTruthy();
-  const response = await request.get(`http://127.0.0.1:5120/openconnect/v1/sessions/${sessionId}/events`, {
+  const response = await request.get(`${gatewayUrl}/openconnect/v1/sessions/${sessionId}/events`, {
     headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
   });
   expect(response.status()).toBe(200);
@@ -140,7 +141,7 @@ test('real conversation does not substitute a Todo action for an unsupported acc
   const sessionText = await page.getByText(/^Session:/).textContent();
   const sessionId = sessionText?.match(/[0-9A-HJKMNP-TV-Z]{26}/)?.[0];
   expect(sessionId).toBeTruthy();
-  const response = await request.get(`http://127.0.0.1:5120/openconnect/v1/sessions/${sessionId}/events`, {
+  const response = await request.get(`${gatewayUrl}/openconnect/v1/sessions/${sessionId}/events`, {
     headers: { authorization: `Bearer ${process.env.OPENCONNECT_ACCEPTANCE_GATEWAY_BEARER}` },
   });
   expect(response.status()).toBe(200);

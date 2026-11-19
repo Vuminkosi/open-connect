@@ -6,8 +6,16 @@ import { fileURLToPath } from 'node:url';
 const browserDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(browserDirectory, '../..');
 const acceptanceDirectory = path.join(os.tmpdir(), `openconnect-liveui-${process.pid}`);
-const fixtureUrl = 'http://127.0.0.1:5110';
-const appUrl = 'http://127.0.0.1:5100';
+function acceptancePort(name, fallback) {
+  const value = process.env[name] ?? String(fallback);
+  if (!/^\d+$/.test(value) || Number(value) < 1024 || Number(value) > 65535)
+    throw new Error(`${name} must be a valid non-privileged port.`);
+  return Number(value);
+}
+
+const fixtureUrl = `http://127.0.0.1:${acceptancePort('OPENCONNECT_ACCEPTANCE_FIXTURE_PORT', 5110)}`;
+const appUrl = `http://127.0.0.1:${acceptancePort('OPENCONNECT_ACCEPTANCE_APP_PORT', 5100)}`;
+const noBuild = process.env.OPENCONNECT_ACCEPTANCE_NO_BUILD === '1' ? ' --no-build' : '';
 
 export default defineConfig({
   testDir: './specs-connected',
@@ -35,9 +43,10 @@ export default defineConfig({
       url: `${fixtureUrl}/health`,
       timeout: 30_000,
       reuseExistingServer: !process.env.CI,
+      env: { OPENCONNECT_LIVEUI_FIXTURE_PORT: new URL(fixtureUrl).port },
     },
     {
-      command: 'dotnet run --no-launch-profile --project samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release',
+      command: `dotnet run --no-launch-profile --project samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release${noBuild}`,
       cwd: repositoryRoot,
       url: appUrl,
       timeout: 120_000,
