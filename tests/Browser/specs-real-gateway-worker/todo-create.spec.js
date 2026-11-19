@@ -1,5 +1,12 @@
 ﻿import { expect, test } from '@playwright/test';
 
+import { createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const digest = (value) => typeof value === 'string' && value.length > 0
+  ? createHash('sha256').update(value).digest('hex') : null;
+
 test('creates the requested Todo through an authorized live agent and keeps it after reload', async ({ page, request }, testInfo) => {
   await page.goto('/');
   const title = 'Review insurance renewals';
@@ -41,12 +48,24 @@ test('creates the requested Todo through an authorized live agent and keeps it a
     return { operation: payload.operation, action: payload.action ?? null, outcome: result?.outcome ?? null,
       code: result?.code ?? null, verified: result?.postconditionVerified ?? null,
       matchesRequestedTitle: payload.value === title || payload.stateValue === title,
-      stateName: payload.stateName ?? null, targetId: payload.targetId ?? null };
+      stateName: payload.stateName ?? null, targetId: digest(payload.targetId), correlationId: digest(payload.correlationId),
+      provider: ['Browser', 'LocalWorker', 'Gateway'].includes(result?.provider) ? result.provider : null };
   });
-  await testInfo.attach('sanitized-liveui-trace', { body: JSON.stringify(trace, null, 2), contentType: 'application/json' });
-  console.log(`Sanitized LiveUI trace: ${JSON.stringify(trace)}`);
   await page.reload();
-  await expect(page.getByText(title, { exact: true })).toHaveCount(1);
+  await expect.poll(() => page.getByText(title, { exact: true }).count()).toBe(1).catch(() => {});
+  const persistedCount = await page.getByText(title, { exact: true }).count();
+  const diagnostics = {
+    traceId: digest(sessionId), selectedTool: null, discoveryStrategy: null,
+    authorizationOutcome: null, finalResponse: null,
+    finalResponseContainsRequestedTitle: assistantResponse.includes(title),
+    persistedMatchCount: persistedCount, interactions: trace,
+  };
+  const tracePath = testInfo.outputPath('sanitized-liveui-trace.json');
+  await fs.mkdir(path.dirname(tracePath), { recursive: true });
+  await fs.writeFile(tracePath, JSON.stringify(diagnostics, null, 2), 'utf8');
+  await testInfo.attach('sanitized-liveui-trace', { path: tracePath, contentType: 'application/json' });
+  console.log(`Sanitized LiveUI trace: ${JSON.stringify(diagnostics)}`);
+  expect(persistedCount).toBe(1);
   expect(trace.some((item) => item.operation === 'execute' && item.verified === true)).toBe(true);
   const clickIndex = trace.findIndex((item) => item.operation === 'execute' &&
     ['click', 'activate'].includes(item.action?.toLowerCase()) && item.code === 'click_dispatched_without_postcondition');
