@@ -126,6 +126,130 @@ public sealed class SpeechSynthesisEndpointTests
         Assert.Equal("Kokoro returned an invalid synthesis response.", problem.GetProperty("title").GetString());
     }
 
+    [Theory]
+    [InlineData(401, 502)]
+    [InlineData(403, 502)]
+    [InlineData(400, 502)]
+    [InlineData(404, 502)]
+    [InlineData(429, 502)]
+    [InlineData(500, 502)]
+    [InlineData(503, 503)]
+    [InlineData(504, 504)]
+    [InlineData(408, 504)]
+    public async Task Worker_status_is_a_gateway_failure_not_caller_authentication(int upstream, int expected)
+    {
+        using var handler = new RecordingHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)upstream)
+        { Content = new StringContent("sensitive-worker-detail test-worker-token") }));
+        await using var host = await SpeechHost.StartAsync(handler, true);
+        using var response = await host.Client.PostAsync("/openconnect/v1/speech/synthesize", JsonBody(ValidRequest));
+        await AssertGenericProblem(response, expected);
+        AssertSafeLogs(host);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Worker_transport_or_timeout_returns_generic_problem(bool timeout)
+    {
+        using var handler = new RecordingHandler((_, _) => throw (timeout
+            ? new TaskCanceledException("sensitive-worker-detail test-worker-token")
+            : new HttpRequestException("sensitive-worker-detail test-worker-token")));
+        await using var host = await SpeechHost.StartAsync(handler, true);
+        using var response = await host.Client.PostAsync("/openconnect/v1/speech/synthesize", JsonBody(ValidRequest));
+        await AssertGenericProblem(response, timeout ? 504 : 502);
+        AssertSafeLogs(host);
+    }
+
+    [Fact]
+    public async Task Worker_content_read_failure_returns_generic_bad_gateway()
+    {
+        using var handler = new RecordingHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new FailedContent() }));
+        await using var host = await SpeechHost.StartAsync(handler, true);
+        using var response = await host.Client.PostAsync("/openconnect/v1/speech/synthesize", JsonBody(ValidRequest));
+        await AssertGenericProblem(response, 502);
+        AssertSafeLogs(host);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Caller_cancellation_propagates_without_problem_or_error_log(bool wrapped)
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new RecordingHandler((_, _) =>
+        {
+            cancellation.Cancel();
+            if (wrapped)
+                throw new HttpRequestException("sensitive-worker-detail", new OperationCanceledException(cancellation.Token));
+            throw new OperationCanceledException("sensitive-worker-detail", cancellation.Token);
+        });
+        await using var host = await SpeechHost.StartAsync(handler, true);
+        // Invoke the actual handler with an explicit caller token: an HTTP disconnect
+        // alone would hide an incorrectly generated 5xx response from the test client.
+        var method = typeof(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions).GetMethod("HandleSpeechSynthesisAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var request = Activator.CreateInstance(method.GetParameters()[0].ParameterType,
+            ["Hello from LiveUI.", "af_heart", "en-US", "pcm", 7L, null]);
+        var args = method.GetParameters().Select(p => p.ParameterType == typeof(CancellationToken) ? (object)cancellation.Token
+            : p.Position == 0 ? request! : host.Services.GetRequiredService(p.ParameterType)).ToArray();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => (Task<IResult>)method.Invoke(null, args)!);
+        Assert.DoesNotContain(host.Logs.Entries, x => x.Level >= LogLevel.Error);
+        AssertSafeLogs(host, requireDiagnostic: false);
+    }
+
+    private static async Task AssertGenericProblem(HttpResponseMessage response, int expected)
+    {
+        Assert.Equal(expected, (int)response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadAsStringAsync();
+        using var json = JsonDocument.Parse(body);
+        Assert.Equal(expected, json.RootElement.GetProperty("status").GetInt32());
+        Assert.False(json.RootElement.TryGetProperty("detail", out _));
+        Assert.DoesNotContain("sensitive-worker-detail", body);
+        Assert.DoesNotContain("test-worker-token", body);
+        Assert.DoesNotContain("Hello from LiveUI.", body);
+    }
+
+    private static void AssertSafeLogs(SpeechHost host, bool requireDiagnostic = true)
+    {
+        var entries = host.Logs.Entries.Where(x => x.Category == "OpenConnect.Speech").ToArray();
+        if (requireDiagnostic)
+            Assert.Contains(entries, x => x.Level == LogLevel.Warning && x.Text.StartsWith("Speech worker", StringComparison.Ordinal));
+        foreach (var entry in entries)
+        {
+            Assert.DoesNotContain("sensitive-worker-detail", entry.Text);
+            Assert.DoesNotContain("test-worker-token", entry.Text);
+            Assert.DoesNotContain("Hello from LiveUI.", entry.Text);
+            Assert.Null(entry.Exception);
+        }
+    }
+
+    private sealed class FailedContent : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            throw new IOException("sensitive-worker-detail test-worker-token");
+        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+    }
+
+    private sealed class CaptureLogs : ILoggerProvider, ILogger
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<(string Category, LogLevel Level, string Text, Exception? Exception)> Entries { get; } = new();
+        public ILogger CreateLogger(string categoryName) => new CategoryLogger(this, categoryName);
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Enqueue(("OpenConnect.Speech", logLevel, formatter(state, exception), exception));
+        public void Dispose() { }
+        private sealed class CategoryLogger(CaptureLogs owner, string category) : ILogger
+        {
+            public bool IsEnabled(LogLevel logLevel) => true;
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                owner.Entries.Enqueue((category, logLevel, formatter(state, exception), exception));
+        }
+    }
+
     private static StringContent JsonBody(string json) => new(json, Encoding.UTF8, "application/json");
 
     private sealed class RecordingHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
@@ -150,16 +274,23 @@ public sealed class SpeechSynthesisEndpointTests
     {
         private readonly WebApplication _app;
         public HttpClient Client { get; }
+        public IServiceProvider Services => _app.Services;
+        public CaptureLogs Logs { get; }
 
-        private SpeechHost(WebApplication app, HttpClient client)
+        private SpeechHost(WebApplication app, HttpClient client, CaptureLogs logs)
         {
             _app = app;
+            Logs = logs;
             Client = client;
         }
 
         public static async Task<SpeechHost> StartAsync(RecordingHandler handler, bool configureWorker)
         {
             var builder = WebApplication.CreateBuilder();
+            var logs = new CaptureLogs();
+            builder.Logging.ClearProviders();
+            builder.Logging.AddProvider(logs);
+            builder.Services.AddSingleton<ILogger>(logs);
             builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
             builder.Services.AddAuthentication("SpeechTest")
                 .AddScheme<AuthenticationSchemeOptions, SpeechTestAuthenticationHandler>("SpeechTest", _ => { });
@@ -183,7 +314,7 @@ public sealed class SpeechSynthesisEndpointTests
                 .Addresses.Single();
             var client = new HttpClient { BaseAddress = new Uri(address) };
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("SpeechTest");
-            return new SpeechHost(app, client);
+            return new SpeechHost(app, client, logs);
         }
 
         public async ValueTask DisposeAsync()

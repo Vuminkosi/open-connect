@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Abstractions.Serialization;
@@ -77,7 +78,7 @@ public static class EndpointRouteBuilderExtensions
                 var httpClientFactory = context.RequestServices.GetService<IHttpClientFactory>();
                 return httpClientFactory is null
                     ? Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Speech synthesis is not configured.")
-                    : await HandleSpeechSynthesisAsync(request, context.RequestServices.GetRequiredService<IConfiguration>(), httpClientFactory, cancellationToken);
+                    : await HandleSpeechSynthesisAsync(request, context.RequestServices.GetRequiredService<IConfiguration>(), httpClientFactory, context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OpenConnect.Speech"), cancellationToken);
             }).RequireAuthorization();
             group.MapGet("/components", HandleComponents).RequireAuthorization();
             group.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
@@ -166,6 +167,7 @@ public static class EndpointRouteBuilderExtensions
         SpeechRequest request,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000 ||
@@ -197,29 +199,57 @@ public static class EndpointRouteBuilderExtensions
             }
         });
 
-        using var response = await httpClientFactory.CreateClient("openconnect-kokoro").SendAsync(message, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-            return Results.Problem(statusCode: (int)response.StatusCode, title: "Kokoro speech synthesis failed.");
-
-        JsonDocument document;
         try
         {
-            document = await JsonDocument.ParseAsync(
-                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (JsonException)
-        {
-            return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
-        }
+            using var response = await httpClientFactory.CreateClient("openconnect-kokoro").SendAsync(message, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!response.IsSuccessStatusCode)
+            {
+                var status = (int)response.StatusCode switch { 503 => 503, 408 or 504 => 504, _ => 502 };
+                logger.LogWarning("Speech worker returned HTTP status {WorkerStatus}; mapped to {GatewayStatus}.", (int)response.StatusCode, status);
+                return Results.Problem(statusCode: status, title: "Kokoro speech synthesis failed.");
+            }
 
-        using (document)
-        {
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty("result", out var result) ||
-                result.ValueKind != JsonValueKind.Object)
+            JsonDocument document;
+            try
+            {
+                document = await JsonDocument.ParseAsync(
+                    await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (JsonException)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                logger.LogWarning("Speech worker returned invalid JSON.");
                 return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
-            return Results.Json(result.Clone());
+            }
+
+            using (document)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                    !document.RootElement.TryGetProperty("result", out var result) ||
+                    result.ValueKind != JsonValueKind.Object)
+                    return Results.Problem(statusCode: 502, title: "Kokoro returned an invalid synthesis response.");
+                return Results.Json(result.Clone());
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException ex)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            logger.LogWarning("Speech worker timed out ({FailureType}).", ex.GetType().Name);
+            return Results.Problem(statusCode: 504, title: "Kokoro speech synthesis timed out.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
+        {
+            // Transport implementations may wrap cancellation; caller abort still wins.
+            cancellationToken.ThrowIfCancellationRequested();
+            logger.LogWarning("Speech worker transport failed ({FailureType}).", ex.GetType().Name);
+            return Results.Problem(statusCode: 502, title: "Kokoro speech worker could not be reached.");
         }
     }
 
