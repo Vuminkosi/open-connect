@@ -9,6 +9,20 @@ namespace OpenConnect.LiveUI.Agents;
 /// <summary>Creates MAF tools that ask the authenticated connected client to run LiveUI actions.</summary>
 public static class LiveUIClientAgentToolFactory
 {
+    /// <summary>Creates tools bound to one trusted client connection while retaining any page-screening capability.</summary>
+    public static IReadOnlyList<AITool> CreateToolsForConnection(
+        IClientInteractionBroker interactionBroker, SessionId sessionId, string connectionId, TimeSpan? responseTimeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(interactionBroker);
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
+        if (connectionId.Length > 128)
+            throw new ArgumentOutOfRangeException(nameof(connectionId));
+        IClientInteractionBroker bound = interactionBroker is IScreenedClientPageBroker screened
+            ? new ScreenedConnectionBroker(interactionBroker, screened, connectionId)
+            : new ConnectionBroker(interactionBroker, connectionId);
+        return CreateTools(bound, sessionId, responseTimeout);
+    }
+
     /// <summary>
     /// Creates tools for a trusted session. The session identifier is supplied by the host and is never a model argument.
     /// Each tool waits for the matching client response before returning to the model.
@@ -51,6 +65,23 @@ public static class LiveUIClientAgentToolFactory
         ];
     }
 
+    private class ConnectionBroker(IClientInteractionBroker inner, string connectionId) : IClientInteractionBroker
+    {
+        protected string ConnectionId { get; } = connectionId;
+
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default) =>
+            inner.RequestAsync(sessionId, request with { ConnectionId = ConnectionId }, expectedResultKind, timeout, cancellationToken);
+    }
+
+    private sealed class ScreenedConnectionBroker(IClientInteractionBroker inner, IScreenedClientPageBroker screened, string connectionId)
+        : ConnectionBroker(inner, connectionId), IScreenedClientPageBroker
+    {
+        public Task<ClientInteractionResponse?> RequestScreenedPageAsync(SessionId sessionId, ClientInteractionRequest request,
+            TimeSpan timeout, CancellationToken cancellationToken = default) =>
+            screened.RequestScreenedPageAsync(sessionId, request with { ConnectionId = ConnectionId }, timeout, cancellationToken);
+    }
+
     private sealed class SessionTools(IClientInteractionBroker interactionBroker, SessionId sessionId, TimeSpan timeout)
     {
         private readonly object _actionGate = new();
@@ -67,29 +98,36 @@ public static class LiveUIClientAgentToolFactory
         {
             if (string.IsNullOrWhiteSpace(intent) || intent.Length > 8_000)
                 return JsonSerializer.SerializeToElement(new { error = "invalid_request" });
-            string? screenedDigest = null;
-            if (interactionBroker is IScreenedClientPageBroker screenedBroker)
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
-                var screenedPage = await screenedBroker.RequestScreenedPageAsync(sessionId, pageRequest, timeout, cancellationToken)
-                    .ConfigureAwait(false);
-                if (screenedPage is null || screenedPage.CorrelationId != pageRequest.CorrelationId || screenedPage.ResultKind != "page")
-                    return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
-                screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
-            }
-            var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
-            { ScreenedPageDigest = screenedDigest };
-            var response = await RequestAsync(request,
-                "plan", cancellationToken).ConfigureAwait(false);
-            if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String &&
-                outcome.GetString() == "rate_limited")
-                return JsonSerializer.SerializeToElement(new
+                string? screenedDigest = null;
+                if (interactionBroker is IScreenedClientPageBroker screenedBroker)
                 {
-                    outcome = "rate_limited",
-                    plan = (object?)null,
-                    message = "UI planning is temporarily rate limited and did not perform an action. Tell the user and do not retry planning in this turn."
-                });
-            return response;
+                    var pageRequest = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_current_page");
+                    var screenedPage = await screenedBroker.RequestScreenedPageAsync(sessionId, pageRequest, timeout, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (screenedPage is null || screenedPage.CorrelationId != pageRequest.CorrelationId || screenedPage.ResultKind != "page")
+                        return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
+                    screenedDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(screenedPage.PayloadJson)));
+                }
+                var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "infer_plan", Value: intent)
+                { ScreenedPageDigest = screenedDigest };
+                var response = await RequestAsync(request, "plan", cancellationToken).ConfigureAwait(false);
+                if (response.TryGetProperty("outcome", out var outcome) && outcome.ValueKind == JsonValueKind.String)
+                {
+                    if (outcome.GetString() == "page_unavailable" && screenedDigest is not null && attempt == 0)
+                        continue;
+                    if (outcome.GetString() == "rate_limited")
+                        return JsonSerializer.SerializeToElement(new
+                        {
+                            outcome = "rate_limited",
+                            plan = (object?)null,
+                            message = "UI planning is temporarily rate limited and did not perform an action. Tell the user and do not retry planning in this turn."
+                        });
+                }
+                return response;
+            }
+            return JsonSerializer.SerializeToElement(new { outcome = "page_unavailable", plan = (object?)null });
         }
 
         public Task<JsonElement> NavigateAsync(string routeId, CancellationToken cancellationToken = default)
