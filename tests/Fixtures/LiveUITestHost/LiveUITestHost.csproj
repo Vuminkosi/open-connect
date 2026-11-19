@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../samples/Blazor/OpenConnect.Samples.Blazor.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <EmbeddedResource Include="../../../samples/Blazor/obj/$(Configuration)/net10.0/openconnect.liveui.manifest.json"
+                      LogicalName="LiveUITestHost.openconnect.liveui.manifest.json" />
+  </ItemGroup>
+</Project>
