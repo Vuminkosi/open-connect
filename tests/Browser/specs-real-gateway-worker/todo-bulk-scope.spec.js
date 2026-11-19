@@ -23,8 +23,13 @@ test('T10: identifies the invoice scope and asks before bulk changes', async ({ 
   const before = await snapshot();
   let attemptedConfirmation = false;
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
-    attemptedConfirmation = true;
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    const details = await dialog.locator('p').innerText();
+    if (/^Allow (Inspect|Focus|WaitForState) on /.test(details)) {
+      await dialog.getByRole('button', { name: 'Allow' }).click();
+    } else {
+      attemptedConfirmation = true;
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+    }
   });
   await page.locator('.oc-anchored-fab').click();
   await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
