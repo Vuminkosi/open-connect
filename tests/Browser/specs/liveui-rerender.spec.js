@@ -177,6 +177,87 @@ test('a click does not dispatch when its postcondition was already true', async 
   expect(results.clicks).toBe(1);
 });
 
+test('removed targets verify DOM absence without confusing hidden replacements or navigation', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<main></main>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'delete', kind: 'Button', label: 'Delete task', role: 'button' };
+    const route = { path: '/', targets: [target] };
+    const main = document.querySelector('main');
+    const run = (type) => execute({ manifest: {}, route, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type, parameters: { stateName: 'exists', stateValue: 'false' } },
+    }, 100, true);
+    const missing = await run('WaitForState');
+    main.innerHTML = '<button>Delete task</button>';
+    setTimeout(() => main.querySelector('button')?.remove(), 20);
+    const delayedRemoval = await run('WaitForState');
+    async function scenario(mode) {
+      main.innerHTML = '<button>Delete task</button>';
+      const original = main.querySelector('button');
+      let clicks = 0;
+      original.addEventListener('click', () => {
+        clicks++;
+        if (mode === 'hidden') { original.hidden = true; return; }
+        original.remove();
+        if (mode === 'replacement') main.innerHTML = '<button hidden>Delete task</button>';
+        if (mode === 'ambiguous') main.innerHTML = '<button>Delete task</button><button>Delete task</button>';
+        if (mode === 'navigation') history.pushState({}, '', '/other');
+      });
+      const receipt = await run('Click');
+      history.replaceState({}, '', '/');
+      return { receipt, clicks };
+    }
+    return { missing, delayedRemoval, removed: await scenario('removed'), hidden: await scenario('hidden'),
+      replacement: await scenario('replacement'), ambiguous: await scenario('ambiguous'),
+      navigation: await scenario('navigation') };
+  });
+  expect(results.missing).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+  expect(results.delayedRemoval).toMatchObject({ outcome: 'Completed', code: 'state_verified', postconditionVerified: true });
+  expect(results.removed.receipt).toMatchObject({ outcome: 'Completed', code: 'state_verified', postconditionVerified: true });
+  for (const mode of ['hidden', 'replacement', 'ambiguous', 'navigation'])
+    expect(results[mode].receipt).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+  for (const mode of ['removed', 'hidden', 'replacement', 'ambiguous', 'navigation'])
+    expect(results[mode].clicks).toBe(1);
+});
+
+test('hidden state requires a uniquely resolved connected target on the same route', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<main></main>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'details', kind: 'Button', label: 'Details', role: 'button' };
+    const main = document.querySelector('main');
+    const run = () => execute({ manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: { stateName: 'visible', stateValue: 'false' } },
+    }, 100, true);
+    async function scenario(mode) {
+      main.innerHTML = '<button>Details</button>';
+      const button = main.querySelector('button');
+      button.addEventListener('click', () => {
+        if (mode === 'removed') button.remove();
+        else button.hidden = true;
+        if (mode === 'ambiguous') main.insertAdjacentHTML('beforeend', '<button hidden>Details</button>');
+        if (mode === 'navigation') history.pushState({}, '', '/other');
+      });
+      const receipt = await run();
+      history.replaceState({}, '', '/');
+      return receipt;
+    }
+    return { hidden: await scenario('hidden'), removed: await scenario('removed'),
+      ambiguous: await scenario('ambiguous'), navigation: await scenario('navigation') };
+  });
+  expect(results.hidden).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  for (const mode of ['removed', 'ambiguous', 'navigation'])
+    expect(results[mode]).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+});
+
 test('opening or closing an already matching disclosure does not toggle it', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')

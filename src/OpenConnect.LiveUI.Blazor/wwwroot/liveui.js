@@ -183,7 +183,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return measured(result("Denied", "control_kind_mismatch"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
-  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout);
+  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout, element);
   const isCurrentTarget = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     const current = resolveTarget(target, enableRuntimeFallback, route);
@@ -340,7 +340,7 @@ export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback
   });
 }
 
-function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()) {
+function resolveTarget(target, enableRuntimeFallback, route, visited = new Set(), includeHidden = false) {
   if (visited.has(target.id)) return { status: "ambiguous" };
   visited.add(target.id);
 
@@ -348,24 +348,24 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
   if (target.parentId) {
     const parent = route?.targets?.find((candidate) => candidate.id === target.parentId);
     if (!parent) return { status: "missing" };
-    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited);
+    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited, includeHidden);
     if (parentResolution.status !== "resolved") return parentResolution;
     scope = parentResolution.element;
   }
 
   const visibleMarked = [...scope.querySelectorAll("[" + idAttribute + "]")]
-    .filter((element) => element.getAttribute(idAttribute) === target.id && isVisible(element));
+    .filter((element) => element.getAttribute(idAttribute) === target.id && (includeHidden || isVisible(element)));
   const marked = visibleMarked.filter((element) => isEligibleTarget(element, target));
   if (marked.length > 1) return { status: "ambiguous" };
   if (marked.length === 1) return { status: "resolved", element: marked[0] };
-  if (visibleMarked.length > 0) return { status: "missing" };
+  if (visibleMarked.length > 0) return { status: includeHidden ? "ambiguous" : "missing" };
   if (target.selector) {
     try {
-      const visibleSelected = [...scope.querySelectorAll(target.selector)].filter(isVisible);
+      const visibleSelected = [...scope.querySelectorAll(target.selector)].filter((element) => includeHidden || isVisible(element));
       const selected = visibleSelected.filter((element) => isEligibleTarget(element, target));
       if (selected.length > 1) return { status: "ambiguous" };
       if (selected.length === 1) return { status: "resolved", element: selected[0] };
-      if (visibleSelected.length > 0) return { status: "missing" };
+      if (visibleSelected.length > 0) return { status: includeHidden ? "ambiguous" : "missing" };
     } catch {
       // Invalid compiler output falls through to semantic resolution.
     }
@@ -374,7 +374,7 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
   const label = normalize(target.label);
   if (!label) return { status: "missing" };
   const matches = [...scope.querySelectorAll("*")]
-    .filter(isVisible)
+    .filter((element) => includeHidden || isVisible(element))
     .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
@@ -576,11 +576,32 @@ function inspect(element, target) {
   return result("Completed", "inspection_verified", true, "control_visible");
 }
 
-function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs) {
+function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs, initialElement = null) {
   if ((name === "textContains" || name === "textNotContains") &&
       (typeof expected !== "string" || !normalize(expected))) return result("Failed", "state_value_invalid");
+  const observeRemoval = name === "exists" && expected === "false";
+  const observeHidden = name === "visible" && expected === "false";
+  // A missing initial target or an inferred list cannot establish a known node's hidden or removed state.
+  const initial = observeRemoval || observeHidden ? initialElement
+    ? { status: "resolved", element: initialElement }
+    : resolveTarget(target, enableRuntimeFallback, route) : null;
+  if ((observeRemoval || observeHidden) && (initial.status !== "resolved" || !kindMatches(target.kind, initial.element) ||
+      target.id?.startsWith("oc.runtime.inferred-list.") ||
+      target.kind === "Checkbox" && target.id?.startsWith("oc.runtime.") &&
+        !accessibleNames(initial.element).some((name) => normalize(name) === normalize(target.label))))
+    return result("Uncertain", "state_not_verified");
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
+    if (observeRemoval) {
+      if (initial.element.isConnected) return false;
+      // Hidden replacements and ambiguous candidates still exist; never count them as removal.
+      return resolveTarget(target, enableRuntimeFallback, route, new Set(), true).status === "missing";
+    }
+    if (observeHidden) {
+      const hidden = resolveTarget(target, enableRuntimeFallback, route, new Set(), true);
+      return hidden.status === "resolved" && hidden.element.isConnected &&
+        kindMatches(target.kind, hidden.element) && !isVisible(hidden.element);
+    }
     const resolution = resolveTarget(target, enableRuntimeFallback, route);
     if (resolution.status !== "resolved" || !resolution.element.isConnected) return false;
     return stateMatches(resolution.element, name, expected);
