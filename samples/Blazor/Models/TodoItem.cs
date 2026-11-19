@@ -41,12 +41,16 @@ public interface ITodoStore
 
 public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
 {
-    public InMemoryTodoStore() { }
+    public InMemoryTodoStore()
+    {
+        _tenantSeed = _items.Select(Clone).ToArray();
+    }
 
     private InMemoryTodoStore(IEnumerable<TodoItem> initialItems)
     {
         _items.Clear();
         _items.AddRange(initialItems);
+        _tenantSeed = _items.Select(Clone).ToArray();
     }
 
     public static InMemoryTodoStore CreateAcceptanceStore() =>
@@ -170,13 +174,14 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
     }
 
     private readonly Dictionary<string, List<TodoItem>> _tenantItems = new(StringComparer.Ordinal);
+    private readonly IReadOnlyList<TodoItem> _tenantSeed;
 
     private List<TodoItem> ForTenant(TenantId tenantId)
     {
         var key = tenantId.Value.ToString();
         if (_tenantItems.TryGetValue(key, out var existing))
             return existing;
-        var seeded = _items.Select(Clone).ToList();
+        var seeded = _tenantSeed.Select(Clone).ToList();
         _tenantItems[key] = seeded;
         return seeded;
     }
