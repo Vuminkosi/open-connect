@@ -98,8 +98,13 @@ for (const scenario of cases) {
       await expect(page.getByRole('tab', { name: 'Completed' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
     if (scenario.name === 'all tasks')
       await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
-    if (scenario.name === 'active tasks')
+    if (scenario.name === 'active tasks') {
       await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true', { timeout: 120_000 });
+      await expect(page.getByText('Gather feedback for report', { exact: true })).toBeVisible();
+      await expect(page.getByText('Prepare a launch checklist', { exact: true })).toBeVisible();
+      await expect(page.getByText('Review the quarterly report', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Draft the annual report', { exact: true })).toHaveCount(0);
+    }
     if (scenario.name === 'search report' || scenario.name === 'completed report tasks' || scenario.searchValue)
       await expect(page.getByRole('textbox', { name: 'Search tasks by title or description...' })).toHaveValue(scenario.searchValue ?? 'report', { timeout: 120_000 });
     await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
