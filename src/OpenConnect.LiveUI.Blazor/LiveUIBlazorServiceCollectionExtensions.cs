@@ -23,6 +23,7 @@ public static class LiveUIBlazorServiceCollectionExtensions
         services.TryAddScoped<ILiveUIManifestProvider>(provider => provider.GetRequiredService<LiveUIManifestState>());
         services.TryAddScoped<ILiveUIRuntime, LiveUIBrowserRuntime>();
         services.TryAddScoped<ILiveUIActionAuthorizer, DenyLiveUIActionAuthorizer>();
+        services.TryAddScoped<ILiveUIActionConfirmation, BrowserLiveUIActionConfirmation>();
         services.TryAddScoped<ILiveUIAgentContextAccessor, BlazorLiveUIAgentContextAccessor>();
         services.TryAddScoped<ILiveUIRuntimeTargetDiscovery, LiveUIRuntimeTargetDiscovery>();
         return services;

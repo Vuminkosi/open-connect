@@ -7,6 +7,65 @@ const highlightAttribute = "data-openconnect-liveui-highlight";
 const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
 const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
+let confirmationDialog = null;
+const cancelledConfirmations = new Set();
+let confirmationCancellationOverflow = false;
+
+export function confirmAction(message, timeoutMs, confirmationId) {
+  if (confirmationDialog || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId) ||
+      typeof message !== "string" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
+    return Promise.resolve(false);
+  if (cancelledConfirmations.delete(confirmationId)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const previousFocus = document.activeElement;
+    const dialog = document.createElement("dialog");
+    const title = document.createElement("h2");
+    const details = document.createElement("p");
+    const cancel = document.createElement("button");
+    const approve = document.createElement("button");
+    title.textContent = "Confirm action";
+    title.id = `openconnect-confirm-title-${confirmationId}`;
+    details.id = `openconnect-confirm-details-${confirmationId}`;
+    details.textContent = message;
+    details.style.whiteSpace = "pre-wrap";
+    cancel.type = approve.type = "button";
+    cancel.textContent = "Cancel";
+    approve.textContent = "Allow";
+    dialog.setAttribute("aria-labelledby", title.id);
+    dialog.setAttribute("aria-describedby", details.id);
+    dialog.append(title, details, cancel, approve);
+    document.body.append(dialog);
+    confirmationDialog = { element: dialog, id: confirmationId };
+    const timer = setTimeout(() => dialog.close("cancel"), Math.min(timeoutMs, 120000));
+    dialog.addEventListener("close", () => {
+      clearTimeout(timer);
+      const accepted = dialog.returnValue === "allow";
+      confirmationDialog = null;
+      dialog.remove();
+      if (previousFocus?.isConnected && typeof previousFocus.focus === "function") previousFocus.focus();
+      resolve(accepted);
+    }, { once: true });
+    cancel.addEventListener("click", () => dialog.close("cancel"));
+    approve.addEventListener("click", () => dialog.close("allow"));
+    try { dialog.showModal(); cancel.focus(); }
+    catch { dialog.remove(); confirmationDialog = null; clearTimeout(timer); resolve(false); }
+  });
+}
+
+export function cancelConfirmation(confirmationId) {
+  if (confirmationDialog?.id === confirmationId && confirmationDialog.element.open)
+    confirmationDialog.element.close("cancel");
+  else if (typeof confirmationId === "string" && /^[0-9a-f]{32}$/.test(confirmationId)) {
+    if (cancelledConfirmations.size >= 256) {
+      confirmationCancellationOverflow = true;
+      setTimeout(() => { confirmationCancellationOverflow = false; }, 120000);
+      return;
+    }
+    cancelledConfirmations.add(confirmationId);
+    setTimeout(() => cancelledConfirmations.delete(confirmationId), 120000);
+  }
+}
+
 // Return bounded control labels and roles, never control values or code examples.
 export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
