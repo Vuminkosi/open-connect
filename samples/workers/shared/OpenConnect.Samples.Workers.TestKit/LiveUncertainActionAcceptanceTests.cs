@@ -75,7 +75,7 @@ public sealed class LiveUncertainActionAcceptanceTests
         var broker = new LostReceiptBroker();
         var tools = LiveUIClientAgentToolFactory.CreateTools(broker, session, TimeSpan.FromSeconds(5));
         var factory = new MafRealAgentFactory(registry, chat.AsIChatClient(), gate, new FixedEgressContextProvider(context));
-        var instructions = (string)typeof(MetaTodoTaskExecutor).GetField("AgentInstructions", BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()!;
+        var instructions = (string)typeof(MetaTodoTaskExecutor).GetField("AgentInstructions", BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()! + "\n\n" + LiveUIAgentGuidance.Instructions;
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
 
         var response = await factory.RunAsync(agentId, "Show completed tasks.", tools, timeout.Token, instructions);

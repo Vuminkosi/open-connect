@@ -3,6 +3,7 @@
 test('creates the requested Todo through an authorized live agent and keeps it after reload', async ({ page, request }, testInfo) => {
   await page.goto('/');
   const title = 'Review insurance renewals';
+  const requireObservedChange = process.env.OPENCONNECT_LIVEUI_REQUIRE_OBSERVED_CHANGE === '1';
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
     const details = await dialog.locator('p').innerText();
     if ((details.includes("'Task Title'") && details.includes(`Value: ${title}`)) || details.includes("'Add Task'")) {
@@ -16,7 +17,9 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   await page.locator('.oc-anchored-fab').click();
   await expect(page.getByRole('dialog', { name: 'Ellai composer' })).toBeVisible();
   await expect(page.locator('.oc-status__text')).toHaveText('Ready');
-  await page.getByRole('textbox', { name: /message ellai/i }).fill(`Create a task called ${title}.`);
+  await page.getByRole('textbox', { name: /message ellai/i }).fill(requireObservedChange
+    ? `Create a task called ${title} and verify that it appears in the list.`
+    : `Create a task called ${title}.`);
   await page.getByRole('button', { name: /send to ellai/i }).click();
   await expect(page.locator('.oc-status__text')).toHaveText(/Replying/, { timeout: 30_000 });
   await expect(page.locator('.oc-status__text')).toHaveText('Ready', { timeout: 170_000 });
@@ -54,6 +57,7 @@ test('creates the requested Todo through an authorized live agent and keeps it a
     trace.slice(0, clickIndex).some((before) => before.operation === 'await_state' && before.targetId === after.targetId &&
       before.stateName === 'textNotContains' && before.matchesRequestedTitle && before.verified === true));
   expect(matchedRow || observedChange).toBe(true);
+  if (requireObservedChange) expect(observedChange).toBe(true);
   expect(assistantResponse).toMatch(/\b(created|added|visible|showing|appears)\b/i);
   expect(assistantResponse).toContain(title);
   expect(assistantResponse).not.toMatch(/\b(unable|failed|could not|couldn't|not created|not added)\b/i);

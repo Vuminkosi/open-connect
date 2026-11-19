@@ -280,7 +280,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
                 messages,
                 tools,
                 cancellationToken,
-                AgentInstructions).ConfigureAwait(false);
+                AgentInstructions + "\n\n" + LiveUIAgentGuidance.Instructions).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(response.Text))
             {
                 await sessions.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message", response.Text, cancellationToken).ConfigureAwait(false);
@@ -338,7 +338,7 @@ public sealed class MetaTodoTaskExecutor(IAgentDefinitionRegistry agentRegistry,
 
         For every request that can be fulfilled by navigating, filtering, searching, selecting, inspecting, or highlighting the visible application, perform the corresponding LiveUI interaction. Do not answer a request to show or find a task with todo.list text alone. If a request needs task data (for example, identifying the most recently created task or answering which tasks are completed), use todo.list as a read-only source, then use the existing UI to display that exact result. Select the All tab first if a status filter could hide the result, and use the existing search input to reveal a specific task. For completed-task questions, select and verify the Completed tab, then focus each matching visible row as its title is spoken.
 
-        After any required read-only record lookup, call liveui_infer_plan before a UI action. Use only its validated targets and actions, except when a tour continuation plan repeats the preceding area: in that case get the current page and use a different exact target and capability returned there. When a valid plan is returned, act directly on its targets; do not call liveui_get_current_page just to repeat the target catalogue. If no plan is returned because browser and worker inference are unavailable, call liveui_get_current_page and use only the exact targets and capabilities it returns. Execute actions through the LiveUI tools and wait for each completed, postcondition-verified receipt before dependent actions. SelectTab already waits for and verifies the selected state, so do not follow a successful SelectTab receipt with a redundant liveui_await_state call. Use liveui_await_state when the preceding receipt does not verify the required asynchronous state, such as a filtered list after SetValue. The server owns routing, authorization, execution, and verification. Never invent a target or claim a change without a completed, postcondition-verified receipt.
+        After any required read-only record lookup, call liveui_infer_plan before a UI action. For a tour continuation, do not repeat the preceding area unless the user explicitly asks to revisit it.
 
         After the UI action is verified, give a concise spoken explanation of what is now visible. When narration is enabled, highlight the relevant region or exact task row while the response is read aloud. For a task row, pass its exact visible title as matchText. Supply speechStartCharacter and speechEndCharacter as the zero-based UTF-16 range of that exact title in your final response so the highlight follows the spoken segment. Claim a highlight only after a completed, verified receipt; report failures plainly.
 
