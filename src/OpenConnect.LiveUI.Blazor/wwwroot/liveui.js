@@ -100,12 +100,15 @@ export function discoverTargets(maximumTargets) {
       tag === "input" || tag === "textarea" ? "Input" : null;
     if (!kind || kind === "Link" && !isAllowedLinkActivation(element)) continue;
     if (["Input", "Checkbox", "Select"].includes(kind) && isSensitiveField(element)) continue;
-    const names = kind === "List" ? explicitListNames(element) : accessibleNames(element, true);
+    const explicitNames = kind === "List" ? explicitListNames(element) : null;
+    const inferredListLabel = kind === "List" && !explicitNames.some((name) => name.trim()) ? nearbyListHeading(element) : null;
+    const names = kind === "List" ? (inferredListLabel ? [inferredListLabel] : explicitNames) : accessibleNames(element, true);
     const label = names.map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
     const parentLabel = regionLabels.get(element.closest("section"));
     const candidate = parentLabel ? { kind, label, role, parentLabel } : { kind, label, role };
+    if (inferredListLabel) candidate.labelInferred = true;
     if (kind === "Link") {
       const link = element.closest("a[href]");
       if (link) {
@@ -123,6 +126,16 @@ export function discoverTargets(maximumTargets) {
   const unique = candidates.filter((candidate) =>
     counts.get(`${candidate.kind}\0${candidate.role || ""}\0${normalize(candidate.label)}\0${normalize(candidate.parentLabel || "")}`) === 1);
   return [...regions.map((region) => ({ kind: "Region", label: region.label, role: region.role })), ...unique].slice(0, limit);
+}
+
+function nearbyListHeading(element) {
+  const heading = element.previousElementSibling;
+  if (!heading || roleOf(heading) !== "heading" || !isVisible(heading) || heading.closest("pre, code")) return null;
+  const siblingLists = [...element.parentElement.children].filter((sibling) =>
+    isVisible(sibling) && ["list", "listbox"].includes(roleOf(sibling)));
+  if (siblingLists.length !== 1 || siblingLists[0] !== element) return null;
+  const label = (heading.innerText || "").replace(/\s+/g, " ").trim();
+  return label.length > 0 && label.length <= 120 ? label : null;
 }
 
 function explicitListNames(element) {
@@ -366,7 +379,9 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
       (target.kind === "List" && target.id?.startsWith("oc.runtime.")
-        ? explicitListNames(element)
+        ? target.id.startsWith("oc.runtime.inferred-list.")
+          ? explicitListNames(element).some((name) => name.trim()) ? [] : [nearbyListHeading(element) || ""]
+          : explicitListNames(element)
         : accessibleNames(element, target.id?.startsWith("oc.runtime.") && target.requiresConfirmation === true))
         .some((name) => normalize(name) === label));
   if (matches.length > 1) return { status: "ambiguous" };

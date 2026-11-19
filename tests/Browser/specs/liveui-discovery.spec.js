@@ -5,6 +5,35 @@ import { fileURLToPath } from 'node:url';
 
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
+test('uses an unambiguous adjacent heading for an unlabeled list', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: `
+      <div><h2>Upcoming items</h2><ul><li>Private record</li></ul></div>
+      <div><h2>Ambiguous lists</h2><ul><li>One</li></ul><ul><li>Two</li></ul></div>
+      <div><h2>Separated heading</h2><p>Other content</p><ul><li>Three</li></ul></div>` }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { discoverTargets, execute } = await import('/liveui.js');
+    const observed = discoverTargets(100);
+    const target = { ...observed.find((item) => item.kind === 'List'), id: 'oc.runtime.inferred-list.test' };
+    const context = { manifest: {}, route: { path: '/', targets: [target] }, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'WaitForState',
+        parameters: { stateName: 'textContains', stateValue: 'Private record' } } };
+    const receipt = await execute(context, 100, true);
+    document.querySelector('ul').setAttribute('aria-label', 'Upcoming items');
+    const stale = await execute(context, 100, true);
+    return { observed, receipt, stale };
+  });
+  expect(result.observed.filter((item) => item.kind === 'List')).toEqual([
+    { kind: 'List', label: 'Upcoming items', role: 'list', labelInferred: true },
+  ]);
+  expect(JSON.stringify(result.observed)).not.toMatch(/private record/i);
+  expect(result.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(result.stale).toMatchObject({ outcome: 'Uncertain', postconditionVerified: false });
+});
+
 test('discovers explicitly named lists without exposing their contents', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')

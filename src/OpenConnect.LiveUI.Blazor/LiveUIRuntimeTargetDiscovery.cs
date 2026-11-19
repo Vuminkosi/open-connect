@@ -44,7 +44,8 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                     break;
                 if (candidate is null || !Enum.TryParse<LiveUITargetKind>(candidate.Kind, out var kind) ||
                     candidate.Label is not { Length: > 0 and <= 120 } label || label.Any(char.IsControl) ||
-                    candidate.Role is { Length: > 32 } || candidate.ParentLabel is { Length: > 120 })
+                    candidate.Role is { Length: > 32 } || candidate.ParentLabel is { Length: > 120 } ||
+                    candidate.LabelInferred && kind != LiveUITargetKind.List)
                     continue;
                 string? parentId = null;
                 if (candidate.ParentLabel is { Length: > 0 } parentLabel)
@@ -61,7 +62,8 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                 if (capabilities.Count == 0)
                     continue;
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(route.Id + "\0" + Key(kind, candidate.Role, label, parentId)));
-                existing.Add(new LiveUITarget(LiveUIRuntimeTargetIds.Prefix + Convert.ToHexString(idBytes).ToLowerInvariant(), kind, label,
+                var targetPrefix = LiveUIRuntimeTargetIds.Prefix + (candidate.LabelInferred ? "inferred-list." : string.Empty);
+                existing.Add(new LiveUITarget(targetPrefix + Convert.ToHexString(idBytes).ToLowerInvariant(), kind, label,
                     capabilities, candidate.Role, ParentId: parentId,
                     RequiresConfirmation: kind is not (LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.List)));
             }
@@ -125,5 +127,5 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
         _ => []
     };
 
-    private sealed record ObservedTarget(string Kind, string Label, string? Role, string? ParentLabel = null, string? Path = null);
+    private sealed record ObservedTarget(string Kind, string Label, string? Role, string? ParentLabel = null, string? Path = null, bool LabelInferred = false);
 }

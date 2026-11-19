@@ -81,7 +81,9 @@ public sealed class LiveUIAgentTools(
                 targets.Add(new(target.Id, target.Kind.ToString(), target.Label, authorizedCapabilities, target.RequiresConfirmation)
                 {
                     LabelMayBeInferred = target.Kind == LiveUITargetKind.Checkbox &&
-                        target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal)
+                        target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix, StringComparison.Ordinal) ||
+                        target.Kind == LiveUITargetKind.List &&
+                        target.Id.StartsWith(LiveUIRuntimeTargetIds.Prefix + "inferred-list.", StringComparison.Ordinal)
                 });
         }
 

@@ -12,14 +12,17 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class LiveUIRuntimeDiscoveryTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Named_runtime_list_exposes_only_authorized_read_capabilities(bool allowWait)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Named_runtime_list_exposes_only_authorized_read_capabilities(bool allowWait, bool inferred)
     {
         var services = new ServiceCollection();
         services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
         services.AddScoped<NavigationManager>(_ => new Navigation());
-        services.AddScoped<IJSRuntime>(_ => new Browser(false, "[{\"kind\":\"List\",\"label\":\"Open items\",\"role\":\"list\"}]"));
+        var observed = JsonSerializer.Serialize(new[] { new { kind = "List", label = "Open items", role = "list", labelInferred = inferred } });
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observed));
         services.AddScoped<ILiveUIActionAuthorizer>(_ => new ListReadAuthorizer(allowWait));
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -32,6 +35,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         var target = Assert.Single(Assert.IsType<LiveUIAgentPage>(page).Targets);
         Assert.Equal("List", target.Kind);
         Assert.Equal("Open items", target.Label);
+        Assert.Equal(inferred, target.LabelMayBeInferred);
+        Assert.Equal(inferred, target.TargetId.StartsWith("oc.runtime.inferred-list.", StringComparison.Ordinal));
         Assert.Contains(LiveUICapability.Inspect, target.Capabilities);
         Assert.Equal(allowWait, target.Capabilities.Contains(LiveUICapability.WaitForState));
         var discovered = Assert.Single((await state.GetCurrentAsync())!.Routes[0].Targets);
