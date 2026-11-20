@@ -21,7 +21,8 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Verify initial subject-bound invitation creation and acceptance through an authenticated local OIDC browser session.
 - [x] Verify invitation revocation in an authenticated local OIDC browser and concurrent PostgreSQL acceptance.
 - [ ] Verify revocation across mixed-version deployments; implement abuse controls and safe reinvitation after historical reconciliation.
-- [ ] Extract feature persistence ports and implementations so tenant, capability, and credential services do not depend directly on EF Core.
+- [x] Extract capability catalog and tenant/application snapshot reads behind a persistence port, retaining policy projection in the capability feature.
+- [ ] Extract transaction-aware capability writes and credential persistence so those services do not depend directly on EF Core.
 - [ ] Run migration and tenant-isolation verification against disposable PostgreSQL; confirm public docs remain healthy while that database is stopped.
 - [ ] Add focused route, OIDC configuration, sign-out, documentation-independence, and tenant isolation tests.
 

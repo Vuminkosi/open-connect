@@ -30,7 +30,7 @@ public class CloudCredentialPostgresTests
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capabilityId, Enabled = true, Revision = 1 });
             await db.SaveChangesAsync();
         }
-        var normal = new CloudCredentialService(factory, new CloudCapabilityService(factory, TimeProvider.System), TimeProvider.System);
+        var normal = new CloudCredentialService(factory, new CloudCapabilityService(factory, new EfCloudCapabilityReader(factory), TimeProvider.System), TimeProvider.System);
         var noExpiry = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], null, CancellationToken.None);
         Assert.Equal("invalid_expiration", noExpiry.Status);
         var initial = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
@@ -39,7 +39,7 @@ public class CloudCredentialPostgresTests
         var credentialGate = new SelectionReadGate("FROM cloud.credentials");
         var credentialOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(credentialGate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> credentialFactory = new TestFactory(credentialOptions);
-        var rotating = new CloudCredentialService(credentialFactory, new CloudCapabilityService(credentialFactory, TimeProvider.System), TimeProvider.System)
+        var rotating = new CloudCredentialService(credentialFactory, new CloudCapabilityService(credentialFactory, new EfCloudCapabilityReader(credentialFactory), TimeProvider.System), TimeProvider.System)
             .RotateAsync(owner, tenant.Id, app.Id, raceCredential.Credential!.Id, DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         try
         {
@@ -56,7 +56,7 @@ public class CloudCredentialPostgresTests
         var validationGate = new SelectionReadGate("FROM cloud.credentials");
         var validationOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(validationGate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> validationFactory = new TestFactory(validationOptions);
-        var validating = new CloudCredentialService(validationFactory, new CloudCapabilityService(validationFactory, TimeProvider.System), TimeProvider.System)
+        var validating = new CloudCredentialService(validationFactory, new CloudCapabilityService(validationFactory, new EfCloudCapabilityReader(validationFactory), TimeProvider.System), TimeProvider.System)
             .ValidateAsync(validationCredential.Secret, CancellationToken.None);
         try
         {
@@ -74,7 +74,7 @@ public class CloudCredentialPostgresTests
         var gate = new SelectionReadGate();
         var gatedOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(gate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> gatedFactory = new TestFactory(gatedOptions);
-        var service = new CloudCredentialService(gatedFactory, new CloudCapabilityService(gatedFactory, TimeProvider.System), TimeProvider.System);
+        var service = new CloudCredentialService(gatedFactory, new CloudCapabilityService(gatedFactory, new EfCloudCapabilityReader(gatedFactory), TimeProvider.System), TimeProvider.System);
         var issuance = service.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         try
         {

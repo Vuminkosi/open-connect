@@ -74,6 +74,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudInvitationStore, EfCloudInvitationStore>();
     builder.Services.AddScoped<CloudInvitationService>();
     builder.Services.AddScoped<CloudControlPlaneService>();
+    builder.Services.AddScoped<ICloudCapabilityReader, EfCloudCapabilityReader>();
     builder.Services.AddScoped<CloudCapabilityService>();
     builder.Services.AddScoped<CloudCredentialService>();
     builder.Services.AddScoped<CloudReadinessService>();

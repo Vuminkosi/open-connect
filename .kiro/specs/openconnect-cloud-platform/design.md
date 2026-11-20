@@ -2,7 +2,7 @@
 
 ## Code organization
 
-Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. Tenant operations use a persistence port; membership checks and writes remain together in the persistence implementation. Capability and credential services still access EF Core directly and require persistence separation.
+Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. Tenant operations use a persistence port; membership checks and writes remain together in the persistence implementation. Capability reads load tenant-scoped snapshots through a persistence port and project entitlement and dependency policy in the capability feature. Capability writes and credential operations still access EF Core directly and require persistence separation. Credential issuance and rotation continue to load capability data using the same EF context and serializable transaction as the credential write.
 
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 
@@ -86,7 +86,7 @@ Credential rows distinguish expired and revoked credentials and label repeated m
 
 **Status:** Hash-only persistence, one-time API response, list, rotate, revoke, and credential validation logic are implemented. Gateway integration, credential rate limits/abuse controls, real database revocation-latency proof, and client onboarding UX remain pending.
 
-Issuance and rotation evaluate capability scopes in the same serializable database transaction as the credential write. The shared EF context is a temporary integration boundary; extract a transaction-aware persistence port when separating capability and credential storage.
+Issuance and rotation evaluate capability scopes in the same serializable database transaction as the credential write. The shared EF context is a temporary integration boundary; extract a transaction-aware persistence port when separating capability and credential storage. A disposable PostgreSQL test verifies tenant and application read isolation and selection projection, alongside the credential issuance and revocation concurrency tests.
 
 ## Deferred decisions
 

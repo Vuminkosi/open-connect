@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -27,76 +26,32 @@ public sealed record CloudCapabilityView(
 public sealed record CloudCapabilitySelectionRequest(bool Enabled);
 public sealed record CloudCapabilitySelectionResult(string Status, int? Revision = null);
 
-public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDbContext> contextFactory, TimeProvider timeProvider)
+public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDbContext> contextFactory, ICloudCapabilityReader reader, TimeProvider timeProvider)
 {
     private static readonly string[] Administrators = ["Owner", "Administrator"];
 
-    public async Task<IReadOnlyList<CloudCapabilityView>> GetCatalogAsync(CancellationToken cancellationToken)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var capabilities = await db.Capabilities.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
-        return capabilities.Select(capability => ToView(
-            capability, null, null, null, null,
-            capability.PlatformAvailability == "available" ? null : "capability_unavailable")).ToArray();
-    }
+    public async Task<IReadOnlyList<CloudCapabilityView>> GetCatalogAsync(CancellationToken cancellationToken) =>
+        CloudCapabilityProjection.Catalog(await reader.GetCatalogAsync(cancellationToken));
 
     public async Task<IReadOnlyList<CloudCapabilityView>?> GetTenantCapabilitiesAsync(
         CloudSubject subject, Guid tenantId, CancellationToken cancellationToken)
     {
-        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        if (!await IsMemberAsync(db, subject, tenantId, cancellationToken))
-        {
-            return null;
-        }
-
-        var capabilities = await db.Capabilities.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
-        var entitlements = await db.TenantEntitlements.AsNoTracking().Where(x => x.TenantId == tenantId).ToDictionaryAsync(x => x.CapabilityId, cancellationToken);
-        var selections = await db.TenantCapabilitySelections.AsNoTracking().Where(x => x.TenantId == tenantId).ToDictionaryAsync(x => x.CapabilityId, cancellationToken);
-        return capabilities.Select(capability =>
-        {
-            var entitled = IsEntitled(entitlements.GetValueOrDefault(capability.Id), timeProvider.GetUtcNow());
-            var enabled = selections.TryGetValue(capability.Id, out var selection) && selection.Enabled;
-            var dependencyReady = DependenciesEnabled(capability, capabilities, entitlements, selections, timeProvider.GetUtcNow());
-            return ToView(capability, entitled, enabled, false, selection?.Revision,
-                GetReason(capability, entitled, enabled, false, dependencyReady, applicationSelectionRequired: false));
-        }).ToArray();
+        var snapshot = await reader.GetTenantAsync(subject, tenantId, cancellationToken);
+        return snapshot is null ? null : CloudCapabilityProjection.Tenant(snapshot, timeProvider.GetUtcNow());
     }
 
     public async Task<IReadOnlyList<CloudCapabilityView>?> GetApplicationCapabilitiesAsync(
         CloudSubject subject, Guid tenantId, Guid applicationId, CancellationToken cancellationToken)
     {
-        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        return await GetApplicationCapabilitiesAsync(db, subject, tenantId, applicationId, cancellationToken);
+        var snapshot = await reader.GetApplicationAsync(subject, tenantId, applicationId, cancellationToken);
+        return snapshot is null ? null : CloudCapabilityProjection.Application(snapshot, timeProvider.GetUtcNow());
     }
 
     internal async Task<IReadOnlyList<CloudCapabilityView>?> GetApplicationCapabilitiesAsync(
         CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, Guid applicationId, CancellationToken cancellationToken)
     {
-        if (!await IsMemberAsync(db, subject, tenantId, cancellationToken))
-        {
-            return null;
-        }
-        if (!await db.Applications.AsNoTracking().AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken))
-        {
-            return null;
-        }
-
-        var capabilities = await db.Capabilities.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
-        var entitlements = await db.TenantEntitlements.AsNoTracking().Where(x => x.TenantId == tenantId).ToDictionaryAsync(x => x.CapabilityId, cancellationToken);
-        var tenantSelections = await db.TenantCapabilitySelections.AsNoTracking().Where(x => x.TenantId == tenantId).ToDictionaryAsync(x => x.CapabilityId, cancellationToken);
-        var applicationSelections = await db.ApplicationCapabilitySelections.AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.ApplicationId == applicationId)
-            .ToDictionaryAsync(x => x.CapabilityId, cancellationToken);
-        var now = timeProvider.GetUtcNow();
-        return capabilities.Select(capability =>
-        {
-            var entitled = IsEntitled(entitlements.GetValueOrDefault(capability.Id), now);
-            var tenantEnabled = tenantSelections.TryGetValue(capability.Id, out var tenantSelection) && tenantSelection.Enabled;
-            var appEnabled = applicationSelections.TryGetValue(capability.Id, out var appSelection) && appSelection.Enabled;
-            var dependencyReady = DependenciesEnabled(capability, capabilities, entitlements, tenantSelections, now, applicationSelections);
-            return ToView(capability, entitled, tenantEnabled, appEnabled, appSelection?.Revision,
-                GetReason(capability, entitled, tenantEnabled, appEnabled, dependencyReady, applicationSelectionRequired: true));
-        }).ToArray();
+        var snapshot = await EfCloudCapabilityReader.LoadAsync(db, subject, tenantId, applicationId, cancellationToken);
+        return snapshot is null ? null : CloudCapabilityProjection.Application(snapshot, timeProvider.GetUtcNow());
     }
 
     public Task<CloudCapabilitySelectionResult> SetTenantSelectionAsync(
@@ -247,14 +202,4 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
         return DependenciesEnabled(capability, capabilities, entitlements, selections, now, new HashSet<string>(StringComparer.Ordinal), applicationSelections);
     }
 
-    private static CloudCapabilityView ToView(
-        CloudCapabilityDefinition capability, bool? entitled, bool? tenantEnabled, bool? applicationEnabled, int? revision, string? reason) => new(
-            capability.Id, capability.Name, capability.Description, capability.ContractVersion, capability.BillingUnit,
-            capability.PlatformAvailability, JsonSerializer.Deserialize<string[]>(capability.Dependencies) ?? [],
-            JsonSerializer.Deserialize<string[]>(capability.Modalities) ?? [], capability.ModalitiesVerified,
-            JsonSerializer.Deserialize<string[]>(capability.AllowedRegions) ?? [], capability.AllowedRegionsVerified,
-            entitled, tenantEnabled, applicationEnabled, revision, reason);
-
-    private static Task<bool> IsMemberAsync(CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, CancellationToken cancellationToken) =>
-        db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantId && x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId, cancellationToken);
 }
