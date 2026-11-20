@@ -30,7 +30,20 @@ public class CloudCredentialPostgresTests
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capabilityId, Enabled = true, Revision = 1 });
             await db.SaveChangesAsync();
         }
-        var normal = new CloudCredentialService(factory, TimeProvider.System);
+        var normal = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
+        var stranger = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
+        Assert.Equal("not_found", (await normal.CreateAsync(stranger, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None)).Status);
+        Assert.True((await normal.ListAsync(stranger, tenant.Id, app.Id, CancellationToken.None)).Forbidden);
+        var rolledBackId = Guid.NewGuid();
+        await using (var session = await new EfCloudCredentialStore(factory).OpenAsync(transactional: true, CancellationToken.None))
+        {
+            session.Add(new CloudCredential { Id = rolledBackId, TenantId = tenant.Id, ApplicationId = app.Id,
+                Environment = "Development", KeyHash = new byte[32], Fingerprint = "rollback", Scopes = "[]", IssuedAt = DateTimeOffset.UtcNow });
+            session.AddAudit(new CloudSubject(null!, owner.SubjectId), tenant.Id, "Owner", "test.failure", rolledBackId, DateTimeOffset.UtcNow);
+            await Assert.ThrowsAsync<DbUpdateException>(() => session.CommitAsync(CancellationToken.None));
+        }
+        await using (var db = await factory.CreateDbContextAsync())
+            Assert.False(await db.Credentials.AnyAsync(x => x.Id == rolledBackId));
         var noExpiry = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], null, CancellationToken.None);
         Assert.Equal("invalid_expiration", noExpiry.Status);
         var initial = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
@@ -49,7 +62,7 @@ public class CloudCredentialPostgresTests
         var credentialGate = new SelectionReadGate("FROM cloud.credentials");
         var credentialOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(credentialGate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> credentialFactory = new TestFactory(credentialOptions);
-        var rotating = new CloudCredentialService(credentialFactory, TimeProvider.System)
+        var rotating = new CloudCredentialService(new EfCloudCredentialStore(credentialFactory), TimeProvider.System)
             .RotateAsync(owner, tenant.Id, app.Id, raceCredential.Credential!.Id, DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         try
         {
@@ -66,7 +79,7 @@ public class CloudCredentialPostgresTests
         var validationGate = new SelectionReadGate("FROM cloud.credentials");
         var validationOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(validationGate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> validationFactory = new TestFactory(validationOptions);
-        var validating = new CloudCredentialService(validationFactory, TimeProvider.System)
+        var validating = new CloudCredentialService(new EfCloudCredentialStore(validationFactory), TimeProvider.System)
             .ValidateAsync(validationCredential.Secret, CancellationToken.None);
         try
         {
@@ -84,7 +97,7 @@ public class CloudCredentialPostgresTests
         var gate = new SelectionReadGate();
         var gatedOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(gate).Options;
         IDbContextFactory<CloudControlPlaneDbContext> gatedFactory = new TestFactory(gatedOptions);
-        var service = new CloudCredentialService(gatedFactory, TimeProvider.System);
+        var service = new CloudCredentialService(new EfCloudCredentialStore(gatedFactory), TimeProvider.System);
         var issuance = service.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         try
         {

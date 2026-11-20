@@ -23,7 +23,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Verify revocation across mixed-version deployments; implement abuse controls and safe reinvitation after historical reconciliation.
 - [x] Extract capability catalog and tenant/application snapshot reads behind a persistence port, retaining policy projection in the capability feature.
 - [x] Extract capability selection policy and transaction-aware persistence; verify authorization, entitlement, dependencies, optimistic revision and concurrent writes against disposable PostgreSQL.
-- [ ] Extract transaction-aware credential persistence so the credential service does not depend directly on EF Core.
+- [x] Extract transaction-aware credential persistence so the credential service does not depend directly on EF Core; preserve shared capability snapshots, rollback and revocation checks.
 - [ ] Run migration and tenant-isolation verification against disposable PostgreSQL; confirm public docs remain healthy while that database is stopped.
 - [ ] Add focused route, OIDC configuration, sign-out, documentation-independence, and tenant isolation tests.
 
