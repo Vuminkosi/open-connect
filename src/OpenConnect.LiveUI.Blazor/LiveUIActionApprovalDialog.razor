@@ -1,0 +1,34 @@
+@using MudBlazor
+
+<MudDialog Class="oc-liveui-approval" DefaultFocus="DefaultFocus.FirstChild">
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.body1">@Description</MudText>
+            @if (Value is not null)
+            {
+                <MudText Typo="Typo.caption">Requested value</MudText>
+                <MudPaper Outlined="true" Class="pa-3"><MudText Typo="Typo.body2">@Value</MudText></MudPaper>
+            }
+            @if (StateName is not null)
+            {
+                <MudText Typo="Typo.body2">Expected state: @StateName = @(StateValue ?? "true")</MudText>
+            }
+            <MudText Typo="Typo.body2">Allow this action only if it matches your request.</MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton data-liveui-approval-cancel="true" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Allow">Allow</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public string Description { get; set; } = string.Empty;
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string? StateName { get; set; }
+    [Parameter] public string? StateValue { get; set; }
+
+    private void Cancel() => Dialog.Cancel();
+    private void Allow() => Dialog.Close(DialogResult.Ok(true));
+}

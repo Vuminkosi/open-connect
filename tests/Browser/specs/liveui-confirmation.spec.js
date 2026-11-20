@@ -64,3 +64,35 @@ test('cancellation arriving before the prompt prevents it from opening', async (
   expect(result).toBe(false);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('a host approval dialog blocks discovery and navigation until it has closed', async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const runtime = await import('/liveui.js');
+    const id = 'dddddddddddddddddddddddddddddddd';
+    const began = runtime.beginMudConfirmation(id);
+    const nested = runtime.beginMudConfirmation('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    const during = { targets: runtime.discoverTargets(20).length, navigable: runtime.canNavigate() };
+    runtime.endMudConfirmation('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    const wrongIdStillBlocked = !runtime.canNavigate();
+    const marker = document.createElement('div');
+    marker.className = 'oc-liveui-approval';
+    marker.textContent = 'Approval';
+    document.body.append(marker);
+    runtime.endMudConfirmation(id);
+    const visibleDialogStillBlocked = !runtime.canNavigate();
+    marker.remove();
+    return { began, nested, during, wrongIdStillBlocked, visibleDialogStillBlocked, after: runtime.canNavigate() };
+  });
+  expect(state).toEqual({ began: true, nested: false, during: { targets: 0, navigable: false },
+    wrongIdStillBlocked: true, visibleDialogStillBlocked: true, after: true });
+});
+
+test('a cancelled host approval cannot begin late', async ({ page }) => {
+  const started = await page.evaluate(async () => {
+    const runtime = await import('/liveui.js');
+    const id = 'ffffffffffffffffffffffffffffffff';
+    runtime.endMudConfirmation(id);
+    return runtime.beginMudConfirmation(id);
+  });
+  expect(started).toBe(false);
+});

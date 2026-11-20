@@ -12,6 +12,29 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class LiveUIRuntimeDiscoveryTests
 {
     [Fact]
+    public async Task Runtime_alert_is_exposed_only_with_authorized_inspection_and_an_opaque_label()
+    {
+        const string observed = "[{\"kind\":\"Region\",\"label\":\"Application alert\",\"role\":\"alert\"}]";
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observed));
+        services.AddScoped<ILiveUIActionAuthorizer, InspectOnlyAuthorizer>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        var page = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
+        var target = Assert.Single(Assert.IsType<LiveUIAgentPage>(page).Targets);
+        Assert.StartsWith("oc.runtime.alert.", target.TargetId, StringComparison.Ordinal);
+        Assert.Equal("Application alert", target.Label);
+        Assert.Equal([LiveUICapability.Inspect], target.Capabilities);
+        Assert.False(target.RequiresConfirmation);
+    }
+
+    [Fact]
     public async Task RuntimeDiscoveryRequiresConfirmationForInteractiveTargets()
     {
         const string observations = "[" +

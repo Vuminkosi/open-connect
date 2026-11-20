@@ -487,6 +487,8 @@ public sealed class LiveUIOrchestratorTests
     [InlineData("textContains", null)]
     [InlineData("textContains", " ")]
     [InlineData("textNotContains", "")]
+    [InlineData("valueEquals", null)]
+    [InlineData("valueEquals", " ")]
     public async Task ExecuteAsync_RejectsEmptyTextPostconditions(string stateName, string? stateValue)
     {
         var runtime = new RecordingRuntime();

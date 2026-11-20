@@ -203,9 +203,9 @@ public sealed class LiveUIOrchestrator(
             action.Type != LiveUIActionType.Highlight && action.Parameters.HighlightDurationMilliseconds != 0)
             return false;
         if (action.Parameters.StateName is not null &&
-            action.Parameters.StateName is not ("selected" or "checked" or "expanded" or "visible" or "exists" or "invalid" or "textContains" or "textNotContains"))
+            action.Parameters.StateName is not ("selected" or "checked" or "expanded" or "visible" or "exists" or "invalid" or "textContains" or "textNotContains" or "valueEquals"))
             return false;
-        if (action.Parameters.StateName is "textContains" or "textNotContains" &&
+        if (action.Parameters.StateName is "textContains" or "textNotContains" or "valueEquals" &&
             string.IsNullOrWhiteSpace(action.Parameters.StateValue))
             return false;
         if (action.Type == LiveUIActionType.Navigate && string.IsNullOrWhiteSpace(action.Parameters.DestinationRouteId))

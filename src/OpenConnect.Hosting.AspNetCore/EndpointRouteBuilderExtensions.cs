@@ -836,7 +836,7 @@ public sealed class InMemorySessionStore : IClientInteractionBroker
         ArgumentNullException.ThrowIfNull(request);
         var operationResultKind = request.Operation switch
         {
-            "get_current_page" => "page",
+            "get_current_page" or "get_alert" or "get_select_options" => "page",
             "infer_plan" => "plan",
             "execute" or "navigate" or "inspect" or "await_state" or "highlight" or "clear_highlight" => "action",
             _ => null

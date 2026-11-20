@@ -12,6 +12,7 @@
 @using System.Security.Cryptography
 @using Microsoft.Extensions.Options
 @using Microsoft.Extensions.Logging
+@using Microsoft.JSInterop
 @inject LiveUIManifestState ManifestState
 @inject IServiceProvider Services
 @inject IOptions<LiveUIOptions> LiveUIOptions
@@ -398,6 +399,46 @@
                     responseKind = "page";
                     var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
                     payloadJson = page is null ? "{\"error\":\"page_unavailable\"}" : JsonSerializer.Serialize(page, JsonOptions);
+                }
+                else if (request.Operation == "get_alert" && request.TargetId is { Length: > 0 and <= 256 } alertId)
+                {
+                    responseKind = "page";
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
+                    var allowed = page?.Targets.SingleOrDefault(target => target.TargetId == alertId &&
+                        target.Kind == "Region" && target.Capabilities.Contains(LiveUICapability.Inspect));
+                    var route = manifest?.Routes.SingleOrDefault(candidate => candidate.Id == page?.RouteId);
+                    var target = route?.Targets.SingleOrDefault(candidate => candidate.Id == alertId &&
+                        candidate.Role == "alert" && candidate.Id.StartsWith("oc.runtime.alert.", StringComparison.Ordinal));
+                    string? alertText = null;
+                    if (allowed is not null && route is not null && target is not null &&
+                        Services.GetService(typeof(IJSRuntime)) is IJSRuntime js)
+                    {
+                        await using var module = await js.InvokeAsync<IJSObjectReference>("import", cancellationToken,
+                            "./_content/OpenConnect.LiveUI.Blazor/liveui.js");
+                        alertText = await module.InvokeAsync<string?>("readApplicationAlert", cancellationToken, route, target);
+                    }
+                    payloadJson = alertText is { Length: > 0 and <= 256 }
+                        ? JsonSerializer.Serialize(new { alertText }, JsonOptions)
+                        : "{\"error\":\"alert_unavailable\"}";
+                }
+                else if (request.Operation == "get_select_options" && request.TargetId is { Length: > 0 and <= 256 } selectId)
+                {
+                    responseKind = "page";
+                    var page = await _agentTools.GetCurrentPageAsync(cancellationToken);
+                    var manifest = await ManifestState.GetCurrentAsync(cancellationToken);
+                    var allowed = page?.Targets.SingleOrDefault(target => target.TargetId == selectId && target.Kind == "Select" &&
+                        target.Capabilities.Contains(LiveUICapability.Inspect) && target.Capabilities.Contains(LiveUICapability.Select));
+                    var route = manifest?.Routes.SingleOrDefault(candidate => candidate.Id == page?.RouteId);
+                    var target = route?.Targets.SingleOrDefault(candidate => candidate.Id == selectId && candidate.Kind == LiveUITargetKind.Select);
+                    object? choices = null;
+                    if (allowed is not null && route is not null && target is not null && Services.GetService(typeof(IJSRuntime)) is IJSRuntime js)
+                    {
+                        await using var module = await js.InvokeAsync<IJSObjectReference>("import", cancellationToken,
+                            "./_content/OpenConnect.LiveUI.Blazor/liveui.js");
+                        choices = await module.InvokeAsync<JsonElement?>("readSelectOptions", cancellationToken, route, target);
+                    }
+                    payloadJson = choices is not null ? JsonSerializer.Serialize(new { options = choices }, JsonOptions) : "{\"error\":\"options_unavailable\"}";
                 }
                 else if (request.Operation == "navigate" && request.RouteId is { Length: > 0 and <= 128 })
                 {

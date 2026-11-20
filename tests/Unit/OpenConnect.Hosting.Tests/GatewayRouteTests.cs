@@ -160,8 +160,11 @@ public sealed class GatewayRouteTests
         Assert.Empty(store.GetEvents(session.Id.Value, 0));
     }
 
-    [Fact]
-    public async Task Client_page_content_is_checked_before_it_is_journaled()
+    [Theory]
+    [InlineData("get_current_page")]
+    [InlineData("get_alert")]
+    [InlineData("get_select_options")]
+    public async Task Client_page_content_is_checked_before_it_is_journaled(string operation)
     {
         await using var host = await CreateAppAsync();
         var app = host.App;
@@ -169,7 +172,7 @@ public sealed class GatewayRouteTests
         var session = store.Create(new TenantId(Ulid.Parse(Tenant)), new PrincipalId(Ulid.Parse(Principal)));
         using var connection = store.RegisterBoundConnection(session)!;
         var correlationId = Guid.NewGuid().ToString("D");
-        var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(correlationId, "get_current_page"),
+        var pending = store.RequestAsync(session.Id, new ClientInteractionRequest(correlationId, operation),
             "page", TimeSpan.FromSeconds(5));
         await WaitForRequestAsync(store, session.Id.Value);
         var response = new ClientInteractionResponse(correlationId, "page", "{\"label\":\"person\\u0040example.org\"}")

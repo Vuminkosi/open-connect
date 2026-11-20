@@ -62,7 +62,8 @@ internal sealed class LiveUIRuntimeTargetDiscovery(
                 if (capabilities.Count == 0)
                     continue;
                 var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes(route.Id + "\0" + Key(kind, candidate.Role, label, parentId)));
-                var targetPrefix = LiveUIRuntimeTargetIds.Prefix + (candidate.LabelInferred ? "inferred-list." : string.Empty);
+                var targetPrefix = LiveUIRuntimeTargetIds.Prefix + (candidate.Kind == "Region" && candidate.Role == "alert"
+                    ? "alert." : candidate.LabelInferred ? "inferred-list." : string.Empty);
                 existing.Add(new LiveUITarget(targetPrefix + Convert.ToHexString(idBytes).ToLowerInvariant(), kind, label,
                     capabilities, candidate.Role, ParentId: parentId,
                     RequiresConfirmation: kind is not (LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.List)));

@@ -1,3 +1,4 @@
+import { approvalDetails } from '../scripts/approval-details.mjs';
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,7 +9,7 @@ test('T25: rapid duplicate submission creates at most one requested task', async
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
   let unexpectedConfirmation = false;
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
-    const details = await dialog.locator('p').innerText();
+    const details = await approvalDetails(dialog);
     if ((details.includes("'Task Title'") && details.includes(`Value: ${title}`)) || details.includes("'Add Task'"))
       await dialog.getByRole('button', { name: 'Allow' }).click();
     else {

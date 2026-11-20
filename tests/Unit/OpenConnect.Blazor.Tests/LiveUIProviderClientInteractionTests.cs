@@ -23,6 +23,82 @@ public sealed class LiveUIProviderClientInteractionTests
 {
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task Select_options_are_read_only_when_host_authorizes_the_control(bool inspectAllowed, bool selectAllowed)
+    {
+        await using var context = new BunitContext();
+        var module = context.JSInterop.SetupModule("./_content/OpenConnect.LiveUI.Blazor/liveui.js");
+        module.Setup<JsonElement?>("readSelectOptions", _ => true)
+            .SetResult(JsonSerializer.Deserialize<JsonElement>("[{\"value\":\"2\",\"label\":\"Two\",\"selected\":false}]"));
+        var client = new RecordingClient();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer>(_ => new SelectOptionsAuthorizer(inspectAllowed, selectAllowed));
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ => new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        var manifest = CreateManifest();
+        var route = manifest.Routes[0];
+        var select = new LiveUITarget("page.select", LiveUITargetKind.Select, "Page", new HashSet<LiveUICapability> { LiveUICapability.Select, LiveUICapability.Inspect });
+        manifest = manifest with { Routes = [route with { Targets = route.Targets.Append(select).ToArray() }], ContentHash = "" };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        session.RegisterConnection("test-connection", Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_select_options", "page.select") { ConnectionId = "test-connection" };
+        await rendered.InvokeAsync(() => session.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 1,
+            ClientInteractionEventTypes.Request, JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        using var payload = JsonDocument.Parse(client.Response!.PayloadJson);
+        Assert.Equal(inspectAllowed && selectAllowed, payload.RootElement.TryGetProperty("options", out _));
+        Assert.Equal(inspectAllowed && selectAllowed ? 1 : 0, module.Invocations.Count(invocation => invocation.Identifier == "readSelectOptions"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Alert_content_is_read_only_when_host_authorizes_inspection(bool allowed)
+    {
+        await using var context = new BunitContext();
+        var module = context.JSInterop.SetupModule("./_content/OpenConnect.LiveUI.Blazor/liveui.js");
+        module.Setup<string?>("readApplicationAlert", _ => true).SetResult("The record changed while editing.");
+        var client = new RecordingClient();
+        context.Services.AddOpenConnectLiveUIBlazor();
+        context.Services.AddScoped<ILiveUIActionAuthorizer>(_ => new ConditionalAuthorizer(allowed));
+        context.Services.AddScoped<ILiveUIAgentContextAccessor>(_ => new FixedContextAccessor(new LiveUIAgentContext(Session, "todo.home")));
+        context.Services.AddScoped<ILiveUIRuntimeTargetDiscovery>(provider => new StaticAlertDiscovery(provider.GetRequiredService<LiveUIManifestState>()));
+        context.Services.AddScoped<IOpenConnectClient>(_ => client);
+        var session = new ComposerSession();
+        session.AttachSession(Session);
+        session.RegisterConnection("test-connection", Session);
+        var rendered = context.Render<CascadingValue<ComposerSession>>(parameters => parameters
+            .Add(component => component.Value, session)
+            .Add(component => component.ChildContent, builder =>
+            {
+                builder.OpenComponent<OpenConnectLiveUIProvider>(0);
+                builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), CreateManifest());
+                builder.CloseComponent();
+            }));
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "get_alert", "oc.runtime.alert.test") { ConnectionId = "test-connection" };
+        await rendered.InvokeAsync(() => session.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 1,
+            ClientInteractionEventTypes.Request, JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
+        rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
+        using var payload = JsonDocument.Parse(client.Response!.PayloadJson);
+        Assert.Equal("page", client.Response.ResultKind);
+        Assert.Equal(allowed, payload.RootElement.TryGetProperty("alertText", out _));
+        Assert.Equal(allowed ? 1 : 0, module.Invocations.Count(invocation => invocation.Identifier == "readApplicationAlert"));
+    }
+
     [Fact]
     public async Task Provider_rerender_preserves_discovery_but_session_or_provider_replacement_resets_it()
     {
@@ -81,7 +157,7 @@ public sealed class LiveUIProviderClientInteractionTests
         context.Services.AddScoped<IOpenConnectClient>(_ => client);
         var manifest = CreateManifest();
         var route = manifest.Routes[0];
-        var targets = route.Targets.Select(target => target.Id == "todo.completed" ? target with { RequiresConfirmation = true } : target).ToArray();
+        var targets = route.Targets.Select(target => target.Id == "todo.completed" ? target with { Kind = LiveUITargetKind.Button, Label = "Delete task", RequiresConfirmation = true } : target).ToArray();
         manifest = manifest with { Routes = [route with { Targets = targets }] };
         manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
         var session = new ComposerSession();
@@ -95,7 +171,7 @@ public sealed class LiveUIProviderClientInteractionTests
                 builder.AddAttribute(1, nameof(OpenConnectLiveUIProvider.Manifest), manifest);
                 builder.CloseComponent();
             }));
-        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "SelectTab") { ConnectionId = "test-connection" };
+        var request = new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", "todo.completed", "Click") { ConnectionId = "test-connection" };
         await rendered.InvokeAsync(() => session.ApplyEvent(new EventRecord(new SessionId(Ulid.Parse(Session)), 1,
             ClientInteractionEventTypes.Request, JsonSerializer.Serialize(request, OpenConnectHttpJson.CreateOptions()))));
         rendered.WaitForAssertion(() => Assert.NotNull(client.Response));
@@ -747,6 +823,21 @@ public sealed class LiveUIProviderClientInteractionTests
         }
     }
 
+    private sealed class StaticAlertDiscovery(LiveUIManifestState state) : ILiveUIRuntimeTargetDiscovery
+    {
+        public ValueTask<bool> RefreshAsync(LiveUIAgentContext context, LiveUIManifest manifest, LiveUIRoute route,
+            CancellationToken cancellationToken = default)
+        {
+            var alert = new LiveUITarget("oc.runtime.alert.test", LiveUITargetKind.Region, "Application alert",
+                new HashSet<LiveUICapability> { LiveUICapability.Inspect }, Role: "alert");
+            var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id
+                ? item with { Targets = item.Targets.Where(target => target.Id != alert.Id).Append(alert).ToArray() } : item).ToArray(), ContentHash = "" };
+            state.SetManifest(replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) });
+            return ValueTask.FromResult(true);
+        }
+        public bool IsCurrentTarget(LiveUIAgentContext context, LiveUIManifest manifest, string targetId) => targetId == "oc.runtime.alert.test";
+    }
+
     private sealed class StaticRuntimeDiscovery(LiveUIManifestState state) : ILiveUIRuntimeTargetDiscovery
     {
         public string Label { get; set; } = "Open control";
@@ -771,6 +862,17 @@ public sealed class LiveUIProviderClientInteractionTests
         public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(new LiveUIAuthorizationDecision(true, "allowed"));
+    }
+
+    private sealed class SelectOptionsAuthorizer(bool inspect, bool select) : ILiveUIActionAuthorizer
+    {
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(context.Target is null || context.Action.Type switch
+            {
+                LiveUIActionType.Inspect => inspect,
+                LiveUIActionType.Select => select,
+                _ => false
+            }, "policy"));
     }
 
     private sealed class ConditionalAuthorizer(bool allowed) : ILiveUIActionAuthorizer

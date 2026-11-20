@@ -79,6 +79,17 @@ const statusSteps = [
   },
 ];
 
+const approvalSteps = [
+  { name: 'liveui_get_current_page', arguments: {}, kind: 'page' },
+  { name: 'liveui_execute', arguments: {
+    targetId: 'route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description',
+    action: 'SetValue', value: 'Prepare a launch checklist',
+  }, kind: 'receipt' },
+  { name: 'liveui_execute', arguments: {
+    targetId: 'route.root.components-todolistcomponent-razor-button-delete-task', action: 'Click',
+  }, kind: 'approval_outcome' },
+];
+
 const activeStatusSteps = [
   { name: 'liveui_get_current_page', arguments: {}, kind: 'page' },
   {
@@ -538,6 +549,10 @@ function checkPreviousToolResult(run, toolMessages) {
   const priorMessage = toolMessages.at(-1);
   const receipt = parseToolResult(priorMessage);
   const step = run.results.at(-1);
+  if (step.kind === 'approval_outcome') {
+    if (!['Denied', 'Uncertain'].includes(receipt?.outcome)) throw new Error('Unexpected approval outcome.');
+    return;
+  }
   if (step.kind === 'worker_matrix_plan') {
     const actions = workerMatrixActions(receipt);
     step.evidence = { provider: receipt.provider, actions };
@@ -778,6 +793,7 @@ const server = http.createServer(async (request, response) => {
       const localInference = /on-device model|local model|browser inference/i.test(normalizedUserText);
       const workerInference = /server worker|qwen worker/i.test(normalizedUserText);
       const deniedWrite = /highlight the add task button/i.test(normalizedUserText);
+      const approval = normalizedUserText === 'Request task deletion for approval test';
       const highlightRetry = /highlight didn't come through|retry(?:ing)? .*highlight|highlight .*retry/i.test(normalizedUserText);
       const statusHighlight = /highlight (?:the )?(?:task )?(?:status|list|progress)/i.test(normalizedUserText);
       const explanation = /explain what|what am i looking at/i.test(normalizedUserText);
@@ -793,7 +809,7 @@ const server = http.createServer(async (request, response) => {
         'Search for report', 'Highlight the tasks', 'Highlight the results.', 'Show completed tasks containing report',
         'Explain the current view.',
       ].includes(normalizedUserText);
-      const scenarioName = workerMatrix ? 'worker_matrix'
+      const scenarioName = approval ? 'approval' : workerMatrix ? 'worker_matrix'
         : deniedWrite ? 'denied_write'
         : highlightRetry ? 'highlight_retry'
         : statusHighlight ? 'status_highlight'
@@ -812,6 +828,7 @@ const server = http.createServer(async (request, response) => {
         : tour ? 'tour'
         : 'combined';
       const answers = {
+        approval: 'The requested action was not verified.',
         navigation: 'I opened the Todo page, verified it was ready, and highlighted the task region.',
         tour: 'This task region shows your work and its filters. Would you like to continue the tour?',
         worker_matrix: normalizedUserText === 'Explain the current view.'
@@ -834,6 +851,7 @@ const server = http.createServer(async (request, response) => {
         userText,
         scenarioName,
         steps: {
+          approval: approvalSteps,
           navigation: navigationSteps,
           tour: tourSteps,
           worker_matrix: [{ name: 'liveui_infer_plan', arguments: { intent: normalizedUserText }, kind: 'worker_matrix_plan' }],

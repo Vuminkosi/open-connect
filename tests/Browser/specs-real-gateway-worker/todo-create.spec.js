@@ -1,4 +1,5 @@
-﻿import { expect, test } from '@playwright/test';
+import { approvalDetails } from '../scripts/approval-details.mjs';
+import { expect, test } from '@playwright/test';
 
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -12,12 +13,13 @@ test('creates the requested Todo through an authorized live agent and keeps it a
   const title = 'Review insurance renewals';
   const requireObservedChange = process.env.OPENCONNECT_LIVEUI_REQUIRE_OBSERVED_CHANGE === '1';
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
-    const details = await dialog.locator('p').innerText();
+    const details = await approvalDetails(dialog);
     if ((details.includes("'Task Title'") && details.includes(`Value: ${title}`)) || details.includes("'Add Task'")) {
       await dialog.getByRole('button', { name: 'Allow' }).click();
     } else {
+      const visibleApproval = await dialog.innerText();
       await dialog.getByRole('button', { name: 'Cancel' }).click();
-      throw new Error('Unexpected action requested confirmation');
+      throw new Error(`Unexpected action requested confirmation: ${details.match(/^Allow (\w+) on /)?.[1] ?? 'unrecognized'}; title target: ${details.includes("'Task Title'")}; value shown: ${visibleApproval.includes('Requested value')}; expected value shown: ${visibleApproval.includes(title)}; value parsed: ${details.includes('Value:')}`);
     }
   });
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);

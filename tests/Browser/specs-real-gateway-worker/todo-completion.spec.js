@@ -1,3 +1,4 @@
+import { approvalDetails } from '../scripts/approval-details.mjs';
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -21,7 +22,7 @@ test('T03: marks the insurance task complete and retains it after reload', async
 
   let unexpectedConfirmation = false;
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
-    const details = await dialog.locator('p').innerText();
+    const details = await approvalDetails(dialog);
     const safeRead = ['Inspect', 'WaitForState', 'Focus'].some((action) => details.startsWith(`Allow ${action} on '${title}'?`));
     if ((details.startsWith(`Allow Select on '${title}'?`) && details.includes('Value: true')) || safeRead ||
         /^Allow SelectTab on '(All|Active|Completed)'\?/.test(details)) {

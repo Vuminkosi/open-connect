@@ -10,6 +10,80 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 public sealed class BrowserLiveUIActionConfirmationTests
 {
     [Theory]
+    [InlineData(LiveUIActionType.Inspect, LiveUITargetKind.Button, "Open report", false)]
+    [InlineData(LiveUIActionType.SelectTab, LiveUITargetKind.Tab, "Active", false)]
+    [InlineData(LiveUIActionType.SetValue, LiveUITargetKind.Input, "Search tasks", true)]
+    [InlineData(LiveUIActionType.SetValue, LiveUITargetKind.Input, "Task title", false)]
+    public async Task Routine_read_and_filter_actions_do_not_open_a_prompt(
+        LiveUIActionType actionType, LiveUITargetKind kind, string label, bool filter)
+    {
+        var browser = new ConfirmationBrowser();
+        using var services = CreateServices(browser);
+        using var scope = services.CreateScope();
+        var context = Context("report");
+        var capabilities = new HashSet<LiveUICapability>();
+        if (filter) capabilities.Add(LiveUICapability.Filter);
+        var target = context.Target! with { Id = "oc.runtime.test", Kind = kind, Label = label, Capabilities = capabilities };
+        var action = context.Action with { Type = actionType };
+        var confirmation = scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>();
+        Assert.True(await confirmation.ConfirmAsync(context with { Target = target, Action = action }));
+        Assert.Equal(0, browser.Calls);
+    }
+
+    [Theory]
+    [InlineData("Delete task")]
+    [InlineData("Remove selected")]
+    public async Task Destructive_actions_still_require_a_prompt(string label)
+    {
+        var browser = new ConfirmationBrowser();
+        using var services = CreateServices(browser);
+        using var scope = services.CreateScope();
+        var context = Context("report");
+        var target = context.Target! with { Kind = LiveUITargetKind.Button, Label = label };
+        var action = context.Action with { Type = LiveUIActionType.Click };
+        var confirmation = scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>();
+        var pending = confirmation.ConfirmAsync(context with { Target = target, Action = action }).AsTask();
+        Assert.Equal(1, browser.Calls);
+        browser.Answer.SetResult(false);
+        Assert.False(await pending);
+    }
+
+    [Fact]
+    public async Task Clearing_a_form_value_still_requires_confirmation()
+    {
+        var browser = new ConfirmationBrowser();
+        using var services = CreateServices(browser);
+        using var scope = services.CreateScope();
+        var context = Context("");
+        var target = context.Target! with { Kind = LiveUITargetKind.Input, Label = "Title" };
+        var confirmation = scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>();
+        var pending = confirmation.ConfirmAsync(context with { Target = target, Action = context.Action with { Type = LiveUIActionType.SetValue } }).AsTask();
+        Assert.Equal(1, browser.Calls);
+        browser.Answer.SetResult(false);
+        Assert.False(await pending);
+    }
+
+    [Fact]
+    public async Task Automatic_filter_confirmation_does_not_bypass_host_authorization()
+    {
+        var browser = new ConfirmationBrowser();
+        using var services = CreateServices(browser);
+        using var scope = services.CreateScope();
+        var context = Context("report");
+        var target = context.Target! with { Kind = LiveUITargetKind.Input, Label = "Search", Capabilities = new HashSet<LiveUICapability> { LiveUICapability.SetValue, LiveUICapability.Filter } };
+        var route = context.Route with { Targets = [target] };
+        var manifest = context.Manifest with { Routes = [route], ContentHash = "" };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var runtime = new TestRuntime();
+        var orchestrator = new LiveUIOrchestrator(new TestManifest(manifest), new TestAuthorizer(false), runtime,
+            Options.Create(new LiveUIOptions()), new LiveUIManifestValidator(), [scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>()]);
+        var receipt = await orchestrator.ExecuteAsync(context.Action with { Type = LiveUIActionType.SetValue, ManifestHash = manifest.ContentHash });
+        Assert.Equal(LiveUIActionOutcome.Denied, receipt.Outcome);
+        Assert.Equal(0, runtime.Calls);
+        Assert.Equal(0, browser.Calls);
+    }
+
+    [Theory]
     [InlineData(false, true, 0, 0)]
     [InlineData(true, false, 1, 0)]
     [InlineData(true, true, 1, 1)]
@@ -90,10 +164,10 @@ public sealed class BrowserLiveUIActionConfirmationTests
 
     private static LiveUIExecutionContext Context(string value)
     {
-        var target = new LiveUITarget("title", LiveUITargetKind.Input, "Task title", new HashSet<LiveUICapability> { LiveUICapability.SetValue }, RequiresConfirmation: true);
+        var target = new LiveUITarget("title", LiveUITargetKind.Button, "Delete task", new HashSet<LiveUICapability> { LiveUICapability.Activate }, RequiresConfirmation: true);
         var route = new LiveUIRoute("home", "/", "Home", [target]);
         var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "hash", [route]);
-        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", "hash", "home", "title", LiveUIActionType.SetValue, new(Value: value), TimeSpan.FromSeconds(1));
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", "hash", "home", "title", LiveUIActionType.Click, new(Value: value), TimeSpan.FromSeconds(1));
         return new LiveUIExecutionContext(manifest, route, target, action);
     }
 

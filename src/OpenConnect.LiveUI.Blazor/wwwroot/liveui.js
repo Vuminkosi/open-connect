@@ -8,11 +8,13 @@ const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\
 const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
 let confirmationDialog = null;
+let mudConfirmationId = null;
 const cancelledConfirmations = new Set();
 let confirmationCancellationOverflow = false;
 
 function interactionScope() {
-  if (confirmationDialog?.element?.open) return null;
+  if (confirmationDialog?.element?.open || mudConfirmationId ||
+      [...document.querySelectorAll('.oc-liveui-approval')].some(isVisible)) return null;
   const dialogs = [...document.querySelectorAll('dialog[open], [role="dialog"]:not([aria-modal="false"])')]
     .filter((element) => isVisible(element) && !element.closest('pre, code'));
   const innermost = dialogs.filter((element) => !dialogs.some((other) => other !== element && element.contains(other)));
@@ -24,7 +26,7 @@ export function canNavigate() {
 }
 
 export function confirmAction(message, timeoutMs, confirmationId) {
-  if (confirmationDialog || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId) ||
+  if (confirmationDialog || mudConfirmationId || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId) ||
       typeof message !== "string" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
     return Promise.resolve(false);
   if (cancelledConfirmations.delete(confirmationId)) return Promise.resolve(false);
@@ -64,6 +66,33 @@ export function confirmAction(message, timeoutMs, confirmationId) {
   });
 }
 
+// While the host's MudBlazor dialog is open, its buttons must never become agent targets.
+export function beginMudConfirmation(confirmationId) {
+  if (confirmationDialog || mudConfirmationId || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId)) return false;
+  if (cancelledConfirmations.delete(confirmationId)) return false;
+  mudConfirmationId = confirmationId;
+  return true;
+}
+
+export function endMudConfirmation(confirmationId) {
+  if (mudConfirmationId === confirmationId) mudConfirmationId = null;
+  else cancelConfirmation(confirmationId);
+}
+
+export function prepareMudConfirmation(confirmationId) {
+  if (mudConfirmationId !== confirmationId) return false;
+  const content = document.querySelector('.oc-liveui-approval');
+  const dialog = content?.closest('[role="dialog"]') || content?.querySelector('[role="dialog"]');
+  const cancel = content?.querySelector('[data-liveui-approval-cancel="true"]');
+  const layer = dialog?.closest('.mud-dialog-container');
+  if (!dialog || !layer || !cancel || !isVisible(dialog)) return false;
+  // The composer intentionally floats above ordinary app dialogs; approval must be above it.
+  layer.style.setProperty('z-index', '100000', 'important');
+  dialog.setAttribute('aria-label', 'Confirm action');
+  cancel.focus();
+  return document.activeElement === cancel;
+}
+
 export function cancelConfirmation(confirmationId) {
   if (confirmationDialog?.id === confirmationId && confirmationDialog.element.open)
     confirmationDialog.element.close("cancel");
@@ -84,7 +113,7 @@ export function discoverTargets(maximumTargets) {
   if (!limit) return [];
   const scope = interactionScope();
   if (!scope) return [];
-  const selector = "button, a[href], input, textarea, select, ul, ol, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading'], [role='list'], [role='listbox']";
+  const selector = "button, a[href], input, textarea, select, ul, ol, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading'], [role='list'], [role='listbox'], [role='alert']";
   const sections = scope.querySelectorAll("section");
   const regionCandidates = [];
   for (let index = 0; index < Math.min(sections.length, 5000); index++) {
@@ -109,14 +138,14 @@ export function discoverTargets(maximumTargets) {
     const role = roleOf(element);
     if (tag === "input" && element.type === "radio") continue;
     const kind = role === "tab" ? "Tab" : role === "button" ? "Button" : role === "link" ? "Link" :
-      role === "heading" ? "Heading" : role === "list" || role === "listbox" ? "List" : tag === "select" ? "Select" :
+      role === "heading" ? "Heading" : role === "alert" ? "Region" : role === "list" || role === "listbox" ? "List" : tag === "select" ? "Select" :
       tag === "input" && element.type === "checkbox" ? "Checkbox" :
       tag === "input" || tag === "textarea" ? "Input" : null;
     if (!kind || kind === "Link" && !isAllowedLinkActivation(element)) continue;
     if (["Input", "Checkbox", "Select"].includes(kind) && isSensitiveField(element)) continue;
     const explicitNames = kind === "List" ? explicitListNames(element) : null;
     const inferredListLabel = kind === "List" && !explicitNames.some((name) => name.trim()) ? nearbyListHeading(element) : null;
-    const names = kind === "List" ? (inferredListLabel ? [inferredListLabel] : explicitNames) : accessibleNames(element, true);
+    const names = role === "alert" ? ["Application alert"] : kind === "List" ? (inferredListLabel ? [inferredListLabel] : explicitNames) : accessibleNames(element, true);
     const label = names.map((name) => String(name).replace(/\s+/g, " ").trim())
       .find((name) => name.length > 0 && name.length <= 120);
     if (!label || sensitiveFieldPattern.test(label)) continue;
@@ -197,6 +226,9 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
   if (resolution.status !== "resolved") return measured(result("MissingTarget", "target_missing"));
 
   const element = resolution.element;
+  if (action.parameters?.stateName === "valueEquals" &&
+      (target.kind !== "Input" || !["input", "textarea"].includes(element.tagName.toLowerCase()) || isSensitiveField(element)))
+    return measured(result("Denied", "sensitive_input_blocked"));
   if (element.closest("pre, code") && !["Inspect", "Highlight", "Scroll", "Focus", "WaitForState"].includes(action.type))
     return measured(result("Denied", "code_content_not_interactive"));
   if (["Open", "Close", "Click", "SetValue", "Select", "SelectTab"].includes(action.type) &&
@@ -401,7 +433,8 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
     .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
-      (target.kind === "List" && target.id?.startsWith("oc.runtime.")
+      (target.kind === "Region" && target.role === "alert" && target.id?.startsWith("oc.runtime.")
+        ? ["Application alert"] : target.kind === "List" && target.id?.startsWith("oc.runtime.")
         ? target.id.startsWith("oc.runtime.inferred-list.")
           ? explicitListNames(element).some((name) => name.trim()) ? [] : [nearbyListHeading(element) || ""]
           : explicitListNames(element)
@@ -416,6 +449,40 @@ function isEligibleTarget(element, target) {
   return !codeContainer || element === codeContainer && target.kind === "Region";
 }
 
+// The host authorizes this target and the gateway screens the returned content.
+export function readApplicationAlert(route, target) {
+  if (!route || normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname) ||
+      target?.kind !== "Region" || target.role !== "alert" || !target.id?.startsWith("oc.runtime.alert.")) return null;
+  const resolved = resolveTarget(target, true, route);
+  if (resolved.status !== "resolved" || resolved.element.closest('pre, code')) return null;
+  const text = (resolved.element.innerText || "").replace(/\s+/g, " ").trim();
+  return text.length > 0 && text.length <= 256 ? text : null;
+}
+
+// Caller must authorize the target and screen this untrusted page data before egress.
+export function readSelectOptions(route, target) {
+  if (!route || normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname) ||
+      target?.kind !== "Select") return null;
+  const resolved = resolveTarget(target, true, route);
+  if (resolved.status !== "resolved" || !(resolved.element instanceof HTMLSelectElement) ||
+      resolved.element.multiple || isSensitiveField(resolved.element) || isDisabled(resolved.element) ||
+      resolved.element.closest("pre, code")) return null;
+  const options = [...resolved.element.options];
+  if (options.length === 0 || options.length > 32) return null;
+  const seen = new Set();
+  const result = [];
+  for (const option of options) {
+    if (option.disabled || option.parentElement?.matches("optgroup:disabled")) continue;
+    const value = option.value;
+    const label = option.label.replace(/\s+/g, " ").trim();
+    if (!value || value.length > 128 || !label || label.length > 128 ||
+        /[\u0000-\u001f\u007f\p{Cf}]/u.test(value) || /[\u0000-\u001f\u007f\p{Cf}]/u.test(label) || seen.has(value)) return null;
+    seen.add(value);
+    result.push({ value, label, selected: option.selected });
+  }
+  return result.length ? result : null;
+}
+
 function kindMatches(kind, element) {
   const tag = element.tagName.toLowerCase();
   switch (kind) {
@@ -427,7 +494,7 @@ function kindMatches(kind, element) {
     case "Checkbox": return tag === "input" && element.type === "checkbox";
     case "Tab": return roleOf(element) === "tab";
     case "Heading": return /^h[1-6]$/.test(tag) || roleOf(element) === "heading";
-    case "Region": return ["main", "section", "nav", "aside", "article"].includes(tag) || roleOf(element) === "region";
+    case "Region": return ["main", "section", "nav", "aside", "article"].includes(tag) || ["region", "alert"].includes(roleOf(element));
     case "List": return ["ul", "ol"].includes(tag) || ["list", "listbox"].includes(roleOf(element));
     case "Table": return tag === "table" || ["grid", "table"].includes(roleOf(element));
     default: return false;
@@ -577,6 +644,8 @@ function isSensitiveField(element) {
 }
 
 function inspect(element, target) {
+  if (target?.kind === "Region" && roleOf(element) === "alert")
+    return result("Completed", "inspection_verified", true, "application_alert_visible");
   if (target?.kind === "List" || target?.kind === "Table") {
     const selector = target.kind === "Table" ? "tbody tr, [role='rowgroup'] [role='row']" : "li, [role='listitem'], .mud-list-item";
     const rows = [...element.querySelectorAll(selector)].filter(isVisible);
@@ -607,7 +676,7 @@ function isInvalidControl(element) {
 }
 
 function validateState(name, expected) {
-  if (["textContains", "textNotContains"].includes(name))
+  if (["textContains", "textNotContains", "valueEquals"].includes(name))
     return typeof expected === "string" && normalize(expected) ? null : "state_value_invalid";
   if (!["selected", "checked", "expanded", "visible", "exists", "invalid"].includes(name)) return "state_name_invalid";
   return expected == null || expected === "true" || expected === "false" ? null : "state_value_invalid";
@@ -671,6 +740,8 @@ function stateMatches(element, name, expected) {
     case "exists": return element.isConnected === (expected !== "false");
     case "textContains": return typeof expected === "string" && !!normalize(expected) && normalize(element.innerText ?? "").includes(normalize(expected));
     case "textNotContains": return typeof expected === "string" && !!normalize(expected) && !normalize(element.innerText ?? "").includes(normalize(expected));
+    case "valueEquals": return typeof expected === "string" && ["input", "textarea"].includes(element.tagName.toLowerCase()) &&
+      !isSensitiveField(element) && "value" in element && element.value === expected;
     default: return false;
   }
 }

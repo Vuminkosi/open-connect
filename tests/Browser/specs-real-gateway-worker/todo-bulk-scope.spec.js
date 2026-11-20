@@ -1,3 +1,4 @@
+import { approvalDetails } from '../scripts/approval-details.mjs';
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -23,7 +24,7 @@ test('T10: identifies the invoice scope and asks before bulk changes', async ({ 
   const before = await snapshot();
   let attemptedConfirmation = false;
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Confirm action' }), async (dialog) => {
-    const details = await dialog.locator('p').innerText();
+    const details = await approvalDetails(dialog);
     if (/^Allow (Inspect|Focus|WaitForState) on /.test(details)) {
       await dialog.getByRole('button', { name: 'Allow' }).click();
     } else {
