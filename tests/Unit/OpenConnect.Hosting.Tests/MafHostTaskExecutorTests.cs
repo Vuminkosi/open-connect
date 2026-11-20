@@ -8,12 +8,73 @@ using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.LiveUI.Agents;
+using OpenConnect.LiveUI.Hosting;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
 
 public sealed class MafHostTaskExecutorTests
 {
+    [Fact]
+    public async Task Generic_liveui_factory_executes_and_publishes_for_accepted_connection()
+    {
+        var fixture = new Fixture { UseLiveUI = true };
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(fixture.Input.TenantId, fixture.Input.PrincipalId);
+        fixture.Input = fixture.Input with { SessionId = session.Id };
+        var services = new ServiceCollection();
+        services.AddSingleton<ILiveUIHostExecutionInputsFactory>(fixture);
+        services.AddSingleton<IClientInteractionBroker>(fixture.Broker);
+        services.AddSingleton(sessions);
+        services.AddOpenConnectLiveUIHostExecution();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        await scope.ServiceProvider.GetRequiredService<IHostTaskExecutor>().ExecuteAsync(fixture.Input, default);
+
+        Assert.Equal("accepted-connection", fixture.Broker.Request!.ConnectionId);
+        Assert.Equal(session.Id, fixture.Broker.Session);
+        Assert.Equal("reply", Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "message").Data);
+    }
+
+    [Fact]
+    public async Task Generic_liveui_factory_rejects_missing_connection_before_creating_host_context()
+    {
+        var fixture = new Fixture { UseLiveUI = true };
+        var factory = new LiveUIHostTaskAgentExecutionFactory(fixture, fixture.Broker);
+        var task = fixture.Input with { ClientConnectionId = null };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => factory.CreateAsync(task, default));
+
+        Assert.Equal(0, fixture.Client.Calls);
+        Assert.Null(fixture.Broker.Request);
+    }
+
+    [Fact]
+    public async Task Generic_liveui_factory_does_not_expose_tools_for_noninteractive_tasks()
+    {
+        var fixture = new Fixture();
+        fixture.Input = fixture.Input with { Origin = HostTaskOrigin.NonInteractive, ClientConnectionId = null };
+        var factory = new LiveUIHostTaskAgentExecutionFactory(fixture, fixture.Broker);
+
+        await new MafHostTaskExecutor(factory).ExecuteAsync(fixture.Input, default);
+
+        Assert.True(fixture.Client.LastOptions?.Tools is null || fixture.Client.LastOptions.Tools.Count == 0);
+        Assert.Null(fixture.Broker.Request);
+    }
+
+    [Fact]
+    public async Task Generic_liveui_factory_rejects_mismatched_host_scope_before_tool_dispatch()
+    {
+        var fixture = new Fixture { UseLiveUI = true, WrongTenant = true };
+        var factory = new LiveUIHostTaskAgentExecutionFactory(fixture, fixture.Broker);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => new MafHostTaskExecutor(factory).ExecuteAsync(fixture.Input, default));
+
+        Assert.Equal(0, fixture.Client.Calls);
+        Assert.Null(fixture.Broker.Request);
+    }
+
     [Fact]
     public async Task Publishes_completed_response_to_owning_task_session()
     {
@@ -152,7 +213,7 @@ public sealed class MafHostTaskExecutorTests
     private sealed class ExistingExecutor : IHostTaskExecutor
     { public Task ExecuteAsync(HostTaskExecution task, CancellationToken cancellationToken) => Task.CompletedTask; }
 
-    private sealed class Fixture : IHostTaskAgentExecutionFactory
+    private sealed class Fixture : IHostTaskAgentExecutionFactory, ILiveUIHostExecutionInputsFactory
     {
         public readonly Client Client = new();
         public readonly Store Store = new();
@@ -166,6 +227,21 @@ public sealed class MafHostTaskExecutorTests
         { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "accepted-connection" };
 
         public Task<HostTaskAgentExecution> CreateAsync(HostTaskExecution task, CancellationToken cancellationToken)
+        {
+            var inputs = CreateInputs(task, cancellationToken);
+            var runner = UseLiveUI
+                ? MafConversationRunner.CreateWithTools(inputs.AgentFactory, inputs.AgentId,
+                    LiveUIClientAgentToolFactory.CreateToolsForConnection(Broker, task.SessionId, task.ClientConnectionId!),
+                    LiveUIAgentGuidance.Instructions)
+                : new MafConversationRunner(inputs.AgentFactory, inputs.AgentId);
+            return System.Threading.Tasks.Task.FromResult(new HostTaskAgentExecution(runner, inputs.Context,
+                inputs.IsExecutionRevoked, inputs.PersistenceContext));
+        }
+
+        Task<LiveUIHostExecutionInputs> ILiveUIHostExecutionInputsFactory.CreateAsync(HostTaskExecution task, CancellationToken cancellationToken) =>
+            Task.FromResult(CreateInputs(task, cancellationToken));
+
+        private LiveUIHostExecutionInputs CreateInputs(HostTaskExecution task, CancellationToken cancellationToken)
         {
             var binding = new NativeAgentSessionBinding(task.SessionId, task.TenantId, task.PrincipalId,
                 "lead", "r1", "maf-test", "s1", "test-provider");
@@ -187,15 +263,10 @@ public sealed class MafHostTaskExecutorTests
             };
             var factory = new MafRealAgentFactory(new Registry(), Client);
             Client.UseLiveUI = UseLiveUI;
-            var runner = UseLiveUI
-                ? MafConversationRunner.CreateWithTools(factory, new AgentId("lead"),
-                    LiveUIClientAgentToolFactory.CreateToolsForConnection(Broker, task.SessionId, task.ClientConnectionId!),
-                    LiveUIAgentGuidance.Instructions)
-                : new MafConversationRunner(factory, new AgentId("lead"));
             var persistence = new NativeAgentSessionPersistence(Store, new Protector());
             var contextForRevocation = new NativeSessionTurnPersistenceContext(persistence, binding, new Gate());
-            return System.Threading.Tasks.Task.FromResult(new HostTaskAgentExecution(runner, context,
-                (_, _) => ValueTask.FromResult(Revocation?.Invoke() ?? Revoked), contextForRevocation));
+            return new LiveUIHostExecutionInputs(factory, new AgentId("lead"), context,
+                (_, _) => ValueTask.FromResult(Revocation?.Invoke() ?? Revoked), contextForRevocation);
         }
     }
 
@@ -235,11 +306,12 @@ public sealed class MafHostTaskExecutorTests
     {
         public int Calls { get; private set; }
         public bool UseLiveUI { get; set; }
+        public ChatOptions? LastOptions { get; private set; }
         public Action<CancellationToken>? OnCall { get; set; }
         public ChatClientMetadata Metadata { get; } = new("host-executor-test");
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); cancellationToken.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested(); Calls++; LastOptions = options; OnCall?.Invoke(cancellationToken); cancellationToken.ThrowIfCancellationRequested();
             if (UseLiveUI && Calls == 1)
             {
                 var function = Assert.IsAssignableFrom<AIFunction>(options!.Tools!.Single(tool => tool.Name == "liveui_get_current_page"));
