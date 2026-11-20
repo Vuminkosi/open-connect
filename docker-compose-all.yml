@@ -8,6 +8,49 @@
 # Environment variables from .env in the root folder are automatically loaded and forwarded.
 
 services:
+  worker-knowledge-init:
+    profiles: ["knowledge"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+    volumes:
+      - oc_knowledge_models:/models
+      - ${OC_KNOWLEDGE_INIT_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/init.json:ro
+    networks:
+      - oc-network
+
+  worker-knowledge:
+    profiles: ["knowledge"]
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-knowledge-init:
+        condition: service_completed_successfully
+    environment:
+      OC_KNOWLEDGE_ENABLED: "true"
+      OC_KNOWLEDGE_CONFIG_PATH: /config/serve.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - oc_knowledge_models:/models:ro
+      - ${OC_KNOWLEDGE_SERVE_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/serve.json:ro
+    networks:
+      - oc-network
+
   worker-analytics:
     profiles: ["analytics"]
     build:
@@ -381,3 +424,4 @@ volumes:
   oc_transcription_models:
   oc_kokoro_models:
   oc_liveui_models:
+  oc_knowledge_models:

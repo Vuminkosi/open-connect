@@ -10,14 +10,30 @@ tensor data is currently unsupported and rejected.
 
 Tests use a synthetic ONNX graph and tokenizer. They verify runtime mechanics,
 not semantic quality. No production model manifest, model quality acceptance,
-model-init service, indexer, reranker, deployment profile, or SDK integration
-is provided yet. The private endpoint advertises `knowledge.embed` only after
-its configured model passes cache and startup inference checks; production
+indexer, reranker, or SDK integration is provided yet. The private endpoint
+advertises `knowledge.embed` only after its configured model passes cache and
+startup inference checks; production
 deployment still requires a reviewed model and end-to-end acceptance.
 
 Run `uv sync --locked`, `uv run ruff check .` and `uv run pytest -q` from this
 directory. Model assets must be provisioned separately through the shared
 initializer; request processing performs no downloads.
+
+The optional `OC_RUN_REAL_MODEL_TESTS=1 uv run pytest -q
+tests/test_real_model_acceptance.py` test downloads pinned upstream MiniLM
+assets into pytest's temporary directory and verifies offline restart and a
+small similarity example. Run it only where the model license and download
+are approved. Its resource budgets are test fixtures, not deployment sizing
+or a quality benchmark.
+
+The root Compose file offers the opt-in `knowledge` profile. Set
+`OC_KNOWLEDGE_INIT_CONFIG` and `OC_KNOWLEDGE_SERVE_CONFIG` to paths for the
+reviewed initialization and serving configuration files. The default files
+are intentionally empty and fail closed. The init service writes the named
+`oc_knowledge_models` volume; the serving service mounts it read-only and
+uses offline settings. Both run as non-root and expose no host port. Normal
+Compose lifecycle commands do not remove named volumes. Do not use volume
+removal when the cached model revisions must be retained.
 
 Set `OC_KNOWLEDGE_ENABLED=true` and `OC_KNOWLEDGE_CONFIG_PATH` to an
 administrator-controlled JSON file containing a runtime `manifest` and a
@@ -26,6 +42,7 @@ optional `prefixStyle` (`none` or `e5`) and `padToken`. The optional
 `licenseAccepted` and `commercialUse` fields govern license verification.
 `OC_MODEL_CACHE_DIR` points at the verified cache. The server does not run
 the initializer and does not download model files. Fake engines are rejected.
+The required admission settings are described in [MODEL-CONFIG.md](MODEL-CONFIG.md).
 
 The private API requires `OPENCONNECT_WORKER_TOKEN` and a hex-encoded
 `OPENCONNECT_WORKER_SIGNING_KEY` of at least 32 bytes. Execute requests need
