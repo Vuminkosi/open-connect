@@ -59,6 +59,44 @@ public sealed class CloudEntitlementAdministrationPostgresTests
         await Assert.ThrowsAnyAsync<Exception>(() => verify.TenantEntitlements.Where(x => x.TenantId == tenant && x.CapabilityId == capability).ExecuteDeleteAsync());
     }
 
+    [CloudPostgresFact]
+    public async Task EntitlementChangesAffectExistingMachineCredentials()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
+        var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
+        var tenant = await tenants.CreateTenantAsync(owner, "Entitlement admission", default);
+        var application = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Application", "Development", default)).Application!;
+        var capability = "entitlement.admission." + Guid.NewGuid().ToString("N");
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Admission test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+            db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = application.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+            await db.SaveChangesAsync();
+        }
+        var service = new CloudEntitlementAdministration(new EfCloudEntitlementAdministrationStore(factory, TimeProvider.System));
+        var actor = new CloudSubject("https://operator.example", "operator");
+        var trace = Guid.NewGuid().ToString("N");
+        Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant.Id, capability, new(true, null), 0, default)).Status);
+        var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
+        var issued = await credentials.CreateAsync(owner, tenant.Id, application.Id, [capability], DateTimeOffset.UtcNow.AddDays(1), default);
+        Assert.Equal("succeeded", issued.Status);
+        var admission = new CloudMachineAuthorizationService(credentials, new EfCloudMachineCapabilityReader(factory, TimeProvider.System), TimeProvider.System);
+        Assert.True((await admission.AuthorizeAsync(issued.Secret, capability, default)).Authorized);
+        Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant.Id, capability, new(false, null), 1, default)).Status);
+        var revoked = await admission.AuthorizeAsync(issued.Secret, capability, default);
+        Assert.False(revoked.Authorized);
+        Assert.Equal("capability_not_entitled", revoked.Code);
+        var expired = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 1);
+        Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant.Id, capability, new(true, expired), 2, default)).Status);
+        Assert.Equal("capability_not_entitled", (await admission.AuthorizeAsync(issued.Secret, capability, default)).Code);
+        Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant.Id, capability, new(true, null), 3, default)).Status);
+        Assert.True((await admission.AuthorizeAsync(issued.Secret, capability, default)).Authorized);
+    }
+
     private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid tenant, string capability)
     {
         const string issuer = "https://operator.example";
