@@ -23,6 +23,9 @@ public sealed class CloudExecutionClaimPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
+            db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+            db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
             db.Credentials.Add(new CloudCredential { Id = credentialId, TenantId = tenant.Id, ApplicationId = app.Id, Environment = "Development", KeyHash = new byte[32], Fingerprint = "claim-test", Scopes = System.Text.Json.JsonSerializer.Serialize(new[] { capability }), IssuedAt = now, ExpiresAt = now.AddHours(1) });
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability, Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 10 });
             await db.SaveChangesAsync();
@@ -36,6 +39,30 @@ public sealed class CloudExecutionClaimPostgresTests
             return result.ReservationId!.Value;
         }
         var id = await Reserve();
+        await using (var disabler = await factory.CreateDbContextAsync())
+        {
+            await using var transaction = await disabler.Database.BeginTransactionAsync();
+            await disabler.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.CapabilityId == capability)
+                .ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            var waitingClaim = claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "key", new byte[32], default);
+            await Task.Delay(100);
+            Assert.False(waitingClaim.IsCompleted);
+            await transaction.CommitAsync();
+            Assert.Equal("unavailable", (await waitingClaim).Status);
+        }
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            await db.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.CapabilityId == capability).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            await db.TenantEntitlements.Where(x => x.TenantId == tenant.Id && x.CapabilityId == capability).ExecuteUpdateAsync(x => x.SetProperty(y => y.PlanGranted, false));
+        }
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "key", new byte[32], default)).Status);
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.TenantEntitlements.Where(x => x.TenantId == tenant.Id && x.CapabilityId == capability).ExecuteUpdateAsync(x => x.SetProperty(y => y.PlanGranted, true));
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Capabilities.Where(x => x.Id == capability).ExecuteUpdateAsync(x => x.SetProperty(y => y.Dependencies, "[\"inference.chat\"]"));
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "key", new byte[32], default)).Status);
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Capabilities.Where(x => x.Id == capability).ExecuteUpdateAsync(x => x.SetProperty(y => y.Dependencies, "[]"));
         Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, Guid.NewGuid(), app.Id, id, capability, "key", new byte[32], default)).Status);
         Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, Guid.NewGuid(), id, capability, "key", new byte[32], default)).Status);
         Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, "other", "key", new byte[32], default)).Status);
@@ -114,6 +141,7 @@ public sealed class CloudExecutionClaimPostgresTests
         var claimFirst = await Reserve();
         await using (var locker = await factory.CreateDbContextAsync())
         await using (var revoker = await factory.CreateDbContextAsync())
+        await using (var disabler = await factory.CreateDbContextAsync())
         await using (var observer = await factory.CreateDbContextAsync())
         {
             await using var transaction = await locker.Database.BeginTransactionAsync();
@@ -127,11 +155,15 @@ public sealed class CloudExecutionClaimPostgresTests
             }
             Assert.True(claimWaiting);
             var pendingRevocation = revoker.Credentials.Where(x => x.Id == secondCredential).ExecuteUpdateAsync(x => x.SetProperty(y => y.RevokedAt, DateTimeOffset.UtcNow));
+            var pendingDisable = disabler.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.CapabilityId == capability)
+                .ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
             await Task.Delay(100);
             Assert.False(pendingRevocation.IsCompleted);
+            Assert.False(pendingDisable.IsCompleted);
             await transaction.CommitAsync();
             Assert.Equal("claimed", (await pendingClaim).Status);
             Assert.Equal(1, await pendingRevocation);
+            Assert.Equal(1, await pendingDisable);
         }
     }
 

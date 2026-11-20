@@ -66,6 +66,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Expose the single-use classification claim over pinned mutual TLS with credential-derived scope and a fail-closed Node client.
 - [x] Require the original fingerprint and retained key ID when claiming, with mismatches rejected under the reservation lock.
 - [x] Order credential revocation and rotation against execution claims using a transaction-held credential lock; test both race outcomes.
+- [x] Re-evaluate locked catalog, entitlement, tenant/application selection and dependency state when claiming; test disable and claim ordering.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.

@@ -15,14 +15,18 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var credentialNow = timeProvider.GetUtcNow();
         if (credential is null || credential.RevokedAt is not null || credential.ExpiresAt is null || credential.ExpiresAt <= credentialNow ||
-            !(JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? []).Contains(capabilityId, StringComparer.Ordinal) ||
-            !await db.Applications.AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId && x.Environment == credential.Environment, cancellationToken))
+            !(JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? []).Contains(capabilityId, StringComparer.Ordinal))
             return new("unavailable");
+        var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM cloud.applications WHERE \"Id\" = {applicationId} AND \"TenantId\" = {tenantId} FOR SHARE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        if (application is null || application.Environment != credential.Environment) return new("unavailable");
+        var capabilities = await EfCloudClaimCapabilitySnapshot.LockAsync(db, tenantId, applicationId, cancellationToken);
         // Lock the reservation against both finalization and competing claims until the claim commits.
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
-        if (credential.ExpiresAt <= now || reservation is null || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
+        if (credential.ExpiresAt <= now || CloudCapabilityProjection.Application(capabilities, now).FirstOrDefault(x => x.Id == capabilityId)?.ReasonCode is not null ||
+            !capabilities.Capabilities.Any(x => x.Id == capabilityId) || reservation is null || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
             reservation.RequestFingerprint is not { Length: 32 } || !CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.CapabilityId == capabilityId, cancellationToken))
             return new("unavailable");
