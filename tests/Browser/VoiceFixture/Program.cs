@@ -14,6 +14,7 @@ const string appOrigin = "http://127.0.0.1:5187";
 const string tenant = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const string workerToken = "synthetic-worker-not-a-real-credential";
 const string todoToken = "synthetic-todo-not-a-real-credential";
+const string sessionAckType = "session-ack";
 var selfTest = args.Contains("--self-test");
 var title = "check weighbridge calibration tomorrow " + Guid.NewGuid().ToString("N")[..8];
 var raw = $"Create a toto called \"{title}\"";
@@ -66,12 +67,16 @@ app.Map("/internal/v1/realtime", async context =>
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try
     {
+        // The gateway waits for a worker acknowledgement before relaying PCM.
+        // The real worker forwards the provider's opaque first frame; this fixture owns its marker.
+        await socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new { type = sessionAckType }), WebSocketMessageType.Text, true, deadline.Token);
         while (socket.State == WebSocketState.Open)
         {
             var result = await socket.ReceiveAsync(buffer.AsMemory(), deadline.Token);
             if (result.MessageType == WebSocketMessageType.Close) break;
             if (result.MessageType == WebSocketMessageType.Binary)
             {
+                if (result.Count == 0) continue;
                 Interlocked.Add(ref state.PcmBytes, result.Count);
                 if (!sent)
                 {
@@ -186,22 +191,14 @@ if (selfTest)
         ws.Options.SetRequestHeader("Authorization", "Bearer " + workerToken);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await ws.ConnectAsync(new Uri(providerOrigin.Replace("http:", "ws:") + "/internal/v1/realtime"), timeout.Token);
+        using var acknowledgement = await ReceiveFixtureTextAsync(ws, timeout.Token);
+        if (acknowledgement.RootElement.GetProperty("type").GetString() != sessionAckType || state.ReceivedPcmBytes != 0)
+            throw new Exception("Missing initial acknowledgement before PCM");
         // Neither a substring nor a non-string type is an endStream control.
         await ws.SendAsync(Encoding.UTF8.GetBytes("{\"type\":\"not-endStream\",\"text\":\"endStream\"}"), WebSocketMessageType.Text, true, timeout.Token);
         await ws.SendAsync(Encoding.UTF8.GetBytes("{\"type\":42}"), WebSocketMessageType.Text, true, timeout.Token);
         await ws.SendAsync(new byte[] { 0, 1, 2, 3 }, WebSocketMessageType.Binary, true, timeout.Token);
-        // A tiny receive buffer forces multi-receive assembly even if frames are coalesced.
-        var bytes = new byte[7];
-        using var assembled = new MemoryStream();
-        ValueWebSocketReceiveResult result;
-        do
-        {
-            result = await ws.ReceiveAsync(bytes.AsMemory(), timeout.Token);
-            if (result.MessageType != WebSocketMessageType.Text || assembled.Length + result.Count > 4096)
-                throw new Exception("Invalid or oversized transcript");
-            assembled.Write(bytes, 0, result.Count);
-        } while (!result.EndOfMessage);
-        using var transcript = JsonDocument.Parse(assembled.ToArray());
+        using var transcript = await ReceiveFixtureTextAsync(ws, timeout.Token);
         if (transcript.RootElement.GetProperty("text").GetString() != raw) throw new Exception("Wrong raw transcript");
         using var request = new HttpRequestMessage(HttpMethod.Post, providerOrigin + "/v1/chat/completions");
         request.Headers.Authorization = new("Bearer", "synthetic-local-key");
@@ -223,13 +220,17 @@ if (selfTest)
         }
         await ws.SendAsync(Encoding.UTF8.GetBytes("{\"type\":\"end"), WebSocketMessageType.Text, false, timeout.Token);
         await ws.SendAsync(Encoding.UTF8.GetBytes("Stream\"}"), WebSocketMessageType.Text, true, timeout.Token);
-        result = await ws.ReceiveAsync(bytes.AsMemory(), timeout.Token);
+        var bytes = new byte[7];
+        var result = await ws.ReceiveAsync(bytes.AsMemory(), timeout.Token);
         if (result.MessageType != WebSocketMessageType.Close) throw new Exception("Fragmented endStream did not close");
         if (state.ClosedAt <= state.FinalAt || state.PcmBytes != 4) throw new Exception("Incorrect transport evidence");
         using var oversized = new ClientWebSocket();
         oversized.Options.Proxy = null;
         oversized.Options.SetRequestHeader("Authorization", "Bearer " + workerToken);
         await oversized.ConnectAsync(new Uri(providerOrigin.Replace("http:", "ws:") + "/internal/v1/realtime"), timeout.Token);
+        using var oversizedAcknowledgement = await ReceiveFixtureTextAsync(oversized, timeout.Token);
+        if (oversizedAcknowledgement.RootElement.GetProperty("type").GetString() != sessionAckType)
+            throw new Exception("Missing initial acknowledgement for oversized control test");
         await oversized.SendAsync(new byte[2048], WebSocketMessageType.Text, false, timeout.Token);
         await oversized.SendAsync(new byte[2049], WebSocketMessageType.Text, true, timeout.Token);
         var rejected = await oversized.ReceiveAsync(bytes.AsMemory(), timeout.Token);
@@ -294,6 +295,22 @@ try
     }
 }
 finally { temp.Delete(recursive: true); }
+
+static async Task<JsonDocument> ReceiveFixtureTextAsync(ClientWebSocket socket, CancellationToken token)
+{
+    // A tiny receive buffer forces multi-receive assembly even if frames are coalesced.
+    var bytes = new byte[7];
+    using var assembled = new MemoryStream();
+    ValueWebSocketReceiveResult result;
+    do
+    {
+        result = await socket.ReceiveAsync(bytes.AsMemory(), token);
+        if (result.MessageType != WebSocketMessageType.Text || assembled.Length + result.Count > 4096)
+            throw new Exception("Invalid or oversized fixture message");
+        assembled.Write(bytes, 0, result.Count);
+    } while (!result.EndOfMessage);
+    return JsonDocument.Parse(assembled.ToArray());
+}
 
 internal sealed class Evidence
 {

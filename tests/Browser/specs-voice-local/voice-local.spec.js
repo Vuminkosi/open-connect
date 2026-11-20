@@ -143,10 +143,16 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     await launcher.click();
     await expect(launcher).toHaveAttribute('aria-expanded', 'true');
     readiness.launcherExpanded = true;
-    await expect(page.getByRole('dialog', { name: / composer$/ })).toBeVisible();
+    const composer = page.getByRole('dialog', { name: / composer$/ });
+    await expect(composer).toBeVisible();
     readiness.dialogVisible = true;
+    readiness.stage = 'microphone-consent';
+    const micOff = composer.getByRole('button', { name: 'Turn on microphone', exact: true });
+    await expect(micOff).toBeVisible();
+    await micOff.click();
+    await expect(composer.getByRole('button', { name: 'Turn off microphone', exact: true })).toBeVisible();
     readiness.stage = 'voice';
-    await page.getByRole('button', { name: 'Voice input', exact: true }).click();
+    await composer.getByRole('button', { name: 'Voice input', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.__ocVoiceDiagnostics?.sentBytes ?? 0)).toBeGreaterThan(0);
     await expect.poll(() => page.evaluate(() => window.__ocVoiceDiagnostics?.finalTranscript ?? '')).toBe(config.raw);
     await expect.poll(() => finalFrames.some(frame => frame.text === config.raw && frame.authoritative === true)).toBe(true);
