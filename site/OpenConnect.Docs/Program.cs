@@ -19,6 +19,15 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Path = "/";
         options.LoginPath = "/cloud/sign-in";
         options.SlidingExpiration = true;
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            if (!CloudIdentity.IsEnabled(context.Principal, context.HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>().GetSection("OpenConnect:Cloud:Identity")))
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
         options.Events.OnRedirectToLogin = context =>
         {
             if (context.Request.Path.StartsWithSegments("/cloud/api/v1"))

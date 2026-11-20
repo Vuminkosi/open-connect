@@ -88,4 +88,24 @@ public sealed class CloudIdentityTests
     [InlineData("/cloudy", "/cloud")]
     public void ReturnDestinationCannotLeaveCloud(string supplied, string expected) =>
         Assert.Equal(expected, CloudIdentityEndpoints.CloudReturnUrl(supplied));
+    [Fact]
+    public void DisablingProviderRejectsExistingSessions()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Identity:Enabled"] = "true",
+            ["Identity:Authority"] = "https://issuer.example",
+            ["Identity:Google:Enabled"] = "false"
+        }).Build().GetSection("Identity");
+        var google = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, "user"),
+            new Claim(CloudIdentity.IssuerClaim, CloudIdentity.GoogleIssuer, ClaimValueTypes.String, "OpenConnect.Cloud")
+        ], "test"));
+        var legacy = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user")], "test"));
+
+        Assert.False(CloudIdentity.IsEnabled(google, configuration));
+        Assert.True(CloudIdentity.IsEnabled(legacy, configuration));
+        configuration["Enabled"] = "false";
+        Assert.False(CloudIdentity.IsEnabled(legacy, configuration));
+    }
 }

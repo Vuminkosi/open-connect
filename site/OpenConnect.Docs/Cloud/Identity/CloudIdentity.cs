@@ -27,6 +27,16 @@ public static class CloudIdentity
     public static string? GetIssuer(ClaimsPrincipal principal) =>
         principal.Claims.FirstOrDefault(claim => claim.Type == IssuerClaim && claim.Issuer == LocalClaimIssuer)?.Value;
 
+    public static bool IsEnabled(ClaimsPrincipal? principal, IConfigurationSection identity)
+    {
+        if (principal?.Identity?.IsAuthenticated != true) return false;
+        var issuer = GetIssuer(principal);
+        if (issuer is null)
+            return identity.GetValue<bool>("Enabled") && !string.IsNullOrWhiteSpace(identity["Authority"]);
+        return (identity.GetValue<bool>("Enabled") && string.Equals(issuer, identity["Authority"], StringComparison.Ordinal)) ||
+            (identity.GetValue<bool>("Google:Enabled") && string.Equals(issuer, GoogleIssuer, StringComparison.Ordinal));
+    }
+
     public static bool IsGoogle(ClaimsPrincipal principal) =>
         string.Equals(GetIssuer(principal), GoogleIssuer, StringComparison.Ordinal);
 }
