@@ -70,8 +70,14 @@ test('internal status changes remain tenant scoped', async ({ page, request }) =
   expect(denied.status()).toBe(401);
   const updated = await request.put(`/internal/openconnect/todos/${item.id}`, { headers, data: { isCompleted: true } });
   expect(updated.ok()).toBe(true);
-  const list = await request.get('/internal/openconnect/todos', { headers });
-  expect((await list.json()).find((entry) => entry.id === item.id)).toMatchObject({ isCompleted: true, revision: 1 });
+  const read = async () => (await (await request.get('/internal/openconnect/todos', { headers })).json()).find((entry) => entry.id === item.id);
+  const completed = await read();
+  expect(completed).toMatchObject({ isCompleted: true, revision: 1 });
+  expect(completed.completedAtUtc).toBeTruthy();
+  expect((await request.put(`/internal/openconnect/todos/${item.id}`, { headers, data: { isCompleted: true } })).ok()).toBe(true);
+  expect((await read()).completedAtUtc).toBe(completed.completedAtUtc);
+  expect((await request.put(`/internal/openconnect/todos/${item.id}`, { headers, data: { isCompleted: false } })).ok()).toBe(true);
+  expect(await read()).toMatchObject({ isCompleted: false, completedAtUtc: null });
   await page.goto('/');
   await expect(page.getByText('Tenant-only task', { exact: true })).toHaveCount(0);
 });

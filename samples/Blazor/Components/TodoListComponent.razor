@@ -62,6 +62,10 @@
             <input id="todo-overdue-filter" type="checkbox" @bind="_overdueOnly" @bind:after="ResetPage" />
             Overdue incomplete only
         </label>
+        <label for="todo-old-completed-filter">
+            <input id="todo-old-completed-filter" type="checkbox" @bind="_oldCompletedOnly" @bind:after="ResetPage" />
+            Completed more than 30 days ago
+        </label>
     </div>
 
     @if (_loading)
@@ -83,7 +87,7 @@
                 {
                     <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
                 }
-                else if (_overdueOnly || _priorityFilter != "all" || _activeTab != 0)
+                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _activeTab != 0)
                 {
                     <span>No tasks match the selected filters. Change the filters to see other tasks.</span>
                 }
@@ -99,7 +103,7 @@
         <MudList T="TodoItem" Dense="false" Class="pa-0">
             @foreach (var item in filteredItems.Skip((currentPage - 1) * PageSize).Take(PageSize))
             {
-                <MudListItem T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
+                <MudListItem @key="item.Id" T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
                              Style="transition: background-color 0.15s ease;">
                     <div class="d-flex align-center justify-space-between w-100 gap-2">
                         <div class="d-flex align-center" style="flex: 1; min-width: 0;">
@@ -123,6 +127,12 @@
                                     @if (item.DueDateUtc is { } dueDate)
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">Due @dueDate.ToLocalTime().ToString("yyyy-MM-dd")</MudText>
+                                    }
+                                    @if (item.IsCompleted)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @(item.CompletedAtUtc is { } completedAt ? $"Completed {completedAt.ToLocalTime():yyyy-MM-dd}" : "Completion date unavailable")
+                                        </MudText>
                                     }
                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 0.72rem;">
                                         @item.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")
@@ -210,6 +220,7 @@
     private string _sort = "priority";
     private string _priorityFilter = "all";
     private bool _overdueOnly;
+    private bool _oldCompletedOnly;
     private Guid? _editingId;
     private long _editRevision;
     private string _editTitle = string.Empty;
@@ -254,6 +265,11 @@
             {
                 var today = DateTime.Today;
                 query = query.Where(i => !i.IsCompleted && i.DueDateUtc is { } due && due.ToLocalTime().Date < today);
+            }
+            if (_oldCompletedOnly)
+            {
+                var cutoff = DateTime.UtcNow.AddDays(-30);
+                query = query.Where(i => i.IsCompleted && i.CompletedAtUtc is { } completed && completed < cutoff);
             }
 
             return (_sort == "deadline"

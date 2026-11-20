@@ -28,6 +28,7 @@ public sealed class TodoItem
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? DueDateUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
 
     public long Revision { get; set; }
 }
@@ -72,6 +73,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
                 Description = "Confirm the completed figures for the quarterly report.",
                 Priority = TodoPriority.High,
                 IsCompleted = true,
+                CompletedAtUtc = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc),
                 CreatedAtUtc = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)
             },
             new TodoItem
@@ -81,6 +83,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
                 Description = "Prepare the annual report outline.",
                 Priority = TodoPriority.Medium,
                 IsCompleted = true,
+                CompletedAtUtc = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc),
                 CreatedAtUtc = new DateTime(2026, 1, 2, 12, 0, 0, DateTimeKind.Utc)
             },
             new TodoItem
@@ -170,6 +173,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
             var item = _items.FirstOrDefault(i => i.Id == id);
             if (item == null || item.Revision == long.MaxValue)
                 return Task.FromResult(false);
+            if (item.IsCompleted != isCompleted)
+                item.CompletedAtUtc = isCompleted ? DateTime.UtcNow : null;
             item.IsCompleted = isCompleted;
             item.Revision++;
             return Task.FromResult(true);
@@ -268,6 +273,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
             var item = ForTenant(tenantId).FirstOrDefault(i => i.Id == id);
             if (item is null || item.Revision == long.MaxValue)
                 return Task.FromResult(false);
+            if (item.IsCompleted != isCompleted)
+                item.CompletedAtUtc = isCompleted ? DateTime.UtcNow : null;
             item.IsCompleted = isCompleted;
             item.Revision++;
             return Task.FromResult(true);
@@ -280,7 +287,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
             return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
     }
 
-    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc, Revision = item.Revision };
+    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc, CompletedAtUtc = item.CompletedAtUtc, Revision = item.Revision };
 }
 
 public interface ITenantTodoStore

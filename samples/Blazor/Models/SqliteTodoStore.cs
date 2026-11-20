@@ -82,9 +82,13 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         await using var serviceScope = scopes.CreateAsyncScope();
         var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
         await EnsureSeedAsync(db, scope, ct);
+        var completedAt = DateTime.UtcNow;
         return await db.Set<PersistedTodoItem>()
             .Where(item => item.Scope == scope && item.Id == id && item.Revision < long.MaxValue)
             .ExecuteUpdateAsync(update => update.SetProperty(item => item.IsCompleted, completed)
+                .SetProperty(item => item.CompletedAtUtc, item => completed
+                    ? item.IsCompleted ? item.CompletedAtUtc : completedAt
+                    : null)
                 .SetProperty(item => item.Revision, item => item.Revision + 1), ct) == 1;
     }
 
@@ -161,7 +165,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
                     IsCompleted = item.IsCompleted,
                     Priority = item.Priority,
                     CreatedAtUtc = item.CreatedAtUtc,
-                    DueDateUtc = item.DueDateUtc
+                    DueDateUtc = item.DueDateUtc,
+                    CompletedAtUtc = item.CompletedAtUtc
                 }).ToList()
             };
             db.Set<PersistedTodoScope>().Add(record);
@@ -196,6 +201,7 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         Priority = item.Priority,
         CreatedAtUtc = AsUtc(item.CreatedAtUtc),
         DueDateUtc = item.DueDateUtc is null ? null : AsUtc(item.DueDateUtc.Value),
+        CompletedAtUtc = item.CompletedAtUtc is null ? null : AsUtc(item.CompletedAtUtc.Value),
         Revision = item.Revision
     };
 
