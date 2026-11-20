@@ -71,6 +71,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Expose successful claim completion over pinned mutual TLS with a scoped Node client; keep revoked-credential and uncertain results held for recovery.
 - [x] Add a backward-compatible classification v2 envelope with a bounded deadline and enforce it through the current privacy-admission stage.
 - [x] Provide a validated, bounded request-byte processing boundary for future fingerprint admission, clearing the original buffer after success or failure; gateway quota integration remains outstanding.
+- [x] Connect validated v2 request bytes to key selection, scoped fingerprint generation and the private reservation client in a tested adapter; public routing and live adapter-to-PostgreSQL verification remain outstanding.
 - [x] Add tenant-managed region policies and require both tenant and verified catalog regions during classification deployment matching.
 - [x] Add operator-only, audited catalog region declarations with revision checks that account for older writers; declarations are not independent geographic attestation.
 - [x] Add organization and operator region policy pages with role checks, stale-write feedback and component tests; real-browser accessibility and responsive verification remain outstanding.
