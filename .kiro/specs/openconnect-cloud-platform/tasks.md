@@ -139,3 +139,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Return a generic actionable sign-in failure for OIDC callback errors without exposing provider diagnostics; verify with simulated Google callback failures.
 
 - [x] Require an allowed model and persist its identity in internal inference claims under a policy lock; worker payload binding, token accounting and gateway routing remain outstanding.
+
+- [x] Bind internal inference claims to matching model deployment, allowed region, token-unit reservation, payload fingerprint and concurrency capacity; provider verification, worker enforcement, actual token settlement and public routing remain outstanding.

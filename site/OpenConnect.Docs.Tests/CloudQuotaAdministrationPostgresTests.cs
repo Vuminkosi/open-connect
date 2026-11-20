@@ -48,6 +48,9 @@ public sealed class CloudQuotaAdministrationPostgresTests
         var classification = policy with { CapabilityId = "classification.classify", Unit = "request" };
         Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant, application, Guid.NewGuid(), classification, 0, default)).Status);
         Assert.Equal("invalid_request", (await service.PutAsync(actor, trace, tenant, application, Guid.NewGuid(), classification with { Unit = "compute" }, 0, default)).Status);
+        var inference = policy with { CapabilityId = "inference.chat", Unit = "token" };
+        Assert.Equal("succeeded", (await service.PutAsync(actor, trace, tenant, application, Guid.NewGuid(), inference, 0, default)).Status);
+        Assert.Equal("invalid_request", (await service.PutAsync(actor, trace, tenant, application, Guid.NewGuid(), inference with { Unit = "request" }, 0, default)).Status);
         await using (var db = await factory.CreateDbContextAsync())
             await db.QuotaBuckets.Where(x => x.Id == bucket).ExecuteUpdateAsync(x => x.SetProperty(y => y.Consumed, 3L).SetProperty(y => y.Reserved, 4L));
         Assert.Equal("invalid_request", (await service.PutAsync(actor, trace, tenant, application, bucket, policy with { Limit = 6 }, 1, default)).Status);
