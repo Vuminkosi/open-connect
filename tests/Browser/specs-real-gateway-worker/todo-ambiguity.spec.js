@@ -58,6 +58,8 @@ test('asks which duplicate task to complete without changing either task', async
   expect(trace).toContainEqual(expect.objectContaining({
     outcome: 'Ambiguous', code: 'text_match_ambiguous', verified: false,
   }));
+  // A denied mutation would leave the data unchanged, so also inspect requests reaching the client.
+  expect(trace.filter((item) => item.operation === 'execute' && item.action !== 'SelectTab')).toEqual([]);
   expect(answer).toMatch(/\b(two|2|multiple|duplicate|more than one)\b/i);
   expect(answer).toMatch(/\b(which|clarif\w*|specify|choose|give me)\b/i);
   expect(answer).not.toMatch(/\b(no matching|couldn.t find|no report task appeared)\b/i);
