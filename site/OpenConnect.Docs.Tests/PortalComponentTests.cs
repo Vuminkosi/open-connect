@@ -7,6 +7,19 @@ namespace OpenConnect.Docs.Tests;
 public sealed class PortalComponentTests : BunitContext
 {
     [Fact]
+    public void MarkdownRenderer_PreservesParagraphImmediatelyBeforeCode()
+    {
+        var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown,
+            "Configure the gateway:\n```csharp\nservices.AddOpenConnect();\n```"));
+
+        var article = cut.Find("article");
+        Assert.Equal("Configure the gateway:", article.QuerySelector("p")?.TextContent);
+        Assert.Equal("services.AddOpenConnect();", article.QuerySelector("pre code")?.TextContent);
+        Assert.Equal("P", article.Children[0].TagName);
+        Assert.Equal("PRE", article.Children[1].TagName);
+    }
+
+    [Fact]
     public void MarkdownRenderer_EncodesRawHtmlAndRendersHeadings()
     {
         var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown, "# Hello\n\n<script>alert(1)</script>\n\n[Safe](/docs/v1/getting-started)"));

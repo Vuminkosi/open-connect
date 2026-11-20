@@ -22,7 +22,7 @@
         {
             if (line.StartsWith("```") && !inCode)
             {
-                FlushParagraph(paragraph);
+                foreach (var block in FlushParagraph(paragraph)) yield return block;
                 paragraph.Clear(); inCode = true; code.Clear(); continue;
             }
             if (line.StartsWith("```") && inCode)
