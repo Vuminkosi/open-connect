@@ -53,6 +53,7 @@
                     @if (tenant.Role is "Owner" or "Administrator" or "BillingReader")
                     {
                         <a href="/cloud/tenants/@tenant.Id/quotas">Quotas</a>
+                        <a href="/cloud/tenants/@tenant.Id/usage">Usage</a>
                     }
                     @if (tenant.Role is "Owner" or "Administrator")
                     {

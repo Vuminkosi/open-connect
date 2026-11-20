@@ -1,0 +1,128 @@
+@page "/cloud/tenants/{TenantId:guid}/usage"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using System.Globalization
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantUsage> Logger
+
+<PageTitle>Usage | OpenConnect Cloud</PageTitle>
+<h1>Recorded usage</h1>
+<p>These are finalized quota ledger entries, including zero-quantity releases. They are not invoices or prices, and do not include unfinalized reservations or all provider usage. Times are in UTC.</p>
+<div class="security-filter">
+    <label for="usage-from">From date (UTC)</label><input id="usage-from" type="date" value="@_fromDate" @onchange="e => _fromDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />
+    <label for="usage-to">Through date (UTC)</label><input id="usage-to" type="date" value="@_toDate" @onchange="e => _toDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />
+    <button class="button" type="button" disabled="@(!_interactive || _loading)" @onclick="ApplyDatesAsync">Apply dates</button>
+</div>
+@if (_loading) { <p role="status">Loading usage records...</p> }
+else if (_status is not null) { <p role="status">@_status</p> }
+else if (_page is not null)
+{
+    @if (_page.Entries.Count == 0) { <p>No recorded usage was found for this period.</p> }
+    else
+    {
+        <div class="cloud-capabilities">
+            @foreach (var entry in _page.Entries)
+            {
+                <article class="quota-card">
+                    <h2>@(entry.CapabilityId ?? "Unknown capability")</h2>
+                    <dl>
+                        <dt>Recorded at (UTC)</dt><dd>@entry.RecordedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        <dt>Application ID</dt><dd><code>@entry.ApplicationId</code></dd>
+                        <dt>Quantity</dt><dd>@entry.Quantity @(entry.Unit ?? "unknown unit")</dd>
+                        <dt>Provenance</dt><dd>@entry.Provenance</dd>
+                        <dt>Request ID</dt><dd><code>@entry.RequestId</code></dd>
+                    </dl>
+                </article>
+            }
+        </div>
+    }
+    <nav aria-label="Usage record pages">
+        <button class="button" type="button" disabled="@(!_interactive || _loading || _pageIndex == 0)" @onclick="PreviousAsync">Previous</button>
+        <button class="button" type="button" disabled="@(!_interactive || _loading || _page.Next is null)" @onclick="NextAsync">Next</button>
+    </nav>
+}
+<p><a href="/cloud">Back to organizations</a></p>
+
+@code {
+    private const int PageSize = 20;
+    [Parameter] public Guid TenantId { get; set; }
+    private CloudUsagePage? _page;
+    private readonly List<CloudUsageCursor?> _history = [null];
+    private int _pageIndex, _generation;
+    private bool _loading = true, _interactive;
+    private string? _status, _fromDate, _toDate;
+    private DateTimeOffset? _from, _to;
+
+    protected override Task OnParametersSetAsync()
+    {
+        _fromDate = _toDate = null; _from = _to = null;
+        _history.Clear(); _history.Add(null); _pageIndex = 0;
+        return LoadAsync(null, 0);
+    }
+
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    private async Task ApplyDatesAsync()
+    {
+        if (!TryDate(_fromDate, out var from) || !TryDate(_toDate, out var through) ||
+            through == DateOnly.MaxValue || from is not null && through is not null && from > through)
+        { _page = null; _status = "Enter a valid UTC date range."; return; }
+        _from = from is null ? null : new DateTimeOffset(from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        _to = through is null ? null : new DateTimeOffset(through.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        _history.Clear(); _history.Add(null); _pageIndex = 0;
+        await LoadAsync(null, 0);
+    }
+
+    private static bool TryDate(string? value, out DateOnly? result)
+    {
+        result = null;
+        if (string.IsNullOrEmpty(value)) return true;
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        result = date; return true;
+    }
+
+    private Task PreviousAsync() => _pageIndex > 0 ? LoadAsync(_history[_pageIndex - 1], _pageIndex - 1) : Task.CompletedTask;
+    private Task NextAsync()
+    {
+        if (_page?.Next is not { } next) return Task.CompletedTask;
+        if (_history.Count > _pageIndex + 1) _history.RemoveRange(_pageIndex + 1, _history.Count - _pageIndex - 1);
+        _history.Add(next);
+        return LoadAsync(next, _pageIndex + 1);
+    }
+
+    private async Task LoadAsync(CloudUsageCursor? cursor, int pageIndex)
+    {
+        var generation = ++_generation; var tenantId = TenantId;
+        _loading = true; _status = null; _page = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudUsageQueryService)) as CloudUsageQueryService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var subject = CloudIdentity.IsEnabled(authentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
+            CloudUsagePage? page = null; string? status = null;
+            if (service is null) status = "The Cloud control plane is not configured.";
+            else if (subject is null) status = "The authenticated identity is missing a subject.";
+            else
+            {
+                page = await service.GetTenantAsync(subject, tenantId, _from, _to, cursor, PageSize, CancellationToken.None);
+                if (page is null) status = "The organization was not found or your role does not allow usage access.";
+            }
+            if (generation != _generation) return;
+            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; status = "The authenticated identity is no longer available."; }
+            _page = page; _pageIndex = pageIndex; _status = status;
+        }
+        catch (Exception)
+        {
+            if (generation != _generation) return;
+            Logger.LogWarning("Cloud usage lookup failed.");
+            _status = "Usage records are temporarily unavailable.";
+        }
+        finally { if (generation == _generation) _loading = false; }
+    }
+}
