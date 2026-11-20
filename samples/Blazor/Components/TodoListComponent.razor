@@ -1,6 +1,7 @@
 @using OpenConnect.Samples.Blazor.Models
 @inject ITodoStore Store
 @inject ISnackbar Snackbar
+@inject IDialogService Dialogs
 @inject ILogger<TodoListComponent> Logger
 
 @{
@@ -309,8 +310,16 @@
 
     private async Task OnDeleteAsync(TodoItem item)
     {
-        var deleted = await Store.DeleteAsync(item.Id);
-        Snackbar.Add(deleted ? $"Task \"{item.Title}\" deleted" : "The task no longer exists.", deleted ? Severity.Info : Severity.Warning);
+        var confirmed = await Dialogs.ShowMessageBox("Delete task?", $"Delete task \"{item.Title}\"?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed != true) return;
+        var result = await Store.DeleteIfUnchangedAsync(item.Id, item.Revision);
+        Snackbar.Add(result switch
+        {
+            TodoDeleteResult.Deleted => $"Task \"{item.Title}\" deleted",
+            TodoDeleteResult.Conflict => "The task changed. Review the latest version before deleting it.",
+            _ => "The task no longer exists."
+        }, result == TodoDeleteResult.Deleted ? Severity.Info : Severity.Warning);
         await LoadItemsAsync();
     }
 

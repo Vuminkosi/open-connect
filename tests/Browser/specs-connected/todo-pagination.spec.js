@@ -44,6 +44,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '
     await pages.getByRole('combobox', { name: 'Task page' }).selectOption('5');
     await expect(page.locator('.mud-list-item')).toHaveCount(1);
     await page.getByRole('button', { name: 'Delete task' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(pages).toContainText('Page 4 of 4');
     await expect(next).toBeDisabled();
   });

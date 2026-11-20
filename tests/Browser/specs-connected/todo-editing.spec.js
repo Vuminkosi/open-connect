@@ -47,6 +47,7 @@ test('editing preserves newer changes and reports a deleted task', async ({ page
   await page.locator('#edit-task-title').fill('Do not restore deleted task');
   await other.reload();
   await other.locator('.mud-list-item').filter({ hasText: 'Updated task' }).getByRole('button', { name: 'Delete task' }).click();
+  await other.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(other.getByText('Updated task', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'no longer exists' })).toBeVisible();

@@ -25,6 +25,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         UpdateStatusCoreAsync(TenantScope(tenantId), id, isCompleted, ct);
     public Task<TodoEditResult> EditAsync(Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct = default) =>
         EditCoreAsync(LocalScope, id, expectedRevision, edit, ct);
+    public Task<TodoDeleteResult> DeleteIfUnchangedAsync(Guid id, long expectedRevision, CancellationToken ct = default) =>
+        DeleteIfUnchangedCoreAsync(LocalScope, id, expectedRevision, ct);
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default) => DeleteCoreAsync(LocalScope, id, ct);
     public Task<bool> DeleteAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
         DeleteCoreAsync(TenantScope(tenantId), id, ct);
@@ -119,6 +121,22 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         db.Remove(row);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private async Task<TodoDeleteResult> DeleteIfUnchangedCoreAsync(string scope, Guid id, long expectedRevision, CancellationToken ct)
+    {
+        if (expectedRevision < 0)
+            throw new ArgumentOutOfRangeException(nameof(expectedRevision));
+        await using var serviceScope = scopes.CreateAsyncScope();
+        var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
+        await EnsureSeedAsync(db, scope, ct);
+        var deleted = await db.Set<PersistedTodoItem>()
+            .Where(item => item.Scope == scope && item.Id == id && item.Revision == expectedRevision)
+            .ExecuteDeleteAsync(ct);
+        if (deleted == 1)
+            return TodoDeleteResult.Deleted;
+        return await db.Set<PersistedTodoItem>().AsNoTracking().AnyAsync(item => item.Scope == scope && item.Id == id, ct)
+            ? TodoDeleteResult.Conflict : TodoDeleteResult.NotFound;
     }
 
     private async Task EnsureSeedAsync(BlazorDbContext db, string scope, CancellationToken ct)

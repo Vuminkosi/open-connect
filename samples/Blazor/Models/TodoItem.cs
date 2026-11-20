@@ -35,6 +35,7 @@ public sealed class TodoItem
 public sealed record TodoEdit(string Title, string? Description, TodoPriority Priority, DateTime? DueDateUtc);
 
 public enum TodoEditResult { Updated, Conflict, NotFound }
+public enum TodoDeleteResult { Deleted, Conflict, NotFound }
 
 public interface ITodoStore
 {
@@ -43,6 +44,7 @@ public interface ITodoStore
     Task<TodoItem> AddAsync(string title, string? description = null, TodoPriority priority = TodoPriority.Medium, DateTime? dueDate = null, CancellationToken ct = default);
     Task<bool> UpdateStatusAsync(Guid id, bool isCompleted, CancellationToken ct = default);
     Task<TodoEditResult> EditAsync(Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct = default);
+    Task<TodoDeleteResult> DeleteIfUnchangedAsync(Guid id, long expectedRevision, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
@@ -211,6 +213,22 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
         lock (_lock)
         {
             return Task.FromResult(_items.RemoveAll(i => i.Id == id) > 0);
+        }
+    }
+
+    public Task<TodoDeleteResult> DeleteIfUnchangedAsync(Guid id, long expectedRevision, CancellationToken ct = default)
+    {
+        if (expectedRevision < 0)
+            throw new ArgumentOutOfRangeException(nameof(expectedRevision));
+        lock (_lock)
+        {
+            var item = _items.FirstOrDefault(i => i.Id == id);
+            if (item is null)
+                return Task.FromResult(TodoDeleteResult.NotFound);
+            if (item.Revision != expectedRevision)
+                return Task.FromResult(TodoDeleteResult.Conflict);
+            _items.Remove(item);
+            return Task.FromResult(TodoDeleteResult.Deleted);
         }
     }
 
