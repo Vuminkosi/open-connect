@@ -175,6 +175,13 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return withMeasurements(result("Completed", "highlight_cleared", true, "cleared"), 0, actionStartedAt);
   }
   if (!target) return result("Failed", "target_missing");
+  const requestedState = action.parameters?.stateName;
+  if (["Click", "Open", "Close"].includes(action.type) && requestedState == null && action.parameters?.stateValue != null)
+    return result("Failed", "state_name_required");
+  if (["Click", "Open", "Close", "WaitForState"].includes(action.type) && requestedState != null) {
+    const validationError = validateState(requestedState, action.parameters?.stateValue);
+    if (validationError) return result("Failed", validationError);
+  }
   const resolutionStartedAt = performance.now();
   const resolution = resolveTarget(target, enableRuntimeFallback, route);
   const targetResolutionMilliseconds = performance.now() - resolutionStartedAt;
@@ -591,9 +598,16 @@ function inspect(element, target) {
   return result("Completed", "inspection_verified", true, "control_visible");
 }
 
+function validateState(name, expected) {
+  if (["textContains", "textNotContains"].includes(name))
+    return typeof expected === "string" && normalize(expected) ? null : "state_value_invalid";
+  if (!["selected", "checked", "expanded", "visible", "exists"].includes(name)) return "state_name_invalid";
+  return expected == null || expected === "true" || expected === "false" ? null : "state_value_invalid";
+}
+
 function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs, initialElement = null) {
-  if ((name === "textContains" || name === "textNotContains") &&
-      (typeof expected !== "string" || !normalize(expected))) return result("Failed", "state_value_invalid");
+  const validationError = validateState(name, expected);
+  if (validationError) return result("Failed", validationError);
   const observeRemoval = name === "exists" && expected === "false";
   const observeHidden = name === "visible" && expected === "false";
   // A missing initial target or an inferred list cannot establish a known node's hidden or removed state.
