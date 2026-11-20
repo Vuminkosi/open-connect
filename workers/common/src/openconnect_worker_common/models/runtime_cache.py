@@ -129,6 +129,13 @@ def _is_safe_relative_path(base_dir: Path, relative_path: str) -> bool:
         return False
     try:
         resolved_base = base_dir.resolve()
+        current = base_dir
+        if current.is_symlink():
+            return False
+        for part in parts:
+            current = current / part
+            if current.is_symlink():
+                return False
         candidate = (resolved_base / relative_path).resolve()
         candidate.relative_to(resolved_base)
     except ValueError:
@@ -608,6 +615,8 @@ class RuntimeModelCacheManager:
                     target_file.parent.mkdir(parents=True, exist_ok=True)
                     downloads += 1
                     asset_fetcher(asset, target_file)
+                    if not _is_safe_relative_path(staging_assets, asset.relativePath):
+                        raise ValueError(f"unsafe fetched asset: {asset.relativePath!r}")
                     if not target_file.is_file():
                         raise OSError(f"fetcher did not create {asset.relativePath}")
                     stat = target_file.stat()

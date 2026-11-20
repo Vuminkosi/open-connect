@@ -77,6 +77,45 @@ def _forbid_network(_asset: RuntimeModelAsset, _target: Path) -> None:
     raise AssertionError("network download must not be called in offline / cache-hit scenario")
 
 
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+
+def test_fetcher_cannot_provision_symlink_asset(tmp_path: Path) -> None:
+    manifest, blobs = _manifest_and_blobs()
+    source = tmp_path / "source"
+    source.write_bytes(blobs["model.safetensors"])
+    manager = RuntimeModelCacheManager(tmp_path / "cache", "kokoro")
+
+    def fetch(asset: RuntimeModelAsset, target: Path) -> None:
+        _symlink_or_skip(target, source)
+
+    result = manager.provision_or_verify(manifest, asset_fetcher=fetch)
+
+    assert not result.ready
+    assert result.reason == "provision_failed"
+
+
+def test_cached_asset_symlink_is_not_ready(tmp_path: Path) -> None:
+    manifest, blobs = _manifest_and_blobs()
+    manager = RuntimeModelCacheManager(tmp_path / "cache", "kokoro")
+    result = manager.provision_or_verify(manifest, asset_fetcher=_make_fetcher(blobs, []))
+    assert result.ready and result.revision_dir is not None
+    asset = result.revision_dir / "assets" / "model.safetensors"
+    source = result.revision_dir / "assets" / "copy"
+    source.write_bytes(asset.read_bytes())
+    asset.unlink()
+    _symlink_or_skip(asset, source)
+
+    checked = manager.verify_for_request(manifest)
+
+    assert not checked.ready
+    assert checked.reason == "cache_corrupt"
+
+
 # Scenario 1: Image build with empty cache & Dockerfile audit
 @pytest.mark.parametrize("worker", EIGHT_PYTHON_WORKERS)
 def test_scenario_01_dockerfile_no_build_downloads(worker: str) -> None:
