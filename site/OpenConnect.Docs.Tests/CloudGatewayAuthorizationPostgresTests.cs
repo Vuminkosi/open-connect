@@ -90,6 +90,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
             builder.Services.AddScoped<CloudExecutionClaimService>();
+            builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
+            builder.Services.AddScoped<CloudExecutionCompletionService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
             var evidenceStore = new SwitchableEvidenceStore(new EfCloudPrivacyEvidenceStore(factory, TimeProvider.System));
             builder.Services.AddSingleton<ICloudPrivacyEvidenceStore>(evidenceStore);
@@ -100,6 +102,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             app.MapCloudFingerprintKeyLookup(trust, databaseConfigured: true);
             app.MapCloudClassificationQuota(trust, databaseConfigured: true);
             app.MapCloudClassificationClaim(trust, databaseConfigured: true);
+            app.MapCloudClassificationCompletion(trust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -185,6 +188,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var completed = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, claim.ClaimId.Value, "completed", CancellationToken.None)));
             Assert.Single(completed, x => x.Status == "completed");
             Assert.Equal(7, completed.Count(x => x.Status == "already_completed"));
+            Assert.Equal("already_completed", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, claim.ClaimId.Value)).Status);
+            Assert.Equal("unavailable", (await NodeCompleteAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, claim.ClaimId.Value)).Status);
             Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, claim.ClaimId.Value, "failed", CancellationToken.None)).Status);
             await using (var db = await factory.CreateDbContextAsync())
             {
@@ -206,6 +211,27 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 Assert.False(await db.UsageRecords.AnyAsync(x => x.ReservationId == failedReservation.ReservationId.Value));
                 Assert.Null((await db.QuotaReservations.SingleAsync(x => x.Id == failedReservation.ReservationId.Value)).FinalizedAt);
             }
+            var nodeReservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
+            Assert.Equal("reserved", nodeReservation.Status);
+            var nodeClaim = await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId!.Value);
+            Assert.Equal("claimed", nodeClaim.Status);
+            var completionPath = $"/cloud/internal/v1/classification/quota/reservations/{nodeReservation.ReservationId:D}/claims/{nodeClaim.ClaimId:D}/completion";
+            async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, completionPath) { Content = body };
+                if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                return await client.SendAsync(request);
+            }
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Complete(anonymous, classificationCredential.Secret)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await Complete(authorized, issued.Secret)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await Complete(authorized, classificationCredential.Secret, new StringContent("unexpected"))).StatusCode);
+            Assert.Equal("unavailable", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, otherCredential.Secret!, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.CapabilityId == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.Equal("completed", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId.Value, nodeClaim.ClaimId.Value)).Status);
+            Assert.Equal("already_completed", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId.Value, nodeClaim.ClaimId.Value)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.CapabilityId == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
             var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
             Assert.Equal("found", keyLookup.Status);
             Assert.Equal("retained_key", keyLookup.KeyId);
@@ -299,6 +325,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
             Assert.Equal(HttpStatusCode.Unauthorized, (await Reserve(authorized, classificationCredential.Secret, reservationBody)).StatusCode);
             Assert.Equal(HttpStatusCode.Unauthorized, (await Claim(authorized, classificationCredential.Secret)).StatusCode);
+            Assert.Equal("unavailable", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId.Value, nodeClaim.ClaimId.Value)).Status);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Complete(authorized, classificationCredential.Secret)).StatusCode);
         }
         finally
         {
@@ -336,6 +364,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:process.env.OC_TEST_DEPLOYMENT,fingerprint:Buffer.alloc(32).toString('base64')})));";
         var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), keyId);
         return System.Text.Json.JsonSerializer.Deserialize<CloudExecutionClaimResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<CloudExecutionCompletionResult> NodeCompleteAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, Guid claimId)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.completeClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,process.env.OC_TEST_DEPLOYMENT)));";
+        var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), claimId.ToString("D"));
+        return System.Text.Json.JsonSerializer.Deserialize<CloudExecutionCompletionResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
     private static async Task<CloudQuotaResult> NodeReserveFromLookupAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid requestId)
