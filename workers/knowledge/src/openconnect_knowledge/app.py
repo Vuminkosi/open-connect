@@ -67,6 +67,8 @@ class ExecuteRequest(BaseModel):
 def _load_engine() -> OnnxEmbeddingEngine | None:
     if os.environ.get("OC_KNOWLEDGE_ENABLED", "false").lower() != "true":
         return None
+    if os.environ.get("OC_MODEL_PROVISIONING", "first-start-if-missing") == "disabled":
+        return None
     if os.environ.get("OC_WORKER_ENGINE", "real").lower() != "real":
         return None
     try:

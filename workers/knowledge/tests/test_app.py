@@ -80,3 +80,16 @@ def test_disabled_does_not_load_or_advertise_model(monkeypatch, tmp_path):
         assert client.get("/internal/v1/capabilities", headers={
             "Authorization": "Bearer test-token"}).json() == {"capabilities": []}
     assert not (tmp_path / "absent").exists()
+
+
+def test_disabled_provisioning_does_not_load_existing_cache(cached_model, monkeypatch):
+    cache, _, _ = cached_model
+    monkeypatch.setenv("OC_KNOWLEDGE_ENABLED", "true")
+    monkeypatch.setenv("OC_MODEL_PROVISIONING", "disabled")
+    monkeypatch.setenv("OC_MODEL_CACHE_DIR", str(cache.cache_root))
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "test-token")
+    monkeypatch.setenv("OPENCONNECT_WORKER_SIGNING_KEY", KEY.hex())
+    with TestClient(app) as client:
+        assert client.get("/health/ready").status_code == 503
+        assert client.get("/internal/v1/capabilities", headers={
+            "Authorization": "Bearer test-token"}).json() == {"capabilities": []}
