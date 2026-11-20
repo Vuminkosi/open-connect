@@ -63,6 +63,41 @@ services:
     networks:
       - oc-network
 
+  # Dedicated Cloud inference is private, opt-in and requires deployment-owned certificates.
+  cloud-inference-worker:
+    profiles: ["cloud-inference"]
+    build:
+      context: .
+      dockerfile: cloud/inference-worker/Dockerfile
+    image: openconnect-cloud-inference-worker:${OC_IMAGE_TAG:-e2e-local}
+    environment:
+      OPENCONNECT_CLOUD_INFERENCE_ENABLED: "true"
+      OC_WORKER_ENGINE: real
+      OPENCONNECT_FAKE_ENGINE: "0"
+      OPENCONNECT_WORKER_TOKEN_FILE: /run/openconnect-cloud/worker-token
+      OPENCONNECT_CLOUD_AUTHORITY_ORIGIN: ${CLOUD_AUTHORITY_ORIGIN:-}
+      OPENCONNECT_CLOUD_AUTHORITY_CA_FILE: /run/openconnect-cloud/authority-ca.crt
+      OPENCONNECT_CLOUD_WORKER_CERT_FILE: /run/openconnect-cloud/authority-client.crt
+      OPENCONNECT_CLOUD_WORKER_KEY_FILE: /run/openconnect-cloud/authority-client.key
+      OPENCONNECT_CLOUD_MODEL_PATH: ${CLOUD_INFERENCE_MODEL_PATH:-}
+      OPENCONNECT_CLOUD_MODEL_ID: ${CLOUD_INFERENCE_MODEL_ID:-}
+      OPENCONNECT_CLOUD_MODEL_REVISION: ${CLOUD_INFERENCE_MODEL_REVISION:-}
+      OPENCONNECT_CLOUD_MODEL_DIGEST: ${CLOUD_INFERENCE_MODEL_DIGEST:-}
+      OPENCONNECT_CLOUD_MODEL_FORMAT: ${CLOUD_INFERENCE_MODEL_FORMAT:-}
+      OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED: ${CLOUD_INFERENCE_MODEL_LICENSE_ACCEPTED:-false}
+      OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED: ${CLOUD_INFERENCE_MODEL_ARTIFACT_REVIEWED:-false}
+      OPENCONNECT_CLOUD_MODEL_CONTEXT_TOKENS: ${CLOUD_INFERENCE_MODEL_CONTEXT_TOKENS:-4096}
+      OPENCONNECT_CLOUD_MODEL_THREADS: ${CLOUD_INFERENCE_MODEL_THREADS:-2}
+    volumes:
+      - oc_liveui_models:/models:ro
+      - ${CLOUD_INFERENCE_WORKER_SECRETS_DIR:-./cloud/inference-worker/secrets}:/run/openconnect-cloud:ro
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    networks: [oc-network]
+
   # Cloud data plane is separate from the sample application gateway.
   cloud-gateway:
     build:

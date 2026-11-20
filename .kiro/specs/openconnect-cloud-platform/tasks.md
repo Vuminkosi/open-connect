@@ -185,3 +185,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Connect the opt-in, non-streaming inference route to authenticated readiness, bounded request admission, claimed execution and output inspection; real end-to-end acceptance and streaming remain outstanding.
 
 - [x] Support a bounded mounted secret file for private inference worker authentication; mutual-TLS worker deployment and full-system validation remain outstanding.
+
+- [x] Define an opt-in mutual-TLS Cloud inference worker in the root Compose stack with a read-only model and secret mounts; real gateway-to-worker acceptance remains outstanding.
