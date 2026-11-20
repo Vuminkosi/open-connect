@@ -10,6 +10,18 @@ test('liveness responds independently of Cloud dependencies', async () => {
     assert.equal((await result.json()).status, 'live');
 });
 
+test('readiness fails closed even when authorization is configured', async () => {
+    let calls = 0;
+    const authorization = { authorize: async () => { calls++; return { authorized: true }; } };
+    for (const options of [{}, { authorization }]) {
+        const result = await handle(new Request('http://localhost/health/ready'), options);
+        assert.equal(result.status, 503);
+        assert.equal(result.headers.get('cache-control'), 'no-store');
+        assert.equal((await result.json()).code, 'capability_unavailable');
+    }
+    assert.equal(calls, 0);
+});
+
 test('local adapter denies TRACE without crashing the server', async () => {
     const server = createLocalServer();
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

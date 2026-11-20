@@ -33,6 +33,9 @@ export async function handle(request, { authorization } = {}) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
+    // Authorization alone is insufficient: dispatch, privacy, and quota gates are not connected.
+    if (request.method === 'GET' && url.pathname === '/health/ready')
+        return problem('capability_unavailable');
     if (!authorization) return problem('capability_unavailable');
     const capability = request.method === 'POST' && !url.search ? routes.get(url.pathname) : undefined;
     if (!capability) return problem('invalid_request');
