@@ -1,3 +1,9 @@
+import json
+from dataclasses import asdict
+from pathlib import Path
+
+from jsonschema import Draft202012Validator
+
 from openconnect_document_intelligence.fields import extract_field_candidates
 from openconnect_document_intelligence.ocr import OcrPage, WordSpan
 
@@ -41,3 +47,16 @@ def test_field_count_is_bounded_and_signals_truncation(monkeypatch):
     result = extract_field_candidates((source,))
     assert len(result.fields) == 1
     assert result.warnings == ("field_limit_reached",)
+
+
+def test_shared_response_fixture_matches_python_field_extraction():
+    root = Path(__file__).resolve().parents[3]
+    fixture = json.loads((root / "contracts/fixtures/valid/document-fields-response.json").read_text(encoding="utf-8"))
+    schema = json.loads((root / "contracts/jsonschema/document-fields-response.json").read_text(encoding="utf-8"))
+    Draft202012Validator(schema).validate(fixture)
+    fixture_page = fixture["result"]["pages"][0]
+    source = OcrPage(fixture_page["text"], fixture_page["width"], fixture_page["height"],
+        tuple(WordSpan(**span) for span in fixture_page["spans"]), fixture_page["model_id"],
+        fixture_page["model_fingerprint"], fixture_page["language"])
+    actual = json.loads(json.dumps(asdict(extract_field_candidates((source,)))))
+    assert actual == {"fields": fixture["result"]["fields"], "warnings": fixture["result"]["warnings"]}

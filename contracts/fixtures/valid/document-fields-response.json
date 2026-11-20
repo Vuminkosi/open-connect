@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "fixture-task",
+  "kind": "documents.fields",
+  "result": {
+    "pages": [{
+      "text": "名😀: 42",
+      "width": 100,
+      "height": 50,
+      "model_id": "fixture/model",
+      "model_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "language": "eng",
+      "spans": [
+        {"text": "名😀:", "start": 0, "end": 3, "box": [0.0, 0.0, 0.5, 1.0], "confidence": 0.9},
+        {"text": "42", "start": 4, "end": 6, "box": [0.5, 0.0, 1.0, 1.0], "confidence": 0.7}
+      ]
+    }],
+    "fields": [{
+      "page_index": 0,
+      "label": "名😀",
+      "value": "42",
+      "label_start": 0,
+      "label_end": 2,
+      "value_start": 4,
+      "value_end": 6,
+      "label_span_indexes": [0],
+      "value_span_indexes": [1],
+      "minimum_ocr_confidence": 0.7
+    }],
+    "warnings": []
+  }
+}
