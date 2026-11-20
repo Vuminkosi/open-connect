@@ -8,6 +8,11 @@
 <section aria-labelledby="invite-heading">
     <h2 id="invite-heading">Invite a member</h2>
     <p>Enter the person's subject from the configured identity provider. Share the resulting code through a trusted channel.</p>
+    <label for="invite-provider">Identity provider</label>
+    <select id="invite-provider" @bind="_provider" disabled="@(!Enabled || _busy)">
+        @if (Configuration.GetValue<bool>("OpenConnect:Cloud:Identity:Enabled")) { <option value="oidc">Identity provider</option> }
+        @if (Configuration.GetValue<bool>("OpenConnect:Cloud:Identity:Google:Enabled")) { <option value="google">Google</option> }
+    </select>
     <label for="invite-subject">Identity provider subject</label>
     <input id="invite-subject" @bind="_subjectId" maxlength="1024" disabled="@(!Enabled || _busy)" />
     <label for="invite-role">Role</label>
@@ -57,6 +62,7 @@
     [Parameter] public Guid TenantId { get; set; }
     [Parameter] public bool Enabled { get; set; }
     private string? _subjectId;
+    private string _provider = "";
     private string _role = "Developer";
     private string? _code;
     private string? _status;
@@ -72,6 +78,7 @@
     {
         if (_currentTenantId == TenantId) return;
         _currentTenantId = TenantId;
+        _provider = Configuration.GetValue<bool>("OpenConnect:Cloud:Identity:Enabled") ? "oidc" : "google";
         _generation++; _code = null; _status = null; _subjectId = null; _role = "Developer";
         _confirmRevoke = null; _invitations = [];
         await ReloadAsync(_generation);
@@ -85,6 +92,7 @@
         var tenantId = TenantId;
         var subjectId = _subjectId;
         var role = _role;
+        var provider = _provider;
         _busy = true; _status = null; _code = null;
         try
         {
@@ -94,7 +102,7 @@
             var issuer = Configuration["OpenConnect:Cloud:Identity:Authority"];
             var actor = CloudSubjectResolver.FromPrincipal(authentication.User, issuer);
             if (service is null || actor is null) { _status = "Invitation service is unavailable."; return; }
-            var result = await service.CreateAsync(actor, tenantId, new CreateCloudInvitationRequest(issuer, subjectId, role), CancellationToken.None);
+            var result = await service.CreateAsync(actor, tenantId, new CreateCloudInvitationRequest(provider == "google" ? CloudIdentity.GoogleIssuer : issuer, subjectId, role), CancellationToken.None);
             if (generation != _generation) return;
             if (result.Status == "succeeded") { _code = result.Code; _expiresAt = result.ExpiresAt; await ReloadAsync(generation); }
             else _status = result.Status switch

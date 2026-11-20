@@ -15,6 +15,7 @@ public static class CloudSubjectResolver
 {
     public static CloudSubject? FromPrincipal(ClaimsPrincipal principal, string? issuer)
     {
+        issuer = CloudIdentity.GetIssuer(principal) ?? issuer;
         var subjectId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
         return string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(subjectId)
             ? null

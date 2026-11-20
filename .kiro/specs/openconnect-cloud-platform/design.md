@@ -16,11 +16,11 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 ## OC-CLOUD-ADR-002: External OIDC with server-side session cookie
 
-**Decision:** Cloud identity is opt-in configuration. When enabled, use external OIDC authorization code flow with PKCE and a `__Host-` HttpOnly, Secure, SameSite=Lax session cookie. Do not add local password authentication. Sign-out is an authenticated, antiforgery-protected POST and also ends the OIDC session.
+**Decision:** Cloud identity is opt-in configuration. When enabled, use external OIDC authorization code flow with PKCE and a `__Host-` HttpOnly, Secure, SameSite=Lax session cookie. Do not add local password authentication. Sign-out is an authenticated, antiforgery-protected POST. Generic OIDC sign-out also ends the provider session; Google sign-out ends the Cloud session only.
 
 **Rationale:** The Cloud portal must not invent password handling, expose provider credentials to browser assets, or weaken public documentation availability.
 
-**Configuration:** `OpenConnect:Cloud:Identity:Enabled`, `Authority`, `ClientId`, and `ClientSecret`. Supply the client secret through the deployment's secret store. Enabling identity with any required value absent fails startup. With identity disabled, Cloud sign-in returns service unavailable and no Cloud identity is asserted.
+**Configuration:** `OpenConnect:Cloud:Identity:Enabled`, `Authority`, `ClientId`, and `ClientSecret`. Supply the client secret through the deployment's secret store. Enabling identity with any required value absent fails startup. Google sign-in can be independently enabled with `OpenConnect:Cloud:Identity:Google:Enabled`, `Google:ClientId`, and `Google:ClientSecret`. Register `/cloud/signin-google` as an exact authorized redirect URI on the public HTTPS origin. The Google issuer is `https://accounts.google.com`; validated subjects remain separated by issuer. Existing OIDC cookies without a locally stamped issuer retain their original configured authority. With both providers disabled, Cloud sign-in returns service unavailable and no Cloud identity is asserted. Google client credentials belong in the deployment secret store. Local in-process HTTP tests exercise provider selection, disabled-provider behavior, authorization redirects and PKCE with synthetic discovery metadata. Focused tests also cover issuer claim replacement and provider-scoped invitations. An authenticated Google callback, browser sign-out, and deployment remain unverified.
 
 **Status:** Implemented; external provider interoperability and production cookie behavior still require deployment-specific verification.
 
@@ -42,7 +42,7 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 ## OC-CLOUD-ADR-005: Tenant-scoped identity and initial roles
 
-**Decision:** Bind each membership to the configured OIDC authority and validated `sub` claim. Organization creation atomically makes the creating identity an `Owner`. Only `Owner` and `Administrator` may create applications. Tenant reads always filter by both tenant ID and the authenticated identity's membership; unknown and non-member tenant access returns the same not-found response.
+**Decision:** Bind each membership to its validated identity provider issuer and `sub` claim. Organization creation atomically makes the creating identity an `Owner`. Only `Owner` and `Administrator` may create applications. Tenant reads always filter by both tenant ID and the authenticated identity's membership; unknown and non-member tenant access returns the same not-found response.
 
 **Rationale:** Tenant IDs are identifiers, not credentials. Every resource read must independently establish membership, and app registration changes are privileged within a tenant.
 

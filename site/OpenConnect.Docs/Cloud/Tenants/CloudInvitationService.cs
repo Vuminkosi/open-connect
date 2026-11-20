@@ -28,7 +28,10 @@ public sealed class CloudInvitationService(ICloudInvitationStore store, IConfigu
     public async Task<CloudInvitationResult> CreateAsync(CloudSubject actor, Guid tenantId, CreateCloudInvitationRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Issuer) || request.Issuer.Length > 2048 ||
-            !string.Equals(request.Issuer, configuration["OpenConnect:Cloud:Identity:Authority"], StringComparison.Ordinal) ||
+            !((configuration.GetValue<bool>("OpenConnect:Cloud:Identity:Enabled") &&
+               string.Equals(request.Issuer, configuration["OpenConnect:Cloud:Identity:Authority"], StringComparison.Ordinal)) ||
+              (configuration.GetValue<bool>("OpenConnect:Cloud:Identity:Google:Enabled") &&
+               string.Equals(request.Issuer, CloudIdentity.GoogleIssuer, StringComparison.Ordinal))) ||
             string.IsNullOrWhiteSpace(request.SubjectId) || request.SubjectId.Length > 1024 ||
             request.Role is not ("Owner" or "Administrator" or "SecurityAnalyst" or "Developer" or "BillingReader"))
             return new("invalid_request");

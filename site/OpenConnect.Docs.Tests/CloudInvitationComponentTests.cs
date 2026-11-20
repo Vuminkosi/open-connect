@@ -40,12 +40,34 @@ public sealed class CloudInvitationComponentTests : BunitContext
         Assert.Empty(component.FindAll("#invitation-code"));
     }
 
-    private FakeStore Configure()
+    [Fact]
+    public void OwnerCanInviteGoogleSubjectWhenGoogleIsEnabled()
+    {
+        var store = Configure(googleEnabled: true);
+        var component = Render<InvitationForm>(parameters => parameters.Add(x => x.TenantId, Guid.NewGuid()).Add(x => x.Enabled, true));
+        component.Find("#invite-provider").Change("google");
+        component.Find("#invite-subject").Change("google-subject");
+        component.FindAll("button").Single(x => x.TextContent == "Create invitation").Click();
+        Assert.Equal(new CloudSubject(CloudIdentity.GoogleIssuer, "google-subject"), store.Target);
+    }
+
+    [Fact]
+    public async Task DisabledProviderCannotReceiveInvitations()
+    {
+        var store = Configure();
+        var service = Services.GetRequiredService<CloudInvitationService>();
+        var result = await service.CreateAsync(new CloudSubject("https://issuer.example", "owner"), Guid.NewGuid(),
+            new CreateCloudInvitationRequest(CloudIdentity.GoogleIssuer, "google-subject", "Developer"), CancellationToken.None);
+        Assert.Equal("invalid_request", result.Status);
+        Assert.Null(store.Target);
+    }
+
+    private FakeStore Configure(bool googleEnabled = false)
     {
         var store = new FakeStore();
         Services.AddSingleton<ICloudInvitationStore>(store);
         Services.AddSingleton(TimeProvider.System);
-        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example" }).Build());
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example", ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Google:Enabled"] = googleEnabled.ToString() }).Build());
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
         Services.AddSingleton<CloudInvitationService>();
         return store;

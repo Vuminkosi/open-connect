@@ -56,6 +56,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 var cloudOidc = builder.Configuration.GetSection("OpenConnect:Cloud:Identity");
 var cloudIdentityEnabled = cloudOidc.GetValue<bool>("Enabled");
+var googleIdentityEnabled = cloudOidc.GetValue<bool>("Google:Enabled");
 var cloudDatabaseConnection = builder.Configuration.GetConnectionString("CloudControlPlane");
 if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
 {
@@ -68,32 +69,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudCredentialService>();
     builder.Services.AddScoped<CloudReadinessService>();
 }
-if (cloudIdentityEnabled)
-{
-    var authority = cloudOidc["Authority"];
-    var clientId = cloudOidc["ClientId"];
-    var clientSecret = cloudOidc["ClientSecret"];
-    if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
-    {
-        throw new InvalidOperationException("Cloud identity is enabled but Authority, ClientId, or ClientSecret is missing.");
-    }
-
-    builder.Services.AddAuthentication(options => options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme)
-        .AddOpenIdConnect(options =>
-    {
-        options.Authority = authority;
-        options.ClientId = clientId;
-        options.ClientSecret = clientSecret;
-        options.ResponseType = "code";
-        options.UsePkce = true;
-        options.SaveTokens = false;
-        options.GetClaimsFromUserInfoEndpoint = false;
-        options.Scope.Clear();
-        options.Scope.Add("openid");
-        options.Scope.Add("profile");
-        options.CallbackPath = "/cloud/signin-oidc";
-    });
-}
+builder.Services.AddCloudIdentityProviders(cloudOidc);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -154,34 +130,7 @@ app.Use(async (context, next) =>
     }
 });
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
-app.MapGet("/cloud/sign-in", (string? returnUrl) =>
-{
-    if (!cloudIdentityEnabled)
-    {
-        return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Cloud identity is not configured.");
-    }
-
-    var destination = IsLocalCloudReturnUrl(returnUrl) ? returnUrl! : "/cloud";
-    return Results.Challenge(new Microsoft.AspNetCore.Authentication.AuthenticationProperties { RedirectUri = destination }, [OpenIdConnectDefaults.AuthenticationScheme]);
-});
-app.MapPost("/cloud/sign-out", async (HttpContext context, Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery) =>
-{
-    try
-    {
-        await antiforgery.ValidateRequestAsync(context);
-    }
-    catch (Microsoft.AspNetCore.Antiforgery.AntiforgeryValidationException)
-    {
-        return Results.BadRequest();
-    }
-
-    var properties = new AuthenticationProperties { RedirectUri = "/" };
-    if (cloudIdentityEnabled)
-    {
-        return Results.SignOut(properties, [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]);
-    }
-    return Results.SignOut(properties, [CookieAuthenticationDefaults.AuthenticationScheme]);
-}).RequireAuthorization();
+app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
 app.MapGet("/health/ready", (DocumentationContentStore store) =>
@@ -204,9 +153,3 @@ app.MapRazorComponents<OpenConnect.Docs.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-
-static bool IsLocalCloudReturnUrl(string? value) =>
-    !string.IsNullOrWhiteSpace(value) &&
-    (string.Equals(value, "/cloud", StringComparison.Ordinal) || value.StartsWith("/cloud/", StringComparison.Ordinal)) &&
-    !value.StartsWith("//", StringComparison.Ordinal) &&
-    !value.Contains('\\');

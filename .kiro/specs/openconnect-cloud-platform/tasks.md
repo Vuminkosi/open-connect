@@ -10,6 +10,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 ## Phase 1 — Protected portal and control plane
 
+- [ ] Verify Google sign-in with a configured Google OAuth client, including callback, issuer separation, and sign-out.
 - [x] Add configurable OIDC authorization-code flow with PKCE and fail-fast configuration validation.
 - [x] Add secure server-side cookie authentication and antiforgery-protected sign-out.
 - [x] Add authorized Cloud overview and separate Cloud layout without changing the public docs layout.

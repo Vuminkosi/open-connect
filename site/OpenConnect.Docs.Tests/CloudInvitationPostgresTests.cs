@@ -29,7 +29,7 @@ public class CloudInvitationPostgresTests
                 SubjectId = administrator.SubjectId, Role = "Administrator", CreatedAt = clock.Now });
             await db.SaveChangesAsync();
         }
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Authority"] = owner.Issuer }).Build();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Authority"] = owner.Issuer, ["OpenConnect:Cloud:Identity:Enabled"] = "true" }).Build();
         var service = new CloudInvitationService(new EfCloudInvitationStore(factory, clock), config, clock);
         var request = new CreateCloudInvitationRequest(target.Issuer, target.SubjectId, "Developer");
         Assert.Equal("invalid_request", (await service.CreateAsync(owner, tenant.Id, new CreateCloudInvitationRequest("https://other.example", target.SubjectId, "Developer"), CancellationToken.None)).Status);

@@ -7,6 +7,7 @@ Status: Active implementation specification. The authoritative requirements and 
 - **CLOUD-PORTAL-001:** Preserve anonymous documentation and health routes without a Cloud database, identity provider, worker, or billing service.
 - **CLOUD-PORTAL-002:** Add a separately styled Cloud area to the existing Blazor portal; public documentation remains the default layout and render mode.
 - **CLOUD-IDENTITY-001:** When explicitly enabled, authenticate Cloud users through a configured external OIDC provider using authorization code flow with PKCE and a server-side secure, HttpOnly cookie.
+- **CLOUD-IDENTITY-GOOGLE:** Support independently configurable Google OIDC sign-in alongside the generic provider and keep provider identities distinct by issuer and subject.
 - **CLOUD-IDENTITY-002:** Reject incomplete OIDC configuration at startup when Cloud identity is enabled. Do not provide a local password fallback.
 - **CLOUD-AUTHZ-001:** Require server-side authorization for Cloud pages and sign-out. Sign-out is POST-only and antiforgery protected.
 - **CLOUD-TENANT-001:** Persist organizations and memberships; organization bootstrap atomically establishes the authenticated creator as owner.
