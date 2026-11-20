@@ -92,7 +92,8 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Bind a claim to a per-request keyed worker-payload fingerprint and require a matching worker proof on consumption; verify mismatched payloads and legacy unbound claims fail closed. Gateway dispatch remains disconnected.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
-- [x] Add audited, tenant-scoped finalized usage records with UTC filters and keyset pagination in the API and organization workspace; exports, aggregates, billing and browser acceptance remain outstanding.
+- [x] Add audited, tenant-scoped finalized usage records with UTC filters and keyset pagination in the API and organization workspace; aggregates, billing and browser acceptance remain outstanding.
+- [x] Add bounded, audited usage CSV export with role checks and spreadsheet-formula protection; production browser acceptance remains outstanding.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
 - [x] Add a separate persistent deployment inventory with opaque endpoint references, model/image digest metadata, multiple deployments per capability, and optimistic revision checks.
 - [x] Add a read-only operator inventory API gated by explicitly configured, provider-bound issuer/subject identities.

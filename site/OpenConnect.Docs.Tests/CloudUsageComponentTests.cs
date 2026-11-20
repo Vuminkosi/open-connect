@@ -29,6 +29,7 @@ public sealed class CloudUsageComponentTests : BunitContext
         component.FindAll("button").Single(x => x.TextContent == "Apply dates").Click();
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero), reader.From);
         Assert.Equal(new DateTimeOffset(2026, 1, 4, 0, 0, 0, TimeSpan.Zero), reader.To);
+        Assert.Contains($"/cloud/api/v1/tenants/{tenant:D}/usage/export?", component.Find("a").GetAttribute("href"));
         component.Render(p => p.Add(x => x.TenantId, Guid.NewGuid()));
         Assert.Contains("does not allow usage access", component.Markup);
         Assert.DoesNotContain("classification.classify", component.Markup);
@@ -42,6 +43,7 @@ public sealed class CloudUsageComponentTests : BunitContext
 
     private sealed class Reader(Guid tenant) : ICloudUsageReader
     {
+        public Task<CloudUsagePage?> ExportTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) => throw new NotSupportedException();
         public DateTimeOffset? From { get; private set; }
         public DateTimeOffset? To { get; private set; }
         public Task<CloudUsagePage?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset? from, DateTimeOffset? to,

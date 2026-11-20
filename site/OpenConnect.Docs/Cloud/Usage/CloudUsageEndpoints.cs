@@ -19,5 +19,21 @@ public static class CloudUsageEndpoints
             var page = await service.GetTenantAsync(subject, tenantId, from, to, cursor, limit ?? 50, cancellationToken);
             return page is null ? Results.NotFound() : Results.Ok(page);
         });
+
+        group.MapGet("/tenants/{tenantId:guid}/usage/export", async (
+            Guid tenantId, DateTimeOffset? from, DateTimeOffset? to, ClaimsPrincipal principal, HttpContext context,
+            CloudUsageQueryService service, CancellationToken cancellationToken) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            if (tenantId == Guid.Empty || from is null || to is null || from >= to || to.Value - from.Value > TimeSpan.FromDays(93))
+                return Results.BadRequest();
+            var page = await service.ExportTenantAsync(subject, tenantId, from.Value, to.Value, cancellationToken);
+            if (page is null) return Results.NotFound();
+            if (page.Next is not null) return Results.Problem(statusCode: 413, title: "Too many usage records; select a shorter period.");
+            return Results.File(CloudUsageCsv.Encode(page.Entries), "text/csv; charset=utf-8", "openconnect-usage.csv");
+        });
     }
 }

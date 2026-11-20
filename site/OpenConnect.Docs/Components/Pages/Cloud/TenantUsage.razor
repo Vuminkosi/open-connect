@@ -40,6 +40,14 @@ else if (_page is not null)
             }
         </div>
     }
+    @if (_from is not null && _to is not null && _to.Value - _from.Value <= TimeSpan.FromDays(93))
+    {
+        <p><a href="@ExportUrl">Download CSV for this date range</a> (up to 10,000 records).</p>
+    }
+    else
+    {
+        <p>Select a date range of at most 93 days to download up to 10,000 records as CSV.</p>
+    }
     <nav aria-label="Usage record pages">
         <button class="button" type="button" disabled="@(!_interactive || _loading || _pageIndex == 0)" @onclick="PreviousAsync">Previous</button>
         <button class="button" type="button" disabled="@(!_interactive || _loading || _page.Next is null)" @onclick="NextAsync">Next</button>
@@ -56,6 +64,7 @@ else if (_page is not null)
     private bool _loading = true, _interactive;
     private string? _status, _fromDate, _toDate;
     private DateTimeOffset? _from, _to;
+    private string ExportUrl => $"/cloud/api/v1/tenants/{TenantId:D}/usage/export?from={Uri.EscapeDataString(_from!.Value.ToString("O"))}&to={Uri.EscapeDataString(_to!.Value.ToString("O"))}";
 
     protected override Task OnParametersSetAsync()
     {
