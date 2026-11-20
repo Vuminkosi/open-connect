@@ -34,7 +34,10 @@ public sealed class ContractParityTests
         var path = Path.Combine(RepositoryRoot, "contracts", "openapi", "openconnect.v1.yaml");
 
         Assert.True(File.Exists(path), $"OpenAPI contract not found: {path}");
-        Assert.Contains("openconnect.v1", File.ReadAllText(path), StringComparison.Ordinal);
+        var contract = File.ReadAllText(path);
+        Assert.Contains("openapi: 3.1.0", contract, StringComparison.Ordinal);
+        Assert.Contains("version: 1.0.0", contract, StringComparison.Ordinal);
+        Assert.Contains("url: /openconnect/v1", contract, StringComparison.Ordinal);
     }
 
     private static void AssertJsonFilesParse(string directory)
