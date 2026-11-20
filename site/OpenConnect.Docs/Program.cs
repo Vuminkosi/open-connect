@@ -139,6 +139,9 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudExecutionCompletionService>();
     builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>();
     builder.Services.AddScoped<CloudQuotaAdministration>();
+    builder.Services.AddScoped<ICloudEntitlementAdministrationStore, EfCloudEntitlementAdministrationStore>();
+    builder.Services.AddScoped<CloudEntitlementAdministration>();
+    builder.Services.AddScoped<CloudOperatorEntitlementAdministration>();
     builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
     builder.Services.AddScoped<CloudDeploymentRegistry>();
     builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();

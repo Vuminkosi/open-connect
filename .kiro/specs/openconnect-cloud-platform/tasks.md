@@ -124,3 +124,6 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Verify the recovery migration with existing claims and a concurrent pre-upgrade consumption writer on a separate disposable database; production rollout and lock duration remain outstanding.
 - [x] Revalidate authorization during classification and abort the gateway worker request on revocation or control-plane failure; verify active revocation with PostgreSQL and a simulated worker. Worker termination and recovery remain outstanding.
 - [x] Revalidate deployment and region policy during classification execution and abort the gateway worker request when the match is revoked; worker termination and held-claim reconciliation remain outstanding.
+
+
+- [x] Add operator-only entitlement grant and revocation API with audited revision-fenced PostgreSQL writes; subscription billing integration remains a separate requirement.
