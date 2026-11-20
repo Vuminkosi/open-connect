@@ -65,7 +65,7 @@ jobs:
       - name: Deterministic voice to persisted Todo (synthetic providers only)
         working-directory: tests/Browser
         run: |
-          node --test VoiceFixture/local-network.test.js
+          node --test VoiceFixture/local-network.test.js VoiceFixture/composer-voice-buffer.test.js
           npm ci
           npx --no-install playwright install --with-deps chromium
           npx --no-install playwright test --config=playwright.voice-local.config.js

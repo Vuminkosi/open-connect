@@ -17,8 +17,8 @@ dotnet build samples/Blazor/OpenConnect.Samples.Blazor.csproj -c Release --no-re
 dotnet restore tests/Browser/VoiceFixture/VoiceFixture.csproj --locked-mode --configfile tests/Browser/VoiceFixture/NuGet.Config
 dotnet build tests/Browser/VoiceFixture/VoiceFixture.csproj -c Release --no-restore
 dotnet tests/Browser/VoiceFixture/bin/Release/net10.0/VoiceFixture.dll --self-test
-node --test tests/Browser/VoiceFixture/local-network.test.js
 cd tests/Browser
+node --test VoiceFixture/local-network.test.js VoiceFixture/composer-voice-buffer.test.js
 npm ci
 npx --no-install playwright install --with-deps chromium
 npx --no-install playwright test --config=playwright.voice-local.config.js
@@ -54,7 +54,8 @@ advertised creation tool; it never writes Todo records itself.
 
 ## Evidence limits
 
-Fixture transport self-test/build and URL-policy tests are not browser evidence.
+Fixture transport self-test/build, URL-policy tests and the Node voice-buffer
+regression are not browser evidence.
 Until the dedicated Playwright test runs, mark the UI/voice/persistence journey
 **NOT VERIFIED**. The Documentation Portal workflow contains the intended hosted
 lane after its real sample build; an earlier job failure can prevent that lane
