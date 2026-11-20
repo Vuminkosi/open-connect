@@ -1,5 +1,9 @@
 # OpenConnect Cloud Platform Design Decisions
 
+## Code organization
+
+Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. The existing feature services still access EF Core directly; extracting persistence ports and implementations remains required to isolate application decisions from database implementation.
+
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal

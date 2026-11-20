@@ -1,7 +1,5 @@
 using System.Security.Claims;
-using System.Data.Common;
 using System.Globalization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace OpenConnect.Docs.Cloud;
@@ -19,25 +17,20 @@ public static class CloudControlPlaneEndpoints
         else
         {
             app.MapGet("/cloud/health/ready", async (
-                IDbContextFactory<CloudControlPlaneDbContext> contextFactory,
+                CloudReadinessService readiness,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
             {
                 try
                 {
-                    await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-                    var connected = await db.Database.CanConnectAsync(cancellationToken);
-                    IEnumerable<string> pending = connected
-                        ? await db.Database.GetPendingMigrationsAsync(cancellationToken)
-                        : Array.Empty<string>();
-                    if (!connected || pending.Any())
+                    if (!await readiness.IsReadyAsync(cancellationToken))
                     {
                         return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
                             title: "Cloud control plane is not ready.");
                     }
                     return Results.Ok(new { status = "ready" });
                 }
-                catch (Exception exception) when (IsDatabaseFailure(exception))
+                catch (Exception exception) when (CloudDatabaseFailure.IsDatabaseFailure(exception))
                 {
                     loggerFactory.CreateLogger("OpenConnect.Cloud.Readiness")
                         .LogWarning("Cloud control-plane readiness check failed.");
@@ -361,15 +354,4 @@ public static class CloudControlPlaneEndpoints
             extensions: new Dictionary<string, object?> { ["code"] = result.Status });
     }
 
-    public static bool IsDatabaseFailure(Exception exception)
-    {
-        for (Exception? current = exception; current is not null; current = current.InnerException)
-        {
-            if (current is DbException or TimeoutException)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }

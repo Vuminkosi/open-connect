@@ -63,6 +63,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudControlPlaneService>();
     builder.Services.AddScoped<CloudCapabilityService>();
     builder.Services.AddScoped<CloudCredentialService>();
+    builder.Services.AddScoped<CloudReadinessService>();
 }
 if (cloudIdentityEnabled)
 {
@@ -138,7 +139,7 @@ app.Use(async (context, next) =>
     }
     catch (Exception exception) when (
         context.Request.Path.StartsWithSegments("/cloud/api/v1") &&
-        CloudControlPlaneEndpoints.IsDatabaseFailure(exception))
+        CloudDatabaseFailure.IsDatabaseFailure(exception))
     {
         context.RequestServices.GetRequiredService<ILoggerFactory>()
             .CreateLogger("OpenConnect.Cloud.Api")
