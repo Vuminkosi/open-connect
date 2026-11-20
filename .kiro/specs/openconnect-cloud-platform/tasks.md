@@ -171,3 +171,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Package the local tokenizer dependency and code in the gateway image using an allowlisted root build context; explicit model configuration, route integration and deployment acceptance remain outstanding.
 
 - [x] Add opt-in gateway tokenizer configuration and read-only model access to the all-services Compose file; admission wiring and deployment acceptance remain outstanding.
+
+- [x] Add a separately scoped inference output privacy evaluator; authenticated endpoint, evidence and response-path enforcement remain outstanding.
