@@ -70,7 +70,8 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(expectedExecutions == 1 ? LiveUIActionOutcome.Completed : LiveUIActionOutcome.Denied, receipt.Outcome);
         Assert.Equal(!firstAllow || confirmed && !secondAllow ? LiveUIAuthorizationOutcome.Denied : LiveUIAuthorizationOutcome.Allowed,
             receipt.AuthorizationOutcome);
-        if (expectedConfirmations == 1) Assert.Equal(action.ActionId, confirmation.ActionId);
+        if (expectedConfirmations == 1)
+            Assert.Equal(action.ActionId, confirmation.ActionId);
     }
 
     [Fact]
@@ -590,7 +591,8 @@ public sealed class LiveUIOrchestratorTests
         private int _calls;
         public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default)
         {
-            if (_calls++ == 0) return ValueTask.FromResult<LiveUIManifest?>(manifest);
+            if (_calls++ == 0)
+                return ValueTask.FromResult<LiveUIManifest?>(manifest);
             var changed = manifest with { BuildId = "new-build" };
             return ValueTask.FromResult<LiveUIManifest?>(changed with { ContentHash = LiveUIManifestHasher.ComputeContentHash(changed) });
         }

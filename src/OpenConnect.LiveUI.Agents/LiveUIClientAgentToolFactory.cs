@@ -169,7 +169,8 @@ public static class LiveUIClientAgentToolFactory
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
 
             return RequestGuardedActionAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "execute", targetId, action, value,
-                    StateName: stateName, StateValue: stateValue) { OriginTool = originTool },
+                    StateName: stateName, StateValue: stateValue)
+            { OriginTool = originTool },
                 ("target", targetId), cancellationToken);
         }
 
@@ -184,7 +185,8 @@ public static class LiveUIClientAgentToolFactory
                 string.IsNullOrWhiteSpace(stateName) || stateName.Length > 64 || stateValue is { Length: > 256 })
                 return Task.FromResult(JsonSerializer.SerializeToElement(new { error = "invalid_request" }));
             return RequestAsync(new ClientInteractionRequest(Guid.NewGuid().ToString("D"), "await_state",
-                targetId, StateName: stateName, StateValue: stateValue) { OriginTool = originTool }, "action", cancellationToken);
+                targetId, StateName: stateName, StateValue: stateValue)
+            { OriginTool = originTool }, "action", cancellationToken);
         }
 
         public async Task<JsonElement> ClickAndObserveTextAsync(string targetId, string observationTargetId, string expectedText,
