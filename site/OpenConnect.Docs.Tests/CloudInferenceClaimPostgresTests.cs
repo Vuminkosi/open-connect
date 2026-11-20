@@ -36,7 +36,7 @@ public sealed class CloudInferenceClaimPostgresTests
             db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "inference.chat", Enabled = true, Revision = 1 });
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.chat", Enabled = true, Revision = 1 });
             db.Credentials.Add(new CloudCredential { Id = credential, TenantId = tenant.Id, ApplicationId = app.Id, Environment = "Development", KeyHash = new byte[32], Fingerprint = "inference-claim", Scopes = "[\"inference.chat\"]", IssuedAt = now, ExpiresAt = now.AddHours(1) });
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.chat", Unit = "token", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 10 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.chat", Unit = "token", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 100 });
             await db.SaveChangesAsync();
         }
         try
@@ -46,7 +46,7 @@ public sealed class CloudInferenceClaimPostgresTests
             var policies = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
             async Task<Guid> Reserve()
             {
-                var reservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, app.Id, "inference.chat", "token", Guid.NewGuid(), "key", new byte[32], 1, now.AddMinutes(5)), default);
+                var reservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, app.Id, "inference.chat", "token", Guid.NewGuid(), "key", new byte[32], 5, now.AddMinutes(5)), default);
                 Assert.Equal("reserved", reservation.Status);
                 return reservation.ReservationId!.Value;
             }
@@ -111,6 +111,33 @@ public sealed class CloudInferenceClaimPostgresTests
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 4, default)).Status);
             var atCapacity = await Reserve();
             Assert.Equal("unavailable", (await Claim(atCapacity, "registry/model-a")).Status);
+            var settlement = new CloudInferenceTokenSettlement(new EfCloudInferenceTokenSettlementStore(factory, TimeProvider.System));
+            Assert.Equal("invalid_request", await settlement.SettleAsync(id, firstClaim.ClaimId!.Value, deploymentId, new(-1, 0), default));
+            Assert.Equal("invalid_request", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(long.MaxValue, 1), default));
+            Assert.Equal("unavailable", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, Guid.NewGuid(), new(2, 1), default));
+            Assert.Equal("overage_requires_reconciliation", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(3, 3), default));
+            var completions = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(2, 1), default)));
+            Assert.Single(completions, x => x == "completed");
+            Assert.Equal(9, completions.Count(x => x == "already_completed"));
+            Assert.Equal("conflict", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(1, 2), default));
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var saved = await db.QuotaReservations.SingleAsync(x => x.Id == id);
+                Assert.Equal(3, saved.Actual);
+                Assert.Equal(3, (await db.QuotaBuckets.SingleAsync(x => x.Id == saved.BucketId)).Consumed);
+                Assert.Equal(3, (await db.UsageRecords.SingleAsync(x => x.ReservationId == id)).Quantity);
+                await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE cloud.inference_token_observations SET \"InputTokens\" = 0 WHERE \"ReservationId\" = {id}"));
+            }
+            // A legacy full-charge completion cannot finalize inference without token evidence and consumption.
+            var forged = await Claim(atCapacity, "registry/model-a");
+            Assert.Equal("claimed", forged.Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                db.ExecutionCompletions.Add(new CloudExecutionCompletion { ReservationId = atCapacity, ClaimId = forged.ClaimId!.Value, Outcome = "completed", CompletedAt = now });
+                await db.SaveChangesAsync();
+                await Assert.ThrowsAnyAsync<Exception>(() => db.QuotaReservations.Where(x => x.Id == atCapacity)
+                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 5L).SetProperty(y => y.FinalizedAt, DateTimeOffset.UtcNow)));
+            }
         }
         finally
         {

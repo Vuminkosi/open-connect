@@ -143,3 +143,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Bind internal inference claims to matching model deployment, allowed region, token-unit reservation, payload fingerprint and concurrency capacity; provider verification, worker enforcement, actual token settlement and public routing remain outstanding.
 
 - [x] Add a private deployment-certificate-bound inference consumption endpoint with locked policy rechecks and single-use persistence; worker integration and token settlement remain outstanding.
+
+- [x] Add idempotent worker-certificate-bound inference token settlement with separate input/output observations, reservation reconciliation and database fencing; trustworthy provider metering and hard pre-dispatch token ceilings remain outstanding.

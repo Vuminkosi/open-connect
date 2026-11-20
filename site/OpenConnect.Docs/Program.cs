@@ -135,6 +135,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudExecutionConsumptionService>();
     builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>();
     builder.Services.AddScoped<CloudInferenceConsumptionService>();
+    builder.Services.AddScoped<ICloudInferenceTokenSettlementStore, EfCloudInferenceTokenSettlementStore>();
+    builder.Services.AddScoped<CloudInferenceTokenSettlement>();
     builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>();
     builder.Services.AddScoped<CloudWorkerReadiness>();
     builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
@@ -226,6 +228,7 @@ if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudInferenceTokenSettlement(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudWorkerReadiness(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

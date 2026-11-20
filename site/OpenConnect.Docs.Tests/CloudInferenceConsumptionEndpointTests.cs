@@ -23,6 +23,7 @@ public sealed class CloudInferenceConsumptionEndpointTests
         var deployment = Guid.NewGuid();
         var trust = new CloudWorkerClientTrust([new(deployment, Convert.ToHexString(worker.GetCertHash(HashAlgorithmName.SHA256)))], null);
         var store = new RecordingStore();
+        var settlement = new RecordingSettlement();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.ConfigureKestrel(k => k.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(server, https =>
         {
@@ -31,8 +32,11 @@ public sealed class CloudInferenceConsumptionEndpointTests
         })));
         builder.Services.AddSingleton<ICloudInferenceConsumptionStore>(store);
         builder.Services.AddSingleton<CloudInferenceConsumptionService>();
+        builder.Services.AddSingleton<ICloudInferenceTokenSettlementStore>(settlement);
+        builder.Services.AddSingleton<CloudInferenceTokenSettlement>();
         await using var app = builder.Build();
         app.MapCloudInferenceConsumption(trust, true);
+        app.MapCloudInferenceTokenSettlement(trust, true);
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         using var anonymous = Client(address, server, null);
@@ -55,6 +59,30 @@ public sealed class CloudInferenceConsumptionEndpointTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Equal(deployment, store.DeploymentId);
         Assert.Equal(1, store.Calls);
+        var completionPath = path[..path.LastIndexOf('/')] + "/completion";
+        async Task<HttpResponseMessage> Complete(HttpClient client, string body) =>
+            await client.PostAsync(completionPath, new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Complete(unauthorized, "{\"inputTokens\":2,\"outputTokens\":1}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Complete(authorized, "{\"inputTokens\":2,\"InputTokens\":3,\"outputTokens\":1}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Complete(authorized, "{\"inputTokens\":-1,\"outputTokens\":1}")).StatusCode);
+        Assert.Equal(0, settlement.Calls);
+        var completion = await Complete(authorized, "{\"inputTokens\":2,\"outputTokens\":1}");
+        Assert.Equal(HttpStatusCode.OK, completion.StatusCode);
+        Assert.Equal("no-store", completion.Headers.CacheControl?.ToString());
+        Assert.Equal(deployment, settlement.DeploymentId);
+        Assert.Equal(new CloudInferenceTokenUsage(2, 1), settlement.Usage);
+        Assert.Equal(1, settlement.Calls);
+    }
+    private sealed class RecordingSettlement : ICloudInferenceTokenSettlementStore
+    {
+        public int Calls { get; private set; }
+        public Guid DeploymentId { get; private set; }
+        public CloudInferenceTokenUsage? Usage { get; private set; }
+        public Task<string> SettleAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudInferenceTokenUsage usage, CancellationToken cancellationToken)
+        {
+            Calls++; DeploymentId = deploymentId; Usage = usage;
+            return Task.FromResult("completed");
+        }
     }
     private sealed class RecordingStore : ICloudInferenceConsumptionStore
     {
