@@ -32,7 +32,11 @@ public static class CloudIdentity
         if (principal?.Identity?.IsAuthenticated != true) return false;
         var issuer = GetIssuer(principal);
         if (issuer is null)
-            return identity.GetValue<bool>("Enabled") && !string.IsNullOrWhiteSpace(identity["Authority"]);
+        {
+            var subject = principal.FindFirst(ClaimTypes.NameIdentifier) ?? principal.FindFirst("sub");
+            return identity.GetValue<bool>("Enabled") && subject is not null &&
+                string.Equals(subject.Issuer, identity["Authority"], StringComparison.Ordinal);
+        }
         return (identity.GetValue<bool>("Enabled") && string.Equals(issuer, identity["Authority"], StringComparison.Ordinal)) ||
             (identity.GetValue<bool>("Google:Enabled") && string.Equals(issuer, GoogleIssuer, StringComparison.Ordinal));
     }

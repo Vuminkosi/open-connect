@@ -101,10 +101,14 @@ public sealed class CloudIdentityTests
             new Claim(ClaimTypes.NameIdentifier, "user"),
             new Claim(CloudIdentity.IssuerClaim, CloudIdentity.GoogleIssuer, ClaimValueTypes.String, "OpenConnect.Cloud")
         ], "test"));
-        var legacy = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user")], "test"));
+        var legacy = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, "user", ClaimValueTypes.String, "https://issuer.example")
+        ], "test"));
 
         Assert.False(CloudIdentity.IsEnabled(google, configuration));
         Assert.True(CloudIdentity.IsEnabled(legacy, configuration));
+        configuration["Authority"] = "https://other.example";
+        Assert.False(CloudIdentity.IsEnabled(legacy, configuration));
         configuration["Enabled"] = "false";
         Assert.False(CloudIdentity.IsEnabled(legacy, configuration));
     }
