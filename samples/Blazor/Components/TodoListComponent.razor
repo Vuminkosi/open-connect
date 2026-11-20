@@ -1,6 +1,7 @@
 @using OpenConnect.Samples.Blazor.Models
 @inject ITodoStore Store
 @inject ISnackbar Snackbar
+@inject ILogger<TodoListComponent> Logger
 
 @{
     var filteredItems = FilteredItems;
@@ -126,8 +127,39 @@
                                            Size="Size.Small"
                                            OnClick="@(() => OnDeleteAsync(item))"
                                            aria-label="Delete task" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => BeginEdit(item))"
+                                           aria-label="Edit task" />
                         </div>
                     </div>
+                    @if (_editingId == item.Id)
+                    {
+                        <div class="d-flex flex-column gap-2 mt-3" aria-label="Edit task details">
+                            <label for="edit-task-title">Task title</label>
+                            <input id="edit-task-title" maxlength="200" @bind="_editTitle" />
+                            <label for="edit-task-description">Description</label>
+                            <textarea id="edit-task-description" @bind="_editDescription"></textarea>
+                            <label for="edit-task-due-date">Due date</label>
+                            <input id="edit-task-due-date" type="date" @bind="_editDueDate" />
+                            <label for="edit-task-priority">Priority</label>
+                            <select id="edit-task-priority" @bind="_editPriority">
+                                @foreach (var priority in Enum.GetValues<TodoPriority>())
+                                {
+                                    <option value="@priority">@priority</option>
+                                }
+                            </select>
+                            @if (!string.IsNullOrEmpty(_editError))
+                            {
+                                <MudText Color="Color.Error" role="alert">@_editError</MudText>
+                            }
+                            <div class="d-flex gap-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="SaveEditAsync">Save changes</MudButton>
+                                <MudButton Variant="Variant.Text" Disabled="@_saving" OnClick="CancelEdit">Cancel</MudButton>
+                            </div>
+                        </div>
+                    }
                 </MudListItem>
             }
         </MudList>
@@ -159,6 +191,14 @@
     private const int PageSize = 10;
     private int _page = 1;
     private string _sort = "priority";
+    private Guid? _editingId;
+    private long _editRevision;
+    private string _editTitle = string.Empty;
+    private string? _editDescription;
+    private DateTime? _editDueDate;
+    private TodoPriority _editPriority;
+    private string? _editError;
+    private bool _saving;
 
     private int PageCount => Math.Max(1, (FilteredItems.Count + PageSize - 1) / PageSize);
     private int CurrentPage => Math.Clamp(_page, 1, PageCount);
@@ -209,16 +249,68 @@
         StateHasChanged();
     }
 
+    private void BeginEdit(TodoItem item)
+    {
+        _editingId = item.Id;
+        _editRevision = item.Revision;
+        _editTitle = item.Title;
+        _editDescription = item.Description;
+        _editDueDate = item.DueDateUtc?.ToLocalTime().Date;
+        _editPriority = item.Priority;
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editError = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_saving || _editingId is not { } id) return;
+        if (string.IsNullOrWhiteSpace(_editTitle) || _editTitle.Trim().Length > 200)
+        {
+            _editError = "Enter a task title of 1 to 200 characters.";
+            return;
+        }
+        _saving = true;
+        try
+        {
+            var dueDateUtc = _editDueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_editDueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
+            var result = await Store.EditAsync(id, _editRevision, new TodoEdit(_editTitle, _editDescription, _editPriority, dueDateUtc));
+            if (result == TodoEditResult.Updated)
+            {
+                CancelEdit();
+                await LoadItemsAsync();
+                Snackbar.Add("Task updated", Severity.Success);
+            }
+            else
+            {
+                _editError = result == TodoEditResult.Conflict
+                    ? "This task changed while you were editing. Cancel and reopen it to review the latest version."
+                    : "This task no longer exists. Your changes were not saved.";
+            }
+        }
+        catch (Exception)
+        {
+            Logger.LogError("Unable to save a task edit.");
+            _editError = "Could not save changes. Please try again.";
+        }
+        finally { _saving = false; }
+    }
+
     private async Task OnStatusChangedAsync(TodoItem item, bool isCompleted)
     {
-        await Store.UpdateStatusAsync(item.Id, isCompleted);
+        var updated = await Store.UpdateStatusAsync(item.Id, isCompleted);
+        if (!updated) Snackbar.Add("The task could not be updated. It may no longer exist.", Severity.Warning);
         await LoadItemsAsync();
     }
 
     private async Task OnDeleteAsync(TodoItem item)
     {
-        await Store.DeleteAsync(item.Id);
-        Snackbar.Add($"Task \"{item.Title}\" deleted", Severity.Info);
+        var deleted = await Store.DeleteAsync(item.Id);
+        Snackbar.Add(deleted ? $"Task \"{item.Title}\" deleted" : "The task no longer exists.", deleted ? Severity.Info : Severity.Warning);
         await LoadItemsAsync();
     }
 

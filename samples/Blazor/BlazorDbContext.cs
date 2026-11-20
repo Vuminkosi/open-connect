@@ -42,6 +42,7 @@ public sealed class BlazorDbContext : DbContext
             entity.HasKey(item => new { item.Scope, item.Id });
             entity.Property(item => item.Scope).HasMaxLength(64);
             entity.Property(item => item.Title).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Revision).HasDefaultValue(0L);
             entity.HasOne(item => item.ScopeRecord).WithMany(scope => scope.Items)
                 .HasForeignKey(item => item.Scope).OnDelete(DeleteBehavior.Cascade);
         });

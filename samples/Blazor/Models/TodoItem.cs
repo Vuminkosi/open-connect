@@ -28,7 +28,13 @@ public sealed class TodoItem
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? DueDateUtc { get; set; }
+
+    public long Revision { get; set; }
 }
+
+public sealed record TodoEdit(string Title, string? Description, TodoPriority Priority, DateTime? DueDateUtc);
+
+public enum TodoEditResult { Updated, Conflict, NotFound }
 
 public interface ITodoStore
 {
@@ -36,6 +42,7 @@ public interface ITodoStore
     Task<TodoItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<TodoItem> AddAsync(string title, string? description = null, TodoPriority priority = TodoPriority.Medium, DateTime? dueDate = null, CancellationToken ct = default);
     Task<bool> UpdateStatusAsync(Guid id, bool isCompleted, CancellationToken ct = default);
+    Task<TodoEditResult> EditAsync(Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }
 
@@ -125,7 +132,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
     {
         lock (_lock)
         {
-            return Task.FromResult<IReadOnlyList<TodoItem>>(_items.OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAtUtc).ToList());
+            return Task.FromResult<IReadOnlyList<TodoItem>>(_items.OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAtUtc).Select(Clone).ToList());
         }
     }
 
@@ -133,7 +140,8 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
     {
         lock (_lock)
         {
-            return Task.FromResult(_items.FirstOrDefault(i => i.Id == id));
+            var item = _items.FirstOrDefault(i => i.Id == id);
+            return Task.FromResult(item is null ? null : Clone(item));
         }
     }
 
@@ -149,7 +157,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
                 DueDateUtc = dueDate
             };
             _items.Add(item);
-            return Task.FromResult(item);
+            return Task.FromResult(Clone(item));
         }
     }
 
@@ -158,11 +166,44 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
         lock (_lock)
         {
             var item = _items.FirstOrDefault(i => i.Id == id);
-            if (item == null)
+            if (item == null || item.Revision == long.MaxValue)
                 return Task.FromResult(false);
             item.IsCompleted = isCompleted;
+            item.Revision++;
             return Task.FromResult(true);
         }
+    }
+
+    public Task<TodoEditResult> EditAsync(Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct = default)
+    {
+        ValidateEdit(edit, expectedRevision);
+        lock (_lock)
+        {
+            var item = _items.FirstOrDefault(i => i.Id == id);
+            if (item is null)
+                return Task.FromResult(TodoEditResult.NotFound);
+            if (item.Revision != expectedRevision || item.Revision == long.MaxValue)
+                return Task.FromResult(TodoEditResult.Conflict);
+            item.Title = edit.Title.Trim();
+            item.Description = edit.Description?.Trim();
+            item.Priority = edit.Priority;
+            item.DueDateUtc = edit.DueDateUtc?.ToUniversalTime();
+            item.Revision++;
+            return Task.FromResult(TodoEditResult.Updated);
+        }
+    }
+
+    internal static void ValidateEdit(TodoEdit edit, long expectedRevision)
+    {
+        ArgumentNullException.ThrowIfNull(edit);
+        if (expectedRevision < 0)
+            throw new ArgumentOutOfRangeException(nameof(expectedRevision));
+        if (string.IsNullOrWhiteSpace(edit.Title) || edit.Title.Trim().Length > 200)
+            throw new ArgumentException("A title of 1-200 characters is required.", nameof(edit));
+        if (!Enum.IsDefined(edit.Priority))
+            throw new ArgumentOutOfRangeException(nameof(edit));
+        if (edit.DueDateUtc is { Kind: DateTimeKind.Unspecified })
+            throw new ArgumentException("A due date must include a timezone.", nameof(edit));
     }
 
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -207,9 +248,10 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
         lock (_lock)
         {
             var item = ForTenant(tenantId).FirstOrDefault(i => i.Id == id);
-            if (item is null)
+            if (item is null || item.Revision == long.MaxValue)
                 return Task.FromResult(false);
             item.IsCompleted = isCompleted;
+            item.Revision++;
             return Task.FromResult(true);
         }
     }
@@ -220,7 +262,7 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
             return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
     }
 
-    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc };
+    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc, Revision = item.Revision };
 }
 
 public interface ITenantTodoStore

@@ -15,7 +15,7 @@ namespace OpenConnect.Samples.Blazor.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("OpenConnect.Persistence.EFCore.Entities.ApprovalEntity", b =>
                 {
@@ -633,6 +633,11 @@ namespace OpenConnect.Samples.Blazor.Migrations
 
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0L);
 
                     b.Property<string>("Title")
                         .IsRequired()

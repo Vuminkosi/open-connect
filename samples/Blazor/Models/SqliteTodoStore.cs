@@ -23,6 +23,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         UpdateStatusCoreAsync(LocalScope, id, isCompleted, ct);
     public Task<bool> UpdateStatusAsync(TenantId tenantId, Guid id, bool isCompleted, CancellationToken ct = default) =>
         UpdateStatusCoreAsync(TenantScope(tenantId), id, isCompleted, ct);
+    public Task<TodoEditResult> EditAsync(Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct = default) =>
+        EditCoreAsync(LocalScope, id, expectedRevision, edit, ct);
     public Task<bool> DeleteAsync(Guid id, CancellationToken ct = default) => DeleteCoreAsync(LocalScope, id, ct);
     public Task<bool> DeleteAsync(TenantId tenantId, Guid id, CancellationToken ct = default) =>
         DeleteCoreAsync(TenantScope(tenantId), id, ct);
@@ -78,12 +80,32 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         await using var serviceScope = scopes.CreateAsyncScope();
         var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
         await EnsureSeedAsync(db, scope, ct);
-        var row = await db.Set<PersistedTodoItem>().SingleOrDefaultAsync(item => item.Scope == scope && item.Id == id, ct);
-        if (row is null)
-            return false;
-        row.IsCompleted = completed;
-        await db.SaveChangesAsync(ct);
-        return true;
+        return await db.Set<PersistedTodoItem>()
+            .Where(item => item.Scope == scope && item.Id == id && item.Revision < long.MaxValue)
+            .ExecuteUpdateAsync(update => update.SetProperty(item => item.IsCompleted, completed)
+                .SetProperty(item => item.Revision, item => item.Revision + 1), ct) == 1;
+    }
+
+    private async Task<TodoEditResult> EditCoreAsync(string scope, Guid id, long expectedRevision, TodoEdit edit, CancellationToken ct)
+    {
+        InMemoryTodoStore.ValidateEdit(edit, expectedRevision);
+        await using var serviceScope = scopes.CreateAsyncScope();
+        var db = serviceScope.ServiceProvider.GetRequiredService<BlazorDbContext>();
+        await EnsureSeedAsync(db, scope, ct);
+        var title = edit.Title.Trim();
+        var description = edit.Description?.Trim();
+        var dueDate = edit.DueDateUtc?.ToUniversalTime();
+        var updated = await db.Set<PersistedTodoItem>()
+            .Where(item => item.Scope == scope && item.Id == id && item.Revision == expectedRevision && item.Revision < long.MaxValue)
+            .ExecuteUpdateAsync(update => update.SetProperty(item => item.Title, title)
+                .SetProperty(item => item.Description, description)
+                .SetProperty(item => item.Priority, edit.Priority)
+                .SetProperty(item => item.DueDateUtc, dueDate)
+                .SetProperty(item => item.Revision, item => item.Revision + 1), ct);
+        if (updated == 1)
+            return TodoEditResult.Updated;
+        return await db.Set<PersistedTodoItem>().AsNoTracking().AnyAsync(item => item.Scope == scope && item.Id == id, ct)
+            ? TodoEditResult.Conflict : TodoEditResult.NotFound;
     }
 
     private async Task<bool> DeleteCoreAsync(string scope, Guid id, CancellationToken ct)
@@ -155,7 +177,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         IsCompleted = item.IsCompleted,
         Priority = item.Priority,
         CreatedAtUtc = AsUtc(item.CreatedAtUtc),
-        DueDateUtc = item.DueDateUtc is null ? null : AsUtc(item.DueDateUtc.Value)
+        DueDateUtc = item.DueDateUtc is null ? null : AsUtc(item.DueDateUtc.Value),
+        Revision = item.Revision
     };
 
     private static DateTime AsUtc(DateTime value) => value.Kind == DateTimeKind.Local
