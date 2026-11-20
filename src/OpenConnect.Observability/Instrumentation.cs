@@ -30,7 +30,7 @@ public static class Instrumentation
             ["operation"] = new HashSet<string>(new[] { "chat", "completion", "embedding", "tool", "health", "request", "index", "search", "delete" }, StringComparer.Ordinal),
             ["provider"] = new HashSet<string>(new[] { "openai", "azure_openai", "anthropic", "google", "local", "unknown" }, StringComparer.Ordinal),
             ["model_family"] = new HashSet<string>(new[] { "gpt", "claude", "gemini", "llama", "other" }, StringComparer.Ordinal),
-            ["outcome"] = new HashSet<string>(new[] { "success", "failure", "blocked", "cancelled" }, StringComparer.Ordinal),
+            ["outcome"] = new HashSet<string>(new[] { "success", "failure", "blocked", "cancelled", "skipped" }, StringComparer.Ordinal),
             ["mode"] = new HashSet<string>(new[] { "strict-local", "local-only", "policy-controlled", "disabled" }, StringComparer.Ordinal),
             ["component"] = new HashSet<string>(new[] { "gateway", "firewall", "agent", "worker", "vault", "metering", "qdrantvactor" }, StringComparer.Ordinal)
         };

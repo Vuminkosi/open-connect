@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Observability;
@@ -153,6 +155,132 @@ public sealed class IndexerTests
         }).Build();
         await host.StartAsync();
         await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task EnabledIndexerRejectsDefaultProjectionReaderAtStartup()
+    {
+        var subscription = new FakeSubscription([]);
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddSingleton<IAgentEventSubscriptionV2>(subscription);
+            services.AddQdrantVactor(options => { options.Enabled = true; options.Endpoint = new Uri("http://localhost:6333"); });
+        }).Build();
+
+        var error = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
+        Assert.Contains("custom IProjectionReader", error.Message, StringComparison.Ordinal);
+        Assert.Equal(0, subscription.Calls);
+    }
+
+    [Fact]
+    public async Task EnabledMemoryWithoutEventSubscriptionDoesNotRequireProjectionReader()
+    {
+        using var host = new HostBuilder().ConfigureServices(services => services.AddQdrantVactor(options =>
+        {
+            options.Enabled = true;
+            options.SubscribeToAgentEvents = false;
+            options.Endpoint = new Uri("http://localhost:6333");
+        })).Build();
+        await host.StartAsync();
+        await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task CustomProjectionRegisteredAfterPackagePassesStartupValidation()
+    {
+        using var host = new HostBuilder().ConfigureServices(services =>
+        {
+            services.AddQdrantVactor(options => { options.Enabled = true; options.Endpoint = new Uri("http://localhost:6333"); });
+            services.AddSingleton<IProjectionReader>(new FakeReader("safe"));
+            services.AddSingleton<IAgentEventSubscriptionV2>(new FakeSubscription([]));
+        }).Build();
+        await host.StartAsync();
+        await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task EmptyProjectionIsAcknowledgedAndLoggedWithoutPayload()
+    {
+        var delivery = Delivery(Event("task.completed", 1));
+        var logs = new CapturingLoggerProvider();
+        var outcomes = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == "OpenConnect.Vectors") meterListener.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<double>((_, _, tags, _) =>
+        {
+            foreach (var tag in tags)
+                if (tag.Key == "outcome" && tag.Value is string outcome) outcomes.Enqueue(outcome);
+        });
+        listener.Start();
+        await using var services = ConfiguredIndexer(logs, delivery, new FakeReader(null), new FakeStore());
+
+        await services.GetRequiredService<QdrantVactorIndexer>().RunAsync();
+
+        Assert.Equal(1, delivery.AckCount);
+        Assert.Equal(0, delivery.NakCount);
+        Assert.Contains(logs.Messages, message => message.Contains("projection_empty", StringComparison.Ordinal));
+        Assert.Contains("skipped", outcomes);
+        Assert.DoesNotContain(logs.Messages, message => message.Contains("opaque-ref", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task FailedStoreIsNackedAndLoggedWithoutProjectionContent()
+    {
+        var delivery = Delivery(Event("task.completed", 1));
+        var logs = new CapturingLoggerProvider();
+        await using var services = ConfiguredIndexer(logs, delivery, new FakeReader("sensitive projection"), new ThrowingStore());
+
+        await services.GetRequiredService<QdrantVactorIndexer>().RunAsync();
+
+        Assert.Equal(0, delivery.AckCount);
+        Assert.Equal(1, delivery.NakCount);
+        Assert.Contains(logs.Messages, message => message.Contains("vector_store", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs.Messages, message => message.Contains("sensitive projection", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs.Messages, message => message.Contains("store failure", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("task.completed", "", "missing_tenant")]
+    [InlineData("task.started", "tenant", "event_not_approved")]
+    public async Task InvalidOrUnapprovedEventsHaveSanitizedSkipDiagnostics(string eventType, string tenant, string category)
+    {
+        var delivery = Delivery(Event(eventType, 1) with { TenantId = tenant });
+        var logs = new CapturingLoggerProvider();
+        await using var services = ConfiguredIndexer(logs, delivery, new FakeReader("sensitive projection"), new FakeStore());
+
+        await services.GetRequiredService<QdrantVactorIndexer>().RunAsync();
+
+        Assert.Equal(1, delivery.AckCount);
+        Assert.Contains(logs.Messages, message => message.Contains(category, StringComparison.Ordinal));
+        Assert.DoesNotContain(logs.Messages, message => message.Contains("sensitive projection", StringComparison.Ordinal));
+    }
+
+    private static ServiceProvider ConfiguredIndexer(CapturingLoggerProvider logs, TrackedDelivery delivery, IProjectionReader reader, IVectorStore store)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(logs));
+        services.AddSingleton<IAgentEventSubscriptionV2>(new FakeSubscription([delivery]));
+        services.AddSingleton(reader);
+        services.AddSingleton(store);
+        services.AddQdrantVactor(options => { options.Enabled = true; options.Endpoint = new Uri("http://localhost:6333"); });
+        return services.BuildServiceProvider();
+    }
+
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        public List<string> Messages { get; } = [];
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(Messages);
+        public void Dispose() { }
+        private sealed class CapturingLogger(List<string> messages) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public bool IsEnabled(LogLevel logLevel) => true;
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                messages.Add(formatter(state, exception));
+        }
     }
 
     [Fact]

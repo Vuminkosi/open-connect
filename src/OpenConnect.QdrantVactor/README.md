@@ -25,6 +25,13 @@ in-memory store, and `IAgentSemanticMemory`; `UseQdrantRestVectorStore` (`:27`)
 replaces the store with the Qdrant REST implementation (requires an API key and a
 valid endpoint). Agent scope is deny-by-default.
 
+When event subscriptions are enabled, the host must register its own
+`IProjectionReader` that retrieves authorized, sanitized content. Startup validation
+rejects the built-in empty reader in that configuration. The DI-registered indexer logs
+bounded skip or failure categories and event IDs without projection content, and
+records skipped indexing operations separately from successful ones. A directly
+constructed indexer does not automatically receive the host logger.
+
 Semantic search returns store relevance scores in descending order; a missing score is represented as zero. The REST store requests vectors because its public `IVectorStore` result includes the vector. If a returned vector has the wrong configured dimension, the search fails with a dimension error instead of silently omitting the result. Error messages do not include vector or document contents.
 
 ## Semantic memory identity and existing collections

@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
+using OpenConnect.Abstractions;
 
 namespace OpenConnect.QdrantVactor;
 
@@ -16,10 +18,16 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IVectorStore, InMemoryVectorStore>();
         services.TryAddSingleton<IProjectionReader, ProjectionReader>();
         services.TryAddSingleton<IAgentScopeAuthorizer, DenyAgentScopeAuthorizer>();
-        services.TryAddSingleton<QdrantVactorIndexer>();
+        services.AddLogging();
+        services.TryAddSingleton(provider => new QdrantVactorIndexer(
+            provider.GetRequiredService<IProjectionReader>(), provider.GetRequiredService<IEmbeddingGenerator>(),
+            provider.GetRequiredService<IVectorStore>(), provider.GetRequiredService<IOptions<QdrantVactorOptions>>(),
+            provider.GetService<IAgentEventSubscriptionV2>())
+        { Logger = provider.GetService<ILogger<QdrantVactorIndexer>>() });
         services.TryAddSingleton<OpenConnect.Abstractions.IAgentSemanticMemory, SemanticMemorySearchProvider>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, QdrantVactorService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QdrantVactorOptions>, SubscriptionOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QdrantVactorOptions>, ProjectionOptionsValidator>());
         return services;
     }
 
@@ -43,6 +51,14 @@ public static class ServiceCollectionExtensions
         public ValidateOptionsResult Validate(string? name, QdrantVactorOptions options) =>
             options.Enabled && options.SubscribeToAgentEvents && services.GetService<OpenConnect.Abstractions.IAgentEventSubscriptionV2>() is null
                 ? ValidateOptionsResult.Fail("QdrantVactor requires IAgentEventSubscriptionV2 when enabled for agent event subscriptions.")
+                : ValidateOptionsResult.Success;
+    }
+
+    private sealed class ProjectionOptionsValidator(IServiceProvider services) : IValidateOptions<QdrantVactorOptions>
+    {
+        public ValidateOptionsResult Validate(string? name, QdrantVactorOptions options) =>
+            options.Enabled && options.SubscribeToAgentEvents && (services.GetService<IProjectionReader>() is null or ProjectionReader)
+                ? ValidateOptionsResult.Fail("QdrantVactor requires a custom IProjectionReader when enabled for agent event subscriptions.")
                 : ValidateOptionsResult.Success;
     }
 }
