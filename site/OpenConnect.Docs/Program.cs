@@ -110,6 +110,10 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudQuotaReader, EfCloudQuotaReader>();
     builder.Services.AddScoped<CloudQuotaQueryService>();
     builder.Services.AddScoped<CloudQuotaService>();
+    builder.Services.AddScoped<ICloudQuotaRecoveryStore, EfCloudQuotaRecoveryStore>();
+    builder.Services.AddScoped<CloudQuotaRecovery>();
+    if (builder.Configuration.GetValue<bool>("OpenConnect:Cloud:QuotaRecovery:Enabled"))
+        builder.Services.AddHostedService<CloudQuotaRecoveryWorker>();
     builder.Services.AddScoped<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>();
     builder.Services.AddScoped<CloudRegionPolicyService>();
     builder.Services.AddScoped<ICloudCatalogRegionsStore, EfCloudCatalogRegionsStore>();

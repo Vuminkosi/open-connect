@@ -22,9 +22,10 @@ public sealed class CloudExecutionCompletionPostgresTests
         {
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 1, Reserved = 0 });
             db.QuotaReservations.Add(new CloudQuotaReservation { Id = reservationId, TenantId = tenant.Id, ApplicationId = app.Id, BucketId = bucketId, RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = now.AddMinutes(5), FingerprintKeyId = "key", RequestFingerprint = new byte[32] });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "classification.classify", EndpointReference = "completion-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "region-a", ContractVersion = "v1", ImageDigest = "sha256:" + new string('a', 64), ConcurrencyLimit = 1, Enabled = false });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "classification.classify", EndpointReference = "completion-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "region-a", ContractVersion = "v1", ImageDigest = "sha256:" + new string('a', 64), ConcurrencyLimit = 1, Enabled = true });
             db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenant.Id, ApplicationId = app.Id, ClaimId = claimId, DeploymentId = deploymentId, Region = "region-a", ClaimedAt = now });
             await db.SaveChangesAsync();
+            await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
         }
         var completions = new CloudExecutionCompletionService(new EfCloudExecutionCompletionStore(factory, TimeProvider.System));
         Assert.Equal("unavailable", (await completions.CompleteClassificationAsync(tenant.Id, app.Id, reservationId, claimId, "completed", default)).Status);
