@@ -66,6 +66,8 @@ Application dependencies must also be selected for that application. Read views 
 
 **Decision:** Issue credentials only to tenant owners/administrators for an application and a non-empty list of currently selectable service scopes. Generate a 256-bit random secret, return it once with `Cache-Control: no-store`, and persist only SHA-256 of the full key plus a short fingerprint. Credential metadata binds tenant, application, environment, scopes, issue/expiry/revocation/last-use. Rotation atomically revokes the previous credential and creates its replacement. Revocation takes effect in the control-plane store before the API returns.
 
+Issuance and rotation require an explicit future expiry; permanent credentials are rejected. Authentication rejects existing credentials without an expiry; issue replacements with an expiry.
+
 **Authentication format:** `oc_<environment>_<credential-guid>_<base64url-random-secret>`. Validation performs fixed-time hash comparison and checks revocation, expiration, and application environment. The resulting credential identity and scopes are inputs to later gateway admission; successful credential authentication alone does not authorize a capability call.
 
 The parser splits only the first three separators because the base64url secret may itself contain underscores.

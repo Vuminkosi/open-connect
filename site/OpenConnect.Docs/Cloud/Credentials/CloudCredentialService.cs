@@ -57,7 +57,7 @@ public sealed class CloudCredentialService(
         var application = await db.Applications.SingleOrDefaultAsync(
             x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken);
         if (application is null) return new("not_found");
-        if (expiresAt is not null && expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
+        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
         var (credential, secret) = NewCredential(tenantId, application, scopesResult.Scopes!, expiresAt, timeProvider.GetUtcNow());
         db.Credentials.Add(credential);
         db.AuditEvents.Add(CreateAudit(subject, tenantId, role, "credential.created", credential.Id, timeProvider.GetUtcNow()));
@@ -79,7 +79,7 @@ public sealed class CloudCredentialService(
             x.TenantId == tenantId && x.ApplicationId == applicationId && x.Id == credentialId, cancellationToken);
         if (oldCredential is null) return new("not_found");
         if (oldCredential.RevokedAt is not null) return new("credential_revoked");
-        if (expiresAt is not null && expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
+        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
 
         var scopes = JsonSerializer.Deserialize<string[]>(oldCredential.Scopes) ?? [];
         var scopesResult = await ValidateScopesAsync(db, subject, tenantId, applicationId, scopes, cancellationToken);
@@ -123,7 +123,7 @@ public sealed class CloudCredentialService(
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         var credential = await db.Credentials.SingleOrDefaultAsync(x => x.Id == credentialId, cancellationToken);
         if (credential is null || credential.RevokedAt is not null ||
-            credential.ExpiresAt is not null && credential.ExpiresAt <= timeProvider.GetUtcNow() ||
+            credential.ExpiresAt is null || credential.ExpiresAt <= timeProvider.GetUtcNow() ||
             !HasExpectedEnvironmentTag(presentedSecret!, credential.Environment))
         {
             return null;

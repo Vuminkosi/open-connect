@@ -342,7 +342,7 @@ public static class CloudControlPlaneEndpoints
             "not_found" => (StatusCodes.Status404NotFound, "Application or credential was not found."),
             "forbidden" => (StatusCodes.Status403Forbidden, "Credential administration is not allowed."),
             "invalid_scopes" => (StatusCodes.Status422UnprocessableEntity, "One or more service scopes are invalid."),
-            "invalid_expiration" => (StatusCodes.Status422UnprocessableEntity, "Credential expiration must be in the future."),
+            "invalid_expiration" => (StatusCodes.Status422UnprocessableEntity, "A future credential expiration is required."),
             "capability_not_entitled" => (StatusCodes.Status403Forbidden, "A requested service is not entitled."),
             "capability_unavailable" => (StatusCodes.Status503ServiceUnavailable, "A requested service is not available."),
             "capability_disabled" => (StatusCodes.Status409Conflict, "A requested service is not enabled for its organization/application."),
