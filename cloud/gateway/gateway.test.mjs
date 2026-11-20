@@ -47,7 +47,7 @@ test('capability calls fail closed until admission is available', async () => {
     assert.equal(result.headers.get('content-type'), 'application/problem+json');
     const problem = await result.json();
     assert.equal(problem.code, 'capability_unavailable');
-    assert.match(problem.traceId, /^[0-9a-f-]{36}$/);
+    assert.match(problem.traceId, /^[0-9a-f]{32}$/);
     assert.equal(problem.traceId, result.headers.get('x-trace-id'));
 });
 
@@ -104,6 +104,26 @@ test('classification invokes the independent privacy boundary before any executi
     body.input = { inputRef: 'opaque-handle' }; calls.length = 0;
     assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } })).status, 503);
     assert.deepEqual(calls, ['authorize', 'body']);
+});
+
+test('trace context is shared across gateway and private checks without carrying request content', async () => {
+    const traceId = '1234567890abcdef1234567890abcdef';
+    const incoming = `00-${traceId}-0123456789abcdef-01`;
+    const body = { schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111',
+        capability: 'classification.classify', input: { text: 'sensitive fixture' } };
+    const propagated = [];
+    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST',
+        headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json', traceparent: incoming }),
+        readBody: async () => ({ bytes: Buffer.from(JSON.stringify(body)) }) };
+    const authorization = { authorize: async (credential, capability, signal, traceparent) => { propagated.push(traceparent); return { authorized: true }; },
+        inspectClassification: async (credential, requestId, content, signal, traceparent) => { propagated.push(traceparent); return { allowed: false, code: 'privacy_blocked' }; } };
+    const result = await handle(request, { authorization, classificationProbe: { probe: async (signal, traceparent) => { propagated.push(traceparent); return { ready: true }; } } });
+    assert.equal((await result.json()).traceId, traceId);
+    assert.equal(result.headers.get('x-trace-id'), traceId);
+    assert.equal(new Set(propagated).size, 1);
+    assert.match(propagated[0], new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`));
+    assert.notEqual(propagated[0], incoming);
+    assert.doesNotMatch(propagated[0], /sensitive/);
 });
 
 test('gateway denies missing, rejected, and malformed authorization safely', async () => {

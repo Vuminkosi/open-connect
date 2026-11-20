@@ -124,6 +124,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 var evidence = await verify.PrivacyEvidence.AsNoTracking().Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id).ToListAsync();
                 Assert.Equal(2, evidence.Count(x => x.Outcome == "allowed"));
                 Assert.Equal(2, evidence.Count(x => x.Outcome == "privacy_blocked"));
+                Assert.Contains(evidence, x => x.Outcome == "privacy_blocked" && x.TraceId == blocked.TraceId);
+                Assert.Contains(evidence, x => x.Outcome == "allowed" && x.TraceId == clean.TraceId);
                 Assert.All(evidence, x => { Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), x.RequestId); Assert.Matches("^[0-9a-f]{32}$", x.TraceId); });
                 Assert.DoesNotContain("person@example.com", System.Text.Json.JsonSerializer.Serialize(evidence));
                 await Assert.ThrowsAnyAsync<Exception>(() => verify.PrivacyEvidence.Where(x => x.TenantId == tenant.Id).ExecuteDeleteAsync());
@@ -183,7 +185,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
 
     private static async Task<GatewayResult> NodeClassificationGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
     {
-        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const s=g.createLocalServer(c,{probe:async()=>({ready:true})}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v1',requestId:'11111111-1111-1111-1111-111111111111',capability:'classification.classify',input:{text:process.env.OC_TEST_CAPABILITY}})}); const b=await x.json(); await new Promise(r=>s.close(r)); process.stdout.write(JSON.stringify({status:x.status,checked:true,code:b.code}));";
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const s=g.createLocalServer(c,{probe:async()=>({ready:true})}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const trace=crypto.randomUUID().replaceAll('-',''); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json',traceparent:'00-'+trace+'-0123456789abcdef-01'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v1',requestId:'11111111-1111-1111-1111-111111111111',capability:'classification.classify',input:{text:process.env.OC_TEST_CAPABILITY}})}); const b=await x.json(); await new Promise(r=>s.close(r)); if(b.traceId!==trace) throw new Error('trace mismatch'); process.stdout.write(JSON.stringify({status:x.status,checked:true,code:b.code,traceId:b.traceId}));";
         var output = await NodeCallAsync(script, address, server, client, credential, content);
         return System.Text.Json.JsonSerializer.Deserialize<GatewayResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
@@ -199,7 +201,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
-    private sealed record GatewayResult(int Status, bool Checked, string Code);
+    private sealed record GatewayResult(int Status, bool Checked, string Code, string? TraceId = null);
 
     private static async Task<GatewayResult> NodeGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential)
     {

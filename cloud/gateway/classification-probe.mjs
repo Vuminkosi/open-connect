@@ -1,4 +1,5 @@
 import https from 'node:https';
+import { isValidTraceparent } from './trace-context.mjs';
 
 const unavailable = () => ({ ready: false, code: 'capability_unavailable' });
 
@@ -11,7 +12,7 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
         !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000)
         throw new TypeError('Invalid classification probe configuration.');
 
-    function get(path, signal) {
+    function get(path, signal, traceparent) {
         if (signal?.aborted) return Promise.resolve(null);
         return new Promise(resolve => {
             let completed = false;
@@ -20,7 +21,8 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
             try {
                 const request = https.request(new URL(path, url), {
                     method: 'GET', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
-                    headers: { authorization: `Bearer ${workerToken}`, accept: 'application/json', 'cache-control': 'no-store' },
+                    headers: { authorization: `Bearer ${workerToken}`, accept: 'application/json', 'cache-control': 'no-store',
+                        ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
                 }, response => {
                     if (response.statusCode !== 200) { response.destroy(); finish(null); return; }
                     const chunks = [];
@@ -45,11 +47,11 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
     }
 
     return {
-        async probe(signal) {
-            const health = await get('/health/ready', signal);
+        async probe(signal, traceparent) {
+            const health = await get('/health/ready', signal, traceparent);
             if (health?.status !== 'ready' || health.ready !== true || health.engine !== 'real' || health.modelRevision !== modelRevision)
                 return unavailable();
-            const advertised = await get('/internal/v1/capabilities', signal);
+            const advertised = await get('/internal/v1/capabilities', signal, traceparent);
             if (signal?.aborted || advertised?.workerKind !== 'classification' || advertised.engine !== 'real' ||
                 advertised.modelRevision !== modelRevision || !Array.isArray(advertised.capabilities) ||
                 !advertised.capabilities.some(item => item?.kind === 'classification' && item.grantsTools === false))

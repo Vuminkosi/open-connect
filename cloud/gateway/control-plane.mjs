@@ -1,4 +1,5 @@
 import https from 'node:https';
+import { isValidTraceparent } from './trace-context.mjs';
 
 const denied = () => ({ authorized: false, code: 'capability_unavailable' });
 const safeCodes = new Set(['unauthorized', 'forbidden', 'invalid_request', 'capability_unavailable',
@@ -14,7 +15,7 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
         throw new TypeError('Invalid Cloud authorization client configuration.');
     const endpoint = new URL('/cloud/internal/v1/authorize', url);
     return {
-        authorize(credential, capability, signal) {
+        authorize(credential, capability, signal, traceparent) {
             if (typeof credential !== 'string' || credential.length < 1 || credential.length > 160 ||
                 typeof capability !== 'string' || capability.length < 1 || capability.length > 80 || signal?.aborted)
                 return Promise.resolve(denied());
@@ -27,7 +28,8 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 try {
                     const request = https.request(endpoint, {
                         method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true,
-                        headers: { 'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store' },
+                        headers: { 'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
                         signal,
                     }, response => {
                         const chunks = [];
@@ -58,7 +60,7 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(denied()); }
             });
         },
-        inspectClassification(credential, requestId, content, signal) {
+        inspectClassification(credential, requestId, content, signal, traceparent) {
             const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||
                 typeof content !== 'string' || !content || signal?.aborted) return Promise.resolve(rejected());
@@ -72,7 +74,8 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                     const request = https.request(new URL('/cloud/internal/v1/classification/privacy', url), {
                         method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
                         headers: { authorization: `Bearer ${credential}`, 'x-cloud-request-id': requestId,
-                            'content-type': 'text/plain; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-store' },
+                            'content-type': 'text/plain; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
                     }, response => {
                         const chunks = [];
                         let size = 0;

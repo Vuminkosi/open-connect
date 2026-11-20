@@ -18,6 +18,7 @@
     <Content Include="../../cloud/gateway/control-plane.mjs" Link="gateway/control-plane.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-probe.mjs" Link="gateway/classification-probe.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-request.mjs" Link="gateway/classification-request.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../cloud/gateway/trace-context.mjs" Link="gateway/trace-context.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../OpenConnect.Docs/Content/**/*.md" Link="Content/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
