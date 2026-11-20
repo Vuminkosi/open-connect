@@ -334,6 +334,12 @@
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
+      "openconnect.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
       "Markdig": {
         "type": "CentralTransitive",
         "requested": "[1.6.0, )",

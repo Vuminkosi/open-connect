@@ -1,4 +1,4 @@
-import { validateClassificationRequest } from './classification-request.mjs';
+import { prepareClassificationRequest } from './classification-request.mjs';
 
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
@@ -23,6 +23,7 @@ const problems = {
     invalid_semantic_request: [422, 'Invalid classification request'],
     payload_too_large: [413, 'Request body is too large'],
     unsupported_media_type: [415, 'Unsupported media type'],
+    privacy_blocked: [403, 'Privacy policy blocked the request'],
     capability_unavailable: [503, 'Cloud gateway is not ready'],
 };
 
@@ -56,8 +57,12 @@ export async function handle(request, { authorization, classificationProbe } = {
         try {
             const readiness = await classificationProbe.probe(request.signal);
             if (readiness?.ready !== true) return problem('capability_unavailable');
-            const validation = await validateClassificationRequest(request);
-            if (validation) return problem(validation);
+            const prepared = await prepareClassificationRequest(request);
+            if (prepared.code) return problem(prepared.code);
+            if (!Object.hasOwn(prepared.value.input, 'text') || typeof authorization.inspectClassification !== 'function')
+                return problem('capability_unavailable');
+            const privacy = await authorization.inspectClassification(match[1], prepared.value.requestId, prepared.value.input.text, request.signal);
+            if (privacy?.allowed !== true) return problem(privacy?.code === 'privacy_blocked' ? 'privacy_blocked' : 'capability_unavailable');
         }
         catch { /* Readiness errors never enable execution or expose diagnostics. */ }
     }

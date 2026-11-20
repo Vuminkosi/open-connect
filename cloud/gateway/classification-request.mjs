@@ -50,19 +50,24 @@ function valid(value) {
         (!Object.hasOwn(config, 'maxLabels') || Number.isInteger(config.maxLabels) && config.maxLabels >= 1 && config.maxLabels <= 10);
 }
 
-export async function validateClassificationRequest(request) {
+export async function prepareClassificationRequest(request) {
     const media = request.headers?.get('content-type');
-    if (!media || !/^application\/json(?:\s*;\s*charset\s*=\s*utf-8)?\s*$/i.test(media) || request.headers?.has('content-encoding')) return 'unsupported_media_type';
+    if (!media || !/^application\/json(?:\s*;\s*charset\s*=\s*utf-8)?\s*$/i.test(media) || request.headers?.has('content-encoding')) return { code: 'unsupported_media_type' };
     const declared = request.headers?.get('content-length');
-    if (declared !== null && declared !== undefined && (!/^\d+$/.test(declared) || Number(declared) > limit)) return 'payload_too_large';
-    if (typeof request.readBody !== 'function') return 'invalid_request';
+    if (declared !== null && declared !== undefined && (!/^\d+$/.test(declared) || Number(declared) > limit)) return { code: 'payload_too_large' };
+    if (typeof request.readBody !== 'function') return { code: 'invalid_request' };
     let body;
     try {
         body = await request.readBody(limit);
-        if (!body || body.tooLarge || body.bytes?.byteLength > limit) return 'payload_too_large';
-        if (!(body.bytes instanceof Uint8Array)) return 'invalid_request';
+        if (!body || body.tooLarge || body.bytes?.byteLength > limit) return { code: 'payload_too_large' };
+        if (!(body.bytes instanceof Uint8Array)) return { code: 'invalid_request' };
         const text = new TextDecoder('utf-8', { fatal: true }).decode(body.bytes);
-        return valid(parseUnique(text)) ? null : 'invalid_semantic_request';
-    } catch { return 'invalid_request'; }
+        const value = parseUnique(text);
+        return valid(value) ? { code: null, value } : { code: 'invalid_semantic_request' };
+    } catch { return { code: 'invalid_request' }; }
     finally { if (body?.bytes instanceof Uint8Array) body.bytes.fill(0); }
+}
+
+export async function validateClassificationRequest(request) {
+    return (await prepareClassificationRequest(request)).code;
 }

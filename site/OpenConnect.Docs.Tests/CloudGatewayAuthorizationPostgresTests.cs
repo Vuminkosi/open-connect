@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Docs.Cloud;
+using OpenConnect.Privacy.Rules;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -25,6 +26,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
         string? originalAvailability = null;
+        string? originalClassificationAvailability = null;
         try
         {
             var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
@@ -35,16 +37,24 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var definition = await db.Capabilities.SingleAsync(x => x.Id == capability);
+                var classification = await db.Capabilities.SingleAsync(x => x.Id == "classification.classify");
                 originalAvailability = definition.PlatformAvailability;
+                originalClassificationAvailability = classification.PlatformAvailability;
                 definition.PlatformAvailability = "available";
+                classification.PlatformAvailability = "available";
                 db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+                db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "classification.classify", PlanGranted = true, Revision = 1 });
+                db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
+                db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 await db.SaveChangesAsync();
             }
             var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
             var issued = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, [capability], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
             Assert.Equal("succeeded", issued.Status);
+            var classificationCredential = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, ["classification.classify"], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+            Assert.Equal("succeeded", classificationCredential.Status);
             using var serverCertificate = Certificate(client: false);
             using var clientCertificate = Certificate(client: true);
             using var otherCertificate = Certificate(client: true);
@@ -66,8 +76,10 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudCredentialService>();
             builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
             builder.Services.AddScoped<CloudMachineAuthorizationService>();
+            builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
             await using var app = builder.Build();
             app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
+            app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -89,6 +101,22 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.True(gatewayResult.Checked);
             Assert.Equal(503, gatewayResult.Status);
             Assert.Equal("capability_unavailable", gatewayResult.Code);
+            Assert.Equal("allowed", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
+            Assert.Equal("privacy_blocked", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com")).Code);
+            Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, "hello world")).Code);
+            using (var privacyRequest = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/classification/privacy"))
+            {
+                privacyRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", classificationCredential.Secret);
+                privacyRequest.Headers.Add("X-Cloud-Request-Id", Guid.NewGuid().ToString("D"));
+                privacyRequest.Content = new StringContent(new string('x', 65537), System.Text.Encoding.UTF8, "text/plain");
+                Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.SendAsync(privacyRequest)).StatusCode);
+            }
+            var blocked = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com");
+            Assert.Equal(403, blocked.Status);
+            Assert.Equal("privacy_blocked", blocked.Code);
+            var clean = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world");
+            Assert.Equal(503, clean.Status);
+            Assert.Equal("capability_unavailable", clean.Code);
             Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
             Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
             Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
@@ -101,6 +129,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.False(revokedGatewayResult.Checked);
             Assert.Equal(401, revokedGatewayResult.Status);
             Assert.Equal("unauthorized", revokedGatewayResult.Code);
+            Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None));
+            Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
         }
         finally
         {
@@ -110,7 +140,27 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 await db.Capabilities.Where(x => x.Id == "inference.chat")
                     .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalAvailability));
             }
+            if (originalClassificationAvailability is not null)
+            {
+                await using var db = await factory.CreateDbContextAsync();
+                await db.Capabilities.Where(x => x.Id == "classification.classify")
+                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability));
+            }
         }
+    }
+
+    private static async Task<CloudPrivacyDecision> NodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.inspectClassification(process.env.OC_TEST_CREDENTIAL,'11111111-1111-1111-1111-111111111111',process.env.OC_TEST_CAPABILITY)));";
+        var output = await NodeCallAsync(script, address, server, client, credential, content);
+        return System.Text.Json.JsonSerializer.Deserialize<CloudPrivacyDecision>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<GatewayResult> NodeClassificationGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const s=g.createLocalServer(c,{probe:async()=>({ready:true})}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v1',requestId:'11111111-1111-1111-1111-111111111111',capability:'classification.classify',input:{text:process.env.OC_TEST_CAPABILITY}})}); const b=await x.json(); await new Promise(r=>s.close(r)); process.stdout.write(JSON.stringify({status:x.status,checked:true,code:b.code}));";
+        var output = await NodeCallAsync(script, address, server, client, credential, content);
+        return System.Text.Json.JsonSerializer.Deserialize<GatewayResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
     private static async Task<CloudGatewayAuthorizationResponse> NodeAuthorizeAsync(

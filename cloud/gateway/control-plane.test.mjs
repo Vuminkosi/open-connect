@@ -16,6 +16,9 @@ test('aborted and invalid calls fail closed without a network request', async ()
     assert.deepEqual(await client.authorize('key', 'inference.chat', controller.signal), { authorized: false, code: 'capability_unavailable' });
     assert.deepEqual(await client.authorize('', 'inference.chat'), { authorized: false, code: 'capability_unavailable' });
     assert.deepEqual(await client.authorize('key', 'x'.repeat(81)), { authorized: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectClassification('key', '11111111-1111-1111-1111-111111111111', 'private', controller.signal), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectClassification('key\r\ninjected', '11111111-1111-1111-1111-111111111111', 'private'), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectClassification('key', 'invalid', 'private'), { allowed: false, code: 'capability_unavailable' });
 });
 
 test('invalid TLS configuration fails closed without exposing diagnostics', async () => {

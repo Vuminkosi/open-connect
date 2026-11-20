@@ -21,7 +21,7 @@ paths:
       responses:
         '400': { description: Malformed request }
         '401': { description: Authentication required }
-        '403': { description: Access or entitlement denied }
+        '403': { description: Access, entitlement or privacy policy denied }
         '413': { description: Request exceeds the body limit }
         '415': { description: Unsupported media type or content encoding }
         '422': { description: Request does not satisfy the classification contract }

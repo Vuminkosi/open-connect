@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
+using OpenConnect.Privacy.Rules;
 
 var builder = WebApplication.CreateBuilder(args);
 var gatewayTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:GatewayTrust");
@@ -91,6 +92,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudCredentialService>();
     builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
     builder.Services.AddScoped<CloudMachineAuthorizationService>();
+    builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
     builder.Services.AddScoped<ICloudQuotaReader, EfCloudQuotaReader>();
     builder.Services.AddScoped<CloudQuotaQueryService>();
@@ -160,7 +162,11 @@ app.Use(async (context, next) =>
             title: "Cloud control plane is temporarily unavailable.").ExecuteAsync(context);
     }
 });
-if (gatewayTrust is not null) app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+if (gatewayTrust is not null)
+{
+    app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudClassificationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+}
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 

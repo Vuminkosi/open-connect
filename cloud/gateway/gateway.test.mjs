@@ -89,6 +89,23 @@ test('classification readiness is checked only after authorization and never ena
     assert.deepEqual(calls, ['authorize']);
 });
 
+test('classification invokes the independent privacy boundary before any execution', async () => {
+    const calls = [];
+    const body = { schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111',
+        capability: 'classification.classify', input: { text: 'private input' } };
+    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
+        readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify(body)) }; } };
+    const authorization = { authorize: async () => { calls.push('authorize'); return { authorized: true }; },
+        inspectClassification: async (credential, requestId, content) => { calls.push('privacy'); assert.equal(content, 'private input'); return { allowed: false, code: 'privacy_blocked' }; } };
+    const result = await handle(request, { authorization, classificationProbe: { probe: async () => { calls.push('probe'); return { ready: true }; } } });
+    assert.equal(result.status, 403);
+    assert.equal((await result.json()).code, 'privacy_blocked');
+    assert.deepEqual(calls, ['authorize', 'probe', 'body', 'privacy']);
+    body.input = { inputRef: 'opaque-handle' }; calls.length = 0;
+    assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } })).status, 503);
+    assert.deepEqual(calls, ['authorize', 'body']);
+});
+
 test('gateway denies missing, rejected, and malformed authorization safely', async () => {
     let calls = 0;
     const authorization = { authorize: async () => { calls++; return { authorized: false, code: 'unauthorized' }; } };

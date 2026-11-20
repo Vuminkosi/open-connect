@@ -1155,7 +1155,8 @@
           "OpenConnect.Client": "[1.0.0, )",
           "OpenConnect.Components.Blazor": "[1.0.0, )",
           "OpenConnect.Components.Contracts": "[1.0.0, )",
-          "OpenConnect.Core": "[1.0.0, )"
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
       "openconnect.hosting.aspnetcore": {
