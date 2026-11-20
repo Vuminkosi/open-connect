@@ -6,12 +6,37 @@ using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.LiveUI.Agents;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
 
 public sealed class MafHostTaskExecutorTests
 {
+    [Fact]
+    public async Task Executes_durable_liveui_tool_against_accepted_client_connection()
+    {
+        var fixture = new Fixture { UseLiveUI = true };
+        await new MafHostTaskExecutor(fixture).ExecuteAsync(fixture.Input, default);
+
+        Assert.Equal(2, fixture.Client.Calls);
+        Assert.Equal(1, fixture.Store.Saves);
+        Assert.Equal(fixture.Input.SessionId, fixture.Broker.Session);
+        Assert.Equal("accepted-connection", fixture.Broker.Request!.ConnectionId);
+        Assert.Equal("get_current_page", fixture.Broker.Request.Operation);
+    }
+
+    [Fact]
+    public async Task Scope_mismatch_prevents_liveui_tool_dispatch()
+    {
+        var fixture = new Fixture { UseLiveUI = true, WrongTenant = true };
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            new MafHostTaskExecutor(fixture).ExecuteAsync(fixture.Input, default));
+
+        Assert.Equal(0, fixture.Client.Calls);
+        Assert.Null(fixture.Broker.Request);
+    }
+
     [Fact]
     public async Task Executes_real_turn_and_saves_native_state()
     {
@@ -63,10 +88,13 @@ public sealed class MafHostTaskExecutorTests
     {
         public readonly Client Client = new();
         public readonly Store Store = new();
+        public readonly Broker Broker = new();
+        public bool UseLiveUI { get; init; }
         public bool WrongTenant { get; init; }
         public bool Revoked { get; init; }
         public Action<CancellationToken>? ClientCall { get => Client.OnCall; init => Client.OnCall = value; }
-        public HostTaskExecution Input { get; } = new(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), new SessionId(Ulid.NewUlid()), "hello", "key");
+        public HostTaskExecution Input { get; } = new(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), new SessionId(Ulid.NewUlid()), "hello", "key")
+        { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "accepted-connection" };
 
         public Task<HostTaskAgentExecution> CreateAsync(HostTaskExecution task, CancellationToken cancellationToken)
         {
@@ -89,7 +117,12 @@ public sealed class MafHostTaskExecutorTests
                 CancellationToken = cancellationToken
             };
             var factory = new MafRealAgentFactory(new Registry(), Client);
-            var runner = new MafConversationRunner(factory, new AgentId("lead"));
+            Client.UseLiveUI = UseLiveUI;
+            var runner = UseLiveUI
+                ? MafConversationRunner.CreateWithTools(factory, new AgentId("lead"),
+                    LiveUIClientAgentToolFactory.CreateToolsForConnection(Broker, task.SessionId, task.ClientConnectionId!),
+                    LiveUIAgentGuidance.Instructions)
+                : new MafConversationRunner(factory, new AgentId("lead"));
             var persistence = new NativeAgentSessionPersistence(Store, new Protector());
             var contextForRevocation = new NativeSessionTurnPersistenceContext(persistence, binding, new Gate());
             return System.Threading.Tasks.Task.FromResult(new HostTaskAgentExecution(runner, context, (_, _) => ValueTask.FromResult(Revoked), contextForRevocation));
@@ -131,13 +164,37 @@ public sealed class MafHostTaskExecutorTests
     private sealed class Client : IChatClient
     {
         public int Calls { get; private set; }
+        public bool UseLiveUI { get; set; }
         public Action<CancellationToken>? OnCall { get; set; }
         public ChatClientMetadata Metadata { get; } = new("host-executor-test");
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
-        { cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply"))); }
+        {
+            cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); cancellationToken.ThrowIfCancellationRequested();
+            if (UseLiveUI && Calls == 1)
+            {
+                var function = Assert.IsAssignableFrom<AIFunction>(options!.Tools!.Single(tool => tool.Name == "liveui_get_current_page"));
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant,
+                    [new FunctionCallContent("page-call", function.Name, new Dictionary<string, object?>())])));
+            }
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply")));
+        }
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         { var result = await GetResponseAsync(messages, options, cancellationToken); yield return new ChatResponseUpdate(ChatRole.Assistant, result.Text); }
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
         public void Dispose() { }
+    }
+
+    private sealed class Broker : IClientInteractionBroker
+    {
+        public SessionId Session { get; private set; }
+        public ClientInteractionRequest? Request { get; private set; }
+        public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
+            string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Session = sessionId;
+            Request = request;
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, expectedResultKind, "{\"targets\":[]}"));
+        }
     }
 }

@@ -1053,6 +1053,31 @@ public sealed class LiveUIAgentToolsTests
     }
 
     [Fact]
+    public async Task Conversation_runner_binds_liveui_tools_to_host_session_and_connection()
+    {
+        var sessionId = new SessionId(Ulid.NewUlid());
+        var broker = new RecordingInteractionBroker((session, request, resultKind) =>
+        {
+            Assert.Equal(sessionId, session);
+            Assert.Equal("trusted-connection", request.ConnectionId);
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind,
+                "{\"outcome\":\"Completed\",\"postconditionVerified\":true}"));
+        });
+        var agentId = new AgentId("liveui-client-assistant");
+        var client = new ClientBridgeToolCallChatClient();
+        var factory = new MafRealAgentFactory(new TestAgentRegistry(new AgentDefinition(agentId, "LiveUI")), client);
+        var tools = LiveUIClientAgentToolFactory.CreateToolsForConnection(broker,
+            sessionId, "trusted-connection", TimeSpan.FromSeconds(1));
+        var runner = MafConversationRunner.CreateWithTools(factory, agentId, tools, LiveUIAgentGuidance.Instructions);
+
+        var response = await runner.TurnAsync("show completed tasks");
+
+        Assert.Equal(2, client.Calls);
+        Assert.Contains("Completed", response.Text, StringComparison.Ordinal);
+        Assert.Equal("SelectTab", Assert.Single(broker.Requests).Action);
+    }
+
+    [Fact]
     public async Task MafRealAgentFactory_waits_for_the_connected_client_tool_receipt()
     {
         var broker = new RecordingInteractionBroker((session, request, resultKind) =>
