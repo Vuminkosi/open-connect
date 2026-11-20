@@ -345,6 +345,44 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("membership_revisions", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudPrivacyEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TraceId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ApplicationId", "OccurredAt");
+
+                    b.ToTable("privacy_evidence", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_privacy_evidence_outcome", "\"Outcome\" IN ('allowed', 'privacy_blocked', 'detector_unavailable')");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudQuotaBucket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -689,6 +727,16 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudPrivacyEvidence", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudApplication", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

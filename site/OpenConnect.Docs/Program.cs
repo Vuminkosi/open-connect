@@ -93,6 +93,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
     builder.Services.AddScoped<CloudMachineAuthorizationService>();
     builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
+    builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
     builder.Services.AddScoped<ICloudQuotaReader, EfCloudQuotaReader>();
     builder.Services.AddScoped<CloudQuotaQueryService>();

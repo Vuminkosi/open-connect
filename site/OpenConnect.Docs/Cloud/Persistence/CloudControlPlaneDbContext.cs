@@ -19,6 +19,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudQuotaReservation> QuotaReservations => Set<CloudQuotaReservation>();
     public DbSet<CloudUsageRecord> UsageRecords => Set<CloudUsageRecord>();
     public DbSet<CloudWorkerDeployment> WorkerDeployments => Set<CloudWorkerDeployment>();
+    public DbSet<CloudPrivacyEvidence> PrivacyEvidence => Set<CloudPrivacyEvidence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -111,6 +112,17 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.ModalitiesVerified).IsRequired();
             entity.Property(x => x.AllowedRegions).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.AllowedRegionsVerified).IsRequired();
+        });
+
+        modelBuilder.Entity<CloudPrivacyEvidence>(entity =>
+        {
+            entity.ToTable("privacy_evidence", table => table.HasCheckConstraint("ck_privacy_evidence_outcome", "\"Outcome\" IN ('allowed', 'privacy_blocked', 'detector_unavailable')"));
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.TraceId).HasMaxLength(32).IsRequired();
+            entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.OccurredAt });
+            entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudWorkerDeployment>(entity =>

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Diagnostics;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -47,6 +48,14 @@ public static class CloudClassificationPrivacyEndpoints
                 if (string.IsNullOrEmpty(text) || text.EnumerateRunes().Count() > 20000) return Results.BadRequest();
                 var privacy = context.RequestServices.GetRequiredService<CloudClassificationPrivacyService>();
                 var result = await privacy.EvaluateAsync(decision.Identity, requestId, text, cancellationToken);
+                var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+                try
+                {
+                    var evidence = context.RequestServices.GetRequiredService<ICloudPrivacyEvidenceStore>();
+                    await evidence.AppendAsync(decision.Identity, requestId, result.Code, traceId, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch { return Results.StatusCode(503); }
                 return Results.Json(result, statusCode: result.Code switch { "allowed" => 200, "privacy_blocked" => 403, _ => 503 });
             }
             catch (DecoderFallbackException) { return Results.BadRequest(); }

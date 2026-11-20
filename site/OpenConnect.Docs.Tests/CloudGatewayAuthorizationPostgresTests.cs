@@ -77,6 +77,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
             builder.Services.AddScoped<CloudMachineAuthorizationService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
+            var evidenceStore = new SwitchableEvidenceStore(new EfCloudPrivacyEvidenceStore(factory, TimeProvider.System));
+            builder.Services.AddSingleton<ICloudPrivacyEvidenceStore>(evidenceStore);
             await using var app = builder.Build();
             app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
             app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
@@ -117,6 +119,22 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var clean = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world");
             Assert.Equal(503, clean.Status);
             Assert.Equal("capability_unavailable", clean.Code);
+            await using (var verify = await factory.CreateDbContextAsync())
+            {
+                var evidence = await verify.PrivacyEvidence.AsNoTracking().Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id).ToListAsync();
+                Assert.Equal(2, evidence.Count(x => x.Outcome == "allowed"));
+                Assert.Equal(2, evidence.Count(x => x.Outcome == "privacy_blocked"));
+                Assert.All(evidence, x => { Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), x.RequestId); Assert.Matches("^[0-9a-f]{32}$", x.TraceId); });
+                Assert.DoesNotContain("person@example.com", System.Text.Json.JsonSerializer.Serialize(evidence));
+                await Assert.ThrowsAnyAsync<Exception>(() => verify.PrivacyEvidence.Where(x => x.TenantId == tenant.Id).ExecuteDeleteAsync());
+                await Assert.ThrowsAnyAsync<Exception>(() => verify.PrivacyEvidence.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.Outcome, "allowed")));
+                await Assert.ThrowsAnyAsync<Exception>(() => verify.Database.ExecuteSqlRawAsync("TRUNCATE TABLE cloud.privacy_evidence"));
+            }
+            evidenceStore.Fail = true;
+            Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
+            evidenceStore.Fail = false;
+            var foreign = new CloudCredentialIdentity(Guid.NewGuid(), Guid.NewGuid(), appRecord.Id, "Development", new HashSet<string>());
+            await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), CancellationToken.None));
             Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
             Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
             Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
@@ -147,6 +165,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                     .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability));
             }
         }
+    }
+
+    private sealed class SwitchableEvidenceStore(ICloudPrivacyEvidenceStore inner) : ICloudPrivacyEvidenceStore
+    {
+        public bool Fail { get; set; }
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken) =>
+            Fail ? Task.FromException(new InvalidOperationException("test evidence unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, cancellationToken);
     }
 
     private static async Task<CloudPrivacyDecision> NodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
