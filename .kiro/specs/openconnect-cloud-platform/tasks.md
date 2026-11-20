@@ -50,6 +50,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Integrate gateway dispatch with deployment-managed certificates and active-call revocation.
 
 - [ ] Implement versioned cloud gateway, authenticated private worker adapters, typed errors, bounded streaming, admission controls, and capability routing.
+- [x] Add an audited tenant inference model allowlist with revision-checked administration and workspace controls; connect it to fenced inference admission before enabling that route.
 - [ ] Implement signed, sanitized security receipts and coverage status without replacing application-host privacy enforcement.
 - [x] Add app/capability quota buckets and atomic idempotent PostgreSQL reservation/finalization primitives; verify contention and tenant binding.
 - [x] Bind quota idempotency to a stored fingerprint and fail closed for pre-fingerprint reservation retries.

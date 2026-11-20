@@ -124,6 +124,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
         builder.Services.AddHostedService<CloudQuotaRecoveryWorker>();
     builder.Services.AddScoped<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>();
     builder.Services.AddScoped<CloudRegionPolicyService>();
+    builder.Services.AddScoped<ICloudInferenceModelPolicyStore, EfCloudInferenceModelPolicyStore>();
+    builder.Services.AddScoped<CloudInferenceModelPolicyService>();
     builder.Services.AddScoped<ICloudCatalogRegionsStore, EfCloudCatalogRegionsStore>();
     builder.Services.AddScoped<CloudCatalogRegionsService>();
     builder.Services.AddScoped<CloudOperatorCatalogRegionsService>();

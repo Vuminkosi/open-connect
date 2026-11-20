@@ -1,0 +1,121 @@
+@page "/cloud/tenants/{TenantId:guid}/inference-models"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantInferenceModels> Logger
+
+<PageTitle>Inference model policy | OpenConnect Cloud</PageTitle>
+<h1>Inference model policy</h1>
+<p>Choose the model identifiers this organization permits for Cloud inference. An empty list denies all models. A permitted model still needs an entitled service, an approved deployment, residency checks and quota; this policy does not make inference available.</p>
+@if (_loading) { <p role="status">Loading model policy...</p> }
+else if (_error is not null) { <p role="status">@_error</p> }
+else if (_policy is not null)
+{
+    <p>Policy revision: @_policy.Revision @(_policy.Revision == 0 ? "(not configured)" : "")</p>
+    @if (!_canEdit) { <p>An owner or administrator can change this policy.</p> }
+    <fieldset disabled="@(!_interactive || _busy || !_canEdit)">
+        <legend>Allowed model identifiers</legend>
+        @if (_models.Count == 0) { <p>No models are allowed.</p> }
+        else
+        {
+            @foreach (var model in _models.Order(StringComparer.Ordinal))
+            {
+                <label class="region-option"><input type="checkbox" checked="true" @onchange="e => RemoveModel(model, e)" /><span>@model</span></label>
+            }
+        }
+        <label for="model-id">Model identifier</label>
+        <input id="model-id" type="text" maxlength="256" @bind="_modelInput" />
+        <button class="button" type="button" @onclick="AddModel">Add model</button>
+    </fieldset>
+    @if (_canEdit)
+    {
+        <div class="region-actions">
+            <button class="button primary" type="button" @onclick="SaveAsync" disabled="@(!_interactive || _busy)">Save model policy</button>
+            <button class="button" type="button" @onclick="ReloadAsync" disabled="@(!_interactive || _busy)">Reload saved policy</button>
+        </div>
+    }
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+}
+<p><a href="/cloud">Back to organizations</a></p>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    private readonly HashSet<string> _models = new(StringComparer.Ordinal);
+    private CloudInferenceModelPolicyView? _policy;
+    private string? _error, _notice, _modelInput;
+    private bool _loading = true, _interactive, _busy, _canEdit;
+    private int _requestVersion;
+
+    protected override Task OnParametersSetAsync() => ReloadAsync();
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    private async Task ReloadAsync()
+    {
+        var version = ++_requestVersion; var tenantId = TenantId;
+        _loading = true; _busy = false; _policy = null; _models.Clear(); _error = null; _notice = null; _canEdit = false; _modelInput = null;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (version != _requestVersion) return;
+            if (subject is null) { _error = "The authenticated identity is missing a subject."; return; }
+            if (Services.GetService(typeof(CloudInferenceModelPolicyService)) is not CloudInferenceModelPolicyService policyService ||
+                Services.GetService(typeof(CloudControlPlaneService)) is not CloudControlPlaneService tenants)
+            { _error = "The Cloud control plane is not configured."; return; }
+            var membership = (await tenants.GetTenantsAsync(subject, CancellationToken.None)).SingleOrDefault(x => x.Id == tenantId);
+            var result = await policyService.GetAsync(subject, tenantId, CancellationToken.None);
+            if (version != _requestVersion) return;
+            if (membership is null || result.Policy is null) { _error = "The organization was not found or the policy is unavailable."; return; }
+            _policy = result.Policy; _canEdit = membership.Role is "Owner" or "Administrator";
+            foreach (var model in _policy.AllowedModels) _models.Add(model);
+        }
+        catch (Exception) { if (version == _requestVersion) { Logger.LogWarning("Cloud inference model policy could not be loaded."); _error = "The model policy is temporarily unavailable."; } }
+        finally { if (version == _requestVersion) _loading = false; }
+    }
+
+    private void AddModel()
+    {
+        if (!_canEdit || _busy) return;
+        var value = _modelInput?.Trim();
+        if (!CloudInferenceModelPolicyService.ValidModelId(value) || _models.Count >= 64)
+        { _notice = "Enter a valid model identifier; the policy can contain at most 64 models."; return; }
+        if (!_models.Add(value!)) { _notice = "This model identifier is already listed."; return; }
+        _modelInput = null; _notice = null;
+    }
+
+    private void RemoveModel(string model, ChangeEventArgs e)
+    {
+        if (_canEdit && !_busy && e.Value is false) _models.Remove(model);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!_canEdit || _policy is null) return;
+        var version = _requestVersion; var tenantId = TenantId; var revision = _policy.Revision;
+        _busy = true; _notice = null;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (version != _requestVersion) return;
+            if (subject is null || Services.GetService(typeof(CloudInferenceModelPolicyService)) is not CloudInferenceModelPolicyService service)
+            { _notice = "The policy was not saved. Access could not be verified."; return; }
+            var result = await service.PutAsync(subject, tenantId, _models.Order(StringComparer.Ordinal).ToArray(), revision, CancellationToken.None);
+            if (version != _requestVersion) return;
+            if (result.Policy is not null) { _policy = result.Policy; _notice = "Model policy saved."; }
+            else _notice = result.Status switch { "conflict" => "The policy changed. Reload the saved policy before trying again.",
+                "invalid_request" => "Choose no more than 64 valid model identifiers.", _ => "The policy was not saved. Access may have changed." };
+        }
+        catch (Exception) { if (version == _requestVersion) { Logger.LogWarning("Cloud inference model policy update failed."); _notice = "The policy was not confirmed."; } }
+        finally { if (version == _requestVersion) _busy = false; }
+    }
+
+    private async Task<CloudSubject?> GetSubjectAsync()
+    {
+        var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+        return CloudIdentity.IsEnabled(principal, identity) ? CloudSubjectResolver.FromPrincipal(principal, identity["Authority"]) : null;
+    }
+}
