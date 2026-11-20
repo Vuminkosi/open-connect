@@ -44,12 +44,24 @@
                       Immediate="true" />
     </div>
 
-    <div class="d-flex align-center gap-2 mb-3">
+    <div class="d-flex flex-wrap align-center gap-3 mb-3">
         <label for="todo-sort">Sort tasks</label>
         <select id="todo-sort" @bind="_sort" @bind:after="ResetPage">
             <option value="priority">Priority</option>
             <option value="deadline">Earliest deadline</option>
         </select>
+        <label for="todo-priority-filter">Priority filter</label>
+        <select id="todo-priority-filter" @bind="_priorityFilter" @bind:after="ResetPage">
+            <option value="all">All priorities</option>
+            @foreach (var priority in Enum.GetValues<TodoPriority>())
+            {
+                <option value="@priority">@priority</option>
+            }
+        </select>
+        <label for="todo-overdue-filter">
+            <input id="todo-overdue-filter" type="checkbox" @bind="_overdueOnly" @bind:after="ResetPage" />
+            Overdue incomplete only
+        </label>
     </div>
 
     @if (_loading)
@@ -70,6 +82,10 @@
                 @if (!string.IsNullOrWhiteSpace(_searchQuery))
                 {
                     <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
+                }
+                else if (_overdueOnly || _priorityFilter != "all" || _activeTab != 0)
+                {
+                    <span>No tasks match the selected filters. Change the filters to see other tasks.</span>
                 }
                 else
                 {
@@ -192,6 +208,8 @@
     private const int PageSize = 10;
     private int _page = 1;
     private string _sort = "priority";
+    private string _priorityFilter = "all";
+    private bool _overdueOnly;
     private Guid? _editingId;
     private long _editRevision;
     private string _editTitle = string.Empty;
@@ -228,6 +246,14 @@
                 query = query.Where(i =>
                     i.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
                     (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (Enum.TryParse<TodoPriority>(_priorityFilter, out var priority))
+                query = query.Where(i => i.Priority == priority);
+            if (_overdueOnly)
+            {
+                var today = DateTime.Today;
+                query = query.Where(i => !i.IsCompleted && i.DueDateUtc is { } due && due.ToLocalTime().Date < today);
             }
 
             return (_sort == "deadline"
