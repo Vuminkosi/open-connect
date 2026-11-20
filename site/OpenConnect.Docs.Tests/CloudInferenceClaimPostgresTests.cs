@@ -66,7 +66,11 @@ public sealed class CloudInferenceClaimPostgresTests
             var mismatched = await claims.ClaimAsync(credential, tenant.Id, app.Id, id, "inference.chat", "key", new byte[32], null, default,
                 workerPayloadFingerprint: new byte[32], inferenceModelId: "registry/model-a", inferenceDeployment: match with { ModelDigest = "sha256:" + new string('c', 64) });
             Assert.Equal("unavailable", mismatched.Status);
-            Assert.Equal("claimed", (await Claim(id, "registry/model-a")).Status);
+            var firstClaim = await Claim(id, "registry/model-a");
+            Assert.Equal("claimed", firstClaim.Status);
+            var consumption = new CloudInferenceConsumptionService(new EfCloudInferenceConsumptionStore(factory, TimeProvider.System));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, Guid.NewGuid(), new byte[32], default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId.Value, deploymentId, Enumerable.Repeat((byte)1, 32).ToArray(), default));
             await using (var db = await factory.CreateDbContextAsync())
             {
                 Assert.Equal(deploymentId, (await db.ExecutionClaims.SingleAsync(x => x.ReservationId == id)).DeploymentId);
@@ -84,7 +88,11 @@ public sealed class CloudInferenceClaimPostgresTests
                 await transaction.CommitAsync();
                 Assert.Equal("unavailable", (await pending).Status);
             }
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default));
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 2, default)).Status);
+            var attempts = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)));
+            Assert.Single(attempts, x => x == "consumed");
+            Assert.Equal(9, attempts.Count(x => x == "already_consumed"));
             var claimFirst = await Reserve();
             await using (var reservationBlocker = await factory.CreateDbContextAsync())
             {

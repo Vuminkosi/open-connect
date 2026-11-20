@@ -141,3 +141,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Require an allowed model and persist its identity in internal inference claims under a policy lock; worker payload binding, token accounting and gateway routing remain outstanding.
 
 - [x] Bind internal inference claims to matching model deployment, allowed region, token-unit reservation, payload fingerprint and concurrency capacity; provider verification, worker enforcement, actual token settlement and public routing remain outstanding.
+
+- [x] Add a private deployment-certificate-bound inference consumption endpoint with locked policy rechecks and single-use persistence; worker integration and token settlement remain outstanding.
