@@ -3,13 +3,13 @@ name = "openconnect-document-intelligence"
 version = "0.1.0"
 description = "CPU-first document intelligence for OpenConnect"
 requires-python = ">=3.12,<3.13"
-dependencies = ["minio==7.2.15", "openconnect-worker-common", "pillow==11.2.1", "pypdfium2==4.30.0"]
+dependencies = ["fastapi==0.115.12", "minio==7.2.15", "openconnect-worker-common", "pillow==11.2.1", "pypdfium2==4.30.0", "uvicorn[standard]==0.34.3"]
 
 [tool.uv.sources]
 openconnect-worker-common = { path = "../common" }
 
 [dependency-groups]
-dev = ["pypdf==5.4.0", "pytest==8.3.5", "ruff==0.11.8"]
+dev = ["httpx==0.28.1", "jsonschema==4.23.0", "pypdf==5.4.0", "pytest==8.3.5", "ruff==0.11.8"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

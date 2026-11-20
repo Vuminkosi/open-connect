@@ -39,13 +39,35 @@ Deletion removes the referenced object version. Other versions and related
 chunks, indexes, caches and application records require their own lifecycle
 handling. Synchronous processing does not implicitly retain documents.
 
-There is no document worker API or deployment image yet. A PDF page renderer
-runs in a separate process with byte, page, pixel, output and time limits; it
-must run in an OS sandbox with network access denied. The PDF-to-OCR pipeline,
-multipage TIFF,
-tables, structured fields, indexing, multilingual profiles, and document-level
-partial failure are not implemented. Do not advertise `documents.analyze`
-until those integrations and their security checks are complete.
+The private API exposes `documents.ocr`, not the broader `documents.analyze`
+capability. It requires a bearer token and a short-lived request signed with
+HMAC-SHA256 over its exact JSON bytes, matching the other private workers. The
+trusted host must authenticate and authorize the tenant and apply privacy
+policy before signing. Requests include `schemaVersion`, `taskId`, `kind`,
+`tenantId`, `issuedAt`, `expiresAt`, and `payload.contentBase64`; responses
+contain document text and must be protected as application data. The service
+does not provide replay protection or durable task semantics.
+
+The service is disabled by default. It requires a verified model, a responding
+ClamAV socket, and a restricted Linux environment: non-root, no-new-privileges,
+seccomp filter, a read-only root filesystem, loopback-only networking, and
+bounded cgroup memory and process counts. These checks establish minimum
+conditions, not a complete sandbox attestation; operators must enforce the
+actual sandbox and scanner configuration. There is no deployment image yet.
+The PDF-to-OCR pipeline does not yet provide multipage TIFF, tables, structured
+fields, indexing, multilingual profiles or document-level partial failure.
+Do not advertise `documents.analyze` until those integrations and their
+security checks are complete.
+
+Set `OC_DOCUMENT_ENABLED=true` and `OC_DOCUMENT_CONFIG_PATH` to a protected
+operator-controlled JSON file containing the shared `manifest`,
+`resourceRequest` and `resourceBudget`, plus absolute `tesseractPath` and
+`clamSocket` values. Optional `licenseAccepted` and `commercialUse` fields
+control license verification. Configure `OC_MODEL_CACHE_DIR`,
+`OPENCONNECT_WORKER_TOKEN` and a hex-encoded `OPENCONNECT_WORKER_SIGNING_KEY`
+of at least 32 bytes. The resource values are admission inputs, not measured
+host availability; enforce the actual limits in the deployment. When disabled,
+the service does not load a model or advertise a capability.
 
 Run `uv sync --locked`, `uv run ruff check .` and `uv run pytest -q` from this
 directory. An optional compatible language-data candidate is maintained by

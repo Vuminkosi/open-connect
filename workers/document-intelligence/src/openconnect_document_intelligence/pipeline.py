@@ -28,10 +28,12 @@ class DocumentAnalyzer:
         self._ocr = ocr
         self._timeout = timeout_seconds
 
-    def analyze(self, content: bytes) -> DocumentResult:
+    def analyze(self, content: bytes, *, timeout_seconds: float | None = None) -> DocumentResult:
         if not content or len(content) > MAX_INPUT_BYTES:
             raise ValueError("invalid_document")
-        deadline = time.monotonic() + self._timeout
+        if timeout_seconds is not None and (not math.isfinite(timeout_seconds) or timeout_seconds <= 0):
+            raise ValueError("invalid_timeout")
+        deadline = time.monotonic() + min(self._timeout, timeout_seconds or self._timeout)
         self._scanner.scan(content, timeout_seconds=self._remaining(deadline))
         self._remaining(deadline)
         if not content.startswith(b"%PDF-"):

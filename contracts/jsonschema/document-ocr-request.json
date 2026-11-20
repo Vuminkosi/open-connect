@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/document-ocr-request.json",
+  "title": "Document OCR request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "documents.ocr"},
+    "tenantId": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object", "additionalProperties": false, "required": ["contentBase64"],
+      "properties": {
+        "contentBase64": {"type": "string", "minLength": 1, "maxLength": 13981016,
+                          "contentEncoding": "base64"}
+      }
+    }
+  }
+}
