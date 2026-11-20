@@ -47,6 +47,7 @@ public class CloudTenantPostgresTests
         await using var verify = await factory.CreateDbContextAsync();
         Assert.Equal(1, await verify.Memberships.CountAsync(x => x.TenantId == tenant.Id && x.Role == "Owner"));
         Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "membership.role_changed.Owner.Developer"));
+        Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "membership.change" && x.Outcome == "conflict"));
     }
 
     [CloudPostgresFact]
@@ -65,6 +66,8 @@ public class CloudTenantPostgresTests
                 Role = "Developer", CreatedAt = DateTimeOffset.UtcNow });
             await db.SaveChangesAsync();
         }
+        var outsider = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        Assert.Equal("not_found", (await store.ChangeMemberAsync(outsider, tenant.Id, owner, "Developer", 1, CancellationToken.None)).Status);
         Assert.Equal("forbidden", (await store.ChangeMemberAsync(developer, tenant.Id, owner, "Developer", 1, CancellationToken.None)).Status);
         Assert.Equal("last_owner", (await store.ChangeMemberAsync(owner, tenant.Id, owner, null, 1, CancellationToken.None)).Status);
         Assert.Equal("succeeded", (await store.ChangeMemberAsync(owner, tenant.Id, developer, "Administrator", 1, CancellationToken.None)).Status);
@@ -73,8 +76,16 @@ public class CloudTenantPostgresTests
         Assert.Null(await store.GetMembersAsync(developer, tenant.Id, CancellationToken.None));
         await using var verify = await factory.CreateDbContextAsync();
         Assert.False(await verify.Memberships.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == developer.SubjectId));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == null && x.SubjectId == outsider.SubjectId &&
+            x.Action == "membership.change" && x.Outcome == "not_found" && x.ResourceId == tenant.Id.ToString("D")));
         var history = await verify.MembershipRevisions.SingleAsync(x => x.TenantId == tenant.Id);
         Assert.Equal(3, history.LastRevision);
+        var failures = await verify.AuditEvents.Where(x => x.TenantId == tenant.Id && x.Action == "membership.change")
+            .OrderBy(x => x.OccurredAt).ToListAsync();
+        Assert.Equal(new[] { "forbidden", "last_owner", "conflict" }, failures.Select(x => x.Outcome));
+        Assert.Equal(developer.SubjectId, failures[0].SubjectId);
+        Assert.Equal("Developer", failures[0].ActorRole);
+        Assert.All(failures, audit => Assert.DoesNotContain(developer.SubjectId, audit.ResourceId ?? ""));
     }
 
     [CloudPostgresFact]

@@ -66,16 +66,16 @@ public sealed class EfCloudTenantStore(
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var actorRole = await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
             x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId).Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
-        if (actorRole is null) return new("not_found");
-        if (actorRole != TenantOwner) return new("forbidden");
+        if (actorRole is null) return await FailAsync("not_found", null, null);
+        if (actorRole != TenantOwner) return await FailAsync("forbidden", actorRole, null);
         var member = await db.Memberships.SingleOrDefaultAsync(x => x.TenantId == tenantId &&
             x.SubjectIssuer == target.Issuer && x.SubjectId == target.SubjectId, cancellationToken);
-        if (member is null) return new("not_found");
-        if (member.Revision != expectedRevision) return new("conflict", member.Revision);
-        if (member.Revision == int.MaxValue) return new("conflict", member.Revision);
+        if (member is null) return await FailAsync("not_found", actorRole, null);
+        if (member.Revision != expectedRevision) return await FailAsync("conflict", actorRole, member.Revision);
+        if (member.Revision == int.MaxValue) return await FailAsync("conflict", actorRole, member.Revision);
         if (member.Role == TenantOwner && role != TenantOwner &&
             await db.Memberships.CountAsync(x => x.TenantId == tenantId && x.Role == TenantOwner, cancellationToken) <= 1)
-            return new("last_owner");
+            return await FailAsync("last_owner", actorRole, null);
 
         var revision = member.Revision + 1;
         var previousRole = member.Role;
@@ -96,10 +96,26 @@ public sealed class EfCloudTenantStore(
             await transaction.CommitAsync(cancellationToken);
             return new("succeeded", role is null ? null : revision);
         }
-        catch (DbUpdateConcurrencyException) { return new("conflict"); }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { return new("conflict"); }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }) { return new("conflict"); }
-        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { return new("conflict"); }
+        catch (DbUpdateConcurrencyException) { return await FailAsync("conflict", actorRole, null); }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { return await FailAsync("conflict", actorRole, null); }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }) { return await FailAsync("conflict", actorRole, null); }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { return await FailAsync("conflict", actorRole, null); }
+        async Task<CloudMemberChangeResult> FailAsync(string outcome, string? authenticatedRole, int? currentRevision)
+        {
+            // A separate context records conflicts even when the write transaction has aborted.
+            // Unaffiliated callers cannot create tenant-scoped audit entries.
+            await using var auditDb = await contextFactory.CreateDbContextAsync(cancellationToken);
+            auditDb.AuditEvents.Add(new CloudAuditEvent
+            {
+                Id = Guid.NewGuid(), TenantId = authenticatedRole is null ? null : tenantId,
+                SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
+                ActorRole = authenticatedRole ?? "AuthenticatedUser", Action = "membership.change",
+                ResourceId = authenticatedRole is null ? tenantId.ToString("D") : CloudIdentityFingerprint.Compute(target),
+                Outcome = outcome, OccurredAt = timeProvider.GetUtcNow(),
+            });
+            await auditDb.SaveChangesAsync(cancellationToken);
+            return new(outcome, currentRevision);
+        }
     }
 
     public async Task<IReadOnlyList<CloudApplicationSummary>?> GetApplicationsAsync(

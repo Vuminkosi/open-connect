@@ -18,6 +18,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Scope organization/application read APIs to the OIDC issuer and subject; new organization creator is owner; app registration requires owner/admin role.
 - [x] Ensure the overview does not invent entitlement, usage, or evidence records and shows database unavailability explicitly.
 - [ ] Add member invitation/removal and role management with immutable audit coverage for denied and failed writes.
+- [x] Record membership-change authorization denials and concurrency conflicts in append-only audit records; invitation and validation failure coverage remains outstanding.
 - [x] Verify initial subject-bound invitation creation and acceptance through an authenticated local OIDC browser session.
 - [x] Verify invitation revocation in an authenticated local OIDC browser and concurrent PostgreSQL acceptance.
 - [ ] Verify revocation across mixed-version deployments; implement abuse controls and safe reinvitation after historical reconciliation.
