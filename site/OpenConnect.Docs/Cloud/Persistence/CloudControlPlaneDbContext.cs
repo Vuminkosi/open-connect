@@ -12,6 +12,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudApplication> Applications => Set<CloudApplication>();
     public DbSet<CloudAuditEvent> AuditEvents => Set<CloudAuditEvent>();
     public DbSet<CloudCapabilityDefinition> Capabilities => Set<CloudCapabilityDefinition>();
+    public DbSet<CloudCatalogRegionRevision> CatalogRegionRevisions => Set<CloudCatalogRegionRevision>();
     public DbSet<CloudTenantEntitlement> TenantEntitlements => Set<CloudTenantEntitlement>();
     public DbSet<CloudTenantCapabilitySelection> TenantCapabilitySelections => Set<CloudTenantCapabilitySelection>();
     public DbSet<CloudApplicationCapabilitySelection> ApplicationCapabilitySelections => Set<CloudApplicationCapabilitySelection>();
@@ -124,6 +125,14 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.ModalitiesVerified).IsRequired();
             entity.Property(x => x.AllowedRegions).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.AllowedRegionsVerified).IsRequired();
+        });
+
+        modelBuilder.Entity<CloudCatalogRegionRevision>(entity =>
+        {
+            entity.ToTable("catalog_region_revisions", table => table.HasCheckConstraint("ck_catalog_region_revision", "\"Revision\" > 0"));
+            entity.HasKey(x => x.CapabilityId);
+            entity.Property(x => x.CapabilityId).HasMaxLength(80);
+            entity.HasOne<CloudCapabilityDefinition>().WithOne().HasForeignKey<CloudCatalogRegionRevision>(x => x.CapabilityId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudPrivacyEvidence>(entity =>

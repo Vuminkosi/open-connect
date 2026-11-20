@@ -48,8 +48,6 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 originalRegionsVerified = classification.AllowedRegionsVerified;
                 definition.PlatformAvailability = "available";
                 classification.PlatformAvailability = "available";
-                classification.AllowedRegions = "[\"region-a\"]";
-                classification.AllowedRegionsVerified = true;
                 db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
                 db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
@@ -63,6 +61,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                     ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
                 await db.SaveChangesAsync();
             }
+            var catalog = new CloudCatalogRegionsService(new EfCloudCatalogRegionsStore(factory, TimeProvider.System));
+            var catalogRevision = (await catalog.GetAsync("classification.classify", CancellationToken.None))!.Revision;
+            Assert.Equal("succeeded", (await catalog.PutAsync(new CloudSubject("operator-issuer", "operator"), Guid.NewGuid().ToString("N"), "classification.classify", ["region-a"], true, catalogRevision, CancellationToken.None)).Status);
             var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
             var issued = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, [capability], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
             Assert.Equal("succeeded", issued.Status);
@@ -197,6 +198,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var locker = await factory.CreateDbContextAsync())
             await using (var regionWriter = await factory.CreateDbContextAsync())
             await using (var deploymentWriter = await factory.CreateDbContextAsync())
+            await using (var catalogWriter = await factory.CreateDbContextAsync())
             await using (var observer = await factory.CreateDbContextAsync())
             {
                 await using var transaction = await locker.Database.BeginTransactionAsync();
@@ -211,16 +213,19 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 Assert.True(waiting);
                 var pendingRegion = regionWriter.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
                 var pendingDeployment = deploymentWriter.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+                var pendingCatalog = catalogWriter.Capabilities.Where(x => x.Id == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegionsVerified, false));
                 await Task.Delay(100);
-                Assert.False(pendingRegion.IsCompleted); Assert.False(pendingDeployment.IsCompleted);
+                Assert.False(pendingRegion.IsCompleted); Assert.False(pendingDeployment.IsCompleted); Assert.False(pendingCatalog.IsCompleted);
                 await transaction.CommitAsync();
                 claim = await pendingClaim;
                 Assert.Equal(1, await pendingRegion); Assert.Equal(1, await pendingDeployment);
+                Assert.Equal(1, await pendingCatalog);
             }
             await using (var db = await factory.CreateDbContextAsync())
             {
                 await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
                 await db.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+                await db.Capabilities.Where(x => x.Id == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegionsVerified, true));
             }
             Assert.Equal("claimed", claim.Status);
             Assert.NotNull(claim.ClaimId);

@@ -187,6 +187,23 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("capabilities", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudCatalogRegionRevision", b =>
+                {
+                    b.Property<string>("CapabilityId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("CapabilityId");
+
+                    b.ToTable("catalog_region_revisions", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_catalog_region_revision", "\"Revision\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudCredential", b =>
                 {
                     b.Property<Guid>("Id")
@@ -782,6 +799,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId")
                         .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudCatalogRegionRevision", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudCapabilityDefinition", null)
+                        .WithOne()
+                        .HasForeignKey("OpenConnect.Docs.Cloud.CloudCatalogRegionRevision", "CapabilityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
