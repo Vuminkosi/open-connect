@@ -40,6 +40,11 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
         if (!string.Equals(reservation.FingerprintKeyId, fingerprintKeyId, StringComparison.Ordinal) ||
             !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
         if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
+        if (selectedDeployment is not null && await (from existing in db.ExecutionClaims
+                join held in db.QuotaReservations on existing.ReservationId equals held.Id
+                where existing.DeploymentId == selectedDeployment.Id && held.FinalizedAt == null
+                select existing.ReservationId).CountAsync(cancellationToken) >= selectedDeployment.ConcurrencyLimit)
+            return new("unavailable");
         var claim = new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenantId, ApplicationId = applicationId, ClaimId = Guid.NewGuid(),
             DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, WorkerPayloadFingerprint = workerPayloadFingerprint, ClaimedAt = now };
         db.ExecutionClaims.Add(claim);

@@ -64,7 +64,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = otherApp.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = classificationDeploymentId, CapabilityId = "classification.classify", EndpointReference = classificationReference,
                     Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision-1",
-                    ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
+                    ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 2 });
                 await db.SaveChangesAsync();
             }
             var catalog = new CloudCatalogRegionsService(new EfCloudCatalogRegionsStore(factory, TimeProvider.System));
@@ -175,7 +175,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
             {
                 db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 7 });
+                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 30 });
                 await db.SaveChangesAsync();
             }
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
@@ -386,6 +386,52 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("already_completed", (await NodeCompleteAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId.Value, nodeClaim.ClaimId.Value)).Status);
             await using (var db = await factory.CreateDbContextAsync())
                 await db.ApplicationCapabilitySelections.Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.CapabilityId == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            async Task<Guid> ReserveCapacityAsync()
+            {
+                var item = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
+                Assert.Equal("reserved", item.Status);
+                return item.ReservationId!.Value;
+            }
+            var capacityReservations = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => ReserveCapacityAsync()));
+            var claimService = new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System));
+            var deploymentRequest = new CloudClassificationDeploymentMatchRequest(classificationReference, "region-a", "openconnect.v1", "revision-1");
+            var capacityClaims = await Task.WhenAll(capacityReservations.Select(id => claimService.ClaimAsync(classificationCredential.Credential!.Id,
+                tenant.Id, appRecord.Id, id, "classification.classify", "retained_key", new byte[32], deploymentRequest, CancellationToken.None, WorkerProof)));
+            Assert.Single(capacityClaims, x => x.Status == "claimed");
+            Assert.Equal(5, capacityClaims.Count(x => x.Status == "unavailable"));
+            var winner = Array.FindIndex(capacityClaims, x => x.Status == "claimed");
+            var waitingIndex = Array.FindIndex(capacityClaims, x => x.Status == "unavailable");
+            Assert.Equal("consumed", await consumption.ConsumeAsync(capacityReservations[winner], capacityClaims[winner].ClaimId!.Value, deploymentId, WorkerProof, CancellationToken.None));
+            Assert.Equal("completed", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, capacityReservations[winner], capacityClaims[winner].ClaimId!.Value, "completed", CancellationToken.None)).Status);
+            Assert.Equal("claimed", (await claimService.ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id,
+                capacityReservations[waitingIndex], "classification.classify", "retained_key", new byte[32], deploymentRequest, CancellationToken.None)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.ConcurrencyLimit, 3));
+            var freshReservation = await ReserveCapacityAsync();
+            var staleReservation = await ReserveCapacityAsync();
+            await using (var stale = await factory.CreateDbContextAsync())
+            {
+                await using var transaction = await stale.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead);
+                await stale.ExecutionClaims.CountAsync(); // Establish the older writer's snapshot.
+                Assert.Equal("claimed", (await claimService.ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id,
+                    freshReservation, "classification.classify", "retained_key", new byte[32], deploymentRequest, CancellationToken.None)).Status);
+                stale.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = staleReservation, TenantId = tenant.Id, ApplicationId = appRecord.Id,
+                    ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
+                await Assert.ThrowsAnyAsync<Exception>(() => stale.SaveChangesAsync());
+            }
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.ConcurrencyLimit, 4));
+            var legacyReservations = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => ReserveCapacityAsync()));
+            var legacyWrites = await Task.WhenAll(legacyReservations.Select(async id =>
+            {
+                await using var db = await factory.CreateDbContextAsync();
+                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = id, TenantId = tenant.Id, ApplicationId = appRecord.Id,
+                    ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
+                try { await db.SaveChangesAsync(); return true; }
+                catch (DbUpdateException exception) when (exception.InnerException is Npgsql.PostgresException { SqlState: "23514" }) { return false; }
+            }));
+            Assert.Single(legacyWrites, x => x);
+            Assert.Equal(4, legacyWrites.Count(x => !x));
             var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
             Assert.Equal("found", keyLookup.Status);
             Assert.Equal("retained_key", keyLookup.KeyId);
