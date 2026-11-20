@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -9,15 +10,36 @@ public sealed class EfCloudExecutionConsumptionStore(IDbContextFactory<CloudCont
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // Claims are immutable. Legacy claims without a credential binding fail closed.
+        var claim = await db.ExecutionClaims.AsNoTracking().SingleOrDefaultAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.DeploymentId == deploymentId, cancellationToken);
+        if (claim is null || claim.WorkerPayloadFingerprint is not { Length: 32 } ||
+            !CryptographicOperations.FixedTimeEquals(claim.WorkerPayloadFingerprint, workerPayloadFingerprint)) return "unavailable";
+        var credentialId = await db.Database.SqlQuery<Guid>($"SELECT \"CredentialId\" AS \"Value\" FROM cloud.execution_claim_credentials WHERE \"ReservationId\" = {reservationId}")
+            .SingleOrDefaultAsync(cancellationToken);
+        if (credentialId == Guid.Empty) return "unavailable";
+        // Use the same lock order as claim admission to serialize revocation and policy changes.
+        var credential = await db.Credentials.FromSqlInterpolated($"SELECT * FROM cloud.credentials WHERE \"Id\" = {credentialId} AND \"TenantId\" = {claim.TenantId} AND \"ApplicationId\" = {claim.ApplicationId} FOR SHARE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        if (credential is null || credential.RevokedAt is not null || credential.ExpiresAt is null ||
+            !(JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? []).Contains("classification.classify", StringComparer.Ordinal)) return "unavailable";
+        var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM cloud.applications WHERE \"Id\" = {claim.ApplicationId} AND \"TenantId\" = {claim.TenantId} FOR SHARE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        if (application is null || application.Environment != credential.Environment) return "unavailable";
+        var capabilities = await EfCloudClaimCapabilitySnapshot.LockAsync(db, claim.TenantId, claim.ApplicationId, cancellationToken);
+        var policy = await db.RegionPolicies.FromSqlInterpolated($"SELECT * FROM cloud.region_policies WHERE \"TenantId\" = {claim.TenantId} FOR SHARE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var catalog = capabilities.Capabilities.SingleOrDefault(x => x.Id == "classification.classify");
+        if (policy is null || catalog is null || !catalog.AllowedRegionsVerified || claim.Region is null ||
+            !(JsonSerializer.Deserialize<string[]>(policy.AllowedRegions) ?? []).Contains(claim.Region, StringComparer.Ordinal) ||
+            !(JsonSerializer.Deserialize<string[]>(catalog.AllowedRegions) ?? []).Contains(claim.Region, StringComparer.Ordinal)) return "unavailable";
         var deployment = await db.WorkerDeployments.FromSqlInterpolated($"SELECT * FROM cloud.worker_deployments WHERE \"Id\" = {deploymentId} FOR SHARE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        if (deployment is null || !deployment.Enabled || deployment.CapabilityId != "classification.classify") return "unavailable";
+        if (deployment is null || !deployment.Enabled || deployment.CapabilityId != "classification.classify" || deployment.Region != claim.Region) return "unavailable";
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
-        var claim = await db.ExecutionClaims.AsNoTracking().SingleOrDefaultAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.DeploymentId == deploymentId && x.Region == deployment.Region, cancellationToken);
-        if (reservation is null || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
-            claim?.WorkerPayloadFingerprint is not { Length: 32 } || !CryptographicOperations.FixedTimeEquals(claim.WorkerPayloadFingerprint, workerPayloadFingerprint) ||
+        if (credential.ExpiresAt <= now || CloudCapabilityProjection.Application(capabilities, now).FirstOrDefault(x => x.Id == "classification.classify")?.ReasonCode is not null ||
+            reservation is null || reservation.TenantId != claim.TenantId || reservation.ApplicationId != claim.ApplicationId || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId && x.ApplicationId == reservation.ApplicationId && x.CapabilityId == "classification.classify" && x.Unit == "request", cancellationToken))
             return "unavailable";
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reservationId}, {claimId}, {deploymentId}, {now}) ON CONFLICT (\"ReservationId\") DO NOTHING", cancellationToken);

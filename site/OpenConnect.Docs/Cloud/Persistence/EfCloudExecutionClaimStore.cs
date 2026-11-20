@@ -49,6 +49,7 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, WorkerPayloadFingerprint = workerPayloadFingerprint, ClaimedAt = now };
         db.ExecutionClaims.Add(claim);
         await db.SaveChangesAsync(cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claim_credentials (\"ReservationId\", \"CredentialId\") VALUES ({reservationId}, {credentialId})", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new("claimed", claim.ClaimId);
     }

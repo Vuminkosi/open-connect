@@ -129,3 +129,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add operator-only entitlement grant and revocation API with audited revision-fenced PostgreSQL writes; subscription billing integration remains a separate requirement.
 
 - [x] Provide an operator entitlement workspace with explicit target, grant state, expiration and stale-write feedback.
+
+- [x] Fence classification worker consumption against credential, entitlement, selection and region changes committed after claim issuance; deny legacy claims without a credential binding. Coordinated mixed-version rollout and cancellation after consumption remain outstanding.
