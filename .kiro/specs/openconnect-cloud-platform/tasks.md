@@ -197,3 +197,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add independent, fingerprint-bound LiveUI input privacy inspection and append-only evidence, with mutual-TLS and PostgreSQL verification; claim enforcement and routing remain outstanding.
 
 - [x] Add and verify the gateway's private LiveUI privacy client; connect it to reservation and claim admission before enabling dispatch.
+
+- [x] Add fixed one-plan LiveUI quota reservations and fingerprint-key lookup; token accounting, claimed execution and public routing remain outstanding.

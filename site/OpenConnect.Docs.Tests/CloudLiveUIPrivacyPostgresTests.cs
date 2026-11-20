@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
@@ -36,6 +37,8 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "inference.liveui", PlanGranted = true, Revision = 1 });
             db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.liveui",
+                Unit = "plan", PeriodStart = DateTimeOffset.UtcNow.AddMinutes(-1), PeriodEnd = DateTimeOffset.UtcNow.AddHours(1), Limit = 2 });
             await db.SaveChangesAsync();
         }
         try
@@ -56,7 +59,8 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>(); builder.Services.AddScoped<CloudMachineAuthorizationService>();
             builder.Services.AddSingleton(new CloudLiveUIPrivacyService(new RulesSecurityDetector()));
             builder.Services.AddScoped<ICloudLiveUIPrivacyEvidenceStore, EfCloudLiveUIPrivacyEvidenceStore>();
-            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); await host.StartAsync();
+            builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
+            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
@@ -81,6 +85,19 @@ public sealed class CloudLiveUIPrivacyPostgresTests
                 await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.liveui_privacy_evidence WHERE \"RequestId\" = {requestId}"));
             }
             await VerifyNodePrivacyAsync(address, server, gateway, issued.Secret!, requestId);
+            var quotaPath = "/cloud/internal/v1/liveui/quota/reservations";
+            var expiry = DateTimeOffset.UtcNow.AddMinutes(3);
+            var first = new { requestId = Guid.NewGuid(), fingerprintKeyId = "key", fingerprint = Convert.ToBase64String(new byte[32]), expiresAt = expiry };
+            Assert.Equal(HttpStatusCode.Unauthorized, (await untrusted.PostAsJsonAsync(quotaPath, first)).StatusCode);
+            Assert.Equal("not_found", (await client.GetFromJsonAsync<CloudFingerprintKeyLookup>($"/cloud/internal/v1/liveui/quota/fingerprint-key/{first.requestId:D}"))!.Status);
+            var reserved = await (await client.PostAsJsonAsync(quotaPath, first)).Content.ReadFromJsonAsync<CloudQuotaResult>();
+            Assert.Equal("reserved", reserved!.Status);
+            Assert.Equal("duplicate", (await (await client.PostAsJsonAsync(quotaPath, first)).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            Assert.Equal("found", (await client.GetFromJsonAsync<CloudFingerprintKeyLookup>($"/cloud/internal/v1/liveui/quota/fingerprint-key/{first.requestId:D}"))!.Status);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(quotaPath, first with { fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()) })).StatusCode);
+            Assert.Equal("reserved", (await (await client.PostAsJsonAsync(quotaPath, first with { requestId = Guid.NewGuid() })).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            Assert.Equal(HttpStatusCode.TooManyRequests, (await client.PostAsJsonAsync(quotaPath, first with { requestId = Guid.NewGuid() })).StatusCode);
+            Assert.True(CloudQuotaUnits.Supports("inference.liveui", "plans and tokens", "plan"));
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
             Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}")).StatusCode);
         }
