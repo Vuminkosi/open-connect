@@ -16,11 +16,11 @@ test('modal discovery excludes the background and host confirmation controls', a
     let clicks = 0;
     document.querySelector('#background').addEventListener('click', () => clicks++);
     const targets = runtime.discoverTargets(100);
+    const navigationDuringModal = runtime.canNavigate();
     const blockedBackground = await runtime.execute({ manifest: {}, route, target,
       action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: {} } }, 50, true);
     const nested = document.createElement('section');
     nested.setAttribute('role', 'dialog');
-    nested.setAttribute('aria-modal', 'true');
     nested.innerHTML = '<button>Nested action</button>';
     document.querySelector('[role="dialog"]').append(nested);
     const nestedTargets = runtime.discoverTargets(100);
@@ -35,11 +35,14 @@ test('modal discovery excludes the background and host confirmation controls', a
     const confirmationId = '0123456789abcdef0123456789abcdef';
     const pending = runtime.confirmAction('Confirm', 1000, confirmationId);
     const confirmationTargets = runtime.discoverTargets(100);
+    const navigationDuringConfirmation = runtime.canNavigate();
     runtime.cancelConfirmation(confirmationId);
     await pending;
     document.querySelector('[role="dialog"]').remove();
     const restored = runtime.discoverTargets(100);
-    return { targets, blockedBackground, nestedTargets, ambiguous, confirmationTargets, restored, clicks };
+    const navigationAfterModal = runtime.canNavigate();
+    return { targets, blockedBackground, nestedTargets, ambiguous, confirmationTargets, restored,
+      navigationDuringModal, navigationDuringConfirmation, navigationAfterModal, clicks };
   });
   expect(result.targets).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'Input', label: 'Title' })]));
   expect(result.targets.some((target) => target.label === 'Background')).toBe(false);
@@ -47,6 +50,9 @@ test('modal discovery excludes the background and host confirmation controls', a
   expect(result.nestedTargets).toEqual([expect.objectContaining({ kind: 'Button', label: 'Nested action' })]);
   expect(result.ambiguous).toEqual([]);
   expect(result.confirmationTargets).toEqual([]);
+  expect(result.navigationDuringModal).toBe(false);
+  expect(result.navigationDuringConfirmation).toBe(false);
+  expect(result.navigationAfterModal).toBe(true);
   expect(result.restored).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'Button', label: 'Background' })]));
   expect(result.clicks).toBe(0);
 });

@@ -331,6 +331,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         {
             if (identifier == "import")
                 return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "canNavigate")
+                return ValueTask.FromResult((TValue)(object)true);
             if (identifier == "prepareRoute")
             {
                 PreparedParent = args?[1] as string;

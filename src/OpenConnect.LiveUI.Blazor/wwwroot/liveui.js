@@ -13,10 +13,14 @@ let confirmationCancellationOverflow = false;
 
 function interactionScope() {
   if (confirmationDialog?.element?.open) return null;
-  const dialogs = [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')]
+  const dialogs = [...document.querySelectorAll('dialog[open], [role="dialog"]:not([aria-modal="false"])')]
     .filter((element) => isVisible(element) && !element.closest('pre, code'));
   const innermost = dialogs.filter((element) => !dialogs.some((other) => other !== element && element.contains(other)));
   return innermost.length === 0 ? document : innermost.length === 1 ? innermost[0] : null;
+}
+
+export function canNavigate() {
+  return interactionScope() === document;
 }
 
 export function confirmAction(message, timeoutMs, confirmationId) {

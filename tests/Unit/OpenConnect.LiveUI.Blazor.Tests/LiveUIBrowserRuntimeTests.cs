@@ -37,6 +37,26 @@ public sealed class LiveUIBrowserRuntimeTests
     }
 
     [Fact]
+    public async Task NavigateAsync_does_not_leave_the_page_while_a_modal_is_open()
+    {
+        var manifest = CreateManifest();
+        var route = manifest.Routes.Single(item => item.Id == "home");
+        var action = new LiveUIAction("action-modal", LiveUISchema.CurrentVersion, "session-1", manifest.ContentHash,
+            route.Id, null, LiveUIActionType.Navigate,
+            new LiveUIActionParameters(DestinationRouteId: "tasks"), TimeSpan.FromSeconds(5));
+        var navigation = new TestNavigationManager("https://localhost/", "https://localhost/start");
+        var module = new TestJsModule("{}", navigationAllowed: false);
+        await using var runtime = new LiveUIBrowserRuntime(new TestJsRuntime(module), navigation, Options.Create(new LiveUIOptions()));
+
+        var result = await runtime.ExecuteAsync(new LiveUIExecutionContext(manifest, route, null, action));
+
+        Assert.Equal("https://localhost/start", navigation.Uri);
+        Assert.Equal(LiveUIActionOutcome.Denied, result.Outcome);
+        Assert.Equal("modal_open", result.Code);
+        Assert.False(result.PostconditionVerified);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_rejects_a_browser_route_that_differs_from_the_bound_route()
     {
         var manifest = CreateManifest();
@@ -238,7 +258,7 @@ public sealed class LiveUIBrowserRuntimeTests
         }
     }
 
-    private sealed class TestJsModule(string routeResult, string actionResult = "{}") : IJSObjectReference
+    private sealed class TestJsModule(string routeResult, string actionResult = "{}", bool navigationAllowed = true) : IJSObjectReference
     {
         public string? LastIdentifier { get; private set; }
         public object?[]? LastArguments { get; private set; }
@@ -253,6 +273,7 @@ public sealed class LiveUIBrowserRuntimeTests
             var response = identifier switch
             {
                 "awaitRoute" => routeResult,
+                "canNavigate" => navigationAllowed ? "true" : "false",
                 "execute" => actionResult,
                 _ => throw new JSException("Unexpected module invocation.")
             };
