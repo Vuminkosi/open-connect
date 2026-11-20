@@ -133,3 +133,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Fence classification worker consumption against credential, entitlement, selection and region changes committed after claim issuance; deny legacy claims without a credential binding. Coordinated mixed-version rollout and cancellation after consumption remain outstanding.
 
 - [x] Bind classification consumption to immutable claim-time deployment identity and reject changed model/image metadata or missing evidence; production attestation and coordinated rollout remain outstanding.
+
+- [x] Exercise the Google OIDC authorization-code callback with a simulated signed provider, PKCE, issuer, audience and nonce checks; real Google provider verification remains outstanding.
