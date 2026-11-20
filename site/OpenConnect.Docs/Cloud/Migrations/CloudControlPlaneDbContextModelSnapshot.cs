@@ -122,6 +122,10 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "OccurredAt");

@@ -91,6 +91,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.Action).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ResourceId).HasMaxLength(128);
             entity.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.TraceId).HasMaxLength(128);
             entity.Property(x => x.OccurredAt).IsRequired();
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
         });
@@ -281,5 +282,6 @@ public sealed class CloudAuditEvent
     public required string Action { get; set; }
     public string? ResourceId { get; set; }
     public required string Outcome { get; set; }
+    public string? TraceId { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
 }

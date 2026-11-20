@@ -31,27 +31,51 @@ public sealed class CloudDeploymentPostgresTests
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "unavailable", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
             await db.SaveChangesAsync();
         }
-        var registry = new CloudDeploymentRegistry(new EfCloudDeploymentStore(factory));
+        var registry = new CloudDeploymentRegistry(new EfCloudDeploymentStore(factory, TimeProvider.System));
         CloudWorkerDeployment Deployment(string endpoint) => new() { Id = Guid.NewGuid(), CapabilityId = capability,
             EndpointReference = endpoint, Transport = "https-mtls", Region = "region-a", ContractVersion = "v1",
             ImageDigest = "sha256:" + new string('a', 64), ConcurrencyLimit = 10, Enabled = false };
+        var actor = new CloudSubject("https://operator-issuer.example", "operator");
+        var traceId = Guid.NewGuid().ToString("N");
         var first = Deployment("worker-a-" + Guid.NewGuid().ToString("N"));
         var second = Deployment("worker-b-" + Guid.NewGuid().ToString("N"));
-        Assert.Equal("succeeded", await registry.PutAsync(first, 0, CancellationToken.None));
-        Assert.Equal("succeeded", await registry.PutAsync(second, 0, CancellationToken.None));
+        Assert.Equal("succeeded", await registry.PutAsync(actor, traceId, first, 0, CancellationToken.None));
+        Assert.Equal("succeeded", await registry.PutAsync(actor, traceId, second, 0, CancellationToken.None));
         Assert.Equal(2, (await registry.ListAsync(capability, 0, 10, CancellationToken.None)).Count);
-        Assert.Equal("conflict", await registry.PutAsync(first, 0, CancellationToken.None));
+        Assert.Equal("conflict", await registry.PutAsync(actor, traceId, first, 0, CancellationToken.None));
         first.Enabled = true;
-        Assert.Equal("succeeded", await registry.PutAsync(first, 1, CancellationToken.None));
-        Assert.Equal("conflict", await registry.PutAsync(first, 1, CancellationToken.None));
+        Assert.Equal("succeeded", await registry.PutAsync(actor, traceId, first, 1, CancellationToken.None));
+        Assert.Equal("conflict", await registry.PutAsync(actor, traceId, first, 1, CancellationToken.None));
         Assert.Equal(2, (await registry.ListAsync(capability, 0, 10, CancellationToken.None)).Single(x => x.Id == first.Id).Revision);
         var duplicate = Deployment(first.EndpointReference);
-        Assert.Equal("conflict", await registry.PutAsync(duplicate, 0, CancellationToken.None));
+        Assert.Equal("conflict", await registry.PutAsync(actor, traceId, duplicate, 0, CancellationToken.None));
         var invalid = Deployment("https://attacker.example");
-        Assert.Equal("invalid_request", await registry.PutAsync(invalid, 0, CancellationToken.None));
+        Assert.Equal("invalid_request", await registry.PutAsync(actor, traceId, invalid, 0, CancellationToken.None));
         invalid.EndpointReference = "worker-c";
         invalid.ModelId = "model-without-digest";
-        Assert.Equal("invalid_request", await registry.PutAsync(invalid, 0, CancellationToken.None));
+        Assert.Equal("invalid_request", await registry.PutAsync(actor, traceId, invalid, 0, CancellationToken.None));
+        var copies = await Task.WhenAll(Enumerable.Range(0, 2).Select(async _ =>
+            (await registry.ListAsync(capability, 0, 10, CancellationToken.None)).Single(x => x.Id == first.Id)));
+        var concurrentTrace = Guid.NewGuid().ToString("N");
+        var competing = await Task.WhenAll(copies.Select(x => registry.PutAsync(actor, concurrentTrace, x, 2, CancellationToken.None)));
+        Assert.Single(competing, x => x == "succeeded");
+        Assert.Single(competing, x => x == "conflict");
+        var badReference = Deployment("invalid-capability-" + Guid.NewGuid().ToString("N"));
+        badReference.CapabilityId = "missing." + Guid.NewGuid().ToString("N");
+        var failedTrace = Guid.NewGuid().ToString("N");
+        await Assert.ThrowsAsync<DbUpdateException>(() => registry.PutAsync(actor, failedTrace, badReference, 0, CancellationToken.None));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var audit = await db.AuditEvents.Where(x => x.TraceId == traceId).ToListAsync();
+            Assert.Equal(3, audit.Count(x => x.Outcome == "succeeded"));
+            Assert.Equal(3, audit.Count(x => x.Outcome == "conflict"));
+            Assert.Equal(2, audit.Count(x => x.Outcome == "invalid_request"));
+            Assert.All(audit, x => { Assert.Equal(actor.Issuer, x.SubjectIssuer); Assert.Equal(actor.SubjectId, x.SubjectId); Assert.Equal("deployment.write", x.Action); });
+            Assert.Equal(2, await db.AuditEvents.CountAsync(x => x.TraceId == concurrentTrace));
+            Assert.Equal("failed", (await db.AuditEvents.SingleAsync(x => x.TraceId == failedTrace)).Outcome);
+            Assert.False(await db.WorkerDeployments.AnyAsync(x => x.Id == badReference.Id));
+            await Assert.ThrowsAnyAsync<Exception>(() => db.AuditEvents.Where(x => x.TraceId == traceId).ExecuteDeleteAsync());
+        }
         await VerifyOperatorHttpAsync(factory, capability);
     }
 
@@ -68,6 +92,7 @@ public sealed class CloudDeploymentPostgresTests
             ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
         });
         builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<CloudOperatorAccess>();
         builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
         builder.Services.AddScoped<CloudDeploymentRegistry>();
