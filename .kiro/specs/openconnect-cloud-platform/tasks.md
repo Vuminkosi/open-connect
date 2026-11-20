@@ -199,3 +199,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add and verify the gateway's private LiveUI privacy client; connect it to reservation and claim admission before enabling dispatch.
 
 - [x] Add fixed one-plan LiveUI quota reservations and fingerprint-key lookup; token accounting, claimed execution and public routing remain outstanding.
+
+- [x] Bind LiveUI claims to allowed privacy evidence, approved model/deployment and plan quota with database-enforced capacity; worker consumption and output enforcement remain outstanding.

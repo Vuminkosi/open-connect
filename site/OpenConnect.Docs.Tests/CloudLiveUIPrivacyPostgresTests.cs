@@ -29,11 +29,18 @@ public sealed class CloudLiveUIPrivacyPostgresTests
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "LiveUI privacy", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Fixture", "Development", default)).Application!;
-        string previousAvailability;
+        string previousAvailability, previousRegions; bool previousRegionsVerified;
+        var deploymentId = Guid.NewGuid(); var deploymentRef = "liveui-" + Guid.NewGuid().ToString("N");
+        var modelDigest = "sha256:" + new string('a', 64);
         await using (var db = await factory.CreateDbContextAsync())
         {
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "inference.liveui");
-            previousAvailability = capability.PlatformAvailability; capability.PlatformAvailability = "available";
+            previousAvailability = capability.PlatformAvailability; previousRegions = capability.AllowedRegions; previousRegionsVerified = capability.AllowedRegionsVerified;
+            capability.PlatformAvailability = "available"; capability.AllowedRegions = "[\"region-a\"]"; capability.AllowedRegionsVerified = true;
+            db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "inference.liveui", EndpointReference = deploymentRef,
+                Transport = "https-mtls", Region = "region-a", ContractVersion = "v1", ModelId = "registry/model-a", ModelRevision = "revision-1",
+                ModelDigest = modelDigest, ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
             db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "inference.liveui", PlanGranted = true, Revision = 1 });
             db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
@@ -43,6 +50,8 @@ public sealed class CloudLiveUIPrivacyPostgresTests
         }
         try
         {
+            var policies = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
+            Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 0, default)).Status);
             var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
             var issued = await credentials.CreateAsync(owner, tenant.Id, app.Id, ["inference.liveui"], DateTimeOffset.UtcNow.AddHours(1), default);
             Assert.Equal("succeeded", issued.Status);
@@ -60,17 +69,18 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddSingleton(new CloudLiveUIPrivacyService(new RulesSecurityDetector()));
             builder.Services.AddScoped<ICloudLiveUIPrivacyEvidenceStore, EfCloudLiveUIPrivacyEvidenceStore>();
             builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
-            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); await host.StartAsync();
+            builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>(); builder.Services.AddScoped<CloudLiveUIClaimService>();
+            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
             untrusted.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
             var requestId = Guid.NewGuid();
-            async Task<HttpResponseMessage> Inspect(HttpClient sender, string body)
+            async Task<HttpResponseMessage> Inspect(HttpClient sender, string body, Guid? target = null)
             {
                 using var message = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/liveui/privacy")
                     { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
-                message.Headers.Add("X-Cloud-Request-Id", requestId.ToString("D"));
+                message.Headers.Add("X-Cloud-Request-Id", (target ?? requestId).ToString("D"));
                 message.Headers.Add("X-Cloud-Fingerprint-Key-Id", "key");
                 message.Headers.Add("X-Cloud-Request-Fingerprint", Convert.ToBase64String(new byte[32]));
                 return await sender.SendAsync(message);
@@ -95,9 +105,29 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Equal("duplicate", (await (await client.PostAsJsonAsync(quotaPath, first)).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
             Assert.Equal("found", (await client.GetFromJsonAsync<CloudFingerprintKeyLookup>($"/cloud/internal/v1/liveui/quota/fingerprint-key/{first.requestId:D}"))!.Status);
             Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(quotaPath, first with { fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()) })).StatusCode);
-            Assert.Equal("reserved", (await (await client.PostAsJsonAsync(quotaPath, first with { requestId = Guid.NewGuid() })).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            var second = first with { requestId = Guid.NewGuid() };
+            var secondReserved = await (await client.PostAsJsonAsync(quotaPath, second)).Content.ReadFromJsonAsync<CloudQuotaResult>();
+            Assert.Equal("reserved", secondReserved!.Status);
             Assert.Equal(HttpStatusCode.TooManyRequests, (await client.PostAsJsonAsync(quotaPath, first with { requestId = Guid.NewGuid() })).StatusCode);
             Assert.True(CloudQuotaUnits.Supports("inference.liveui", "plans and tokens", "plan"));
+            var proof = new { fingerprintKeyId = "key", fingerprint = first.fingerprint, endpointReference = deploymentRef, region = "region-a",
+                contractVersion = "v1", modelRevision = "revision-1", modelDigest, modelId = "registry/model-a", workerPayloadFingerprint = first.fingerprint };
+            var claimPath = $"{quotaPath}/{reserved.ReservationId!.Value:D}/claim";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await untrusted.PostAsJsonAsync(claimPath, proof)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsJsonAsync(claimPath, proof)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", first.requestId)).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(claimPath, proof with { fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()) })).StatusCode);
+            var attempts = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => client.PostAsJsonAsync(claimPath, proof)));
+            Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.OK);
+            Assert.Equal(7, attempts.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+            Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", second.requestId)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsJsonAsync($"{quotaPath}/{secondReserved.ReservationId!.Value:D}/claim", proof)).StatusCode);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = secondReserved.ReservationId.Value, ClaimId = Guid.NewGuid(),
+                    TenantId = tenant.Id, ApplicationId = app.Id, DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
+                await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
+            }
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
             Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}")).StatusCode);
         }
@@ -105,7 +135,8 @@ public sealed class CloudLiveUIPrivacyPostgresTests
         {
             await using var db = await factory.CreateDbContextAsync();
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "inference.liveui");
-            capability.PlatformAvailability = previousAvailability; await db.SaveChangesAsync();
+            capability.PlatformAvailability = previousAvailability; capability.AllowedRegions = previousRegions; capability.AllowedRegionsVerified = previousRegionsVerified;
+            await db.SaveChangesAsync();
         }
     }
 
