@@ -99,6 +99,8 @@ def forecast(values: Sequence[float | None], timestamps: Sequence[datetime], *,
     upper = ordered[math.ceil(0.95 * holdout) - 1]
     backtest = Backtest(holdout, mae, naive_mae, lower, upper)
     warnings.append("empirical_bands_not_calibrated")
+    if horizon > 1:
+        warnings.append("multi_step_uncertainty_not_estimated")
     if holdout < 20:
         warnings.append("limited_backtest_samples")
     if seasonal_period > 1 and mae >= naive_mae:

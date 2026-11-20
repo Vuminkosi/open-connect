@@ -11,8 +11,9 @@ from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, ValidationError
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, StrictInt, ValidationError
 
+from openconnect_analytics_inference.forecast import MAX_HORIZON, MAX_INTERVAL_SECONDS, MAX_SEASON, forecast
 from openconnect_analytics_inference.statistics import MAX_SAMPLES, analyze
 from openconnect_worker_common.contracts.capability import (
     CapabilityDescriptor,
@@ -27,6 +28,15 @@ MAX_REQUEST_LIFETIME = timedelta(minutes=5)
 app = FastAPI(title="OpenConnect Analytics Worker", docs_url=None, redoc_url=None, openapi_url=None)
 
 
+class ForecastSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    timestamps: list[AwareDatetime] = Field(max_length=MAX_SAMPLES)
+    intervalSeconds: StrictInt = Field(ge=1, le=MAX_INTERVAL_SECONDS)
+    seasonalPeriod: StrictInt = Field(ge=1, le=MAX_SEASON)
+    horizon: StrictInt = Field(ge=1, le=MAX_HORIZON)
+
+
 class AnalyticsPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
@@ -35,6 +45,7 @@ class AnalyticsPayload(BaseModel):
     lineage: str = Field(min_length=1, max_length=256)
     values: list[StrictFloat | None] = Field(max_length=MAX_SAMPLES)
     threshold: StrictFloat = Field(default=3.5, gt=0, le=100)
+    forecast: ForecastSettings | None = None
 
 
 class ExecuteRequest(BaseModel):
@@ -119,12 +130,17 @@ async def execute(request: Request) -> JSONResponse:
                 or command.expiresAt - command.issuedAt > MAX_REQUEST_LIFETIME):
             return _error("invalid_request", 422)
         result = analyze(command.payload.values, threshold=command.payload.threshold)
+        settings = command.payload.forecast
+        forecast_result = (forecast(command.payload.values, settings.timestamps,
+                           interval_seconds=settings.intervalSeconds, seasonal_period=settings.seasonalPeriod,
+                           horizon=settings.horizon) if settings is not None else None)
     except (ValidationError, ValueError, OverflowError):
         return _error("invalid_request", 422)
+    result_payload = {"feature": command.payload.feature, "unit": command.payload.unit,
+                      "lineage": command.payload.lineage, **asdict(result)}
+    if forecast_result is not None:
+        result_payload["forecast"] = asdict(forecast_result)
     return JSONResponse({
         "schemaVersion": "openconnect.v1", "taskId": command.taskId,
-        "kind": command.kind, "result": {
-            "feature": command.payload.feature, "unit": command.payload.unit,
-            "lineage": command.payload.lineage, **asdict(result),
-        },
+        "kind": command.kind, "result": result_payload,
     })

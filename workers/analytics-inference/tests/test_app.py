@@ -1,8 +1,10 @@
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from jsonschema import Draft202012Validator, FormatChecker
 
 from openconnect_analytics_inference.app import app
 from openconnect_worker_common.security.signing import sign_bytes
@@ -81,3 +83,41 @@ def test_oversized_body_is_rejected(client: TestClient) -> None:
     response = client.post("/internal/v1/execute", content=b"x" * (256 * 1024 + 1),
                            headers={"Authorization": "Bearer private-token"})
     assert response.status_code == 413
+
+
+def test_signed_forecast_and_contract_parity(client: TestClient) -> None:
+    payload = command()
+    payload["payload"]["values"] = [10, 20, 30] * 5
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    payload["payload"]["forecast"] = {
+        "timestamps": [(start + timedelta(days=index)).isoformat() for index in range(15)],
+        "intervalSeconds": 86400, "seasonalPeriod": 3, "horizon": 3,
+    }
+    response = submit(client, payload)
+    assert response.status_code == 200
+    result = response.json()["result"]["forecast"]
+    assert [point["value"] for point in result["points"]] == [10, 20, 30]
+    assert result["backtest"]["mean_absolute_error"] == 0
+    root = Path(__file__).resolve().parents[3] / "contracts" / "jsonschema"
+    for value, name in [(payload, "analytics-forecast-request.json"),
+                        (response.json(), "analytics-forecast-response.json")]:
+        schema = json.loads((root / name).read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
+
+
+def test_forecast_missing_data_returns_warning_without_predictions(client: TestClient) -> None:
+    payload = command()
+    payload["payload"]["values"] = [1, 2, None, 4, 5, 6, 7]
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    payload["payload"]["forecast"] = {
+        "timestamps": [(start + timedelta(days=index)).isoformat() for index in range(7)],
+        "intervalSeconds": 86400, "seasonalPeriod": 1, "horizon": 2,
+    }
+    response = submit(client, payload)
+    assert response.status_code == 200
+    result = response.json()["result"]["forecast"]
+    assert not result["points"] and result["backtest"] is None
+    assert "missing_values" in result["warnings"]
+    payload["payload"]["forecast"]["timestamps"].pop()
+    assert submit(client, payload).status_code == 422

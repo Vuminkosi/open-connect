@@ -24,6 +24,7 @@ def test_seasonal_forecast_backtests_against_held_out_observations():
     assert all(point.lower == point.value == point.upper for point in result.points)
     assert result.points[0].timestamp == times(16)[-1].isoformat()
     assert "empirical_bands_not_calibrated" in result.warnings
+    assert "multi_step_uncertainty_not_estimated" in result.warnings
 
 
 def test_holdout_residual_bands_are_explicit_and_deterministic():
@@ -32,6 +33,7 @@ def test_holdout_residual_bands_are_explicit_and_deterministic():
     assert result.points[0].value == 9
     assert (result.points[0].lower, result.points[0].upper) == (10, 11)
     assert result == run([1, 2, 3, 4, 5, 6, 7, 9])
+    assert "multi_step_uncertainty_not_estimated" not in run([1, 2, 3, 4, 5, 6, 7, 9], horizon=1).warnings
 
 
 @pytest.mark.parametrize("values,warning", [([], "insufficient_history"),

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/analytics-forecast-request.json",
+  "title": "Analytics forecast request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "analytics.analyze"},
+    "tenantId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["feature", "unit", "lineage", "values", "forecast"],
+      "properties": {
+        "feature": {"type": "string", "minLength": 1, "maxLength": 128},
+        "unit": {"type": "string", "minLength": 1, "maxLength": 64},
+        "lineage": {"type": "string", "minLength": 1, "maxLength": 256},
+        "values": {"type": "array", "maxItems": 10000, "items": {"type": ["number", "null"]}},
+        "threshold": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+        "forecast": {
+          "type": "object", "additionalProperties": false,
+          "required": ["timestamps", "intervalSeconds", "seasonalPeriod", "horizon"],
+          "properties": {
+            "timestamps": {"type": "array", "maxItems": 10000, "items": {"type": "string", "format": "date-time"}},
+            "intervalSeconds": {"type": "integer", "minimum": 1, "maximum": 31536000},
+            "seasonalPeriod": {"type": "integer", "minimum": 1, "maximum": 365},
+            "horizon": {"type": "integer", "minimum": 1, "maximum": 100}
+          }
+        }
+      }
+    }
+  }
+}

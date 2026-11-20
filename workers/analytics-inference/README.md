@@ -1,8 +1,8 @@
 # Analytics inference worker
 
-This worker currently provides deterministic single-feature summaries and robust
-median absolute deviation anomaly screening. It does not currently implement
-forecasting, time-series analysis, trained models, or a durable task consumer.
+This worker provides deterministic single-feature summaries, robust median
+absolute deviation anomaly screening and a seasonal-naive forecasting baseline.
+It does not currently implement trained models or a durable task consumer.
 It retains no submitted data and makes no model downloads.
 
 Run `uv sync --locked`, `uv run ruff check .`, and `uv run pytest -q` from this
@@ -30,3 +30,18 @@ and lineage. Up to 10,000 numeric or null samples and 256 KiB are accepted.
 Outputs include input positions, coverage, algorithm version and warnings.
 An insufficient baseline or zero median absolute deviation yields no anomaly
 scores. Results are statistical signals, not automated decisions.
+
+To request a forecast, include `payload.forecast` with timezone-aware
+`timestamps` parallel to `values`, a fixed `intervalSeconds`, a caller-chosen
+`seasonalPeriod` in samples (1–365), and `horizon` (1–100). Times are compared
+as UTC instants. The worker returns no points for missing data, irregular time
+steps, or insufficient history. The baseline repeats the latest seasonal cycle;
+it evaluates chronological one-step holdout errors and compares them with a
+non-seasonal naive baseline. Bounds use empirical holdout residual quantiles:
+they are not calibrated prediction intervals or a guarantee of coverage.
+The same one-step residual offsets are shown at every horizon; multi-step
+uncertainty is not estimated and is explicitly flagged.
+The result reports a warning for small holdouts and where the selected seasonal
+period fails to improve holdout MAE. A seasonal period is supplied by the caller,
+not inferred or statistically established by the worker. Results do not support
+automated financial, medical or other adverse decisions.
