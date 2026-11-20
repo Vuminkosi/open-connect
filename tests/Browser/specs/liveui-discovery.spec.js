@@ -3,6 +3,54 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+test('modal discovery excludes the background and host confirmation controls', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button id="background">Background</button><section role="dialog" aria-modal="true" aria-label="Editor"><label>Title <input></label><button>Save</button></section>' }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const runtime = await import('/liveui.js');
+    const target = { id: 'background', kind: 'Button', label: 'Background', selector: '#background' };
+    const route = { path: '/', targets: [target] };
+    let clicks = 0;
+    document.querySelector('#background').addEventListener('click', () => clicks++);
+    const targets = runtime.discoverTargets(100);
+    const blockedBackground = await runtime.execute({ manifest: {}, route, target,
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: {} } }, 50, true);
+    const nested = document.createElement('section');
+    nested.setAttribute('role', 'dialog');
+    nested.setAttribute('aria-modal', 'true');
+    nested.innerHTML = '<button>Nested action</button>';
+    document.querySelector('[role="dialog"]').append(nested);
+    const nestedTargets = runtime.discoverTargets(100);
+    nested.remove();
+    const second = document.createElement('section');
+    second.setAttribute('role', 'dialog');
+    second.setAttribute('aria-modal', 'true');
+    second.innerHTML = '<button>Other</button>';
+    document.body.append(second);
+    const ambiguous = runtime.discoverTargets(100);
+    second.remove();
+    const confirmationId = '0123456789abcdef0123456789abcdef';
+    const pending = runtime.confirmAction('Confirm', 1000, confirmationId);
+    const confirmationTargets = runtime.discoverTargets(100);
+    runtime.cancelConfirmation(confirmationId);
+    await pending;
+    document.querySelector('[role="dialog"]').remove();
+    const restored = runtime.discoverTargets(100);
+    return { targets, blockedBackground, nestedTargets, ambiguous, confirmationTargets, restored, clicks };
+  });
+  expect(result.targets).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'Input', label: 'Title' })]));
+  expect(result.targets.some((target) => target.label === 'Background')).toBe(false);
+  expect(result.blockedBackground).toMatchObject({ outcome: 'MissingTarget', postconditionVerified: false });
+  expect(result.nestedTargets).toEqual([expect.objectContaining({ kind: 'Button', label: 'Nested action' })]);
+  expect(result.ambiguous).toEqual([]);
+  expect(result.confirmationTargets).toEqual([]);
+  expect(result.restored).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'Button', label: 'Background' })]));
+  expect(result.clicks).toBe(0);
+});
+
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
 test('uses an unambiguous adjacent heading for an unlabeled list', async ({ page }) => {

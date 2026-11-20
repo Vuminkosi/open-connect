@@ -11,6 +11,14 @@ let confirmationDialog = null;
 const cancelledConfirmations = new Set();
 let confirmationCancellationOverflow = false;
 
+function interactionScope() {
+  if (confirmationDialog?.element?.open) return null;
+  const dialogs = [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')]
+    .filter((element) => isVisible(element) && !element.closest('pre, code'));
+  const innermost = dialogs.filter((element) => !dialogs.some((other) => other !== element && element.contains(other)));
+  return innermost.length === 0 ? document : innermost.length === 1 ? innermost[0] : null;
+}
+
 export function confirmAction(message, timeoutMs, confirmationId) {
   if (confirmationDialog || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId) ||
       typeof message !== "string" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
@@ -70,8 +78,10 @@ export function cancelConfirmation(confirmationId) {
 export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
   if (!limit) return [];
+  const scope = interactionScope();
+  if (!scope) return [];
   const selector = "button, a[href], input, textarea, select, ul, ol, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading'], [role='list'], [role='listbox']";
-  const sections = document.querySelectorAll("section");
+  const sections = scope.querySelectorAll("section");
   const regionCandidates = [];
   for (let index = 0; index < Math.min(sections.length, 5000); index++) {
     const section = sections[index];
@@ -87,7 +97,7 @@ export function discoverTargets(maximumTargets) {
   const regions = regionCandidates.filter((region) => regionCounts.get(normalize(region.label)) === 1).slice(0, limit);
   const regionLabels = new Map(regions.map((region) => [region.element, region.label]));
   const candidates = [];
-  const elements = document.querySelectorAll(selector);
+  const elements = scope.querySelectorAll(selector);
   for (let index = 0; index < Math.min(elements.length, 5000); index++) {
     const element = elements[index];
     if (!isVisible(element) || element.closest("pre, code") || isDisabled(element)) continue;
@@ -344,7 +354,8 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
   if (visited.has(target.id)) return { status: "ambiguous" };
   visited.add(target.id);
 
-  let scope = document;
+  let scope = interactionScope();
+  if (!scope) return { status: "ambiguous" };
   if (target.parentId) {
     const parent = route?.targets?.find((candidate) => candidate.id === target.parentId);
     if (!parent) return { status: "missing" };
