@@ -61,10 +61,14 @@ lane after its real sample build; an earlier job failure can prevent that lane
 from running. Do not describe an unexecuted step as passing. No existing live or
 manual acceptance requirement is removed.
 
-Only the dedicated allowlisted diagnostics JSON and persisted-UI screenshot are
-attached on success. Raw Playwright traces, automatic screenshots, video, request
-headers, guard tokens, full provider/tool payloads and database/storage files are
-not retained. No pinned upload-artifact usage exists in the repository workflows,
+Only the dedicated allowlisted voice diagnostics JSON and persisted-UI screenshot
+are attached on success. A separate bounded readiness-status JSON is attached
+on early UI failure or success. The same readiness payload is printed as one
+`OPENCONNECT_VOICE_READINESS` line in the hosted job log. It contains stage
+labels, counts and booleans, never circuit URLs, query tokens, headers or raw
+errors. Raw Playwright traces, automatic screenshots, video, request headers,
+guard tokens, full provider/tool payloads and database/storage files are not
+retained. No pinned upload-artifact usage exists in the repository workflows,
 so this lane does not add an unverified uploader: hosted artifact retention is
-NOT CONFIGURED. Collect only these two sanitized attachments on an authorized
+NOT CONFIGURED. Collect only these dedicated sanitized attachments on an authorized
 host; do not upload the whole Playwright output directory or app storage.

@@ -10,6 +10,24 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
   const cosmeticStubs = [];
   const errors = [];
   const finalFrames = [];
+  // Pre-arm observations before navigation. Never retain circuit URLs/query tokens or headers.
+  const readiness = {
+    stage: 'setup', circuitSockets: 0, circuitFrames: 0, circuitClosed: 0,
+    circuitHttpResponses: 0, circuitHttpFailures: 0,
+    editorEnabled: false, editorCleared: false, launcherExpanded: false, dialogVisible: false,
+  };
+  const isCircuit = value => {
+    const url = new URL(value);
+    return url.hostname === '127.0.0.1' && url.port === '5187' &&
+      ['http:', 'ws:'].includes(url.protocol) &&
+      (url.pathname === '/_blazor' || url.pathname === '/_blazor/negotiate');
+  };
+  const increment = key => { readiness[key] = Math.min(readiness[key] + 1, 10000); };
+  page.on('response', response => {
+    if (!isCircuit(response.url())) return;
+    increment('circuitHttpResponses');
+    if (response.status() >= 400) increment('circuitHttpFailures');
+  });
   await context.route('**/*', route => {
     if (isFixtureUrl(route.request().url())) return route.continue();
     // The real sample references this exact cosmetic font. Never contact Google.
@@ -28,6 +46,11 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
   });
   page.on('pageerror', error => errors.push(error.message));
   page.on('websocket', socket => {
+    if (isCircuit(socket.url())) {
+      increment('circuitSockets');
+      socket.on('framereceived', () => increment('circuitFrames'));
+      socket.on('close', () => increment('circuitClosed'));
+    }
     if (!socket.url().includes('/voice/realtime/')) return;
     socket.on('framereceived', frame => {
       try {
@@ -79,10 +102,42 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     };
   });
   try {
+    readiness.stage = 'navigation';
     await page.goto('/');
     await expect(page).toHaveTitle(/OpenConnect/i);
-    await page.locator('.oc-anchored-fab').click();
-    await expect(page.locator('section.oc-bubble')).toBeVisible();
+    readiness.stage = 'circuit-observation';
+    await expect.poll(() => readiness.circuitSockets).toBeGreaterThan(0);
+    // A socket alone does not prove hydration. Require an actual server-rendered binding roundtrip.
+    // MudTextField is not Immediate: blur commits its normal change binding. Never submit this form.
+    readiness.stage = 'editor-binding';
+    const titleInput = page.getByRole('textbox', { name: 'Task Title', exact: true });
+    const addTask = page.getByRole('button', { name: 'Add Task', exact: true });
+    await expect(addTask).toBeDisabled();
+    await expect(async () => {
+      // A pre-hydration event can be lost; clear first so each attempt sends a fresh change.
+      await titleInput.fill('', { timeout: 1000 });
+      await titleInput.blur({ timeout: 1000 });
+      await expect(addTask).toBeDisabled({ timeout: 1000 });
+      await titleInput.fill('synthetic readiness probe', { timeout: 1000 });
+      await titleInput.blur({ timeout: 1000 });
+      await expect(addTask).toBeEnabled({ timeout: 1000 });
+    }).toPass({ timeout: 15000, intervals: [250] });
+    readiness.editorEnabled = true;
+    await titleInput.fill('');
+    await titleInput.blur();
+    await expect(addTask).toBeDisabled();
+    readiness.editorCleared = true;
+    expect(await matchingTodos()).toHaveLength(0);
+    readiness.stage = 'launcher';
+    const launcher = page.locator('.oc-anchored-fab');
+    await expect(launcher).toHaveAttribute('aria-expanded', 'false');
+    await expect(launcher).toHaveAccessibleName(/^Open /);
+    await launcher.click();
+    await expect(launcher).toHaveAttribute('aria-expanded', 'true');
+    readiness.launcherExpanded = true;
+    await expect(page.getByRole('dialog', { name: / composer$/ })).toBeVisible();
+    readiness.dialogVisible = true;
+    readiness.stage = 'voice';
     await page.getByRole('button', { name: 'Voice input', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.__ocVoiceDiagnostics?.sentBytes ?? 0)).toBeGreaterThan(0);
     await expect.poll(() => page.evaluate(() => window.__ocVoiceDiagnostics?.finalTranscript ?? '')).toBe(config.raw);
@@ -119,6 +174,17 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     });
     await testInfo.attach('persisted-todo.png', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   } finally {
+    // This bounded allowlist is useful on early failure without raw browser traces or app storage.
+    const readinessStatus = {
+      ...readiness,
+      blockedRequestCount: Math.min(blocked.length, 10000),
+      pageErrorCount: Math.min(errors.length, 10000),
+    };
+    console.log('OPENCONNECT_VOICE_READINESS ' + JSON.stringify(readinessStatus));
+    await testInfo.attach('synthetic-readiness-status.json', {
+      body: Buffer.from(JSON.stringify(readinessStatus, null, 2)),
+      contentType: 'application/json',
+    });
     await page.evaluate(async () => {
       window.__syntheticAudio?.oscillator.stop();
       await window.__syntheticAudio?.audio.close();
