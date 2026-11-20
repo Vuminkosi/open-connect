@@ -164,7 +164,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
             {
                 db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 6 });
+                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 7 });
                 await db.SaveChangesAsync();
             }
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
@@ -203,6 +203,19 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 var expected = CloudRequestFingerprint.Compute("old", Enumerable.Repeat((byte)2, 32).ToArray(), new CloudFingerprintInput(
                     tenant.Id, appRecord.Id, "classification.classify", "POST", "/cloud/v1/classification", "application/json", System.Text.Encoding.UTF8.GetBytes(adapterBody)));
                 Assert.Equal(expected, persisted.RequestFingerprint);
+            }
+            var sequenceRequestId = Guid.NewGuid();
+            var sequenceBody = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.classification/v2", requestId = sequenceRequestId,
+                capability = "classification.classify", expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture), input = new { text = "sequence fixture" } });
+            var sequence = await NodeExecutionSequenceAsync(address, serverCertificate, clientCertificate, workerCertificate, classificationCredential.Secret!, tenant.Id, appRecord.Id, classificationReference, sequenceBody);
+            Assert.Equal(new[] { "completed", "duplicate" }, sequence);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var sequenceReservation = await db.QuotaReservations.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.RequestId == sequenceRequestId);
+                Assert.Equal(1, sequenceReservation.Actual);
+                Assert.NotNull(sequenceReservation.FinalizedAt);
+                Assert.True(await db.ExecutionConsumptions.AnyAsync(x => x.ReservationId == sequenceReservation.Id));
+                Assert.Equal(1, (await db.UsageRecords.SingleAsync(x => x.ReservationId == sequenceReservation.Id)).Quantity);
             }
             Assert.Equal("quota_unavailable", (await NodeReserveAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reservationBody)).Status);
             var conflictingBody = new { requestId = newRequestId, fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()), expiresAt = now.AddMinutes(4) };
@@ -527,6 +540,19 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.reserveClassification(process.env.OC_TEST_CREDENTIAL,JSON.parse(process.env.OC_TEST_CAPABILITY))));";
         var output = await NodeCallAsync(script, address, server, client, credential, System.Text.Json.JsonSerializer.Serialize(body));
         return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<string[]> NodeExecutionSequenceAsync(Uri address, X509Certificate2 server, X509Certificate2 client, X509Certificate2 worker, string credential, Guid tenantId, Guid applicationId, string reference, string body)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const e=await import(new URL('./classification-execution.mjs',process.env.OC_TEST_MODULE)); const p=await import(new URL('./classification-request.mjs',process.env.OC_TEST_MODULE)); const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE)); const https=await import('node:https'); const crypto=await import('node:crypto'); " +
+            "const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_CAPABILITY); const ring=f.createFingerprintKeyring({activeKeyId:'key',keys:[{id:'key',key:Buffer.alloc(32,7)}]}); " +
+            "const dispatcher={executeClaimed:async(prepared,claim)=>new Promise(resolve=>{const digest=crypto.createHmac('sha256',claim.key).update(prepared.payload).digest('base64'); const path='/cloud/internal/v1/classification/quota/reservations/'+claim.reservationId+'/claims/'+claim.claimId+'/consume'; const req=https.request(new URL(path,process.env.OC_TEST_ORIGIN),{method:'POST',ca:process.env.OC_TEST_CA,cert:x.workerCert,key:x.workerKey,headers:{'x-openconnect-worker-payload-fingerprint':digest,'content-length':'0'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode===200?{status:'completed',result:{labels:['safe']}}:{status:'upstream_unavailable'}));}); req.on('error',()=>resolve({status:'upstream_unavailable'}));req.end();})}; " +
+            "async function run(){const r={headers:new Headers({'content-type':'application/json'}),readBody:async()=>({bytes:Buffer.from(x.body)})};return await p.withClassificationRequest(r,(value,body)=>e.executeClassification({credential:process.env.OC_TEST_CREDENTIAL,identity:x.identity,value,body,deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}},{controlPlane:c,keyring:ring,dispatcher}));} try{const a=await run();const b=await run();process.stdout.write(JSON.stringify([a.status,b.status]));}finally{ring.dispose();}";
+        using var workerKey = worker.GetRSAPrivateKey()!;
+        var input = System.Text.Json.JsonSerializer.Serialize(new { identity = new { tenantId, applicationId }, reference, body,
+            workerCert = worker.ExportCertificatePem(), workerKey = workerKey.ExportPkcs8PrivateKeyPem() });
+        var output = await NodeCallAsync(script, address, server, client, credential, input);
+        return System.Text.Json.JsonSerializer.Deserialize<string[]>(output)!;
     }
 
     private static async Task<CloudQuotaResult[]> NodeQuotaAdapterAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid tenantId, Guid applicationId, string body)

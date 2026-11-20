@@ -19,7 +19,9 @@ export async function reserveClassificationRequest({ credential, identity, value
             requestId: value.requestId, fingerprintKeyId, fingerprint: fingerprint.toString('base64'), expiresAt,
         }, signal, traceparent);
         if (signal?.aborted) return unavailable();
-        return result;
+        return result?.status === 'reserved'
+            ? { ...result, fingerprintKeyId, fingerprint: fingerprint.toString('base64') }
+            : result;
     } catch { return unavailable(); }
     finally { fingerprint?.fill(0); }
 }
