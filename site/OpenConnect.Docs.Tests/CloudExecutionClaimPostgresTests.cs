@@ -43,6 +43,7 @@ public sealed class CloudExecutionClaimPostgresTests
         Assert.Equal("execution_requires_reconciliation", (await quota.FinalizeAsync(tenant.Id, app.Id, id, 0, default)).Status);
         await using (var db = await factory.CreateDbContextAsync())
         {
+            await Assert.ThrowsAnyAsync<Exception>(() => db.QuotaReservations.Where(x => x.Id == id).ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 0L).SetProperty(y => y.FinalizedAt, DateTimeOffset.UtcNow)));
             Assert.Single(await db.ExecutionClaims.Where(x => x.ReservationId == id).ToListAsync());
             await Assert.ThrowsAnyAsync<Exception>(() => db.ExecutionClaims.Where(x => x.ReservationId == id).ExecuteDeleteAsync());
             await Assert.ThrowsAnyAsync<Exception>(() => db.ExecutionClaims.Where(x => x.ReservationId == id).ExecuteUpdateAsync(x => x.SetProperty(y => y.ClaimId, Guid.NewGuid())));
@@ -64,6 +65,29 @@ public sealed class CloudExecutionClaimPostgresTests
         await Task.WhenAll(claimTask, refundTask);
         Assert.True((claimTask.Result.Status == "claimed" && refundTask.Result.Status == "execution_requires_reconciliation") ||
             (claimTask.Result.Status == "unavailable" && refundTask.Result.Status == "finalized"));
+        var legacyRace = await Reserve();
+        await using (var claimant = await factory.CreateDbContextAsync())
+        await using (var oldWriter = await factory.CreateDbContextAsync())
+        await using (var observer = await factory.CreateDbContextAsync())
+        {
+            await using var transaction = await claimant.Database.BeginTransactionAsync();
+            await claimant.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {legacyRace} FOR UPDATE").AsNoTracking().SingleAsync();
+            claimant.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = legacyRace, TenantId = tenant.Id, ApplicationId = app.Id, ClaimId = Guid.NewGuid(), ClaimedAt = DateTimeOffset.UtcNow });
+            await claimant.SaveChangesAsync();
+            await oldWriter.Database.OpenConnectionAsync();
+            var pid = await oldWriter.Database.SqlQueryRaw<int>("SELECT pg_backend_pid() AS \"Value\"").SingleAsync();
+            var oldWrite = oldWriter.QuotaReservations.Where(x => x.Id == legacyRace).ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 0L).SetProperty(y => y.FinalizedAt, DateTimeOffset.UtcNow));
+            var waiting = false;
+            for (var attempt = 0; attempt < 50 && !waiting; attempt++)
+            {
+                waiting = await observer.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pid = {pid} AND wait_event_type = 'Lock') AS \"Value\"").SingleAsync();
+                if (!waiting) await Task.Delay(20);
+            }
+            Assert.True(waiting);
+            await transaction.CommitAsync();
+            await Assert.ThrowsAnyAsync<Exception>(async () => await oldWrite);
+            Assert.Null((await observer.QuotaReservations.AsNoTracking().SingleAsync(x => x.Id == legacyRace)).FinalizedAt);
+        }
     }
 
     private sealed class TestClock(DateTimeOffset now) : TimeProvider { public override DateTimeOffset GetUtcNow() => now; }
