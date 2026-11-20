@@ -86,7 +86,7 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
             var entitled = IsEntitled(entitlements.GetValueOrDefault(capability.Id), now);
             var tenantEnabled = tenantSelections.TryGetValue(capability.Id, out var tenantSelection) && tenantSelection.Enabled;
             var appEnabled = applicationSelections.TryGetValue(capability.Id, out var appSelection) && appSelection.Enabled;
-            var dependencyReady = DependenciesEnabled(capability, capabilities, entitlements, tenantSelections, now);
+            var dependencyReady = DependenciesEnabled(capability, capabilities, entitlements, tenantSelections, now, applicationSelections);
             return ToView(capability, entitled, tenantEnabled, appEnabled, appSelection?.Revision,
                 GetReason(capability, entitled, tenantEnabled, appEnabled, dependencyReady, applicationSelectionRequired: true));
         }).ToArray();
@@ -143,7 +143,7 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
             {
                 return new("capability_unavailable");
             }
-            if (!await AreDependenciesEnabledAsync(db, capability, tenantId, timeProvider.GetUtcNow(), cancellationToken))
+            if (!await AreDependenciesEnabledAsync(db, capability, tenantId, applicationId, timeProvider.GetUtcNow(), cancellationToken))
             {
                 return new("dependency_not_enabled");
             }
@@ -227,14 +227,17 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
     }
 
     private static async Task<bool> AreDependenciesEnabledAsync(
-        CloudControlPlaneDbContext db, CloudCapabilityDefinition capability, Guid tenantId, DateTimeOffset now, CancellationToken cancellationToken)
+        CloudControlPlaneDbContext db, CloudCapabilityDefinition capability, Guid tenantId, Guid? applicationId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var capabilities = await db.Capabilities.AsNoTracking().ToDictionaryAsync(x => x.Id, StringComparer.Ordinal, cancellationToken);
         var entitlements = await db.TenantEntitlements.AsNoTracking().Where(x => x.TenantId == tenantId)
             .ToDictionaryAsync(x => x.CapabilityId, StringComparer.Ordinal, cancellationToken);
         var selections = await db.TenantCapabilitySelections.AsNoTracking().Where(x => x.TenantId == tenantId)
             .ToDictionaryAsync(x => x.CapabilityId, StringComparer.Ordinal, cancellationToken);
-        return DependenciesEnabled(capability, capabilities, entitlements, selections, now, new HashSet<string>(StringComparer.Ordinal));
+        var applicationSelections = applicationId is null ? null : await db.ApplicationCapabilitySelections.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.ApplicationId == applicationId.Value)
+            .ToDictionaryAsync(x => x.CapabilityId, StringComparer.Ordinal, cancellationToken);
+        return DependenciesEnabled(capability, capabilities, entitlements, selections, now, new HashSet<string>(StringComparer.Ordinal), applicationSelections);
     }
 
     private static bool DependenciesEnabled(
@@ -242,10 +245,11 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
         IReadOnlyList<CloudCapabilityDefinition> capabilities,
         IReadOnlyDictionary<string, CloudTenantEntitlement> entitlements,
         IReadOnlyDictionary<string, CloudTenantCapabilitySelection> selections,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, CloudApplicationCapabilitySelection>? applicationSelections = null)
     {
         var byId = capabilities.ToDictionary(x => x.Id, StringComparer.Ordinal);
-        return DependenciesEnabled(capability, byId, entitlements, selections, now, new HashSet<string>(StringComparer.Ordinal));
+        return DependenciesEnabled(capability, byId, entitlements, selections, now, new HashSet<string>(StringComparer.Ordinal), applicationSelections);
     }
 
     private static bool DependenciesEnabled(
@@ -254,7 +258,8 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
         IReadOnlyDictionary<string, CloudTenantEntitlement> entitlements,
         IReadOnlyDictionary<string, CloudTenantCapabilitySelection> selections,
         DateTimeOffset now,
-        HashSet<string> path)
+        HashSet<string> path,
+        IReadOnlyDictionary<string, CloudApplicationCapabilitySelection>? applicationSelections)
     {
         if (!path.Add(capability.Id)) return false;
         var dependencies = JsonSerializer.Deserialize<string[]>(capability.Dependencies) ?? [];
@@ -264,7 +269,8 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
             return dependency is not null && dependency.PlatformAvailability == "available" &&
                 IsEntitled(entitlements.GetValueOrDefault(id), now) &&
                 selections.TryGetValue(id, out var selection) && selection.Enabled &&
-                DependenciesEnabled(dependency, capabilities, entitlements, selections, now, path);
+                (applicationSelections is null || applicationSelections.TryGetValue(id, out var appSelection) && appSelection.Enabled) &&
+                DependenciesEnabled(dependency, capabilities, entitlements, selections, now, path, applicationSelections);
         });
         path.Remove(capability.Id);
         return result;

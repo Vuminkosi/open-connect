@@ -50,6 +50,8 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 **Authorization rule:** Organization enablement requires a current plan grant, platform availability, and all recursively declared dependencies to be entitled and selected. Application enablement additionally requires the organization selection. The future Cloud gateway must still validate credential scope, policy, region, deployment readiness, and quota before any execution.
 
+Application dependencies must also be selected for that application. Read views and selection writes evaluate the recursive dependency chain at both organization and application scope.
+
 **Concurrency:** Service-selection API writes require a quoted numeric `If-Match` revision. Updates use EF concurrency tokens and a PostgreSQL serializable transaction. Successful changes and audit events commit together. Stale updates return conflict; disabling remains possible after availability or entitlement loss.
 
 **Status:** Catalog/selection persistence, authenticated read APIs, revisioned write APIs, and portal views are implemented. Plan grants, platform deployment health updates, gateway admission, quota, and PostgreSQL concurrency execution remain pending.
