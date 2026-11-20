@@ -51,9 +51,9 @@
         <EditForm Model="_newTenant" OnValidSubmit="CreateTenantAsync" FormName="create-cloud-tenant">
             <DataAnnotationsValidator />
             <label for="cloud-tenant-name">New organization name</label>
-            <InputText id="cloud-tenant-name" @bind-Value="_newTenant.Name" maxlength="200" />
+            <InputText id="cloud-tenant-name" @bind-Value="_newTenant.Name" maxlength="200" disabled="@(!_interactive || _saving)" />
             <ValidationMessage For="() => _newTenant.Name" />
-            <button class="button primary" type="submit" disabled="@_saving">Create organization</button>
+            <button class="button primary" type="submit" disabled="@(_saving || !_interactive)">Create organization</button>
         </EditForm>
     }
 </section>
@@ -68,6 +68,12 @@
     private IReadOnlyList<CloudTenantSummary> _tenants = [];
     private bool _loading = true;
     private bool _saving;
+    private bool _interactive;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) { _interactive = true; StateHasChanged(); }
+    }
     private string? _status;
 
     protected override async Task OnInitializedAsync()

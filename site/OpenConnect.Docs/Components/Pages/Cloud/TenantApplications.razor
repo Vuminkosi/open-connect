@@ -33,6 +33,7 @@ else
             {
                 <li><strong>@application.Name</strong> <span>@application.Environment</span>
                     <a href="/cloud/tenants/@TenantId/applications/@application.Id/services">Service selection</a>
+                    <a href="/cloud/tenants/@TenantId/applications/@application.Id/credentials">Credentials</a>
                 </li>
             }
         </ul>
@@ -43,18 +44,18 @@ else
         <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync" FormName="create-cloud-application">
             <DataAnnotationsValidator />
             <label for="cloud-application-name">Application name</label>
-            <InputText id="cloud-application-name" @bind-Value="_newApplication.Name" maxlength="200" />
+            <InputText id="cloud-application-name" @bind-Value="_newApplication.Name" maxlength="200" disabled="@(!_interactive || _saving)" />
             <ValidationMessage For="() => _newApplication.Name" />
             <label for="cloud-application-environment">Environment</label>
-            <InputSelect id="cloud-application-environment" @bind-Value="_newApplication.Environment">
+            <InputSelect id="cloud-application-environment" @bind-Value="_newApplication.Environment" disabled="@(!_interactive || _saving)">
                 <option value="Development">Development</option>
                 <option value="Staging">Staging</option>
                 <option value="Production">Production</option>
             </InputSelect>
-            <button class="button primary" type="submit" disabled="@_saving">Register application</button>
+            <button class="button primary" type="submit" disabled="@(_saving || !_interactive)">Register application</button>
         </EditForm>
     }
-    <p>Service selections are shown on each application. Credential management is available through the authenticated API; no raw credential is displayed in this portal.</p>
+    <p>Manage service selections and server credentials for each application.</p>
 }
 
 @code {
@@ -65,6 +66,12 @@ else
     private IReadOnlyList<CloudApplicationSummary> _applications = [];
     private bool _loading = true;
     private bool _saving;
+    private bool _interactive;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) { _interactive = true; StateHasChanged(); }
+    }
     private bool _canAdminister;
     private string? _role;
     private string? _status;

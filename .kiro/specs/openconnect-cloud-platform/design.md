@@ -78,12 +78,18 @@ Credential authentication rechecks revocation, expiry, and application environme
 
 The parser splits only the first three separators because the base64url secret may itself contain underscores.
 
-**Exposure boundary:** Credential material is returned only by the authenticated management API at issuance/rotation, never placed in static assets or logged by the control plane. The caller must transfer it to server-side secret storage. No management UI displays or persists the raw value.
+**Exposure boundary:** Credential material is returned once by the authenticated management API or displayed once in the authenticated interactive portal at issuance/rotation. It is never placed in static assets or logged by the control plane. The operator must transfer it to server-side secret storage; the portal clears its displayed value when dismissed or when navigating to another application.
+
+The portal associates asynchronous reads and writes with the selected application generation. Results from a prior selection are discarded when navigation or disposal occurs; a credential issued during navigation may need revocation if its one-time value was not displayed.
+
+Credential rows distinguish expired and revoked credentials and label repeated management actions with their fingerprint. Cloud controls use explicit light and dark focus and button styling. A local OIDC browser check covered keyboard focus and credential creation, dismissal, and revocation in light mode at 390px and dark mode at 1280px; broader assistive-technology and deployment verification remains required.
 
 **Status:** Hash-only persistence, one-time API response, list, rotate, revoke, and credential validation logic are implemented. Gateway integration, credential rate limits/abuse controls, real database revocation-latency proof, and client onboarding UX remain pending.
 
 Issuance and rotation evaluate capability scopes in the same serializable database transaction as the credential write. The shared EF context is a temporary integration boundary; extract a transaction-aware persistence port when separating capability and credential storage.
 
 ## Deferred decisions
+
+The root Compose stack includes a separate `cloud-gateway` process with a local Node adapter around a Worker-compatible request handler. Its liveness endpoint responds while all other requests fail closed with 503 until identity, admission, quota, and worker routing are implemented. This local process does not establish Cloudflare deployment or production readiness.
 
 Plan-grant administration, policy cache/revocation, gateway runtime, worker authentication, receipt signature format, quota authority, retention, and billing are intentionally not decided by this portal/control-plane foundation. Resolve each against the main requirements and source contracts before its implementation; do not infer production behavior from a UI placeholder.

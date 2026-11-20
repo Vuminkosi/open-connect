@@ -30,10 +30,13 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Implement server-to-server credential issuance, one-time no-store response, hash-only persistence, scope/environment/expiry binding, rotation, and revocation.
 - [x] Implement credential validation with fixed-time digest comparison, expiry/revocation checks, environment binding, and last-use metadata.
 - [ ] Integrate machine credentials with the Cloud gateway; verify fresh and active requests after revocation are rejected within the specified window.
+- [ ] Verify credential onboarding, one-time display, rotation, and revocation in an authenticated browser with configured entitlements and PostgreSQL.
 - [x] Add authorized catalog/selection APIs and UI; never place machine credentials in browser assets.
 - [ ] Test every effective-entitlement gate and no-worker/no-debit denial behavior.
 
 ## Phases 3–7 — Data plane and operations
+
+- [x] Add a separate fail-closed Cloud gateway process to the root Compose stack with liveness only.
 
 - [ ] Implement versioned cloud gateway, authenticated private worker adapters, typed errors, bounded streaming, admission controls, and capability routing.
 - [ ] Implement signed, sanitized security receipts and coverage status without replacing application-host privacy enforcement.
