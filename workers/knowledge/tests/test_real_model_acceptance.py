@@ -9,11 +9,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from openconnect_knowledge.app import app
-from openconnect_worker_common.models.initialize import InitializerConfig, initialize
+from openconnect_knowledge.profiles import minilm_configs
+from openconnect_worker_common.models.initialize import initialize
+from openconnect_worker_common.models.resource_admission import ResourceBudget, ResourceRequest
 from openconnect_worker_common.security.signing import sign_bytes
 
-REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
-ROOT = f"https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/{REVISION}/"
 pytestmark = pytest.mark.skipif(
     os.environ.get("OC_RUN_REAL_MODEL_TESTS") != "1",
     reason="real model downloads require explicit opt-in",
@@ -21,28 +21,12 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_model_provisions_and_serves_without_network_after_restart(tmp_path, monkeypatch):
-    manifest = {
-        "workerKind": "knowledge", "modelId": "sentence-transformers/all-MiniLM-L6-v2",
-        "immutableRevision": REVISION, "license": "apache-2.0", "assets": [
-            {"relativePath": "model.onnx", "sizeBytes": 90405214,
-             "sha256": "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452"},
-            {"relativePath": "tokenizer.json", "sizeBytes": 466247, "kind": "tokenizer",
-             "sha256": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037"},
-        ],
-    }
-    budget = {"memoryMbAvailable": 1, "vramMbAvailable": 0, "cpuMillicoresAvailable": 1}
-    request = {"memoryMb": 1, "cpuMillicores": 1}
-    init = InitializerConfig.model_validate({
-        "manifest": manifest,
-        "sources": {
-            "model.onnx": {"url": ROOT + "onnx/model.onnx", "mediaTypes": ["application/octet-stream"]},
-            "tokenizer.json": {"url": ROOT + "tokenizer.json",
-                               "mediaTypes": ["text/plain", "application/json", "application/octet-stream"]},
-        },
-        "allowedHosts": ["huggingface.co", "us.aws.cdn.hf.co"],
-        "resourceRequest": request, "resourceBudget": budget,
-        "maxDownloadBytes": 100000000, "downloadTimeoutSeconds": 120,
-    })
+    init, service = minilm_configs(
+        ResourceRequest(memoryMb=1, cpuMillicores=1),
+        ResourceBudget(memoryMbAvailable=1, vramMbAvailable=0, cpuMillicoresAvailable=1),
+        allowed_hosts=["huggingface.co", "us.aws.cdn.hf.co"],
+        timeout_seconds=120, disk_reserve_bytes=0,
+    )
     cache = tmp_path / "cache"
     result = initialize(init, cache, provisioning="first-start-if-missing", offline=False)
     assert result.ready and result.downloads_attempted == 2
@@ -54,11 +38,8 @@ def test_model_provisions_and_serves_without_network_after_restart(tmp_path, mon
     monkeypatch.setattr(socket, "create_connection", deny)
     reused = initialize(init, cache, provisioning="first-start-if-missing", offline=True)
     assert reused.ready and reused.cache_hit and reused.downloads_attempted == 0
-    config = {"manifest": manifest, "profile": {
-        "modelAsset": "model.onnx", "tokenizerAsset": "tokenizer.json", "dimension": 384,
-        "maxTokens": 256}, "resourceRequest": request, "resourceBudget": budget}
     path = tmp_path / "service.json"
-    path.write_text(json.dumps(config), encoding="utf-8")
+    path.write_text(service.model_dump_json(), encoding="utf-8")
     for key, value in {
         "OC_KNOWLEDGE_ENABLED": "true", "OC_KNOWLEDGE_CONFIG_PATH": str(path),
         "OC_MODEL_CACHE_DIR": str(cache), "OC_MODEL_DEVICE": "cpu", "OC_WORKER_ENGINE": "real",
