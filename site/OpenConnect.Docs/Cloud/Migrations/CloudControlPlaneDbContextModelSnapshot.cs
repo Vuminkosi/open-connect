@@ -556,6 +556,77 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudWorkerDeployment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CapabilityId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("ConcurrencyLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ContractVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EndpointReference")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ImageDigest")
+                        .IsRequired()
+                        .HasMaxLength(71)
+                        .HasColumnType("character varying(71)");
+
+                    b.Property<string>("ModelDigest")
+                        .HasMaxLength(71)
+                        .HasColumnType("character varying(71)");
+
+                    b.Property<string>("ModelId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ModelRevision")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Transport")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndpointReference")
+                        .IsUnique();
+
+                    b.HasIndex("CapabilityId", "Region", "Enabled");
+
+                    b.ToTable("worker_deployments", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_worker_deployment_concurrency", "\"ConcurrencyLimit\" > 0 AND \"Revision\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudApplication", b =>
                 {
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
@@ -687,6 +758,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId", "ReservationId")
                         .HasPrincipalKey("TenantId", "ApplicationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudWorkerDeployment", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudCapabilityDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("CapabilityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

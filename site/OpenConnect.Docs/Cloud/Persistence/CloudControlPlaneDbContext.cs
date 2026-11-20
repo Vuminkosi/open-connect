@@ -18,6 +18,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudQuotaBucket> QuotaBuckets => Set<CloudQuotaBucket>();
     public DbSet<CloudQuotaReservation> QuotaReservations => Set<CloudQuotaReservation>();
     public DbSet<CloudUsageRecord> UsageRecords => Set<CloudUsageRecord>();
+    public DbSet<CloudWorkerDeployment> WorkerDeployments => Set<CloudWorkerDeployment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -109,6 +110,25 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.ModalitiesVerified).IsRequired();
             entity.Property(x => x.AllowedRegions).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.AllowedRegionsVerified).IsRequired();
+        });
+
+        modelBuilder.Entity<CloudWorkerDeployment>(entity =>
+        {
+            entity.ToTable("worker_deployments", table => table.HasCheckConstraint("ck_worker_deployment_concurrency", "\"ConcurrencyLimit\" > 0 AND \"Revision\" > 0"));
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CapabilityId).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.EndpointReference).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Transport).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Region).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ContractVersion).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ModelId).HasMaxLength(256);
+            entity.Property(x => x.ModelRevision).HasMaxLength(256);
+            entity.Property(x => x.ModelDigest).HasMaxLength(71);
+            entity.Property(x => x.ImageDigest).HasMaxLength(71).IsRequired();
+            entity.Property(x => x.Revision).IsConcurrencyToken();
+            entity.HasIndex(x => new { x.CapabilityId, x.Region, x.Enabled });
+            entity.HasIndex(x => x.EndpointReference).IsUnique();
+            entity.HasOne<CloudCapabilityDefinition>().WithMany().HasForeignKey(x => x.CapabilityId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudTenantEntitlement>(entity =>
