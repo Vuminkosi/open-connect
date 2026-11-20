@@ -2,7 +2,7 @@
 
 ## Code organization
 
-Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. Tenant operations use a persistence port; membership checks and writes remain together in the persistence implementation. Capability reads load tenant-scoped snapshots through a persistence port and project entitlement and dependency policy in the capability feature. Capability writes and credential operations still access EF Core directly and require persistence separation. Credential issuance and rotation continue to load capability data using the same EF context and serializable transaction as the credential write.
+Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. Tenant operations use a persistence port; membership checks and writes remain together in the persistence implementation. Capability reads load tenant-scoped snapshots through a persistence port and project entitlement and dependency policy in the capability feature. Capability selection policy runs in the capability feature through a transaction-aware persistence port; its adapter loads authorization and selection facts, commits selection and audit together, and maps serialization conflicts without claiming an unobserved revision. Credential operations still access EF Core directly and require persistence separation. Credential issuance and rotation continue to load capability data using the same EF context and serializable transaction as the credential write.
 
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 
@@ -60,7 +60,7 @@ Application dependencies must also be selected for that application. Read views 
 
 Capability eligibility and dependency evaluation are isolated in a policy component. Persistence remains responsible for obtaining the relevant state inside the applicable transaction; the policy does not issue database queries.
 
-**Concurrency:** Service-selection API writes require a quoted numeric `If-Match` revision. Updates use EF concurrency tokens and a PostgreSQL serializable transaction. Successful changes and audit events commit together. Stale updates return conflict; disabling remains possible after availability or entitlement loss.
+**Concurrency:** Service-selection API writes require a quoted numeric `If-Match` revision. Updates use EF concurrency tokens and a PostgreSQL serializable transaction. Successful changes and audit events commit together. Stale updates and PostgreSQL serialization conflicts return conflict; disabling remains possible after availability or entitlement loss. Wrapped PostgreSQL conflicts do not return a guessed current revision; clients reload.
 
 **Status:** Catalog/selection persistence, authenticated read APIs, revisioned write APIs, and portal views are implemented. Plan grants, platform deployment health updates, gateway admission, quota, and PostgreSQL concurrency execution remain pending.
 

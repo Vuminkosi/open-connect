@@ -38,6 +38,7 @@ public sealed class CloudCredentialComponentTests : BunitContext
         Services.AddSingleton<ICloudTenantStore>(tenantStore);
         Services.AddScoped<CloudControlPlaneService>();
         Services.AddScoped<ICloudCapabilityReader, EfCloudCapabilityReader>();
+        Services.AddScoped<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>();
         Services.AddScoped<CloudCapabilityService>();
         Services.AddScoped<CloudCredentialService>();
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthenticationStateProvider(subject.SubjectId));
@@ -56,7 +57,7 @@ public sealed class CloudCredentialComponentTests : BunitContext
         component.WaitForAssertion(() => Assert.Contains("Save this key now", component.Markup));
         var replacement = component.Find("code").TextContent;
         Assert.NotEqual(secret, replacement);
-        var validator = new CloudCredentialService(factory, new CloudCapabilityService(factory, new EfCloudCapabilityReader(factory), TimeProvider.System), TimeProvider.System);
+        var validator = new CloudCredentialService(factory, TimeProvider.System);
         Assert.Null(await validator.ValidateAsync(secret, CancellationToken.None));
         Assert.NotNull(await validator.ValidateAsync(replacement, CancellationToken.None));
         component.Render(parameters => parameters.Add(x => x.ApplicationId, Guid.NewGuid()));

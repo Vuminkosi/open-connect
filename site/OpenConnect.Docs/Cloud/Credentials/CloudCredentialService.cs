@@ -17,7 +17,6 @@ public sealed record CloudCredentialIdentity(
 
 public sealed class CloudCredentialService(
     IDbContextFactory<CloudControlPlaneDbContext> contextFactory,
-    CloudCapabilityService capabilities,
     TimeProvider timeProvider)
 {
     private static readonly string[] Administrators = ["Owner", "Administrator"];
@@ -164,8 +163,9 @@ public sealed class CloudCredentialService(
             return ("invalid_scopes", null);
         }
 
-        var capabilityViews = await capabilities.GetApplicationCapabilitiesAsync(db, subject, tenantId, applicationId, cancellationToken);
-        if (capabilityViews is null) return ("not_found", null);
+        var snapshot = await EfCloudCapabilityReader.LoadAsync(db, subject, tenantId, applicationId, cancellationToken);
+        if (snapshot is null) return ("not_found", null);
+        var capabilityViews = CloudCapabilityProjection.Application(snapshot, timeProvider.GetUtcNow());
         var byId = capabilityViews.ToDictionary(x => x.Id, StringComparer.Ordinal);
         foreach (var scope in requestedScopes)
         {

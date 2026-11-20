@@ -28,7 +28,7 @@ public sealed class CloudCapabilityReadPostgresTests
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capabilityId, Enabled = false, Revision = 3 });
             await db.SaveChangesAsync();
         }
-        var service = new CloudCapabilityService(factory, new EfCloudCapabilityReader(factory), TimeProvider.System);
+        var service = new CloudCapabilityService(new EfCloudCapabilityReader(factory), new EfCloudCapabilitySelectionStore(factory, TimeProvider.System), TimeProvider.System);
 
         Assert.Contains(await service.GetCatalogAsync(CancellationToken.None), x => x.Id == capabilityId);
         Assert.Null(await service.GetTenantCapabilitiesAsync(stranger, tenant.Id, CancellationToken.None));
