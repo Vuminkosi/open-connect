@@ -148,6 +148,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var duplicate = await Reserve(authorized, classificationCredential.Secret, reservationBody);
             Assert.Equal("duplicate", (await duplicate.Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
             Assert.Equal("duplicate", (await NodeReserveAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reservationBody)).Status);
+            Assert.Equal("duplicate", (await NodeReserveFromLookupAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, newRequestId)).Status);
             Assert.Equal("quota_unavailable", (await NodeReserveAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reservationBody)).Status);
             var conflictingBody = new { requestId = newRequestId, fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()), expiresAt = now.AddMinutes(4) };
             Assert.Equal(HttpStatusCode.Conflict, (await Reserve(authorized, classificationCredential.Secret, conflictingBody)).StatusCode);
@@ -156,6 +157,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
             Assert.Equal("found", keyLookup.Status);
             Assert.Equal("retained_key", keyLookup.KeyId);
+            Assert.Equal(now.AddMinutes(5).Ticks / 10, keyLookup.ExpiresAt!.Value.Ticks / 10);
             Assert.Equal("not_found", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, otherCredential.Secret!, quotaRequestId)).Status);
             Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
             Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, issued.Secret!, quotaRequestId)).Status);
@@ -273,6 +275,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
     {
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.reserveClassification(process.env.OC_TEST_CREDENTIAL,JSON.parse(process.env.OC_TEST_CAPABILITY))));";
         var output = await NodeCallAsync(script, address, server, client, credential, System.Text.Json.JsonSerializer.Serialize(body));
+        return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<CloudQuotaResult> NodeReserveFromLookupAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid requestId)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const requestId=process.env.OC_TEST_CAPABILITY; const k=await c.findClassificationFingerprintKey(process.env.OC_TEST_CREDENTIAL,requestId); process.stdout.write(JSON.stringify(await c.reserveClassification(process.env.OC_TEST_CREDENTIAL,{requestId,fingerprintKeyId:k.keyId,expiresAt:k.expiresAt,fingerprint:Buffer.alloc(32).toString('base64')})));";
+        var output = await NodeCallAsync(script, address, server, client, credential, requestId.ToString("D"));
         return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 

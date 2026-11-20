@@ -3,7 +3,7 @@ namespace OpenConnect.Docs.Cloud;
 public sealed record CloudQuotaRequest(Guid TenantId, Guid ApplicationId, string CapabilityId, string Unit,
     Guid RequestId, string FingerprintKeyId, byte[] RequestFingerprint, long Amount, DateTimeOffset ExpiresAt);
 public sealed record CloudQuotaResult(string Status, Guid? ReservationId = null);
-public sealed record CloudFingerprintKeyLookup(string Status, string? KeyId = null);
+public sealed record CloudFingerprintKeyLookup(string Status, string? KeyId = null, DateTimeOffset? ExpiresAt = null);
 
 public interface ICloudQuotaStore
 {

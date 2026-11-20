@@ -83,10 +83,11 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                         response.on('end', () => {
                             try {
                                 const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'keyId'].includes(key))) return finish(unavailable());
-                                if (result.status === 'found' && typeof result.keyId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(result.keyId))
-                                    return finish({ status: 'found', keyId: result.keyId });
-                                if (['not_found', 'legacy_unverifiable'].includes(result.status) && result.keyId == null) return finish({ status: result.status });
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'keyId', 'expiresAt'].includes(key))) return finish(unavailable());
+                                if (result.status === 'found' && typeof result.keyId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(result.keyId) &&
+                                    typeof result.expiresAt === 'string' && Number.isFinite(Date.parse(result.expiresAt)))
+                                    return finish({ status: 'found', keyId: result.keyId, expiresAt: result.expiresAt });
+                                if (['not_found', 'legacy_unverifiable'].includes(result.status) && result.keyId == null && result.expiresAt == null) return finish({ status: result.status });
                             } catch { /* Never expose private endpoint diagnostics. */ }
                             finish(unavailable());
                         });

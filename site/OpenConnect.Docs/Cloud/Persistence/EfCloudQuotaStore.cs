@@ -44,10 +44,10 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
             join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
             where reservation.TenantId == tenantId && reservation.ApplicationId == applicationId && reservation.RequestId == requestId &&
                 bucket.TenantId == tenantId && bucket.ApplicationId == applicationId && bucket.CapabilityId == capabilityId
-            select new { reservation.FingerprintKeyId, reservation.RequestFingerprint }).SingleOrDefaultAsync(cancellationToken);
+            select new { reservation.FingerprintKeyId, reservation.RequestFingerprint, reservation.ExpiresAt }).SingleOrDefaultAsync(cancellationToken);
         if (item is null) return new("not_found");
         return CloudRequestFingerprint.IsValidKeyId(item.FingerprintKeyId) && item.RequestFingerprint is { Length: 32 }
-            ? new("found", item.FingerprintKeyId) : new("legacy_unverifiable");
+            ? new("found", item.FingerprintKeyId, item.ExpiresAt) : new("legacy_unverifiable");
     }
 
     public async Task<CloudQuotaResult> FinalizeAsync(Guid tenantId, Guid applicationId, Guid reservationId, long actual, DateTimeOffset now, CancellationToken cancellationToken)
