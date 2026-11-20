@@ -62,6 +62,9 @@ public sealed class CloudGoogleCallbackTests
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         using var browser = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { BaseAddress = new Uri(address) };
+        var reflected = await browser.GetStringAsync("/cloud/sign-in?error=%3Cscript%3Etest%3C%2Fscript%3E");
+        Assert.DoesNotContain("<script>", reflected);
+        Assert.DoesNotContain("Sign-in could not be completed", reflected);
         var challenge = await browser.GetAsync("/cloud/sign-in/google?returnUrl=%2Fcloud%2Forganizations");
         Assert.Equal(HttpStatusCode.Redirect, challenge.StatusCode);
         var query = QueryHelpers.ParseQuery(challenge.Headers.Location!.Query);
@@ -78,6 +81,12 @@ public sealed class CloudGoogleCallbackTests
         if (scenario != "valid")
         {
             Assert.Null(authCookie);
+            Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
+            Assert.Equal("/cloud/sign-in?error=authentication_failed", result.Headers.Location?.ToString());
+            Assert.Equal("no-store", result.Headers.CacheControl?.ToString());
+            var failurePage = await browser.GetStringAsync(result.Headers.Location);
+            Assert.Contains("Sign-in could not be completed", failurePage);
+            Assert.DoesNotContain("nonce", failurePage, StringComparison.OrdinalIgnoreCase);
             return;
         }
         Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);

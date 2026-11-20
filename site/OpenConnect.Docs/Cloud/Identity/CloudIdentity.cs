@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace OpenConnect.Docs.Cloud;
@@ -21,6 +22,14 @@ public static class CloudIdentity
             foreach (var claim in claimsIdentity.FindAll(IssuerClaim).ToArray())
                 claimsIdentity.RemoveClaim(claim);
         identity.AddClaim(new Claim(IssuerClaim, issuer, ClaimValueTypes.String, LocalClaimIssuer));
+        return Task.CompletedTask;
+    }
+
+    public static Task HandleRemoteFailureAsync(RemoteFailureContext context)
+    {
+        context.HandleResponse();
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Redirect("/cloud/sign-in?error=authentication_failed");
         return Task.CompletedTask;
     }
 

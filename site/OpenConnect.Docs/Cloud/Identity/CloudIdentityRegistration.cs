@@ -30,6 +30,7 @@ public static class CloudIdentityRegistration
                 options.Scope.Add("profile");
                 options.CallbackPath = "/cloud/signin-oidc";
                 options.Events.OnTokenValidated = context => CloudIdentity.StampIssuerAsync(context, authority);
+                options.Events.OnRemoteFailure = CloudIdentity.HandleRemoteFailureAsync;
             });
         }
 
@@ -56,6 +57,7 @@ public static class CloudIdentityRegistration
                 options.Scope.Add("profile");
                 options.CallbackPath = "/cloud/signin-google";
                 options.Events.OnTokenValidated = context => CloudIdentity.StampIssuerAsync(context, CloudIdentity.GoogleIssuer);
+                options.Events.OnRemoteFailure = CloudIdentity.HandleRemoteFailureAsync;
             });
         }
 

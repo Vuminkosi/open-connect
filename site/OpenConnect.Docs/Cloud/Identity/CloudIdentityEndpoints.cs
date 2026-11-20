@@ -10,16 +10,17 @@ public static class CloudIdentityEndpoints
 {
     public static void MapCloudIdentityEndpoints(this WebApplication app, bool oidcEnabled, bool googleEnabled)
     {
-        app.MapGet("/cloud/sign-in", (HttpContext context, string? returnUrl) =>
+        app.MapGet("/cloud/sign-in", (HttpContext context, string? returnUrl, string? error) =>
         {
             context.Response.Headers.CacheControl = "no-store";
             if (!oidcEnabled && !googleEnabled)
                 return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Cloud identity is not configured.");
 
             var encoded = WebUtility.UrlEncode(CloudReturnUrl(returnUrl));
+            var errorMessage = error == "authentication_failed" ? "<p role=\"alert\">Sign-in could not be completed. Please try again.</p>" : "";
             var oidcLink = oidcEnabled ? $"<p><a class=\"button\" href=\"/cloud/sign-in/oidc?returnUrl={encoded}\">Sign in with your identity provider</a></p>" : "";
             var googleLink = googleEnabled ? $"<p><a class=\"button\" href=\"/cloud/sign-in/google?returnUrl={encoded}\">Sign in with Google</a></p>" : "";
-            return Results.Content($"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"/app.css\"><title>Sign in to OpenConnect Cloud</title></head><body><main class=\"cloud-content\"><h1>Sign in to OpenConnect Cloud</h1>{oidcLink}{googleLink}<p><a href=\"/\">Back to documentation</a></p></main></body></html>", "text/html; charset=utf-8");
+            return Results.Content($"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"/app.css\"><title>Sign in to OpenConnect Cloud</title></head><body><main class=\"cloud-content\"><h1>Sign in to OpenConnect Cloud</h1>{errorMessage}{oidcLink}{googleLink}<p><a href=\"/\">Back to documentation</a></p></main></body></html>", "text/html; charset=utf-8");
         });
         app.MapGet("/cloud/sign-in/{provider}", (string provider, string? returnUrl) =>
         {
