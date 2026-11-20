@@ -48,6 +48,8 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 **Status:** Implemented for organization/application creation and reads. Invitations, role changes, removal, recovery, broader role actions, and provider-to-provider subject migration remain pending.
 
+Application creation reads the actor's membership and writes the application and audit event in the same serializable transaction. Concurrent membership administration must use a compatible transactional protocol and handle serialization failures without granting access.
+
 ## OC-CLOUD-ADR-006: Separate capability definitions, entitlements, and selections
 
 **Decision:** Store logical capability definitions separately from worker deployment state, tenant plan grants, tenant selections, and application selections. An entitlement or enabled selection alone never means that a backend is ready. The initial catalog marks platform availability `not_configured` and marks modality/region metadata unverified until source contracts and deployment policy establish them.

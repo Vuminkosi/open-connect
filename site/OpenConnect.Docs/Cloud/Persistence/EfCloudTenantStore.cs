@@ -63,6 +63,7 @@ public sealed class EfCloudTenantStore(
         CloudSubject subject, Guid tenantId, string name, string environment, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var role = await db.Memberships.AsNoTracking()
             .Where(membership => membership.TenantId == tenantId &&
                 membership.SubjectIssuer == subject.Issuer && membership.SubjectId == subject.SubjectId)
@@ -77,7 +78,6 @@ public sealed class EfCloudTenantStore(
             return (null, true);
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
         var application = new CloudApplication
         {
