@@ -12,6 +12,10 @@ test('editing preserves newer changes and reports a deleted task', async ({ page
   const row = page.locator('.mud-list-item').filter({ hasText: title });
   await expect(row).toHaveCount(1);
   await row.getByRole('button', { name: 'Edit task' }).click();
+  await page.locator('#edit-task-title').fill('');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Enter a task title' })).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
   await page.locator('#edit-task-title').fill('Stale title');
 
   const other = await context.newPage();
