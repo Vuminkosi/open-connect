@@ -96,6 +96,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
             app.MapCloudClassificationDeployment(trust, databaseConfigured: true);
             app.MapCloudFingerprintKeyLookup(trust, databaseConfigured: true);
+            app.MapCloudClassificationQuota(trust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -129,6 +130,29 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
             Assert.Equal("reserved", (await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request",
                 quotaRequestId, "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None)).Status);
+            const string reservationPath = "/cloud/internal/v1/classification/quota/reservations";
+            var newRequestId = Guid.NewGuid();
+            var reservationBody = new { requestId = newRequestId, fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(new byte[32]), expiresAt = now.AddMinutes(4) };
+            async Task<HttpResponseMessage> Reserve(HttpClient client, string? secret, object body)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, reservationPath) { Content = JsonContent.Create(body) };
+                if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                return await client.SendAsync(request);
+            }
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Reserve(anonymous, classificationCredential.Secret, reservationBody)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await Reserve(authorized, issued.Secret, reservationBody)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Reserve(authorized, otherCredential.Secret, reservationBody)).StatusCode);
+            var reservation = await Reserve(authorized, classificationCredential.Secret, reservationBody);
+            Assert.Equal(HttpStatusCode.OK, reservation.StatusCode);
+            Assert.Equal("reserved", (await reservation.Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            var duplicate = await Reserve(authorized, classificationCredential.Secret, reservationBody);
+            Assert.Equal("duplicate", (await duplicate.Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            Assert.Equal("duplicate", (await NodeReserveAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reservationBody)).Status);
+            Assert.Equal("quota_unavailable", (await NodeReserveAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reservationBody)).Status);
+            var conflictingBody = new { requestId = newRequestId, fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()), expiresAt = now.AddMinutes(4) };
+            Assert.Equal(HttpStatusCode.Conflict, (await Reserve(authorized, classificationCredential.Secret, conflictingBody)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await Reserve(authorized, classificationCredential.Secret, new { requestId = Guid.NewGuid(), fingerprintKeyId = "retained_key", fingerprint = "invalid", expiresAt = now.AddMinutes(4) })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await Reserve(authorized, classificationCredential.Secret, new { requestId = Guid.NewGuid(), fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(new byte[32]), expiresAt = now.AddHours(1) })).StatusCode);
             var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
             Assert.Equal("found", keyLookup.Status);
             Assert.Equal("retained_key", keyLookup.KeyId);
@@ -219,6 +243,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None));
             Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
             Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Reserve(authorized, classificationCredential.Secret, reservationBody)).StatusCode);
         }
         finally
         {
@@ -242,6 +267,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.findClassificationFingerprintKey(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY)));";
         var output = await NodeCallAsync(script, address, server, client, credential, requestId.ToString("D"));
         return System.Text.Json.JsonSerializer.Deserialize<CloudFingerprintKeyLookup>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<CloudQuotaResult> NodeReserveAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, object body)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.reserveClassification(process.env.OC_TEST_CREDENTIAL,JSON.parse(process.env.OC_TEST_CAPABILITY))));";
+        var output = await NodeCallAsync(script, address, server, client, credential, System.Text.Json.JsonSerializer.Serialize(body));
+        return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
     private sealed class SwitchableEvidenceStore(ICloudPrivacyEvidenceStore inner) : ICloudPrivacyEvidenceStore

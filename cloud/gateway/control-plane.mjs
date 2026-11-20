@@ -97,6 +97,45 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { finish(unavailable()); }
             });
         },
+        reserveClassification(credential, input, signal, traceparent) {
+            const unavailable = () => ({ status: 'quota_unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !input || signal?.aborted ||
+                !validId(input.requestId) || !/^[A-Za-z0-9_-]{1,64}$/.test(input.fingerprintKeyId ?? '') ||
+                typeof input.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(input.fingerprint) ||
+                typeof input.expiresAt !== 'string' || !Number.isFinite(Date.parse(input.expiresAt))) return Promise.resolve(unavailable());
+            const body = Buffer.from(JSON.stringify({ requestId: input.requestId, fingerprintKeyId: input.fingerprintKeyId,
+                fingerprint: input.fingerprint, expiresAt: input.expiresAt }), 'utf8');
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/classification/quota/reservations', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json', 'content-length': body.length,
+                            'cache-control': 'no-store', ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable()));
+                        response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'reservationId'].includes(key))) return finish(unavailable());
+                                if (response.statusCode === 200 && ['reserved', 'duplicate'].includes(result.status) && validId(result.reservationId)) return finish(result);
+                                if (response.statusCode === 429 && result.status === 'quota_exceeded' && result.reservationId == null) return finish({ status: 'quota_exceeded' });
+                                if (response.statusCode === 409 && result.status === 'idempotency_conflict' && validId(result.reservationId)) return finish({ status: 'idempotency_conflict' });
+                            } catch { /* Never expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable()));
+                    request.end(body);
+                } catch { finish(unavailable()); }
+            });
+        },
         matchClassificationDeployment(credential, deployment, signal, traceparent) {
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
                 return Promise.resolve(false);

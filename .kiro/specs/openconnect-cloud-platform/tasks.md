@@ -57,6 +57,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a database-managed quota limit revision and verify historical upgrades, older limit writers, stale writes, and counter updates.
 - [x] Add scoped, audited operator quota bucket provisioning and revision-checked limit updates, with PostgreSQL concurrency and HTTP authorization tests.
 - [x] Define the classification request quota unit independently of its descriptive catalog billing text and verify provisioning against the seeded catalog.
+- [x] Add a private mutual-TLS classification quota reservation endpoint and Node client with credential-derived scope and stable retry inputs.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
