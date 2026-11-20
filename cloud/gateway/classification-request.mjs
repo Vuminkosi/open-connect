@@ -5,7 +5,7 @@ const keysOnly = (value, allowed) => object(value) && Object.keys(value).every(k
 const length = value => [...value].length;
 
 // JSON.parse accepts duplicate names; reject them at every nesting level before applying the contract.
-function parseUnique(text) {
+export function parseUniqueJson(text) {
     const result = JSON.parse(text);
     const stack = [];
     for (let i = 0; i < text.length; i++) {
@@ -62,7 +62,7 @@ export async function prepareClassificationRequest(request) {
         if (!body || body.tooLarge || body.bytes?.byteLength > limit) return { code: 'payload_too_large' };
         if (!(body.bytes instanceof Uint8Array)) return { code: 'invalid_request' };
         const text = new TextDecoder('utf-8', { fatal: true }).decode(body.bytes);
-        const value = parseUnique(text);
+        const value = parseUniqueJson(text);
         return valid(value) ? { code: null, value } : { code: 'invalid_semantic_request' };
     } catch { return { code: 'invalid_request' }; }
     finally { if (body?.bytes instanceof Uint8Array) body.bytes.fill(0); }

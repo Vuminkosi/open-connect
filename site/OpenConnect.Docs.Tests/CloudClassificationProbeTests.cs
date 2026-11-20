@@ -80,9 +80,22 @@ public sealed class CloudClassificationProbeTests
             }
             app.MapGet("/health/ready", (Delegate)Forward);
             app.MapGet("/internal/v1/capabilities", (Delegate)Forward);
+            var forwardedExecutions = 0;
+            app.MapPost("/internal/v1/execute", async (HttpContext context) =>
+            {
+                Interlocked.Increment(ref forwardedExecutions);
+                using var request = new HttpRequestMessage(HttpMethod.Post, context.Request.Path.Value);
+                if (context.Request.Headers.TryGetValue("Authorization", out var authorization)) request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
+                request.Content = new StreamContent(context.Request.Body);
+                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                using var response = await workerClient.SendAsync(request);
+                return Results.Content(await response.Content.ReadAsStringAsync(), "application/json", statusCode: (int)response.StatusCode);
+            });
             await app.StartAsync();
             var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret", "fake-0.1.0"));
+            Assert.Equal("upstream_unavailable", await DispatchAsync(address, serverCertificate, clientCertificate, "worker-secret", "fake-0.1.0"));
+            Assert.Equal(1, forwardedExecutions);
         }
         finally
         {
@@ -107,11 +120,22 @@ public sealed class CloudClassificationProbeTests
             ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1",
                 capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false }] })
             : Results.Unauthorized());
+        app.MapPost("/internal/v1/execute", async (HttpContext context) =>
+        {
+            if (context.Request.Headers.Authorization != "Bearer worker-secret") return Results.Unauthorized();
+            using var json = await JsonDocument.ParseAsync(context.Request.Body);
+            var taskId = json.RootElement.GetProperty("taskId").GetString();
+            return Results.Json(new { schemaVersion = "openconnect.v1", taskId, status = "completed", error = (string?)null,
+                result = new { labels = new[] { "safe" }, scores = new { safe = 0.9 }, abstained = false,
+                    modelRevision = mode == "revision" ? "other" : "revision-1", labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
+        });
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         Assert.True(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
+        Assert.Equal("completed", await DispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "fake";
         Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
+        Assert.Equal("upstream_unavailable", await DispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "revision";
         Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "unadvertised";
@@ -120,6 +144,25 @@ public sealed class CloudClassificationProbeTests
         Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "wrong-secret"));
         Assert.False(await ProbeAsync(address, serverCertificate, wrongCertificate, "worker-secret"));
         Assert.False(await ProbeAsync(address, wrongCertificate, clientCertificate, "worker-secret"));
+        Assert.Equal("upstream_unavailable", await DispatchAsync(address, serverCertificate, clientCertificate, "wrong-secret"));
+        Assert.Equal("upstream_unavailable", await DispatchAsync(address, serverCertificate, wrongCertificate, "worker-secret"));
+        Assert.Equal("upstream_unavailable", await DispatchAsync(address, wrongCertificate, clientCertificate, "worker-secret"));
+    }
+
+    private static async Task<string> DispatchAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.execute({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}})));";
+        var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-dispatch.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
+        using var key = client.GetRSAPrivateKey()!; start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
+        start.Environment["OC_TEST_TOKEN"] = token; start.Environment["OC_TEST_REVISION"] = revision;
+        using var process = Process.Start(start)!; using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
+        using var json = JsonDocument.Parse(output); return json.RootElement.GetProperty("status").GetString()!;
     }
 
     private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
