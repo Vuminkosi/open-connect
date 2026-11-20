@@ -161,3 +161,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Bind inference worker consumption to deployment model revision and digest as well as model ID; real artifact verification remains outstanding.
 
 - [x] Add a digest-checked offline llama.cpp inference adapter and smoke-test bounded token generation against an existing local GGUF; production runtime wiring, tokenizer parity and streaming remain outstanding.
+
+- [x] Load and close the approved local inference runtime at worker startup with a pinned optional runtime dependency; gateway tokenizer parity and public execution remain outstanding.

@@ -7,6 +7,7 @@ import hmac
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
@@ -37,7 +38,22 @@ from openconnect_inference.schemas import (
 )
 
 logger = logging.getLogger("openconnect_inference")
-app = FastAPI(title="OpenConnect Inference Worker", docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from fastapi.concurrency import run_in_threadpool
+    from openconnect_inference.cloud_runtime import load_cloud_runtime
+
+    app.state.cloud_inference_runtime = await run_in_threadpool(load_cloud_runtime)
+    try:
+        yield
+    finally:
+        runtime = app.state.cloud_inference_runtime
+        app.state.cloud_inference_runtime = None
+        if runtime is not None:
+            await run_in_threadpool(runtime.close)
+
+
+app = FastAPI(title="OpenConnect Inference Worker", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.include_router(cloud_inference_router)
 settings = Settings.from_environment()
 engine = FakeInferenceEngine()

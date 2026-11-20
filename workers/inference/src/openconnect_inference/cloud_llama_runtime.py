@@ -54,6 +54,11 @@ class CloudLlamaRuntime:
         self.model_digest = model_digest
         self._context_tokens = context_tokens
 
+    def close(self) -> None:
+        close = getattr(self._model, "close", None)
+        if callable(close):
+            close()
+
     def prepare(self, payload: _Payload) -> PreparedLlama:
         if payload.modelId != self.model_id or payload.input.stream:
             raise ValueError("model unavailable")
