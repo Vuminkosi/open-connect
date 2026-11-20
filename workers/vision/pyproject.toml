@@ -1,0 +1,26 @@
+[project]
+name = "openconnect-vision-worker"
+version = "0.1.0"
+description = "CPU-first vision inference for OpenConnect"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy==2.2.6",
+  "onnx==1.18.0",
+  "onnxruntime==1.22.1",
+  "openconnect-worker-common",
+  "pillow==11.2.1",
+]
+
+[tool.uv.sources]
+openconnect-worker-common = { path = "../common" }
+
+[dependency-groups]
+dev = ["pytest==8.3.5", "ruff==0.11.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
