@@ -1,6 +1,7 @@
 window.ocComposerVoice = (() => {
   let state = null;
   const targetSampleRate = 24000;
+  const maxPendingFrames = 256;
   const speechThreshold = Number(window.__OC_VOICE_SPEECH_THRESHOLD || 0.012);
   const toWs = (url) => url.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const workletUrl = () => new URL('_content/OpenConnect.Components.Blazor/js/voice-capture-worklet.js', document.baseURI).href;
