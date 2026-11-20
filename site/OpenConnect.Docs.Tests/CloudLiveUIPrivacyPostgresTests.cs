@@ -72,9 +72,10 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>(); builder.Services.AddScoped<CloudLiveUIClaimService>();
             builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
+            builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>(); builder.Services.AddScoped<CloudLiveUISettlement>();
             builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>(); builder.Services.AddScoped<CloudWorkerReadiness>();
             await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true);
-            host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true); await host.StartAsync();
+            host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudLiveUISettlement(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other); using var workerClient = Client(address, server, worker);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
@@ -134,6 +135,19 @@ public sealed class CloudLiveUIPrivacyPostgresTests
                 await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
             }
             var consumptionPath = $"/cloud/internal/v1/liveui/quota/reservations/{reserved.ReservationId.Value:D}/claims/{claim!.ClaimId!.Value:D}/consume";
+            var completionPath = $"/cloud/internal/v1/liveui/quota/reservations/{reserved.ReservationId.Value:D}/claims/{claim.ClaimId.Value:D}/complete";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync(completionPath, null)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await workerClient.PostAsync(completionPath, null)).StatusCode);
+            await using (var db = await factory.CreateDbContextAsync())
+            await using (var transaction = await db.Database.BeginTransactionAsync())
+            {
+                db.ExecutionCompletions.Add(new CloudExecutionCompletion { ReservationId = reserved.ReservationId.Value, ClaimId = claim.ClaimId.Value,
+                    Outcome = "completed", CompletedAt = DateTimeOffset.UtcNow });
+                await db.SaveChangesAsync();
+                await Assert.ThrowsAnyAsync<Exception>(() => db.QuotaReservations.Where(x => x.Id == reserved.ReservationId.Value)
+                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 1L).SetProperty(y => y.FinalizedAt, DateTimeOffset.UtcNow)));
+                await transaction.RollbackAsync();
+            }
             async Task<HttpResponseMessage> Consume(HttpClient sender, byte[] binding)
             {
                 using var message = new HttpRequestMessage(HttpMethod.Post, consumptionPath);
@@ -154,6 +168,16 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Equal(7, consumes.Count(x => x.StatusCode == HttpStatusCode.Conflict));
             var consumed = await consumes.Single(x => x.StatusCode == HttpStatusCode.OK).Content.ReadFromJsonAsync<CloudLiveUIConsumptionResult>();
             Assert.Equal("registry/model-a", consumed!.ModelId); Assert.Equal("revision-1", consumed.ModelRevision); Assert.Equal(modelDigest, consumed.ModelDigest);
+            var completions = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => workerClient.PostAsync(completionPath, null)));
+            var statuses = await Task.WhenAll(completions.Select(async response => (await response.Content.ReadFromJsonAsync<CloudExecutionCompletionResult>())!.Status));
+            Assert.Single(statuses, x => x == "completed"); Assert.Equal(7, statuses.Count(x => x == "already_completed"));
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var final = await db.QuotaReservations.SingleAsync(x => x.Id == reserved.ReservationId.Value);
+                Assert.Equal(1, final.Actual); Assert.NotNull(final.FinalizedAt);
+                Assert.Equal(1, (await db.QuotaBuckets.SingleAsync(x => x.Id == final.BucketId)).Consumed);
+                Assert.Equal(1, (await db.UsageRecords.SingleAsync(x => x.ReservationId == final.Id)).Quantity);
+            }
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
             Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}")).StatusCode);
         }
