@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import os
 import time
 import uuid
 from typing import Annotated
@@ -21,9 +22,11 @@ from openconnect_classification.cloud_execution import configured_client, execut
 from openconnect_classification.engine import (
     FAKE_WARNING,
     FakeEngine,
+    InputTokenLimitError,
     LicenseDeniedError,
     ModelUnavailableError,
     RealEngine,
+    OnnxEngine,
 )
 from openconnect_classification import engine_mode
 from openconnect_classification.label_sets import (
@@ -32,6 +35,7 @@ from openconnect_classification.label_sets import (
     label_set_versions,
 )
 from openconnect_classification.manifest import check_readiness
+from openconnect_classification.onnx_classifier import BundleUnavailableError, load_bundle
 from openconnect_classification.schemas import (
     CapabilitiesResponse,
     Capability,
@@ -80,10 +84,12 @@ def ready() -> dict[str, object]:
             "modelCacheDir": settings.model_dir.as_posix(),
             **device,
         }
-    result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
-    if result.ready and result.manifest is not None:
-        return {"status": "unready", "ready": False, "reason": "inference_runtime_unavailable"}
-    return {"status": "unready", "ready": False, "reason": result.reason}
+    try:
+        bundle = _bundle()
+        return {"status": "ready", "ready": True, "engine": "real", "modelRevision": bundle.contract.revision,
+                "labelSetVersion": bundle.contract.labelSetVersion, **device}
+    except BundleUnavailableError:
+        return {"status": "unready", "ready": False, "reason": "model_unavailable"}
 
 
 def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -104,8 +110,20 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
 def _engine():
     if settings.fake_engine:
         return _fake_engine
-    result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
-    return RealEngine(result.manifest, ready=result.ready, reason=result.reason)
+    try:
+        return OnnxEngine(_bundle())
+    except BundleUnavailableError:
+        result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
+        return RealEngine(result.manifest, ready=False, reason=result.reason)
+
+
+def _bundle():
+    if os.environ.get("HF_HUB_OFFLINE") != "1":
+        raise BundleUnavailableError("offline mode is required")
+    info, _, code = engine_mode.rejection(False, settings.model_device)
+    if code is not None or info is None or info.effective != "cpu":
+        raise BundleUnavailableError("CPU runtime is required")
+    return load_bundle(str(settings.model_dir), os.environ.get("OC_CLASSIFICATION_BUNDLE_SHA256", ""), settings.license_accepted)
 
 
 @app.get(
@@ -125,7 +143,12 @@ def capabilities() -> CapabilitiesResponse:
             ],
             fakeEngineWarning=FAKE_WARNING,
         )
-    return JSONResponse(status_code=503, content={"status": "unavailable"})  # type: ignore[return-value]
+    try:
+        bundle = _bundle()
+    except BundleUnavailableError:
+        return JSONResponse(status_code=503, content={"status": "unavailable"})  # type: ignore[return-value]
+    return CapabilitiesResponse(engine="real", modelRevision=bundle.contract.revision,
+        capabilities=[Capability(labelSets=[bundle.contract.labelSetVersion], defaultLabelSet=bundle.contract.labelSetVersion)])
 
 
 def run_classification(request: ExecuteRequest) -> ExecuteResponse:
@@ -203,6 +226,9 @@ def run_classification(request: ExecuteRequest) -> ExecuteResponse:
                 "error": {"code": "model_unavailable", "message": "model unavailable"},
             },
         )  # type: ignore[return-value]
+    except InputTokenLimitError:
+        return JSONResponse(status_code=413, content={"schemaVersion": "openconnect.v1", "taskId": request.taskId,
+            "status": "failed", "error": {"code": "input_too_long", "message": "input exceeds model token limit"}})  # type: ignore[return-value]
     except Exception:
         # Model exceptions and caller-supplied task IDs may contain request content.
         logger.error("Classification failed unexpectedly")

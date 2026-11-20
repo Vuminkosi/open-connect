@@ -93,7 +93,7 @@ test('classification readiness is checked only after authorization and never ena
     const calls = [];
     const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
         readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111', capability: 'classification.classify', expiresAt: new Date(Date.now() + 60000).toISOString(), input: { text: 'test' } })) }; } };
-    const classificationProbe = { probe: async () => { calls.push('probe'); return { ready: true }; } };
+    const classificationProbe = { probe: async () => { calls.push('probe'); return { ready: true, labelSets: ['v1'] }; } };
     const deny = { authorize: async () => { calls.push('authorize'); return { authorized: false, code: 'unauthorized' }; } };
     assert.equal((await handle(request, { authorization: deny, classificationProbe })).status, 401);
     assert.deepEqual(calls, ['authorize']);
@@ -125,12 +125,12 @@ test('classification invokes the independent privacy boundary before any executi
     const authorization = { authorize: async () => { calls.push('authorize'); return { authorized: true }; },
         matchClassificationDeployment: async () => { calls.push('inventory'); return true; },
         inspectClassification: async (credential, requestId, content) => { calls.push('privacy'); assert.equal(content, 'private input'); return { allowed: false, code: 'privacy_blocked' }; } };
-    const result = await handle(request, { authorization, classificationProbe: { probe: async () => { calls.push('probe'); return { ready: true }; } } });
+    const result = await handle(request, { authorization, classificationProbe: { probe: async () => { calls.push('probe'); return { ready: true, labelSets: ['v1'] }; } } });
     assert.equal(result.status, 403);
     assert.equal((await result.json()).code, 'privacy_blocked');
     assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy']);
     body.input = { inputRef: 'opaque-handle' }; calls.length = 0;
-    assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } })).status, 503);
+    assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true, labelSets: ['v1'] }) } })).status, 503);
     assert.deepEqual(calls, ['authorize', 'inventory', 'body']);
 });
 
@@ -154,7 +154,7 @@ test('enabled classification runs only after authorization, regional readiness a
     const keyring = createFingerprintKeyring({ activeKeyId: 'key', keys: [{ id: 'key', key: Buffer.alloc(32, 1) }] });
     const dispatcher = { executeClaimed: async () => { calls.push('dispatch'); return { status: 'completed', result: {
         labels: ['safe'], scores: { safe: 0.9 }, abstained: false, modelRevision: 'revision-1', labelSetVersion: 'v1' } }; } };
-    const classificationProbe = { deployment: { endpointReference: 'worker' }, probe: async () => { calls.push('probe'); return { ready: true }; } };
+    const classificationProbe = { deployment: { endpointReference: 'worker' }, probe: async () => { calls.push('probe'); return { ready: true, labelSets: ['v1'] }; } };
     try {
         const result = await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } });
         assert.equal(result.status, 200);
@@ -164,6 +164,11 @@ test('enabled classification runs only after authorization, regional readiness a
         assert.equal(response.traceId, result.headers.get('x-trace-id'));
         assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'authorize', 'dispatch', 'authorize', 'complete', 'authorize']);
         assert.ok(raw.every(byte => byte === 0));
+        calls.length = 0;
+        value.configuration = { labelSetVersion: 'v2' };
+        assert.equal((await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } })).status, 503);
+        assert.ok(!calls.includes('privacy') && !calls.includes('reserve'));
+        delete value.configuration;
         calls.length = 0;
         authorization.inspectClassification = async () => { calls.push('privacy'); return { allowed: false, code: 'privacy_blocked' }; };
         assert.equal((await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } })).status, 403);
@@ -190,7 +195,7 @@ test('trace context is shared across gateway and private checks without carrying
     const authorization = { authorize: async (credential, capability, signal, traceparent) => { propagated.push(traceparent); return { authorized: true }; },
         matchClassificationDeployment: async (credential, deployment, signal, traceparent) => { propagated.push(traceparent); return true; },
         inspectClassification: async (credential, requestId, content, signal, traceparent) => { propagated.push(traceparent); return { allowed: false, code: 'privacy_blocked' }; } };
-    const result = await handle(request, { authorization, classificationProbe: { probe: async (signal, traceparent) => { propagated.push(traceparent); return { ready: true }; } } });
+    const result = await handle(request, { authorization, classificationProbe: { probe: async (signal, traceparent) => { propagated.push(traceparent); return { ready: true, labelSets: ['v1'] }; } } });
     assert.equal((await result.json()).traceId, traceId);
     assert.equal(result.headers.get('x-trace-id'), traceId);
     assert.equal(new Set(propagated).size, 1);
@@ -207,7 +212,7 @@ test('classification deadline aborts privacy admission and never returns its lat
         readBody: async () => ({ bytes: Buffer.from(JSON.stringify(body)) }) };
     const authorization = { authorize: async () => ({ authorized: true }), matchClassificationDeployment: async () => true,
         inspectClassification: async (credential, requestId, content, signal) => { observedSignal = signal; await new Promise(resolve => setTimeout(resolve, 160)); return { allowed: true }; } };
-    const response = await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } });
+    const response = await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true, labelSets: ['v1'] }) } });
     assert.equal(response.status, 504);
     assert.equal((await response.json()).code, 'upstream_timeout');
     assert.equal(observedSignal.aborted, true);

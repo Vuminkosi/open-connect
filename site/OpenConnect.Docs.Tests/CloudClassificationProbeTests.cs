@@ -118,7 +118,7 @@ public sealed class CloudClassificationProbeTests
         app.MapGet("/health/ready", () => Results.Json(new { status = "ready", ready = true, engine = mode == "fake" ? "fake" : "real", modelRevision = "revision-1" }));
         app.MapGet("/internal/v1/capabilities", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret"
             ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1",
-                capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false }] })
+                capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false, labelSets = new[] { "v1" } }] })
             : Results.Unauthorized());
         app.MapGet("/internal/cloud/v1/classification/ready", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret" && mode != "cloud-down"
             ? Results.Json(new { status = "ready", deploymentId = mode == "wrong-deployment" ? "22222222-2222-2222-2222-222222222222" : "11111111-1111-1111-1111-111111111111" }) : Results.StatusCode(503));

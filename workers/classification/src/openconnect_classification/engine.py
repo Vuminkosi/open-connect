@@ -5,8 +5,8 @@ Two adapters share one interface:
 - FakeEngine: deterministic keyword scorer for CI and contract tests.
   Explicitly NON-PRODUCTION; every result is tagged engine="fake" with a
   warning. No model files required.
-- RealEngine: local-checkpoint-gated adapter. Until a pinned inference runtime
-  is implemented, it fails closed instead of presenting heuristic output as model inference.
+- OnnxEngine: offline inference with a verified, operator-supplied bundle.
+- RealEngine: legacy checkpoint fallback that remains unavailable.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from openconnect_classification.label_sets import get_label_set
 from openconnect_classification.manifest import ModelManifest
+from openconnect_classification.onnx_classifier import OnnxClassifier, TokenLimitError
 
 FAKE_MODEL_REVISION = "fake-0.1.0"
 FAKE_WARNING = "fake-engine-non-production: deterministic stub for CI only"
@@ -90,6 +91,32 @@ class ModelUnavailableError(RuntimeError):
 
 class LicenseDeniedError(RuntimeError):
     pass
+
+
+class InputTokenLimitError(RuntimeError):
+    pass
+
+
+class OnnxEngine:
+    """Classifier backed by a verified local ONNX bundle."""
+
+    def __init__(self, classifier: OnnxClassifier) -> None:
+        self._classifier = classifier
+
+    def classify(self, text: str, *, label_set_version: str, threshold: float, max_labels: int,
+                 locale_hint: str | None = None) -> ClassifyOutcome:  # noqa: ARG002
+        if label_set_version != self._classifier.contract.labelSetVersion:
+            raise ModelUnavailableError("requested label set is unavailable")
+        try:
+            scores = self._classifier.scores(text)
+        except TokenLimitError as exc:
+            raise InputTokenLimitError("input exceeds model token limit") from exc
+        except Exception as exc:
+            raise ModelUnavailableError("model inference unavailable") from exc
+        selected = sorted((label for label in self._classifier.contract.labels if scores[label] >= threshold),
+                          key=lambda label: scores[label], reverse=True)[:max_labels]
+        return ClassifyOutcome(labels=selected, scores={label: scores[label] for label in selected},
+                               abstained=not selected, model_revision=self._classifier.contract.revision, engine="real")
 
 
 def _offline_enforced() -> bool:

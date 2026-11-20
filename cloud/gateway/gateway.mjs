@@ -77,6 +77,8 @@ export async function handle(request, { authorization, classificationProbe, clas
             const readiness = await classificationProbe.probe(request.signal, trace.traceparent, !!classificationExecution, classificationExecution?.deploymentId);
             if (readiness?.ready !== true) return reject('capability_unavailable');
             const outcome = await withClassificationRequest(request, async (value, body) => {
+                if (!Array.isArray(readiness.labelSets) || !readiness.labelSets.includes(value.configuration?.labelSetVersion ?? 'v1'))
+                    return reject('capability_unavailable');
                 if (!Object.hasOwn(value.input, 'text') || typeof authorization.inspectClassification !== 'function')
                     return reject('capability_unavailable');
                 const remaining = value.expiresAt ? Date.parse(value.expiresAt) - Date.now() : null;

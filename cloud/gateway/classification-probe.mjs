@@ -56,12 +56,15 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
                 advertised.modelRevision !== modelRevision || !Array.isArray(advertised.capabilities) ||
                 !advertised.capabilities.some(item => item?.kind === 'classification' && item.grantsTools === false))
                 return unavailable();
+            const capability = advertised.capabilities.find(item => item?.kind === 'classification' && item.grantsTools === false);
+            if (!Array.isArray(capability?.labelSets) || capability.labelSets.length === 0 ||
+                capability.labelSets.some(item => !['v1', 'v2'].includes(item))) return unavailable();
             if (requireCloudExecution) {
                 const cloud = await get('/internal/cloud/v1/classification/ready', signal, traceparent);
                 if (signal?.aborted || !cloud || Object.keys(cloud).length !== 2 || cloud.status !== 'ready' ||
                     typeof cloud.deploymentId !== 'string' || typeof expectedDeploymentId !== 'string' || cloud.deploymentId.toLowerCase() !== expectedDeploymentId.toLowerCase()) return unavailable();
             }
-            return { ready: true, capability: 'classification.classify', modelRevision };
+            return { ready: true, capability: 'classification.classify', modelRevision, labelSets: capability.labelSets };
         },
     };
 }

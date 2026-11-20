@@ -188,9 +188,10 @@ def test_manifest_and_weights_do_not_advertise_unimplemented_real_inference(monk
     (tmp_path / "manifest.json").write_text(json.dumps({"modelId": "test", "revision": "revision-1", "checksum": "fixture", "license": "apache-2.0"}), encoding="utf-8")
     (tmp_path / "model.bin").write_bytes(b"fixture")
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.delenv("OC_CLASSIFICATION_BUNDLE_SHA256", raising=False)
     monkeypatch.setattr(app_module, "settings", Settings(worker_token="local-test-token", model_dir=tmp_path,
         fake_engine=False, is_production=False, model_device="auto", label_set_version="v1", max_text_chars=20000, license_accepted=False))
-    assert client.get("/health/ready").json() == {"status": "unready", "ready": False, "reason": "inference_runtime_unavailable"}
+    assert client.get("/health/ready").json() == {"status": "unready", "ready": False, "reason": "model_unavailable"}
     capability = client.get("/internal/v1/capabilities", headers={"Authorization": "Bearer local-test-token"})
     assert capability.status_code == 503
     assert capability.json() == {"status": "unavailable"}

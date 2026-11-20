@@ -5,12 +5,21 @@ description = "Local content-classification worker for OpenConnect (label sets, 
 requires-python = ">=3.12"
 dependencies = [
   "fastapi==0.115.12",
+  "numpy>=1.26,<3",
+  "onnxruntime==1.23.2",
   "pydantic==2.11.3",
+  "tokenizers==0.22.1",
   "uvicorn[standard]==0.54.0",
 ]
 
 [dependency-groups]
-dev = ["httpx==0.28.1", "jsonschema==4.23.0", "pytest==8.3.5", "ruff==0.11.8"]
+dev = [
+    "httpx==0.28.1",
+    "jsonschema==4.23.0",
+    "onnx==1.19.1",
+    "pytest==8.3.5",
+    "ruff==0.11.8",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
