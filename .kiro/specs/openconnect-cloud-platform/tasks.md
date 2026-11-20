@@ -155,3 +155,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Compose inference privacy, local token-quote contract, reservation and payload-bound claim from one gateway request snapshot; production tokenizer, worker dispatch and public routing remain outstanding.
 
 - [x] Return authoritative model and token reservation to the worker only on first inference consumption; worker-side enforcement remains outstanding.
+
+- [x] Add opt-in inference worker claim consumption and authoritative token-budget enforcement around an injected local runtime; verified production runtime, real-model acceptance and streaming remain outstanding.

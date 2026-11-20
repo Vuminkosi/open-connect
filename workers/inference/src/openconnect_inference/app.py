@@ -20,6 +20,7 @@ from openconnect_inference.config import (
 from openconnect_inference import cloud as cloud_module
 from openconnect_inference import engine_mode
 from openconnect_inference.engine import FakeInferenceEngine, advertised_capabilities
+from openconnect_inference.cloud_api import cloud_mode_blocks_legacy, router as cloud_inference_router
 from openconnect_inference.schemas import (
     CapabilityResponse,
     ExecuteRequest,
@@ -37,6 +38,7 @@ from openconnect_inference.schemas import (
 
 logger = logging.getLogger("openconnect_inference")
 app = FastAPI(title="OpenConnect Inference Worker", docs_url=None, redoc_url=None)
+app.include_router(cloud_inference_router)
 settings = Settings.from_environment()
 engine = FakeInferenceEngine()
 
@@ -274,6 +276,8 @@ def capabilities() -> CapabilityResponse:
     dependencies=[Depends(authenticate)],
 )
 def execute(request: ExecuteRequest) -> ExecuteResponse:
+    if cloud_mode_blocks_legacy():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="execution unavailable")
     cfg = _settings()
     if cfg.backend == "existing-local-endpoint" and not cfg.endpoint_url:
         raise HTTPException(
