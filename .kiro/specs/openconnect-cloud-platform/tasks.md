@@ -151,3 +151,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add private inference message privacy inspection with durable metadata-only observations and a Node client; public routing, output inspection and dashboard integration remain outstanding.
 
 - [x] Require latest matching inference privacy evidence at claim creation and worker consumption, ordered against evidence writers; exact inspected-message to worker-payload binding remains outstanding.
+
+- [x] Compose inference privacy, local token-quote contract, reservation and payload-bound claim from one gateway request snapshot; production tokenizer, worker dispatch and public routing remain outstanding.

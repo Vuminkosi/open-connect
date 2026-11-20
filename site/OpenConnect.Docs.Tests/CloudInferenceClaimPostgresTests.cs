@@ -210,6 +210,7 @@ public sealed class CloudInferenceClaimPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "inference.chat", EndpointReference = reference, Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "registry/model-a", ModelRevision = "revision-1", ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "inference.chat", EndpointReference = reference + "-admission", Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "registry/model-a", ModelRevision = "revision-1", ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
             await db.SaveChangesAsync();
         }
         using var server = Certificate(false); using var gateway = Certificate(true); using var other = Certificate(true);
@@ -229,6 +230,7 @@ public sealed class CloudInferenceClaimPostgresTests
         var evidence = new SwitchableInferenceEvidence(new EfCloudInferencePrivacyEvidenceStore(factory, TimeProvider.System));
         builder.Services.AddSingleton<ICloudInferencePrivacyEvidenceStore>(evidence);
         await using var host = builder.Build();
+        host.MapCloudGatewayAuthorization(trust, true);
         host.MapCloudInferencePrivacy(trust, true);
         host.MapCloudInferenceFingerprintKeyLookup(trust, true); host.MapCloudInferenceQuota(trust, true); host.MapCloudInferenceClaim(trust, true);
         await host.StartAsync();
@@ -287,8 +289,23 @@ public sealed class CloudInferenceClaimPostgresTests
         Assert.Equal("claimed", (await claim.Content.ReadFromJsonAsync<CloudExecutionClaimResult>())!.Status);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(claimPath, proof)).StatusCode);
         await VerifyNodeClientAsync(address, server, gateway, issued.Secret!, requestId, reservation.ReservationId!.Value, now.AddMinutes(5), reference);
+        await VerifyNodeAdmissionAsync(address, server, gateway, issued.Secret!, reference + "-admission");
         Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenantId, appId, issued.Credential!.Id, default));
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/cloud/internal/v1/inference/quota/fingerprint-key/{requestId:D}")).StatusCode);
+    }
+    private static async Task VerifyNodeAdmissionAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, string reference)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const a=await import(new URL('./inference-admission.mjs',process.env.OC_TEST_MODULE));const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE));const crypto=await import('node:crypto');const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const auth=await c.authorize(process.env.OC_TEST_CREDENTIAL,'inference.chat');const id=crypto.randomUUID();const input={schemaVersion:'openconnect.cloud.inference/v1',requestId:id,capability:'inference.chat',expiresAt:new Date(Date.now()+60000).toISOString(),modelId:'registry/model-a',input:{messages:[{role:'user',content:'safe fixture'}],maxTokens:2,stream:false}};const ring=f.createFingerprintKeyring({activeKeyId:'key',keys:[{id:'key',key:Buffer.alloc(32,7)}]});const quote=async({payload,key})=>({requestId:id,modelId:input.modelId,maxOutputTokens:2,inputTokenUpperBound:1,workerPayloadFingerprint:crypto.createHmac('sha256',key).update(payload).digest('base64')});try{const r=await a.withInferenceAdmission({credential:process.env.OC_TEST_CREDENTIAL,identity:auth.identity,body:Buffer.from(JSON.stringify(input)),deployment:{endpointReference:process.env.OC_TEST_REFERENCE,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1',modelDigest:'sha256:'+'a'.repeat(64)}},{controlPlane:c,keyring:ring,quote},async()=>({status:'test_claimed'}));process.stdout.write(r.status);}finally{ring.dispose();}";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem(); start.Environment["OC_TEST_CERT"] = gateway.ExportCertificatePem();
+        using var privateKey = gateway.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem(); start.Environment["OC_TEST_CREDENTIAL"] = credential; start.Environment["OC_TEST_REFERENCE"] = reference;
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("test_claimed", output);
     }
     private static async Task VerifyNodeClientAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId, Guid reservationId, DateTimeOffset expiresAt, string reference)
     {
