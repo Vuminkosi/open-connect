@@ -19,7 +19,7 @@ public class CloudCapabilityDependencyTests
         {
             ["middle"] = new() { CapabilityId = "middle", Enabled = true },
         };
-        var method = typeof(CloudCapabilityService).GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+        var method = typeof(CloudCapabilityService).Assembly.GetType("OpenConnect.Docs.Cloud.CloudCapabilityPolicy")!.GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
             .Single(x => x.Name == "DependenciesEnabled" && x.GetParameters().Length == 6);
 
         bool Evaluate() => (bool)method.Invoke(null, [root, catalog, entitlements, tenantSelections, DateTimeOffset.UtcNow, appSelections])!;
