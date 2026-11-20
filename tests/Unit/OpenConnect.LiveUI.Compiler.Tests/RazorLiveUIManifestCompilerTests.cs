@@ -9,6 +9,36 @@ public sealed class RazorLiveUIManifestCompilerTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "openconnect-liveui-tests", Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void Compile_DoesNotUseAriaLabelledbyIdsAsLabelsInStaticOrDynamicMarkup()
+    {
+        Write("Static.razor", """
+            @page "/static"
+            <span id="save-lbl">Save report</span><button aria-labelledby="save-lbl">Save report</button>
+            <input aria-labelledby="name-lbl" />
+            """);
+        Write("Dynamic.razor", """
+            @page "/dynamic"
+            @if (true)
+            {
+                <span id="save-lbl">Save report</span><button aria-labelledby="save-lbl" @onclick="Save">Save report</button>
+                <input aria-labelledby="name-lbl" @onchange="Changed" />
+            }
+            """);
+
+        var result = new RazorLiveUIManifestCompiler().Compile(_root, Path.Combine(_root, "manifest.json"));
+
+        Assert.True(result.Success);
+        var routes = Assert.IsType<LiveUIManifest>(result.Manifest).Routes;
+        foreach (var route in routes)
+        {
+            Assert.Contains(route.Targets, target => target.Kind == LiveUITargetKind.Button && target.Label == "Save report");
+            Assert.DoesNotContain(route.Targets, target => target.Label is "save-lbl" or "name-lbl");
+        }
+        Assert.Equal(routes.Single(route => route.Path == "/static").Targets.Select(target => (target.Kind, target.Label)).ToArray(),
+            routes.Single(route => route.Path == "/dynamic").Targets.Select(target => (target.Kind, target.Label)).ToArray());
+    }
+
+    [Fact]
     public void Compile_DiscoversRoutesAndUnannotatedExistingControls()
     {
         Write("Pages/Home.razor", """

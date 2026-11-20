@@ -435,7 +435,7 @@ public sealed class RazorLiveUIManifestCompiler
     private static IEnumerable<TargetDescriptor> DescribeRaw(RawMarkupElement element)
     {
         var lower = element.Tag.ToLowerInvariant();
-        var label = First(element.Attributes, "aria-label", "aria-labelledby", "placeholder", "title");
+        var label = First(element.Attributes, "aria-label", "placeholder", "title");
         if (string.IsNullOrWhiteSpace(label) && lower is "button" or "a" or "summary")
             label = element.Text;
         var requiresConfirmation = element.Attributes.Keys.Any(name =>
