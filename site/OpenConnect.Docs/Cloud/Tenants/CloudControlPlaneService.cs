@@ -4,6 +4,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed record CloudSubject(string Issuer, string SubjectId);
 public sealed record CloudTenantSummary(Guid Id, string Name, string Role, DateTimeOffset CreatedAt);
+public sealed record CloudMemberSummary(string Issuer, string SubjectId, string Role, DateTimeOffset CreatedAt);
 public sealed record CloudApplicationSummary(Guid Id, Guid TenantId, string Name, string Environment, DateTimeOffset CreatedAt);
 public sealed record CreateCloudTenantRequest(string? Name);
 public sealed record CreateCloudApplicationRequest(string? Name, string? Environment);
@@ -23,6 +24,7 @@ public interface ICloudTenantStore
 {
     Task<IReadOnlyList<CloudTenantSummary>> GetTenantsAsync(CloudSubject subject, CancellationToken cancellationToken);
     Task<CloudTenantSummary> CreateTenantAsync(CloudSubject subject, string name, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CloudMemberSummary>?> GetMembersAsync(CloudSubject subject, Guid tenantId, CancellationToken cancellationToken);
     Task<IReadOnlyList<CloudApplicationSummary>?> GetApplicationsAsync(CloudSubject subject, Guid tenantId, CancellationToken cancellationToken);
     Task<(CloudApplicationSummary? Application, bool Forbidden)> CreateApplicationAsync(CloudSubject subject, Guid tenantId, string name, string environment, CancellationToken cancellationToken);
 }
@@ -34,6 +36,9 @@ public sealed class CloudControlPlaneService(ICloudTenantStore store)
 
     public Task<CloudTenantSummary> CreateTenantAsync(CloudSubject subject, string name, CancellationToken cancellationToken) =>
         store.CreateTenantAsync(subject, ValidateName(name), cancellationToken);
+
+    public Task<IReadOnlyList<CloudMemberSummary>?> GetMembersAsync(CloudSubject subject, Guid tenantId, CancellationToken cancellationToken) =>
+        store.GetMembersAsync(subject, tenantId, cancellationToken);
 
     public Task<IReadOnlyList<CloudApplicationSummary>?> GetApplicationsAsync(CloudSubject subject, Guid tenantId, CancellationToken cancellationToken) =>
         store.GetApplicationsAsync(subject, tenantId, cancellationToken);

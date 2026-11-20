@@ -57,6 +57,21 @@ public static class CloudControlPlaneEndpoints
                 : Results.Ok(new { tenants = await service.GetTenantsAsync(subject, cancellationToken) });
         });
 
+        group.MapGet("/tenants", async (ClaimsPrincipal principal, CloudControlPlaneService service, CancellationToken cancellationToken) =>
+        {
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            return subject is null ? Results.Unauthorized() : Results.Ok(new { tenants = await service.GetTenantsAsync(subject, cancellationToken) });
+        });
+
+        group.MapGet("/tenants/{tenantId:guid}/members", async (
+            Guid tenantId, ClaimsPrincipal principal, CloudControlPlaneService service, CancellationToken cancellationToken) =>
+        {
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            var members = await service.GetMembersAsync(subject, tenantId, cancellationToken);
+            return members is null ? Results.NotFound() : Results.Ok(new { members });
+        });
+
         group.MapGet("/capabilities", async (CloudCapabilityService service, CancellationToken cancellationToken) =>
             Results.Ok(new { capabilities = await service.GetCatalogAsync(cancellationToken) }));
 

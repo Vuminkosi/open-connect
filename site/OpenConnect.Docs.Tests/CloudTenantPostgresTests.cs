@@ -19,6 +19,34 @@ public sealed class CloudPostgresFactAttribute : FactAttribute
 public class CloudTenantPostgresTests
 {
     [CloudPostgresFact]
+    public async Task MemberDirectoryRequiresPrivilegedMembershipAndIsTenantScoped()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        var store = new EfCloudTenantStore(factory, TimeProvider.System);
+        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var outsider = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var tenant = await store.CreateTenantAsync(owner, "Directory test", CancellationToken.None);
+        var otherTenant = await store.CreateTenantAsync(outsider, "Other tenant", CancellationToken.None);
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer,
+                SubjectId = developer.SubjectId, Role = "Developer", CreatedAt = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+        var members = await store.GetMembersAsync(owner, tenant.Id, CancellationToken.None);
+        Assert.NotNull(members);
+        Assert.Equal(2, members.Count);
+        Assert.DoesNotContain(members, x => x.SubjectId == outsider.SubjectId);
+        Assert.Null(await store.GetMembersAsync(developer, tenant.Id, CancellationToken.None));
+        Assert.Null(await store.GetMembersAsync(outsider, tenant.Id, CancellationToken.None));
+        Assert.Null(await store.GetMembersAsync(owner, otherTenant.Id, CancellationToken.None));
+    }
+
+    [CloudPostgresFact]
     public async Task ConcurrentRemovalAndCreationHaveConsistentOutcome()
     {
         var connection = Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE");

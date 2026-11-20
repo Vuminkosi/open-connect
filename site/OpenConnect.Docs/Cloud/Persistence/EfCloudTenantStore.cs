@@ -42,6 +42,22 @@ public sealed class EfCloudTenantStore(
         return new CloudTenantSummary(tenant.Id, tenant.Name, TenantOwner, tenant.CreatedAt);
     }
 
+    public async Task<IReadOnlyList<CloudMemberSummary>?> GetMembersAsync(
+        CloudSubject subject, Guid tenantId, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var authorized = await db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantId &&
+            x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId &&
+            (x.Role == "Owner" || x.Role == "Administrator"), cancellationToken);
+        if (!authorized) return null;
+        return await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
+                db.Memberships.Any(actor => actor.TenantId == tenantId && actor.SubjectIssuer == subject.Issuer &&
+                    actor.SubjectId == subject.SubjectId && (actor.Role == "Owner" || actor.Role == "Administrator")))
+            .OrderBy(x => x.SubjectIssuer).ThenBy(x => x.SubjectId)
+            .Select(x => new CloudMemberSummary(x.SubjectIssuer, x.SubjectId, x.Role, x.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CloudApplicationSummary>?> GetApplicationsAsync(
         CloudSubject subject, Guid tenantId, CancellationToken cancellationToken)
     {
