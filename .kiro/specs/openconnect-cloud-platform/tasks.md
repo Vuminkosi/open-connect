@@ -189,3 +189,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Define an opt-in mutual-TLS Cloud inference worker in the root Compose stack with a read-only model and secret mounts; real gateway-to-worker acceptance remains outstanding.
 
 - [x] Include enabled inference deployments in the private worker readiness check and verify the disabled case against PostgreSQL.
+
+- [x] Exercise a non-streaming inference request through the local gateway, control plane, PostgreSQL and a real provisioned model worker; production deployment, streaming and the broader Cloud acceptance suite remain outstanding.
