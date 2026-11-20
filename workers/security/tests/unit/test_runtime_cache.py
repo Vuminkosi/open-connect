@@ -105,9 +105,7 @@ def test_scenario_02_disabled_detectors_no_init_or_advertisement(
     assert ready_body == {"status": "ready", "capabilities": ["rules"]}
 
 
-def test_scenarios_03_to_07_gliner_detector_cache_lifecycle(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_scenarios_03_to_07_gliner_detector_cache_lifecycle(monkeypatch, tmp_path: Path) -> None:
     mgr = RuntimeModelCacheManager(tmp_path, "security")
     manifest_v1, blobs_v1 = _make_manifest(revision="rev-1", weights=b"weights-v1")
     fp_v1 = compute_manifest_fingerprint(manifest_v1)
@@ -119,14 +117,26 @@ def test_scenarios_03_to_07_gliner_detector_cache_lifecycle(
     )
     assert r1.ready is True and r1.fingerprint == fp_v1 and len(calls) == 1
 
-    # Verify security worker reports ready for gliner-pii when cache is populated
+    # A verified cache does not make an unimplemented detector available.
     monkeypatch.setenv("OPENCONNECT_SCAN_TOKEN", "local-test-token")
     monkeypatch.setenv("OC_MODEL_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("OC_SECURITY_GLINER_ENABLED", "true")
     monkeypatch.setattr(app_module, "settings", Settings.from_environment())
     ready_body = client.get("/health/ready").json()
-    assert ready_body["status"] == "ready"
-    assert "gliner-pii" in ready_body["capabilities"]
+    assert ready_body["status"] == "unready"
+    assert ready_body["reason"] == "detector_not_implemented"
+    assert "gliner-pii" not in ready_body["capabilities"]
+    response = client.post(
+        "/scan",
+        json={
+            "schemaVersion": "openconnect.v1",
+            "requestId": "123e4567-e89b-42d3-a456-426614174000",
+            "text": "Contact Thandi Mokoena at her home",
+            "detectors": ["gliner-pii"],
+        },
+        headers=AUTH,
+    )
+    assert response.status_code == 503
 
     # Scenario 4: Offline restart cache hit (zero network calls)
     r_offline = mgr.provision_or_verify(
