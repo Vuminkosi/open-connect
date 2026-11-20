@@ -14,6 +14,7 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
   const readiness = {
     stage: 'setup', circuitSockets: 0, circuitFrames: 0, circuitClosed: 0,
     circuitHttpResponses: 0, circuitHttpFailures: 0,
+    exactTitleMatches: null, scopedTitleMatches: null,
     editorEnabled: false, editorCleared: false, launcherExpanded: false, dialogVisible: false,
   };
   const isCircuit = value => {
@@ -110,10 +111,17 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     // A socket alone does not prove hydration. Require an actual server-rendered binding roundtrip.
     // MudTextField is not Immediate: blur commits its normal change binding. Never submit this form.
     readiness.stage = 'editor-binding';
-    const titleInput = page.getByRole('textbox', { name: 'Task Title', exact: true });
-    const addTask = page.getByRole('button', { name: 'Add Task', exact: true });
+    const editor = page.locator('[data-oc-target="todo-editor"]');
+    const exactTitleInput = page.getByRole('textbox', { name: 'Task Title', exact: true });
+    // Keep the required marker; its contribution to the accessible name may vary.
+    const titleInput = editor.getByRole('textbox', { name: /^Task Title\s*\*?\s*$/ });
+    const addTask = editor.getByRole('button', { name: 'Add Task', exact: true });
     await expect(addTask).toBeDisabled();
     await expect(async () => {
+      const [exactCount, scopedCount] = await Promise.all([exactTitleInput.count(), titleInput.count()]);
+      readiness.exactTitleMatches = Math.min(exactCount, 10000);
+      readiness.scopedTitleMatches = Math.min(scopedCount, 10000);
+      expect(scopedCount).toBe(1);
       // A pre-hydration event can be lost; clear first so each attempt sends a fresh change.
       await titleInput.fill('', { timeout: 1000 });
       await titleInput.blur({ timeout: 1000 });
