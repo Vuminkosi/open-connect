@@ -54,12 +54,16 @@ test('execution is opt-in and requires authority, worker and retained fingerprin
     assert.throws(() => classificationExecutionFromEnvironment({ CLOUD_CLASSIFICATION_EXECUTION_ENABLED: 'true' }, null, {}));
     const base = process.platform === 'win32' ? 'C:\\secrets\\' : '/secrets/';
     const env = { CLOUD_CLASSIFICATION_EXECUTION_ENABLED: 'true', CLOUD_CLASSIFICATION_ORIGIN: 'https://worker.example',
+        CLOUD_CLASSIFICATION_DEPLOYMENT_ID: '11111111-1111-1111-1111-111111111111',
         CLOUD_CLASSIFICATION_CA_FILE: base + 'ca', CLOUD_CLASSIFICATION_CERT_FILE: base + 'cert', CLOUD_CLASSIFICATION_KEY_FILE: base + 'key',
         CLOUD_CLASSIFICATION_TOKEN_FILE: base + 'token', CLOUD_CLASSIFICATION_MODEL_REVISION: 'revision-1',
         CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active', CLOUD_FINGERPRINT_KEYS_FILE: base + 'fingerprints' };
     const read = path => Buffer.from(path.endsWith('fingerprints') ? `active:${Buffer.alloc(32, 1).toString('base64')}\n` : path.endsWith('token') ? 'secret' : 'material');
     const execution = classificationExecutionFromEnvironment(env, {}, {}, read);
     assert.equal(typeof execution.dispatcher.executeClaimed, 'function');
+    assert.equal(execution.deploymentId, env.CLOUD_CLASSIFICATION_DEPLOYMENT_ID);
     execution.keyring.dispose();
     assert.throws(() => classificationExecutionFromEnvironment({ ...env, CLOUD_FINGERPRINT_KEYS_FILE: '' }, {}, {}, read));
+    assert.throws(() => classificationExecutionFromEnvironment({ ...env, CLOUD_CLASSIFICATION_DEPLOYMENT_ID: '' }, {}, {}, read));
+    assert.throws(() => classificationExecutionFromEnvironment({ ...env, CLOUD_CLASSIFICATION_DEPLOYMENT_ID: '00000000-0000-0000-0000-000000000000' }, {}, {}, read));
 });

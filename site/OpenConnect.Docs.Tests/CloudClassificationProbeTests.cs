@@ -120,6 +120,8 @@ public sealed class CloudClassificationProbeTests
             ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1",
                 capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false }] })
             : Results.Unauthorized());
+        app.MapGet("/internal/cloud/v1/classification/ready", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret" && mode != "cloud-down"
+            ? Results.Json(new { status = "ready", deploymentId = mode == "wrong-deployment" ? "22222222-2222-2222-2222-222222222222" : "11111111-1111-1111-1111-111111111111" }) : Results.StatusCode(503));
         app.MapPost("/internal/v1/execute", async (HttpContext context) =>
         {
             if (context.Request.Headers.Authorization != "Bearer worker-secret") return Results.Unauthorized();
@@ -150,6 +152,12 @@ public sealed class CloudClassificationProbeTests
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         Assert.True(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
+        Assert.True(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret", requireCloud: true));
+        mode = "wrong-deployment";
+        Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret", requireCloud: true));
+        mode = "cloud-down";
+        Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret", requireCloud: true));
+        mode = "real";
         Assert.Equal("completed", await DispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         Assert.Equal("completed", await ClaimedDispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         Assert.True(receivedClaimed);
@@ -202,9 +210,9 @@ public sealed class CloudClassificationProbeTests
         using var json = JsonDocument.Parse(output); return json.RootElement.GetProperty("status").GetString()!;
     }
 
-    private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
+    private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1", bool requireCloud = false)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.probe()));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.probe(undefined,undefined,process.env.OC_TEST_REQUIRE_CLOUD==='true','11111111-1111-1111-1111-111111111111')));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-probe.mjs")).AbsoluteUri;
@@ -215,6 +223,7 @@ public sealed class CloudClassificationProbeTests
         start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_TOKEN"] = token;
         start.Environment["OC_TEST_REVISION"] = revision;
+        start.Environment["OC_TEST_REQUIRE_CLOUD"] = requireCloud ? "true" : "false";
         using var process = Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);

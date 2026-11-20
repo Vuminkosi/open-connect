@@ -106,3 +106,4 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an opt-in Cloud classification worker route that validates payload bytes, consumes a worker-bound claim, and executes only after success; reject legacy execution in Cloud mode. Verify with a fake engine over mutual TLS and PostgreSQL.
 
 - [x] Connect the opt-in classification HTTP path through authorization, deployment readiness, privacy admission, reservation, claimed dispatch and settlement; verify with PostgreSQL and a simulated worker. Production readiness, active-call revocation, recovery and real-model acceptance remain outstanding.
+- [x] Add classification-specific readiness across the gateway, control plane and deployment-bound worker identity; production release gates and real-model verification remain outstanding.

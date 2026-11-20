@@ -47,9 +47,18 @@ export async function handle(request, { authorization, classificationProbe, clas
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
-    // Authorization alone is insufficient: dispatch, privacy, and quota gates are not connected.
-    if (request.method === 'GET' && url.pathname === '/health/ready')
-        return reject('capability_unavailable');
+    if (request.method === 'GET' && url.pathname === '/health/ready') {
+        if (!classificationExecution || !authorization || typeof authorization.isReady !== 'function' || !classificationProbe)
+            return reject('capability_unavailable');
+        try {
+            const signal = request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000);
+            const [controlReady, workerReady] = await Promise.all([
+                authorization.isReady(signal, trace.traceparent), classificationProbe.probe(signal, trace.traceparent, true, classificationExecution.deploymentId),
+            ]);
+            if (signal.aborted || controlReady !== true || workerReady?.ready !== true) return reject('capability_unavailable');
+            return Response.json({ status: 'ready', capabilities: ['classification.classify'] }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+        } catch { return reject('capability_unavailable'); }
+    }
     if (!authorization) return reject('capability_unavailable');
     const capability = request.method === 'POST' && !url.search ? routes.get(url.pathname) : undefined;
     if (!capability) return reject('invalid_request');
@@ -65,7 +74,7 @@ export async function handle(request, { authorization, classificationProbe, clas
             if (typeof authorization.matchClassificationDeployment !== 'function' ||
                 !await authorization.matchClassificationDeployment(match[1], classificationProbe.deployment, request.signal, trace.traceparent))
                 return reject('capability_unavailable');
-            const readiness = await classificationProbe.probe(request.signal, trace.traceparent);
+            const readiness = await classificationProbe.probe(request.signal, trace.traceparent, !!classificationExecution, classificationExecution?.deploymentId);
             if (readiness?.ready !== true) return reject('capability_unavailable');
             const outcome = await withClassificationRequest(request, async (value, body) => {
                 if (!Object.hasOwn(value.input, 'text') || typeof authorization.inspectClassification !== 'function')

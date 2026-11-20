@@ -120,6 +120,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudExecutionClaimService>();
             builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
             builder.Services.AddScoped<CloudExecutionConsumptionService>();
+            builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>();
+            builder.Services.AddScoped<CloudWorkerReadiness>();
+            builder.Services.AddScoped<CloudReadinessService>();
             builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
             builder.Services.AddScoped<CloudExecutionCompletionService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
@@ -134,6 +137,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             app.MapCloudClassificationClaim(trust, databaseConfigured: true);
             app.MapCloudClassificationCompletion(trust, databaseConfigured: true);
             app.MapCloudClassificationConsumption(workerTrust, databaseConfigured: true);
+            app.MapCloudGatewayReadiness(trust, databaseConfigured: true);
+            app.MapCloudWorkerReadiness(workerTrust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -146,6 +151,12 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             using var worker = Client(address, serverCertificate, workerCertificate);
             worker.DefaultRequestHeaders.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(WorkerProof));
             Assert.Equal(HttpStatusCode.Unauthorized, (await worker.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await worker.GetAsync("/cloud/internal/v1/worker/ready")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await authorized.GetAsync("/cloud/internal/v1/worker/ready")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await authorized.GetAsync("/cloud/internal/v1/gateway/ready")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await worker.GetAsync("/cloud/internal/v1/gateway/ready")).StatusCode);
+            Assert.True(await NodeGatewayReadinessAsync(address, serverCertificate, clientCertificate));
+            Assert.False(await NodeGatewayReadinessAsync(address, serverCertificate, workerCertificate));
             var response = await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability });
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
@@ -297,6 +308,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, new byte[32], default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await worker.GetAsync("/cloud/internal/v1/worker/ready")).StatusCode);
             Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, WorkerProof, default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
@@ -506,8 +518,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         const string script = "import os,tempfile,pathlib,base64; from dataclasses import replace; from fastapi.testclient import TestClient; import openconnect_classification.app as app; from openconnect_classification.cloud_consumption import CloudConsumptionClient; " +
             "d=tempfile.TemporaryDirectory(); p=pathlib.Path(d.name); " +
             "[(p/n).write_text(os.environ[v],encoding='ascii') for n,v in [('ca','OC_CA'),('cert','OC_CERT'),('key','OC_KEY')]]; " +
-            "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); app.configured_client=lambda:c; app.settings=replace(app.settings,worker_token='test-worker-token',fake_engine=True,is_production=False); " +
-            "t=TestClient(app.app); e={'schemaVersion':'openconnect.cloud.worker.classification/v1','reservationId':os.environ['OC_RESERVATION'],'claimId':os.environ['OC_CLAIM'],'key':base64.b64encode(b'k'*32).decode(),'payload':base64.b64encode(os.environ['OC_PAYLOAD'].encode()).decode()}; h={'Authorization':'Bearer test-worker-token'}; path='/internal/cloud/v1/classification/execute'; " +
+            "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); assert c.ready_deployment(); app.configured_client=lambda:c; app.settings=replace(app.settings,worker_token='test-worker-token',fake_engine=True,is_production=False); " +
+            "t=TestClient(app.app); e={'schemaVersion':'openconnect.cloud.worker.classification/v1','reservationId':os.environ['OC_RESERVATION'],'claimId':os.environ['OC_CLAIM'],'key':base64.b64encode(b'k'*32).decode(),'payload':base64.b64encode(os.environ['OC_PAYLOAD'].encode()).decode()}; h={'Authorization':'Bearer test-worker-token'}; assert t.get('/internal/cloud/v1/classification/ready',headers=h).json()['deploymentId']==c.ready_deployment(); path='/internal/cloud/v1/classification/execute'; " +
             "bad=t.post(path,json={**e,'payload':base64.b64encode(os.environ['OC_PAYLOAD'].replace('worker fixture','altered fixture').encode()).decode()},headers=h); ok=t.post(path,json=e,headers=h); again=t.post(path,json=e,headers=h); print(str(bad.status_code)+','+str(ok.status_code)+','+str(again.status_code)+','+ok.json()['result']['engine']); t.close(); d.cleanup()";
         var start = new System.Diagnostics.ProcessStartInfo(python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
@@ -534,6 +546,12 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.findClassificationFingerprintKey(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY)));";
         var output = await NodeCallAsync(script, address, server, client, credential, requestId.ToString("D"));
         return System.Text.Json.JsonSerializer.Deserialize<CloudFingerprintKeyLookup>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<bool> NodeGatewayReadinessAsync(Uri address, X509Certificate2 server, X509Certificate2 client)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});process.stdout.write(JSON.stringify(await c.isReady()));";
+        return bool.Parse(await NodeCallAsync(script, address, server, client, "unused", "unused"));
     }
 
     private static async Task<CloudQuotaResult> NodeReserveAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, object body)

@@ -87,3 +87,19 @@ def test_invalid_ids_and_ambiguous_network_failure_never_retry(monkeypatch, make
     assert client.consume(RESERVATION, CLAIM, PAYLOAD, KEY) == "unavailable"
     connection.request.assert_called_once()
     connection.close.assert_called_once()
+
+
+def test_readiness_requires_bounded_ready_response(monkeypatch, make_client):
+    create, _ = make_client
+    response = MagicMock(status=200)
+    response.getheader.return_value = None
+    response.read.return_value = b'{"status":"ready","deploymentId":"11111111-1111-1111-1111-111111111111"}'
+    connection = MagicMock()
+    connection.getresponse.return_value = response
+    monkeypatch.setattr("openconnect_classification.cloud_consumption.http.client.HTTPSConnection", lambda *args, **kwargs: connection)
+    client = create()
+    assert client.ready_deployment() == RESERVATION
+    response.read.return_value = b'{"status":"ready","status":"ready"}'
+    assert client.ready_deployment() is None
+    response.status = 503
+    assert client.ready_deployment() is None

@@ -23,6 +23,27 @@ test('readiness fails closed even when authorization is configured', async () =>
     assert.equal(calls, 0);
 });
 
+test('classification readiness requires both private control plane and cloud-enabled worker', async () => {
+    let control = true; let worker = true; let requiredCloud = false;
+    const authorization = { isReady: async () => control };
+    const classificationProbe = { probe: async (_, __, requireCloud) => { requiredCloud = requireCloud; return { ready: worker }; } };
+    const classificationExecution = {};
+    const request = new Request('http://localhost/health/ready');
+    const options = { authorization, classificationProbe, classificationExecution };
+    const ready = await handle(request, options);
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), { status: 'ready', capabilities: ['classification.classify'] });
+    assert.equal(requiredCloud, true);
+    control = false;
+    assert.equal((await handle(request, options)).status, 503);
+    control = true; worker = false;
+    assert.equal((await handle(request, options)).status, 503);
+    classificationProbe.probe = async () => { throw new Error('private diagnostic'); };
+    const failure = await handle(request, options);
+    assert.equal(failure.status, 503);
+    assert.doesNotMatch(await failure.text(), /private diagnostic/);
+});
+
 test('local adapter denies TRACE without crashing the server', async () => {
     const server = createLocalServer();
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

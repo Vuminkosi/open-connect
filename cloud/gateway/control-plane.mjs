@@ -15,6 +15,30 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
         throw new TypeError('Invalid Cloud authorization client configuration.');
     const endpoint = new URL('/cloud/internal/v1/authorize', url);
     return {
+        isReady(signal, traceparent) {
+            if (signal?.aborted) return Promise.resolve(false);
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/gateway/ready', url), {
+                        method: 'GET', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { 'cache-control': 'no-store', ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.statusCode !== 200 || response.headers['content-encoding']) { response.destroy(); finish(false); return; }
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(false); } else chunks.push(chunk); });
+                        response.on('error', () => finish(false)); response.on('aborted', () => finish(false));
+                        response.on('end', () => {
+                            try { const result = JSON.parse(Buffer.concat(chunks).toString('utf8')); finish(result && typeof result === 'object' && !Array.isArray(result) && Object.keys(result).length === 1 && result.status === 'ready'); }
+                            catch { finish(false); }
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(false); }, timeoutMs);
+                    request.on('error', () => finish(false)); request.end();
+                } catch { finish(false); }
+            });
+        },
         authorize(credential, capability, signal, traceparent) {
             if (typeof credential !== 'string' || credential.length < 1 || credential.length > 160 ||
                 typeof capability !== 'string' || capability.length < 1 || capability.length > 80 || signal?.aborted)

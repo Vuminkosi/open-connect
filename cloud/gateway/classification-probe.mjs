@@ -47,7 +47,7 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
     }
 
     return {
-        async probe(signal, traceparent) {
+        async probe(signal, traceparent, requireCloudExecution = false, expectedDeploymentId = null) {
             const health = await get('/health/ready', signal, traceparent);
             if (health?.status !== 'ready' || health.ready !== true || health.engine !== 'real' || health.modelRevision !== modelRevision)
                 return unavailable();
@@ -56,6 +56,11 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
                 advertised.modelRevision !== modelRevision || !Array.isArray(advertised.capabilities) ||
                 !advertised.capabilities.some(item => item?.kind === 'classification' && item.grantsTools === false))
                 return unavailable();
+            if (requireCloudExecution) {
+                const cloud = await get('/internal/cloud/v1/classification/ready', signal, traceparent);
+                if (signal?.aborted || !cloud || Object.keys(cloud).length !== 2 || cloud.status !== 'ready' ||
+                    typeof cloud.deploymentId !== 'string' || typeof expectedDeploymentId !== 'string' || cloud.deploymentId.toLowerCase() !== expectedDeploymentId.toLowerCase()) return unavailable();
+            }
             return { ready: true, capability: 'classification.classify', modelRevision };
         },
     };

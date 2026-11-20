@@ -44,6 +44,29 @@ class CloudConsumptionClient:
         self._context.load_verify_locations(cafile=str(ca_file))
         self._context.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
 
+    def ready_deployment(self) -> str | None:
+        """Check worker identity and control-plane readiness without mutating a claim."""
+        connection = http.client.HTTPSConnection(
+            self._host, self._port, context=self._context, timeout=self._timeout
+        )
+        try:
+            connection.request("GET", "/cloud/internal/v1/worker/ready", headers={"Cache-Control": "no-store"})
+            response = connection.getresponse()
+            if response.status != 200 or response.getheader("Content-Encoding") is not None:
+                return None
+            data = response.read(4097)
+            if len(data) > 4096:
+                return None
+            value = json.loads(data, object_pairs_hook=_unique_object)
+            if not isinstance(value, dict) or set(value) != {"status", "deploymentId"} or value["status"] != "ready":
+                return None
+            deployment = UUID(value["deploymentId"])
+            return str(deployment) if deployment.int != 0 else None
+        except (OSError, http.client.HTTPException, ValueError, UnicodeError, TypeError, AttributeError):
+            return None
+        finally:
+            connection.close()
+
     def consume(self, reservation_id: str, claim_id: str, payload: bytes, key: bytes) -> str:
         """Return consumed, already_consumed or unavailable without retrying."""
         try:

@@ -280,6 +280,18 @@ async def cloud_execute(request: Request):
         body[:] = b"\0" * len(body)
 
 
+@app.get("/internal/cloud/v1/classification/ready", dependencies=[Depends(authenticate)])
+def cloud_ready():
+    try:
+        client = configured_client()
+        deployment = client.ready_deployment() if client is not None else None
+        if deployment is not None:
+            return {"status": "ready", "deploymentId": deployment}
+    except Exception:
+        pass
+    return JSONResponse(status_code=503, content={"status": "unavailable"})
+
+
 def _valid_lease(task_id: str, lease_id: str) -> bool:
     lease = _leases.get(task_id)
     if lease is None:

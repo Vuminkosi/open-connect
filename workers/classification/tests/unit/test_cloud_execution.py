@@ -85,6 +85,18 @@ def test_cloud_execution_is_disabled_without_client(monkeypatch):
     assert client.post(route, json=envelope(), headers=headers).status_code == 503
 
 
+def test_cloud_readiness_requires_configured_client_and_authentication(monkeypatch):
+    admission = setup(monkeypatch)
+    path = "/internal/cloud/v1/classification/ready"
+    assert client.get(path).status_code == 401
+    admission.ready_deployment = lambda: reservation
+    assert client.get(path, headers=headers).json() == {"status": "ready", "deploymentId": reservation}
+    admission.ready_deployment = lambda: None
+    assert client.get(path, headers=headers).status_code == 503
+    monkeypatch.setattr(app_module, "configured_client", lambda: None)
+    assert client.get(path, headers=headers).status_code == 503
+
+
 def test_cloud_client_is_opt_in_and_rejects_incomplete_configuration(monkeypatch):
     cloud_execution.configured_client.cache_clear()
     monkeypatch.delenv("OPENCONNECT_CLOUD_CONSUMPTION_ENABLED", raising=False)

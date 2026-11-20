@@ -64,6 +64,9 @@ export function classificationExecutionFromEnvironment(environment, authorizatio
     const enabled = environment.CLOUD_CLASSIFICATION_EXECUTION_ENABLED ?? 'false';
     if (enabled === 'false') return undefined;
     if (enabled !== 'true' || !authorization || !probe) throw new Error('Cloud classification execution configuration is incomplete.');
+    const deploymentId = environment.CLOUD_CLASSIFICATION_DEPLOYMENT_ID;
+    if (typeof deploymentId !== 'string' || !/^(?!00000000-0000-0000-0000-000000000000)[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(deploymentId))
+        throw new Error('Cloud classification deployment identity is required.');
     const { CLOUD_CLASSIFICATION_ORIGIN: origin, CLOUD_CLASSIFICATION_CA_FILE: ca,
         CLOUD_CLASSIFICATION_CERT_FILE: cert, CLOUD_CLASSIFICATION_KEY_FILE: key,
         CLOUD_CLASSIFICATION_TOKEN_FILE: token, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision } = environment;
@@ -74,6 +77,6 @@ export function classificationExecutionFromEnvironment(environment, authorizatio
     try {
         const dispatcher = createClassificationDispatcher({ origin, ca: read(ca), certificate: read(cert), privateKey: read(key),
             workerToken: read(token).toString('utf8').replace(/\r?\n$/, ''), modelRevision });
-        return Object.freeze({ keyring, dispatcher });
+        return Object.freeze({ keyring, dispatcher, deploymentId: deploymentId.toLowerCase() });
     } catch (error) { keyring.dispose(); throw error; }
 }

@@ -119,6 +119,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudExecutionClaimService>();
     builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
     builder.Services.AddScoped<CloudExecutionConsumptionService>();
+    builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>();
+    builder.Services.AddScoped<CloudWorkerReadiness>();
     builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
     builder.Services.AddScoped<CloudExecutionCompletionService>();
     builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>();
@@ -192,6 +194,7 @@ app.Use(async (context, next) =>
 });
 if (gatewayTrust is not null)
 {
+    app.MapCloudGatewayReadiness(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
@@ -201,7 +204,10 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 if (workerTrust is not null)
+{
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudWorkerReadiness(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+}
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 
