@@ -23,8 +23,9 @@ public sealed class EfCloudQuotaAdministrationStore(IDbContextFactory<CloudContr
             if (revision == 0)
             {
                 if (current is not null) failure = "conflict";
-                else if (!await db.Applications.AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken) ||
-                    !await db.Capabilities.AnyAsync(x => x.Id == policy.CapabilityId && x.BillingUnit == policy.Unit, cancellationToken)) failure = "invalid_request";
+                else if (!await db.Applications.AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken)) failure = "invalid_request";
+                else if (await db.Capabilities.AsNoTracking().Where(x => x.Id == policy.CapabilityId).Select(x => x.BillingUnit).SingleOrDefaultAsync(cancellationToken) is not { } billingDescription ||
+                    !CloudQuotaUnits.Supports(policy.CapabilityId, billingDescription, policy.Unit)) failure = "invalid_request";
                 else if (await db.QuotaBuckets.AnyAsync(x => x.TenantId == tenantId && x.ApplicationId == applicationId && x.CapabilityId == policy.CapabilityId && x.Unit == policy.Unit && x.PeriodStart < policy.PeriodEnd && x.PeriodEnd > policy.PeriodStart, cancellationToken)) failure = "conflict";
                 else db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenantId, ApplicationId = applicationId, CapabilityId = policy.CapabilityId, Unit = policy.Unit, PeriodStart = policy.PeriodStart, PeriodEnd = policy.PeriodEnd, Limit = policy.Limit });
             }
