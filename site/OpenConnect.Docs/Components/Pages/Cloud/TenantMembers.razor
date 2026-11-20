@@ -1,0 +1,84 @@
+@page "/cloud/tenants/{TenantId:guid}/members"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantMembers> Logger
+
+<PageTitle>Organization members | OpenConnect Cloud</PageTitle>
+<h1>Organization members</h1>
+@if (_loading)
+{
+    <p role="status">Loading members…</p>
+}
+else if (_status is not null)
+{
+    <p role="status">@_status</p>
+}
+else
+{
+    <p>Members are identified by their identity provider and subject. Invitations and role changes are not yet available.</p>
+    @if (_members.Count == 0)
+    {
+        <p>No members are available.</p>
+    }
+    else
+    {
+        <ul class="cloud-list">
+            @foreach (var member in _members)
+            {
+                <li>
+                    <strong>@member.Role</strong>
+                    <span>Identity provider: @member.Issuer</span>
+                    <span>Subject: @member.SubjectId</span>
+                    <span>Joined: @member.CreatedAt.ToString("u")</span>
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    private IReadOnlyList<CloudMemberSummary> _members = [];
+    private string? _status;
+    private bool _loading = true;
+    private int _generation;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var generation = ++_generation;
+        var tenantId = TenantId;
+        _members = [];
+        _status = null;
+        _loading = true;
+        try
+        {
+            var service = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var subject = CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (service is null || subject is null)
+            {
+                _status = "The member directory is unavailable.";
+                return;
+            }
+            var members = await service.GetMembersAsync(subject, tenantId, CancellationToken.None);
+            if (generation != _generation) return;
+            if (members is null) _status = "The organization was not found or you do not have access.";
+            else _members = members;
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud member lookup failed.");
+            if (generation == _generation) _status = "Members could not be loaded. Try again.";
+        }
+        finally
+        {
+            if (generation == _generation) _loading = false;
+        }
+    }
+}

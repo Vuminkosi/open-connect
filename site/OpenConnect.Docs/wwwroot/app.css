@@ -5,6 +5,8 @@
 .cloud-list { display: grid; gap: .75rem; padding: 0; list-style: none; }
 .cloud-list li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 1rem; padding: 1rem; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; }
 .cloud-list span { color: #5c7186; }
+.cloud-list li > * { min-width: 0; overflow-wrap: anywhere; }
+@media(max-width:480px){.cloud-header{height:auto;min-height:68px;flex-wrap:wrap;padding:12px 18px}.cloud-header nav{order:3;flex-basis:100%}.cloud-header form{margin-left:auto}}
 .cloud-list a { margin-left: auto; color: #1261a0; }
 .cloud-content form { display: grid; gap: .5rem; max-width: 32rem; margin: 1rem 0 2rem; }
 .cloud-content input, .cloud-content select { max-width: 32rem; padding: .6rem; font: inherit; }
