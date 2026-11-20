@@ -4,6 +4,8 @@ import { handle } from './gateway.mjs';
 import { createLocalServer } from './local-server.mjs';
 import http from 'node:http';
 import { createFingerprintKeyring } from './request-fingerprint.mjs';
+import { createHmac } from 'node:crypto';
+import { createInferenceAccessMonitor } from './inference-access-monitor.mjs';
 
 test('liveness responds independently of Cloud dependencies', async () => {
     const result = await handle(new Request('http://localhost/health/live'));
@@ -42,6 +44,17 @@ test('classification readiness requires both private control plane and cloud-ena
     const failure = await handle(request, options);
     assert.equal(failure.status, 503);
     assert.doesNotMatch(await failure.text(), /private diagnostic/);
+});
+
+test('inference readiness includes the verified local tokenizer and worker', async () => {
+    let modelReady = false;
+    const authorization = { isReady: async () => true };
+    const inferenceExecution = { probe: { probe: async () => true }, tokenizer: { ready: async () => modelReady } };
+    const request = new Request('http://localhost/health/ready');
+    assert.equal((await handle(request, { authorization, inferenceExecution })).status, 503);
+    modelReady = true;
+    const response = await handle(request, { authorization, inferenceExecution });
+    assert.equal(response.status, 200); assert.deepEqual((await response.json()).capabilities, ['inference.chat']);
 });
 
 test('local adapter denies TRACE without crashing the server', async () => {
@@ -180,6 +193,46 @@ test('enabled classification runs only after authorization, regional readiness a
         assert.equal(duplicate.status, 409);
         assert.equal((await duplicate.json()).code, 'conflict');
         assert.ok(!calls.includes('dispatch'));
+    } finally { keyring.dispose(); }
+});
+
+test('inference route gates execution on admission, claim access and output privacy', async () => {
+    const calls = []; let raw; let blockOutput = false; let denyInput = false;
+    const id = '11111111-1111-1111-1111-111111111111';
+    const value = { schemaVersion: 'openconnect.cloud.inference/v1', requestId: id, expiresAt: new Date(Date.now() + 60000).toISOString(),
+        capability: 'inference.chat', modelId: 'model', input: { messages: [{ role: 'user', content: 'fixture' }], maxTokens: 5, stream: false } };
+    const request = { url: 'http://localhost/cloud/v1/inference/chat', method: 'POST',
+        headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
+        readBody: async () => { calls.push('body'); raw = Buffer.from(JSON.stringify(value)); return { bytes: raw }; } };
+    const authorization = {
+        authorize: async () => { calls.push('authorize'); return { authorized: true, identity: { credentialId: id, tenantId: id, applicationId: id, environment: 'Development' } }; },
+        findInferenceFingerprintKey: async () => { calls.push('lookup'); return { status: 'not_found' }; },
+        inspectInference: async () => { calls.push('input'); return denyInput ? { allowed: false, code: 'privacy_blocked' } : { allowed: true }; },
+        reserveInference: async () => { calls.push('reserve'); return { status: 'reserved', reservationId: id }; },
+        claimInference: async () => { calls.push('claim'); return { status: 'claimed', claimId: id }; },
+        verifyInferenceClaim: async () => { calls.push('access'); return true; },
+        inspectInferenceOutput: async () => { calls.push('output'); return blockOutput ? { allowed: false, code: 'privacy_blocked' } : { allowed: true, code: 'allowed' }; },
+    };
+    const keyring = createFingerprintKeyring({ activeKeyId: 'key', keys: [{ id: 'key', key: Buffer.alloc(32, 1) }] });
+    const inferenceExecution = { keyring, deployment: { endpointReference: 'worker' },
+        probe: { probe: async () => { calls.push('probe'); return true; } }, createAccessMonitor: createInferenceAccessMonitor,
+        quote: async ({ payload, key }) => ({ requestId: id, modelId: 'model', maxOutputTokens: 5, inputTokenUpperBound: 3,
+            workerPayloadFingerprint: createHmac('sha256', key).update(payload).digest('base64') }),
+        dispatcher: { executeClaimed: async () => { calls.push('dispatch'); return { status: 'completed', result: { output: 'safe', usage: { inputTokens: 3, outputTokens: 1 } } }; } } };
+    try {
+        const response = await handle(request, { authorization, inferenceExecution });
+        assert.equal(response.status, 200); assert.equal((await response.json()).output, 'safe');
+        assert.deepEqual(calls, ['authorize', 'probe', 'body', 'lookup', 'input', 'reserve', 'claim', 'access', 'dispatch', 'access', 'output', 'access']);
+        assert.ok(raw.every(byte => byte === 0));
+        calls.length = 0; blockOutput = true;
+        assert.equal((await handle(request, { authorization, inferenceExecution })).status, 403);
+        assert.ok(calls.includes('output'));
+        calls.length = 0; blockOutput = false; denyInput = true;
+        assert.equal((await handle(request, { authorization, inferenceExecution })).status, 403);
+        assert.ok(!calls.includes('reserve') && !calls.includes('dispatch'));
+        calls.length = 0; denyInput = false; value.input.stream = true;
+        assert.equal((await handle(request, { authorization, inferenceExecution })).status, 503);
+        assert.ok(!calls.includes('reserve') && !calls.includes('dispatch'));
     } finally { keyring.dispose(); }
 });
 

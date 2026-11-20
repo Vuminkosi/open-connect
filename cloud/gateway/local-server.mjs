@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { handle } from './gateway.mjs';
 import { createTraceContext } from './trace-context.mjs';
 
-export function createLocalServer(authorization, classificationProbe, classificationExecution) {
+export function createLocalServer(authorization, classificationProbe, classificationExecution, inferenceExecution) {
     const server = createServer(async (request, response) => {
         try {
             const origin = `http://localhost:${process.env.PORT || '8091'}`;
@@ -28,7 +28,7 @@ export function createLocalServer(authorization, classificationProbe, classifica
                     return { bytes: Buffer.concat(chunks, size) };
                 } finally { for (const chunk of chunks) chunk.fill(0); }
             };
-            const result = await handle({ url: new URL(request.url || '/', origin).href, method: request.method, headers, signal: controller.signal, readBody }, { authorization, classificationProbe, classificationExecution });
+            const result = await handle({ url: new URL(request.url || '/', origin).href, method: request.method, headers, signal: controller.signal, readBody }, { authorization, classificationProbe, classificationExecution, inferenceExecution });
             response.setHeader('connection', 'close');
             response.writeHead(result.status, Object.fromEntries(result.headers));
             response.end(Buffer.from(await result.arrayBuffer()));

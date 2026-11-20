@@ -6,7 +6,7 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const only = (value, names) => object(value) && Object.keys(value).every(key => names.includes(key));
 const unavailable = () => ({ status: 'unavailable' });
 
-function parseRequest(body, now) {
+export function parseInferenceRequest(body, now) {
     const value = parseUniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(body));
     if (!only(value, ['schemaVersion', 'requestId', 'capability', 'expiresAt', 'modelId', 'input']) ||
         value.schemaVersion !== 'openconnect.cloud.inference/v1' || !guid.test(value.requestId ?? '') ||
@@ -31,7 +31,7 @@ function parseRequest(body, now) {
         input: Object.freeze({ messages: Object.freeze(messages), maxTokens: value.input.maxTokens, stream: value.input.stream }) });
 }
 
-// The callback owns dispatch and settlement. No gateway route invokes this until a verified worker adapter exists.
+// The callback owns dispatch and settlement.
 // The token quote must use a locally verified tokenizer for the selected model and exact payload.
 // It must not contact a worker or provider or execute a model.
 export async function withInferenceAdmission({ credential, identity, body, deployment, signal, traceparent },
@@ -41,7 +41,7 @@ export async function withInferenceAdmission({ credential, identity, body, deplo
     let raw, workerPayload, quotePayload, quoteKey, key, proof, requestFingerprint;
     try {
         raw = Buffer.from(body);
-        const request = parseRequest(raw, Date.now());
+        const request = parseInferenceRequest(raw, Date.now());
         const stopped = () => signal?.aborted || Date.now() >= Date.parse(request.expiresAt);
         const lookup = await controlPlane.findInferenceFingerprintKey(credential, request.requestId, signal, traceparent);
         if (stopped()) return unavailable();

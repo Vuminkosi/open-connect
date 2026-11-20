@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInferenceDispatcher, validateInferenceWorkerResponse } from './inference-dispatch.mjs';
+import { createInferenceProbe } from './inference-probe.mjs';
 
 const id = '11111111-1111-1111-1111-111111111111';
 const response = () => ({ schemaVersion: 'openconnect.cloud.inference.result/v1', requestId: id, modelId: 'model',
@@ -50,6 +51,10 @@ test('dispatcher sends the claimed payload over mutually authenticated TLS', asy
         const certificate = readFileSync(certPath); const privateKey = readFileSync(keyPath);
         let received;
         server = https.createServer({ cert: certificate, key: privateKey, ca: certificate, requestCert: true, rejectUnauthorized: true }, (req, res) => {
+            if (req.url === '/internal/cloud/v1/inference/ready') {
+                if (!req.client.authorized || req.headers.authorization !== 'Bearer fixture-token') { res.writeHead(401); res.end(); return; }
+                res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ status: 'ready', deploymentId: id })); return;
+            }
             const chunks = [];
             req.on('data', chunk => chunks.push(chunk));
             req.on('end', () => {
@@ -71,6 +76,12 @@ test('dispatcher sends the claimed payload over mutually authenticated TLS', asy
         assert.equal(received.authorization, 'Bearer fixture-token');
         assert.equal(Buffer.from(received.body.payload, 'base64').toString(), payload.toString());
         assert.equal(received.body.claimId, id);
+        const probe = createInferenceProbe({ origin: `https://localhost:${server.address().port}`, ca: certificate,
+            certificate, privateKey, workerToken: 'fixture-token', deploymentId: id });
+        assert.equal(await probe.probe(), true);
+        const mismatched = createInferenceProbe({ origin: `https://localhost:${server.address().port}`, ca: certificate,
+            certificate, privateKey, workerToken: 'fixture-token', deploymentId: '22222222-2222-2222-2222-222222222222' });
+        assert.equal(await mismatched.probe(), false);
     } finally {
         if (server) await new Promise(resolve => server.close(resolve));
         rmSync(dir, { recursive: true, force: true });

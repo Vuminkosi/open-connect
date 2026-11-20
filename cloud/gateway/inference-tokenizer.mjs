@@ -67,6 +67,13 @@ export function createLocalInferenceTokenizer({ python, pythonPath, model, start
         } catch { stop(); return false; }
     }
     return Object.freeze({
+        async ready(signal) {
+            if (disposed || busy || signal?.aborted) return false;
+            busy = true;
+            try { return await start(signal) && !signal?.aborted; }
+            catch { stop(); return false; }
+            finally { busy = false; }
+        },
         async quote({ payload, key, deployment, signal }) {
             if (disposed || busy || signal?.aborted || !(payload instanceof Uint8Array) || payload.byteLength < 1 || payload.byteLength > 131072 ||
                 !(key instanceof Uint8Array) || key.byteLength !== 32 || deployment?.modelRevision !== model.revision || deployment?.modelDigest !== model.digest) return null;

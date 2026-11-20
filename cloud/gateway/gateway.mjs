@@ -1,6 +1,8 @@
 import { withClassificationRequest } from './classification-request.mjs';
 import { createTraceContext } from './trace-context.mjs';
 import { executeClassification } from './classification-execution.mjs';
+import { withInferenceRequest } from './inference-request.mjs';
+import { executeInference } from './inference-execution.mjs';
 
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
@@ -22,7 +24,7 @@ const problems = {
     capability_disabled: [403, 'Capability disabled'],
     dependency_not_enabled: [403, 'Capability dependency unavailable'],
     invalid_request: [400, 'Invalid request'],
-    invalid_semantic_request: [422, 'Invalid classification request'],
+    invalid_semantic_request: [422, 'Invalid capability request'],
     payload_too_large: [413, 'Request body is too large'],
     unsupported_media_type: [415, 'Unsupported media type'],
     privacy_blocked: [403, 'Privacy policy blocked the request'],
@@ -41,22 +43,30 @@ function problem(code, traceId) {
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
-export async function handle(request, { authorization, classificationProbe, classificationExecution } = {}) {
+export async function handle(request, { authorization, classificationProbe, classificationExecution, inferenceExecution } = {}) {
     const trace = createTraceContext(request.headers?.get('traceparent'));
     const reject = code => problem(code, trace.traceId);
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/ready') {
-        if (!classificationExecution || !authorization || typeof authorization.isReady !== 'function' || !classificationProbe)
+        if ((!classificationExecution && !inferenceExecution) || !authorization || typeof authorization.isReady !== 'function' ||
+            (classificationExecution && !classificationProbe))
             return reject('capability_unavailable');
         try {
-            const signal = request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000);
-            const [controlReady, workerReady] = await Promise.all([
-                authorization.isReady(signal, trace.traceparent), classificationProbe.probe(signal, trace.traceparent, true, classificationExecution.deploymentId),
+            const signal = request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000);
+            const [controlReady, classificationReady, inferenceReady, tokenizerReady] = await Promise.all([
+                authorization.isReady(signal, trace.traceparent),
+                classificationExecution ? classificationProbe.probe(signal, trace.traceparent, true, classificationExecution.deploymentId) : null,
+                inferenceExecution ? inferenceExecution.probe.probe(signal, trace.traceparent) : null,
+                inferenceExecution ? inferenceExecution.tokenizer.ready(signal) : null,
             ]);
-            if (signal.aborted || controlReady !== true || workerReady?.ready !== true) return reject('capability_unavailable');
-            return Response.json({ status: 'ready', capabilities: ['classification.classify'] }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+            if (signal.aborted || controlReady !== true || (classificationExecution && classificationReady?.ready !== true) ||
+                (inferenceExecution && (inferenceReady !== true || tokenizerReady !== true))) return reject('capability_unavailable');
+            const capabilities = [];
+            if (classificationExecution) capabilities.push('classification.classify');
+            if (inferenceExecution) capabilities.push('inference.chat');
+            return Response.json({ status: 'ready', capabilities }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
         } catch { return reject('capability_unavailable'); }
     }
     if (!authorization) return reject('capability_unavailable');
@@ -69,6 +79,28 @@ export async function handle(request, { authorization, classificationProbe, clas
     try { decision = await authorization.authorize(match[1], capability, request.signal, trace.traceparent); }
     catch { return reject('capability_unavailable'); }
     if (decision?.authorized !== true) return reject(decision?.code);
+    if (capability === 'inference.chat' && inferenceExecution) {
+        try {
+            if (!await inferenceExecution.probe.probe(request.signal, trace.traceparent)) return reject('capability_unavailable');
+            const outcome = await withInferenceRequest(request, async (value, body) => {
+                if (value.input.stream) return reject('capability_unavailable');
+                const remaining = Date.parse(value.expiresAt) - Date.now();
+                if (remaining <= 0) return reject('upstream_timeout');
+                const deadline = AbortSignal.timeout(remaining);
+                const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
+                const result = await executeInference({ credential: match[1], identity: decision.identity, body,
+                    deployment: inferenceExecution.deployment, signal, traceparent: trace.traceparent },
+                { ...inferenceExecution, controlPlane: authorization });
+                if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
+                if (signal.aborted) return reject('capability_unavailable');
+                if (result.status !== 'completed') return reject(result.status);
+                return Response.json({ schemaVersion: 'openconnect.cloud.inference.result/v1', requestId: value.requestId,
+                    modelId: value.modelId, traceId: trace.traceId, output: result.result.output, usage: result.result.usage },
+                { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+            });
+            return outcome instanceof Response ? outcome : reject(outcome.code);
+        } catch { return reject('capability_unavailable'); }
+    }
     if (capability === 'classification.classify' && classificationProbe) {
         try {
             if (typeof authorization.matchClassificationDeployment !== 'function' ||

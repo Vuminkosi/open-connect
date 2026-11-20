@@ -181,3 +181,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Compose inference admission, claimed dispatch, access monitoring and output inspection in a fail-closed coordinator; production deployment monitoring and route wiring remain outstanding.
 
 - [x] Add claim-bound inference policy and deployment revalidation with a cancellable gateway access monitor; public route wiring and live execution acceptance remain outstanding.
+
+- [x] Connect the opt-in, non-streaming inference route to authenticated readiness, bounded request admission, claimed execution and output inspection; real end-to-end acceptance and streaming remain outstanding.

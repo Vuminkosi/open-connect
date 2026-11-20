@@ -28,6 +28,7 @@ test('local tokenizer uses an isolated child and reuses it for bounded matching 
     let launches = 0;
     const tokenizer = createLocalInferenceTokenizer({ python: '/python', pythonPath: '/app', model }, (...args) => { launches++; return start(...args); });
     try {
+        assert.equal(await tokenizer.ready(), true);
         const payload = body(); const key = Buffer.alloc(32, 2);
         for (let i = 0; i < 2; i++) {
             const result = await tokenizer.quote({ payload, key, deployment });
