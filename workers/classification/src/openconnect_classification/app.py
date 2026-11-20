@@ -82,15 +82,7 @@ def ready() -> dict[str, object]:
         }
     result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
     if result.ready and result.manifest is not None:
-        return {
-            "status": "ready",
-            "ready": True,
-            "engine": "real",
-            "modelRevision": result.manifest.revision,
-            "provisioning": settings.provisioning,
-            "modelCacheDir": settings.model_dir.as_posix(),
-            **device,
-        }
+        return {"status": "unready", "ready": False, "reason": "inference_runtime_unavailable"}
     return {"status": "unready", "ready": False, "reason": result.reason}
 
 
@@ -133,14 +125,7 @@ def capabilities() -> CapabilitiesResponse:
             ],
             fakeEngineWarning=FAKE_WARNING,
         )
-    result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
-    return CapabilitiesResponse(
-        engine="real",
-        modelRevision=result.manifest.revision if result.manifest else None,
-        capabilities=[
-            Capability(labelSets=label_set_versions(), defaultLabelSet=DEFAULT_LABEL_SET_VERSION)
-        ],
-    )
+    return JSONResponse(status_code=503, content={"status": "unavailable"})  # type: ignore[return-value]
 
 
 def run_classification(request: ExecuteRequest) -> ExecuteResponse:

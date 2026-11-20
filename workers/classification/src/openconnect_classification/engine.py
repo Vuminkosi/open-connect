@@ -5,18 +5,13 @@ Two adapters share one interface:
 - FakeEngine: deterministic keyword scorer for CI and contract tests.
   Explicitly NON-PRODUCTION; every result is tagged engine="fake" with a
   warning. No model files required.
-- RealEngine: local-checkpoint-gated adapter. Serves only when a manifest +
-  weights are mounted under MODEL_DIR and the license is satisfied; it NEVER
-  downloads and refuses when HF_HUB_OFFLINE is not set. Until the pinned ML
-  runtime lands, scoring is a local deterministic heuristic tagged with the
-  manifest revision (engine="real") so the manifest/readiness/license path is
-  exercised truthfully; it must not be mistaken for a production model.
+- RealEngine: local-checkpoint-gated adapter. Until a pinned inference runtime
+  is implemented, it fails closed instead of presenting heuristic output as model inference.
 """
 
 from __future__ import annotations
 
 import os
-import re
 from dataclasses import dataclass
 
 from openconnect_classification.label_sets import get_label_set
@@ -128,17 +123,4 @@ class RealEngine:
             raise ModelUnavailableError("HF_HUB_OFFLINE=1 required; refusing network fetch")
         if self._manifest is None:  # pragma: no cover - guarded by readiness
             raise ModelUnavailableError("model unavailable")
-        labels = get_label_set(label_set_version)
-        scores = _score(re.sub(r"\s+", " ", text), labels)
-        picked = sorted(
-            (label for label in labels if scores[label] >= threshold),
-            key=lambda label: scores[label],
-            reverse=True,
-        )[:max_labels]
-        return ClassifyOutcome(
-            labels=picked,
-            scores={label: scores[label] for label in picked},
-            abstained=not picked,
-            model_revision=self._manifest.revision,
-            engine=self.engine_name,
-        )
+        raise ModelUnavailableError("classification inference runtime is unavailable")

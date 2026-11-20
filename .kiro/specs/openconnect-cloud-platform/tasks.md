@@ -61,6 +61,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Return the original reservation expiry with the scoped retry key lookup and verify an exact Node-to-PostgreSQL replay.
 - [x] Add a validated secret-file loader for active and retained fingerprint keys; runtime wiring and operational key management remain outstanding.
 - [x] Add a bounded private classification execution adapter with pinned model and label validation; public routing is opt-in and remains subject to production release gates.
+- [x] Fail closed when classification model assets exist but the real inference runtime is absent; do not advertise or return heuristic output as real inference.
 - [x] Add claimed Cloud worker dispatch using the exact fingerprinted payload and per-request key; verify mutual TLS and worker response validation against a simulated worker. The public path now composes admission and settlement when explicitly enabled.
 - [x] Add a private classification execution sequence for reservation, payload-bound claim, dispatch and successful settlement; verify control-plane and PostgreSQL integration with a simulated worker. Public admission is now connected behind explicit configuration.
 - [x] Prevent unexpected classification model failures from logging caller-provided task IDs or exception text that may contain request content.

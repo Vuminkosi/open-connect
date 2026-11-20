@@ -1,4 +1,5 @@
 import openconnect_classification.app as app_module
+import json
 from openconnect_classification.app import app
 from openconnect_classification.config import Settings
 from openconnect_classification.label_sets import get_label_set, label_set_versions
@@ -179,6 +180,21 @@ def test_execute_model_unavailable_real_mode(monkeypatch, tmp_path) -> None:
         ),
     )
     response = _execute("hello world")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "model_unavailable"
+
+
+def test_manifest_and_weights_do_not_advertise_unimplemented_real_inference(monkeypatch, tmp_path) -> None:
+    (tmp_path / "manifest.json").write_text(json.dumps({"modelId": "test", "revision": "revision-1", "checksum": "fixture", "license": "apache-2.0"}), encoding="utf-8")
+    (tmp_path / "model.bin").write_bytes(b"fixture")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setattr(app_module, "settings", Settings(worker_token="local-test-token", model_dir=tmp_path,
+        fake_engine=False, is_production=False, model_device="auto", label_set_version="v1", max_text_chars=20000, license_accepted=False))
+    assert client.get("/health/ready").json() == {"status": "unready", "ready": False, "reason": "inference_runtime_unavailable"}
+    capability = client.get("/internal/v1/capabilities", headers={"Authorization": "Bearer local-test-token"})
+    assert capability.status_code == 503
+    assert capability.json() == {"status": "unavailable"}
+    response = _execute("free money")
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "model_unavailable"
 

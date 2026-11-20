@@ -6,6 +6,7 @@ from openconnect_classification.engine import (
     RealEngine,
 )
 from openconnect_classification.manifest import ModelManifest
+import pytest
 
 
 def test_fake_engine_is_deterministic_and_tagged() -> None:
@@ -48,3 +49,11 @@ def test_real_engine_license_denied() -> None:
         pass
     else:  # pragma: no cover
         raise AssertionError("expected LicenseDeniedError")
+
+
+def test_real_engine_with_manifest_and_offline_mode_does_not_return_heuristic(monkeypatch) -> None:
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    manifest = ModelManifest(model_id="m", revision="r", checksum="c", license="apache-2.0")
+    engine = RealEngine(manifest, ready=True, reason=None)
+    with pytest.raises(ModelUnavailableError):
+        engine.classify("free money", label_set_version="v1", threshold=0.5, max_labels=3)
