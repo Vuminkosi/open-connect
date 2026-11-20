@@ -72,6 +72,8 @@ Issuance and rotation require an explicit future expiry; permanent credentials a
 
 Revocation and rotation read and modify credential state in serializable transactions. A concurrent update must not silently overwrite a revocation; serialization failures require callers to reload and retry the operation.
 
+Credential authentication rechecks revocation, expiry, and application environment in the database when recording last use. Revocation after this check still requires gateway admission and active-session cancellation; authentication alone is not execution authorization.
+
 **Authentication format:** `oc_<environment>_<credential-guid>_<base64url-random-secret>`. Validation performs fixed-time hash comparison and checks revocation, expiration, and application environment. The resulting credential identity and scopes are inputs to later gateway admission; successful credential authentication alone does not authorize a capability call.
 
 The parser splits only the first three separators because the base64url secret may itself contain underscores.

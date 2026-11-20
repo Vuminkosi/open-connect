@@ -51,6 +51,19 @@ public class CloudCredentialPostgresTests
         catch (Exception exception) when (HasSerializationFailure(exception)) { rejected = true; }
         Assert.True(rejected);
         Assert.Null(await normal.ValidateAsync(raceCredential.Secret, CancellationToken.None));
+        var validationCredential = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+        var validationGate = new SelectionReadGate("FROM cloud.credentials");
+        var validationOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(validationGate).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> validationFactory = new TestFactory(validationOptions);
+        var validating = new CloudCredentialService(validationFactory, new CloudCapabilityService(validationFactory, TimeProvider.System), TimeProvider.System)
+            .ValidateAsync(validationCredential.Secret, CancellationToken.None);
+        try
+        {
+            await validationGate.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal("succeeded", await normal.RevokeAsync(owner, tenant.Id, app.Id, validationCredential.Credential!.Id, CancellationToken.None));
+        }
+        finally { validationGate.Resume.TrySetResult(); }
+        Assert.Null(await validating);
         var rotation = await normal.RotateAsync(owner, tenant.Id, app.Id, initial.Credential!.Id, null, CancellationToken.None);
         Assert.Equal("invalid_expiration", rotation.Status);
         Assert.NotNull(await normal.ValidateAsync(initial.Secret, CancellationToken.None));

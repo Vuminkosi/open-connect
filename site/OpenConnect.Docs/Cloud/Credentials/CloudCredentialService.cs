@@ -145,9 +145,11 @@ public sealed class CloudCredentialService(
         }
 
         var now = timeProvider.GetUtcNow();
-        await db.Credentials.Where(x => x.Id == credential.Id &&
-                (x.LastUsedAt == null || x.LastUsedAt < now.AddMinutes(-5)))
+        var updated = await db.Credentials.Where(x => x.Id == credential.Id && x.RevokedAt == null &&
+                x.ExpiresAt != null && x.ExpiresAt > now &&
+                db.Applications.Any(app => app.TenantId == x.TenantId && app.Id == x.ApplicationId && app.Environment == x.Environment))
             .ExecuteUpdateAsync(update => update.SetProperty(x => x.LastUsedAt, now), cancellationToken);
+        if (updated != 1) return null;
         var scopes = JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? [];
         return new CloudCredentialIdentity(credential.TenantId, credential.ApplicationId, credential.Environment,
             new HashSet<string>(scopes, StringComparer.Ordinal));
