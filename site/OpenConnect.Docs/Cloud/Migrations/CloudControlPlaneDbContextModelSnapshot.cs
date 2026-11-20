@@ -414,6 +414,12 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<long>("Reserved")
                         .HasColumnType("bigint");
 
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 

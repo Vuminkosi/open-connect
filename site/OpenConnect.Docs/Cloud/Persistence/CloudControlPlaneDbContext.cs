@@ -188,6 +188,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.HasAlternateKey(x => new { x.TenantId, x.ApplicationId, x.Id });
             entity.Property(x => x.CapabilityId).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Unit).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Revision).HasDefaultValue(1L).IsConcurrencyToken();
             entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.CapabilityId, x.Unit, x.PeriodStart }).IsUnique();
             entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);

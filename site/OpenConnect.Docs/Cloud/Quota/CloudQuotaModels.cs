@@ -12,6 +12,7 @@ public sealed class CloudQuotaBucket
     public long Limit { get; set; }
     public long Consumed { get; set; }
     public long Reserved { get; set; }
+    public long Revision { get; set; } = 1;
 }
 
 public sealed class CloudQuotaReservation
