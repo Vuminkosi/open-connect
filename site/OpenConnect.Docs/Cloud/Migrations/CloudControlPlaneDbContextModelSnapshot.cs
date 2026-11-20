@@ -511,6 +511,51 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("tenant_entitlements", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudUsageRecord", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CapabilityId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Provenance")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("ReservationId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "RecordedAt");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ReservationId");
+
+                    b.ToTable("usage_records", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_usage_quantity", "\"Quantity\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudApplication", b =>
                 {
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
@@ -632,6 +677,16 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudUsageRecord", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudQuotaReservation", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ReservationId")
+                        .HasPrincipalKey("TenantId", "ApplicationId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
