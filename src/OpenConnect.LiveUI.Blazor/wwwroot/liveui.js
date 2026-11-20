@@ -204,7 +204,8 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return measured(result("Denied", "control_kind_mismatch"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
-  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout, element);
+  const actionScope = interactionScope();
+  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout, element, actionScope);
   const isCurrentTarget = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     const current = resolveTarget(target, enableRuntimeFallback, route);
@@ -361,16 +362,16 @@ export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback
   });
 }
 
-function resolveTarget(target, enableRuntimeFallback, route, visited = new Set(), includeHidden = false) {
+function resolveTarget(target, enableRuntimeFallback, route, visited = new Set(), includeHidden = false, scopeOverride = null) {
   if (visited.has(target.id)) return { status: "ambiguous" };
   visited.add(target.id);
 
-  let scope = interactionScope();
+  let scope = scopeOverride || interactionScope();
   if (!scope) return { status: "ambiguous" };
   if (target.parentId) {
     const parent = route?.targets?.find((candidate) => candidate.id === target.parentId);
     if (!parent) return { status: "missing" };
-    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited, includeHidden);
+    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited, includeHidden, scopeOverride);
     if (parentResolution.status !== "resolved") return parentResolution;
     scope = parentResolution.element;
   }
@@ -612,7 +613,7 @@ function validateState(name, expected) {
   return expected == null || expected === "true" || expected === "false" ? null : "state_value_invalid";
 }
 
-function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs, initialElement = null) {
+function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs, initialElement = null, initialScope = null) {
   const validationError = validateState(name, expected);
   if (validationError) return result("Failed", validationError);
   const observeRemoval = name === "exists" && expected === "false";
@@ -630,6 +631,10 @@ function waitForState(target, route, enableRuntimeFallback, name, expected, time
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     if (observeRemoval) {
       if (initial.element.isConnected) return false;
+      // When the original modal itself was removed, background controls with the same label
+      // are outside that target's former scope and are not replacements for it.
+      if (initialScope && initialScope !== document && initialScope.contains(initial.element) &&
+          !initialScope.isConnected && interactionScope() === document) return true;
       // Hidden replacements and ambiguous candidates still exist; never count them as removal.
       return resolveTarget(target, enableRuntimeFallback, route, new Set(), true).status === "missing";
     }
@@ -637,6 +642,17 @@ function waitForState(target, route, enableRuntimeFallback, name, expected, time
       const hidden = resolveTarget(target, enableRuntimeFallback, route, new Set(), true);
       return hidden.status === "resolved" && hidden.element.isConnected &&
         kindMatches(target.kind, hidden.element) && !isVisible(hidden.element);
+    }
+    // A modal opener can become inaccessible to ordinary resolution immediately after opening.
+    // Verify only the original, still-unique opener when it explicitly controls the active dialog.
+    if (name === "expanded" && expected !== "false" && initialElement?.isConnected) {
+      const activeScope = interactionScope();
+      if (activeScope && activeScope !== document && !activeScope.contains(initialElement) && activeScope.id &&
+          (initialElement.getAttribute("aria-controls") || "").split(/\s+/).includes(activeScope.id)) {
+        const original = resolveTarget(target, enableRuntimeFallback, route, new Set(), false, document);
+        return original.status === "resolved" && original.element === initialElement &&
+          kindMatches(target.kind, initialElement) && stateMatches(initialElement, name, expected);
+      }
     }
     const resolution = resolveTarget(target, enableRuntimeFallback, route);
     if (resolution.status !== "resolved" || !resolution.element.isConnected) return false;

@@ -59,6 +59,89 @@ test('modal discovery excludes the background and host confirmation controls', a
 
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
+test('modal opener verifies its own expanded state without granting background access', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button id="opener" aria-expanded="false" aria-controls="editor">Open editor</button>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'opener', kind: 'Button', selector: '#opener' };
+    const route = { path: '/', targets: [target] };
+    const action = { schemaVersion: 'openconnect.liveui/v1', type: 'Open', parameters: {} };
+    async function run(mode) {
+      document.body.innerHTML = '<button id="opener" aria-expanded="false" aria-controls="editor">Open editor</button>';
+      const opener = document.querySelector('#opener');
+      let clicks = 0;
+      opener.addEventListener('click', () => {
+        clicks++;
+        opener.setAttribute('aria-expanded', 'true');
+        const dialog = document.createElement('section');
+        dialog.id = mode === 'unrelated' ? 'other' : 'editor';
+        dialog.setAttribute('role', 'dialog');
+        dialog.innerHTML = '<button>Save</button>';
+        document.body.append(dialog);
+        if (mode === 'duplicate') document.body.append(opener.cloneNode(true));
+        if (mode === 'navigation') history.pushState({}, '', '/other');
+      });
+      const receipt = await execute({ manifest: {}, route, target, action }, 80, false);
+      const background = await execute({ manifest: {}, route, target,
+        action: { ...action, type: 'Click' } }, 80, false);
+      history.replaceState({}, '', '/');
+      return { receipt, background, clicks };
+    }
+    return { valid: await run('valid'), unrelated: await run('unrelated'),
+      duplicate: await run('duplicate'), navigation: await run('navigation') };
+  });
+  expect(results.valid.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.valid.background).toMatchObject({ outcome: 'MissingTarget', postconditionVerified: false });
+  for (const result of [results.unrelated, results.duplicate, results.navigation])
+    expect(result.receipt.postconditionVerified).toBe(false);
+  for (const result of Object.values(results)) expect(result.clicks).toBe(1);
+});
+
+test('removal of a modal-scoped control does not match a background control', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button>Save</button>' }));
+  await page.goto('http://liveui.test/');
+  const results = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    const target = { id: 'save', kind: 'Button', label: 'Save' };
+    const route = { path: '/', targets: [target] };
+    async function run(mode) {
+      document.body.innerHTML = '<button>Save</button><section role="dialog" aria-label="Editor"><button>Save</button></section>';
+      const dialog = document.querySelector('[role="dialog"]');
+      const button = dialog.querySelector('button');
+      let clicks = 0;
+      button.addEventListener('click', () => {
+        clicks++;
+        if (mode === 'retained') button.remove();
+        else dialog.remove();
+        if (mode === 'replacement') {
+          const replacement = document.createElement('section');
+          replacement.setAttribute('role', 'dialog');
+          replacement.innerHTML = '<button>Save</button>';
+          document.body.append(replacement);
+        }
+        if (mode === 'navigation') history.pushState({}, '', '/other');
+      });
+      const receipt = await execute({ manifest: {}, route, target,
+        action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: { stateName: 'exists', stateValue: 'false' } } }, 80, true);
+      history.replaceState({}, '', '/');
+      return { receipt, clicks };
+    }
+    return { removed: await run('removed'), retained: await run('retained'),
+      replacement: await run('replacement'), navigation: await run('navigation') };
+  });
+  expect(results.removed.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  expect(results.replacement.receipt.postconditionVerified).toBe(false);
+  expect(results.navigation.receipt.postconditionVerified).toBe(false);
+  for (const result of Object.values(results)) expect(result.clicks).toBe(1);
+});
+
 test('uses an unambiguous adjacent heading for an unlabeled list', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')

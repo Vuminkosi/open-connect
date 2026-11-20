@@ -54,3 +54,26 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '
     await expect(row).toContainText('Due 2030-08-14');
   });
 }
+
+test('SDK verifies removal of the modal save control without matching the background editor', async ({ page }) => {
+  const title = 'Modal scoped save proof';
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New task dialog' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create task' });
+  await dialog.getByRole('textbox', { name: 'Task Title' }).fill(title);
+  const result = await page.evaluate(async () => {
+    const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+    const targets = runtime.discoverTargets(500);
+    const target = targets.find((item) => item.kind === 'Button' && /^add task$/i.test(item.label));
+    if (!target) return { targets };
+    const receipt = await runtime.execute({ manifest: {}, route: { path: '/', targets: [] },
+      target: { ...target, id: 'oc.runtime.test-save', requiresConfirmation: true },
+      action: { schemaVersion: 'openconnect.liveui/v1', type: 'Click', parameters: { stateName: 'exists', stateValue: 'false' } } }, 5000, true);
+    return { receipt, targets };
+  });
+  expect(result.targets).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'Button', label: expect.stringMatching(/^add task$/i) })]));
+  expect(result.receipt).toMatchObject({ outcome: 'Completed', postconditionVerified: true });
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(1);
+});
