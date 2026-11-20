@@ -24,70 +24,93 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
-        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
-        var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
-        var tenant = await tenants.CreateTenantAsync(owner, "Gateway test", CancellationToken.None);
-        var appRecord = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
-        var capability = "test." + Guid.NewGuid().ToString("N");
-        await using (var db = await factory.CreateDbContextAsync())
+        string? originalAvailability = null;
+        try
         {
-            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
-            db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
-            db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
-            db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
-            await db.SaveChangesAsync();
+            var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+            var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
+            var tenant = await tenants.CreateTenantAsync(owner, "Gateway test", CancellationToken.None);
+            var appRecord = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
+            var capability = "inference.chat";
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var definition = await db.Capabilities.SingleAsync(x => x.Id == capability);
+                originalAvailability = definition.PlatformAvailability;
+                definition.PlatformAvailability = "available";
+                db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
+                db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+                db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
+                await db.SaveChangesAsync();
+            }
+            var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
+            var issued = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, [capability], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+            Assert.Equal("succeeded", issued.Status);
+            using var serverCertificate = Certificate(client: false);
+            using var clientCertificate = Certificate(client: true);
+            using var otherCertificate = Certificate(client: true);
+            Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust([]));
+            Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust(["invalid"]));
+            var trust = new CloudGatewayClientTrust([Convert.ToHexString(clientCertificate.GetCertHash(HashAlgorithmName.SHA256))]);
+            Assert.True(trust.IsTrusted(clientCertificate, DateTimeOffset.UtcNow));
+            Assert.False(trust.IsTrusted(otherCertificate, DateTimeOffset.UtcNow));
+            Assert.False(trust.IsTrusted(serverCertificate, DateTimeOffset.UtcNow));
+            Assert.False(trust.IsTrusted(clientCertificate, DateTimeOffset.UtcNow.AddDays(2)));
+            var builder = WebApplication.CreateBuilder();
+            builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, listener => listener.UseHttps(serverCertificate, https =>
+            {
+                trust.ConfigureHttps(https);
+            })));
+            builder.Services.AddSingleton(factory);
+            builder.Services.AddSingleton(TimeProvider.System);
+            builder.Services.AddScoped<ICloudCredentialStore, EfCloudCredentialStore>();
+            builder.Services.AddScoped<CloudCredentialService>();
+            builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
+            builder.Services.AddScoped<CloudMachineAuthorizationService>();
+            await using var app = builder.Build();
+            app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
+            await app.StartAsync();
+            var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
+            var address = new Uri(addresses.Addresses.Single());
+            using var anonymous = Client(address, serverCertificate, null);
+            anonymous.DefaultRequestHeaders.Add("X-Client-Cert", Convert.ToBase64String(clientCertificate.RawData));
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
+            using var other = Client(address, serverCertificate, otherCertificate);
+            await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
+            using var authorized = Client(address, serverCertificate, clientCertificate);
+            var response = await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+            var result = await response.Content.ReadFromJsonAsync<CloudGatewayAuthorizationResponse>();
+            Assert.True(result!.Authorized);
+            Assert.Equal(tenant.Id, result.Identity!.TenantId);
+            Assert.Equal(appRecord.Id, result.Identity.ApplicationId);
+            Assert.True((await NodeAuthorizeAsync(address, serverCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
+            var gatewayResult = await NodeGatewayAsync(address, serverCertificate, clientCertificate, issued.Secret!);
+            Assert.True(gatewayResult.Checked);
+            Assert.Equal(503, gatewayResult.Status);
+            Assert.Equal("capability_unavailable", gatewayResult.Code);
+            Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
+            Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
+            Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability, tenantId = Guid.NewGuid() })).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability = "other" })).StatusCode);
+            Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, issued.Credential!.Id, CancellationToken.None));
+            Assert.Equal(HttpStatusCode.Unauthorized, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
+            Assert.Equal("unauthorized", (await NodeAuthorizeAsync(address, serverCertificate, clientCertificate, issued.Secret!, capability)).Code);
+            var revokedGatewayResult = await NodeGatewayAsync(address, serverCertificate, clientCertificate, issued.Secret!);
+            Assert.False(revokedGatewayResult.Checked);
+            Assert.Equal(401, revokedGatewayResult.Status);
+            Assert.Equal("unauthorized", revokedGatewayResult.Code);
         }
-        var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
-        var issued = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, [capability], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
-        Assert.Equal("succeeded", issued.Status);
-        using var serverCertificate = Certificate(client: false);
-        using var clientCertificate = Certificate(client: true);
-        using var otherCertificate = Certificate(client: true);
-        Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust([]));
-        Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust(["invalid"]));
-        var trust = new CloudGatewayClientTrust([Convert.ToHexString(clientCertificate.GetCertHash(HashAlgorithmName.SHA256))]);
-        Assert.True(trust.IsTrusted(clientCertificate, DateTimeOffset.UtcNow));
-        Assert.False(trust.IsTrusted(otherCertificate, DateTimeOffset.UtcNow));
-        Assert.False(trust.IsTrusted(serverCertificate, DateTimeOffset.UtcNow));
-        Assert.False(trust.IsTrusted(clientCertificate, DateTimeOffset.UtcNow.AddDays(2)));
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, listener => listener.UseHttps(serverCertificate, https =>
+        finally
         {
-            trust.ConfigureHttps(https);
-        })));
-        builder.Services.AddSingleton(factory);
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddScoped<ICloudCredentialStore, EfCloudCredentialStore>();
-        builder.Services.AddScoped<CloudCredentialService>();
-        builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
-        builder.Services.AddScoped<CloudMachineAuthorizationService>();
-        await using var app = builder.Build();
-        app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
-        await app.StartAsync();
-        var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
-        var address = new Uri(addresses.Addresses.Single());
-        using var anonymous = Client(address, serverCertificate, null);
-        anonymous.DefaultRequestHeaders.Add("X-Client-Cert", Convert.ToBase64String(clientCertificate.RawData));
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
-        using var other = Client(address, serverCertificate, otherCertificate);
-        await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
-        using var authorized = Client(address, serverCertificate, clientCertificate);
-        var response = await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
-        var result = await response.Content.ReadFromJsonAsync<CloudGatewayAuthorizationResponse>();
-        Assert.True(result!.Authorized);
-        Assert.Equal(tenant.Id, result.Identity!.TenantId);
-        Assert.Equal(appRecord.Id, result.Identity.ApplicationId);
-        Assert.True((await NodeAuthorizeAsync(address, serverCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
-        Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
-        Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
-        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability, tenantId = Guid.NewGuid() })).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability = "other" })).StatusCode);
-        Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, issued.Credential!.Id, CancellationToken.None));
-        Assert.Equal(HttpStatusCode.Unauthorized, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
-        Assert.Equal("unauthorized", (await NodeAuthorizeAsync(address, serverCertificate, clientCertificate, issued.Secret!, capability)).Code);
+            if (originalAvailability is not null)
+            {
+                await using var db = await factory.CreateDbContextAsync();
+                await db.Capabilities.Where(x => x.Id == "inference.chat")
+                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalAvailability));
+            }
+        }
     }
 
     private static async Task<CloudGatewayAuthorizationResponse> NodeAuthorizeAsync(
@@ -96,10 +119,32 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m = await import(process.env.OC_TEST_MODULE); " +
             "const c = m.createCloudAuthorizationClient({origin: process.env.OC_TEST_ORIGIN, ca: process.env.OC_TEST_CA, certificate: process.env.OC_TEST_CERT, privateKey: process.env.OC_TEST_KEY}); " +
             "process.stdout.write(JSON.stringify(await c.authorize(process.env.OC_TEST_CREDENTIAL, process.env.OC_TEST_CAPABILITY)));";
+        var output = await NodeCallAsync(script, address, server, client, credential, capability);
+        return System.Text.Json.JsonSerializer.Deserialize<CloudGatewayAuthorizationResponse>(output,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private sealed record GatewayResult(int Status, bool Checked, string Code);
+
+    private static async Task<GatewayResult> NodeGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); " +
+            "const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); " +
+            "let checked=false; const s=g.createLocalServer({authorize:async (...a)=>{const r=await c.authorize(...a); checked=r.authorized; return r;}}); " +
+            "await new Promise(r=>s.listen(0,'127.0.0.1',r)); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/inference/chat',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL},body:'private-test-body'}); " +
+            "const b=await x.json(); await new Promise(r=>s.close(r)); process.stdout.write(JSON.stringify({status:x.status,checked,code:b.code}));";
+        var output = await NodeCallAsync(script, address, server, client, credential, "inference.chat");
+        return System.Text.Json.JsonSerializer.Deserialize<GatewayResult>(output,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<string> NodeCallAsync(string script, Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string capability)
+    {
         var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_GATEWAY"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "local-server.mjs")).AbsoluteUri;
         start.Environment["OC_TEST_ORIGIN"] = address.ToString();
         start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
         start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
@@ -113,8 +158,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
         await process.WaitForExitAsync(timeout.Token);
         Assert.True(process.ExitCode == 0, errors);
-        return System.Text.Json.JsonSerializer.Deserialize<CloudGatewayAuthorizationResponse>(output,
-            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        return output;
     }
 
     private static X509Certificate2 Certificate(bool client)
