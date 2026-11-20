@@ -112,6 +112,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIPrivacyEvidenceStore, EfCloudLiveUIPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>();
     builder.Services.AddScoped<CloudLiveUIClaimService>();
+    builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>();
+    builder.Services.AddScoped<CloudLiveUIConsumptionService>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
@@ -246,6 +248,7 @@ if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudLiveUIConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceTokenSettlement(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudWorkerReadiness(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }

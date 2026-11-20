@@ -201,3 +201,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add fixed one-plan LiveUI quota reservations and fingerprint-key lookup; token accounting, claimed execution and public routing remain outstanding.
 
 - [x] Bind LiveUI claims to allowed privacy evidence, approved model/deployment and plan quota with database-enforced capacity; worker consumption and output enforcement remain outstanding.
+
+- [x] Add deployment-certificate-bound single-use LiveUI claim consumption with current policy and payload revalidation; worker integration and settlement remain outstanding.

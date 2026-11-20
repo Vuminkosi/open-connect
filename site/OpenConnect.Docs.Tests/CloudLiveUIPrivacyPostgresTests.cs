@@ -55,8 +55,9 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
             var issued = await credentials.CreateAsync(owner, tenant.Id, app.Id, ["inference.liveui"], DateTimeOffset.UtcNow.AddHours(1), default);
             Assert.Equal("succeeded", issued.Status);
-            using var server = Certificate(false); using var gateway = Certificate(true); using var other = Certificate(true);
+            using var server = Certificate(false); using var gateway = Certificate(true); using var other = Certificate(true); using var worker = Certificate(true);
             var trust = new CloudGatewayClientTrust([Convert.ToHexString(gateway.GetCertHash(HashAlgorithmName.SHA256))]);
+            var workerTrust = new CloudWorkerClientTrust([new(deploymentId, Convert.ToHexString(worker.GetCertHash(HashAlgorithmName.SHA256)))], trust);
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.ConfigureKestrel(k => k.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(server, https =>
             {
@@ -70,9 +71,12 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudLiveUIPrivacyEvidenceStore, EfCloudLiveUIPrivacyEvidenceStore>();
             builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>(); builder.Services.AddScoped<CloudLiveUIClaimService>();
-            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true); await host.StartAsync();
+            builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
+            builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>(); builder.Services.AddScoped<CloudWorkerReadiness>();
+            await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true);
+            host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
-            using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other);
+            using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other); using var workerClient = Client(address, server, worker);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
             untrusted.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
             var requestId = Guid.NewGuid();
@@ -120,6 +124,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             var attempts = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => client.PostAsJsonAsync(claimPath, proof)));
             Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.OK);
             Assert.Equal(7, attempts.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+            var claim = await attempts.Single(x => x.StatusCode == HttpStatusCode.OK).Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
             Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", second.requestId)).StatusCode);
             Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsJsonAsync($"{quotaPath}/{secondReserved.ReservationId!.Value:D}/claim", proof)).StatusCode);
             await using (var db = await factory.CreateDbContextAsync())
@@ -128,6 +133,27 @@ public sealed class CloudLiveUIPrivacyPostgresTests
                     TenantId = tenant.Id, ApplicationId = app.Id, DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
                 await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
             }
+            var consumptionPath = $"/cloud/internal/v1/liveui/quota/reservations/{reserved.ReservationId.Value:D}/claims/{claim!.ClaimId!.Value:D}/consume";
+            async Task<HttpResponseMessage> Consume(HttpClient sender, byte[] binding)
+            {
+                using var message = new HttpRequestMessage(HttpMethod.Post, consumptionPath);
+                message.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(binding));
+                return await sender.SendAsync(message);
+            }
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Consume(client, new byte[32])).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await workerClient.GetAsync("/cloud/internal/v1/worker/ready")).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Consume(workerClient, Enumerable.Repeat((byte)1, 32).ToArray())).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await Inspect(client, "{\"fields\":[\"v1\",\"person@\",\"example.test\"]}", first.requestId)).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Consume(workerClient, new byte[32])).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", first.requestId)).StatusCode);
+            Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, [], 1, default)).Status);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Consume(workerClient, new byte[32])).StatusCode);
+            Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 2, default)).Status);
+            var consumes = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Consume(workerClient, new byte[32])));
+            Assert.Single(consumes, x => x.StatusCode == HttpStatusCode.OK);
+            Assert.Equal(7, consumes.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+            var consumed = await consumes.Single(x => x.StatusCode == HttpStatusCode.OK).Content.ReadFromJsonAsync<CloudLiveUIConsumptionResult>();
+            Assert.Equal("registry/model-a", consumed!.ModelId); Assert.Equal("revision-1", consumed.ModelRevision); Assert.Equal(modelDigest, consumed.ModelDigest);
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
             Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}")).StatusCode);
         }
