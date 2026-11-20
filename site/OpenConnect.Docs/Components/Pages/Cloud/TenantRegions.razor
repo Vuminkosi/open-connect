@@ -1,0 +1,126 @@
+@page "/cloud/tenants/{TenantId:guid}/regions"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantRegions> Logger
+
+<PageTitle>Allowed regions | OpenConnect Cloud</PageTitle>
+<h1>Organization allowed regions</h1>
+<p>Choose where this organization permits Cloud services to run. A service must also have a verified catalog declaration and an eligible deployment in the selected region.</p>
+<p>No selected regions means Cloud routing is denied. These settings do not independently verify a deployment's physical location.</p>
+@if (_loading)
+{
+    <p role="status">Loading region policy…</p>
+}
+else if (_error is not null)
+{
+    <p role="status">@_error</p>
+}
+else if (_policy is not null)
+{
+    <p>Policy revision: @_policy.Revision @(_policy.Revision == 0 ? "(not configured)" : "")</p>
+    @if (!_canEdit) { <p>Your organization role can view this policy. An owner or administrator can change it.</p> }
+    <fieldset disabled="@(!_interactive || _busy || !_canEdit)">
+        <legend>Allowed regions</legend>
+        @if (_options.Count == 0)
+        {
+            <p>No verified catalog regions are available. The policy will deny all regions.</p>
+        }
+        else
+        {
+            @foreach (var option in _options)
+            {
+                <label class="region-option">
+                    <input type="checkbox" checked="@_selected.Contains(option.Id)" @onchange="e => SetRegion(option.Id, e)" />
+                    <span>@option.Id @(!option.CurrentlyDeclared ? "(not currently declared by a verified service)" : "")</span>
+                </label>
+            }
+        }
+    </fieldset>
+    @if (_canEdit)
+    {
+        <div class="region-actions">
+            <button class="button primary" type="button" @onclick="SaveAsync" disabled="@(!_interactive || _busy)">Save allowed regions</button>
+            <button class="button" type="button" @onclick="ReloadAsync" disabled="@(!_interactive || _busy)">Reload saved policy</button>
+        </div>
+    }
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+}
+<p><a href="/cloud">Back to organizations</a></p>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private IReadOnlyList<RegionOption> _options = [];
+    private CloudRegionPolicyView? _policy;
+    private string? _error, _notice;
+    private bool _loading = true, _interactive, _busy, _canEdit;
+    private int _requestVersion;
+
+    protected override Task OnParametersSetAsync() => ReloadAsync();
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    private async Task ReloadAsync()
+    {
+        var version = ++_requestVersion; var tenantId = TenantId;
+        _loading = true; _busy = false; _policy = null; _options = []; _selected.Clear(); _error = null; _notice = null; _canEdit = false;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (version != _requestVersion) return;
+            if (subject is null) { _error = "The authenticated identity is missing a subject."; return; }
+            if (Services.GetService(typeof(CloudRegionPolicyService)) is not CloudRegionPolicyService policyService ||
+                Services.GetService(typeof(CloudControlPlaneService)) is not CloudControlPlaneService tenants ||
+                Services.GetService(typeof(CloudCapabilityService)) is not CloudCapabilityService catalog)
+            { _error = "The Cloud control plane is not configured."; return; }
+            var membership = (await tenants.GetTenantsAsync(subject, CancellationToken.None)).SingleOrDefault(x => x.Id == tenantId);
+            var result = await policyService.GetAsync(subject, tenantId, CancellationToken.None);
+            if (version != _requestVersion) return;
+            if (membership is null || result.Policy is null) { _error = "The organization was not found or you do not have access."; return; }
+            var definitions = await catalog.GetCatalogAsync(CancellationToken.None);
+            if (version != _requestVersion) return;
+            var declared = definitions.Where(x => x.AllowedRegionsVerified).SelectMany(x => x.AllowedRegions).ToHashSet(StringComparer.Ordinal);
+            _policy = result.Policy; _canEdit = membership.Role is "Owner" or "Administrator";
+            foreach (var item in _policy.AllowedRegions) _selected.Add(item);
+            _options = declared.Union(_selected).Order(StringComparer.Ordinal).Select(x => new RegionOption(x, declared.Contains(x))).ToArray();
+        }
+        catch (Exception) { if (version == _requestVersion) { Logger.LogWarning("Cloud region policy could not be loaded."); _error = "The region policy is temporarily unavailable."; } }
+        finally { if (version == _requestVersion) _loading = false; }
+    }
+
+    private void SetRegion(string region, ChangeEventArgs e)
+    {
+        if (!_canEdit || _busy) return;
+        if (e.Value is true) _selected.Add(region); else _selected.Remove(region);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!_canEdit || _policy is null) return;
+        var version = _requestVersion; var tenantId = TenantId; var revision = _policy.Revision;
+        _busy = true; _notice = null;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (version != _requestVersion) return;
+            if (subject is null || Services.GetService(typeof(CloudRegionPolicyService)) is not CloudRegionPolicyService service)
+            { _notice = "The policy was not saved. Access could not be verified."; return; }
+            var result = await service.PutAsync(subject, tenantId, _selected.Order(StringComparer.Ordinal).ToArray(), revision, CancellationToken.None);
+            if (version != _requestVersion) return;
+            if (result.Policy is not null) { _policy = result.Policy; _notice = "Allowed regions saved."; }
+            else _notice = result.Status switch { "conflict" => "The policy changed. Reload the saved policy before trying again.",
+                "invalid_request" => "Choose no more than 32 valid region identifiers.", _ => "The policy was not saved. Access may have changed." };
+        }
+        catch (Exception) { if (version == _requestVersion) { Logger.LogWarning("Cloud region policy update failed."); _notice = "The policy was not confirmed."; } }
+        finally { if (version == _requestVersion) _busy = false; }
+    }
+
+    private async Task<CloudSubject?> GetSubjectAsync() => CloudSubjectResolver.FromPrincipal(
+        (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+
+    private sealed record RegionOption(string Id, bool CurrentlyDeclared);
+}

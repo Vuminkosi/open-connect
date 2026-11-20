@@ -1,0 +1,107 @@
+@page "/cloud/operator/regions"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CloudOperatorAccess OperatorAccess
+@inject ILogger<OperatorRegions> Logger
+
+<PageTitle>Catalog regions | OpenConnect Cloud</PageTitle>
+<h1>Catalog regions</h1>
+<p>Declare the regions in which a service may be offered. A verified declaration is an operator statement; it does not independently establish where a deployment runs.</p>
+@if (_loading)
+{
+    <p role="status">Loading services…</p>
+}
+else if (_accessError is not null)
+{
+    <p role="status">@_accessError</p>
+}
+else
+{
+    <label for="catalog-region-service">Service</label>
+    <select id="catalog-region-service" @bind="_capability" @bind:after="LoadSelectedAsync" disabled="@(!_interactive || _busy)">
+        <option value="">Choose a service</option>
+        @foreach (var capability in _catalog) { <option value="@capability.Id">@capability.Name (@capability.Id)</option> }
+    </select>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+    @if (_current is not null)
+    {
+        <section aria-labelledby="catalog-region-heading">
+            <h2 id="catalog-region-heading">Region declaration</h2>
+            <p>Current status: @(_current.Verified ? "Declared verified" : "Unverified") · Revision @_current.Revision</p>
+            <p>An empty verified list permits no regions. Use deployment region identifiers, one per line.</p>
+            <label for="catalog-region-list">Allowed region identifiers</label>
+            <textarea id="catalog-region-list" rows="5" maxlength="2591" @bind="_regionText" disabled="@(!_interactive || _busy)"></textarea>
+            <label class="region-check"><input id="catalog-region-verified" type="checkbox" @bind="_verified" disabled="@(!_interactive || _busy)" /> I declare that this list has been verified for the service.</label>
+            <div class="region-actions">
+                <button class="button primary" type="button" @onclick="SaveAsync" disabled="@(!_interactive || _busy)">Save declaration</button>
+                <button class="button" type="button" @onclick="LoadSelectedAsync" disabled="@(!_interactive || _busy)">Reload saved declaration</button>
+            </div>
+        </section>
+    }
+}
+<p><a href="/cloud/operator">Back to deployments</a> · <a href="/cloud">Organizations</a></p>
+
+@code {
+    private IReadOnlyList<CloudCapabilityView> _catalog = [];
+    private CloudCatalogRegionsView? _current;
+    private string _capability = "", _regionText = "";
+    private string? _accessError, _notice;
+    private bool _loading = true, _interactive, _busy, _verified;
+
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (!OperatorAccess.IsAllowed(principal)) { _accessError = "Operator access is required."; return; }
+            if (Services.GetService(typeof(CloudCapabilityService)) is not CloudCapabilityService catalog ||
+                Services.GetService(typeof(CloudOperatorCatalogRegionsService)) is not CloudOperatorCatalogRegionsService)
+            { _accessError = "The Cloud control plane is not configured."; return; }
+            _catalog = await catalog.GetCatalogAsync(CancellationToken.None);
+        }
+        catch (Exception) { Logger.LogWarning("Cloud catalog regions could not be loaded."); _accessError = "The Cloud control plane is temporarily unavailable."; }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadSelectedAsync()
+    {
+        _current = null; _notice = null; _regionText = ""; _verified = false;
+        if (string.IsNullOrEmpty(_capability)) return;
+        _busy = true;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorCatalogRegionsService)Services.GetService(typeof(CloudOperatorCatalogRegionsService))!;
+            var result = await service.GetAsync(principal, _capability, CancellationToken.None);
+            if (result.Regions is null) { _notice = "The declaration could not be loaded or access is no longer available."; return; }
+            _current = result.Regions; _regionText = string.Join('\n', _current.AllowedRegions); _verified = _current.Verified;
+        }
+        catch (Exception) { Logger.LogWarning("Cloud catalog region lookup failed."); _notice = "The declaration is temporarily unavailable."; }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_current is null) return;
+        _busy = true; _notice = null;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorCatalogRegionsService)Services.GetService(typeof(CloudOperatorCatalogRegionsService))!;
+            var values = _regionText.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var result = await service.PutAsync(principal, _current.CapabilityId, values, _verified, _current.Revision, CancellationToken.None);
+            if (result.Regions is not null) { _current = result.Regions; _regionText = string.Join('\n', _current.AllowedRegions); _notice = "Region declaration saved."; }
+            else _notice = result.Status switch { "conflict" => "The declaration changed. Reload the saved declaration before trying again.",
+                "invalid_request" => "Use up to 32 distinct region identifiers containing letters, numbers, periods, underscores, or hyphens.",
+                _ => "The declaration was not saved. Operator access or the control plane may be unavailable." };
+        }
+        catch (Exception) { Logger.LogWarning("Cloud catalog region update failed."); _notice = "The declaration was not confirmed."; }
+        finally { _busy = false; }
+    }
+}

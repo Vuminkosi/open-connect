@@ -1,0 +1,9 @@
+textarea { display: block; width: min(100%, 38rem); box-sizing: border-box; margin: .4rem 0 1rem; padding: .6rem; font: inherit; color: #102033; background: #fff; border: 1px solid #7891aa; border-radius: .4rem; }
+textarea:focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
+.region-check { display: flex; align-items: flex-start; gap: .5rem; max-width: 45rem; }
+.region-check input { margin-top: .3rem; }
+.region-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+@media (prefers-color-scheme: dark) {
+    textarea { color: #e6eef7; background: #122236; border-color: #7891aa; }
+    textarea:focus-visible { outline-color: #80e4d5; }
+}

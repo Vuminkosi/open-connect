@@ -72,6 +72,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a backward-compatible classification v2 envelope with a bounded deadline and enforce it through the current privacy-admission stage.
 - [x] Add tenant-managed region policies and require both tenant and verified catalog regions during classification deployment matching.
 - [x] Add operator-only, audited catalog region declarations with revision checks that account for older writers; declarations are not independent geographic attestation.
+- [x] Add organization and operator region policy pages with role checks, stale-write feedback and component tests; real-browser accessibility and responsive verification remain outstanding.
 - [x] Bind classification claims to a locked deployment and region policy and preserve deployment/region evidence; legacy unbound claims remain held.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.

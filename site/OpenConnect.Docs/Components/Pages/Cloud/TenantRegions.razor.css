@@ -1,0 +1,4 @@
+fieldset { border: 1px solid var(--border, #777); border-radius: .5rem; padding: 1rem; max-width: 45rem; }
+.region-option { display: flex; align-items: flex-start; gap: .5rem; margin: .65rem 0; overflow-wrap: anywhere; }
+.region-option input { margin-top: .3rem; }
+.region-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
