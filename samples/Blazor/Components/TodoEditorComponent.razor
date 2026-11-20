@@ -13,10 +13,15 @@
     <MudGrid Spacing="2">
         <MudItem xs="12" md="6">
             <MudTextField @bind-Value="_title"
+                          @bind-Value:after="ClearTitleError"
                           Label="Task Title"
                           Placeholder="e.g., Integrate Playwright navigator worker"
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense"
+                          Immediate="true"
+                          MaxLength="200"
+                          Error="@(_titleError is not null)"
+                          ErrorText="@_titleError"
                           Required="true"
                           Clearable="true" />
         </MudItem>
@@ -60,7 +65,7 @@
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Add"
                        OnClick="@CreateTaskAsync"
-                       Disabled="@string.IsNullOrWhiteSpace(_title)"
+                       Disabled="@_creating"
                        FullWidth="true"
                        Size="Size.Medium"
                        Class="rounded-lg py-2">
@@ -87,25 +92,39 @@
     [Parameter] public EventCallback OnTaskCreated { get; set; }
 
     private string _title = string.Empty;
+    private string? _titleError;
+    private bool _creating;
     private string? _description;
     private TodoPriority _priority = TodoPriority.Medium;
     private DateTime? _dueDate;
 
     private async Task CreateTaskAsync()
     {
-        if (string.IsNullOrWhiteSpace(_title)) return;
-
-        var dueDateUtc = _dueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_dueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
-        await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority, dueDateUtc);
-        _title = string.Empty;
-        _description = null;
-        _priority = TodoPriority.Medium;
-        _dueDate = null;
-
-        Snackbar.Add("Task created successfully", Severity.Success);
-        if (OnTaskCreated.HasDelegate)
+        if (_creating) return;
+        if (string.IsNullOrWhiteSpace(_title))
         {
-            await OnTaskCreated.InvokeAsync();
+            _titleError = "Enter a task title.";
+            return;
         }
+
+        _creating = true;
+        try
+        {
+            var dueDateUtc = _dueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_dueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
+            await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority, dueDateUtc);
+            _title = string.Empty;
+            _description = null;
+            _priority = TodoPriority.Medium;
+            _dueDate = null;
+
+            Snackbar.Add("Task created successfully", Severity.Success);
+            if (OnTaskCreated.HasDelegate)
+            {
+                await OnTaskCreated.InvokeAsync();
+            }
+        }
+        finally { _creating = false; }
     }
+
+    private void ClearTitleError() => _titleError = null;
 }
