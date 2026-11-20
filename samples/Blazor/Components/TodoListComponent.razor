@@ -2,6 +2,12 @@
 @inject ITodoStore Store
 @inject ISnackbar Snackbar
 
+@{
+    var filteredItems = FilteredItems;
+    var totalPages = Math.Max(1, (filteredItems.Count + PageSize - 1) / PageSize);
+    var currentPage = Math.Clamp(_page, 1, totalPages);
+}
+
 <MudPaper Elevation="0" Class="oc-surface-card pa-4" data-oc-target="todo-list">
     <!-- Header & Filter Bar -->
     <div class="d-flex flex-column flex-sm-row justify-space-between align-sm-center pb-3 mb-2 border-b border-solid mud-border-lines-default gap-3">
@@ -13,7 +19,7 @@
         </div>
 
         <div class="d-flex align-center gap-2">
-            <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true" ApplyEffectsToContainer="false" Color="Color.Transparent">
+            <MudTabs @bind-ActivePanelIndex="_activeTab" @bind-ActivePanelIndex:after="ResetPage" Rounded="true" ApplyEffectsToContainer="false" Color="Color.Transparent">
                 <MudTabPanel Text="All" />
                 <MudTabPanel Text="Active" />
                 <MudTabPanel Text="Completed" />
@@ -25,6 +31,7 @@
     <!-- Search Input -->
     <div class="mb-3">
         <MudTextField @bind-Value="_searchQuery"
+                      @bind-Value:after="ResetPage"
                       Placeholder="Search tasks by title or description..."
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search"
@@ -42,7 +49,7 @@
             <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tasks...</MudText>
         </div>
     }
-    else if (FilteredItems.Count == 0)
+    else if (filteredItems.Count == 0)
     {
         <div class="pa-12 d-flex flex-column align-center justify-center text-center">
             <MudAvatar Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Large" Class="mb-3">
@@ -64,7 +71,7 @@
     else
     {
         <MudList T="TodoItem" Dense="false" Class="pa-0">
-            @foreach (var item in FilteredItems)
+            @foreach (var item in filteredItems.Skip((currentPage - 1) * PageSize).Take(PageSize))
             {
                 <MudListItem T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
                              Style="transition: background-color 0.15s ease;">
@@ -112,6 +119,23 @@
                 </MudListItem>
             }
         </MudList>
+        @if (totalPages > 1)
+        {
+            <nav aria-label="Task pages" class="d-flex align-center justify-space-between gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Disabled="@(currentPage <= 1)" OnClick="PreviousPage" aria-label="Previous task page">Previous</MudButton>
+                <div class="d-flex align-center gap-2">
+                    <label for="todo-page">Page</label>
+                    <select id="todo-page" aria-label="Task page" @bind="PageSelection">
+                        @for (var number = 1; number <= totalPages; number++)
+                        {
+                            <option value="@number">@number</option>
+                        }
+                    </select>
+                    <MudText Typo="Typo.body2" aria-live="polite">Page @currentPage of @totalPages</MudText>
+                </div>
+                <MudButton Variant="Variant.Text" Disabled="@(currentPage >= totalPages)" OnClick="NextPage" aria-label="Next task page">Next</MudButton>
+            </nav>
+        }
     }
 </MudPaper>
 
@@ -120,6 +144,15 @@
     private string _searchQuery = string.Empty;
     private int _activeTab = 0;
     private bool _loading = true;
+    private const int PageSize = 10;
+    private int _page = 1;
+
+    private int PageCount => Math.Max(1, (FilteredItems.Count + PageSize - 1) / PageSize);
+    private int CurrentPage => Math.Clamp(_page, 1, PageCount);
+    private int PageSelection { get => CurrentPage; set => _page = Math.Clamp(value, 1, PageCount); }
+    private void ResetPage() => _page = 1;
+    private void PreviousPage() => _page = Math.Max(1, CurrentPage - 1);
+    private void NextPage() => _page = Math.Min(PageCount, CurrentPage + 1);
 
     private List<TodoItem> FilteredItems
     {
