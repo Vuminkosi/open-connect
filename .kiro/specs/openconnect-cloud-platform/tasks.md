@@ -66,6 +66,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a pinned, offline operator-supplied ONNX classification adapter and reject label-set mismatches before quota reservation; production model selection and real-model acceptance remain outstanding.
 - [x] Bind the worker bundle digest to gateway readiness, deployment matching and claim creation; mixed-version deployment isolation and real-model acceptance remain outstanding.
 - [x] Exercise the Cloud classification gateway, private control plane, PostgreSQL accounting and actual ONNX worker together using a synthetic local model; production model and deployed acceptance remain outstanding.
+- [x] Wire the pinned ONNX bundle and separate worker-side Cloud credentials into the standalone classification Compose configuration; private TLS termination and deployment-managed identity remain outstanding.
 - [x] Add claimed Cloud worker dispatch using the exact fingerprinted payload and per-request key; verify mutual TLS and worker response validation against a simulated worker. The public path now composes admission and settlement when explicitly enabled.
 - [x] Add a private classification execution sequence for reservation, payload-bound claim, dispatch and successful settlement; verify control-plane and PostgreSQL integration with a simulated worker. Public admission is now connected behind explicit configuration.
 - [x] Prevent unexpected classification model failures from logging caller-provided task IDs or exception text that may contain request content.
