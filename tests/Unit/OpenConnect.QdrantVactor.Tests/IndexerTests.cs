@@ -167,6 +167,36 @@ public sealed class IndexerTests
     }
 
     [Fact]
+    public async Task SemanticMemoryKeepsIdenticalDocumentIdsIndependentAcrossScopes()
+    {
+        var store = new InMemoryVectorStore();
+        var provider = new SemanticMemorySearchProvider(new DeterministicEmbeddingStub(), store, new FakeAuthorizer(true));
+        await provider.UpsertAsync(new("shared", "tenant-a", "agent-a", "first"));
+        await provider.UpsertAsync(new("shared", "tenant-b", "agent-a", "second"));
+        await provider.UpsertAsync(new("shared", "tenant-a", "agent-b", "third"));
+        await provider.UpsertAsync(new("shared", "tenant-a", "agent-a", "updated"));
+
+        var updated = Assert.Single((await provider.SearchAsync(new("tenant-a", "agent-a", "updated", 10))).Matches).Document;
+        Assert.Equal("shared", updated.Id);
+        Assert.Equal("updated", updated.Content);
+        Assert.Equal("second", Assert.Single((await provider.SearchAsync(new("tenant-b", "agent-a", "second", 10))).Matches).Document.Content);
+        Assert.Equal("third", Assert.Single((await provider.SearchAsync(new("tenant-a", "agent-b", "third", 10))).Matches).Document.Content);
+        await provider.DeleteAsync(new("tenant-a", "agent-a", "shared"));
+        Assert.Empty((await provider.SearchAsync(new("tenant-a", "agent-a", "first", 10))).Matches);
+        Assert.Single((await provider.SearchAsync(new("tenant-b", "agent-a", "second", 10))).Matches);
+        Assert.Single((await provider.SearchAsync(new("tenant-a", "agent-b", "third", 10))).Matches);
+    }
+
+    [Fact]
+    public async Task SemanticMemoryRejectsInvalidUnicodeRatherThanCollidingWithReplacementCharacters()
+    {
+        var store = new InMemoryVectorStore();
+        var provider = new SemanticMemorySearchProvider(new DeterministicEmbeddingStub(), store, new FakeAuthorizer(true));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => provider.UpsertAsync(new("\ud800", "tenant", "agent", "content")));
+        Assert.Empty((await provider.SearchAsync(new("tenant", "agent", "content", 10))).Matches);
+    }
+
+    [Fact]
     public async Task UnapprovedEventIsAcknowledgedWithoutIndexing()
     {
         var delivery = Delivery(Event("task.started", 2));

@@ -48,6 +48,7 @@ public sealed class QdrantVectorStoreRest : IVectorStore
                     {
                         tenant = point.TenantId,
                         agent = point.AgentId,
+                        source_id = ScopedMemoryId.IsScoped(point.Id, point.TenantId, point.AgentId) ? point.Id : null,
                         content = point.Content,
                         revision = point.Revision,
                         event_id = point.EventId,
@@ -93,7 +94,15 @@ public sealed class QdrantVectorStoreRest : IVectorStore
             var values = result.GetProperty("vector").EnumerateArray().Select(item => item.GetSingle()).ToArray();
             if (values.Length != _vectorSize)
                 throw new InvalidDataException("Vector dimension does not match configured collection size.");
-            points.Add(new VectorPoint(result.GetProperty("id").GetString() ?? string.Empty,
+            var resultId = result.GetProperty("id").GetString() ?? string.Empty;
+            if (payload.TryGetProperty("source_id", out var sourceIdElement) && sourceIdElement.ValueKind == JsonValueKind.String)
+            {
+                var sourceId = sourceIdElement.GetString()!;
+                if (ScopedMemoryId.IsScoped(sourceId, resultTenant!, resultAgent!) &&
+                    Guid.TryParse(resultId, out var resultGuid) && NormalizePointId(sourceId) == resultGuid)
+                    resultId = sourceId;
+            }
+            points.Add(new VectorPoint(resultId,
                 resultTenant!, resultAgent!, payload.TryGetProperty("content", out var content) ? content.GetString() ?? string.Empty : string.Empty,
                 values, payload.TryGetProperty("revision", out var revision) ? revision.GetInt64() : 0,
                 payload.TryGetProperty("event_id", out var eventId) ? eventId.GetString() : null,

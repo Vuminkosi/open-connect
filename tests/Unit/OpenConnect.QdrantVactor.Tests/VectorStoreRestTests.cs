@@ -1,12 +1,66 @@
 using System.Net;
 using System.Text.Json;
 using OpenConnect.QdrantVactor;
+using OpenConnect.Abstractions;
 using Xunit;
 
 namespace OpenConnect.QdrantVactor.Tests;
 
 public sealed class VectorStoreRestTests
 {
+    [Fact]
+    public async Task SemanticMemoryUpsertsUseDistinctQdrantIdsAndDeleteUsesTheMatchingId()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var provider = new SemanticMemorySearchProvider(new FixedEmbeddings(), Create(handler), new AllowScope());
+        await provider.UpsertAsync(new("shared", "tenant-a", "agent-a", "first"));
+        await provider.UpsertAsync(new("shared", "tenant-b", "agent-a", "second"));
+        await provider.UpsertAsync(new("shared", "tenant-a", "agent-b", "third"));
+        await provider.DeleteAsync(new("tenant-a", "agent-a", "shared"));
+        using var a = JsonDocument.Parse(handler.Requests[0].Body!);
+        using var b = JsonDocument.Parse(handler.Requests[1].Body!);
+        using var c = JsonDocument.Parse(handler.Requests[2].Body!);
+        using var deletion = JsonDocument.Parse(handler.Requests[3].Body!);
+        var id = a.RootElement.GetProperty("points")[0].GetProperty("id").GetGuid();
+        Assert.NotEqual(id, b.RootElement.GetProperty("points")[0].GetProperty("id").GetGuid());
+        Assert.NotEqual(id, c.RootElement.GetProperty("points")[0].GetProperty("id").GetGuid());
+        Assert.Equal(id, deletion.RootElement.GetProperty("filter").GetProperty("must")[2].GetProperty("has_id")[0].GetGuid());
+    }
+
+    [Fact]
+    public async Task SemanticMemoryRestSearchReturnsOriginalDocumentId()
+    {
+        RecordingHandler handler = null!;
+        handler = new RecordingHandler(request =>
+        {
+            if (request.Method == HttpMethod.Put)
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            using var upsert = JsonDocument.Parse(handler.Requests[0].Body!);
+            var point = upsert.RootElement.GetProperty("points")[0];
+            var body = JsonSerializer.Serialize(new { result = new[] { new {
+                id = point.GetProperty("id").GetGuid(), vector = new float[] { 1, 0 }, score = 0.9,
+                payload = point.GetProperty("payload").Clone()
+            } } });
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
+        });
+        var provider = new SemanticMemorySearchProvider(new FixedEmbeddings(), Create(handler), new AllowScope());
+        await provider.UpsertAsync(new("document:one", "tenant-a", "agent-a", "content"));
+
+        var match = Assert.Single((await provider.SearchAsync(new("tenant-a", "agent-a", "query", 10))).Matches);
+        Assert.Equal("document:one", match.Document.Id);
+        Assert.Equal("content", match.Document.Content);
+    }
+
+    private sealed class FixedEmbeddings : IEmbeddingGenerator
+    {
+        public ValueTask<ReadOnlyMemory<float>> GenerateAsync(string text, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ReadOnlyMemory<float>>(new float[] { 1, 0 });
+    }
+
+    private sealed class AllowScope : IAgentScopeAuthorizer
+    {
+        public bool Authorize(string tenantId, string agentId) => true;
+    }
     [Fact]
     public async Task UpsertUsesQdrantPutAndDeterministicUuidWithApiKeyHeader()
     {
