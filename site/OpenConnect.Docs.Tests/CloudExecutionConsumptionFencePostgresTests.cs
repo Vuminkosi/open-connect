@@ -57,9 +57,19 @@ public sealed class CloudExecutionConsumptionFencePostgresTests
             {
                 db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = legacyReservation.ReservationId!.Value, TenantId = tenant.Id, ApplicationId = app.Id, ClaimId = legacyClaim, DeploymentId = deployment, Region = "region-a", WorkerPayloadFingerprint = proof, ClaimedAt = now });
                 await db.SaveChangesAsync();
+                await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claim_credentials (\"ReservationId\", \"CredentialId\") VALUES ({legacyReservation.ReservationId.Value}, {issued.Credential!.Id})");
             }
             Assert.Equal("unavailable", await consumption.ConsumeAsync(legacyReservation.ReservationId!.Value, legacyClaim, deployment, proof, default));
             var first = await CreateClaim();
+            // Older writers can update deployment identity without advancing a revision.
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deployment).ExecuteUpdateAsync(x => x.SetProperty(y => y.ModelDigest, "sha256:" + new string('c', 64)));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(first.Reservation, first.Claim, deployment, proof, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deployment).ExecuteUpdateAsync(x => x.SetProperty(y => y.ModelDigest, "sha256:" + new string('a', 64)).SetProperty(y => y.ImageDigest, "sha256:" + new string('d', 64)));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(first.Reservation, first.Claim, deployment, proof, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deployment).ExecuteUpdateAsync(x => x.SetProperty(y => y.ImageDigest, "sha256:" + new string('b', 64)));
             var admin = new CloudEntitlementAdministration(new EfCloudEntitlementAdministrationStore(factory, TimeProvider.System));
             var actor = new CloudSubject("test-issuer", "operator");
             Assert.Equal("succeeded", (await admin.PutAsync(actor, "trace", tenant.Id, "classification.classify", new(false, null), 1, default)).Status);

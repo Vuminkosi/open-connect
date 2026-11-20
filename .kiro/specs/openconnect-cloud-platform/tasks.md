@@ -131,3 +131,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Provide an operator entitlement workspace with explicit target, grant state, expiration and stale-write feedback.
 
 - [x] Fence classification worker consumption against credential, entitlement, selection and region changes committed after claim issuance; deny legacy claims without a credential binding. Coordinated mixed-version rollout and cancellation after consumption remain outstanding.
+
+- [x] Bind classification consumption to immutable claim-time deployment identity and reject changed model/image metadata or missing evidence; production attestation and coordinated rollout remain outstanding.

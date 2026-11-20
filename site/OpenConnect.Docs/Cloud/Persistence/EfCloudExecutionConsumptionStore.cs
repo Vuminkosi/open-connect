@@ -35,6 +35,15 @@ public sealed class EfCloudExecutionConsumptionStore(IDbContextFactory<CloudCont
         var deployment = await db.WorkerDeployments.FromSqlInterpolated($"SELECT * FROM cloud.worker_deployments WHERE \"Id\" = {deploymentId} FOR SHARE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         if (deployment is null || !deployment.Enabled || deployment.CapabilityId != "classification.classify" || deployment.Region != claim.Region) return "unavailable";
+        // Compare the immutable claimed deployment identity while the deployment row is locked.
+        var matchingEvidence = await db.Database.SqlQuery<bool>($"""
+            SELECT EXISTS (SELECT 1 FROM cloud.execution_claim_deployment_evidence
+                WHERE "ReservationId" = {reservationId} AND "EndpointReference" = {deployment.EndpointReference}
+                  AND "Transport" = {deployment.Transport} AND "ContractVersion" = {deployment.ContractVersion}
+                  AND "ModelId" = {deployment.ModelId} AND "ModelRevision" = {deployment.ModelRevision}
+                  AND "ModelDigest" = {deployment.ModelDigest} AND "ImageDigest" = {deployment.ImageDigest}) AS "Value"
+            """).SingleAsync(cancellationToken);
+        if (!matchingEvidence) return "unavailable";
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
