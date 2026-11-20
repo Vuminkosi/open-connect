@@ -72,6 +72,30 @@ public static class CloudControlPlaneEndpoints
             return members is null ? Results.NotFound() : Results.Ok(new { members });
         });
 
+        group.MapPost("/tenants/{tenantId:guid}/members/invitations", async (
+            Guid tenantId, CreateCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
+            IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
+        {
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            var result = await service.CreateAsync(subject, tenantId, request, cancellationToken);
+            if (result.Status != "succeeded") return InvitationResponse(result.Status);
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(new { code = result.Code, expiresAt = result.ExpiresAt });
+        });
+
+        group.MapPost("/invitations/accept", async (
+            AcceptCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
+            IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
+        {
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            var result = await service.AcceptAsync(subject, request.Code, cancellationToken);
+            return result == "succeeded" ? Results.NoContent() : InvitationResponse(result);
+        });
+
         group.MapPut("/tenants/{tenantId:guid}/members/role", async (
             Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
@@ -382,6 +406,21 @@ public static class CloudControlPlaneEndpoints
         };
         return Results.Problem(statusCode: status, title: title,
             extensions: new Dictionary<string, object?> { ["code"] = result.Status, ["currentRevision"] = result.Revision });
+    }
+
+    private static IResult InvitationResponse(string status)
+    {
+        var (code, title) = status switch
+        {
+            "not_found" => (404, "Organization was not found."),
+            "forbidden" => (403, "Only an organization owner can issue invitations."),
+            "invalid_request" => (422, "Invitation details are invalid."),
+            "already_member" => (409, "This identity is already a member."),
+            "reinvitation_unavailable" => (409, "A previous membership requires reconciliation before another invitation can be accepted."),
+            "conflict" => (409, "Invitation could not be completed. Try again."),
+            _ => (400, "Invitation is invalid or unavailable."),
+        };
+        return Results.Problem(statusCode: code, title: title, extensions: new Dictionary<string, object?> { ["code"] = status });
     }
 
     private static IResult CredentialIssueResponse(

@@ -232,6 +232,51 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("credentials", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<byte[]>("SecretHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("SubjectId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("SubjectIssuer")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("invitations", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_cloud_invitations_role", "\"Role\" IN ('Owner', 'Administrator', 'SecurityAnalyst', 'Developer', 'BillingReader')");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudMembership", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -386,6 +431,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId")
                         .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudInvitation", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

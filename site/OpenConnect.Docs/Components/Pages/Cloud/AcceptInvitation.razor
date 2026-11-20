@@ -1,0 +1,50 @@
+@page "/cloud/invitations/accept"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<AcceptInvitation> Logger
+
+<PageTitle>Accept invitation | OpenConnect Cloud</PageTitle>
+<h1>Accept an invitation</h1>
+<p>Sign in as the identity named by the organization, then enter the code shared with you.</p>
+@if (_accepted)
+{
+    <p role="status">Invitation accepted. <a href="/cloud">Open your organizations</a>.</p>
+}
+else
+{
+    <label for="invitation-code">Invitation code</label>
+    <input id="invitation-code" @bind="_code" autocomplete="off" maxlength="120" disabled="@(!_interactive || _busy)" />
+    <button type="button" class="button primary" disabled="@(!_interactive || _busy)" @onclick="AcceptAsync">Accept invitation</button>
+    @if (_status is not null) { <p role="status">@_status</p> }
+}
+
+@code {
+    private string? _code;
+    private string? _status;
+    private bool _interactive;
+    private bool _busy;
+    private bool _accepted;
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+    private async Task AcceptAsync()
+    {
+        _busy = true; _status = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudInvitationService)) as CloudInvitationService;
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var subject = CloudSubjectResolver.FromPrincipal(principal, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (service is null || subject is null) { _status = "Invitation service is unavailable."; return; }
+            var status = await service.AcceptAsync(subject, _code, CancellationToken.None);
+            _code = null;
+            if (status == "succeeded") _accepted = true;
+            else _status = status == "reinvitation_unavailable" ? "A previous membership requires reconciliation. Contact the organization owner." : "The invitation is invalid, expired, or not for this identity.";
+        }
+        catch (Exception) { Logger.LogWarning("Cloud invitation acceptance failed."); _code = null; _status = "The invitation was not confirmed. Try again."; }
+        finally { _busy = false; }
+    }
+}

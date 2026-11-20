@@ -7,6 +7,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudTenant> Tenants => Set<CloudTenant>();
     public DbSet<CloudMembership> Memberships => Set<CloudMembership>();
     public DbSet<CloudMembershipRevision> MembershipRevisions => Set<CloudMembershipRevision>();
+    public DbSet<CloudInvitation> Invitations => Set<CloudInvitation>();
     public DbSet<CloudApplication> Applications => Set<CloudApplication>();
     public DbSet<CloudAuditEvent> AuditEvents => Set<CloudAuditEvent>();
     public DbSet<CloudCapabilityDefinition> Capabilities => Set<CloudCapabilityDefinition>();
@@ -46,6 +47,19 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.HasKey(x => new { x.TenantId, x.SubjectHash });
             entity.Property(x => x.SubjectHash).HasMaxLength(64).IsRequired();
             entity.Property(x => x.LastRevision).IsConcurrencyToken();
+            entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudInvitation>(entity =>
+        {
+            entity.ToTable("invitations", table => table.HasCheckConstraint(
+                "ck_cloud_invitations_role", "\"Role\" IN ('Owner', 'Administrator', 'SecurityAnalyst', 'Developer', 'BillingReader')"));
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectIssuer).HasMaxLength(2048).IsRequired();
+            entity.Property(x => x.SubjectId).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.Role).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.SecretHash).HasColumnType("bytea").IsRequired();
+            entity.Property(x => x.AcceptedAt).IsConcurrencyToken();
             entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -164,6 +178,18 @@ public sealed class CloudMembershipRevision
     public Guid TenantId { get; set; }
     public required string SubjectHash { get; set; }
     public int LastRevision { get; set; }
+}
+
+public sealed class CloudInvitation
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public required string SubjectIssuer { get; set; }
+    public required string SubjectId { get; set; }
+    public required string Role { get; set; }
+    public required byte[] SecretHash { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? AcceptedAt { get; set; }
 }
 
 public sealed class CloudApplication

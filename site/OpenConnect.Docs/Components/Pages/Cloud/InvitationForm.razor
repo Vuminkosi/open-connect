@@ -1,0 +1,78 @@
+@using OpenConnect.Docs.Cloud
+@implements IDisposable
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<InvitationForm> Logger
+
+<section aria-labelledby="invite-heading">
+    <h2 id="invite-heading">Invite a member</h2>
+    <p>Enter the person's subject from the configured identity provider. Share the resulting code through a trusted channel.</p>
+    <label for="invite-subject">Identity provider subject</label>
+    <input id="invite-subject" @bind="_subjectId" maxlength="1024" disabled="@(!Enabled || _busy)" />
+    <label for="invite-role">Role</label>
+    <select id="invite-role" @bind="_role" disabled="@(!Enabled || _busy)">
+        <option>Developer</option><option>Administrator</option><option>SecurityAnalyst</option><option>BillingReader</option><option>Owner</option>
+    </select>
+    <button type="button" class="button primary" disabled="@(!Enabled || _busy)" @onclick="CreateAsync">Create invitation</button>
+    @if (_status is not null) { <p role="status">@_status</p> }
+    @if (_code is not null)
+    {
+        <h3>Save and share this code</h3>
+        <p>It is shown only once and expires at @_expiresAt?.ToString("u"). The invited person enters it after signing in.</p>
+        <code style="overflow-wrap:anywhere">@_code</code>
+        <button type="button" class="button" @onclick="() => _code = null">Done</button>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    [Parameter] public bool Enabled { get; set; }
+    private string? _subjectId;
+    private string _role = "Developer";
+    private string? _code;
+    private string? _status;
+    private DateTimeOffset? _expiresAt;
+    private bool _busy;
+    private int _generation;
+    private Guid? _currentTenantId;
+
+    protected override void OnParametersSet()
+    {
+        if (_currentTenantId == TenantId) return;
+        _currentTenantId = TenantId;
+        _generation++; _code = null; _status = null; _subjectId = null; _role = "Developer";
+    }
+
+    public void Dispose() { _generation++; _code = null; }
+
+    private async Task CreateAsync()
+    {
+        var generation = _generation;
+        var tenantId = TenantId;
+        var subjectId = _subjectId;
+        var role = _role;
+        _busy = true; _status = null; _code = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudInvitationService)) as CloudInvitationService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var issuer = Configuration["OpenConnect:Cloud:Identity:Authority"];
+            var actor = CloudSubjectResolver.FromPrincipal(authentication.User, issuer);
+            if (service is null || actor is null) { _status = "Invitation service is unavailable."; return; }
+            var result = await service.CreateAsync(actor, tenantId, new CreateCloudInvitationRequest(issuer, subjectId, role), CancellationToken.None);
+            if (generation != _generation) return;
+            if (result.Status == "succeeded") { _code = result.Code; _expiresAt = result.ExpiresAt; }
+            else _status = result.Status switch
+            {
+                "invalid_request" => "Enter a valid identity subject and role.",
+                "already_member" => "This identity is already a member.",
+                "reinvitation_unavailable" => "A previous membership must be reconciled before reinvitation.",
+                _ => "The invitation was not created. Check your access and try again.",
+            };
+        }
+        catch (Exception) { Logger.LogWarning("Cloud invitation creation failed."); if (generation == _generation) _status = "The invitation was not confirmed. Try again."; }
+        finally { if (generation == _generation) _busy = false; }
+    }
+}

@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -81,7 +79,7 @@ public sealed class EfCloudTenantStore(
 
         var revision = member.Revision + 1;
         var previousRole = member.Role;
-        var targetHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{target.Issuer.Length}:{target.Issuer}{target.SubjectId}")));
+        var targetHash = CloudIdentityFingerprint.Compute(target);
         if (role is null)
         {
             var history = await db.MembershipRevisions.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.SubjectHash == targetHash, cancellationToken);
