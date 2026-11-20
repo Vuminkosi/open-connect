@@ -113,6 +113,10 @@ The authenticated `GET /cloud/api/v1/tenants/{tenantId}/quotas` endpoint returns
 
 The organization quota page uses the same authorized query service and displays periods in UTC. It clears previous organization data before loading another organization and ignores stale asynchronous results. The workspace links to it only for the permitted roles; the service remains the authorization boundary.
 
+## Cloud privacy observations
+
+Tenant owners, administrators and security analysts can read Cloud classification privacy observations through `/cloud/api/v1/tenants/{tenantId}/security/observations` and the organization security page. Issuer-bound membership is checked in the data query; successful and denied reads are recorded in the audit table before results are returned. The API supports UTC time bounds and a timestamp/ID keyset cursor, and the page offers UTC date filters. Observations are metadata-only Cloud decisions, not signed receipts, proof of application-host inspection, unique request counts, or proof of worker execution. The page states these limitations and does not display content. The added index uses a regular PostgreSQL migration; production-scale lock duration has not been measured. PostgreSQL, local authenticated HTTP and component tests cover role and tenant isolation, same-timestamp pagination, UTC bounds and audit behavior. Real-browser and deployed identity-provider checks remain outstanding.
+
 An in-process Kestrel test with signed authentication cookies and disposable PostgreSQL exercises the quota HTTP route, including anonymous rejection, permitted billing access, cross-tenant and developer denial, paging, and page-size validation. This test uses a test-only cookie issuance endpoint; it does not verify a real identity-provider callback or deployed network.
 
 ## Cloud deployment inventory

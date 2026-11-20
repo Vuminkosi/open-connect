@@ -1,0 +1,138 @@
+@page "/cloud/tenants/{TenantId:guid}/security"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using System.Globalization
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantSecurity> Logger
+
+<PageTitle>Security observations | OpenConnect Cloud</PageTitle>
+<h1>Security observations</h1>
+<p>These are Cloud-side classification checks. A passed check does not prove complete detection or worker execution. Application-host inspection is not shown here. Repeated requests can create multiple observations.</p>
+<div class="security-filter">
+    <label for="security-from">From date (UTC)</label><input id="security-from" type="date" value="@_fromDate" @onchange="e => _fromDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />
+    <label for="security-to">Through date (UTC)</label><input id="security-to" type="date" value="@_toDate" @onchange="e => _toDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />
+    <button class="button" type="button" disabled="@(!_interactive || _loading)" @onclick="ApplyDatesAsync">Apply dates</button>
+</div>
+@if (_loading) { <p role="status">Loading security observations…</p> }
+else if (_status is not null) { <p role="status">@_status</p> }
+else if (_page is not null)
+{
+    @if (_page.Observations.Count == 0) { <p>No Cloud classification observations were found for this period.</p> }
+    else
+    {
+        <div class="cloud-capabilities">
+            @foreach (var observation in _page.Observations)
+            {
+                <article class="security-observation">
+                    <h2>@OutcomeLabel(observation.Outcome)</h2>
+                    <dl>
+                        <dt>Observed at (UTC)</dt><dd>@observation.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        <dt>Application ID</dt><dd><code>@observation.ApplicationId</code></dd>
+                        <dt>Request ID</dt><dd><code>@observation.RequestId</code></dd>
+                        <dt>Trace ID</dt><dd><code>@observation.TraceId</code></dd>
+                    </dl>
+                </article>
+            }
+        </div>
+    }
+    <nav aria-label="Security observation pages">
+        <button class="button" type="button" disabled="@(!_interactive || _loading || _pageIndex == 0)" @onclick="PreviousAsync">Previous</button>
+        <button class="button" type="button" disabled="@(!_interactive || _loading || _page.Next is null)" @onclick="NextAsync">Next</button>
+    </nav>
+}
+<p><a href="/cloud">Back to organizations</a></p>
+
+@code {
+    private const int PageSize = 20;
+    [Parameter] public Guid TenantId { get; set; }
+    private CloudPrivacyObservationPage? _page;
+    private readonly List<CloudPrivacyObservationCursor?> _history = [null];
+    private int _pageIndex;
+    private int _generation;
+    private bool _loading = true, _interactive;
+    private string? _status;
+    private string? _fromDate, _toDate;
+    private DateTimeOffset? _from, _to;
+
+    protected override Task OnParametersSetAsync()
+    {
+        _fromDate = _toDate = null; _from = _to = null;
+        _history.Clear(); _history.Add(null); _pageIndex = 0;
+        return LoadAsync(null, 0);
+    }
+
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    private async Task ApplyDatesAsync()
+    {
+        if (!TryDate(_fromDate, out var from) || !TryDate(_toDate, out var through) ||
+            through == DateOnly.MaxValue || from is not null && through is not null && from > through)
+        { _page = null; _status = "Enter a valid UTC date range."; return; }
+        _from = from is null ? null : new DateTimeOffset(from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        _to = through is null ? null : new DateTimeOffset(through.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        _history.Clear(); _history.Add(null); _pageIndex = 0;
+        await LoadAsync(null, 0);
+    }
+
+    private static bool TryDate(string? value, out DateOnly? result)
+    {
+        result = null;
+        if (string.IsNullOrEmpty(value)) return true;
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        result = date; return true;
+    }
+
+    private Task PreviousAsync() => _pageIndex > 0 ? LoadAsync(_history[_pageIndex - 1], _pageIndex - 1) : Task.CompletedTask;
+    private Task NextAsync()
+    {
+        if (_page?.Next is not { } next) return Task.CompletedTask;
+        if (_history.Count > _pageIndex + 1) _history.RemoveRange(_pageIndex + 1, _history.Count - _pageIndex - 1);
+        _history.Add(next);
+        return LoadAsync(next, _pageIndex + 1);
+    }
+
+    private async Task LoadAsync(CloudPrivacyObservationCursor? cursor, int pageIndex)
+    {
+        var generation = ++_generation; var tenantId = TenantId;
+        _loading = true; _status = null; _page = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudPrivacyObservationService)) as CloudPrivacyObservationService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var subject = CloudIdentity.IsEnabled(authentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
+            CloudPrivacyObservationPage? page = null;
+            string? status = null;
+            if (service is null) status = "The Cloud control plane is not configured.";
+            else if (subject is null) status = "The authenticated identity is missing a subject.";
+            else
+            {
+                page = await service.GetTenantAsync(subject, tenantId, _from, _to, cursor, PageSize, CancellationToken.None);
+                if (page is null) status = "The organization was not found or your role does not allow security access.";
+            }
+            if (generation != _generation) return;
+            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; status = "The authenticated identity is no longer available."; }
+            _page = page; _pageIndex = pageIndex; _status = status;
+        }
+        catch (Exception)
+        {
+            if (generation != _generation) return;
+            Logger.LogWarning("Cloud security observation lookup failed.");
+            _status = "Security observations are temporarily unavailable.";
+        }
+        finally { if (generation == _generation) _loading = false; }
+    }
+
+    private static string OutcomeLabel(string outcome) => outcome switch
+    {
+        "allowed" => "Cloud rules check passed",
+        "privacy_blocked" => "Cloud privacy check blocked",
+        "detector_unavailable" => "Cloud detector unavailable",
+        _ => "Unknown Cloud decision",
+    };
+}

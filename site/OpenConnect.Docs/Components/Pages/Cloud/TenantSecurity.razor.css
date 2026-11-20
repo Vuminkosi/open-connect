@@ -1,0 +1,11 @@
+.security-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin: 1rem 0;
+}
+
+.security-observation dl { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
+.security-observation dd { min-width: 0; margin: 0 0 .7rem; overflow-wrap: anywhere; text-align: left; }
+nav[aria-label="Security observation pages"] { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }

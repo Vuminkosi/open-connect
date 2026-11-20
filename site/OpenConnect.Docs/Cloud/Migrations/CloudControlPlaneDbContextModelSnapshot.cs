@@ -377,6 +377,8 @@ namespace OpenConnect.Docs.Cloud.Migrations
 
                     b.HasIndex("TenantId", "ApplicationId", "OccurredAt");
 
+                    b.HasIndex("TenantId", "OccurredAt", "Id");
+
                     b.ToTable("privacy_evidence", "cloud", t =>
                         {
                             t.HasCheckConstraint("ck_privacy_evidence_outcome", "\"Outcome\" IN ('allowed', 'privacy_blocked', 'detector_unavailable')");

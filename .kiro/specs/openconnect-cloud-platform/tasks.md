@@ -68,6 +68,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Persist Cloud classification privacy observations as tenant-scoped append-only metadata before returning decisions; fail closed if storage fails.
 - [x] Propagate version-00 trace IDs through gateway authorization, readiness and privacy checks and correlate privacy observations in PostgreSQL.
 - [x] Require an enabled, exact deployment inventory match through the authenticated control plane before classification readiness probing.
+- [x] Expose audited, role-scoped Cloud privacy observations with UTC filtering and keyset pagination in the tenant API and workspace.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.

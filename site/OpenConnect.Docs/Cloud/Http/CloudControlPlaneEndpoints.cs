@@ -50,6 +50,7 @@ public static class CloudControlPlaneEndpoints
         }
 
         group.MapCloudQuotaEndpoints(identityIssuer);
+        group.MapCloudPrivacyObservationEndpoints(identityIssuer);
         group.MapCloudDeploymentEndpoints();
 
         group.MapGet("/me", async (ClaimsPrincipal principal, CloudControlPlaneService service, CancellationToken cancellationToken) =>

@@ -121,6 +121,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
             entity.Property(x => x.TraceId).HasMaxLength(32).IsRequired();
             entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.OccurredAt, x.Id });
             entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
         });
