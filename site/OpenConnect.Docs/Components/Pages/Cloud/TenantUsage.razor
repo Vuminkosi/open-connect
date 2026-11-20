@@ -21,6 +21,32 @@
 else if (_status is not null) { <p role="status">@_status</p> }
 else if (_page is not null)
 {
+    <section aria-labelledby="usage-summary-title">
+        <h2 id="usage-summary-title">Daily breakdown</h2>
+        <p>Totals reflect finalized ledger quantities for each application, service and unit. Zero-quantity releases are included in the record count.</p>
+        @if (_summaryStatus is not null) { <p role="status">@_summaryStatus</p> }
+        else if (_summary is null) { <p>Select a date range of at most 93 days to see the breakdown.</p> }
+        else if (_summary.LimitExceeded) { <p>There are too many groups to display. Select a shorter date range.</p> }
+        else if (_summary.Totals.Count == 0) { <p>No finalized usage was recorded for this period.</p> }
+        else
+        {
+            <div class="cloud-capabilities">
+                @foreach (var total in _summary.Totals)
+                {
+                    <article class="quota-card">
+                        <h3>@(total.CapabilityId ?? "Unknown capability")</h3>
+                        <dl>
+                            <dt>Date (UTC)</dt><dd>@total.DayUtc.ToString("yyyy-MM-dd")</dd>
+                            <dt>Application ID</dt><dd><code>@total.ApplicationId</code></dd>
+                            <dt>Quantity</dt><dd>@total.Quantity @(total.Unit ?? "unknown unit")</dd>
+                            <dt>Ledger records</dt><dd>@total.Records</dd>
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+    <h2>Ledger entries</h2>
     @if (_page.Entries.Count == 0) { <p>No recorded usage was found for this period.</p> }
     else
     {
@@ -59,6 +85,8 @@ else if (_page is not null)
     private const int PageSize = 20;
     [Parameter] public Guid TenantId { get; set; }
     private CloudUsagePage? _page;
+    private CloudUsageSummary? _summary;
+    private string? _summaryStatus;
     private readonly List<CloudUsageCursor?> _history = [null];
     private int _pageIndex, _generation;
     private bool _loading = true, _interactive;
@@ -106,7 +134,7 @@ else if (_page is not null)
     private async Task LoadAsync(CloudUsageCursor? cursor, int pageIndex)
     {
         var generation = ++_generation; var tenantId = TenantId;
-        _loading = true; _status = null; _page = null;
+        _loading = true; _status = null; _page = null; _summary = null; _summaryStatus = null;
         try
         {
             var service = Services.GetService(typeof(CloudUsageQueryService)) as CloudUsageQueryService;
@@ -122,9 +150,24 @@ else if (_page is not null)
                 page = await service.GetTenantAsync(subject, tenantId, _from, _to, cursor, PageSize, CancellationToken.None);
                 if (page is null) status = "The organization was not found or your role does not allow usage access.";
             }
+            CloudUsageSummary? summary = null; string? summaryStatus = null;
+            if (page is not null && subject is not null && _from is not null && _to is not null && _to.Value - _from.Value <= TimeSpan.FromDays(93))
+            {
+                try
+                {
+                    var summaries = Services.GetService(typeof(CloudUsageSummaryService)) as CloudUsageSummaryService;
+                    if (summaries is null) summaryStatus = "Daily breakdown is unavailable.";
+                    else
+                    {
+                        summary = await summaries.GetTenantAsync(subject, tenantId, _from.Value, _to.Value, CancellationToken.None);
+                        if (summary is null) { page = null; status = "The organization was not found or your role does not allow usage access."; }
+                    }
+                }
+                catch (Exception) { Logger.LogWarning("Cloud usage summary lookup failed."); summaryStatus = "Daily breakdown is temporarily unavailable."; }
+            }
             if (generation != _generation) return;
-            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; status = "The authenticated identity is no longer available."; }
-            _page = page; _pageIndex = pageIndex; _status = status;
+            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; summary = null; status = "The authenticated identity is no longer available."; }
+            _page = page; _pageIndex = pageIndex; _status = status; _summary = summary; _summaryStatus = summaryStatus;
         }
         catch (Exception)
         {

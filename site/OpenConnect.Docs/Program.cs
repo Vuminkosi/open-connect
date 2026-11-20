@@ -112,6 +112,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudQuotaService>();
     builder.Services.AddScoped<ICloudUsageReader, EfCloudUsageReader>();
     builder.Services.AddScoped<CloudUsageQueryService>();
+    builder.Services.AddScoped<ICloudUsageSummaryReader, EfCloudUsageSummaryReader>();
+    builder.Services.AddScoped<CloudUsageSummaryService>();
     builder.Services.AddScoped<ICloudQuotaRecoveryStore, EfCloudQuotaRecoveryStore>();
     builder.Services.AddScoped<CloudQuotaRecovery>();
     if (builder.Configuration.GetValue<bool>("OpenConnect:Cloud:QuotaRecovery:Enabled"))

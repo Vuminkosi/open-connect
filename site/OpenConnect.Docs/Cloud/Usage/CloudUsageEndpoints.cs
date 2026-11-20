@@ -20,6 +20,19 @@ public static class CloudUsageEndpoints
             return page is null ? Results.NotFound() : Results.Ok(page);
         });
 
+        group.MapGet("/tenants/{tenantId:guid}/usage/summary", async (
+            Guid tenantId, DateTimeOffset? from, DateTimeOffset? to, ClaimsPrincipal principal, HttpContext context,
+            CloudUsageSummaryService service, CancellationToken cancellationToken) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            if (tenantId == Guid.Empty || from is null || to is null || from >= to || to.Value - from.Value > TimeSpan.FromDays(93))
+                return Results.BadRequest();
+            var summary = await service.GetTenantAsync(subject, tenantId, from.Value, to.Value, cancellationToken);
+            return summary is null ? Results.NotFound() : Results.Ok(summary);
+        });
+
         group.MapGet("/tenants/{tenantId:guid}/usage/export", async (
             Guid tenantId, DateTimeOffset? from, DateTimeOffset? to, ClaimsPrincipal principal, HttpContext context,
             CloudUsageQueryService service, CancellationToken cancellationToken) =>

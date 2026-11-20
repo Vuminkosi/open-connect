@@ -94,6 +94,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [x] Add audited, tenant-scoped finalized usage records with UTC filters and keyset pagination in the API and organization workspace; aggregates, billing and browser acceptance remain outstanding.
 - [x] Add bounded, audited usage CSV export with role checks and spreadsheet-formula protection; production browser acceptance remains outstanding.
+- [x] Add a bounded, audited UTC daily usage breakdown by application, capability and unit; billing and production browser acceptance remain outstanding.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
 - [x] Add a separate persistent deployment inventory with opaque endpoint references, model/image digest metadata, multiple deployments per capability, and optimistic revision checks.
 - [x] Add a read-only operator inventory API gated by explicitly configured, provider-bound issuer/subject identities.

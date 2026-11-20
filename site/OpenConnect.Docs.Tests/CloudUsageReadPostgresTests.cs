@@ -60,6 +60,20 @@ public sealed class CloudUsageReadPostgresTests
         Assert.Equal(3, all.Select(x => x.ReservationId).Distinct().Count());
         Assert.All(all, x => { Assert.Equal(app.Id, x.ApplicationId); Assert.Equal("request", x.Unit); });
         Assert.Contains(all, x => x.Quantity == 0);
+        var summaries = new CloudUsageSummaryService(new EfCloudUsageSummaryReader(factory, TimeProvider.System));
+        var summary = await summaries.GetTenantAsync(billing, tenant.Id, now.AddDays(-1), now.AddDays(1), default);
+        Assert.NotNull(summary); Assert.False(summary.LimitExceeded); Assert.Single(summary.Totals);
+        Assert.Equal(now.UtcDateTime.Date, summary.Totals[0].DayUtc);
+        Assert.Equal(app.Id, summary.Totals[0].ApplicationId); Assert.Equal(2, summary.Totals[0].Quantity); Assert.Equal(3, summary.Totals[0].Records);
+        var alternateOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE") + ";Timezone=Pacific/Auckland").Options;
+        var alternate = new CloudUsageSummaryService(new EfCloudUsageSummaryReader(new TestFactory(alternateOptions), TimeProvider.System));
+        var alternateSummary = await alternate.GetTenantAsync(billing, tenant.Id, now.AddDays(-1), now.AddDays(1), default);
+        Assert.Equal(now.UtcDateTime.Date, Assert.Single(alternateSummary!.Totals).DayUtc);
+        Assert.Empty((await summaries.GetTenantAsync(billing, tenant.Id, now.AddDays(1), now.AddDays(2), default))!.Totals);
+        Assert.Null(await summaries.GetTenantAsync(developer, tenant.Id, now.AddDays(-1), now.AddDays(1), default));
+        Assert.Null(await summaries.GetTenantAsync(new CloudSubject("issuer-b", billing.SubjectId), tenant.Id, now.AddDays(-1), now.AddDays(1), default));
+        Assert.Null(await summaries.GetTenantAsync(billing, other.Id, now.AddDays(-1), now.AddDays(1), default));
         Assert.Empty((await service.GetTenantAsync(billing, tenant.Id, now.AddDays(1), now.AddDays(2), null, 2, default))!.Entries);
         Assert.Null(await service.GetTenantAsync(developer, tenant.Id, null, null, null, 2, default));
         Assert.Null(await service.GetTenantAsync(new CloudSubject("issuer-b", billing.SubjectId), tenant.Id, null, null, null, 2, default));
@@ -83,6 +97,8 @@ public sealed class CloudUsageReadPostgresTests
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ICloudUsageReader, EfCloudUsageReader>();
         builder.Services.AddScoped<CloudUsageQueryService>();
+        builder.Services.AddScoped<ICloudUsageSummaryReader, EfCloudUsageSummaryReader>();
+        builder.Services.AddScoped<CloudUsageSummaryService>();
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; });
         builder.Services.AddAuthorization(options => options.AddPolicy("CloudApi", policy =>
@@ -100,8 +116,10 @@ public sealed class CloudUsageReadPostgresTests
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(address) };
         var path = $"/cloud/api/v1/tenants/{tenantId}/usage";
         var export = path + "/export?from=2026-01-01T00%3A00%3A00Z&to=2026-01-04T00%3A00%3A00Z";
+        var summaryPath = path + "/summary?from=2026-01-01T00%3A00%3A00Z&to=2026-01-04T00%3A00%3A00Z";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(export)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(summaryPath)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test-sign-in/billing")).StatusCode);
         var response = await client.GetAsync(path + "?limit=2");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
@@ -114,6 +132,11 @@ public sealed class CloudUsageReadPostgresTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/cloud/api/v1/tenants/{otherTenant}/usage")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(path + "/export")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(path + "/export?from=2026-01-01T00%3A00%3A00Z&to=2027-01-01T00%3A00%3A00Z")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(path + "/summary")).StatusCode);
+        var summaryResponse = await client.GetAsync(summaryPath);
+        Assert.Equal(HttpStatusCode.OK, summaryResponse.StatusCode); Assert.Equal("no-store", summaryResponse.Headers.CacheControl?.ToString());
+        var summary = await summaryResponse.Content.ReadFromJsonAsync<CloudUsageSummary>();
+        Assert.Single(summary!.Totals); Assert.Equal(2, summary.Totals[0].Quantity);
         var csv = await client.GetAsync(export);
         Assert.Equal(HttpStatusCode.OK, csv.StatusCode);
         Assert.Equal("no-store", csv.Headers.CacheControl?.ToString());
@@ -128,6 +151,7 @@ public sealed class CloudUsageReadPostgresTests
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test-sign-in/developer")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(export)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(summaryPath)).StatusCode);
         await using (var db = await factory.CreateDbContextAsync())
         {
             Assert.True(await db.AuditEvents.AnyAsync(x => x.TenantId == tenantId && x.Action == "usage.records.export" && x.Outcome == "forbidden"));
@@ -144,6 +168,23 @@ public sealed class CloudUsageReadPostgresTests
         Assert.DoesNotContain("classification.classify", await tooLarge.Content.ReadAsStringAsync());
         await using (var db = await factory.CreateDbContextAsync())
             Assert.True(await db.AuditEvents.AnyAsync(x => x.TenantId == tenantId && x.Action == "usage.records.export" && x.Outcome == "limit_exceeded"));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var recorded = new DateTimeOffset(2026, 1, 2, 12, 0, 0, TimeSpan.Zero);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                WITH buckets AS (
+                    INSERT INTO cloud.quota_buckets ("Id", "TenantId", "ApplicationId", "CapabilityId", "Unit", "PeriodStart", "PeriodEnd", "Limit", "Consumed", "Reserved")
+                    SELECT gen_random_uuid(), {tenantId}, {applicationId}, 'classification.classify', 'fixture-' || n, {recorded.AddDays(-1)}, {recorded.AddDays(1)}, 1, 0, 0
+                    FROM generate_series(1, 1001) AS n RETURNING "Id"
+                )
+                INSERT INTO cloud.quota_reservations ("Id", "BucketId", "TenantId", "ApplicationId", "RequestId", "Amount", "Actual", "ExpiresAt", "FinalizedAt")
+                SELECT gen_random_uuid(), "Id", {tenantId}, {applicationId}, gen_random_uuid(), 1, 1, {recorded.AddHours(1)}, {recorded} FROM buckets
+                """);
+        }
+        var limitedResponse = await client.GetFromJsonAsync<CloudUsageSummary>(summaryPath);
+        Assert.True(limitedResponse!.LimitExceeded); Assert.Empty(limitedResponse.Totals);
+        await using (var db = await factory.CreateDbContextAsync())
+            Assert.True(await db.AuditEvents.AnyAsync(x => x.TenantId == tenantId && x.Action == "usage.summary.read" && x.Outcome == "limit_exceeded"));
     }
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>
