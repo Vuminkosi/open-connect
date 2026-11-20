@@ -22,6 +22,7 @@ public sealed class CloudQuotaReservation
     public Guid ApplicationId { get; set; }
     public Guid RequestId { get; set; }
     public byte[]? RequestFingerprint { get; set; }
+    public string? FingerprintKeyId { get; set; }
     public long Amount { get; set; }
     public long? Actual { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }

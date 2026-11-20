@@ -417,6 +417,10 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<DateTimeOffset?>("FinalizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("FingerprintKeyId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<byte[]>("RequestFingerprint")
                         .HasColumnType("bytea");
 

@@ -165,6 +165,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
                 "\"Amount\" > 0 AND (\"Actual\" IS NULL OR (\"Actual\" >= 0 AND \"Actual\" <= \"Amount\")) AND ((\"Actual\" IS NULL) = (\"FinalizedAt\" IS NULL)) AND (\"RequestFingerprint\" IS NULL OR octet_length(\"RequestFingerprint\") = 32)"));
             entity.HasKey(x => x.Id);
             entity.Property(x => x.RequestFingerprint).HasColumnType("bytea");
+            entity.Property(x => x.FingerprintKeyId).HasMaxLength(64);
             entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.RequestId }).IsUnique();
             entity.HasOne<CloudQuotaBucket>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.ApplicationId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.BucketId }).OnDelete(DeleteBehavior.Restrict);
