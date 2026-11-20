@@ -35,6 +35,16 @@ public class CloudCredentialPostgresTests
         Assert.Equal("invalid_expiration", noExpiry.Status);
         var initial = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         Assert.Equal("succeeded", initial.Status);
+        Assert.NotNull(await normal.ValidateAsync(initial.Secret, CancellationToken.None));
+        var altered = initial.Secret![..^1] + (initial.Secret[^1] == 'A' ? 'B' : 'A');
+        Assert.Null(await normal.ValidateAsync(altered, CancellationToken.None));
+        Assert.Null(await normal.ValidateAsync(initial.Secret.Replace("oc_dev_", "oc_prd_", StringComparison.Ordinal), CancellationToken.None));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var storedHash = (await db.Credentials.AsNoTracking().SingleAsync(x => x.Id == initial.Credential!.Id)).KeyHash;
+            Assert.Equal(32, storedHash.Length);
+            Assert.NotEqual(System.Text.Encoding.UTF8.GetBytes(initial.Secret), storedHash);
+        }
         var raceCredential = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         var credentialGate = new SelectionReadGate("FROM cloud.credentials");
         var credentialOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(credentialGate).Options;

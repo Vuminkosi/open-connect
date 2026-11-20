@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
@@ -120,22 +118,17 @@ public sealed class CloudCredentialService(
 
     public async Task<CloudCredentialIdentity?> ValidateAsync(string? presentedSecret, CancellationToken cancellationToken)
     {
-        if (!TryReadCredentialId(presentedSecret, out var credentialId)) return null;
+        if (!CloudCredentialSecrets.TryReadId(presentedSecret, out var credentialId)) return null;
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         var credential = await db.Credentials.SingleOrDefaultAsync(x => x.Id == credentialId, cancellationToken);
         if (credential is null || credential.RevokedAt is not null ||
             credential.ExpiresAt is null || credential.ExpiresAt <= timeProvider.GetUtcNow() ||
-            !HasExpectedEnvironmentTag(presentedSecret!, credential.Environment))
+            !CloudCredentialSecrets.HasExpectedEnvironmentTag(presentedSecret!, credential.Environment))
         {
             return null;
         }
 
-        var presentedBytes = Encoding.UTF8.GetBytes(presentedSecret!);
-        var presentedHash = SHA256.HashData(presentedBytes);
-        CryptographicOperations.ZeroMemory(presentedBytes);
-        var matches = CryptographicOperations.FixedTimeEquals(presentedHash, credential.KeyHash);
-        CryptographicOperations.ZeroMemory(presentedHash);
-        if (!matches) return null;
+        if (!CloudCredentialSecrets.Matches(presentedSecret!, credential.KeyHash)) return null;
         if (!await db.Applications.AsNoTracking().AnyAsync(
                 x => x.TenantId == credential.TenantId && x.Id == credential.ApplicationId && x.Environment == credential.Environment,
                 cancellationToken))
@@ -178,42 +171,15 @@ public sealed class CloudCredentialService(
     private static (CloudCredential Credential, string Secret) NewCredential(
         Guid tenantId, CloudApplication application, IReadOnlyList<string> scopes, DateTimeOffset? expiresAt, DateTimeOffset now)
     {
-        var id = Guid.NewGuid();
-        var tag = EnvironmentTag(application.Environment);
-        var randomSecret = RandomNumberGenerator.GetBytes(32);
-        var token = $"oc_{tag}_{id:N}_{Base64Url(randomSecret)}";
-        CryptographicOperations.ZeroMemory(randomSecret);
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        var material = CloudCredentialSecrets.Create(application.Environment);
         var credential = new CloudCredential
         {
-            Id = id, TenantId = tenantId, ApplicationId = application.Id, Environment = application.Environment,
-            KeyHash = hash, Fingerprint = Convert.ToHexString(hash.AsSpan(0, 6)),
+            Id = material.Id, TenantId = tenantId, ApplicationId = application.Id, Environment = application.Environment,
+            KeyHash = material.Hash, Fingerprint = material.Fingerprint,
             Scopes = JsonSerializer.Serialize(scopes), IssuedAt = now, ExpiresAt = expiresAt?.ToUniversalTime(),
         };
-        return (credential, token);
+        return (credential, material.Secret);
     }
-
-    private static string EnvironmentTag(string environment) => environment switch
-    {
-        "Development" => "dev",
-        "Staging" => "stg",
-        "Production" => "prd",
-        _ => throw new InvalidOperationException("The application environment is invalid."),
-    };
-
-    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static bool TryReadCredentialId(string? token, out Guid id)
-    {
-        id = Guid.Empty;
-        if (string.IsNullOrWhiteSpace(token) || token.Length > 160) return false;
-        var parts = token.Split('_', 4);
-        return parts.Length == 4 && parts[0] == "oc" && Guid.TryParseExact(parts[2], "N", out id) &&
-            parts[3].Length >= 40 && parts[3].Length <= 48;
-    }
-
-    private static bool HasExpectedEnvironmentTag(string token, string environment) =>
-        token.StartsWith($"oc_{EnvironmentTag(environment)}_", StringComparison.Ordinal);
 
     private static CloudCredentialSummary ToSummary(CloudCredential credential) => new(
         credential.Id, credential.TenantId, credential.ApplicationId, credential.Environment, credential.Fingerprint,
