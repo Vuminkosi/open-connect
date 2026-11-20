@@ -11,6 +11,27 @@ namespace OpenConnect.Agents.Tests;
 public sealed class MafDurableSessionTests
 {
     [Fact]
+    public async Task Deadline_cancels_in_flight_model_and_prevents_persistence()
+    {
+        var binding = Binding();
+        var client = new Client { WaitForCancellation = true };
+        var store = new MemoryStore();
+        var (runner, context) = Runner(client, binding);
+        context = context with { Deadline = DateTimeOffset.UtcNow.AddSeconds(2) };
+        var ownership = new Ownership();
+        var persistence = new NativeAgentSessionPersistence(store, new PassthroughProtector());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runner.TurnDurableAsync("wait", context,
+            (_, _) => ValueTask.FromResult(false), Persistence(persistence, binding, new Gate { Handle = ownership }))
+            .WaitAsync(TimeSpan.FromSeconds(5)));
+
+        Assert.Equal(1, client.Calls);
+        Assert.Equal(0, store.Saves);
+        Assert.True(ownership.Disposed);
+        Assert.Empty(runner.History);
+    }
+
+    [Fact]
     public async Task Durable_resume_uses_current_host_tools_not_previous_connection_tools()
     {
         var binding = Binding();
@@ -270,9 +291,10 @@ public sealed class MafDurableSessionTests
         public ChatOptions? LastOptions { get; private set; }
         public Action<CancellationToken>? OnCall { get; init; }
         public bool Fail { get; init; }
+        public bool WaitForCancellation { get; init; }
         public ChatClientMetadata Metadata { get; } = new("durable-test");
-        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
-        { cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); if (Fail) throw new InvalidOperationException("model failure"); LastRequest = messages.ToArray(); LastOptions = options; return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply"))); }
+        public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+        { cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); if (Fail) throw new InvalidOperationException("model failure"); LastRequest = messages.ToArray(); LastOptions = options; if (WaitForCancellation) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); return new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply")); }
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         { var response = await GetResponseAsync(messages, options, cancellationToken); yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text); }
         public object? GetService(Type serviceType, object? serviceKey = null) => null;

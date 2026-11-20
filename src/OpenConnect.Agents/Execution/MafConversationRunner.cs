@@ -265,6 +265,12 @@ public sealed class MafConversationRunner
         }
         using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, executionContext.CancellationToken);
+        var remaining = executionContext.Deadline - DateTimeOffset.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+            throw new UnauthorizedAccessException("The execution is expired or authorization has been revoked.");
+        // CancellationTokenSource timers have a finite maximum; cancel early for longer deadlines rather than leave work unbounded.
+        var maximumTimer = TimeSpan.FromMilliseconds(uint.MaxValue - 1d);
+        requestCancellation.CancelAfter(remaining < maximumTimer ? remaining : maximumTimer);
         var requestToken = requestCancellation.Token;
         await EnsureAuthorizedAsync(executionContext, isExecutionRevoked, requestToken).ConfigureAwait(false);
         PinMode(true, binding);
