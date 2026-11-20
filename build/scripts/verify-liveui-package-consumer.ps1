@@ -63,6 +63,15 @@ $globalPackages = [System.Security.SecurityElement]::Escape($packageCache)
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddOpenConnectLiveUIBlazor();
+await using var app = builder.Build();
+await using var scope = app.Services.CreateAsyncScope();
+_ = scope.ServiceProvider.GetRequiredService<ILiveUIRuntime>();
+_ = scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>();
+var authorizer = scope.ServiceProvider.GetRequiredService<ILiveUIActionAuthorizer>();
+
 var manifest = LiveUICompiledManifestLoader.LoadFromEntryAssembly();
 if (manifest is null || manifest.Routes.Count == 0)
 {
@@ -76,6 +85,13 @@ var button = route.Targets.SingleOrDefault(target => target.Kind == LiveUITarget
 if (!button.Capabilities.Contains(LiveUICapability.Activate) || !button.Capabilities.Contains(LiveUICapability.Highlight))
 {
     throw new InvalidOperationException("The unannotated Continue button is missing its baseline capabilities.");
+}
+var action = new LiveUIAction("action-1", manifest.SchemaVersion, "session-1", manifest.ContentHash,
+    route.Id, button.Id, LiveUIActionType.Click, new LiveUIActionParameters(), TimeSpan.FromSeconds(5));
+var decision = await authorizer.AuthorizeAsync(new LiveUIExecutionContext(manifest, route, button, action));
+if (decision.Allowed || decision.Code != "authorization_policy_not_configured")
+{
+    throw new InvalidOperationException("The packaged SDK must deny actions without a host authorization policy.");
 }
 
 Console.WriteLine($"consumer-ok:{route.Id}:{route.Targets.Count}:{button.Id}");
@@ -95,4 +111,4 @@ if ($exitCode -ne 0) { throw "The package consumer failed on $Framework with exi
 if (($runOutput -join "`n") -notmatch 'consumer-ok:route\.root:\d+:route\.root\.home-razor-button-continue') {
   throw "The consumer did not load an embedded manifest with the unannotated button target on $Framework."
 }
-Write-Host "PASS: packaged Blazor compiler discovered an unannotated button on $Framework (consumer at $consumer)."
+Write-Host "PASS: packaged Blazor services resolve, deny by default, and discover an unannotated button on $Framework (consumer at $consumer)."
