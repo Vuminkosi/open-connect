@@ -34,6 +34,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.SubjectIssuer).HasMaxLength(2048).IsRequired();
             entity.Property(x => x.SubjectId).HasMaxLength(1024).IsRequired();
             entity.Property(x => x.Role).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Revision).HasDefaultValue(1).IsConcurrencyToken();
             entity.HasIndex(x => new { x.SubjectIssuer, x.SubjectId });
             entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -144,6 +145,7 @@ public sealed class CloudMembership
     public required string SubjectIssuer { get; set; }
     public required string SubjectId { get; set; }
     public required string Role { get; set; }
+    public int Revision { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
 }
 

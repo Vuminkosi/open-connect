@@ -19,6 +19,60 @@ public sealed class CloudPostgresFactAttribute : FactAttribute
 public class CloudTenantPostgresTests
 {
     [CloudPostgresFact]
+    public async Task ConcurrentOwnerDemotionsCannotRemoveBothOwners()
+    {
+        var connection = Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE");
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        var first = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var second = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var store = new EfCloudTenantStore(factory, TimeProvider.System);
+        var tenant = await store.CreateTenantAsync(first, "Owner concurrency", CancellationToken.None);
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = second.Issuer, SubjectId = second.SubjectId,
+                Role = "Owner", CreatedAt = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+        var gate = new OwnerCountGate();
+        var gatedOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(gate).Options;
+        var gatedStore = new EfCloudTenantStore(new TestFactory(gatedOptions), TimeProvider.System);
+        var changes = await Task.WhenAll(
+            gatedStore.ChangeMemberAsync(first, tenant.Id, second, "Developer", 1, CancellationToken.None),
+            gatedStore.ChangeMemberAsync(second, tenant.Id, first, "Developer", 1, CancellationToken.None));
+        Assert.Single(changes, x => x.Status == "succeeded");
+        Assert.Single(changes, x => x.Status == "conflict");
+        await using var verify = await factory.CreateDbContextAsync();
+        Assert.Equal(1, await verify.Memberships.CountAsync(x => x.TenantId == tenant.Id && x.Role == "Owner"));
+        Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "membership.role_changed.Owner.Developer"));
+    }
+
+    [CloudPostgresFact]
+    public async Task MembershipChangesEnforceRoleRevisionAndLastOwner()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var store = new EfCloudTenantStore(factory, TimeProvider.System);
+        var tenant = await store.CreateTenantAsync(owner, "Membership changes", CancellationToken.None);
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer, SubjectId = developer.SubjectId,
+                Role = "Developer", CreatedAt = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal("forbidden", (await store.ChangeMemberAsync(developer, tenant.Id, owner, "Developer", 1, CancellationToken.None)).Status);
+        Assert.Equal("last_owner", (await store.ChangeMemberAsync(owner, tenant.Id, owner, null, 1, CancellationToken.None)).Status);
+        Assert.Equal("succeeded", (await store.ChangeMemberAsync(owner, tenant.Id, developer, "Administrator", 1, CancellationToken.None)).Status);
+        Assert.Equal("conflict", (await store.ChangeMemberAsync(owner, tenant.Id, developer, null, 1, CancellationToken.None)).Status);
+        Assert.Equal("succeeded", (await store.ChangeMemberAsync(owner, tenant.Id, developer, null, 2, CancellationToken.None)).Status);
+        Assert.Null(await store.GetMembersAsync(developer, tenant.Id, CancellationToken.None));
+    }
+
+    [CloudPostgresFact]
     public async Task MemberDirectoryRequiresPrivilegedMembershipAndIsTenantScoped()
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
@@ -125,6 +179,21 @@ public class CloudTenantPostgresTests
             {
                 ReadStarted.TrySetResult();
                 await Resume.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            }
+            return result;
+        }
+    }
+
+    private sealed class OwnerCountGate : DbCommandInterceptor
+    {
+        private int _count;
+        private readonly TaskCompletionSource _both = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData, DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("count(", StringComparison.OrdinalIgnoreCase) && command.CommandText.Contains("cloud.memberships", StringComparison.Ordinal))
+            {
+                if (Interlocked.Increment(ref _count) == 2) _both.TrySetResult();
+                await _both.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             }
             return result;
         }

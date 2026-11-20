@@ -20,7 +20,8 @@ else if (_status is not null)
 }
 else
 {
-    <p>Members are identified by their identity provider and subject. Invitations and role changes are not yet available.</p>
+    <p>Members are identified by their identity provider and subject. Invitations are not yet available.</p>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
     @if (_members.Count == 0)
     {
         <p>No members are available.</p>
@@ -35,6 +36,24 @@ else
                     <span>Identity provider: @member.Issuer</span>
                     <span>Subject: @member.SubjectId</span>
                     <span>Joined: @member.CreatedAt.ToString("u")</span>
+                    @if (_isOwner)
+                    {
+                        <label for="@RoleId(member)">Role for @member.SubjectId</label>
+                        <select id="@RoleId(member)" disabled="@(!_interactive || _busy)" value="@_roles[(member.Issuer, member.SubjectId)]" @onchange="e => _roles[(member.Issuer, member.SubjectId)] = e.Value?.ToString() ?? member.Role">
+                            <option>Owner</option><option>Administrator</option><option>SecurityAnalyst</option><option>Developer</option><option>BillingReader</option>
+                        </select>
+                        <button type="button" class="button" aria-label="@($"Save role for {member.SubjectId}")" disabled="@(!_interactive || _busy)" @onclick="() => ChangeAsync(member, false)">Save role</button>
+                        @if (_confirmRemove == (member.Issuer, member.SubjectId))
+                        {
+                            <span>Remove this member?</span>
+                            <button type="button" class="button" aria-label="@($"Confirm removal of {member.SubjectId}")" disabled="@(!_interactive || _busy)" @onclick="() => ChangeAsync(member, true)">Confirm removal</button>
+                            <button type="button" class="button" disabled="@_busy" @onclick="() => _confirmRemove = null">Cancel</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="button" aria-label="@($"Remove {member.SubjectId}")" disabled="@(!_interactive || _busy)" @onclick="() => _confirmRemove = (member.Issuer, member.SubjectId)">Remove</button>
+                        }
+                    }
                 </li>
             }
         </ul>
@@ -46,7 +65,18 @@ else
     private IReadOnlyList<CloudMemberSummary> _members = [];
     private string? _status;
     private bool _loading = true;
+    private bool _interactive;
+    private bool _busy;
+    private bool _isOwner;
+    private string? _notice;
+    private (string, string)? _confirmRemove;
+    private readonly Dictionary<(string, string), string> _roles = [];
     private int _generation;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) { _interactive = true; StateHasChanged(); }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -54,6 +84,10 @@ else
         var tenantId = TenantId;
         _members = [];
         _status = null;
+        _notice = null;
+        _isOwner = false;
+        _confirmRemove = null;
+        _roles.Clear();
         _loading = true;
         try
         {
@@ -66,10 +100,16 @@ else
                 _status = "The member directory is unavailable.";
                 return;
             }
+            var tenants = await service.GetTenantsAsync(subject, CancellationToken.None);
             var members = await service.GetMembersAsync(subject, tenantId, CancellationToken.None);
             if (generation != _generation) return;
             if (members is null) _status = "The organization was not found or you do not have access.";
-            else _members = members;
+            else
+            {
+                _members = members;
+                _isOwner = tenants.Any(x => x.Id == tenantId && x.Role == "Owner");
+                foreach (var member in members) _roles[(member.Issuer, member.SubjectId)] = member.Role;
+            }
         }
         catch (Exception)
         {
@@ -80,5 +120,42 @@ else
         {
             if (generation == _generation) _loading = false;
         }
+    }
+
+    private static string RoleId(CloudMemberSummary member) => "member-role-" +
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{member.Issuer.Length}:{member.Issuer}{member.SubjectId}")));
+
+    private async Task ChangeAsync(CloudMemberSummary member, bool remove)
+    {
+        var generation = _generation;
+        var tenantId = TenantId;
+        _busy = true;
+        _notice = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var subject = CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (service is null || subject is null) { _notice = "The member directory is unavailable."; return; }
+            var result = await service.ChangeMemberAsync(subject, tenantId,
+                new CloudMemberChangeRequest(member.Issuer, member.SubjectId, _roles[(member.Issuer, member.SubjectId)]), member.Revision, remove, CancellationToken.None);
+            if (generation != _generation) return;
+            await OnParametersSetAsync();
+            if (_generation != generation + 1) return;
+            _notice = result.Status switch
+            {
+                "succeeded" => remove ? "Member removed." : "Role updated.",
+                "last_owner" => "The organization must retain an owner.",
+                "conflict" => "Membership changed. Review the latest information and try again.",
+                _ => "The membership change was not completed.",
+            };
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud membership change failed.");
+            if (generation == _generation) _notice = "The membership change was not confirmed. Reload before retrying.";
+        }
+        finally { if (_generation == generation || _generation == generation + 1) _busy = false; }
     }
 }

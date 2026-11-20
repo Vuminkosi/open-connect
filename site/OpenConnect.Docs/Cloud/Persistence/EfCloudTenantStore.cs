@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -54,8 +57,43 @@ public sealed class EfCloudTenantStore(
                 db.Memberships.Any(actor => actor.TenantId == tenantId && actor.SubjectIssuer == subject.Issuer &&
                     actor.SubjectId == subject.SubjectId && (actor.Role == "Owner" || actor.Role == "Administrator")))
             .OrderBy(x => x.SubjectIssuer).ThenBy(x => x.SubjectId)
-            .Select(x => new CloudMemberSummary(x.SubjectIssuer, x.SubjectId, x.Role, x.CreatedAt))
+            .Select(x => new CloudMemberSummary(x.SubjectIssuer, x.SubjectId, x.Role, x.CreatedAt, x.Revision))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<CloudMemberChangeResult> ChangeMemberAsync(
+        CloudSubject actor, Guid tenantId, CloudSubject target, string? role, int expectedRevision, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        var actorRole = await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
+            x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId).Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
+        if (actorRole is null) return new("not_found");
+        if (actorRole != TenantOwner) return new("forbidden");
+        var member = await db.Memberships.SingleOrDefaultAsync(x => x.TenantId == tenantId &&
+            x.SubjectIssuer == target.Issuer && x.SubjectId == target.SubjectId, cancellationToken);
+        if (member is null) return new("not_found");
+        if (member.Revision != expectedRevision) return new("conflict", member.Revision);
+        if (member.Role == TenantOwner && role != TenantOwner &&
+            await db.Memberships.CountAsync(x => x.TenantId == tenantId && x.Role == TenantOwner, cancellationToken) <= 1)
+            return new("last_owner");
+
+        var revision = member.Revision + 1;
+        var previousRole = member.Role;
+        if (role is null) db.Memberships.Remove(member);
+        else { member.Role = role; member.Revision = revision; }
+        var targetHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{target.Issuer.Length}:{target.Issuer}{target.SubjectId}")));
+        var action = role is null ? $"membership.removed.{previousRole}" : $"membership.role_changed.{previousRole}.{role}";
+        db.AuditEvents.Add(CreateAudit(actor, tenantId, actorRole, action, targetHash, timeProvider.GetUtcNow()));
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new("succeeded", role is null ? null : revision);
+        }
+        catch (DbUpdateConcurrencyException) { return new("conflict"); }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }) { return new("conflict"); }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { return new("conflict"); }
     }
 
     public async Task<IReadOnlyList<CloudApplicationSummary>?> GetApplicationsAsync(

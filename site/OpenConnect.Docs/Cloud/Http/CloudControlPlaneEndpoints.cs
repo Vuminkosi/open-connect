@@ -72,6 +72,30 @@ public static class CloudControlPlaneEndpoints
             return members is null ? Results.NotFound() : Results.Ok(new { members });
         });
 
+        group.MapPut("/tenants/{tenantId:guid}/members/role", async (
+            Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
+            IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
+        {
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
+                return Results.Problem(statusCode: 428, title: "A membership revision is required.");
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, false, cancellationToken));
+        });
+
+        group.MapPost("/tenants/{tenantId:guid}/members/remove", async (
+            Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
+            IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
+        {
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
+                return Results.Problem(statusCode: 428, title: "A membership revision is required.");
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, true, cancellationToken));
+        });
+
         group.MapGet("/capabilities", async (CloudCapabilityService service, CancellationToken cancellationToken) =>
             Results.Ok(new { capabilities = await service.GetCatalogAsync(cancellationToken) }));
 
@@ -335,6 +359,26 @@ public static class CloudControlPlaneEndpoints
             "capability_disabled" => (StatusCodes.Status409Conflict, "Enable the organization capability before selecting it for an application."),
             "conflict" => (StatusCodes.Status409Conflict, "Capability selection changed; reload its current revision."),
             _ => (StatusCodes.Status500InternalServerError, "Capability selection failed."),
+        };
+        return Results.Problem(statusCode: status, title: title,
+            extensions: new Dictionary<string, object?> { ["code"] = result.Status, ["currentRevision"] = result.Revision });
+    }
+
+    private static IResult MemberChangeResponse(HttpContext context, CloudMemberChangeResult result)
+    {
+        if (result.Status == "succeeded")
+        {
+            if (result.Revision is not null) context.Response.Headers.ETag = $"\"{result.Revision}\"";
+            return Results.NoContent();
+        }
+        var (status, title) = result.Status switch
+        {
+            "not_found" => (404, "Membership was not found."),
+            "forbidden" => (403, "Only an organization owner can change memberships."),
+            "invalid_request" => (422, "Membership change is invalid."),
+            "last_owner" => (409, "An organization must retain an owner."),
+            "conflict" => (409, "Membership changed; reload its current revision."),
+            _ => (500, "Membership change failed."),
         };
         return Results.Problem(statusCode: status, title: title,
             extensions: new Dictionary<string, object?> { ["code"] = result.Status, ["currentRevision"] = result.Revision });
