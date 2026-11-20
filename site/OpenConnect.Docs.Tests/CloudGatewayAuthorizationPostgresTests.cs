@@ -333,6 +333,10 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("reserved", nodeReservation.Status);
             var nodeClaim = await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId!.Value, classificationReference);
             Assert.Equal("claimed", nodeClaim.Status);
+            var python = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON");
+            var workerRoot = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT");
+            if (!string.IsNullOrWhiteSpace(python) && !string.IsNullOrWhiteSpace(workerRoot))
+                Assert.Equal("consumed,already_consumed", await PythonConsumeAsync(python, workerRoot, address, serverCertificate, workerCertificate, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value));
             var completionPath = $"/cloud/internal/v1/classification/quota/reservations/{nodeReservation.ReservationId:D}/claims/{nodeClaim.ClaimId:D}/completion";
             async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
             {
@@ -474,6 +478,32 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                         .SetProperty(y => y.AllowedRegions, originalClassificationRegions!).SetProperty(y => y.AllowedRegionsVerified, originalRegionsVerified));
             }
         }
+    }
+
+    private static async Task<string> PythonConsumeAsync(string python, string workerRoot, Uri address, X509Certificate2 server, X509Certificate2 client, Guid reservationId, Guid claimId)
+    {
+        const string script = "import os,tempfile,pathlib; from openconnect_classification.cloud_consumption import CloudConsumptionClient; " +
+            "d=tempfile.TemporaryDirectory(); p=pathlib.Path(d.name); " +
+            "[(p/n).write_text(os.environ[v],encoding='ascii') for n,v in [('ca','OC_CA'),('cert','OC_CERT'),('key','OC_KEY')]]; " +
+            "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); " +
+            "print(c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'])+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'])); d.cleanup()";
+        var start = new System.Diagnostics.ProcessStartInfo(python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
+        start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
+        start.Environment["OC_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_CERT"] = client.ExportCertificatePem();
+        using var privateKey = client.GetRSAPrivateKey()!;
+        start.Environment["OC_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
+        start.Environment["OC_ORIGIN"] = address.ToString();
+        start.Environment["OC_RESERVATION"] = reservationId.ToString("D");
+        start.Environment["OC_CLAIM"] = claimId.ToString("D");
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token);
+        Assert.True(process.ExitCode == 0, errors);
+        return output.Trim();
     }
 
     private static async Task<CloudFingerprintKeyLookup> NodeFingerprintKeyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid requestId)
