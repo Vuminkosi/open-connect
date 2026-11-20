@@ -11,6 +11,23 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const only = (value, allowed) => object(value) && Object.keys(value).every(key => allowed.includes(key));
 const guid = /^(?!00000000-0000-0000-0000-000000000000)[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
+// This is the exact payload whose fingerprint must be attached to the claim.
+export function prepareClassificationWorkerPayload(request) {
+    if (!object(request) || typeof request.requestId !== 'string' || !guid.test(request.requestId) ||
+        !object(request.input) || typeof request.input.text !== 'string' || [...request.input.text].length < 1 || [...request.input.text].length > 20000 ||
+        Object.keys(request.input).some(key => key !== 'text')) return null;
+    const config = request.configuration ?? {};
+    if (!only(config, ['labelSetVersion', 'localeHint', 'threshold', 'maxLabels'])) return null;
+    const labelSetVersion = config.labelSetVersion ?? 'v1';
+    if (!labelsByVersion.has(labelSetVersion) || (config.localeHint !== undefined && (typeof config.localeHint !== 'string' || [...config.localeHint].length > 16)) ||
+        (config.threshold !== undefined && (typeof config.threshold !== 'number' || !Number.isFinite(config.threshold) || config.threshold < 0 || config.threshold > 1)) ||
+        (config.maxLabels !== undefined && (!Number.isInteger(config.maxLabels) || config.maxLabels < 1 || config.maxLabels > 10))) return null;
+    const payload = Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.v1', taskId: request.requestId,
+        input: { text: request.input.text, ...config } }), 'utf8');
+    if (payload.length > 131072) { payload.fill(0); return null; }
+    return { payload, requestId: request.requestId, labelSetVersion };
+}
+
 // Worker output is untrusted. Only the versioned label vocabulary may leave this boundary.
 export function validateClassificationWorkerResponse(value, taskId, modelRevision, labelSetVersion) {
     if (!only(value, ['schemaVersion', 'taskId', 'status', 'result', 'error']) || value.schemaVersion !== 'openconnect.v1' ||
@@ -36,25 +53,12 @@ export function createClassificationDispatcher({ origin, ca, certificate, privat
         !ca || !certificate || !privateKey || typeof workerToken !== 'string' || !/^[\x21-\x7e]{1,512}$/.test(workerToken) ||
         typeof modelRevision !== 'string' || !modelRevision.trim() || modelRevision.length > 256 ||
         !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) throw new TypeError('Invalid classification dispatcher configuration.');
-    return Object.freeze({
-        async execute(request, signal, traceparent) {
-            if (signal?.aborted || !object(request) || typeof request.requestId !== 'string' || !guid.test(request.requestId) ||
-                !object(request.input) || typeof request.input.text !== 'string' || [...request.input.text].length < 1 || [...request.input.text].length > 20000 ||
-                Object.keys(request.input).some(key => key !== 'text')) return unavailable();
-            const config = request.configuration ?? {};
-            if (!only(config, ['labelSetVersion', 'localeHint', 'threshold', 'maxLabels'])) return unavailable();
-            const labelSetVersion = config.labelSetVersion ?? 'v1';
-            if (!labelsByVersion.has(labelSetVersion) || (config.localeHint !== undefined && (typeof config.localeHint !== 'string' || [...config.localeHint].length > 16)) ||
-                (config.threshold !== undefined && (typeof config.threshold !== 'number' || !Number.isFinite(config.threshold) || config.threshold < 0 || config.threshold > 1)) ||
-                (config.maxLabels !== undefined && (!Number.isInteger(config.maxLabels) || config.maxLabels < 1 || config.maxLabels > 10))) return unavailable();
-            const body = Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.v1', taskId: request.requestId,
-                input: { text: request.input.text, ...config } }), 'utf8');
-            if (body.length > 131072) { body.fill(0); return unavailable(); }
+    async function send(path, body, requestId, labelSetVersion, signal, traceparent) {
             return new Promise(resolve => {
                 let done = false; let timer;
                 const finish = value => { if (!done) { done = true; clearTimeout(timer); body.fill(0); resolve(value); } };
                 try {
-                    const outgoing = https.request(new URL('/internal/v1/execute', url), {
+                    const outgoing = https.request(new URL(path, url), {
                         method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
                         headers: { authorization: `Bearer ${workerToken}`, 'content-type': 'application/json', 'content-length': body.length,
                             accept: 'application/json', 'cache-control': 'no-store', ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
@@ -69,7 +73,7 @@ export function createClassificationDispatcher({ origin, ca, certificate, privat
                             try {
                                 combined = Buffer.concat(chunks);
                                 const text = new TextDecoder('utf-8', { fatal: true }).decode(combined);
-                                const result = validateClassificationWorkerResponse(parseUniqueJson(text), request.requestId, modelRevision, labelSetVersion);
+                                const result = validateClassificationWorkerResponse(parseUniqueJson(text), requestId, modelRevision, labelSetVersion);
                                 finish(result ? { status: 'completed', result } : unavailable());
                             } catch { finish(unavailable()); }
                             finally { combined?.fill(0); clear(); }
@@ -80,6 +84,32 @@ export function createClassificationDispatcher({ origin, ca, certificate, privat
                     outgoing.end(body, () => body.fill(0));
                 } catch { finish(unavailable()); }
             });
+    }
+    return Object.freeze({
+        async execute(request, signal, traceparent) {
+            if (signal?.aborted) return unavailable();
+            const prepared = prepareClassificationWorkerPayload(request);
+            return prepared ? send('/internal/v1/execute', prepared.payload, prepared.requestId, prepared.labelSetVersion, signal, traceparent) : unavailable();
+        },
+        async executeClaimed(prepared, claim, signal, traceparent) {
+            if (signal?.aborted || !prepared || !(prepared.payload instanceof Uint8Array) || prepared.payload.byteLength < 1 ||
+                prepared.payload.byteLength > 131072 || typeof prepared.requestId !== 'string' || !guid.test(prepared.requestId) ||
+                !labelsByVersion.has(prepared.labelSetVersion) || !claim || typeof claim.reservationId !== 'string' || !guid.test(claim.reservationId) ||
+                typeof claim.claimId !== 'string' || !guid.test(claim.claimId) || !(claim.key instanceof Uint8Array) || claim.key.byteLength !== 32)
+                return unavailable();
+            try {
+                const value = parseUniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(prepared.payload));
+                if (!only(value, ['schemaVersion', 'taskId', 'input']) || value.schemaVersion !== 'openconnect.v1' ||
+                    value.taskId !== prepared.requestId || !object(value.input) ||
+                    (value.input.labelSetVersion ?? 'v1') !== prepared.labelSetVersion) return unavailable();
+            } catch { return unavailable(); }
+            const payloadView = Buffer.from(prepared.payload.buffer, prepared.payload.byteOffset, prepared.payload.byteLength);
+            const keyView = Buffer.from(claim.key.buffer, claim.key.byteOffset, claim.key.byteLength);
+            const body = Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.worker.classification/v1',
+                reservationId: claim.reservationId, claimId: claim.claimId,
+                payload: payloadView.toString('base64'), key: keyView.toString('base64') }), 'utf8');
+            if (body.length > 180000) { body.fill(0); return unavailable(); }
+            return send('/internal/cloud/v1/classification/execute', body, prepared.requestId, prepared.labelSetVersion, signal, traceparent);
         },
     });
 }

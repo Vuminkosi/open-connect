@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createClassificationDispatcher, validateClassificationWorkerResponse } from './classification-dispatch.mjs';
+import { createClassificationDispatcher, prepareClassificationWorkerPayload, validateClassificationWorkerResponse } from './classification-dispatch.mjs';
 
 const id = '11111111-1111-1111-1111-111111111111';
 const good = () => ({ schemaVersion: 'openconnect.v1', taskId: id, status: 'completed', error: null,
@@ -29,4 +29,12 @@ test('dispatcher rejects unsafe destinations, requests, cancellation and invalid
     assert.deepEqual(await dispatcher.execute({ ...request, input: { inputRef: 'opaque' } }), { status: 'upstream_unavailable' });
     assert.deepEqual(await dispatcher.execute({ ...request, configuration: { labelSetVersion: 'unknown' } }), { status: 'upstream_unavailable' });
     assert.deepEqual(await dispatcher.execute(request), { status: 'upstream_unavailable' });
+    const prepared = prepareClassificationWorkerPayload(request);
+    assert.deepEqual(JSON.parse(prepared.payload.toString()), { schemaVersion: 'openconnect.v1', taskId: id, input: { text: 'private fixture' } });
+    assert.deepEqual(await dispatcher.executeClaimed(prepared, { reservationId: id, claimId: id, key: Buffer.alloc(31) }), { status: 'upstream_unavailable' });
+    assert.deepEqual(await dispatcher.executeClaimed(prepared, { reservationId: id, claimId: id, key: Buffer.alloc(32) }, controller.signal), { status: 'upstream_unavailable' });
+    assert.deepEqual(await dispatcher.executeClaimed({ ...prepared, requestId: '22222222-2222-2222-2222-222222222222' }, { reservationId: id, claimId: id, key: Buffer.alloc(32) }), { status: 'upstream_unavailable' });
+    assert.deepEqual(await dispatcher.executeClaimed({ ...prepared, labelSetVersion: 'v2' }, { reservationId: id, claimId: id, key: Buffer.alloc(32) }), { status: 'upstream_unavailable' });
+    assert.deepEqual(await dispatcher.executeClaimed(prepared, { reservationId: id, claimId: id, key: Buffer.alloc(32) }), { status: 'upstream_unavailable' });
+    prepared.payload.fill(0);
 });
