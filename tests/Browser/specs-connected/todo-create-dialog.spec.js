@@ -12,6 +12,13 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Add Task' }).click();
     await expect(dialog.getByText('Enter a task title.')).toBeVisible();
+    const invalid = await page.evaluate(async () => {
+      const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
+      const target = runtime.discoverTargets(500).find((item) => item.kind === 'Input' && item.label === 'Task Title');
+      return runtime.execute({ manifest: {}, route: { path: '/', targets: [] }, target: { ...target, id: 'test-title' },
+        action: { schemaVersion: 'openconnect.liveui/v1', type: 'Inspect', parameters: {} } }, 1000, true);
+    });
+    expect(invalid).toMatchObject({ outcome: 'Completed', verifiedState: 'control_invalid' });
     await dialog.getByRole('textbox', { name: 'Task Title' }).fill(title);
     await expect(dialog.getByText('Enter a task title.')).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);

@@ -502,6 +502,24 @@ public sealed class LiveUIOrchestratorTests
         Assert.Equal(0, runtime.Calls);
     }
 
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    public async Task ExecuteAsync_AllowsAuthorizedValidationState(string value)
+    {
+        var runtime = new RecordingRuntime();
+        var action = Action() with
+        {
+            Type = LiveUIActionType.WaitForState,
+            Parameters = new LiveUIActionParameters(StateName: "invalid", StateValue: value)
+        };
+
+        var receipt = await Create(runtime: runtime).ExecuteAsync(action);
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(1, runtime.Calls);
+    }
+
     [Fact]
     public async Task ExecuteAsync_EmitsLowCardinalityRuntimeMeasurements()
     {

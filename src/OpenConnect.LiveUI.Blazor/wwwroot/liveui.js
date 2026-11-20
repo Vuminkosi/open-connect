@@ -594,14 +594,21 @@ function inspect(element, target) {
     const selected = element.getAttribute("aria-selected") === "true";
     return result("Completed", "inspection_verified", true, selected ? "tab_selected" : "tab_unselected");
   }
-  if ("checked" in element) return result("Completed", "inspection_verified", true, element.checked ? "control_checked" : "control_unchecked");
+  if (target?.kind === "Checkbox" && "checked" in element)
+    return result("Completed", "inspection_verified", true, element.checked ? "control_checked" : "control_unchecked");
+  if (target?.kind === "Input" || target?.kind === "Select")
+    return result("Completed", "inspection_verified", true, isInvalidControl(element) ? "control_invalid" : "control_valid");
   return result("Completed", "inspection_verified", true, "control_visible");
+}
+
+function isInvalidControl(element) {
+  return element.getAttribute("aria-invalid") === "true" || (element.validity != null && !element.validity.valid);
 }
 
 function validateState(name, expected) {
   if (["textContains", "textNotContains"].includes(name))
     return typeof expected === "string" && normalize(expected) ? null : "state_value_invalid";
-  if (!["selected", "checked", "expanded", "visible", "exists"].includes(name)) return "state_name_invalid";
+  if (!["selected", "checked", "expanded", "visible", "exists", "invalid"].includes(name)) return "state_name_invalid";
   return expected == null || expected === "true" || expected === "false" ? null : "state_value_invalid";
 }
 
@@ -643,6 +650,7 @@ function stateMatches(element, name, expected) {
     case "selected": return (element.getAttribute("aria-selected") || element.getAttribute("aria-pressed")) === (expected || "true");
     case "checked": return "checked" in element && String(element.checked) === (expected || "true");
     case "expanded": return element.getAttribute("aria-expanded") === (expected || "true");
+    case "invalid": return ["input", "textarea", "select"].includes(element.tagName.toLowerCase()) && isInvalidControl(element) === (expected !== "false");
     case "visible": return isVisible(element) === (expected !== "false");
     case "exists": return element.isConnected === (expected !== "false");
     case "textContains": return typeof expected === "string" && !!normalize(expected) && normalize(element.innerText ?? "").includes(normalize(expected));
