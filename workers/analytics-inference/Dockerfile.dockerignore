@@ -1,0 +1,13 @@
+**
+!workers
+!workers/common
+!workers/common/pyproject.toml
+!workers/common/src
+!workers/common/src/**
+!workers/analytics-inference
+!workers/analytics-inference/pyproject.toml
+!workers/analytics-inference/uv.lock
+!workers/analytics-inference/src
+!workers/analytics-inference/src/**
+**/__pycache__
+**/*.pyc
