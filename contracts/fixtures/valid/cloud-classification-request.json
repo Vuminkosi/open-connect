@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "openconnect.cloud.classification/v1",
+  "requestId": "11111111-1111-1111-1111-111111111111",
+  "capability": "classification.classify",
+  "configuration": {"labelSetVersion": "v1", "threshold": 0.5, "maxLabels": 3},
+  "input": {"text": "A short example"}
+}

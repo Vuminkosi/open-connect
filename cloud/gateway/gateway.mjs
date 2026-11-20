@@ -1,3 +1,5 @@
+import { validateClassificationRequest } from './classification-request.mjs';
+
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
     ['/cloud/v1/liveui/plan', 'inference.liveui'],
@@ -18,6 +20,9 @@ const problems = {
     capability_disabled: [403, 'Capability disabled'],
     dependency_not_enabled: [403, 'Capability dependency unavailable'],
     invalid_request: [400, 'Invalid request'],
+    invalid_semantic_request: [422, 'Invalid classification request'],
+    payload_too_large: [413, 'Request body is too large'],
+    unsupported_media_type: [415, 'Unsupported media type'],
     capability_unavailable: [503, 'Cloud gateway is not ready'],
 };
 
@@ -25,7 +30,8 @@ function problem(code) {
     const safeCode = Object.hasOwn(problems, code) ? code : 'capability_unavailable';
     const [status, title] = problems[safeCode];
     const traceId = crypto.randomUUID();
-    return Response.json({ type: 'about:blank', title, status, code: safeCode, traceId },
+    const publicCode = ['invalid_semantic_request', 'payload_too_large', 'unsupported_media_type'].includes(safeCode) ? 'invalid_request' : safeCode;
+    return Response.json({ type: 'about:blank', title, status, code: publicCode, traceId },
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
@@ -50,6 +56,8 @@ export async function handle(request, { authorization, classificationProbe } = {
         try {
             const readiness = await classificationProbe.probe(request.signal);
             if (readiness?.ready !== true) return problem('capability_unavailable');
+            const validation = await validateClassificationRequest(request);
+            if (validation) return problem(validation);
         }
         catch { /* Readiness errors never enable execution or expose diagnostics. */ }
     }

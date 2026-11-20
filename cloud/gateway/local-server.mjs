@@ -8,11 +8,26 @@ export function createLocalServer(authorization, classificationProbe) {
             const authHeaders = request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === 'authorization');
             const headers = new Headers();
             if (authHeaders.length === 1 && request.headers.authorization) headers.set('authorization', request.headers.authorization);
+            for (const name of ['content-type', 'content-encoding', 'content-length']) {
+                const count = request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === name).length;
+                if (count === 1 && request.headers[name]) headers.set(name, request.headers[name]);
+                else if (count > 1) headers.set(name, 'invalid-duplicate-header');
+            }
             const controller = new AbortController();
             request.once('aborted', () => controller.abort());
             response.once('close', () => { if (!response.writableEnded) controller.abort(); });
-            const result = await handle({ url: new URL(request.url || '/', origin).href, method: request.method, headers, signal: controller.signal }, { authorization, classificationProbe });
-            // No Cloud request body is needed while admission is unavailable.
+            const readBody = async limit => {
+                const chunks = [];
+                let size = 0;
+                try {
+                    for await (const chunk of request.iterator({ destroyOnReturn: false })) {
+                        chunks.push(chunk); size += chunk.length;
+                        if (size > limit) return { tooLarge: true };
+                    }
+                    return { bytes: Buffer.concat(chunks, size) };
+                } finally { for (const chunk of chunks) chunk.fill(0); }
+            };
+            const result = await handle({ url: new URL(request.url || '/', origin).href, method: request.method, headers, signal: controller.signal, readBody }, { authorization, classificationProbe });
             response.setHeader('connection', 'close');
             response.writeHead(result.status, Object.fromEntries(result.headers));
             response.end(Buffer.from(await result.arrayBuffer()));

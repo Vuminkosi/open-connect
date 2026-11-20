@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/cloud/classification-request-v1.json",
+  "title": "OpenConnect Cloud classification request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "capability", "input"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.cloud.classification/v1"},
+    "requestId": {"type": "string", "pattern": "^(?!00000000-0000-0000-0000-000000000000)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"},
+    "capability": {"const": "classification.classify"},
+    "configuration": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "labelSetVersion": {"type": "string", "maxLength": 32},
+        "localeHint": {"type": "string", "maxLength": 16},
+        "threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "maxLabels": {"type": "integer", "minimum": 1, "maximum": 10}
+      }
+    },
+    "input": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 20000},
+        "inputRef": {"type": "string", "minLength": 1, "maxLength": 2048, "pattern": "^[A-Za-z0-9._~-]+$"}
+      },
+      "oneOf": [{"required": ["text"]}, {"required": ["inputRef"]}]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+openapi: 3.1.0
+info:
+  title: OpenConnect Cloud API
+  version: 1.0.0
+  description: Classification admission contract. Execution is not yet available.
+servers:
+  - url: /cloud/v1
+paths:
+  /classification:
+    post:
+      operationId: classify
+      summary: Request classification
+      description: The gateway validates this envelope after authorization and worker readiness. Execution remains unavailable until admission, privacy, and routing are connected.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../jsonschema/cloud-classification-request.json
+      responses:
+        '400': { description: Malformed request }
+        '401': { description: Authentication required }
+        '403': { description: Access or entitlement denied }
+        '413': { description: Request exceeds the body limit }
+        '415': { description: Unsupported media type or content encoding }
+        '422': { description: Request does not satisfy the classification contract }
+        '503': { description: Classification execution is unavailable }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

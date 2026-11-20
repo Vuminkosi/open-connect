@@ -69,16 +69,20 @@ test('gateway authorizes mapped routes before touching a request body', async ()
 
 test('classification readiness is checked only after authorization and never enables dispatch', async () => {
     const calls = [];
-    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key' }),
-        get body() { throw new Error('body must not be read'); } };
+    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
+        readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111', capability: 'classification.classify', input: { text: 'test' } })) }; } };
     const classificationProbe = { probe: async () => { calls.push('probe'); return { ready: true }; } };
     const deny = { authorize: async () => { calls.push('authorize'); return { authorized: false, code: 'unauthorized' }; } };
     assert.equal((await handle(request, { authorization: deny, classificationProbe })).status, 401);
     assert.deepEqual(calls, ['authorize']);
     calls.length = 0;
     const allow = { authorize: async () => { calls.push('authorize'); return { authorized: true }; } };
-    assert.equal((await handle(request, { authorization: allow, classificationProbe })).status, 503);
+    const unready = { probe: async () => { calls.push('probe'); return { ready: false }; } };
+    assert.equal((await handle(request, { authorization: allow, classificationProbe: unready })).status, 503);
     assert.deepEqual(calls, ['authorize', 'probe']);
+    calls.length = 0;
+    assert.equal((await handle(request, { authorization: allow, classificationProbe })).status, 503);
+    assert.deepEqual(calls, ['authorize', 'probe', 'body']);
     calls.length = 0;
     const inference = { url: 'http://localhost/cloud/v1/inference/chat', method: 'POST', headers: request.headers };
     assert.equal((await handle(inference, { authorization: allow, classificationProbe })).status, 503);

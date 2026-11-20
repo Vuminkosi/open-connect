@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "openconnect.cloud.classification/v1",
+  "requestId": "11111111-1111-1111-1111-111111111111",
+  "capability": "classification.classify",
+  "input": {"text": "example", "inputRef": "other-handle"}
+}
