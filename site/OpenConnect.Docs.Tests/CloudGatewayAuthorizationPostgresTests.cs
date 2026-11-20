@@ -535,6 +535,21 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("unauthorized", revokedGatewayResult.Code);
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true).SetProperty(y => y.ConcurrencyLimit, 8));
+            var regionRequestId = Guid.NewGuid();
+            var regionStatus = await NodeActiveRevocationAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference, regionRequestId,
+                async () =>
+                {
+                    await using var db = await factory.CreateDbContextAsync();
+                    await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
+                });
+            Assert.Equal(503, regionStatus);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var held = await db.QuotaReservations.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.RequestId == regionRequestId);
+                Assert.Null(held.FinalizedAt);
+                Assert.True(await db.ExecutionClaims.AnyAsync(x => x.ReservationId == held.Id));
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
+            }
             var activeRequestId = Guid.NewGuid();
             var activeStatus = await NodeActiveRevocationAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference, activeRequestId,
                 async () => Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None)));

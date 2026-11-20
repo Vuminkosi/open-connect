@@ -1,6 +1,6 @@
 // Periodic checks never grant execution; they only withdraw access from an existing call.
-export function createClassificationAccessMonitor({ controlPlane, credential, identity, signal, traceparent, intervalMs = 1000 }) {
-    if (!controlPlane || typeof controlPlane.authorize !== 'function' || !identity ||
+export function createClassificationAccessMonitor({ controlPlane, credential, identity, deployment, signal, traceparent, intervalMs = 1000 }) {
+    if (!controlPlane || typeof controlPlane.authorize !== 'function' || typeof controlPlane.matchClassificationDeployment !== 'function' || !identity || !deployment ||
         !['credentialId', 'tenantId', 'applicationId', 'environment'].every(key => typeof identity[key] === 'string') ||
         !Number.isInteger(intervalMs) || intervalMs < 10 || intervalMs > 10000) throw new TypeError('Invalid access monitor.');
     const lifetime = new AbortController();
@@ -16,10 +16,14 @@ export function createClassificationAccessMonitor({ controlPlane, credential, id
                 if (checkSignal.aborted) onAbort(); else checkSignal.addEventListener('abort', onAbort, { once: true });
             });
             let decision;
-            try { decision = await Promise.race([controlPlane.authorize(credential, 'classification.classify', checkSignal, traceparent), aborted]); }
+            try { decision = await Promise.race([Promise.all([
+                controlPlane.authorize(credential, 'classification.classify', checkSignal, traceparent),
+                controlPlane.matchClassificationDeployment(credential, deployment, checkSignal, traceparent),
+            ]), aborted]); }
             finally { checkSignal.removeEventListener('abort', onAbort); }
-            const allowed = !checkSignal.aborted && decision?.authorized === true &&
-                ['credentialId', 'tenantId', 'applicationId', 'environment'].every(key => decision.identity?.[key] === identity[key]);
+            const [authorization, deploymentAllowed] = decision ?? [];
+            const allowed = !checkSignal.aborted && authorization?.authorized === true && deploymentAllowed === true &&
+                ['credentialId', 'tenantId', 'applicationId', 'environment'].every(key => authorization.identity?.[key] === identity[key]);
             if (!allowed && !closed) lifetime.abort();
             return allowed && !closed;
         } catch {

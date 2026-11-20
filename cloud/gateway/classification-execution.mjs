@@ -26,7 +26,7 @@ export async function executeClassification({ credential, identity, value, body,
             workerPayloadFingerprint: binding.fingerprint.toString('base64'), deployment,
         }, signal, traceparent);
         if (stopped() || claim?.status !== 'claimed' || typeof claim.claimId !== 'string' || !guid.test(claim.claimId)) return unavailable();
-        monitor = createClassificationAccessMonitor({ controlPlane, credential, identity, signal, traceparent });
+        monitor = createClassificationAccessMonitor({ controlPlane, credential, identity, deployment, signal, traceparent });
         if (!await monitor.start() || stopped()) return unavailable();
         const result = await dispatcher.executeClaimed(prepared, { reservationId: reservation.reservationId, claimId: claim.claimId, key: binding.key }, monitor.signal, traceparent);
         if (stopped() || monitor.signal.aborted || result?.status !== 'completed' || !result.result || !await monitor.recheck()) return unavailable();

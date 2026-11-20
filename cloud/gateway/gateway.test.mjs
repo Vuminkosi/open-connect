@@ -162,7 +162,7 @@ test('enabled classification runs only after authorization, regional readiness a
         assert.equal(response.schemaVersion, 'openconnect.cloud.classification.result/v1');
         assert.equal(response.requestId, id);
         assert.equal(response.traceId, result.headers.get('x-trace-id'));
-        assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'authorize', 'dispatch', 'authorize', 'complete', 'authorize']);
+        assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'authorize', 'inventory', 'dispatch', 'authorize', 'inventory', 'complete', 'authorize', 'inventory']);
         assert.ok(raw.every(byte => byte === 0));
         calls.length = 0;
         value.configuration = { labelSetVersion: 'v2' };
