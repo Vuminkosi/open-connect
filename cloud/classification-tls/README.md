@@ -1,0 +1,9 @@
+# Classification private TLS proxy
+
+This proxy exposes only the classification readiness, capability and Cloud execution routes over mutual TLS. It forwards to `worker-classification:8080` on an existing private network. The worker still enforces its bearer credential and Cloud execution claim; the proxy does not authorize business actions or validate model output.
+
+Provision a server certificate and key as `server.crt` and `server.key`, and a dedicated gateway-client CA bundle as `gateway-ca.crt`, in a deployment-managed directory. The server certificate must match the hostname used by `CLOUD_CLASSIFICATION_ORIGIN` (for example `classification-tls`). The CA bundle must trust only the intended gateway client identities: the proxy validates the certificate chain, not an individual certificate fingerprint. Grant container user 101 read access to the files while restricting access to the private key. Do not place production credentials in the repository.
+
+Set `CLOUD_CLASSIFICATION_TLS_SECRETS_DIR` to that directory and `CLOUD_CLASSIFICATION_NETWORK` to an existing Docker network shared by the gateway and worker, then run `docker compose -f cloud/classification-tls/compose.yaml up -d`. Configure the gateway's classification CA, client certificate, key and worker-token files separately. Restart the proxy when certificates or trust material change; revocation distribution and zero-downtime rotation are not implemented.
+
+The proxy does not publish a host port. The upstream connection from proxy to worker is unencrypted on the shared network: restrict membership and prevent untrusted workloads from joining it. Use separately protected transport or stronger workload isolation where that network cannot be trusted. No access logs or request bodies are recorded by this configuration. The local container test uses disposable certificates and services: `python cloud/classification-tls/test_proxy.py` (requires Docker, OpenSSL and the pinned images).
