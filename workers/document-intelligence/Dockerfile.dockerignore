@@ -1,0 +1,13 @@
+**
+!workers
+!workers/common
+!workers/common/pyproject.toml
+!workers/common/src
+!workers/common/src/**
+!workers/document-intelligence
+!workers/document-intelligence/pyproject.toml
+!workers/document-intelligence/uv.lock
+!workers/document-intelligence/src
+!workers/document-intelligence/src/**
+**/__pycache__
+**/*.pyc

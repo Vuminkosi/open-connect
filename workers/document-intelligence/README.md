@@ -48,8 +48,8 @@ Deletion removes the referenced object version. Other versions and related
 chunks, indexes, caches and application records require their own lifecycle
 handling. Synchronous processing does not implicitly retain documents.
 
-The private API exposes `documents.ocr`, not the broader `documents.analyze`
-capability. It requires a bearer token and a short-lived request signed with
+The private API exposes `documents.ocr` and `documents.fields`; it does not yet
+expose the broader `documents.analyze` capability. It requires a bearer token and a short-lived request signed with
 HMAC-SHA256 over its exact JSON bytes, matching the other private workers. The
 trusted host must authenticate and authorize the tenant and apply privacy
 policy before signing. Requests include `schemaVersion`, `taskId`, `kind`,
@@ -62,9 +62,9 @@ ClamAV socket, and a restricted Linux environment: non-root, no-new-privileges,
 seccomp filter, a read-only root filesystem, loopback-only networking, and
 bounded cgroup memory and process counts. These checks establish minimum
 conditions, not a complete sandbox attestation; operators must enforce the
-actual sandbox and scanner configuration. There is no deployment image yet.
-The PDF-to-OCR pipeline does not yet provide multipage TIFF, tables, structured
-fields, indexing, multilingual profiles or document-level partial failure.
+actual sandbox and scanner configuration. The PDF-to-OCR pipeline does not yet
+provide multipage TIFF, tables, semantically validated fields, indexing,
+multilingual profiles or document-level partial failure.
 Do not advertise `documents.analyze` until those integrations and their
 security checks are complete.
 
@@ -77,6 +77,22 @@ control license verification. Configure `OC_MODEL_CACHE_DIR`,
 of at least 32 bytes. The resource values are admission inputs, not measured
 host availability; enforce the actual limits in the deployment. When disabled,
 the service does not load a model or advertise a capability.
+
+The worker image can be built from the repository root using
+`docker build -f workers/document-intelligence/Dockerfile .`. The image includes
+the Tesseract executable and libraries but no trained-data model; initialize a
+verified cache separately and mount it read-only. Its default server listens on
+`/run/openconnect/worker.sock`, not a TCP port. Supply a writable, access-limited
+socket directory, a protected route from the trusted host to that Unix socket,
+and a separately managed ClamAV Unix socket. Restrict the socket directory to
+the worker and authorized host connector; the HTTP bearer and signed requests
+remain mandatory. The host connector and ClamAV service are not provisioned by
+this image. Run the image with a read-only root, non-root user, no additional
+capabilities, no-new-privileges, an appropriate seccomp profile, no network,
+and bounded memory and process counts. The application checks some of these
+conditions but cannot prove the socket, mount, scanner or seccomp policies are
+safe. Production deployment and end-to-end connectivity require separate
+verification.
 
 Run `uv sync --locked`, `uv run ruff check .` and `uv run pytest -q` from this
 directory. An optional compatible language-data candidate is maintained by
