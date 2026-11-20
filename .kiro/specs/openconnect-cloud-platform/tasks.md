@@ -145,3 +145,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a private deployment-certificate-bound inference consumption endpoint with locked policy rechecks and single-use persistence; worker integration and token settlement remain outstanding.
 
 - [x] Add idempotent worker-certificate-bound inference token settlement with separate input/output observations, reservation reconciliation and database fencing; trustworthy provider metering and hard pre-dispatch token ceilings remain outstanding.
+
+- [x] Expose inference fingerprint-key lookup, token reservation and claim over pinned mutual TLS and provide Node client methods; actual provider token ceilings and public dispatch remain outstanding.

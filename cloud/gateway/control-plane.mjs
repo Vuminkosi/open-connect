@@ -204,6 +204,127 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { finish(unavailable()); }
             });
         },
+        findInferenceFingerprintKey(credential, requestId, signal, traceparent) {
+            const unavailable = () => ({ status: 'unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) || signal?.aborted)
+                return Promise.resolve(unavailable());
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL(`/cloud/internal/v1/inference/quota/fingerprint-key/${requestId}`, url), {
+                        method: 'GET', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.statusCode !== 200) { response.destroy(); finish(unavailable()); return; }
+                        const chunks = [];
+                        let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable()));
+                        response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'keyId', 'expiresAt'].includes(key))) return finish(unavailable());
+                                if (result.status === 'found' && typeof result.keyId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(result.keyId) &&
+                                    typeof result.expiresAt === 'string' && Number.isFinite(Date.parse(result.expiresAt)))
+                                    return finish({ status: 'found', keyId: result.keyId, expiresAt: result.expiresAt });
+                                if (['not_found', 'legacy_unverifiable'].includes(result.status) && result.keyId == null && result.expiresAt == null) return finish({ status: result.status });
+                            } catch { /* Never expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable()));
+                    request.end();
+                } catch { finish(unavailable()); }
+            });
+        },
+        reserveInference(credential, input, signal, traceparent) {
+            const unavailable = () => ({ status: 'quota_unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !input || signal?.aborted ||
+                !validId(input.requestId) || !/^[A-Za-z0-9_-]{1,64}$/.test(input.fingerprintKeyId ?? '') ||
+                typeof input.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(input.fingerprint) ||
+                typeof input.expiresAt !== 'string' || !Number.isFinite(Date.parse(input.expiresAt)) || !Number.isSafeInteger(input.reservedTokens) || input.reservedTokens < 1) return Promise.resolve(unavailable());
+            const body = Buffer.from(JSON.stringify({ requestId: input.requestId, fingerprintKeyId: input.fingerprintKeyId,
+                fingerprint: input.fingerprint, expiresAt: input.expiresAt, reservedTokens: input.reservedTokens }), 'utf8');
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/inference/quota/reservations', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json', 'content-length': body.length,
+                            'cache-control': 'no-store', ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable()));
+                        response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'reservationId'].includes(key))) return finish(unavailable());
+                                if (response.statusCode === 200 && ['reserved', 'duplicate'].includes(result.status) && validId(result.reservationId)) return finish(result);
+                                if (response.statusCode === 429 && result.status === 'quota_exceeded' && result.reservationId == null) return finish({ status: 'quota_exceeded' });
+                                if (response.statusCode === 409 && result.status === 'idempotency_conflict' && validId(result.reservationId)) return finish({ status: 'idempotency_conflict' });
+                            } catch { /* Never expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable()));
+                    request.end(body);
+                } catch { finish(unavailable()); }
+            });
+        },
+        claimInference(credential, reservationId, proof, signal, traceparent) {
+            const unavailable = () => ({ status: 'unavailable' });
+            const token = (value, limit) => typeof value === 'string' && value.length > 0 && value.length <= limit && /^[A-Za-z0-9._-]+$/.test(value);
+            const deployment = proof?.deployment;
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || signal?.aborted ||
+                !proof || !/^[A-Za-z0-9_-]{1,64}$/.test(proof.fingerprintKeyId ?? '') ||
+                typeof proof.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.fingerprint) || !deployment ||
+                (typeof proof.workerPayloadFingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.workerPayloadFingerprint)) ||
+                typeof proof.modelId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/.test(proof.modelId) ||
+                !token(deployment.endpointReference, 128) || !token(deployment.region, 80) || !token(deployment.contractVersion, 32) ||
+                typeof deployment.modelRevision !== 'string' || !deployment.modelRevision.trim() || deployment.modelRevision.length > 256 ||
+                !/^sha256:[0-9a-f]{64}$/.test(deployment.modelDigest ?? ''))
+                return Promise.resolve(unavailable());
+            const body = Buffer.from(JSON.stringify({ fingerprintKeyId: proof.fingerprintKeyId, fingerprint: proof.fingerprint,
+                endpointReference: deployment.endpointReference, region: deployment.region, contractVersion: deployment.contractVersion, modelRevision: deployment.modelRevision, modelDigest: deployment.modelDigest,
+                workerPayloadFingerprint: proof.workerPayloadFingerprint, modelId: proof.modelId }), 'utf8');
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL(`/cloud/internal/v1/inference/quota/reservations/${reservationId}/claim`, url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable())); response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'claimId'].includes(key))) return finish(unavailable());
+                                if (response.statusCode === 200 && result.status === 'claimed' && validId(result.claimId)) return finish(result);
+                                if (response.statusCode === 409 && result.status === 'already_claimed' && result.claimId == null) return finish({ status: 'already_claimed' });
+                                if (response.statusCode === 409 && result.status === 'idempotency_conflict' && result.claimId == null) return finish({ status: 'idempotency_conflict' });
+                            } catch { /* Do not expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable())); request.end(body);
+                } catch { finish(unavailable()); }
+            });
+        },
         completeClassification(credential, reservationId, claimId, signal, traceparent) {
             const unavailable = () => ({ status: 'unavailable' });
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || !validId(claimId) || signal?.aborted)
