@@ -57,7 +57,9 @@ function valid(value, now) {
         (!Object.hasOwn(config, 'maxLabels') || Number.isInteger(config.maxLabels) && config.maxLabels >= 1 && config.maxLabels <= 10);
 }
 
-export async function prepareClassificationRequest(request, now = () => Date.now()) {
+// The callback runs only after validation and must not retain the mutable body bytes.
+// Callers must authorize the request before entering this boundary.
+export async function withClassificationRequest(request, process, now = () => Date.now()) {
     const media = request.headers?.get('content-type');
     if (!media || !/^application\/json(?:\s*;\s*charset\s*=\s*utf-8)?\s*$/i.test(media) || request.headers?.has('content-encoding')) return { code: 'unsupported_media_type' };
     const declared = request.headers?.get('content-length');
@@ -65,14 +67,23 @@ export async function prepareClassificationRequest(request, now = () => Date.now
     if (typeof request.readBody !== 'function') return { code: 'invalid_request' };
     let body;
     try {
-        body = await request.readBody(limit);
+        try { body = await request.readBody(limit); }
+        catch { return { code: 'invalid_request' }; }
         if (!body || body.tooLarge || body.bytes?.byteLength > limit) return { code: 'payload_too_large' };
         if (!(body.bytes instanceof Uint8Array)) return { code: 'invalid_request' };
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(body.bytes);
-        const value = parseUniqueJson(text);
-        return valid(value, now()) ? { code: null, value } : { code: 'invalid_semantic_request' };
-    } catch { return { code: 'invalid_request' }; }
+        let value;
+        try {
+            const text = new TextDecoder('utf-8', { fatal: true }).decode(body.bytes);
+            value = parseUniqueJson(text);
+        } catch { return { code: 'invalid_request' }; }
+        if (!valid(value, now())) return { code: 'invalid_semantic_request' };
+        return await process(value, body.bytes);
+    }
     finally { if (body?.bytes instanceof Uint8Array) body.bytes.fill(0); }
+}
+
+export async function prepareClassificationRequest(request, now = () => Date.now()) {
+    return withClassificationRequest(request, value => ({ code: null, value }), now);
 }
 
 export async function validateClassificationRequest(request, now) {

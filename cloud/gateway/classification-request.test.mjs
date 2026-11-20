@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
-import { validateClassificationRequest } from './classification-request.mjs';
+import { validateClassificationRequest, withClassificationRequest } from './classification-request.mjs';
 import { createLocalServer } from './local-server.mjs';
 
 const envelope = () => ({ schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111',
@@ -60,6 +60,29 @@ test('classification envelope enforces worker-derived input and bounds', async (
         const value = envelope(); change(value);
         assert.equal(await validateClassificationRequest(request(JSON.stringify(value))), 'invalid_semantic_request');
     }
+});
+
+test('validated processing sees the exact request bytes and clears them on success or failure', async () => {
+    const raw = JSON.stringify(envelope(), null, 2);
+    const good = request(raw);
+    const result = await withClassificationRequest(good, async (value, bytes) => {
+        await Promise.resolve();
+        assert.equal(Buffer.from(bytes).toString('utf8'), raw);
+        return value.requestId;
+    });
+    assert.equal(result, envelope().requestId);
+    assert.ok(good.buffer.every(value => value === 0));
+
+    const failed = request(raw);
+    await assert.rejects(withClassificationRequest(failed, async () => { throw new Error('unavailable'); }), /unavailable/);
+    assert.ok(failed.buffer.every(value => value === 0));
+
+    const invalid = request('{');
+    let called = false;
+    assert.deepEqual(await withClassificationRequest(invalid, () => { called = true; }), { code: 'invalid_request' });
+    assert.equal(called, false);
+    assert.ok(invalid.buffer.every(value => value === 0));
+    assert.equal(await validateClassificationRequest({ headers: new Headers({ 'content-type': 'application/json' }), readBody: async () => { throw new Error(); } }), 'invalid_request');
 });
 
 test('classification rejects duplicate keys, invalid JSON, media and encodings', async () => {
