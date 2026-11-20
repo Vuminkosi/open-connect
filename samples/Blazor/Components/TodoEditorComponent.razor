@@ -69,6 +69,11 @@
         </MudItem>
 
         <MudItem xs="12">
+            <label for="new-task-due-date">Due date (optional)</label>
+            <input id="new-task-due-date" type="date" @bind="_dueDate" />
+        </MudItem>
+
+        <MudItem xs="12">
             <MudTextField @bind-Value="_description"
                           Label="Details & Context (Optional)"
                           Placeholder="Describe acceptance criteria or agent orchestration steps..."
@@ -85,15 +90,18 @@
     private string _title = string.Empty;
     private string? _description;
     private TodoPriority _priority = TodoPriority.Medium;
+    private DateTime? _dueDate;
 
     private async Task CreateTaskAsync()
     {
         if (string.IsNullOrWhiteSpace(_title)) return;
 
-        await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority);
+        var dueDateUtc = _dueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_dueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
+        await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority, dueDateUtc);
         _title = string.Empty;
         _description = null;
         _priority = TodoPriority.Medium;
+        _dueDate = null;
 
         Snackbar.Add("Task created successfully", Severity.Success);
         if (OnTaskCreated.HasDelegate)
