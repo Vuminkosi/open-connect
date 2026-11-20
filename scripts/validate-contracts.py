@@ -27,6 +27,11 @@ def load(path: Path) -> Any:
         return json.load(stream)
 
 
+def describe_error(error: Any) -> str:
+    """Format schema and cross-field validation errors consistently."""
+    return error if isinstance(error, str) else error.message
+
+
 def semantic_errors(schema: dict[str, Any], instance: Any) -> list[str]:
     """Check cross-field invariants that JSON Schema cannot express portably."""
     if schema.get("$id", "").endswith("security-scan-response.json") and isinstance(
@@ -71,7 +76,7 @@ def validate_fixture_set(folder: Path, should_be_valid: bool) -> tuple[int, int]
         if not passed:
             failures += 1
             detail = (
-                "; ".join(error.message for error in errors[:3])
+                "; ".join(describe_error(error) for error in errors[:3])
                 or "fixture unexpectedly validates"
             )
             print(f"FAIL {fixture.relative_to(ROOT)}: {detail}")
@@ -103,7 +108,7 @@ def compatibility_check(baseline: Path) -> bool:
         errors.extend(semantic_errors(schema, instance))
         if errors:
             print(
-                f"FAIL compatibility: {fixture.name} no longer validates: {errors[0].message}"
+                f"FAIL compatibility: {fixture.name} no longer validates: {describe_error(errors[0])}"
             )
             return False
         count += 1

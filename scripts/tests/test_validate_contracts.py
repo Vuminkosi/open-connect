@@ -28,3 +28,20 @@ def test_fixture_failures_control_exit_status(tmp_path, monkeypatch, mode):
     monkeypatch.setattr(VALIDATOR, "FIXTURE_DIR", fixture_dir)
     monkeypatch.setattr("sys.argv", ["validate-contracts.py"])
     assert VALIDATOR.main() == (0 if mode == "valid" else 1)
+
+
+def test_semantic_failure_reports_cleanly_for_fixture_and_compatibility(tmp_path, monkeypatch, capsys):
+    schema_dir = tmp_path / "contracts" / "jsonschema"
+    fixture_dir = tmp_path / "contracts" / "fixtures"
+    schema_dir.mkdir(parents=True)
+    (fixture_dir / "valid").mkdir(parents=True)
+    schema = {"$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://example.test/security-scan-response.json", "type": "object"}
+    (schema_dir / "security-scan-response.json").write_text(json.dumps(schema), encoding="utf-8")
+    (fixture_dir / "valid" / "security-scan-response.json").write_text(
+        json.dumps({"spans": [{"start": 4, "end": 3}]}), encoding="utf-8")
+    monkeypatch.setattr(VALIDATOR, "ROOT", tmp_path)
+    monkeypatch.setattr(VALIDATOR, "SCHEMA_DIR", schema_dir)
+    assert VALIDATOR.validate_fixture_set(fixture_dir / "valid", True) == (1, 1)
+    assert not VALIDATOR.compatibility_check(fixture_dir)
+    assert "span 0: start must be less than end" in capsys.readouterr().out
