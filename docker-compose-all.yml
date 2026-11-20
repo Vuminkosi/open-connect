@@ -18,9 +18,11 @@ services:
     image: vuminkosimatibe/openconnect-sample-todo:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-todo-web-app
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      OpenConnect__Gateway__Mode: ${TODO_GATEWAY_MODE:-SameHostGateway}
+      OpenConnect__Gateway__SameHostBaseUrl: http://127.0.0.1:5000
       OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
       GATEWAY_URL: http://gateway-host:8080/openconnect/v1/
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
@@ -29,6 +31,7 @@ services:
       Workers__Inference__Endpoint: http://worker-inference:8080
       Workers__Transcription__Endpoint: http://worker-transcription:8080
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
       Workers__Playwright__Endpoint: http://worker-playwright:8080
       # Pass through Cloud Inference / Model configuration from .env
       OpenConnect__ApiKey: ${OpenConnect__ApiKey:-}
