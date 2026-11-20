@@ -31,6 +31,12 @@ Outputs include input positions, coverage, algorithm version and warnings.
 An insufficient baseline or zero median absolute deviation yields no anomaly
 scores. Results are statistical signals, not automated decisions.
 
+Set `payload.trend` to `true` to return a descriptive linear slope per sample
+position. Sample positions must represent equally spaced observations. Missing
+values retain their original positions, and fewer than three observations yield
+no slope. This calculation does not establish causality or statistical
+significance. The default response omits the trend result.
+
 To request a forecast, include `payload.forecast` with timezone-aware
 `timestamps` parallel to `values`, a fixed `intervalSeconds`, a caller-chosen
 `seasonalPeriod` in samples (1–365), and `horizon` (1–100). Times are compared

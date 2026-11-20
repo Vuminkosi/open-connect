@@ -11,10 +11,11 @@ from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, StrictInt, ValidationError
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, ValidationError
 
 from openconnect_analytics_inference.forecast import MAX_HORIZON, MAX_INTERVAL_SECONDS, MAX_SEASON, forecast
 from openconnect_analytics_inference.statistics import MAX_SAMPLES, analyze
+from openconnect_analytics_inference.trend import trend
 from openconnect_worker_common.contracts.capability import (
     CapabilityDescriptor,
     CapabilityKind,
@@ -46,6 +47,7 @@ class AnalyticsPayload(BaseModel):
     values: list[StrictFloat | None] = Field(max_length=MAX_SAMPLES)
     threshold: StrictFloat = Field(default=3.5, gt=0, le=100)
     forecast: ForecastSettings | None = None
+    trend: StrictBool = False
 
 
 class ExecuteRequest(BaseModel):
@@ -140,6 +142,8 @@ async def execute(request: Request) -> JSONResponse:
                       "lineage": command.payload.lineage, **asdict(result)}
     if forecast_result is not None:
         result_payload["forecast"] = asdict(forecast_result)
+    if command.payload.trend:
+        result_payload["trend"] = asdict(trend(command.payload.values))
     return JSONResponse({
         "schemaVersion": "openconnect.v1", "taskId": command.taskId,
         "kind": command.kind, "result": result_payload,

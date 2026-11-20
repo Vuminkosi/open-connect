@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/analytics-response.json",
+  "title": "Analytics response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "kind",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.v1"
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "kind": {
+      "const": "analytics.analyze"
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature",
+        "unit",
+        "lineage",
+        "sample_size",
+        "observed_count",
+        "missing_count",
+        "coverage",
+        "minimum",
+        "maximum",
+        "median",
+        "median_absolute_deviation",
+        "threshold",
+        "anomalies",
+        "warnings",
+        "algorithm_version"
+      ],
+      "properties": {
+        "feature": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "lineage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sample_size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "observed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "missing_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "minimum": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maximum": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "median": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "median_absolute_deviation": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "algorithm_version": {
+          "const": "robust-mad-v1"
+        },
+        "warnings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "insufficient_baseline",
+              "zero_median_absolute_deviation"
+            ]
+          }
+        },
+        "anomalies": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "index",
+              "value",
+              "robust_score"
+            ],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9999
+              },
+              "value": {
+                "type": "number"
+              },
+              "robust_score": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "forecast": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm_version",
+            "interval_seconds",
+            "seasonal_period",
+            "sample_size",
+            "observed_count",
+            "coverage",
+            "points",
+            "backtest",
+            "warnings"
+          ],
+          "properties": {
+            "algorithm_version": {
+              "const": "seasonal-naive-v1"
+            },
+            "interval_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31536000
+            },
+            "seasonal_period": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "sample_size": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "observed_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "coverage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "warnings": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "irregular_timestamps",
+                  "missing_values",
+                  "insufficient_history",
+                  "empirical_bands_not_calibrated",
+                  "multi_step_uncertainty_not_estimated",
+                  "limited_backtest_samples",
+                  "seasonality_not_improved_over_naive"
+                ]
+              }
+            },
+            "points": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "timestamp",
+                  "value",
+                  "lower",
+                  "upper"
+                ],
+                "properties": {
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "value": {
+                    "type": "number"
+                  },
+                  "lower": {
+                    "type": "number"
+                  },
+                  "upper": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "backtest": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "samples",
+                    "mean_absolute_error",
+                    "naive_mean_absolute_error",
+                    "residual_lower",
+                    "residual_upper"
+                  ],
+                  "properties": {
+                    "samples": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 365
+                    },
+                    "mean_absolute_error": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "naive_mean_absolute_error": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "residual_lower": {
+                      "type": "number"
+                    },
+                    "residual_upper": {
+                      "type": "number"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "trend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm_version",
+            "sample_size",
+            "observed_count",
+            "slope_per_sample",
+            "warnings"
+          ],
+          "properties": {
+            "algorithm_version": {
+              "const": "linear-position-v1"
+            },
+            "sample_size": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "observed_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "slope_per_sample": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "descriptive_only_no_significance_test",
+                  "missing_values",
+                  "insufficient_history"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -48,6 +48,26 @@ def test_signed_execution_and_private_capabilities(client: TestClient) -> None:
     assert result.status_code == 200
     assert result.json()["result"]["anomalies"][0]["index"] == 5
     assert result.json()["result"]["lineage"] == "dataset-1"
+    assert "trend" not in result.json()["result"]
+
+
+def test_signed_opt_in_trend_and_contract_parity(client: TestClient) -> None:
+    payload = command()
+    payload["payload"]["values"] = [2, None, 6, 8]
+    payload["payload"]["trend"] = True
+    response = submit(client, payload)
+    assert response.status_code == 200
+    result = response.json()["result"]["trend"]
+    assert result["slope_per_sample"] == pytest.approx(2)
+    assert "missing_values" in result["warnings"]
+    root = Path(__file__).resolve().parents[3] / "contracts" / "jsonschema"
+    for value, name in [(payload, "analytics-request.json"), (response.json(), "analytics-response.json")]:
+        schema = json.loads((root / name).read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
+
+    payload["payload"]["trend"] = "true"
+    assert submit(client, payload).status_code == 422
 
 
 def test_missing_keys_fail_closed(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,6 +123,14 @@ def test_signed_forecast_and_contract_parity(client: TestClient) -> None:
                         (response.json(), "analytics-forecast-response.json")]:
         schema = json.loads((root / name).read_text(encoding="utf-8"))
         Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
+
+    payload["payload"]["trend"] = True
+    combined = submit(client, payload)
+    assert combined.status_code == 200
+    assert "trend" in combined.json()["result"] and "forecast" in combined.json()["result"]
+    for value, name in [(payload, "analytics-request.json"), (combined.json(), "analytics-response.json")]:
+        schema = json.loads((root / name).read_text(encoding="utf-8"))
         Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
 
 
