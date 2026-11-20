@@ -80,6 +80,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an append-only, deployment-bound single-consumption store and verify concurrent attempts against PostgreSQL; worker invocation remains outstanding.
 - [x] Expose claim consumption to deployment-bound worker certificate identities over mutual TLS, rejecting gateway identities and overlapping certificate pins; worker invocation and payload binding remain outstanding.
 - [x] Add a bounded classification-worker mutual-TLS consumption client with no retries after ambiguous outcomes; verify it against the control plane and disposable PostgreSQL. Worker execution remains disconnected pending payload binding.
+- [x] Bind a claim to a per-request keyed worker-payload fingerprint and require a matching worker proof on consumption; verify mismatched payloads and legacy unbound claims fail closed. Gateway dispatch and worker execution remain disconnected.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.

@@ -1,5 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
+import base64
+import hmac
 
 import pytest
 
@@ -7,6 +9,8 @@ from openconnect_classification.cloud_consumption import CloudConsumptionClient
 
 RESERVATION = "11111111-1111-1111-1111-111111111111"
 CLAIM = "22222222-2222-2222-2222-222222222222"
+PAYLOAD = b"worker fixture"
+KEY = b"k" * 32
 
 
 @pytest.fixture
@@ -59,11 +63,12 @@ def test_response_is_bounded_and_never_follows_redirects(monkeypatch, make_clien
     connection.getresponse.return_value = response
     factory = MagicMock(return_value=connection)
     monkeypatch.setattr("openconnect_classification.cloud_consumption.http.client.HTTPSConnection", factory)
-    assert create().consume(RESERVATION, CLAIM) == expected
+    assert create().consume(RESERVATION, CLAIM, PAYLOAD, KEY) == expected
     factory.assert_called_once()
     connection.request.assert_called_once_with(
         "POST", f"/cloud/internal/v1/classification/quota/reservations/{RESERVATION}/claims/{CLAIM}/consume",
-        body=b"", headers={"Cache-Control": "no-store"},
+        body=b"", headers={"Cache-Control": "no-store", "X-OpenConnect-Worker-Payload-Fingerprint":
+                           base64.b64encode(hmac.digest(KEY, PAYLOAD, "sha256")).decode("ascii")},
     )
     connection.close.assert_called_once()
 
@@ -75,9 +80,10 @@ def test_invalid_ids_and_ambiguous_network_failure_never_retry(monkeypatch, make
     factory = MagicMock(return_value=connection)
     monkeypatch.setattr("openconnect_classification.cloud_consumption.http.client.HTTPSConnection", factory)
     client = create()
-    assert client.consume("not-a-uuid", CLAIM) == "unavailable"
-    assert client.consume(RESERVATION, "00000000-0000-0000-0000-000000000000") == "unavailable"
+    assert client.consume("not-a-uuid", CLAIM, PAYLOAD, KEY) == "unavailable"
+    assert client.consume(RESERVATION, "00000000-0000-0000-0000-000000000000", PAYLOAD, KEY) == "unavailable"
+    assert client.consume(RESERVATION, CLAIM, PAYLOAD, b"short") == "unavailable"
     factory.assert_not_called()
-    assert client.consume(RESERVATION, CLAIM) == "unavailable"
+    assert client.consume(RESERVATION, CLAIM, PAYLOAD, KEY) == "unavailable"
     connection.request.assert_called_once()
     connection.close.assert_called_once()

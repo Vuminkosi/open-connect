@@ -277,6 +277,9 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
+                    b.Property<byte[]>("WorkerPayloadFingerprint")
+                        .HasColumnType("bytea");
+
                     b.HasKey("ReservationId");
 
                     b.HasIndex("ClaimId")

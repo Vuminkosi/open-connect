@@ -144,11 +144,13 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || signal?.aborted ||
                 !proof || !/^[A-Za-z0-9_-]{1,64}$/.test(proof.fingerprintKeyId ?? '') ||
                 typeof proof.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.fingerprint) || !deployment ||
+                (proof.workerPayloadFingerprint !== undefined && (typeof proof.workerPayloadFingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.workerPayloadFingerprint))) ||
                 !token(deployment.endpointReference, 128) || !token(deployment.region, 80) || !token(deployment.contractVersion, 32) ||
                 typeof deployment.modelRevision !== 'string' || !deployment.modelRevision.trim() || deployment.modelRevision.length > 256)
                 return Promise.resolve(unavailable());
             const body = Buffer.from(JSON.stringify({ fingerprintKeyId: proof.fingerprintKeyId, fingerprint: proof.fingerprint,
-                endpointReference: deployment.endpointReference, region: deployment.region, contractVersion: deployment.contractVersion, modelRevision: deployment.modelRevision }), 'utf8');
+                endpointReference: deployment.endpointReference, region: deployment.region, contractVersion: deployment.contractVersion, modelRevision: deployment.modelRevision,
+                ...(proof.workerPayloadFingerprint !== undefined ? { workerPayloadFingerprint: proof.workerPayloadFingerprint } : {}) }), 'utf8');
             return new Promise(resolve => {
                 let finished = false; let timer;
                 const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };

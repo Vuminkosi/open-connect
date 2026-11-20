@@ -6,7 +6,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudExecutionClaimStore
 {
-    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken)
+    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -41,7 +41,7 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
         if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
         var claim = new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenantId, ApplicationId = applicationId, ClaimId = Guid.NewGuid(),
-            DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, ClaimedAt = now };
+            DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, WorkerPayloadFingerprint = workerPayloadFingerprint, ClaimedAt = now };
         db.ExecutionClaims.Add(claim);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

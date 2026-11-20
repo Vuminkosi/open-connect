@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import http.client
+import base64
+import hashlib
+import hmac
 import json
 from pathlib import Path
 import ssl
@@ -41,12 +44,13 @@ class CloudConsumptionClient:
         self._context.load_verify_locations(cafile=str(ca_file))
         self._context.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
 
-    def consume(self, reservation_id: str, claim_id: str) -> str:
+    def consume(self, reservation_id: str, claim_id: str, payload: bytes, key: bytes) -> str:
         """Return consumed, already_consumed or unavailable without retrying."""
         try:
             reservation = UUID(reservation_id)
             claim = UUID(claim_id)
-            if reservation.int == 0 or claim.int == 0:
+            if (reservation.int == 0 or claim.int == 0 or not isinstance(payload, bytes)
+                    or not 0 < len(payload) <= 131072 or not isinstance(key, bytes) or len(key) != 32):
                 return "unavailable"
         except (TypeError, ValueError, AttributeError):
             return "unavailable"
@@ -55,7 +59,11 @@ class CloudConsumptionClient:
         )
         try:
             path = f"/cloud/internal/v1/classification/quota/reservations/{reservation}/claims/{claim}/consume"
-            connection.request("POST", path, body=b"", headers={"Cache-Control": "no-store"})
+            digest = hmac.digest(key, payload, hashlib.sha256)
+            connection.request("POST", path, body=b"", headers={
+                "Cache-Control": "no-store",
+                "X-OpenConnect-Worker-Payload-Fingerprint": base64.b64encode(digest).decode("ascii"),
+            })
             response = connection.getresponse()
             if response.getheader("Content-Encoding") is not None:
                 return "unavailable"

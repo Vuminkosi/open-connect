@@ -13,11 +13,17 @@ public static class CloudClassificationConsumptionEndpoints
             if (!databaseConfigured) return Results.StatusCode(503);
             if (reservationId == Guid.Empty || claimId == Guid.Empty || context.Request.ContentLength is > 0 ||
                 context.Request.Headers.ContainsKey("Transfer-Encoding") || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.BadRequest();
+            var proofHeader = context.Request.Headers["X-OpenConnect-Worker-Payload-Fingerprint"];
+            if (proofHeader.Count != 1) return Results.BadRequest();
+            byte[] fingerprint;
+            try { fingerprint = Convert.FromBase64String(proofHeader.ToString()); }
+            catch (FormatException) { return Results.BadRequest(); }
+            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != proofHeader.ToString()) return Results.BadRequest();
             try
             {
                 if (await context.Request.Body.ReadAsync(new byte[1], cancellationToken) != 0) return Results.BadRequest();
                 var result = await context.RequestServices.GetRequiredService<CloudExecutionConsumptionService>()
-                    .ConsumeAsync(reservationId, claimId, deploymentId.Value, cancellationToken);
+                    .ConsumeAsync(reservationId, claimId, deploymentId.Value, fingerprint, cancellationToken);
                 return Results.Json(new { status = result }, statusCode: result switch
                 {
                     "consumed" => 200, "already_consumed" => 409, "invalid_request" => 400, _ => 503,

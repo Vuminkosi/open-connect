@@ -19,6 +19,9 @@ namespace OpenConnect.Docs.Tests;
 [Collection("Cloud PostgreSQL")]
 public sealed class CloudGatewayAuthorizationPostgresTests
 {
+    private static readonly byte[] WorkerPayload = System.Text.Encoding.UTF8.GetBytes("worker fixture");
+    private static readonly byte[] WorkerKey = Enumerable.Repeat((byte)'k', 32).ToArray();
+    private static readonly byte[] WorkerProof = HMACSHA256.HashData(WorkerKey, WorkerPayload);
     [CloudPostgresFact]
     public async Task DirectTlsAndPinnedClientCertificateProtectCredentialAuthorization()
     {
@@ -140,6 +143,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
             using var authorized = Client(address, serverCertificate, clientCertificate);
             using var worker = Client(address, serverCertificate, workerCertificate);
+            worker.DefaultRequestHeaders.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(WorkerProof));
             Assert.Equal(HttpStatusCode.Unauthorized, (await worker.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
             var response = await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability });
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -273,12 +277,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 deploymentId = storedClaim.DeploymentId!.Value;
             }
             var consumption = new CloudExecutionConsumptionService(new EfCloudExecutionConsumptionStore(factory, TimeProvider.System));
-            Assert.Equal("invalid_request", await consumption.ConsumeAsync(Guid.Empty, claim.ClaimId!.Value, deploymentId, default));
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, Guid.NewGuid(), deploymentId, default));
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, Guid.NewGuid(), default));
+            Assert.Equal("invalid_request", await consumption.ConsumeAsync(Guid.Empty, claim.ClaimId!.Value, deploymentId, WorkerProof, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, Guid.NewGuid(), deploymentId, WorkerProof, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, Guid.NewGuid(), WorkerProof, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, new byte[32], default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, WorkerProof, default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
             var consumePath = $"/cloud/internal/v1/classification/quota/reservations/{reserved.ReservationId:D}/claims/{claim.ClaimId:D}/consume";
@@ -322,6 +327,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var failedReservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
             var failedClaim = await new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System)).ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id, failedReservation.ReservationId!.Value, "classification.classify", "retained_key", new byte[32], new CloudClassificationDeploymentMatchRequest(classificationReference, "region-a", "openconnect.v1", "revision-1"), CancellationToken.None);
             Assert.Equal("claimed", failedClaim.Status);
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(failedReservation.ReservationId.Value, failedClaim.ClaimId!.Value, deploymentId, WorkerProof, default));
             Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, failedReservation.ReservationId.Value, failedClaim.ClaimId!.Value, "failed", CancellationToken.None)).Status);
             await using (var db = await factory.CreateDbContextAsync())
             {
@@ -336,7 +342,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var python = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON");
             var workerRoot = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT");
             if (!string.IsNullOrWhiteSpace(python) && !string.IsNullOrWhiteSpace(workerRoot))
-                Assert.Equal("consumed,already_consumed", await PythonConsumeAsync(python, workerRoot, address, serverCertificate, workerCertificate, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value));
+                Assert.Equal("unavailable,consumed,already_consumed", await PythonConsumeAsync(python, workerRoot, address, serverCertificate, workerCertificate, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value));
             var completionPath = $"/cloud/internal/v1/classification/quota/reservations/{nodeReservation.ReservationId:D}/claims/{nodeClaim.ClaimId:D}/completion";
             async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
             {
@@ -486,7 +492,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             "d=tempfile.TemporaryDirectory(); p=pathlib.Path(d.name); " +
             "[(p/n).write_text(os.environ[v],encoding='ascii') for n,v in [('ca','OC_CA'),('cert','OC_CERT'),('key','OC_KEY')]]; " +
             "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); " +
-            "print(c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'])+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'])); d.cleanup()";
+            "print(c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'altered fixture',b'k'*32)+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'worker fixture',b'k'*32)+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'worker fixture',b'k'*32)); d.cleanup()";
         var start = new System.Diagnostics.ProcessStartInfo(python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
         start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
@@ -533,7 +539,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
 
     private static async Task<CloudExecutionClaimResult> NodeClaimAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, string reference, string keyId = "retained_key")
     {
-        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_DEPLOYMENT); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:x.keyId,fingerprint:Buffer.alloc(32).toString('base64'),deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}})));";
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const crypto=await import('node:crypto'); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_DEPLOYMENT); const workerPayloadFingerprint=crypto.createHmac('sha256',Buffer.alloc(32,107)).update('worker fixture').digest('base64'); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:x.keyId,fingerprint:Buffer.alloc(32).toString('base64'),workerPayloadFingerprint,deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}})));";
         var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), System.Text.Json.JsonSerializer.Serialize(new { keyId, reference }));
         return System.Text.Json.JsonSerializer.Deserialize<CloudExecutionClaimResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
