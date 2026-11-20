@@ -434,10 +434,11 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(rejected()); }
             });
         },
-        inspectInference(credential, requestId, messages, signal, traceparent) {
+        inspectInference(credential, requestId, messages, fingerprintKeyId, fingerprint, signal, traceparent) {
             const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||
                 !Array.isArray(messages) || messages.length < 1 || messages.length > 64 || signal?.aborted ||
+                !/^[A-Za-z0-9_-]{1,64}$/.test(fingerprintKeyId ?? '') || typeof fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(fingerprint) ||
                 messages.some(item => !item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).some(key => !['role', 'content'].includes(key)) ||
                     !['system', 'user', 'assistant', 'tool'].includes(item.role) || typeof item.content !== 'string' || item.content.length > 32768) ||
                 messages.reduce((total, item) => total + item.content.length, 0) < 1 || messages.reduce((total, item) => total + item.content.length, 0) > 65536) return Promise.resolve(rejected());
@@ -452,6 +453,7 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                         method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
                         headers: { authorization: `Bearer ${credential}`, 'x-cloud-request-id': requestId,
                             'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            'x-cloud-fingerprint-key-id': fingerprintKeyId, 'x-cloud-request-fingerprint': fingerprint,
                             ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
                     }, response => {
                         const chunks = [];

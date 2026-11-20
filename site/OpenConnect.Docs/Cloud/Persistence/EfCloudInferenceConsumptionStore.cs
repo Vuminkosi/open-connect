@@ -53,6 +53,9 @@ public sealed class EfCloudInferenceConsumptionStore(IDbContextFactory<CloudCont
             reservation is null || reservation.TenantId != claim.TenantId || reservation.ApplicationId != claim.ApplicationId || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId && x.ApplicationId == reservation.ApplicationId && x.CapabilityId == "inference.chat" && x.Unit == "token", cancellationToken))
             return "unavailable";
+        if (!CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) || reservation.RequestFingerprint is not { Length: 32 } ||
+            !await EfCloudInferencePrivacyAdmission.IsAllowedAsync(db, claim.TenantId, claim.ApplicationId, reservation.RequestId,
+                reservation.FingerprintKeyId!, reservation.RequestFingerprint, cancellationToken)) return "unavailable";
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reservationId}, {claimId}, {deploymentId}, {now}) ON CONFLICT (\"ReservationId\") DO NOTHING", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return inserted == 1 ? "consumed" : "already_consumed";

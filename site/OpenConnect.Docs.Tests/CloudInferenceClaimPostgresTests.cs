@@ -56,19 +56,53 @@ public sealed class CloudInferenceClaimPostgresTests
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
             var claims = new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System));
             var policies = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
-            async Task<Guid> Reserve()
+            var privacyEvidence = new EfCloudInferencePrivacyEvidenceStore(factory, TimeProvider.System);
+            var machine = new CloudCredentialIdentity(credential, tenant.Id, app.Id, "Development", new HashSet<string> { "inference.chat" });
+            async Task<Guid> Reserve(bool inspected = true)
             {
-                var reservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, app.Id, "inference.chat", "token", Guid.NewGuid(), "key", new byte[32], 5, now.AddMinutes(5)), default);
+                var requestId = Guid.NewGuid();
+                var reservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, app.Id, "inference.chat", "token", requestId, "key", new byte[32], 5, now.AddMinutes(5)), default);
                 Assert.Equal("reserved", reservation.Status);
+                if (inspected) await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
                 return reservation.ReservationId!.Value;
             }
             Task<CloudExecutionClaimResult> Claim(Guid reservation, string? model) => claims.ClaimAsync(credential, tenant.Id, app.Id, reservation, "inference.chat", "key", new byte[32], null, default, workerPayloadFingerprint: new byte[32], inferenceModelId: model, inferenceDeployment: match);
-            var id = await Reserve();
+            var id = await Reserve(inspected: false);
             Assert.Equal("invalid_request", (await claims.ClaimAsync(credential, tenant.Id, app.Id, id, "inference.chat", "key", new byte[32], null, default, inferenceModelId: "registry/model-a", inferenceDeployment: match)).Status);
             Assert.Equal("invalid_request", (await Claim(id, null)).Status);
             Assert.Equal("invalid_request", (await Claim(id, "bad model")).Status);
             Assert.Equal("unavailable", (await Claim(id, "registry/model-a")).Status);
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 0, default)).Status);
+            Assert.Equal("unavailable", (await Claim(id, "registry/model-a")).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var requestId = (await db.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
+                await privacyEvidence.AppendAsync(machine, requestId, "other", new byte[32], "allowed", new string('a', 32), default);
+                Assert.Equal("unavailable", (await Claim(id, "registry/model-a")).Status);
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "privacy_blocked", new string('a', 32), default);
+                Assert.Equal("unavailable", (await Claim(id, "registry/model-a")).Status);
+                await privacyEvidence.AppendAsync(machine, requestId, "key", Enumerable.Repeat((byte)1, 32).ToArray(), "allowed", new string('a', 32), default);
+                Assert.Equal("unavailable", (await Claim(id, "registry/model-a")).Status);
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
+            }
+            await using (var evidenceWriter = await factory.CreateDbContextAsync())
+            {
+                await using var transaction = await evidenceWriter.Database.BeginTransactionAsync();
+                await evidenceWriter.Applications.FromSqlInterpolated($"SELECT * FROM cloud.applications WHERE \"Id\" = {app.Id} AND \"TenantId\" = {tenant.Id} FOR UPDATE").AsNoTracking().SingleAsync();
+                var requestId = (await evidenceWriter.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
+                var evidenceId = Guid.NewGuid(); var trace = new string('a', 32); var bytes = new byte[32];
+                await evidenceWriter.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO cloud.inference_privacy_evidence ("Id", "TenantId", "ApplicationId", "RequestId", "Outcome", "TraceId", "OccurredAt", "FingerprintKeyId", "RequestFingerprint")
+                    VALUES ({evidenceId}, {tenant.Id}, {app.Id}, {requestId}, {"privacy_blocked"}, {trace}, {DateTimeOffset.UtcNow}, {"key"}, {bytes})
+                    """);
+                var pending = Claim(id, "registry/model-a");
+                await Task.Delay(100);
+                Assert.False(pending.IsCompleted);
+                await transaction.CommitAsync();
+                Assert.Equal("unavailable", (await pending).Status);
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
+            }
             Assert.Equal("unavailable", (await Claim(id, "registry/model-b")).Status);
             await using (var db = await factory.CreateDbContextAsync())
                 await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[]"));
@@ -102,6 +136,13 @@ public sealed class CloudInferenceClaimPostgresTests
             }
             Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default));
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 2, default)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var requestId = (await db.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "privacy_blocked", new string('a', 32), default);
+                Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default));
+                await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
+            }
             var attempts = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)));
             Assert.Single(attempts, x => x == "consumed");
             Assert.Equal(9, attempts.Count(x => x == "already_consumed"));
@@ -196,13 +237,16 @@ public sealed class CloudInferenceClaimPostgresTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
         untrusted.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
         var privacyId = Guid.NewGuid();
-        async Task<HttpResponseMessage> Inspect(HttpClient sender, string body)
+        async Task<HttpResponseMessage> Inspect(HttpClient sender, string body, Guid? targetId = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/inference/privacy") { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
-            request.Headers.Add("X-Cloud-Request-Id", privacyId.ToString("D"));
+            request.Headers.Add("X-Cloud-Request-Id", (targetId ?? privacyId).ToString("D"));
+            request.Headers.Add("X-Cloud-Fingerprint-Key-Id", "key");
+            request.Headers.Add("X-Cloud-Request-Fingerprint", Convert.ToBase64String(new byte[32]));
             return await sender.SendAsync(request);
         }
         Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(untrusted, "{}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/cloud/internal/v1/inference/privacy", new { messages = new[] { new { role = "user", content = "hello" } } })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"x\",\"Content\":\"y\"}]}" )).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"hello world\"}]}" )).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"person@\"},{\"role\":\"assistant\",\"content\":\"example.test\"}]}" )).StatusCode);
@@ -236,6 +280,8 @@ public sealed class CloudInferenceClaimPostgresTests
         var proof = new { fingerprintKeyId = "key", fingerprint, endpointReference = reference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64), modelId = "registry/model-a", workerPayloadFingerprint = fingerprint };
         Assert.Equal(HttpStatusCode.Unauthorized, (await untrusted.PostAsJsonAsync(claimPath, proof)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(claimPath, new { fingerprintKeyId = "key", fingerprint, endpointReference = reference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64), modelId = "registry/model-a" })).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsJsonAsync(claimPath, proof)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"hello world\"}]}", requestId)).StatusCode);
         var claim = await client.PostAsJsonAsync(claimPath, proof);
         Assert.Equal(HttpStatusCode.OK, claim.StatusCode);
         Assert.Equal("claimed", (await claim.Content.ReadFromJsonAsync<CloudExecutionClaimResult>())!.Status);
@@ -246,7 +292,7 @@ public sealed class CloudInferenceClaimPostgresTests
     }
     private static async Task VerifyNodeClientAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId, Guid reservationId, DateTimeOffset expiresAt, string reference)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.findInferenceFingerprintKey(process.env.OC_TEST_CREDENTIAL,x.requestId);const b=await c.reserveInference(process.env.OC_TEST_CREDENTIAL,x.reservation);const d=await c.claimInference(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.proof);const p=await c.inspectInference(process.env.OC_TEST_CREDENTIAL,x.requestId,[{role:'user',content:'hello world'}]);process.stdout.write(JSON.stringify([a.status,b.status,d.status,p.code]));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.findInferenceFingerprintKey(process.env.OC_TEST_CREDENTIAL,x.requestId);const b=await c.reserveInference(process.env.OC_TEST_CREDENTIAL,x.reservation);const d=await c.claimInference(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.proof);const p=await c.inspectInference(process.env.OC_TEST_CREDENTIAL,x.requestId,[{role:'user',content:'hello world'}], 'key',x.reservation.fingerprint);process.stdout.write(JSON.stringify([a.status,b.status,d.status,p.code]));";
         var fingerprint = Convert.ToBase64String(new byte[32]);
         var data = new { requestId, reservationId, reservation = new { requestId, fingerprintKeyId = "key", fingerprint, expiresAt, reservedTokens = 5 },
             proof = new { fingerprintKeyId = "key", fingerprint, workerPayloadFingerprint = fingerprint, modelId = "registry/model-a", deployment = new { endpointReference = reference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) } } };
@@ -266,8 +312,8 @@ public sealed class CloudInferenceClaimPostgresTests
     private sealed class SwitchableInferenceEvidence(ICloudInferencePrivacyEvidenceStore inner) : ICloudInferencePrivacyEvidenceStore
     {
         public bool Fail { get; set; }
-        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken) =>
-            Fail ? Task.FromException(new InvalidOperationException("unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, cancellationToken);
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint, string outcome, string traceId, CancellationToken cancellationToken) =>
+            Fail ? Task.FromException(new InvalidOperationException("unavailable")) : inner.AppendAsync(identity, requestId, fingerprintKeyId, fingerprint, outcome, traceId, cancellationToken);
     }
     private static X509Certificate2 Certificate(bool client)
     {

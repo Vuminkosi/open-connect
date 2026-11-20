@@ -47,6 +47,8 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
         if (!string.Equals(reservation.FingerprintKeyId, fingerprintKeyId, StringComparison.Ordinal) ||
             !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
         if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
+        if (capabilityId == "inference.chat" && !await EfCloudInferencePrivacyAdmission.IsAllowedAsync(db,
+                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken)) return new("unavailable");
         if (selectedDeployment is not null && await (from existing in db.ExecutionClaims
                 join held in db.QuotaReservations on existing.ReservationId equals held.Id
                 where existing.DeploymentId == selectedDeployment.Id && held.FinalizedAt == null

@@ -34,6 +34,13 @@ public static class CloudInferencePrivacyEndpoints
             });
             var ids = context.Request.Headers["X-Cloud-Request-Id"];
             if (ids.Count != 1 || !Guid.TryParseExact(ids.ToString(), "D", out var requestId) || requestId == Guid.Empty) return Results.BadRequest();
+            var keys = context.Request.Headers["X-Cloud-Fingerprint-Key-Id"];
+            var fingerprints = context.Request.Headers["X-Cloud-Request-Fingerprint"];
+            if (keys.Count != 1 || !CloudRequestFingerprint.IsValidKeyId(keys.ToString()) || fingerprints.Count != 1) return Results.BadRequest();
+            byte[] fingerprint;
+            try { fingerprint = Convert.FromBase64String(fingerprints.ToString()); }
+            catch (FormatException) { return Results.BadRequest(); }
+            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != fingerprints.ToString()) return Results.BadRequest();
             if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.StatusCode(415);
             if (context.Request.ContentLength > 131072) return Results.StatusCode(413);
             var buffer = new byte[131073];
@@ -58,7 +65,7 @@ public static class CloudInferencePrivacyEndpoints
                 try
                 {
                     await context.RequestServices.GetRequiredService<ICloudInferencePrivacyEvidenceStore>()
-                        .AppendAsync(authorization.Identity, requestId, result.Code, traceId, cancellationToken);
+                        .AppendAsync(authorization.Identity, requestId, keys.ToString(), fingerprint, result.Code, traceId, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch { return Results.StatusCode(503); }

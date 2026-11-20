@@ -149,3 +149,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Expose inference fingerprint-key lookup, token reservation and claim over pinned mutual TLS and provide Node client methods; actual provider token ceilings and public dispatch remain outstanding.
 
 - [x] Add private inference message privacy inspection with durable metadata-only observations and a Node client; public routing, output inspection and dashboard integration remain outstanding.
+
+- [x] Require latest matching inference privacy evidence at claim creation and worker consumption, ordered against evidence writers; exact inspected-message to worker-payload binding remains outstanding.

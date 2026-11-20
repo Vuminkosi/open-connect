@@ -10,7 +10,7 @@ public sealed record CloudInferencePrivacyRequest(CloudInferencePrivacyMessage[]
 
 public interface ICloudInferencePrivacyEvidenceStore
 {
-    Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken);
+    Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint, string outcome, string traceId, CancellationToken cancellationToken);
 }
 
 // Cloud inspection is independent of the calling application's own privacy firewall.
