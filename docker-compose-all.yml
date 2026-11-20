@@ -8,6 +8,18 @@
 # Environment variables from .env in the root folder are automatically loaded and forwarded.
 
 services:
+  worker-analytics:
+    profiles: ["analytics"]
+    build:
+      context: .
+      dockerfile: workers/analytics-inference/Dockerfile
+    image: openconnect-worker-analytics:${OC_IMAGE_TAG:-e2e-local}
+    environment:
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    networks:
+      - oc-network
+
   # Cloud data plane is separate from the sample application gateway.
   cloud-gateway:
     build:

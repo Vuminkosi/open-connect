@@ -1,0 +1,24 @@
+[project]
+name = "openconnect-analytics-inference"
+version = "0.1.0"
+description = "CPU-first analytics for OpenConnect"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.12",
+  "openconnect-worker-common",
+  "uvicorn[standard]==0.34.3",
+]
+
+[tool.uv.sources]
+openconnect-worker-common = { path = "../common" }
+
+[dependency-groups]
+dev = ["httpx==0.28.1", "pytest==8.3.5", "ruff==0.11.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
