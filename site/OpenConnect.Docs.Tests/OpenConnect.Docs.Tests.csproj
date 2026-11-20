@@ -19,6 +19,8 @@
     <Content Include="../../cloud/gateway/classification-probe.mjs" Link="gateway/classification-probe.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-dispatch.mjs" Link="gateway/classification-dispatch.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-request.mjs" Link="gateway/classification-request.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../cloud/gateway/classification-quota.mjs" Link="gateway/classification-quota.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../cloud/gateway/request-fingerprint.mjs" Link="gateway/request-fingerprint.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/trace-context.mjs" Link="gateway/trace-context.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../OpenConnect.Docs/Content/**/*.md" Link="Content/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

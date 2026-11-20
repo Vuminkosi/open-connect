@@ -138,7 +138,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
             {
                 db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 5 });
+                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 6 });
                 await db.SaveChangesAsync();
             }
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
@@ -164,6 +164,20 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("duplicate", (await duplicate.Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
             Assert.Equal("duplicate", (await NodeReserveAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reservationBody)).Status);
             Assert.Equal("duplicate", (await NodeReserveFromLookupAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, newRequestId)).Status);
+            var adapterRequestId = Guid.NewGuid();
+            var adapterBody = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.classification/v2", requestId = adapterRequestId,
+                capability = "classification.classify", expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture), input = new { text = "test fixture" } });
+            var adapterResults = await NodeQuotaAdapterAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, tenant.Id, appRecord.Id, adapterBody);
+            Assert.Equal(new[] { "reserved", "duplicate", "idempotency_conflict" }, adapterResults.Select(x => x.Status));
+            Assert.Equal(adapterResults[0].ReservationId, adapterResults[1].ReservationId);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var persisted = await db.QuotaReservations.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.RequestId == adapterRequestId);
+                Assert.Equal("old", persisted.FingerprintKeyId);
+                var expected = CloudRequestFingerprint.Compute("old", Enumerable.Repeat((byte)2, 32).ToArray(), new CloudFingerprintInput(
+                    tenant.Id, appRecord.Id, "classification.classify", "POST", "/cloud/v1/classification", "application/json", System.Text.Encoding.UTF8.GetBytes(adapterBody)));
+                Assert.Equal(expected, persisted.RequestFingerprint);
+            }
             Assert.Equal("quota_unavailable", (await NodeReserveAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reservationBody)).Status);
             var conflictingBody = new { requestId = newRequestId, fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()), expiresAt = now.AddMinutes(4) };
             Assert.Equal(HttpStatusCode.Conflict, (await Reserve(authorized, classificationCredential.Secret, conflictingBody)).StatusCode);
@@ -427,6 +441,17 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.reserveClassification(process.env.OC_TEST_CREDENTIAL,JSON.parse(process.env.OC_TEST_CAPABILITY))));";
         var output = await NodeCallAsync(script, address, server, client, credential, System.Text.Json.JsonSerializer.Serialize(body));
         return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+    }
+
+    private static async Task<CloudQuotaResult[]> NodeQuotaAdapterAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid tenantId, Guid applicationId, string body)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const q=await import(new URL('./classification-quota.mjs',process.env.OC_TEST_MODULE)); const p=await import(new URL('./classification-request.mjs',process.env.OC_TEST_MODULE)); const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE)); " +
+            "const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_CAPABILITY); " +
+            "async function run(raw,activeKeyId){const ring=f.createFingerprintKeyring({activeKeyId,keys:[{id:'old',key:Buffer.alloc(32,2)},{id:'new',key:Buffer.alloc(32,1)}]});try {const r={headers:new Headers({'content-type':'application/json'}),readBody:async()=>({bytes:Buffer.from(raw)})}; return await p.withClassificationRequest(r,(value,body)=>q.reserveClassificationRequest({credential:process.env.OC_TEST_CREDENTIAL,identity:x.identity,value,body},{controlPlane:c,keyring:ring}));} finally {ring.dispose();}} " +
+            "process.stdout.write(JSON.stringify([await run(x.body,'old'),await run(x.body,'new'),await run(x.body+' ','new')]));";
+        var input = System.Text.Json.JsonSerializer.Serialize(new { identity = new { tenantId, applicationId }, body });
+        var output = await NodeCallAsync(script, address, server, client, credential, input);
+        return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult[]>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
     private static async Task<CloudExecutionClaimResult> NodeClaimAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, string reference, string keyId = "retained_key")
