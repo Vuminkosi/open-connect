@@ -64,6 +64,36 @@ public sealed class KnowledgeEmbeddingClientTests
     }
 
     [Theory]
+    [InlineData(0.0, 0.0, 1.0)]
+    [InlineData(1.2, 1.6, 1.0)]
+    [InlineData(0.6, 0.8, 0.5)]
+    public async Task RejectsVectorsWithInvalidOrMisreportedNorm(double first, double second, double reportedNorm)
+    {
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            return Response(json.RootElement.GetProperty("taskId").GetString()!, 2, [first, second], reportedNorm);
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new Gate(true), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.EmbedAsync(Context(), "query", ["text"]));
+    }
+
+    [Fact]
+    public async Task TimesOutIfWorkerResponseBodyStalls()
+    {
+        var handler = new Handler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new StalledStream())
+        }));
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new Gate(true), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker, requestTimeout: TimeSpan.FromMilliseconds(100));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.EmbedAsync(Context(), "query", ["text"]));
+    }
+
+    [Theory]
     [InlineData("extra")]
     [InlineData("duplicate")]
     public async Task RejectsUnexpectedOrDuplicateResponseFields(string mutation)
@@ -139,14 +169,14 @@ public sealed class KnowledgeEmbeddingClientTests
         }
     }
 
-    private static HttpResponseMessage Response(string taskId, int dimension)
+    private static HttpResponseMessage Response(string taskId, int dimension, double[]? vector = null, double norm = 1.0)
     {
         var json = JsonSerializer.Serialize(new
         {
             schemaVersion = "openconnect.v1", taskId, kind = "knowledge.embed", result = new
             {
                 model_id = "model", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension,
-                items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1.0 } }
+                items = new[] { new { vector = vector ?? [0.6, 0.8], truncated = false, norm } }
             }
         });
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
@@ -167,6 +197,25 @@ public sealed class KnowledgeEmbeddingClientTests
             Calls++;
             return send(request);
         }
+    }
+
+    private sealed class StalledStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return 0;
+        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class LiveWorkerFactAttribute : FactAttribute

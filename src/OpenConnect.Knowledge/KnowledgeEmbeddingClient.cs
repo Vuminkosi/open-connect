@@ -23,6 +23,7 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
     private readonly byte[] _signingKey;
     private readonly EgressDestination _destination;
     private readonly bool _ownsHttpClient;
+    private readonly TimeSpan _requestTimeout;
     private bool _disposed;
 
     /// <summary>Creates a client for an explicitly configured private worker.</summary>
@@ -36,7 +37,7 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
 
     internal KnowledgeEmbeddingClient(HttpClient httpClient, IEgressGate egressGate, Uri endpoint,
         string bearerToken, byte[] signingKey, EgressDestination destination = EgressDestination.ExternalModel,
-        bool allowInsecureHttp = false, bool ownsHttpClient = false)
+        bool allowInsecureHttp = false, bool ownsHttpClient = false, TimeSpan? requestTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(egressGate);
@@ -58,6 +59,9 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
         _signingKey = (byte[])signingKey.Clone();
         _destination = destination;
         _ownsHttpClient = ownsHttpClient;
+        _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(100);
+        if (_requestTimeout <= TimeSpan.Zero || _requestTimeout > TimeSpan.FromMinutes(10))
+            throw new ArgumentOutOfRangeException(nameof(requestTimeout));
     }
 
     /// <summary>Applies host privacy policy and submits a bounded embedding request.</summary>
@@ -100,16 +104,18 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
         message.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_signingKey, body)).ToLowerInvariant());
         message.Content = new ByteArrayContent(body);
         message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(_requestTimeout);
+        using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException("The knowledge worker rejected the request.", null, response.StatusCode);
         if (response.Content.Headers.ContentLength > MaximumResponseBytes)
             throw new InvalidOperationException("The knowledge worker response is too large.");
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
         using var buffer = new MemoryStream();
         var chunk = new byte[8192];
         int count;
-        while ((count = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) > 0)
+        while ((count = await stream.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
         {
             if (buffer.Length + count > MaximumResponseBytes)
                 throw new InvalidOperationException("The knowledge worker response is too large.");
@@ -139,6 +145,10 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
             var vector = item.GetProperty("vector").EnumerateArray().Select(value => value.GetSingle()).ToArray();
             var norm = item.GetProperty("norm").GetDouble();
             if (vector.Length != dimension || vector.Any(value => !float.IsFinite(value)) || !double.IsFinite(norm) || norm < 0)
+                throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
+            var actualNorm = Math.Sqrt(vector.Sum(value => (double)value * value));
+            if (!double.IsFinite(actualNorm) || Math.Abs(actualNorm - 1) > 0.001 ||
+                Math.Abs(norm - actualNorm) > 0.001)
                 throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
             items.Add(new KnowledgeEmbedding(vector, item.GetProperty("truncated").GetBoolean(), norm));
         }

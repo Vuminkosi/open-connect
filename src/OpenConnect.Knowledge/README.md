@@ -3,7 +3,9 @@
 `KnowledgeEmbeddingClient` sends private embedding requests to a configured
 worker after evaluating every text through the host `IEgressGate`. It sends
 the sanitized values, signs the exact serialized request, and validates the
-response's task ID, model-space metadata, vector dimensions and batch count.
+response's task ID, model-space metadata, vector dimensions, batch count and
+actual vector norm. A 100-second deadline bounds response headers and body reads,
+in addition to caller cancellation.
 
 The host must authenticate and authorize the principal for the tenant before
 constructing the egress context. Configure the destination according to the
