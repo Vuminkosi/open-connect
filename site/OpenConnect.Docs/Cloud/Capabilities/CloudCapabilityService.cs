@@ -65,6 +65,12 @@ public sealed class CloudCapabilityService(IDbContextFactory<CloudControlPlaneDb
         CloudSubject subject, Guid tenantId, Guid applicationId, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        return await GetApplicationCapabilitiesAsync(db, subject, tenantId, applicationId, cancellationToken);
+    }
+
+    internal async Task<IReadOnlyList<CloudCapabilityView>?> GetApplicationCapabilitiesAsync(
+        CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, Guid applicationId, CancellationToken cancellationToken)
+    {
         if (!await IsMemberAsync(db, subject, tenantId, cancellationToken))
         {
             return null;

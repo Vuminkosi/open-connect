@@ -47,14 +47,13 @@ public sealed class CloudCredentialService(
         CloudSubject subject, Guid tenantId, Guid applicationId, IReadOnlyList<string>? requestedScopes,
         DateTimeOffset? expiresAt, CancellationToken cancellationToken)
     {
-        var scopesResult = await ValidateScopesAsync(subject, tenantId, applicationId, requestedScopes, cancellationToken);
-        if (scopesResult.Status != "succeeded") return new(scopesResult.Status);
-
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var role = await FindRoleAsync(db, subject, tenantId, cancellationToken);
         if (role is null) return new("not_found");
         if (!Administrators.Contains(role, StringComparer.Ordinal)) return new("forbidden");
+        var scopesResult = await ValidateScopesAsync(db, subject, tenantId, applicationId, requestedScopes, cancellationToken);
+        if (scopesResult.Status != "succeeded") return new(scopesResult.Status);
         var application = await db.Applications.SingleOrDefaultAsync(
             x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken);
         if (application is null) return new("not_found");
@@ -83,7 +82,7 @@ public sealed class CloudCredentialService(
         if (expiresAt is not null && expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
 
         var scopes = JsonSerializer.Deserialize<string[]>(oldCredential.Scopes) ?? [];
-        var scopesResult = await ValidateScopesAsync(subject, tenantId, applicationId, scopes, cancellationToken);
+        var scopesResult = await ValidateScopesAsync(db, subject, tenantId, applicationId, scopes, cancellationToken);
         if (scopesResult.Status != "succeeded") return new(scopesResult.Status);
         var application = await db.Applications.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.Id == applicationId, cancellationToken);
         if (application is null) return new("not_found");
@@ -153,7 +152,7 @@ public sealed class CloudCredentialService(
     }
 
     private async Task<(string Status, string[]? Scopes)> ValidateScopesAsync(
-        CloudSubject subject, Guid tenantId, Guid applicationId, IReadOnlyList<string>? requestedScopes, CancellationToken cancellationToken)
+        CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, Guid applicationId, IReadOnlyList<string>? requestedScopes, CancellationToken cancellationToken)
     {
         if (requestedScopes is null || requestedScopes.Count is < 1 or > 32 ||
             requestedScopes.Any(string.IsNullOrWhiteSpace) || requestedScopes.Distinct(StringComparer.Ordinal).Count() != requestedScopes.Count)
@@ -161,7 +160,7 @@ public sealed class CloudCredentialService(
             return ("invalid_scopes", null);
         }
 
-        var capabilityViews = await capabilities.GetApplicationCapabilitiesAsync(subject, tenantId, applicationId, cancellationToken);
+        var capabilityViews = await capabilities.GetApplicationCapabilitiesAsync(db, subject, tenantId, applicationId, cancellationToken);
         if (capabilityViews is null) return ("not_found", null);
         var byId = capabilityViews.ToDictionary(x => x.Id, StringComparer.Ordinal);
         foreach (var scope in requestedScopes)

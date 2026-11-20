@@ -74,6 +74,8 @@ The parser splits only the first three separators because the base64url secret m
 
 **Status:** Hash-only persistence, one-time API response, list, rotate, revoke, and credential validation logic are implemented. Gateway integration, credential rate limits/abuse controls, real database revocation-latency proof, and client onboarding UX remain pending.
 
+Issuance and rotation evaluate capability scopes in the same serializable database transaction as the credential write. The shared EF context is a temporary integration boundary; extract a transaction-aware persistence port when separating capability and credential storage.
+
 ## Deferred decisions
 
 Plan-grant administration, policy cache/revocation, gateway runtime, worker authentication, receipt signature format, quota authority, retention, and billing are intentionally not decided by this portal/control-plane foundation. Resolve each against the main requirements and source contracts before its implementation; do not infer production behavior from a UI placeholder.
