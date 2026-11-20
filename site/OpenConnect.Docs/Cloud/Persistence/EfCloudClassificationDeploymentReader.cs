@@ -17,7 +17,7 @@ public sealed class EfCloudClassificationDeploymentReader(IDbContextFactory<Clou
             !(JsonSerializer.Deserialize<string[]>(catalog.AllowedRegions) ?? []).Contains(request.Region, StringComparer.Ordinal)) return false;
         var matches = await db.WorkerDeployments.AsNoTracking().AnyAsync(x => x.Enabled && x.CapabilityId == "classification.classify" &&
             x.Transport == "https-mtls" && x.EndpointReference == request.EndpointReference && x.Region == request.Region &&
-            x.ContractVersion == request.ContractVersion && x.ModelRevision == request.ModelRevision && x.ModelId != null && x.ModelDigest != null,
+            x.ContractVersion == request.ContractVersion && x.ModelRevision == request.ModelRevision && x.ModelId != null && x.ModelDigest == request.ModelDigest,
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return matches;

@@ -29,16 +29,18 @@ test('classification probe requires complete deployment-owned file configuration
     assert.throws(() => classificationProbeFromEnvironment({ CLOUD_CLASSIFICATION_ORIGIN: 'https://worker.example' }));
     const env = { CLOUD_CLASSIFICATION_ORIGIN: 'https://worker.example', CLOUD_CLASSIFICATION_CA_FILE: '/ca',
         CLOUD_CLASSIFICATION_CERT_FILE: '/cert', CLOUD_CLASSIFICATION_KEY_FILE: '/key',
-        CLOUD_CLASSIFICATION_TOKEN_FILE: '/token', CLOUD_CLASSIFICATION_MODEL_REVISION: 'v1',
+        CLOUD_CLASSIFICATION_TOKEN_FILE: '/token', CLOUD_CLASSIFICATION_MODEL_REVISION: 'v1', CLOUD_CLASSIFICATION_MODEL_DIGEST: 'sha256:' + 'a'.repeat(64),
         CLOUD_CLASSIFICATION_ENDPOINT_REFERENCE: 'classification-a', CLOUD_CLASSIFICATION_REGION: 'region-a', CLOUD_CLASSIFICATION_CONTRACT_VERSION: 'openconnect.v1' };
     const paths = [];
     const probe = classificationProbeFromEnvironment(env, path => { paths.push(path); return Buffer.from(path === '/token' ? 'secret\n' : 'material'); });
     assert.equal(typeof probe.probe, 'function');
-    assert.deepEqual(probe.deployment, { endpointReference: 'classification-a', region: 'region-a', contractVersion: 'openconnect.v1', modelRevision: 'v1' });
+    assert.deepEqual(probe.deployment, { endpointReference: 'classification-a', region: 'region-a', contractVersion: 'openconnect.v1', modelRevision: 'v1', modelDigest: 'sha256:' + 'a'.repeat(64) });
     assert.deepEqual(paths, ['/token', '/ca', '/cert', '/key']);
     assert.throws(() => classificationProbeFromEnvironment({ ...env, CLOUD_CLASSIFICATION_TOKEN_FILE: 'relative' }));
     assert.throws(() => classificationProbeFromEnvironment({ ...env, CLOUD_CLASSIFICATION_ENDPOINT_REFERENCE: 'https://other.example' }));
     assert.throws(() => classificationProbeFromEnvironment({ ...env, CLOUD_CLASSIFICATION_REGION: '' }));
+    assert.throws(() => classificationProbeFromEnvironment({ ...env, CLOUD_CLASSIFICATION_MODEL_DIGEST: '' }));
+    assert.throws(() => classificationProbeFromEnvironment({ ...env, CLOUD_CLASSIFICATION_MODEL_DIGEST: 'sha256:invalid' }));
 });
 
 test('configured client reads only the supplied credential files', () => {
@@ -56,7 +58,7 @@ test('execution is opt-in and requires authority, worker and retained fingerprin
     const env = { CLOUD_CLASSIFICATION_EXECUTION_ENABLED: 'true', CLOUD_CLASSIFICATION_ORIGIN: 'https://worker.example',
         CLOUD_CLASSIFICATION_DEPLOYMENT_ID: '11111111-1111-1111-1111-111111111111',
         CLOUD_CLASSIFICATION_CA_FILE: base + 'ca', CLOUD_CLASSIFICATION_CERT_FILE: base + 'cert', CLOUD_CLASSIFICATION_KEY_FILE: base + 'key',
-        CLOUD_CLASSIFICATION_TOKEN_FILE: base + 'token', CLOUD_CLASSIFICATION_MODEL_REVISION: 'revision-1',
+        CLOUD_CLASSIFICATION_TOKEN_FILE: base + 'token', CLOUD_CLASSIFICATION_MODEL_REVISION: 'revision-1', CLOUD_CLASSIFICATION_MODEL_DIGEST: 'sha256:' + 'a'.repeat(64),
         CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active', CLOUD_FINGERPRINT_KEYS_FILE: base + 'fingerprints' };
     const read = path => Buffer.from(path.endsWith('fingerprints') ? `active:${Buffer.alloc(32, 1).toString('base64')}\n` : path.endsWith('token') ? 'secret' : 'material');
     const execution = classificationExecutionFromEnvironment(env, {}, {}, read);

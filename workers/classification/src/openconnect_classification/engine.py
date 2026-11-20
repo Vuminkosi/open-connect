@@ -37,6 +37,7 @@ class ClassifyOutcome:
     abstained: bool
     model_revision: str
     engine: str
+    model_digest: str | None = None
 
 
 def _score(text: str, labels: tuple[str, ...]) -> dict[str, float]:
@@ -116,7 +117,8 @@ class OnnxEngine:
         selected = sorted((label for label in self._classifier.contract.labels if scores[label] >= threshold),
                           key=lambda label: scores[label], reverse=True)[:max_labels]
         return ClassifyOutcome(labels=selected, scores={label: scores[label] for label in selected},
-                               abstained=not selected, model_revision=self._classifier.contract.revision, engine="real")
+                               abstained=not selected, model_revision=self._classifier.contract.revision, engine="real",
+                               model_digest=self._classifier.bundle_digest)
 
 
 def _offline_enforced() -> bool:

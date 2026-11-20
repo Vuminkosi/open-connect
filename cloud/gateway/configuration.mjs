@@ -45,10 +45,10 @@ export function authorizationFromEnvironment(environment, read = readFileSync) {
 export function classificationProbeFromEnvironment(environment, read = readFileSync) {
     const { CLOUD_CLASSIFICATION_ORIGIN: origin, CLOUD_CLASSIFICATION_CA_FILE: caFile,
         CLOUD_CLASSIFICATION_CERT_FILE: certFile, CLOUD_CLASSIFICATION_KEY_FILE: keyFile,
-        CLOUD_CLASSIFICATION_TOKEN_FILE: tokenFile, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision,
+        CLOUD_CLASSIFICATION_TOKEN_FILE: tokenFile, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision, CLOUD_CLASSIFICATION_MODEL_DIGEST: modelDigest,
         CLOUD_CLASSIFICATION_ENDPOINT_REFERENCE: endpointReference, CLOUD_CLASSIFICATION_REGION: region,
         CLOUD_CLASSIFICATION_CONTRACT_VERSION: contractVersion } = environment;
-    const values = [origin, caFile, certFile, keyFile, tokenFile, modelRevision, endpointReference, region, contractVersion];
+    const values = [origin, caFile, certFile, keyFile, tokenFile, modelRevision, modelDigest, endpointReference, region, contractVersion];
     if (values.every(value => !value)) return undefined;
     if (values.some(value => !value) || ![caFile, certFile, keyFile, tokenFile].every(isAbsolute))
         throw new Error('Cloud classification probe configuration is incomplete.');
@@ -56,8 +56,8 @@ export function classificationProbeFromEnvironment(environment, read = readFileS
     if (!validToken(endpointReference, 128) || !validToken(region, 80) || !validToken(contractVersion, 32))
         throw new Error('Cloud classification deployment configuration is invalid.');
     const token = read(tokenFile).toString('utf8').replace(/\r?\n$/, '');
-    const probe = createClassificationProbe({ origin, ca: read(caFile), certificate: read(certFile), privateKey: read(keyFile), workerToken: token, modelRevision });
-    return Object.freeze({ ...probe, deployment: Object.freeze({ endpointReference, region, contractVersion, modelRevision }) });
+    const probe = createClassificationProbe({ origin, ca: read(caFile), certificate: read(certFile), privateKey: read(keyFile), workerToken: token, modelRevision, modelDigest });
+    return Object.freeze({ ...probe, deployment: Object.freeze({ endpointReference, region, contractVersion, modelRevision, modelDigest }) });
 }
 
 export function classificationExecutionFromEnvironment(environment, authorization, probe, read = readFileSync) {
@@ -69,14 +69,14 @@ export function classificationExecutionFromEnvironment(environment, authorizatio
         throw new Error('Cloud classification deployment identity is required.');
     const { CLOUD_CLASSIFICATION_ORIGIN: origin, CLOUD_CLASSIFICATION_CA_FILE: ca,
         CLOUD_CLASSIFICATION_CERT_FILE: cert, CLOUD_CLASSIFICATION_KEY_FILE: key,
-        CLOUD_CLASSIFICATION_TOKEN_FILE: token, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision } = environment;
-    if (![origin, ca, cert, key, token, modelRevision].every(Boolean) || ![ca, cert, key, token].every(isAbsolute))
+        CLOUD_CLASSIFICATION_TOKEN_FILE: token, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision, CLOUD_CLASSIFICATION_MODEL_DIGEST: modelDigest } = environment;
+    if (![origin, ca, cert, key, token, modelRevision, modelDigest].every(Boolean) || ![ca, cert, key, token].every(isAbsolute))
         throw new Error('Cloud classification execution configuration is incomplete.');
     const keyring = fingerprintKeyringFromEnvironment(environment, read);
     if (!keyring) throw new Error('Cloud fingerprint key configuration is required.');
     try {
         const dispatcher = createClassificationDispatcher({ origin, ca: read(ca), certificate: read(cert), privateKey: read(key),
-            workerToken: read(token).toString('utf8').replace(/\r?\n$/, ''), modelRevision });
+            workerToken: read(token).toString('utf8').replace(/\r?\n$/, ''), modelRevision, modelDigest });
         return Object.freeze({ keyring, dispatcher, deploymentId: deploymentId.toLowerCase() });
     } catch (error) { keyring.dispose(); throw error; }
 }

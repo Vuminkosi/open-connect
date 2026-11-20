@@ -60,6 +60,7 @@ def _read_file(root: Path, name: str, maximum: int) -> bytes:
 @dataclass(frozen=True)
 class OnnxClassifier:
     contract: BundleContract
+    bundle_digest: str
     tokenizer: Tokenizer
     session: ort.InferenceSession
     inputs: tuple[str, ...]
@@ -116,7 +117,7 @@ def load_bundle(root: str, manifest_sha256: str, license_accepted: bool) -> Onnx
                 any(item.name not in {"input_ids", "attention_mask", "token_type_ids"} or item.type != "tensor(int64)" or len(item.shape) != 2 for item in inputs) or
                 contract.outputName not in {item.name for item in session.get_outputs()}):
             raise BundleUnavailableError("model tensor contract is incompatible")
-        classifier = OnnxClassifier(contract, tokenizer_instance, session, input_names)
+        classifier = OnnxClassifier(contract, "sha256:" + manifest_sha256, tokenizer_instance, session, input_names)
         classifier.scores("readiness probe")
         return classifier
     except BundleUnavailableError:

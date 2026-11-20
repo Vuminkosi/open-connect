@@ -1,6 +1,6 @@
 namespace OpenConnect.Docs.Cloud;
 
-public sealed record CloudClassificationDeploymentMatchRequest(string? EndpointReference, string? Region, string? ContractVersion, string? ModelRevision);
+public sealed record CloudClassificationDeploymentMatchRequest(string? EndpointReference, string? Region, string? ContractVersion, string? ModelRevision, string? ModelDigest);
 public sealed record CloudClassificationDeploymentMatchResponse(bool Matched);
 
 public interface ICloudClassificationDeploymentReader
@@ -19,5 +19,6 @@ public sealed class CloudClassificationDeploymentService(ICloudClassificationDep
 
     public static bool IsValid(CloudClassificationDeploymentMatchRequest? request) => request is not null &&
         CloudDeploymentRegistry.ValidToken(request.EndpointReference, 128) && CloudDeploymentRegistry.ValidToken(request.Region, 80) &&
-        CloudDeploymentRegistry.ValidToken(request.ContractVersion, 32) && !string.IsNullOrWhiteSpace(request.ModelRevision) && request.ModelRevision.Length <= 256;
+        CloudDeploymentRegistry.ValidToken(request.ContractVersion, 32) && !string.IsNullOrWhiteSpace(request.ModelRevision) && request.ModelRevision.Length <= 256 && request.ModelDigest is not null &&
+        System.Text.RegularExpressions.Regex.IsMatch(request.ModelDigest, "^sha256:[0-9a-f]{64}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 }

@@ -4,11 +4,12 @@ import { isValidTraceparent } from './trace-context.mjs';
 const unavailable = () => ({ ready: false, code: 'capability_unavailable' });
 
 // All connection and identity material is deployment-owned, never request-provided.
-export function createClassificationProbe({ origin, ca, certificate, privateKey, workerToken, modelRevision, timeoutMs = 5000 }) {
+export function createClassificationProbe({ origin, ca, certificate, privateKey, workerToken, modelRevision, modelDigest, timeoutMs = 5000 }) {
     const url = new URL(origin);
     if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
         !ca || !certificate || !privateKey || typeof workerToken !== 'string' || !/^[\x21-\x7e]{1,512}$/.test(workerToken) ||
         typeof modelRevision !== 'string' || modelRevision.length < 1 || modelRevision.length > 256 ||
+        typeof modelDigest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(modelDigest) ||
         !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000)
         throw new TypeError('Invalid classification probe configuration.');
 
@@ -49,11 +50,11 @@ export function createClassificationProbe({ origin, ca, certificate, privateKey,
     return {
         async probe(signal, traceparent, requireCloudExecution = false, expectedDeploymentId = null) {
             const health = await get('/health/ready', signal, traceparent);
-            if (health?.status !== 'ready' || health.ready !== true || health.engine !== 'real' || health.modelRevision !== modelRevision)
+            if (health?.status !== 'ready' || health.ready !== true || health.engine !== 'real' || health.modelRevision !== modelRevision || health.modelDigest !== modelDigest)
                 return unavailable();
             const advertised = await get('/internal/v1/capabilities', signal, traceparent);
             if (signal?.aborted || advertised?.workerKind !== 'classification' || advertised.engine !== 'real' ||
-                advertised.modelRevision !== modelRevision || !Array.isArray(advertised.capabilities) ||
+                advertised.modelRevision !== modelRevision || advertised.modelDigest !== modelDigest || !Array.isArray(advertised.capabilities) ||
                 !advertised.capabilities.some(item => item?.kind === 'classification' && item.grantsTools === false))
                 return unavailable();
             const capability = advertised.capabilities.find(item => item?.kind === 'classification' && item.grantsTools === false);

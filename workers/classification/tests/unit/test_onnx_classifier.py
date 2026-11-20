@@ -52,13 +52,16 @@ def test_real_onnx_inference_uses_explicit_label_mapping_and_changes_with_input(
                         fake_engine=False, is_production=False, model_device="cpu"))
     client = TestClient(app_module.app)
     assert client.get("/health/ready").json()["modelRevision"] == "synthetic-v1"
+    assert client.get("/health/ready").json()["modelDigest"] == "sha256:" + digest
     capability = client.get("/internal/v1/capabilities", headers={"Authorization": "Bearer test-token"}).json()
     assert capability["engine"] == "real" and capability["capabilities"][0]["labelSets"] == ["v1"]
+    assert capability["modelDigest"] == "sha256:" + digest
     response = client.post("/internal/v1/execute", headers={"Authorization": "Bearer test-token"},
                            json={"taskId": "fixture", "input": {"text": "hello world"}})
     assert response.status_code == 200
     assert response.json()["result"]["engine"] == "real"
     assert response.json()["result"]["modelRevision"] == "synthetic-v1"
+    assert response.json()["result"]["modelDigest"] == "sha256:" + digest
     assert client.post("/internal/v1/execute", headers={"Authorization": "Bearer test-token"},
                        json={"taskId": "fixture", "input": {"text": " ".join(["hello"] * 9)}}).status_code == 413
 

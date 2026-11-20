@@ -29,13 +29,13 @@ export function prepareClassificationWorkerPayload(request) {
 }
 
 // Worker output is untrusted. Only the versioned label vocabulary may leave this boundary.
-export function validateClassificationWorkerResponse(value, taskId, modelRevision, labelSetVersion) {
+export function validateClassificationWorkerResponse(value, taskId, modelRevision, labelSetVersion, modelDigest) {
     if (!only(value, ['schemaVersion', 'taskId', 'status', 'result', 'error']) || value.schemaVersion !== 'openconnect.v1' ||
         value.taskId !== taskId || value.status !== 'completed' || value.error != null ||
-        !only(value.result, ['labels', 'scores', 'abstained', 'modelRevision', 'labelSetVersion', 'engine', 'engineWarning', 'grantsTools'])) return null;
+        !only(value.result, ['labels', 'scores', 'abstained', 'modelRevision', 'modelDigest', 'labelSetVersion', 'engine', 'engineWarning', 'grantsTools'])) return null;
     const result = value.result;
     const vocabulary = labelsByVersion.get(labelSetVersion);
-    if (!vocabulary || result.modelRevision !== modelRevision || result.labelSetVersion !== labelSetVersion || result.engine !== 'real' ||
+    if (!vocabulary || result.modelRevision !== modelRevision || result.modelDigest !== modelDigest || result.labelSetVersion !== labelSetVersion || result.engine !== 'real' ||
         result.engineWarning != null || result.grantsTools !== false || typeof result.abstained !== 'boolean' ||
         !Array.isArray(result.labels) || result.labels.length > vocabulary.size || new Set(result.labels).size !== result.labels.length ||
         !result.labels.every(label => vocabulary.has(label)) || !object(result.scores)) return null;
@@ -47,11 +47,12 @@ export function validateClassificationWorkerResponse(value, taskId, modelRevisio
 }
 
 // Destination and credentials are deployment-owned. This adapter does not grant execution authority.
-export function createClassificationDispatcher({ origin, ca, certificate, privateKey, workerToken, modelRevision, timeoutMs = 5000 }) {
+export function createClassificationDispatcher({ origin, ca, certificate, privateKey, workerToken, modelRevision, modelDigest, timeoutMs = 5000 }) {
     const url = new URL(origin);
     if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
         !ca || !certificate || !privateKey || typeof workerToken !== 'string' || !/^[\x21-\x7e]{1,512}$/.test(workerToken) ||
         typeof modelRevision !== 'string' || !modelRevision.trim() || modelRevision.length > 256 ||
+        !/^sha256:[0-9a-f]{64}$/.test(modelDigest ?? '') ||
         !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) throw new TypeError('Invalid classification dispatcher configuration.');
     async function send(path, body, requestId, labelSetVersion, signal, traceparent) {
             return new Promise(resolve => {
@@ -73,7 +74,7 @@ export function createClassificationDispatcher({ origin, ca, certificate, privat
                             try {
                                 combined = Buffer.concat(chunks);
                                 const text = new TextDecoder('utf-8', { fatal: true }).decode(combined);
-                                const result = validateClassificationWorkerResponse(parseUniqueJson(text), requestId, modelRevision, labelSetVersion);
+                                const result = validateClassificationWorkerResponse(parseUniqueJson(text), requestId, modelRevision, labelSetVersion, modelDigest);
                                 finish(result ? { status: 'completed', result } : unavailable());
                             } catch { finish(unavailable()); }
                             finally { combined?.fill(0); clear(); }

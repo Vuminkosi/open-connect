@@ -170,10 +170,11 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 typeof proof.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.fingerprint) || !deployment ||
                 (proof.workerPayloadFingerprint !== undefined && (typeof proof.workerPayloadFingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.workerPayloadFingerprint))) ||
                 !token(deployment.endpointReference, 128) || !token(deployment.region, 80) || !token(deployment.contractVersion, 32) ||
-                typeof deployment.modelRevision !== 'string' || !deployment.modelRevision.trim() || deployment.modelRevision.length > 256)
+                typeof deployment.modelRevision !== 'string' || !deployment.modelRevision.trim() || deployment.modelRevision.length > 256 ||
+                !/^sha256:[0-9a-f]{64}$/.test(deployment.modelDigest ?? ''))
                 return Promise.resolve(unavailable());
             const body = Buffer.from(JSON.stringify({ fingerprintKeyId: proof.fingerprintKeyId, fingerprint: proof.fingerprint,
-                endpointReference: deployment.endpointReference, region: deployment.region, contractVersion: deployment.contractVersion, modelRevision: deployment.modelRevision,
+                endpointReference: deployment.endpointReference, region: deployment.region, contractVersion: deployment.contractVersion, modelRevision: deployment.modelRevision, modelDigest: deployment.modelDigest,
                 ...(proof.workerPayloadFingerprint !== undefined ? { workerPayloadFingerprint: proof.workerPayloadFingerprint } : {}) }), 'utf8');
             return new Promise(resolve => {
                 let finished = false; let timer;
@@ -237,11 +238,12 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
         matchClassificationDeployment(credential, deployment, signal, traceparent) {
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
                 return Promise.resolve(false);
-            const { endpointReference, region, contractVersion, modelRevision } = deployment;
+            const { endpointReference, region, contractVersion, modelRevision, modelDigest } = deployment;
             const token = (value, limit) => typeof value === 'string' && value.length > 0 && value.length <= limit && /^[A-Za-z0-9._-]+$/.test(value);
             if (!token(endpointReference, 128) || !token(region, 80) || !token(contractVersion, 32) ||
-                typeof modelRevision !== 'string' || !modelRevision.trim() || modelRevision.length > 256) return Promise.resolve(false);
-            const body = Buffer.from(JSON.stringify({ endpointReference, region, contractVersion, modelRevision }), 'utf8');
+                typeof modelRevision !== 'string' || !modelRevision.trim() || modelRevision.length > 256 ||
+                !/^sha256:[0-9a-f]{64}$/.test(modelDigest ?? '')) return Promise.resolve(false);
+            const body = Buffer.from(JSON.stringify({ endpointReference, region, contractVersion, modelRevision, modelDigest }), 'utf8');
             if (body.length > 4096) { body.fill(0); return Promise.resolve(false); }
             return new Promise(resolve => {
                 let finished = false;

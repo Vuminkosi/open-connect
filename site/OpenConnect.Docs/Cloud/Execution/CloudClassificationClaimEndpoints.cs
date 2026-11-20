@@ -6,7 +6,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public static class CloudClassificationClaimEndpoints
 {
-    private sealed record ClaimProof(string FingerprintKeyId, string Fingerprint, string EndpointReference, string Region, string ContractVersion, string ModelRevision, string? WorkerPayloadFingerprint = null);
+    private sealed record ClaimProof(string FingerprintKeyId, string Fingerprint, string EndpointReference, string Region, string ContractVersion, string ModelRevision, string ModelDigest, string? WorkerPayloadFingerprint = null);
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true };
     public static void MapCloudClassificationClaim(this WebApplication app, CloudGatewayClientTrust trust, bool databaseConfigured)
     {
@@ -29,7 +29,7 @@ public static class CloudClassificationClaimEndpoints
             if (reservationId == Guid.Empty) return Results.BadRequest();
             var proof = await ReadProofAsync(context.Request, cancellationToken);
             if (proof is null || !CloudRequestFingerprint.IsValidKeyId(proof.FingerprintKeyId) || proof.Fingerprint is null) return Results.BadRequest();
-            var deployment = new CloudClassificationDeploymentMatchRequest(proof.EndpointReference, proof.Region, proof.ContractVersion, proof.ModelRevision);
+            var deployment = new CloudClassificationDeploymentMatchRequest(proof.EndpointReference, proof.Region, proof.ContractVersion, proof.ModelRevision, proof.ModelDigest);
             if (!CloudClassificationDeploymentService.IsValid(deployment)) return Results.BadRequest();
             byte[] fingerprint;
             try { fingerprint = Convert.FromBase64String(proof.Fingerprint); }

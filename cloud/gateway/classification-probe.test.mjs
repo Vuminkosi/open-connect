@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassificationProbe } from './classification-probe.mjs';
 
-const options = { origin: 'https://localhost', ca: 'ca', certificate: 'cert', privateKey: 'key', workerToken: 'token', modelRevision: 'revision' };
+const options = { origin: 'https://localhost', ca: 'ca', certificate: 'cert', privateKey: 'key', workerToken: 'token', modelRevision: 'revision', modelDigest: 'sha256:' + 'a'.repeat(64) };
 
 test('probe accepts only deployment-owned HTTPS origins and bounded credentials', () => {
     for (const origin of ['http://localhost', 'https://user:pass@localhost', 'https://localhost/path', 'https://localhost/?url=x'])

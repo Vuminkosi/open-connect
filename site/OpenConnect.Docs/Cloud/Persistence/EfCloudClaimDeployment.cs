@@ -18,7 +18,7 @@ internal static class EfCloudClaimDeployment
         var deployment = await db.WorkerDeployments.FromSqlInterpolated($"SELECT * FROM cloud.worker_deployments WHERE \"EndpointReference\" = {request.EndpointReference} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         return deployment is { Enabled: true, CapabilityId: "classification.classify", Transport: "https-mtls", ModelId: not null, ModelDigest: not null } &&
-            deployment.Region == request.Region && deployment.ContractVersion == request.ContractVersion && deployment.ModelRevision == request.ModelRevision
+            deployment.Region == request.Region && deployment.ContractVersion == request.ContractVersion && deployment.ModelRevision == request.ModelRevision && deployment.ModelDigest == request.ModelDigest
             ? deployment : null;
     }
 }

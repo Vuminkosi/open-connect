@@ -87,7 +87,8 @@ def ready() -> dict[str, object]:
     try:
         bundle = _bundle()
         return {"status": "ready", "ready": True, "engine": "real", "modelRevision": bundle.contract.revision,
-                "labelSetVersion": bundle.contract.labelSetVersion, **device}
+                "labelSetVersion": bundle.contract.labelSetVersion,
+                "modelDigest": bundle.bundle_digest, **device}
     except BundleUnavailableError:
         return {"status": "unready", "ready": False, "reason": "model_unavailable"}
 
@@ -148,7 +149,7 @@ def capabilities() -> CapabilitiesResponse:
     except BundleUnavailableError:
         return JSONResponse(status_code=503, content={"status": "unavailable"})  # type: ignore[return-value]
     return CapabilitiesResponse(engine="real", modelRevision=bundle.contract.revision,
-        capabilities=[Capability(labelSets=[bundle.contract.labelSetVersion], defaultLabelSet=bundle.contract.labelSetVersion)])
+        modelDigest=bundle.bundle_digest, capabilities=[Capability(labelSets=[bundle.contract.labelSetVersion], defaultLabelSet=bundle.contract.labelSetVersion)])
 
 
 def run_classification(request: ExecuteRequest) -> ExecuteResponse:
@@ -245,6 +246,7 @@ def run_classification(request: ExecuteRequest) -> ExecuteResponse:
             scores=outcome.scores,
             abstained=outcome.abstained,
             modelRevision=outcome.model_revision,
+            modelDigest=outcome.model_digest,
             labelSetVersion=payload.labelSetVersion,
             engine=outcome.engine,  # type: ignore[arg-type]
             engineWarning=FAKE_WARNING if outcome.engine == "fake" else None,

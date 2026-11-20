@@ -115,9 +115,9 @@ public sealed class CloudClassificationProbeTests
         builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, listener => listener.UseHttps(serverCertificate, trust.ConfigureHttps)));
         await using var app = builder.Build();
         var mode = "real";
-        app.MapGet("/health/ready", () => Results.Json(new { status = "ready", ready = true, engine = mode == "fake" ? "fake" : "real", modelRevision = "revision-1" }));
+        app.MapGet("/health/ready", () => Results.Json(new { status = "ready", ready = true, engine = mode == "fake" ? "fake" : "real", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) }));
         app.MapGet("/internal/v1/capabilities", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret"
-            ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1",
+            ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64),
                 capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false, labelSets = new[] { "v1" } }] })
             : Results.Unauthorized());
         app.MapGet("/internal/cloud/v1/classification/ready", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret" && mode != "cloud-down"
@@ -129,7 +129,7 @@ public sealed class CloudClassificationProbeTests
             var taskId = json.RootElement.GetProperty("taskId").GetString();
             return Results.Json(new { schemaVersion = "openconnect.v1", taskId, status = "completed", error = (string?)null,
                 result = new { labels = new[] { "safe" }, scores = new { safe = 0.9 }, abstained = false,
-                    modelRevision = mode == "revision" ? "other" : "revision-1", labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
+                    modelRevision = mode == "revision" ? "other" : "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64), labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
         });
         var receivedClaimed = false;
         app.MapPost("/internal/cloud/v1/classification/execute", async (HttpContext context) =>
@@ -147,7 +147,7 @@ public sealed class CloudClassificationProbeTests
             receivedClaimed = true;
             return Results.Json(new { schemaVersion = "openconnect.v1", taskId, status = "completed", error = (string?)null,
                 result = new { labels = new[] { "safe" }, scores = new { safe = 0.9 }, abstained = false,
-                    modelRevision = "revision-1", labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
+                    modelRevision = "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64), labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
         });
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -167,6 +167,9 @@ public sealed class CloudClassificationProbeTests
         Assert.Equal("upstream_unavailable", await ClaimedDispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "revision";
         Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
+        mode = "digest";
+        Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
+        Assert.Equal("upstream_unavailable", await DispatchAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "unadvertised";
         Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret"));
         mode = "real";
@@ -180,7 +183,7 @@ public sealed class CloudClassificationProbeTests
 
     private static async Task<string> ClaimedDispatchAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE); const b=await import(new URL('./classification-payload.mjs',process.env.OC_TEST_MODULE)); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:'revision-1'}); const prepared=m.prepareClassificationWorkerPayload({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}}); const bound=b.bindClassificationPayload(prepared.payload); try {process.stdout.write(JSON.stringify(await p.executeClaimed(prepared,{reservationId:'22222222-2222-2222-2222-222222222222',claimId:'33333333-3333-3333-3333-333333333333',key:bound.key})));} finally {prepared.payload.fill(0);bound.key.fill(0);bound.fingerprint.fill(0);}";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const b=await import(new URL('./classification-payload.mjs',process.env.OC_TEST_MODULE)); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:'revision-1',modelDigest:'sha256:'+'a'.repeat(64)}); const prepared=m.prepareClassificationWorkerPayload({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}}); const bound=b.bindClassificationPayload(prepared.payload); try {process.stdout.write(JSON.stringify(await p.executeClaimed(prepared,{reservationId:'22222222-2222-2222-2222-222222222222',claimId:'33333333-3333-3333-3333-333333333333',key:bound.key})));} finally {prepared.payload.fill(0);bound.key.fill(0);bound.fingerprint.fill(0);}";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-dispatch.mjs")).AbsoluteUri;
@@ -196,7 +199,7 @@ public sealed class CloudClassificationProbeTests
 
     private static async Task<string> DispatchAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.execute({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}})));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION,modelDigest:'sha256:'+'a'.repeat(64)}); process.stdout.write(JSON.stringify(await p.execute({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}})));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-dispatch.mjs")).AbsoluteUri;
@@ -212,7 +215,7 @@ public sealed class CloudClassificationProbeTests
 
     private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1", bool requireCloud = false)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.probe(undefined,undefined,process.env.OC_TEST_REQUIRE_CLOUD==='true','11111111-1111-1111-1111-111111111111')));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION,modelDigest:'sha256:'+'a'.repeat(64)}); process.stdout.write(JSON.stringify(await p.probe(undefined,undefined,process.env.OC_TEST_REQUIRE_CLOUD==='true','11111111-1111-1111-1111-111111111111')));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-probe.mjs")).AbsoluteUri;

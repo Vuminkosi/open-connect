@@ -35,6 +35,7 @@ class ClassifyResult(BaseModel):
     scores: dict[str, float]
     abstained: bool
     modelRevision: str
+    modelDigest: str | None = None
     labelSetVersion: str
     engine: Literal["fake", "real"]
     engineWarning: str | None = None
@@ -82,6 +83,7 @@ class CapabilitiesResponse(BaseModel):
     workerKind: Literal["classification"] = "classification"
     engine: Literal["fake", "real"]
     modelRevision: str | None = None
+    modelDigest: str | None = None
     capabilities: list[Capability]
     fakeEngineWarning: str | None = None
 
