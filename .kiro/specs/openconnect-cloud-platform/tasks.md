@@ -177,3 +177,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Expose private authenticated inference output inspection with append-only evidence bound to a completed, settled claim and its original credential; gateway response-path enforcement remains outstanding.
 
 - [x] Add the gateway client for authenticated inference output inspection and exercise it against the real local endpoint; public response-path integration remains outstanding.
+
+- [x] Compose inference admission, claimed dispatch, access monitoring and output inspection in a fail-closed coordinator; production deployment monitoring and route wiring remain outstanding.
