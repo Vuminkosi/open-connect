@@ -39,6 +39,9 @@ test('aborted and invalid calls fail closed without a network request', async ()
     assert.deepEqual(await client.inspectInferenceOutput('key', reservation.requestId, reservation.requestId, reservation.requestId, 'safe', controller.signal), { allowed: false, code: 'capability_unavailable' });
     assert.deepEqual(await client.inspectInferenceOutput('key', reservation.requestId, reservation.requestId, reservation.requestId, 'x'.repeat(131073)), { allowed: false, code: 'capability_unavailable' });
     assert.equal(await client.verifyInferenceClaim('key', reservation.requestId, 'invalid'), false);
+    assert.deepEqual(await client.inspectLiveUI('key', reservation.requestId, ['v1', 'safe', 'route'], 'bad key', reservation.fingerprint), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectLiveUI('key', reservation.requestId, ['v1', 'safe', 'route'], 'key', reservation.fingerprint, controller.signal), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectLiveUI('key', reservation.requestId, ['v1', 'safe', null], 'key', reservation.fingerprint), { allowed: false, code: 'capability_unavailable' });
     assert.equal(await client.verifyInferenceClaim('key', reservation.requestId, reservation.requestId, controller.signal), false);
     assert.deepEqual(await client.findInferenceFingerprintKey('key', 'invalid'), { status: 'unavailable' });
     assert.deepEqual(await client.reserveInference('key', { ...reservation, reservedTokens: 0 }), { status: 'quota_unavailable' });

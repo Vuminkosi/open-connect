@@ -462,6 +462,51 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(rejected()); }
             });
         },
+        inspectLiveUI(credential, requestId, fields, fingerprintKeyId, fingerprint, signal, traceparent) {
+            const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) || signal?.aborted ||
+                !Array.isArray(fields) || fields.length < 3 || fields.length > 771 || fields.some(item => typeof item !== 'string' || item.length > 16000) ||
+                fields.reduce((total, item) => total + item.length, 0) < 1 || fields.reduce((total, item) => total + item.length, 0) > 131072 ||
+                !/^[A-Za-z0-9_-]{1,64}$/.test(fingerprintKeyId ?? '') || typeof fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(fingerprint))
+                return Promise.resolve(rejected());
+            const body = Buffer.from(JSON.stringify({ fields }), 'utf8');
+            if (body.length > 262144) { body.fill(0); return Promise.resolve(rejected()); }
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); body.fill(0); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/liveui/privacy', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'x-cloud-request-id': requestId,
+                            'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            'x-cloud-fingerprint-key-id': fingerprintKeyId, 'x-cloud-request-fingerprint': fingerprint,
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.headers['content-encoding']) { response.destroy(); finish(rejected()); return; }
+                        const chunks = []; let size = 0;
+                        const clear = () => { for (const chunk of chunks) chunk.fill(0); };
+                        response.on('data', chunk => { size += chunk.length; chunks.push(chunk); if (size > 8192) { response.destroy(); clear(); finish(rejected()); } });
+                        response.on('error', () => { clear(); finish(rejected()); });
+                        response.on('aborted', () => { clear(); finish(rejected()); });
+                        response.on('end', () => {
+                            let bytes;
+                            try {
+                                bytes = Buffer.concat(chunks);
+                                const value = parseUniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+                                if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 2) {
+                                    if (response.statusCode === 200 && value.allowed === true && value.code === 'allowed') return finish({ allowed: true, code: 'allowed' });
+                                    if (response.statusCode === 403 && value.allowed === false && value.code === 'privacy_blocked') return finish({ allowed: false, code: 'privacy_blocked' });
+                                }
+                            } catch { /* No endpoint diagnostics cross this boundary. */ }
+                            finally { bytes?.fill(0); clear(); }
+                            finish(rejected());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(rejected()); }, timeoutMs);
+                    request.on('error', () => finish(rejected())); request.end(body, () => body.fill(0));
+                } catch { finish(rejected()); }
+            });
+        },
         inspectInferenceOutput(credential, requestId, reservationId, claimId, output, signal, traceparent) {
             const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||

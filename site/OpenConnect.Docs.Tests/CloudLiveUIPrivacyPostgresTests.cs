@@ -80,6 +80,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
                 Assert.Equal(2, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_privacy_evidence WHERE \"RequestId\" = {requestId} AND \"TenantId\" = {tenant.Id} AND \"ApplicationId\" = {app.Id}").SingleAsync());
                 await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.liveui_privacy_evidence WHERE \"RequestId\" = {requestId}"));
             }
+            await VerifyNodePrivacyAsync(address, server, gateway, issued.Secret!, requestId);
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
             Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(client, "{\"fields\":[\"v1\",\"safe\",\"route\"]}")).StatusCode);
         }
@@ -89,6 +90,22 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "inference.liveui");
             capability.PlatformAvailability = previousAvailability; await db.SaveChangesAsync();
         }
+    }
+
+    private static async Task VerifyNodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const proof=Buffer.alloc(32).toString('base64');const a=await c.inspectLiveUI(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_REQUEST,['v1','show tasks','route.root'],'key',proof);const b=await c.inspectLiveUI(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_REQUEST,['v1','person@','example.test'],'key',proof);process.stdout.write(JSON.stringify([a.code,b.code]));";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem(); start.Environment["OC_TEST_CERT"] = gateway.ExportCertificatePem();
+        using var privateKey = gateway.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem(); start.Environment["OC_TEST_CREDENTIAL"] = credential;
+        start.Environment["OC_TEST_REQUEST"] = requestId.ToString("D");
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("[\"allowed\",\"privacy_blocked\"]", output);
     }
 
     private static X509Certificate2 Certificate(bool client)
