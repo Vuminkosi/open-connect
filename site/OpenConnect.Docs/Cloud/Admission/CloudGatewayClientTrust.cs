@@ -29,6 +29,13 @@ public sealed class CloudGatewayClientTrust
         var usages = certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToArray();
         if (usages.Length != 1 || !usages[0].EnhancedKeyUsages.Cast<Oid>().Any(x => x.Value == "1.3.6.1.5.5.7.3.2")) return false;
         var hash = certificate.GetCertHash(HashAlgorithmName.SHA256);
-        return _pins.Any(pin => CryptographicOperations.FixedTimeEquals(pin, hash));
+        return ContainsPin(hash);
+    }
+
+    public bool ContainsPin(ReadOnlySpan<byte> hash)
+    {
+        foreach (var pin in _pins)
+            if (CryptographicOperations.FixedTimeEquals(pin, hash)) return true;
+        return false;
     }
 }

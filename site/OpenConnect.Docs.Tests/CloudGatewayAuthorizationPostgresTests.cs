@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using OpenConnect.Docs.Cloud;
 using OpenConnect.Privacy.Rules;
 using Xunit;
@@ -38,6 +39,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var otherApp = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Other app", "Development", CancellationToken.None)).Application!;
             var capability = "inference.chat";
             var classificationReference = "classification-" + Guid.NewGuid().ToString("N");
+            var classificationDeploymentId = Guid.NewGuid();
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var definition = await db.Capabilities.SingleAsync(x => x.Id == capability);
@@ -56,7 +58,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = otherApp.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
-                db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "classification.classify", EndpointReference = classificationReference,
+                db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = classificationDeploymentId, CapabilityId = "classification.classify", EndpointReference = classificationReference,
                     Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision-1",
                     ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
                 await db.SaveChangesAsync();
@@ -74,9 +76,22 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             using var serverCertificate = Certificate(client: false);
             using var clientCertificate = Certificate(client: true);
             using var otherCertificate = Certificate(client: true);
+            using var workerCertificate = Certificate(client: true);
             Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust([]));
             Assert.Throws<InvalidOperationException>(() => new CloudGatewayClientTrust(["invalid"]));
             var trust = new CloudGatewayClientTrust([Convert.ToHexString(clientCertificate.GetCertHash(HashAlgorithmName.SHA256))]);
+            var workerPin = Convert.ToHexString(workerCertificate.GetCertHash(HashAlgorithmName.SHA256));
+            var workerTrust = new CloudWorkerClientTrust([new(classificationDeploymentId, workerPin)], trust);
+            Assert.Throws<InvalidOperationException>(() => new CloudWorkerClientTrust([new(classificationDeploymentId, Convert.ToHexString(clientCertificate.GetCertHash(HashAlgorithmName.SHA256)))], trust));
+            Assert.Throws<InvalidOperationException>(() => new CloudWorkerClientTrust([new(classificationDeploymentId, workerPin), new(Guid.NewGuid(), workerPin)], trust));
+            Assert.Null(workerTrust.ResolveDeployment(workerCertificate, DateTimeOffset.UtcNow.AddDays(2)));
+            Assert.Null(workerTrust.ResolveDeployment(serverCertificate, DateTimeOffset.UtcNow));
+            var bindingConfiguration = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Certificates:0:DeploymentId"] = classificationDeploymentId.ToString(), ["Certificates:0:ClientCertificateSha256"] = workerPin,
+            }).Build();
+            var configuredBindings = Microsoft.Extensions.Configuration.ConfigurationBinder.Get<CloudWorkerCertificateBinding[]>(bindingConfiguration.GetSection("Certificates"));
+            Assert.Equal(classificationDeploymentId, new CloudWorkerClientTrust(configuredBindings!, trust).ResolveDeployment(workerCertificate, DateTimeOffset.UtcNow));
             Assert.True(trust.IsTrusted(clientCertificate, DateTimeOffset.UtcNow));
             Assert.False(trust.IsTrusted(otherCertificate, DateTimeOffset.UtcNow));
             Assert.False(trust.IsTrusted(serverCertificate, DateTimeOffset.UtcNow));
@@ -84,7 +99,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, listener => listener.UseHttps(serverCertificate, https =>
             {
-                trust.ConfigureHttps(https);
+                https.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                https.ClientCertificateValidation = (certificate, _, _) => trust.IsTrusted(certificate, DateTimeOffset.UtcNow) || workerTrust.ResolveDeployment(certificate, DateTimeOffset.UtcNow) is not null;
             })));
             builder.Services.AddSingleton(factory);
             builder.Services.AddSingleton(TimeProvider.System);
@@ -98,6 +114,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
             builder.Services.AddScoped<CloudExecutionClaimService>();
+            builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
+            builder.Services.AddScoped<CloudExecutionConsumptionService>();
             builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
             builder.Services.AddScoped<CloudExecutionCompletionService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
@@ -111,6 +129,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             app.MapCloudClassificationQuota(trust, databaseConfigured: true);
             app.MapCloudClassificationClaim(trust, databaseConfigured: true);
             app.MapCloudClassificationCompletion(trust, databaseConfigured: true);
+            app.MapCloudClassificationConsumption(workerTrust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -120,6 +139,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             using var other = Client(address, serverCertificate, otherCertificate);
             await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
             using var authorized = Client(address, serverCertificate, clientCertificate);
+            using var worker = Client(address, serverCertificate, workerCertificate);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await worker.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
             var response = await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability });
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
@@ -260,9 +281,14 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
-            var consumptions = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, default)));
-            Assert.Single(consumptions, x => x == "consumed");
-            Assert.Equal(19, consumptions.Count(x => x == "already_consumed"));
+            var consumePath = $"/cloud/internal/v1/classification/quota/reservations/{reserved.ReservationId:D}/claims/{claim.ClaimId:D}/consume";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await authorized.PostAsync(consumePath, null)).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsync(consumePath, null)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await worker.PostAsync(consumePath, new StringContent("unexpected"))).StatusCode);
+            var consumptions = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => worker.PostAsync(consumePath, null)));
+            Assert.Single(consumptions, x => x.StatusCode == HttpStatusCode.OK);
+            Assert.Equal(19, consumptions.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+            foreach (var responseMessage in consumptions) responseMessage.Dispose();
             await using (var db = await factory.CreateDbContextAsync())
             {
                 Assert.Single(await db.ExecutionConsumptions.Where(x => x.ReservationId == reserved.ReservationId.Value).ToListAsync());

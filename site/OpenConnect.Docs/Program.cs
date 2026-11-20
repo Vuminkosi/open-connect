@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using OpenConnect.Privacy.Rules;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,9 +16,18 @@ CloudGatewayClientTrust? gatewayTrust = null;
 if (gatewayTrustSection.GetValue<bool>("Enabled"))
 {
     gatewayTrust = new CloudGatewayClientTrust(gatewayTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
-    var configuredTrust = gatewayTrust;
-    builder.WebHost.ConfigureKestrel(server => server.ConfigureHttpsDefaults(configuredTrust.ConfigureHttps));
 }
+CloudWorkerClientTrust? workerTrust = null;
+var workerTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:WorkerTrust");
+if (workerTrustSection.GetValue<bool>("Enabled"))
+    workerTrust = new CloudWorkerClientTrust(workerTrustSection.GetSection("Certificates").Get<CloudWorkerCertificateBinding[]>() ?? [], gatewayTrust);
+if (gatewayTrust is not null || workerTrust is not null)
+    builder.WebHost.ConfigureKestrel(server => server.ConfigureHttpsDefaults(https =>
+    {
+        https.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+        https.ClientCertificateValidation = (certificate, _, _) => gatewayTrust?.IsTrusted(certificate, DateTimeOffset.UtcNow) == true ||
+            workerTrust?.ResolveDeployment(certificate, DateTimeOffset.UtcNow) is not null;
+    }));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -107,6 +117,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudOperatorCatalogRegionsService>();
     builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
     builder.Services.AddScoped<CloudExecutionClaimService>();
+    builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
+    builder.Services.AddScoped<CloudExecutionConsumptionService>();
     builder.Services.AddScoped<ICloudExecutionCompletionStore, EfCloudExecutionCompletionStore>();
     builder.Services.AddScoped<CloudExecutionCompletionService>();
     builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>();
@@ -188,6 +200,8 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
+if (workerTrust is not null)
+    app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 
