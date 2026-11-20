@@ -6,6 +6,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
 {
     public DbSet<CloudTenant> Tenants => Set<CloudTenant>();
     public DbSet<CloudMembership> Memberships => Set<CloudMembership>();
+    public DbSet<CloudMembershipRevision> MembershipRevisions => Set<CloudMembershipRevision>();
     public DbSet<CloudApplication> Applications => Set<CloudApplication>();
     public DbSet<CloudAuditEvent> AuditEvents => Set<CloudAuditEvent>();
     public DbSet<CloudCapabilityDefinition> Capabilities => Set<CloudCapabilityDefinition>();
@@ -36,6 +37,15 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.Role).HasMaxLength(32).IsRequired();
             entity.Property(x => x.Revision).HasDefaultValue(1).IsConcurrencyToken();
             entity.HasIndex(x => new { x.SubjectIssuer, x.SubjectId });
+            entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudMembershipRevision>(entity =>
+        {
+            entity.ToTable("membership_revisions");
+            entity.HasKey(x => new { x.TenantId, x.SubjectHash });
+            entity.Property(x => x.SubjectHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LastRevision).IsConcurrencyToken();
             entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -147,6 +157,13 @@ public sealed class CloudMembership
     public required string Role { get; set; }
     public int Revision { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class CloudMembershipRevision
+{
+    public Guid TenantId { get; set; }
+    public required string SubjectHash { get; set; }
+    public int LastRevision { get; set; }
 }
 
 public sealed class CloudApplication

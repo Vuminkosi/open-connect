@@ -10,6 +10,7 @@ using Xunit;
 
 namespace OpenConnect.Docs.Tests;
 
+[Collection("Cloud PostgreSQL")]
 public sealed class CloudCredentialComponentTests : BunitContext
 {
     [CloudPostgresFact]

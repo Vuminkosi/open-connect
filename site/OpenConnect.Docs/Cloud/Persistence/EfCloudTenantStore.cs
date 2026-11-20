@@ -74,15 +74,22 @@ public sealed class EfCloudTenantStore(
             x.SubjectIssuer == target.Issuer && x.SubjectId == target.SubjectId, cancellationToken);
         if (member is null) return new("not_found");
         if (member.Revision != expectedRevision) return new("conflict", member.Revision);
+        if (member.Revision == int.MaxValue) return new("conflict", member.Revision);
         if (member.Role == TenantOwner && role != TenantOwner &&
             await db.Memberships.CountAsync(x => x.TenantId == tenantId && x.Role == TenantOwner, cancellationToken) <= 1)
             return new("last_owner");
 
         var revision = member.Revision + 1;
         var previousRole = member.Role;
-        if (role is null) db.Memberships.Remove(member);
-        else { member.Role = role; member.Revision = revision; }
         var targetHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{target.Issuer.Length}:{target.Issuer}{target.SubjectId}")));
+        if (role is null)
+        {
+            var history = await db.MembershipRevisions.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.SubjectHash == targetHash, cancellationToken);
+            if (history is null) db.MembershipRevisions.Add(new CloudMembershipRevision { TenantId = tenantId, SubjectHash = targetHash, LastRevision = revision });
+            else history.LastRevision = Math.Max(history.LastRevision, revision);
+            db.Memberships.Remove(member);
+        }
+        else { member.Role = role; member.Revision = revision; }
         var action = role is null ? $"membership.removed.{previousRole}" : $"membership.role_changed.{previousRole}.{role}";
         db.AuditEvents.Add(CreateAudit(actor, tenantId, actorRole, action, targetHash, timeProvider.GetUtcNow()));
         try
@@ -92,6 +99,7 @@ public sealed class EfCloudTenantStore(
             return new("succeeded", role is null ? null : revision);
         }
         catch (DbUpdateConcurrencyException) { return new("conflict"); }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { return new("conflict"); }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }) { return new("conflict"); }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { return new("conflict"); }
     }

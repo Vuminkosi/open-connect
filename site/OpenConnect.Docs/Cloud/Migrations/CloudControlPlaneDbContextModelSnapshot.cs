@@ -269,6 +269,24 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudMembershipRevision", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SubjectHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("LastRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("TenantId", "SubjectHash");
+
+                    b.ToTable("membership_revisions", "cloud");
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudTenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -373,6 +391,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                 });
 
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudMembership", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudMembershipRevision", b =>
                 {
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
                         .WithMany()

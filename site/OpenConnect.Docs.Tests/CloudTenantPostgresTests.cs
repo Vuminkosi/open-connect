@@ -16,6 +16,7 @@ public sealed class CloudPostgresFactAttribute : FactAttribute
     }
 }
 
+[Collection("Cloud PostgreSQL")]
 public class CloudTenantPostgresTests
 {
     [CloudPostgresFact]
@@ -70,6 +71,10 @@ public class CloudTenantPostgresTests
         Assert.Equal("conflict", (await store.ChangeMemberAsync(owner, tenant.Id, developer, null, 1, CancellationToken.None)).Status);
         Assert.Equal("succeeded", (await store.ChangeMemberAsync(owner, tenant.Id, developer, null, 2, CancellationToken.None)).Status);
         Assert.Null(await store.GetMembersAsync(developer, tenant.Id, CancellationToken.None));
+        await using var verify = await factory.CreateDbContextAsync();
+        Assert.False(await verify.Memberships.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == developer.SubjectId));
+        var history = await verify.MembershipRevisions.SingleAsync(x => x.TenantId == tenant.Id);
+        Assert.Equal(3, history.LastRevision);
     }
 
     [CloudPostgresFact]
