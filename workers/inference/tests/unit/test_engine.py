@@ -41,7 +41,7 @@ def test_capability_discovery_truthful() -> None:
         enable_structured_output=True,
         enable_embeddings=True,
     )
-    # Optional capabilities require a configured model identity.
+    # Flags and a model identity cannot make an unimplemented operation available.
     assert base == ["chat", "stream"]
     full = advertised_capabilities(
         model_id="org/model",
@@ -49,4 +49,4 @@ def test_capability_discovery_truthful() -> None:
         enable_structured_output=False,
         enable_embeddings=True,
     )
-    assert full == ["chat", "stream", "tools", "embeddings"]
+    assert full == ["chat", "stream"]

@@ -11,8 +11,7 @@ from __future__ import annotations
 from openconnect_inference.schemas import ChatMessage, StreamChunk
 
 BASE_CAPABILITIES: tuple[str, ...] = ("chat", "stream")
-# Optional capabilities are advertised only when explicitly enabled AND a
-# model identity is configured, so capability discovery stays truthful.
+# Reserved configuration values; no current adapter implements these operations.
 OPTIONAL_CAPABILITIES: tuple[str, ...] = ("tools", "structured-output", "embeddings")
 
 
@@ -24,15 +23,9 @@ def advertised_capabilities(
     enable_embeddings: bool,
 ) -> list[str]:
     """Return exactly the capabilities this engine instance can serve."""
-    caps = list(BASE_CAPABILITIES)
-    if model_id:
-        if enable_tools:
-            caps.append("tools")
-        if enable_structured_output:
-            caps.append("structured-output")
-        if enable_embeddings:
-            caps.append("embeddings")
-    return caps
+    # Keep the configuration signature compatible while rejecting unsupported
+    # operations until an adapter actually implements their request and result contracts.
+    return list(BASE_CAPABILITIES)
 
 
 def _render(messages: list[ChatMessage]) -> str:

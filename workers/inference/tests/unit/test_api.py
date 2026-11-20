@@ -1,13 +1,16 @@
 """API tests for the inference worker (health, auth, execute, tasks)."""
 
 import uuid
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 
 from openconnect_inference import app as app_module
 from openconnect_inference.app import app
 from openconnect_inference.config import Settings
+from openconnect_inference.schemas import ExecuteRequest
 
 client = TestClient(app)
 
@@ -145,6 +148,32 @@ def test_execute_rejects_unadvertised_capability() -> None:
     response = client.post("/internal/v1/execute", json=body, headers=_auth())
     assert response.status_code == 503
     assert response.json()["detail"] == "capability_unavailable"
+
+
+@pytest.mark.parametrize("capability", ["tools", "structured-output", "embeddings"])
+def test_enabled_unimplemented_capability_is_neither_advertised_nor_executed(capability) -> None:
+    app_module.settings = replace(
+        app_module.settings, model_id="example/model", enable_tools=True,
+        enable_structured_output=True, enable_embeddings=True,
+    )
+    response = client.get("/internal/v1/capabilities", headers=_auth())
+    assert response.status_code == 200
+    assert capability not in response.json()["capabilities"]
+    response = client.post("/internal/v1/execute", headers=_auth(),
+                           json=_execute({"requestedCapabilities": [capability]}))
+    assert response.status_code == 503
+    assert response.json()["detail"] == "capability_unavailable"
+
+
+@pytest.mark.parametrize("capability", ["tools", "structured-output", "embeddings"])
+def test_real_backend_does_not_route_unimplemented_capability(capability, monkeypatch) -> None:
+    cfg = replace(app_module.settings, fake_engine=False, model_id="example/model",
+                  enable_tools=True, enable_structured_output=True, enable_embeddings=True)
+    request = ExecuteRequest.model_validate(_execute({"requestedCapabilities": [capability]}))
+    monkeypatch.setattr(app_module, "_execute_real_routed", lambda *args: pytest.fail("routed"))
+    with pytest.raises(HTTPException) as error:
+        app_module._execute_real_request(cfg, request)
+    assert error.value.status_code == 503
 
 
 def test_execute_rejects_oversized_input() -> None:

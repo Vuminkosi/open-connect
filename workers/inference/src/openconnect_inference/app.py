@@ -319,10 +319,6 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             )
         chunks = engine.stream(request.input.messages, request.input.maxTokens)
         capabilities_used.append("stream")
-    for extra in ("tools", "structured-output", "embeddings"):
-        if extra in request.input.requestedCapabilities:
-            capabilities_used.append(extra)
-
     # Log metadata only: never message content.
     logger.info(
         "Inference execute request_id=%s backend=%s messages=%d input_chars=%d stream=%s",
