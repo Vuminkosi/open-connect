@@ -135,4 +135,3 @@ public sealed class CloudIdentityEndpointTests
         return new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(addresses.Addresses.Single()) };
     }
 }
-
