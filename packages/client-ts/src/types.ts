@@ -6,7 +6,7 @@
  * kinds / states use the exact contract spellings.
  */
 
-/** Wire schema version for every OpenConnect v1 payload. */
+/** Wire schema version for versioned OpenConnect descriptors and events. */
 export const OPENCONNECT_SCHEMA_VERSION = "openconnect.v1" as const;
 export type OpenConnectSchemaVersion = typeof OPENCONNECT_SCHEMA_VERSION;
 
@@ -27,11 +27,17 @@ export type OpenConnectErrorCode =
 
 /** Task lifecycle states per POST /tasks 202 response. */
 export type TaskState =
-  | "queued"
+  | "accepted"
+  | "preparing"
   | "running"
+  | "awaiting-user"
+  | "awaiting-approval"
+  | "paused"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancel-requested"
+  | "cancelled"
+  | "outcome-unknown";
 
 /** Capability kinds per contracts/jsonschema/capability.json. */
 export type CapabilityKind =
@@ -52,16 +58,15 @@ export type CapabilityState =
   | "failed";
 
 export interface CreateTaskRequest {
-  schemaVersion: OpenConnectSchemaVersion;
   clientTaskId: string;
-  sessionId: string;
-  agentId: string;
-  input: string;
+  message?: string | null;
+  sessionId?: string | null;
 }
 
 export interface TaskRecord {
-  schemaVersion: OpenConnectSchemaVersion;
-  taskId: string;
+  id: string;
+  tenantId: string;
+  principalId: string;
   state: TaskState;
 }
 

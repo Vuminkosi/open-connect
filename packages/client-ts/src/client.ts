@@ -5,7 +5,6 @@ import type {
   SessionEvent,
   TaskRecord,
 } from "./types.js";
-import { OPENCONNECT_SCHEMA_VERSION } from "./types.js";
 
 /**
  * Typed error raised for non-2xx OpenConnect HTTP responses and for
@@ -65,9 +64,8 @@ export interface OpenConnectClientOptions {
 
 export interface CreateTaskInput {
   clientTaskId: string;
-  sessionId: string;
-  agentId: string;
-  input: string;
+  message?: string | null;
+  sessionId?: string | null;
 }
 
 const IDEMPOTENCY_HEADER = "Idempotency-Key";
@@ -183,10 +181,13 @@ export class OpenConnectClient {
 
   /** POST /tasks — accept a task. `idempotencyKey` defaults to `clientTaskId`. */
   async createTask(input: CreateTaskInput, idempotencyKey?: string): Promise<TaskRecord> {
-    const body: CreateTaskRequest = {
-      schemaVersion: OPENCONNECT_SCHEMA_VERSION,
-      ...input,
-    };
+    const legacy = input as CreateTaskInput & { input?: unknown; agentId?: unknown };
+    if (legacy.input !== undefined || legacy.agentId !== undefined) {
+      throw new OpenConnectError("invalid_request", "Use message instead of input; task submission does not select an agentId.");
+    }
+    const body: CreateTaskRequest = { clientTaskId: input.clientTaskId };
+    if (input.message !== undefined) body.message = input.message;
+    if (input.sessionId !== undefined) body.sessionId = input.sessionId;
     return this.request<TaskRecord>("/tasks", {
       method: "POST",
       headers: { [IDEMPOTENCY_HEADER]: idempotencyKey ?? input.clientTaskId },

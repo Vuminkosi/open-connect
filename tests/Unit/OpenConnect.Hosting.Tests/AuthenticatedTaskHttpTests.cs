@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -35,6 +36,50 @@ public sealed class AuthenticatedTaskHttpTests
     private const string LowercaseTenant = "01arz3ndektsv4rrffq69g5fav";
     private const string OverflowUlid = "Z1ARZ3NDEKTSV4RRFFQ69G5FAV";
     private static readonly JsonSerializerOptions IdentifierJsonOptions = OpenConnectHttpJson.CreateOptions();
+
+    [TypeScriptContractFact]
+    public async Task TypeScript_task_client_matches_live_host_and_openapi()
+    {
+        await using var host = await HttpFixture.StartAsync();
+        DirectoryInfo? root = new(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "contracts", "openapi", "openconnect.v1.yaml")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var script = Path.Combine(root.FullName, "packages", "client-ts", "tests", "task-host-contract.mjs");
+        var start = new ProcessStartInfo("node") { RedirectStandardOutput = true, RedirectStandardError = true,
+            RedirectStandardInput = true, UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(script);
+        start.ArgumentList.Add(host.Client.BaseAddress!.ToString());
+        start.ArgumentList.Add($"{FixtureScheme} {TenantA}:{PrincipalA}");
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start the TypeScript contract test.");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            Assert.Equal("created", await process.StandardOutput.ReadLineAsync(timeout.Token));
+            await host.Executor.Started.Task.WaitAsync(timeout.Token);
+            Assert.Equal("synthetic contract prompt", host.Executor.LastTask?.Message);
+            await process.StandardInput.WriteLineAsync("continue");
+            process.StandardInput.Close();
+            await process.WaitForExitAsync(timeout.Token);
+            var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var error = await process.StandardError.ReadToEndAsync(timeout.Token);
+            Assert.True(process.ExitCode == 0, $"TypeScript contract test failed: {error}");
+            Assert.Contains("passed", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+        }
+    }
+
+    private sealed class TypeScriptContractFactAttribute : FactAttribute
+    {
+        public TypeScriptContractFactAttribute()
+        {
+            if (Environment.GetEnvironmentVariable("OPENCONNECT_TYPESCRIPT_CONTRACT_TEST") != "1")
+                Skip = "Set OPENCONNECT_TYPESCRIPT_CONTRACT_TEST=1 after installing and building the TypeScript client.";
+        }
+    }
 
     [Fact]
     public async Task Real_http_routes_require_authentication()

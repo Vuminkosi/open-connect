@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: OpenConnect API
   version: 1.0.0
-  description: Versioned OpenConnect HTTP contract. All payloads use schemaVersion openconnect.v1.
+  description: OpenConnect HTTP contract. Task requests and records use the host task wire format.
 servers:
   - url: /openconnect/v1
 paths:
@@ -15,37 +15,77 @@ paths:
         - in: header
           name: Idempotency-Key
           required: true
-          schema: { type: string, minLength: 1, maxLength: 128 }
+          schema: { type: string, minLength: 1, maxLength: 256 }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: false
-              required: [schemaVersion, clientTaskId, sessionId, agentId, input]
+              required: [clientTaskId]
               properties:
-                schemaVersion: { const: openconnect.v1 }
                 clientTaskId: { type: string, minLength: 1, maxLength: 128 }
-                sessionId: { type: string, format: uuid }
-                agentId: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
-                input: { type: string, maxLength: 1000000 }
+                sessionId: { oneOf: [{ $ref: '#/components/schemas/Ulid' }, { type: 'null' }] }
+                message: { type: [string, 'null'], maxLength: 32000 }
       responses:
         '202':
           description: Task accepted
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [schemaVersion, taskId, state]
-                properties:
-                  schemaVersion: { const: openconnect.v1 }
-                  taskId: { type: string, format: uuid }
-                  state: { type: string, enum: [queued, running, completed, failed, cancelled] }
+              schema: { $ref: '#/components/schemas/TaskRecord' }
         '400': { description: Invalid request }
         '401': { description: Authentication required }
-        '409': { description: Idempotency conflict }
+        '409':
+          description: Idempotency conflict
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Problem' }
+                  - type: object
+                    properties:
+                      type: { const: 'https://openconnect.dev/problems/idempotency-conflict' }
+                      status: { const: 409 }
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Ulid' }
+      responses:
+        '200':
+          description: Task record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskRecord' }
+        '400': { description: Invalid task ID }
+        '401': { description: Authentication required }
+        '404':
+          description: Task not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /tasks/{id}/cancel:
+    post:
+      operationId: cancelTask
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Ulid' }
+      responses:
+        '200':
+          description: Cancellation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskRecord' }
+        '400': { description: Invalid task ID }
+        '401': { description: Authentication required }
+        '404': { description: Task not found }
   /sessions/{sessionId}/events:
     get:
       operationId: replayEvents
@@ -70,6 +110,29 @@ paths:
         '401': { description: Authentication required }
         '404': { description: Session not found }
 components:
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+    Ulid:
+      type: string
+      pattern: '^(?!0{26}$)[0-7][0-9A-HJKMNP-TV-Z]{25}$'
+      description: Nonzero canonical uppercase ULID.
+    TaskRecord:
+      type: object
+      additionalProperties: false
+      required: [id, tenantId, principalId, state]
+      properties:
+        id: { $ref: '#/components/schemas/Ulid' }
+        tenantId: { $ref: '#/components/schemas/Ulid' }
+        principalId: { $ref: '#/components/schemas/Ulid' }
+        state:
+          type: string
+          enum: [accepted, preparing, running, awaiting-user, awaiting-approval, paused, completed, failed, cancel-requested, cancelled, outcome-unknown]
   securitySchemes:
     bearerAuth:
       type: http

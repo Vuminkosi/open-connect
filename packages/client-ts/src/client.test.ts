@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { OpenConnectClient, OpenConnectError } from "./client.js";
+import type { CreateTaskInput } from "./client.js";
 import type { Capability, SessionEvent, TaskRecord } from "./types.js";
 
 const SESSION_ID = "123e4567-e89b-12d3-a456-426614174000";
-const TASK_ID = "123e4567-e89b-12d3-a456-426614174001";
+const TASK_ULID = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const TENANT_ULID = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+const PRINCIPAL_ULID = "01ARZ3NDEKTSV4RRFFQ69G5FAX";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -17,31 +21,39 @@ function clientWith(fetchImpl: (input: string | URL, init?: RequestInit) => Prom
 }
 
 describe("createTask", () => {
-  it("posts kebab-case idempotency header and versioned body", async () => {
+  it("posts the host task request and returns its ULID record", async () => {
+    const record = JSON.parse(readFileSync(new URL("../tests/fixtures/task-record.json", import.meta.url), "utf8")) as TaskRecord;
     const fetchImpl = vi.fn(async () =>
-      jsonResponse(202, { schemaVersion: "openconnect.v1", taskId: TASK_ID, state: "queued" }),
+      jsonResponse(202, record),
     );
     const client = clientWith(fetchImpl);
     const task = await client.createTask(
-      { clientTaskId: "client-1", sessionId: SESSION_ID, agentId: "agent-a", input: "hello" },
+      { clientTaskId: "client-1", sessionId: TASK_ULID, message: "hello" },
       "idem-1",
     );
-    expect(task).toEqual({ schemaVersion: "openconnect.v1", taskId: TASK_ID, state: "queued" });
+    expect(task).toEqual(record);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const [url, init] = call;
     expect(url).toBe("https://api.example.test/openconnect/v1/tasks");
     expect(init.method).toBe("POST");
     expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("idem-1");
-    expect(JSON.parse(String(init.body))).toMatchObject({ schemaVersion: "openconnect.v1" });
+    expect(JSON.parse(String(init.body))).toEqual({ clientTaskId: "client-1", sessionId: TASK_ULID, message: "hello" });
+  });
+
+  it("rejects the obsolete input and agentId shape instead of dropping its prompt", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(202, {}));
+    const legacy = { clientTaskId: "client-1", input: "hello", agentId: "agent-a" } as unknown as CreateTaskInput;
+    await expect(clientWith(fetchImpl).createTask(legacy)).rejects.toMatchObject({ code: "invalid_request" });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 
 describe("getTask", () => {
   it("returns the task record", async () => {
-    const record: TaskRecord = { schemaVersion: "openconnect.v1", taskId: TASK_ID, state: "running" };
+    const record: TaskRecord = { id: TASK_ULID, tenantId: TENANT_ULID, principalId: PRINCIPAL_ULID, state: "running" };
     const client = clientWith(vi.fn(async () => jsonResponse(200, record)));
-    await expect(client.getTask(TASK_ID)).resolves.toEqual(record);
+    await expect(client.getTask(TASK_ULID)).resolves.toEqual(record);
   });
 
   it("maps 404 to task_not_found", async () => {
@@ -59,14 +71,14 @@ describe("getTask", () => {
 describe("cancelTask", () => {
   it("posts to the cancel endpoint", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse(200, { schemaVersion: "openconnect.v1", taskId: TASK_ID, state: "cancelled" }),
+      jsonResponse(200, { id: TASK_ULID, tenantId: TENANT_ULID, principalId: PRINCIPAL_ULID, state: "cancelled" }),
     );
     const client = clientWith(fetchImpl);
-    const task = await client.cancelTask(TASK_ID);
+    const task = await client.cancelTask(TASK_ULID);
     expect(task.state).toBe("cancelled");
     const cancelCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const [url, init] = cancelCall;
-    expect(url).toBe(`https://api.example.test/openconnect/v1/tasks/${TASK_ID}/cancel`);
+    expect(url).toBe(`https://api.example.test/openconnect/v1/tasks/${TASK_ULID}/cancel`);
     expect(init.method).toBe("POST");
   });
 });
