@@ -263,6 +263,30 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("execution_claims", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionCompletion", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("ReservationId");
+
+                    b.ToTable("execution_completions", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_execution_completion_outcome", "\"Outcome\" = 'completed'");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudInvitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -745,6 +769,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId", "ReservationId")
                         .HasPrincipalKey("TenantId", "ApplicationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionCompletion", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudExecutionClaim", null)
+                        .WithOne()
+                        .HasForeignKey("OpenConnect.Docs.Cloud.CloudExecutionCompletion", "ReservationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

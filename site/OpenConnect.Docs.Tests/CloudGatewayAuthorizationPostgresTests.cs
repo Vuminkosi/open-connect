@@ -178,6 +178,34 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("already_claimed", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value)).Status);
             Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reserved.ReservationId.Value)).Status);
             Assert.Equal("execution_requires_reconciliation", (await quota.FinalizeAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, 0, CancellationToken.None)).Status);
+            var completions = new CloudExecutionCompletionService(new EfCloudExecutionCompletionStore(factory, TimeProvider.System));
+            Assert.Equal("unavailable", (await completions.CompleteClassificationAsync(tenant.Id, otherApp.Id, reserved.ReservationId.Value, claim.ClaimId!.Value, "completed", CancellationToken.None)).Status);
+            Assert.Equal("unavailable", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, Guid.NewGuid(), "completed", CancellationToken.None)).Status);
+            Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, claim.ClaimId.Value, "unknown", CancellationToken.None)).Status);
+            var completed = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, claim.ClaimId.Value, "completed", CancellationToken.None)));
+            Assert.Single(completed, x => x.Status == "completed");
+            Assert.Equal(7, completed.Count(x => x.Status == "already_completed"));
+            Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, claim.ClaimId.Value, "failed", CancellationToken.None)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var ledger = await db.UsageRecords.SingleAsync(x => x.ReservationId == reserved.ReservationId.Value);
+                Assert.Equal(1, ledger.Quantity);
+                Assert.Equal("classification.classify", ledger.CapabilityId);
+                Assert.Equal("request", ledger.Unit);
+                Assert.Equal("completed", (await db.ExecutionCompletions.SingleAsync(x => x.ReservationId == reserved.ReservationId.Value)).Outcome);
+                await Assert.ThrowsAnyAsync<Exception>(() => db.ExecutionCompletions.Where(x => x.ReservationId == reserved.ReservationId.Value).ExecuteDeleteAsync());
+                await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE cloud.execution_completions"));
+            }
+            var failedReservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
+            var failedClaim = await new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System)).ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id, failedReservation.ReservationId!.Value, "classification.classify", "retained_key", new byte[32], CancellationToken.None);
+            Assert.Equal("claimed", failedClaim.Status);
+            Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, failedReservation.ReservationId.Value, failedClaim.ClaimId!.Value, "failed", CancellationToken.None)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                Assert.False(await db.ExecutionCompletions.AnyAsync(x => x.ReservationId == failedReservation.ReservationId.Value));
+                Assert.False(await db.UsageRecords.AnyAsync(x => x.ReservationId == failedReservation.ReservationId.Value));
+                Assert.Null((await db.QuotaReservations.SingleAsync(x => x.Id == failedReservation.ReservationId.Value)).FinalizedAt);
+            }
             var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
             Assert.Equal("found", keyLookup.Status);
             Assert.Equal("retained_key", keyLookup.KeyId);

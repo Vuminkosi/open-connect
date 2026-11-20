@@ -18,6 +18,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudQuotaBucket> QuotaBuckets => Set<CloudQuotaBucket>();
     public DbSet<CloudQuotaReservation> QuotaReservations => Set<CloudQuotaReservation>();
     public DbSet<CloudExecutionClaim> ExecutionClaims => Set<CloudExecutionClaim>();
+    public DbSet<CloudExecutionCompletion> ExecutionCompletions => Set<CloudExecutionCompletion>();
     public DbSet<CloudUsageRecord> UsageRecords => Set<CloudUsageRecord>();
     public DbSet<CloudWorkerDeployment> WorkerDeployments => Set<CloudWorkerDeployment>();
     public DbSet<CloudPrivacyEvidence> PrivacyEvidence => Set<CloudPrivacyEvidence>();
@@ -218,6 +219,14 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.HasIndex(x => x.ClaimId).IsUnique();
             entity.HasOne<CloudQuotaReservation>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.ApplicationId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.ReservationId }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudExecutionCompletion>(entity =>
+        {
+            entity.ToTable("execution_completions", table => table.HasCheckConstraint("ck_execution_completion_outcome", "\"Outcome\" = 'completed'"));
+            entity.HasKey(x => x.ReservationId);
+            entity.Property(x => x.Outcome).HasMaxLength(16).IsRequired();
+            entity.HasOne<CloudExecutionClaim>().WithOne().HasForeignKey<CloudExecutionCompletion>(x => x.ReservationId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudUsageRecord>(entity =>
