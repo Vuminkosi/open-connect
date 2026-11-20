@@ -115,8 +115,8 @@ public sealed class CloudInferenceClaimPostgresTests
             var firstClaim = await Claim(id, "registry/model-a");
             Assert.Equal("claimed", firstClaim.Status);
             var consumption = new CloudInferenceConsumptionService(new EfCloudInferenceConsumptionStore(factory, TimeProvider.System));
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, Guid.NewGuid(), new byte[32], default));
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId.Value, deploymentId, Enumerable.Repeat((byte)1, 32).ToArray(), default));
+            Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, Guid.NewGuid(), new byte[32], default)).Status);
+            Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId.Value, deploymentId, Enumerable.Repeat((byte)1, 32).ToArray(), default)).Status);
             await using (var db = await factory.CreateDbContextAsync())
             {
                 Assert.Equal(deploymentId, (await db.ExecutionClaims.SingleAsync(x => x.ReservationId == id)).DeploymentId);
@@ -134,18 +134,18 @@ public sealed class CloudInferenceClaimPostgresTests
                 await transaction.CommitAsync();
                 Assert.Equal("unavailable", (await pending).Status);
             }
-            Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default));
+            Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)).Status);
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 2, default)).Status);
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var requestId = (await db.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
                 await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "privacy_blocked", new string('a', 32), default);
-                Assert.Equal("unavailable", await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default));
+                Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)).Status);
                 await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
             }
             var attempts = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)));
-            Assert.Single(attempts, x => x == "consumed");
-            Assert.Equal(9, attempts.Count(x => x == "already_consumed"));
+            Assert.Single(attempts, x => x.Status == "consumed" && x.ReservedTokens == 5 && x.ModelId == "registry/model-a");
+            Assert.Equal(9, attempts.Count(x => x.Status == "already_consumed" && x.ReservedTokens is null && x.ModelId is null));
             var claimFirst = await Reserve();
             await using (var reservationBlocker = await factory.CreateDbContextAsync())
             {

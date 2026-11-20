@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -58,6 +59,9 @@ public sealed class CloudInferenceConsumptionEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Equal(deployment, store.DeploymentId);
+        var result = await response.Content.ReadFromJsonAsync<CloudInferenceConsumptionResult>();
+        Assert.Equal(7, result!.ReservedTokens);
+        Assert.Equal("registry/model-a", result.ModelId);
         Assert.Equal(1, store.Calls);
         var completionPath = path[..path.LastIndexOf('/')] + "/completion";
         async Task<HttpResponseMessage> Complete(HttpClient client, string body) =>
@@ -88,10 +92,10 @@ public sealed class CloudInferenceConsumptionEndpointTests
     {
         public int Calls { get; private set; }
         public Guid DeploymentId { get; private set; }
-        public Task<string> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerPayloadFingerprint, CancellationToken cancellationToken)
+        public Task<CloudInferenceConsumptionResult> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerPayloadFingerprint, CancellationToken cancellationToken)
         {
             Calls++; DeploymentId = deploymentId;
-            return Task.FromResult("consumed");
+            return Task.FromResult(new CloudInferenceConsumptionResult("consumed", 7, "registry/model-a"));
         }
     }
     private static X509Certificate2 Certificate(bool client)

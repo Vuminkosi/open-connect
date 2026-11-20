@@ -24,7 +24,7 @@ public static class CloudInferenceConsumptionEndpoints
                 if (await context.Request.Body.ReadAsync(new byte[1], cancellationToken) != 0) return Results.BadRequest();
                 var result = await context.RequestServices.GetRequiredService<CloudInferenceConsumptionService>()
                     .ConsumeAsync(reservationId, claimId, deploymentId.Value, fingerprint, cancellationToken);
-                return Results.Json(new { status = result }, statusCode: result switch
+                return Results.Json(result, statusCode: result.Status switch
                 {
                     "consumed" => 200, "already_consumed" => 409, "invalid_request" => 400, _ => 503,
                 });

@@ -153,3 +153,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Require latest matching inference privacy evidence at claim creation and worker consumption, ordered against evidence writers; exact inspected-message to worker-payload binding remains outstanding.
 
 - [x] Compose inference privacy, local token-quote contract, reservation and payload-bound claim from one gateway request snapshot; production tokenizer, worker dispatch and public routing remain outstanding.
+
+- [x] Return authoritative model and token reservation to the worker only on first inference consumption; worker-side enforcement remains outstanding.
