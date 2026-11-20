@@ -3,3 +3,5 @@
 The root Compose stack provides a separate Cloud gateway on a loopback-bound port. The local Node adapter runs the same request handler shape used by a Cloudflare Worker. The process provides liveness and denies all other requests with a service-unavailable response until authentication, authorization, quota reservation, and private worker routing are implemented. It does not provide a ready data plane or establish Cloudflare deployment compatibility.
 
 The local adapter does not read request bodies before admission exists. It closes responses and bounds header and request timeouts; these settings are local development safeguards and do not replace gateway rate limiting or streaming controls.
+
+The admission component orders authentication, authorization, deployment resolution, and quota reservation. It accepts trusted adapters and fails closed on adapter errors. It is not wired to the local handler; production adapters, settlement, request validation, and dispatch are still required before execution can be enabled.
