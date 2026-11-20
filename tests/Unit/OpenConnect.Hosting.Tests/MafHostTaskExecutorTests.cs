@@ -6,6 +6,7 @@ using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.LiveUI.Agents;
 using Xunit;
 
@@ -13,6 +14,73 @@ namespace OpenConnect.Hosting.Tests;
 
 public sealed class MafHostTaskExecutorTests
 {
+    [Fact]
+    public async Task Publishes_completed_response_to_owning_task_session()
+    {
+        var fixture = new Fixture { UseLiveUI = true };
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(fixture.Input.TenantId, fixture.Input.PrincipalId);
+        fixture.Input = fixture.Input with { SessionId = session.Id };
+
+        await new MafHostTaskExecutor(fixture, sessions).ExecuteAsync(fixture.Input, default);
+
+        var message = Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "message");
+        Assert.Equal("reply", message.Data);
+        Assert.Equal(fixture.Input.TaskId.Value.ToString(), message.TaskId);
+        Assert.Equal(session.Id, fixture.Broker.Session);
+    }
+
+    [Fact]
+    public async Task Session_owned_by_another_principal_rejects_before_model_or_publication()
+    {
+        var fixture = new Fixture { UseLiveUI = true };
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(fixture.Input.TenantId, new PrincipalId(Ulid.NewUlid()));
+        fixture.Input = fixture.Input with { SessionId = session.Id };
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            new MafHostTaskExecutor(fixture, sessions).ExecuteAsync(fixture.Input, default));
+
+        Assert.Equal(0, fixture.Client.Calls);
+        Assert.Null(fixture.Broker.Request);
+        Assert.Empty(sessions.GetEvents(session.Id.Value, 0));
+    }
+
+    [Fact]
+    public async Task Registered_executor_publishes_to_registered_session_store()
+    {
+        var fixture = new Fixture();
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(fixture.Input.TenantId, fixture.Input.PrincipalId);
+        fixture.Input = fixture.Input with { SessionId = session.Id };
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostTaskAgentExecutionFactory>(fixture);
+        services.AddSingleton(sessions);
+        services.AddMafHostTaskExecutor();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        await scope.ServiceProvider.GetRequiredService<IHostTaskExecutor>().ExecuteAsync(fixture.Input, default);
+
+        Assert.Equal("reply", Assert.Single(sessions.GetEvents(session.Id.Value, 0), item => item.Type == "message").Data);
+    }
+
+    [Fact]
+    public async Task Revocation_after_persistence_prevents_response_publication()
+    {
+        var fixture = new Fixture();
+        fixture.Revocation = () => fixture.Store.Saves > 0;
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(fixture.Input.TenantId, fixture.Input.PrincipalId);
+        fixture.Input = fixture.Input with { SessionId = session.Id };
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            new MafHostTaskExecutor(fixture, sessions).ExecuteAsync(fixture.Input, default));
+
+        Assert.Equal(1, fixture.Store.Saves);
+        Assert.Empty(sessions.GetEvents(session.Id.Value, 0));
+    }
+
     [Fact]
     public async Task Executes_durable_liveui_tool_against_accepted_client_connection()
     {
@@ -92,8 +160,9 @@ public sealed class MafHostTaskExecutorTests
         public bool UseLiveUI { get; init; }
         public bool WrongTenant { get; init; }
         public bool Revoked { get; init; }
+        public Func<bool>? Revocation { get; set; }
         public Action<CancellationToken>? ClientCall { get => Client.OnCall; init => Client.OnCall = value; }
-        public HostTaskExecution Input { get; } = new(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), new SessionId(Ulid.NewUlid()), "hello", "key")
+        public HostTaskExecution Input { get; set; } = new(new TaskId(Ulid.NewUlid()), new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()), new SessionId(Ulid.NewUlid()), "hello", "key")
         { Origin = HostTaskOrigin.MiniComposer, ClientConnectionId = "accepted-connection" };
 
         public Task<HostTaskAgentExecution> CreateAsync(HostTaskExecution task, CancellationToken cancellationToken)
@@ -125,7 +194,8 @@ public sealed class MafHostTaskExecutorTests
                 : new MafConversationRunner(factory, new AgentId("lead"));
             var persistence = new NativeAgentSessionPersistence(Store, new Protector());
             var contextForRevocation = new NativeSessionTurnPersistenceContext(persistence, binding, new Gate());
-            return System.Threading.Tasks.Task.FromResult(new HostTaskAgentExecution(runner, context, (_, _) => ValueTask.FromResult(Revoked), contextForRevocation));
+            return System.Threading.Tasks.Task.FromResult(new HostTaskAgentExecution(runner, context,
+                (_, _) => ValueTask.FromResult(Revocation?.Invoke() ?? Revoked), contextForRevocation));
         }
     }
 
