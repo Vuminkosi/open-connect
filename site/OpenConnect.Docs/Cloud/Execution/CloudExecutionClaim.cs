@@ -13,14 +13,14 @@ public sealed record CloudExecutionClaimResult(string Status, Guid? ClaimId = nu
 
 public interface ICloudExecutionClaimStore
 {
-    Task<CloudExecutionClaimResult> ClaimAsync(Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CancellationToken cancellationToken);
+    Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CancellationToken cancellationToken);
 }
 
 public sealed class CloudExecutionClaimService(ICloudExecutionClaimStore store)
 {
-    public Task<CloudExecutionClaimResult> ClaimAsync(Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CancellationToken cancellationToken) =>
-        tenantId == Guid.Empty || applicationId == Guid.Empty || reservationId == Guid.Empty || !CloudDeploymentRegistry.ValidToken(capabilityId, 80) ||
+    public Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CancellationToken cancellationToken) =>
+        credentialId == Guid.Empty || tenantId == Guid.Empty || applicationId == Guid.Empty || reservationId == Guid.Empty || !CloudDeploymentRegistry.ValidToken(capabilityId, 80) ||
             !CloudRequestFingerprint.IsValidKeyId(fingerprintKeyId) || fingerprint is not { Length: 32 }
             ? Task.FromResult(new CloudExecutionClaimResult("invalid_request"))
-            : store.ClaimAsync(tenantId, applicationId, reservationId, capabilityId, fingerprintKeyId, fingerprint.ToArray(), cancellationToken);
+            : store.ClaimAsync(credentialId, tenantId, applicationId, reservationId, capabilityId, fingerprintKeyId, fingerprint.ToArray(), cancellationToken);
 }

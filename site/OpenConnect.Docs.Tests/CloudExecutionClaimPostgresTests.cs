@@ -19,9 +19,11 @@ public sealed class CloudExecutionClaimPostgresTests
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var capability = "claim." + Guid.NewGuid().ToString("N");
         var now = DateTimeOffset.UtcNow;
+        var credentialId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.Credentials.Add(new CloudCredential { Id = credentialId, TenantId = tenant.Id, ApplicationId = app.Id, Environment = "Development", KeyHash = new byte[32], Fingerprint = "claim-test", Scopes = System.Text.Json.JsonSerializer.Serialize(new[] { capability }), IssuedAt = now, ExpiresAt = now.AddHours(1) });
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability, Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 10 });
             await db.SaveChangesAsync();
         }
@@ -34,12 +36,12 @@ public sealed class CloudExecutionClaimPostgresTests
             return result.ReservationId!.Value;
         }
         var id = await Reserve();
-        Assert.Equal("unavailable", (await claims.ClaimAsync(Guid.NewGuid(), app.Id, id, capability, "key", new byte[32], default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, Guid.NewGuid(), id, capability, "key", new byte[32], default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, id, "other", "key", new byte[32], default)).Status);
-        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(tenant.Id, app.Id, id, capability, "other-key", new byte[32], default)).Status);
-        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(tenant.Id, app.Id, id, capability, "key", Enumerable.Repeat((byte)1, 32).ToArray(), default)).Status);
-        var attempts = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => claims.ClaimAsync(tenant.Id, app.Id, id, capability, "key", new byte[32], default)));
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, Guid.NewGuid(), app.Id, id, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, Guid.NewGuid(), id, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, "other", "key", new byte[32], default)).Status);
+        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "other-key", new byte[32], default)).Status);
+        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "key", Enumerable.Repeat((byte)1, 32).ToArray(), default)).Status);
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => claims.ClaimAsync(credentialId, tenant.Id, app.Id, id, capability, "key", new byte[32], default)));
         Assert.Single(attempts, x => x.Status == "claimed" && x.ClaimId is not null);
         Assert.Equal(29, attempts.Count(x => x.Status == "already_claimed" && x.ClaimId is null));
         Assert.Equal("execution_requires_reconciliation", (await quota.FinalizeAsync(tenant.Id, app.Id, id, 0, default)).Status);
@@ -53,16 +55,16 @@ public sealed class CloudExecutionClaimPostgresTests
         }
         var expired = await Reserve();
         var expiredClaims = new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, new TestClock(now.AddMinutes(6))));
-        Assert.Equal("unavailable", (await expiredClaims.ClaimAsync(tenant.Id, app.Id, expired, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await expiredClaims.ClaimAsync(credentialId, tenant.Id, app.Id, expired, capability, "key", new byte[32], default)).Status);
         var legacy = await Reserve();
         await using (var db = await factory.CreateDbContextAsync())
             await db.QuotaReservations.Where(x => x.Id == legacy).ExecuteUpdateAsync(x => x.SetProperty(y => y.RequestFingerprint, (byte[]?)null).SetProperty(y => y.FingerprintKeyId, (string?)null));
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, legacy, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, legacy, capability, "key", new byte[32], default)).Status);
         var finalized = await Reserve();
         Assert.Equal("finalized", (await quota.FinalizeAsync(tenant.Id, app.Id, finalized, 0, default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, finalized, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(credentialId, tenant.Id, app.Id, finalized, capability, "key", new byte[32], default)).Status);
         var racing = await Reserve();
-        var claimTask = claims.ClaimAsync(tenant.Id, app.Id, racing, capability, "key", new byte[32], default);
+        var claimTask = claims.ClaimAsync(credentialId, tenant.Id, app.Id, racing, capability, "key", new byte[32], default);
         var refundTask = quota.FinalizeAsync(tenant.Id, app.Id, racing, 0, default);
         await Task.WhenAll(claimTask, refundTask);
         Assert.True((claimTask.Result.Status == "claimed" && refundTask.Result.Status == "execution_requires_reconciliation") ||
@@ -89,6 +91,47 @@ public sealed class CloudExecutionClaimPostgresTests
             await transaction.CommitAsync();
             await Assert.ThrowsAnyAsync<Exception>(async () => await oldWrite);
             Assert.Null((await observer.QuotaReservations.AsNoTracking().SingleAsync(x => x.Id == legacyRace)).FinalizedAt);
+        }
+        var revokedRace = await Reserve();
+        await using (var revoker = await factory.CreateDbContextAsync())
+        {
+            await using var transaction = await revoker.Database.BeginTransactionAsync();
+            await revoker.Credentials.Where(x => x.Id == credentialId).ExecuteUpdateAsync(x => x.SetProperty(y => y.RevokedAt, DateTimeOffset.UtcNow));
+            var duringRevocation = claims.ClaimAsync(credentialId, tenant.Id, app.Id, revokedRace, capability, "key", new byte[32], default);
+            await Task.Delay(100);
+            Assert.False(duringRevocation.IsCompleted);
+            await transaction.CommitAsync();
+            Assert.Equal("unavailable", (await duringRevocation).Status);
+        }
+        await using (var db = await factory.CreateDbContextAsync())
+            Assert.False(await db.ExecutionClaims.AnyAsync(x => x.ReservationId == revokedRace));
+        var secondCredential = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Credentials.Add(new CloudCredential { Id = secondCredential, TenantId = tenant.Id, ApplicationId = app.Id, Environment = "Development", KeyHash = new byte[32], Fingerprint = "claim-test-2", Scopes = System.Text.Json.JsonSerializer.Serialize(new[] { capability }), IssuedAt = now, ExpiresAt = now.AddHours(1) });
+            await db.SaveChangesAsync();
+        }
+        var claimFirst = await Reserve();
+        await using (var locker = await factory.CreateDbContextAsync())
+        await using (var revoker = await factory.CreateDbContextAsync())
+        await using (var observer = await factory.CreateDbContextAsync())
+        {
+            await using var transaction = await locker.Database.BeginTransactionAsync();
+            await locker.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {claimFirst} FOR UPDATE").AsNoTracking().SingleAsync();
+            var pendingClaim = claims.ClaimAsync(secondCredential, tenant.Id, app.Id, claimFirst, capability, "key", new byte[32], default);
+            var claimWaiting = false;
+            for (var attempt = 0; attempt < 50 && !claimWaiting; attempt++)
+            {
+                claimWaiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.quota_reservations%FOR UPDATE%') AS \"Value\"").SingleAsync();
+                if (!claimWaiting) await Task.Delay(20);
+            }
+            Assert.True(claimWaiting);
+            var pendingRevocation = revoker.Credentials.Where(x => x.Id == secondCredential).ExecuteUpdateAsync(x => x.SetProperty(y => y.RevokedAt, DateTimeOffset.UtcNow));
+            await Task.Delay(100);
+            Assert.False(pendingRevocation.IsCompleted);
+            await transaction.CommitAsync();
+            Assert.Equal("claimed", (await pendingClaim).Status);
+            Assert.Equal(1, await pendingRevocation);
         }
     }
 

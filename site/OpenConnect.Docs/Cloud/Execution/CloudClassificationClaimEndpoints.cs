@@ -36,7 +36,7 @@ public static class CloudClassificationClaimEndpoints
             try
             {
                 var result = await context.RequestServices.GetRequiredService<CloudExecutionClaimService>().ClaimAsync(
-                    authorization.Identity.TenantId, authorization.Identity.ApplicationId, reservationId, "classification.classify", proof.FingerprintKeyId, fingerprint, cancellationToken);
+                    authorization.Identity.CredentialId, authorization.Identity.TenantId, authorization.Identity.ApplicationId, reservationId, "classification.classify", proof.FingerprintKeyId, fingerprint, cancellationToken);
                 return Results.Json(result, statusCode: result.Status switch { "claimed" => 200, "already_claimed" or "idempotency_conflict" => 409, "invalid_request" => 400, _ => 503 });
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
