@@ -256,7 +256,7 @@ public sealed class ComposerSession
         if (type.Equals("task.failed", StringComparison.OrdinalIgnoreCase))
         {
             if (!alreadyHandled)
-                _errors.Add("The assistant could not complete the request.");
+                _errors.Add("The assistant could not complete the request. Some actions may have completed; check the current state before retrying.");
             _messages.Add(new ComposerMessage("assistant", _streamingText, sequence, ComposerMessageState.Failed));
             _streamingText = string.Empty;
             _streamingRole = null;
