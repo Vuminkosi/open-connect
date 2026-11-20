@@ -94,7 +94,8 @@ Only reviewed administrator-controlled sources and licenses may be selected.
 cache. `verify-existing-only` and `OC_MODEL_OFFLINE=true` forbid fetching;
 the default `first-start-if-missing` permits approved HTTPS fetches. Serving
 processes should mount the verified cache read-only and use
-`verify_for_request`, never the initializer. The initializer rejects redirects,
-private DNS addresses, non-HTTPS sources, unapproved hosts, and digest or size
+`verify_for_request`, never the initializer. The initializer checks every redirect
+against the host and public-address policy and rejects private DNS addresses,
+non-HTTPS sources, unapproved hosts, and digest or size
 mismatches. It does not make a model available by itself: a consuming worker
 still needs an approved manifest, model adapter, and readiness integration.

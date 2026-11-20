@@ -14,7 +14,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from openconnect_worker_common.models.runtime_cache import RuntimeModelAsset, RuntimeModelManifest
 
@@ -46,8 +46,8 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
 class StartupAssetFetcher:
     """Fetch only exact assets in one operator-selected manifest.
 
-    Redirects and proxies are deliberately unsupported. Call only during a
-    model initialization stage; the cache manager handles activation.
+    Redirects are bounded and checked against the same host and address policy.
+    Proxies are unsupported. Call only during model initialization.
     """
 
     def __init__(
@@ -108,11 +108,7 @@ class StartupAssetFetcher:
         if expected is None or asset != expected or asset.sizeBytes <= 0:
             raise ValueError("unapproved_asset")
         source = self._sources[asset.relativePath]
-        parsed = urlsplit(source.url)
-        host = parsed.hostname
-        if (parsed.scheme != "https" or not host or host.lower() not in self._allowed_hosts
-                or parsed.username is not None or parsed.password is not None
-                or parsed.port not in (None, 443) or parsed.fragment or not source.media_types):
+        if not source.media_types:
             raise ValueError("unapproved_source")
         if self._downloaded + asset.sizeBytes > self._budget:
             raise ValueError("download_budget_exceeded")
@@ -120,23 +116,43 @@ class StartupAssetFetcher:
             raise OSError("insufficient_cache_space")
 
         deadline = time.monotonic() + self._timeout
-        ips = self._resolve(host, self._timeout)
-        if not ips:
-            raise OSError("source_unavailable")
-        if any(not ipaddress.ip_address(ip).is_global for ip in ips):
-            raise ValueError("unapproved_address")
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError("download_timeout")
-        connection = _PinnedHTTPSConnection(host, ips[0], remaining)
+        url = source.url
+        connection = None
         try:
-            path = parsed.path or "/"
-            if parsed.query:
-                path += "?" + parsed.query
-            connection.request("GET", path, headers={"Accept-Encoding": "identity"})
-            response = connection.getresponse()
-            if response.status != 200:
-                raise OSError("download_failed")
+            for hop in range(4):
+                parsed = urlsplit(url)
+                host = parsed.hostname
+                if (parsed.scheme != "https" or not host or host.lower() not in self._allowed_hosts
+                        or parsed.username is not None or parsed.password is not None
+                        or parsed.port not in (None, 443) or parsed.fragment):
+                    raise ValueError("unapproved_source")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("download_timeout")
+                ips = self._resolve(host, remaining)
+                if not ips:
+                    raise OSError("source_unavailable")
+                if any(not ipaddress.ip_address(ip).is_global for ip in ips):
+                    raise ValueError("unapproved_address")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("download_timeout")
+                connection = _PinnedHTTPSConnection(host, ips[0], remaining)
+                path = parsed.path or "/"
+                if parsed.query:
+                    path += "?" + parsed.query
+                connection.request("GET", path, headers={"Accept-Encoding": "identity"})
+                response = connection.getresponse()
+                if response.status == 200:
+                    break
+                if response.status not in {301, 302, 303, 307, 308} or hop == 3:
+                    raise OSError("download_failed")
+                location = response.getheader("Location")
+                if not location:
+                    raise OSError("download_failed")
+                url = urljoin(url, location)
+                connection.close()
+                connection = None
             media_type = response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
             if media_type not in source.media_types:
                 raise ValueError("invalid_content_type")
@@ -165,4 +181,5 @@ class StartupAssetFetcher:
             if digest.hexdigest() != asset.sha256.lower():
                 raise ValueError("checksum_mismatch")
         finally:
-            connection.close()
+            if connection is not None:
+                connection.close()

@@ -161,3 +161,51 @@ def test_dns_timeout_does_not_start_repeated_resolvers(tmp_path: Path, monkeypat
         assert len(calls) == 1
     finally:
         release.set()
+
+
+@pytest.mark.parametrize("location,allowed,expected", [
+    ("https://cdn.example/model", {"models.example", "cdn.example"}, True),
+    ("https://evil.example/model", {"models.example"}, False),
+    ("http://cdn.example/model", {"models.example", "cdn.example"}, False),
+])
+def test_redirects_revalidate_hosts_and_scheme(tmp_path: Path, monkeypatch, location, allowed, expected):
+    seen: list[str] = []
+
+    class Redirect(Response):
+        status = 302
+
+        def getheader(self, name, default=None):
+            return location if name == "Location" else super().getheader(name, default)
+
+    class RedirectConnection:
+        sock = None
+
+        def __init__(self, host, address, timeout):
+            self.host = host
+            seen.append(host)
+
+        def request(self, method, path, headers):
+            pass
+
+        def getresponse(self):
+            return Redirect() if self.host == "models.example" else Response()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(download, "_PinnedHTTPSConnection", RedirectConnection)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+    ])
+    model = manifest()
+    downloader = download.StartupAssetFetcher(model, {"model.onnx": download.AssetSource(
+        "https://models.example/model", frozenset({"application/octet-stream"})
+    )}, frozenset(allowed), max_bytes=1024, timeout_seconds=10)
+    if expected:
+        downloader(model.assets[0], tmp_path / "model")
+        assert (tmp_path / "model").read_bytes() == DATA
+        assert seen == ["models.example", "cdn.example"]
+    else:
+        with pytest.raises(ValueError, match="unapproved_source"):
+            downloader(model.assets[0], tmp_path / "model")
+        assert seen == ["models.example"]
