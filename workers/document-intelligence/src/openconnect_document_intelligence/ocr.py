@@ -188,13 +188,16 @@ class TesseractOcr:
             raise RuntimeError("model_unavailable")
         return result
 
-    def analyze(self, content: bytes) -> OcrPage:
+    def analyze(self, content: bytes, *, timeout_seconds: float | None = None) -> OcrPage:
+        if timeout_seconds is not None and (not math.isfinite(timeout_seconds) or timeout_seconds <= 0):
+            raise ValueError("invalid_timeout")
         prepared, width, height = _prepare_image(content)
         result = self._verify()
         output = _run_tesseract(
             [str(self._executable), "stdin", "stdout", "--tessdata-dir",
              str(result.revision_dir / "assets"), "-l", "eng", "--psm", "3",
-             "-c", "tessedit_create_tsv=1"], prepared, self._timeout,
+             "-c", "tessedit_create_tsv=1"], prepared,
+            min(self._timeout, timeout_seconds) if timeout_seconds is not None else self._timeout,
         )
         text, spans = _parse_tsv(output, width, height)
         return OcrPage(text, width, height, spans, self._manifest.modelId, result.fingerprint)
