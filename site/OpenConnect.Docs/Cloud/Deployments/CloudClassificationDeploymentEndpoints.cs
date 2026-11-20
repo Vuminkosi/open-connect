@@ -43,7 +43,7 @@ public static class CloudClassificationDeploymentEndpoints
                 foreach (var property in document.RootElement.EnumerateObject()) if (!names.Add(property.Name)) return Results.BadRequest();
                 var request = document.RootElement.Deserialize<CloudClassificationDeploymentMatchRequest>(JsonOptions);
                 if (request is null) return Results.BadRequest();
-                var matched = await context.RequestServices.GetRequiredService<CloudClassificationDeploymentService>().MatchesAsync(request, cancellationToken);
+                var matched = await context.RequestServices.GetRequiredService<CloudClassificationDeploymentService>().MatchesAsync(authorization.Identity.TenantId, request, cancellationToken);
                 return Results.Json(new CloudClassificationDeploymentMatchResponse(matched));
             }
             catch (JsonException) { return Results.BadRequest(); }

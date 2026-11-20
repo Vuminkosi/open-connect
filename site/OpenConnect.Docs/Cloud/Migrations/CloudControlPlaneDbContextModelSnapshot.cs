@@ -544,6 +544,27 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudRegionPolicy", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedRegions")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("region_policies", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_region_policy_revision", "\"Revision\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudTenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -848,6 +869,15 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId", "BucketId")
                         .HasPrincipalKey("TenantId", "ApplicationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudRegionPolicy", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
+                        .WithOne()
+                        .HasForeignKey("OpenConnect.Docs.Cloud.CloudRegionPolicy", "TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

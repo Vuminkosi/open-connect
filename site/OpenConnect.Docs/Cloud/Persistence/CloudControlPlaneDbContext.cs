@@ -5,6 +5,7 @@ namespace OpenConnect.Docs.Cloud;
 public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlaneDbContext> options) : DbContext(options)
 {
     public DbSet<CloudTenant> Tenants => Set<CloudTenant>();
+    public DbSet<CloudRegionPolicy> RegionPolicies => Set<CloudRegionPolicy>();
     public DbSet<CloudMembership> Memberships => Set<CloudMembership>();
     public DbSet<CloudMembershipRevision> MembershipRevisions => Set<CloudMembershipRevision>();
     public DbSet<CloudInvitation> Invitations => Set<CloudInvitation>();
@@ -33,6 +34,15 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<CloudRegionPolicy>(entity =>
+        {
+            entity.ToTable("region_policies", table => table.HasCheckConstraint("ck_region_policy_revision", "\"Revision\" > 0"));
+            entity.HasKey(x => x.TenantId);
+            entity.Property(x => x.AllowedRegions).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.Revision).IsConcurrencyToken();
+            entity.HasOne<CloudTenant>().WithOne().HasForeignKey<CloudRegionPolicy>(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudMembership>(entity =>

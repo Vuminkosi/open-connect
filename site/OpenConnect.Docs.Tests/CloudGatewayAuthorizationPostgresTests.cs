@@ -27,6 +27,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
         string? originalAvailability = null;
         string? originalClassificationAvailability = null;
+        string? originalClassificationRegions = null;
+        bool originalRegionsVerified = false;
         try
         {
             var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
@@ -42,8 +44,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 var classification = await db.Capabilities.SingleAsync(x => x.Id == "classification.classify");
                 originalAvailability = definition.PlatformAvailability;
                 originalClassificationAvailability = classification.PlatformAvailability;
+                originalClassificationRegions = classification.AllowedRegions;
+                originalRegionsVerified = classification.AllowedRegionsVerified;
                 definition.PlatformAvailability = "available";
                 classification.PlatformAvailability = "available";
+                classification.AllowedRegions = "[\"region-a\"]";
+                classification.AllowedRegionsVerified = true;
+                db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
                 db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = capability, PlanGranted = true, Revision = 1 });
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = capability, Enabled = true, Revision = 1 });
@@ -262,6 +269,17 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.SendAsync(privacyRequest)).StatusCode);
             }
             Assert.True(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.Capabilities.Where(x => x.Id == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegionsVerified, false));
+            Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference));
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                await db.Capabilities.Where(x => x.Id == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegionsVerified, true));
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
+            }
+            Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
             Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "unknown-deployment"));
             Assert.False(await NodeMatchAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, classificationReference));
             Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, issued.Secret!, classificationReference));
@@ -273,10 +291,11 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             }
             var deploymentService = new CloudClassificationDeploymentService(new EfCloudClassificationDeploymentReader(factory));
             var match = new CloudClassificationDeploymentMatchRequest(classificationReference, "region-a", "openconnect.v1", "revision-1");
-            Assert.True(await deploymentService.MatchesAsync(match, CancellationToken.None));
-            Assert.False(await deploymentService.MatchesAsync(match with { Region = "region-b" }, CancellationToken.None));
-            Assert.False(await deploymentService.MatchesAsync(match with { ContractVersion = "other" }, CancellationToken.None));
-            Assert.False(await deploymentService.MatchesAsync(match with { ModelRevision = "other" }, CancellationToken.None));
+            Assert.True(await deploymentService.MatchesAsync(tenant.Id, match, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(Guid.NewGuid(), match, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(tenant.Id, match with { Region = "region-b" }, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(tenant.Id, match with { ContractVersion = "other" }, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(tenant.Id, match with { ModelRevision = "other" }, CancellationToken.None));
             var blocked = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com", classificationReference);
             Assert.Equal(403, blocked.Status);
             Assert.Equal("privacy_blocked", blocked.Code);
@@ -340,7 +359,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             {
                 await using var db = await factory.CreateDbContextAsync();
                 await db.Capabilities.Where(x => x.Id == "classification.classify")
-                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability));
+                    .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability)
+                        .SetProperty(y => y.AllowedRegions, originalClassificationRegions!).SetProperty(y => y.AllowedRegionsVerified, originalRegionsVerified));
             }
         }
     }
