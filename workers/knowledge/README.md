@@ -15,6 +15,14 @@ advertises `knowledge.embed` only after its configured model passes cache and
 startup inference checks; production
 deployment still requires a reviewed model and end-to-end acceptance.
 
+`chunk_pages` is a deterministic, in-memory preparation primitive. It returns
+bounded page-local text spans and content hashes, with chunk identities scoped
+to the tenant, application, collection, document revision, embedding space and
+chunking configuration. It neither authorizes access nor persists text. A host
+must authorize and sanitize content before chunking; durable indexing, ACL
+prefiltering, deletion propagation and search are not implemented by this
+primitive. Do not advertise `knowledge.index` based on chunking alone.
+
 Run `uv sync --locked`, `uv run ruff check .` and `uv run pytest -q` from this
 directory. Model assets must be provisioned separately through the shared
 initializer; request processing performs no downloads.
