@@ -167,3 +167,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a private mTLS inference dispatcher for claimed worker payloads and bounded responses; gateway egress inspection and public routing remain outstanding.
 
 - [x] Implement a gateway-local, digest-bound token quote process using the worker's exact prompt preparation; gateway image packaging and end-to-end route integration remain outstanding.
+
+- [x] Package the local tokenizer dependency and code in the gateway image using an allowlisted root build context; explicit model configuration, route integration and deployment acceptance remain outstanding.
