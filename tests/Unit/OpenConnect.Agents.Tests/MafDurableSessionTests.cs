@@ -11,6 +11,42 @@ namespace OpenConnect.Agents.Tests;
 public sealed class MafDurableSessionTests
 {
     [Fact]
+    public async Task Durable_resume_uses_current_host_tools_not_previous_connection_tools()
+    {
+        var binding = Binding();
+        var client = new Client();
+        var persistence = new NativeAgentSessionPersistence(new MemoryStore(), new PassthroughProtector());
+        var (_, context) = Runner(client, binding);
+        var factory = new MafRealAgentFactory(new Registry(), client);
+        var tools = new List<AITool> { AIFunctionFactory.Create(() => "old", "old_connection") };
+        var first = MafConversationRunner.CreateWithTools(factory, new AgentId("lead"), tools, "Use authorized tools.");
+        tools.Clear();
+
+        await first.TurnDurableAsync("first", context, (_, _) => ValueTask.FromResult(false), Persistence(persistence, binding, new Gate()));
+        Assert.Equal("old_connection", Assert.Single(client.LastOptions!.Tools!).Name);
+
+        var second = MafConversationRunner.CreateWithTools(factory, new AgentId("lead"),
+            [AIFunctionFactory.Create(() => "new", "new_connection")], "Use authorized tools.");
+        var (_, resumedContext) = Runner(client, binding);
+        await second.TurnDurableAsync("next", resumedContext, (_, _) => ValueTask.FromResult(false), Persistence(persistence, binding, new Gate()));
+
+        Assert.Equal("new_connection", Assert.Single(client.LastOptions!.Tools!).Name);
+        Assert.Contains(client.LastRequest!, message => message.Role == ChatRole.User && message.Text == "first");
+    }
+
+    [Fact]
+    public async Task Non_durable_runner_receives_host_tools()
+    {
+        var client = new Client();
+        var runner = MafConversationRunner.CreateWithTools(new MafRealAgentFactory(new Registry(), client),
+            new AgentId("lead"), [AIFunctionFactory.Create(() => "ok", "authorized_tool")]);
+
+        await runner.TurnAsync("hello");
+
+        Assert.Equal("authorized_tool", Assert.Single(client.LastOptions!.Tools!).Name);
+    }
+
+    [Fact]
     public async Task Durable_turn_restores_native_history_into_a_new_runner()
     {
         var store = new MemoryStore();
@@ -231,11 +267,12 @@ public sealed class MafDurableSessionTests
     {
         public int Calls { get; private set; }
         public IReadOnlyList<ChatMessage>? LastRequest { get; private set; }
+        public ChatOptions? LastOptions { get; private set; }
         public Action<CancellationToken>? OnCall { get; init; }
         public bool Fail { get; init; }
         public ChatClientMetadata Metadata { get; } = new("durable-test");
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
-        { cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); if (Fail) throw new InvalidOperationException("model failure"); LastRequest = messages.ToArray(); return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply"))); }
+        { cancellationToken.ThrowIfCancellationRequested(); Calls++; OnCall?.Invoke(cancellationToken); if (Fail) throw new InvalidOperationException("model failure"); LastRequest = messages.ToArray(); LastOptions = options; return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "reply"))); }
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         { var response = await GetResponseAsync(messages, options, cancellationToken); yield return new ChatResponseUpdate(ChatRole.Assistant, response.Text); }
         public object? GetService(Type serviceType, object? serviceKey = null) => null;

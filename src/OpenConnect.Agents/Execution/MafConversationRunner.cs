@@ -15,6 +15,8 @@ public sealed class MafConversationRunner
     private readonly SessionTurnConcurrency _concurrency;
     private readonly RunBudgetLedger? _runLedger;
     private readonly IRateLimitGate? _rateLimitGate;
+    private readonly IReadOnlyList<AITool>? _leadTools;
+    private readonly string? _leadInstructions;
     private readonly List<ChatMessage> _history = [];
     private AIAgent? _leadAgent;
     private AgentSession? _leadSession;
@@ -48,6 +50,28 @@ public sealed class MafConversationRunner
         _rateLimitGate = rateLimitGate;
         PinnedCatalogRevision = pinnedCatalogRevision;
     }
+
+    /// <summary>Creates a runner with host-authorized, invocation-scoped lead-agent tools.</summary>
+    /// <remarks>The host must bind and authorize every tool for the current execution. Create a fresh runner
+    /// when tool authority or client connection changes; durable conversation state does not retain tools.</remarks>
+    private MafConversationRunner(MafRealAgentFactory factory, AgentId leadAgentId, IEnumerable<AITool> leadTools,
+        string? leadInstructions, SessionTurnConcurrency concurrency,
+        RunBudgetLedger? runLedger, IRateLimitGate? rateLimitGate, string? pinnedCatalogRevision)
+        : this(factory, leadAgentId, concurrency, runLedger, rateLimitGate, pinnedCatalogRevision)
+    {
+        ArgumentNullException.ThrowIfNull(leadTools);
+        _leadTools = leadTools.ToArray();
+        _leadInstructions = leadInstructions;
+    }
+
+    /// <summary>Creates a runner with host-authorized, invocation-scoped lead-agent tools.</summary>
+    /// <remarks>The host must bind and authorize every tool for the current execution. Create a fresh runner
+    /// when tool authority or client connection changes; durable conversation state does not retain tools.</remarks>
+    public static MafConversationRunner CreateWithTools(MafRealAgentFactory factory, AgentId leadAgentId,
+        IEnumerable<AITool> leadTools, string? leadInstructions = null,
+        SessionTurnConcurrency concurrency = SessionTurnConcurrency.Serialize, RunBudgetLedger? runLedger = null,
+        IRateLimitGate? rateLimitGate = null, string? pinnedCatalogRevision = null) =>
+        new(factory, leadAgentId, leadTools, leadInstructions, concurrency, runLedger, rateLimitGate, pinnedCatalogRevision);
 
     /// <summary>Gets the pinned catalog revision for this runner, if any.</summary>
     public string? PinnedCatalogRevision { get; }
@@ -93,7 +117,7 @@ public sealed class MafConversationRunner
                 _ = checked(_turnSequence + 1);
             ThrowIfRateLimited(tenant, _leadAgentId.Value, Guid.NewGuid().ToString("N"), cancellationToken);
             ReserveModelCall(prompt);
-            var agent = _leadAgent ?? _factory.CreateAgent(_leadAgentId);
+            var agent = _leadAgent ?? _factory.CreateAgent(_leadAgentId, _leadTools, _leadInstructions);
             AgentSession candidateSession;
             if (_leadSession is null)
             {
@@ -261,7 +285,7 @@ public sealed class MafConversationRunner
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
                 lock (_sync)
                     _ = checked(_turnSequence + 1);
-                var agent = _factory.CreateAgent(_leadAgentId);
+                var agent = _factory.CreateAgent(_leadAgentId, _leadTools, _leadInstructions);
                 var loaded = await persistenceContext.Persistence.LoadAsync(agent, binding, ct).ConfigureAwait(false);
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
                 var candidateSession = loaded?.Session ?? await agent.CreateSessionAsync(ct).ConfigureAwait(false);
