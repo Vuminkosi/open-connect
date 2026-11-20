@@ -23,6 +23,34 @@
         <code style="overflow-wrap:anywhere">@_code</code>
         <button type="button" class="button" @onclick="() => _code = null">Done</button>
     }
+    <h3>Invitations</h3>
+    @if (_listStatus is not null) { <p role="status">@_listStatus</p> }
+    else if (_invitations.Count == 0) { <p>No invitations have been issued.</p> }
+    else
+    {
+        <ul class="cloud-list">
+            @foreach (var invitation in _invitations)
+            {
+                <li>
+                    <strong>@invitation.SubjectId</strong><span>@invitation.Role · @InvitationStatus(invitation)</span>
+                    <span>Expires: @invitation.ExpiresAt.ToString("u")</span>
+                    @if (invitation.AcceptedAt is null && invitation.RevokedAt is null && invitation.ExpiresAt > DateTimeOffset.UtcNow)
+                    {
+                        @if (_confirmRevoke == invitation.Id)
+                        {
+                            <span>Revoke this invitation?</span>
+                            <button type="button" class="button" aria-label="@($"Confirm revocation for {invitation.SubjectId}")" disabled="@(!Enabled || _busy)" @onclick="() => RevokeAsync(invitation)">Confirm revocation</button>
+                            <button type="button" class="button" disabled="@_busy" @onclick="() => _confirmRevoke = null">Cancel</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="button" aria-label="@($"Revoke invitation for {invitation.SubjectId}")" disabled="@(!Enabled || _busy)" @onclick="() => _confirmRevoke = invitation.Id">Revoke</button>
+                        }
+                    }
+                </li>
+            }
+        </ul>
+    }
 </section>
 
 @code {
@@ -36,12 +64,17 @@
     private bool _busy;
     private int _generation;
     private Guid? _currentTenantId;
+    private Guid? _confirmRevoke;
+    private string? _listStatus = "Loading invitations…";
+    private IReadOnlyList<CloudInvitationSummary> _invitations = [];
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         if (_currentTenantId == TenantId) return;
         _currentTenantId = TenantId;
         _generation++; _code = null; _status = null; _subjectId = null; _role = "Developer";
+        _confirmRevoke = null; _invitations = [];
+        await ReloadAsync(_generation);
     }
 
     public void Dispose() { _generation++; _code = null; }
@@ -63,7 +96,7 @@
             if (service is null || actor is null) { _status = "Invitation service is unavailable."; return; }
             var result = await service.CreateAsync(actor, tenantId, new CreateCloudInvitationRequest(issuer, subjectId, role), CancellationToken.None);
             if (generation != _generation) return;
-            if (result.Status == "succeeded") { _code = result.Code; _expiresAt = result.ExpiresAt; }
+            if (result.Status == "succeeded") { _code = result.Code; _expiresAt = result.ExpiresAt; await ReloadAsync(generation); }
             else _status = result.Status switch
             {
                 "invalid_request" => "Enter a valid identity subject and role.",
@@ -75,4 +108,48 @@
         catch (Exception) { Logger.LogWarning("Cloud invitation creation failed."); if (generation == _generation) _status = "The invitation was not confirmed. Try again."; }
         finally { if (generation == _generation) _busy = false; }
     }
+
+    private async Task ReloadAsync(int generation)
+    {
+        _listStatus = "Loading invitations…";
+        try
+        {
+            var service = Services.GetService(typeof(CloudInvitationService)) as CloudInvitationService;
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (generation != _generation) return;
+            var actor = CloudSubjectResolver.FromPrincipal(principal, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (service is null || actor is null) { _listStatus = "Invitations are unavailable."; return; }
+            var invitations = await service.ListAsync(actor, TenantId, CancellationToken.None);
+            if (generation != _generation) return;
+            if (invitations is null) { _listStatus = "Invitations are unavailable."; return; }
+            _invitations = invitations;
+            _listStatus = null;
+        }
+        catch (Exception) { Logger.LogWarning("Cloud invitation lookup failed."); if (generation == _generation) _listStatus = "Invitations could not be loaded."; }
+    }
+
+    private async Task RevokeAsync(CloudInvitationSummary invitation)
+    {
+        var generation = _generation;
+        var tenantId = TenantId;
+        _busy = true; _status = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudInvitationService)) as CloudInvitationService;
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (generation != _generation) return;
+            var actor = CloudSubjectResolver.FromPrincipal(principal, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (service is null || actor is null) { _status = "Invitation service is unavailable."; return; }
+            var result = await service.RevokeAsync(actor, tenantId, invitation.Id, invitation.Revision, CancellationToken.None);
+            if (generation != _generation) return;
+            _confirmRevoke = null;
+            await ReloadAsync(generation);
+            if (generation == _generation) _status = result.Status == "succeeded" ? "Invitation revoked." : "The invitation was not revoked. Review its latest status.";
+        }
+        catch (Exception) { Logger.LogWarning("Cloud invitation revocation failed."); if (generation == _generation) _status = "Revocation was not confirmed. Reload before retrying."; }
+        finally { if (generation == _generation) _busy = false; }
+    }
+
+    private static string InvitationStatus(CloudInvitationSummary invitation) => invitation.RevokedAt is not null ? "Revoked" :
+        invitation.AcceptedAt is not null ? "Accepted" : invitation.ExpiresAt <= DateTimeOffset.UtcNow ? "Expired" : "Pending";
 }

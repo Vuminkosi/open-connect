@@ -85,6 +85,30 @@ public static class CloudControlPlaneEndpoints
             return Results.Ok(new { code = result.Code, expiresAt = result.ExpiresAt });
         });
 
+        group.MapGet("/tenants/{tenantId:guid}/members/invitations", async (
+            Guid tenantId, ClaimsPrincipal principal, CloudInvitationService service, CancellationToken cancellationToken) =>
+        {
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            var invitations = await service.ListAsync(subject, tenantId, cancellationToken);
+            return invitations is null ? Results.NotFound() : Results.Ok(new { invitations });
+        });
+
+        group.MapPost("/tenants/{tenantId:guid}/members/invitations/{invitationId:guid}/revoke", async (
+            Guid tenantId, Guid invitationId, ClaimsPrincipal principal, HttpContext context,
+            IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
+        {
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
+                return Results.Problem(statusCode: 428, title: "An invitation revision is required.");
+            var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+            if (subject is null) return Results.Unauthorized();
+            var result = await service.RevokeAsync(subject, tenantId, invitationId, revision, cancellationToken);
+            if (result.Status != "succeeded") return InvitationResponse(result.Status);
+            context.Response.Headers.ETag = $"\"{result.Revision}\"";
+            return Results.NoContent();
+        });
+
         group.MapPost("/invitations/accept", async (
             AcceptCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
@@ -416,6 +440,7 @@ public static class CloudControlPlaneEndpoints
             "forbidden" => (403, "Only an organization owner can issue invitations."),
             "invalid_request" => (422, "Invitation details are invalid."),
             "already_member" => (409, "This identity is already a member."),
+            "invitation_closed" => (409, "The invitation is no longer pending."),
             "reinvitation_unavailable" => (409, "A previous membership requires reconciliation before another invitation can be accepted."),
             "conflict" => (409, "Invitation could not be completed. Try again."),
             _ => (400, "Invitation is invalid or unavailable."),

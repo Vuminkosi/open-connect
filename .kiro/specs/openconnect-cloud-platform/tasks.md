@@ -18,7 +18,8 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Ensure the overview does not invent entitlement, usage, or evidence records and shows database unavailability explicitly.
 - [ ] Add member invitation/removal and role management with immutable audit coverage for denied and failed writes.
 - [x] Verify initial subject-bound invitation creation and acceptance through an authenticated local OIDC browser session.
-- [ ] Implement invitation revocation, abuse controls, and safe reinvitation after historical reconciliation.
+- [x] Verify invitation revocation in an authenticated local OIDC browser and concurrent PostgreSQL acceptance.
+- [ ] Verify revocation across mixed-version deployments; implement abuse controls and safe reinvitation after historical reconciliation.
 - [ ] Extract feature persistence ports and implementations so tenant, capability, and credential services do not depend directly on EF Core.
 - [ ] Run migration and tenant-isolation verification against disposable PostgreSQL; confirm public docs remain healthy while that database is stopped.
 - [ ] Add focused route, OIDC configuration, sign-out, documentation-independence, and tenant isolation tests.

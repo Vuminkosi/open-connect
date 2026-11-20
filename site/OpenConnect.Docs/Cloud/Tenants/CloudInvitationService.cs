@@ -6,15 +6,25 @@ namespace OpenConnect.Docs.Cloud;
 public sealed record CreateCloudInvitationRequest(string? Issuer, string? SubjectId, string? Role);
 public sealed record AcceptCloudInvitationRequest(string? Code);
 public sealed record CloudInvitationResult(string Status, string? Code = null, DateTimeOffset? ExpiresAt = null);
+public sealed record CloudInvitationSummary(Guid Id, string SubjectId, string Role, DateTimeOffset ExpiresAt, DateTimeOffset? AcceptedAt, DateTimeOffset? RevokedAt, int Revision);
+public sealed record CloudInvitationChangeResult(string Status, int? Revision = null);
 
 public interface ICloudInvitationStore
 {
     Task<string> CreateAsync(CloudSubject actor, Guid tenantId, CloudSubject target, string role, Guid id, byte[] secretHash, DateTimeOffset expiresAt, CancellationToken cancellationToken);
     Task<string> AcceptAsync(CloudSubject actor, Guid id, byte[] secretHash, DateTimeOffset now, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CloudInvitationSummary>?> ListAsync(CloudSubject actor, Guid tenantId, CancellationToken cancellationToken);
+    Task<CloudInvitationChangeResult> RevokeAsync(CloudSubject actor, Guid tenantId, Guid invitationId, int expectedRevision, CancellationToken cancellationToken);
 }
 
 public sealed class CloudInvitationService(ICloudInvitationStore store, IConfiguration configuration, TimeProvider timeProvider)
 {
+    public Task<IReadOnlyList<CloudInvitationSummary>?> ListAsync(CloudSubject actor, Guid tenantId, CancellationToken cancellationToken) =>
+        store.ListAsync(actor, tenantId, cancellationToken);
+
+    public Task<CloudInvitationChangeResult> RevokeAsync(CloudSubject actor, Guid tenantId, Guid invitationId, int expectedRevision, CancellationToken cancellationToken) =>
+        expectedRevision < 1 ? Task.FromResult(new CloudInvitationChangeResult("invalid_request")) :
+            store.RevokeAsync(actor, tenantId, invitationId, expectedRevision, cancellationToken);
     public async Task<CloudInvitationResult> CreateAsync(CloudSubject actor, Guid tenantId, CreateCloudInvitationRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Issuer) || request.Issuer.Length > 2048 ||

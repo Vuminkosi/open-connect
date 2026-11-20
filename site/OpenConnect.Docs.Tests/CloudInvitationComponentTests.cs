@@ -22,6 +22,10 @@ public sealed class CloudInvitationComponentTests : BunitContext
         Assert.StartsWith("oci_", component.Find("code").TextContent);
         component.FindAll("button").Single(x => x.TextContent == "Done").Click();
         Assert.Empty(component.FindAll("code"));
+        component.FindAll("button").Single(x => x.TextContent == "Revoke").Click();
+        component.FindAll("button").Single(x => x.TextContent == "Confirm revocation").Click();
+        Assert.Contains("Invitation revoked.", component.Markup);
+        Assert.Contains("Revoked", component.Markup);
     }
 
     [Fact]
@@ -57,9 +61,19 @@ public sealed class CloudInvitationComponentTests : BunitContext
     {
         public CloudSubject? Actor { get; private set; }
         public CloudSubject? Target { get; private set; }
+        private CloudInvitationSummary? _invitation;
         public Task<string> CreateAsync(CloudSubject actor, Guid tenantId, CloudSubject target, string role, Guid id, byte[] secretHash, DateTimeOffset expiresAt, CancellationToken cancellationToken)
-        { Actor = actor; Target = target; return Task.FromResult("succeeded"); }
+        { Actor = actor; Target = target; _invitation = new CloudInvitationSummary(id, target.SubjectId, role, expiresAt, null, null, 1); return Task.FromResult("succeeded"); }
         public Task<string> AcceptAsync(CloudSubject actor, Guid id, byte[] secretHash, DateTimeOffset now, CancellationToken cancellationToken)
         { Actor = actor; return Task.FromResult("succeeded"); }
+        public Task<IReadOnlyList<CloudInvitationSummary>?> ListAsync(CloudSubject actor, Guid tenantId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<CloudInvitationSummary>?>(_invitation is null ? [] : [_invitation]);
+        public Task<CloudInvitationChangeResult> RevokeAsync(CloudSubject actor, Guid tenantId, Guid invitationId, int expectedRevision, CancellationToken cancellationToken) =>
+            Task.FromResult(Revoke(expectedRevision));
+        private CloudInvitationChangeResult Revoke(int revision)
+        {
+            _invitation = _invitation! with { RevokedAt = DateTimeOffset.UtcNow, Revision = revision + 1 };
+            return new("succeeded", revision + 1);
+        }
     }
 }

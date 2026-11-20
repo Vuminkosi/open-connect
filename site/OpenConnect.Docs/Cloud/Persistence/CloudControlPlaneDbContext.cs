@@ -60,6 +60,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.Property(x => x.Role).HasMaxLength(32).IsRequired();
             entity.Property(x => x.SecretHash).HasColumnType("bytea").IsRequired();
             entity.Property(x => x.AcceptedAt).IsConcurrencyToken();
+            entity.Property(x => x.Revision).HasDefaultValue(1).IsConcurrencyToken();
             entity.HasOne<CloudTenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -190,6 +191,8 @@ public sealed class CloudInvitation
     public required byte[] SecretHash { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? AcceptedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public int Revision { get; set; } = 1;
 }
 
 public sealed class CloudApplication
