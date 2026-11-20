@@ -15,6 +15,8 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudTenantCapabilitySelection> TenantCapabilitySelections => Set<CloudTenantCapabilitySelection>();
     public DbSet<CloudApplicationCapabilitySelection> ApplicationCapabilitySelections => Set<CloudApplicationCapabilitySelection>();
     public DbSet<CloudCredential> Credentials => Set<CloudCredential>();
+    public DbSet<CloudQuotaBucket> QuotaBuckets => Set<CloudQuotaBucket>();
+    public DbSet<CloudQuotaReservation> QuotaReservations => Set<CloudQuotaReservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +140,35 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
                 .HasPrincipalKey(x => new { x.TenantId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<CloudCapabilityDefinition>().WithMany().HasForeignKey(x => x.CapabilityId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudQuotaBucket>(entity =>
+        {
+            entity.ToTable("quota_buckets", table =>
+            {
+                table.HasCheckConstraint("ck_quota_bucket_amounts", "\"Limit\" >= 0 AND \"Consumed\" >= 0 AND \"Reserved\" >= 0 AND \"Consumed\" <= \"Limit\" - \"Reserved\"");
+                table.HasCheckConstraint("ck_quota_bucket_period", "\"PeriodStart\" < \"PeriodEnd\"");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.ApplicationId, x.Id });
+            entity.Property(x => x.CapabilityId).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Unit).HasMaxLength(80).IsRequired();
+            entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.CapabilityId, x.Unit, x.PeriodStart }).IsUnique();
+            entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<CloudCapabilityDefinition>().WithMany().HasForeignKey(x => x.CapabilityId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudQuotaReservation>(entity =>
+        {
+            entity.ToTable("quota_reservations", table => table.HasCheckConstraint("ck_quota_reservation_amounts",
+                "\"Amount\" > 0 AND (\"Actual\" IS NULL OR (\"Actual\" >= 0 AND \"Actual\" <= \"Amount\")) AND ((\"Actual\" IS NULL) = (\"FinalizedAt\" IS NULL))"));
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.RequestId }).IsUnique();
+            entity.HasOne<CloudQuotaBucket>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.ApplicationId, x.Id })
+                .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.BucketId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudCredential>(entity =>

@@ -341,6 +341,101 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.ToTable("membership_revisions", "cloud");
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudQuotaBucket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CapabilityId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<long>("Consumed")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Limit")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Reserved")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CapabilityId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "CapabilityId", "Unit", "PeriodStart")
+                        .IsUnique();
+
+                    b.ToTable("quota_buckets", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_quota_bucket_amounts", "\"Limit\" >= 0 AND \"Consumed\" >= 0 AND \"Reserved\" >= 0 AND \"Consumed\" <= \"Limit\" - \"Reserved\"");
+
+                            t.HasCheckConstraint("ck_quota_bucket_period", "\"PeriodStart\" < \"PeriodEnd\"");
+                        });
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudQuotaReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("Actual")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BucketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("FinalizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ApplicationId", "BucketId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("quota_reservations", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_quota_reservation_amounts", "\"Amount\" > 0 AND (\"Actual\" IS NULL OR (\"Actual\" >= 0 AND \"Actual\" <= \"Amount\")) AND ((\"Actual\" IS NULL) = (\"FinalizedAt\" IS NULL))");
+                        });
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudTenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -467,6 +562,39 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.HasOne("OpenConnect.Docs.Cloud.CloudTenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudQuotaBucket", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudCapabilityDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("CapabilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudApplication", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudQuotaReservation", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudApplication", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudQuotaBucket", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "BucketId")
+                        .HasPrincipalKey("TenantId", "ApplicationId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

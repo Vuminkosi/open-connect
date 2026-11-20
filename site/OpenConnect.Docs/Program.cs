@@ -81,6 +81,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudCredentialService>();
     builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
     builder.Services.AddScoped<CloudMachineAuthorizationService>();
+    builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
+    builder.Services.AddScoped<CloudQuotaService>();
     builder.Services.AddScoped<CloudReadinessService>();
 }
 builder.Services.AddCloudIdentityProviders(cloudOidc);
