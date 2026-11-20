@@ -77,9 +77,10 @@ public sealed class CloudQuotaPostgresTests
         var duplicates = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => service.ReserveAsync(replayRequest, None)));
         Assert.Single(duplicates, x => x.Status == "reserved");
         Assert.Equal(11, duplicates.Count(x => x.Status == "duplicate"));
-        Assert.Equal("found", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, replayRequest.RequestId, None)).Status);
-        Assert.Equal("key_1", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, replayRequest.RequestId, None)).KeyId);
-        Assert.Equal("not_found", (await service.FindFingerprintKeyAsync(Guid.NewGuid(), app.Id, replayRequest.RequestId, None)).Status);
+        Assert.Equal("found", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, capability, replayRequest.RequestId, None)).Status);
+        Assert.Equal("key_1", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, capability, replayRequest.RequestId, None)).KeyId);
+        Assert.Equal("not_found", (await service.FindFingerprintKeyAsync(Guid.NewGuid(), app.Id, capability, replayRequest.RequestId, None)).Status);
+        Assert.Equal("not_found", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, "other", replayRequest.RequestId, None)).Status);
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(replayRequest with { FingerprintKeyId = "key_2" }, None)).Status);
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(replayRequest with { Amount = 2 }, None)).Status);
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(replayRequest with { RequestFingerprint = Enumerable.Repeat((byte)1, 32).ToArray() }, None)).Status);
@@ -133,12 +134,12 @@ public sealed class CloudQuotaPostgresTests
         }
         var service = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
         var retry = new CloudQuotaRequest(tenant.Id, app.Id, capability, "request", requestId, "key_1", new byte[32], 1, expiry);
-        Assert.Equal("legacy_unverifiable", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, requestId, None)).Status);
+        Assert.Equal("legacy_unverifiable", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, capability, requestId, None)).Status);
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(retry, None)).Status);
         await using (var db = await factory.CreateDbContextAsync())
             await db.QuotaReservations.Where(x => x.Id == reservationId)
                 .ExecuteUpdateAsync(x => x.SetProperty(y => y.RequestFingerprint, new byte[32]));
-        Assert.Equal("legacy_unverifiable", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, requestId, None)).Status);
+        Assert.Equal("legacy_unverifiable", (await service.FindFingerprintKeyAsync(tenant.Id, app.Id, capability, requestId, None)).Status);
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(retry, None)).Status);
         Assert.Equal("finalized", (await service.FinalizeAsync(tenant.Id, app.Id, reservationId, 0, None)).Status);
         await using var verify = await factory.CreateDbContextAsync();

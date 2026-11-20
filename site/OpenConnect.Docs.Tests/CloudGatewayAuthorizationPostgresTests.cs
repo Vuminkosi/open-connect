@@ -33,6 +33,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
             var tenant = await tenants.CreateTenantAsync(owner, "Gateway test", CancellationToken.None);
             var appRecord = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
+            var otherApp = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Other app", "Development", CancellationToken.None)).Application!;
             var capability = "inference.chat";
             var classificationReference = "classification-" + Guid.NewGuid().ToString("N");
             await using (var db = await factory.CreateDbContextAsync())
@@ -49,6 +50,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "classification.classify", PlanGranted = true, Revision = 1 });
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
+                db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = otherApp.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "classification.classify", EndpointReference = classificationReference,
                     Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision-1",
                     ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
@@ -59,6 +61,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("succeeded", issued.Status);
             var classificationCredential = await credentials.CreateAsync(owner, tenant.Id, appRecord.Id, ["classification.classify"], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
             Assert.Equal("succeeded", classificationCredential.Status);
+            var otherCredential = await credentials.CreateAsync(owner, tenant.Id, otherApp.Id, ["classification.classify"], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+            Assert.Equal("succeeded", otherCredential.Status);
             using var serverCertificate = Certificate(client: false);
             using var clientCertificate = Certificate(client: true);
             using var otherCertificate = Certificate(client: true);
@@ -82,6 +86,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudMachineAuthorizationService>();
             builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
             builder.Services.AddScoped<CloudClassificationDeploymentService>();
+            builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
+            builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
             var evidenceStore = new SwitchableEvidenceStore(new EfCloudPrivacyEvidenceStore(factory, TimeProvider.System));
             builder.Services.AddSingleton<ICloudPrivacyEvidenceStore>(evidenceStore);
@@ -89,6 +95,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
             app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
             app.MapCloudClassificationDeployment(trust, databaseConfigured: true);
+            app.MapCloudFingerprintKeyLookup(trust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -110,6 +117,36 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.True(gatewayResult.Checked);
             Assert.Equal(503, gatewayResult.Status);
             Assert.Equal("capability_unavailable", gatewayResult.Code);
+            var quotaRequestId = Guid.NewGuid();
+            Assert.Equal("not_found", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
+            var now = DateTimeOffset.UtcNow;
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = appRecord.Id,
+                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 5 });
+                await db.SaveChangesAsync();
+            }
+            var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
+            Assert.Equal("reserved", (await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request",
+                quotaRequestId, "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None)).Status);
+            var keyLookup = await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId);
+            Assert.Equal("found", keyLookup.Status);
+            Assert.Equal("retained_key", keyLookup.KeyId);
+            Assert.Equal("not_found", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, otherCredential.Secret!, quotaRequestId)).Status);
+            Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
+            Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, issued.Secret!, quotaRequestId)).Status);
+            var legacyRequestId = Guid.NewGuid();
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync();
+                var bucket = await db.QuotaBuckets.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.CapabilityId == "classification.classify");
+                bucket.Reserved++;
+                db.QuotaReservations.Add(new CloudQuotaReservation { Id = Guid.NewGuid(), BucketId = bucket.Id, TenantId = tenant.Id,
+                    ApplicationId = appRecord.Id, RequestId = legacyRequestId, Amount = 1, ExpiresAt = now.AddMinutes(5) });
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            Assert.Equal("legacy_unverifiable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, legacyRequestId)).Status);
             Assert.Equal("allowed", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
             Assert.Equal("privacy_blocked", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com")).Code);
             Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, "hello world")).Code);
@@ -181,6 +218,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("unauthorized", revokedGatewayResult.Code);
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None));
             Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
+            Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
         }
         finally
         {
@@ -197,6 +235,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                     .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability));
             }
         }
+    }
+
+    private static async Task<CloudFingerprintKeyLookup> NodeFingerprintKeyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid requestId)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.findClassificationFingerprintKey(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY)));";
+        var output = await NodeCallAsync(script, address, server, client, credential, requestId.ToString("D"));
+        return System.Text.Json.JsonSerializer.Deserialize<CloudFingerprintKeyLookup>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
     private sealed class SwitchableEvidenceStore(ICloudPrivacyEvidenceStore inner) : ICloudPrivacyEvidenceStore

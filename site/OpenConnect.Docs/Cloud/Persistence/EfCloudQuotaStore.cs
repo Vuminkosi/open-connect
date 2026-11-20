@@ -37,11 +37,14 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
         }
     }
 
-    public async Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, Guid requestId, CancellationToken cancellationToken)
+    public async Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, string capabilityId, Guid requestId, CancellationToken cancellationToken)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var item = await db.QuotaReservations.AsNoTracking().Where(x => x.TenantId == tenantId && x.ApplicationId == applicationId && x.RequestId == requestId)
-            .Select(x => new { x.FingerprintKeyId, x.RequestFingerprint }).SingleOrDefaultAsync(cancellationToken);
+        var item = await (from reservation in db.QuotaReservations.AsNoTracking()
+            join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
+            where reservation.TenantId == tenantId && reservation.ApplicationId == applicationId && reservation.RequestId == requestId &&
+                bucket.TenantId == tenantId && bucket.ApplicationId == applicationId && bucket.CapabilityId == capabilityId
+            select new { reservation.FingerprintKeyId, reservation.RequestFingerprint }).SingleOrDefaultAsync(cancellationToken);
         if (item is null) return new("not_found");
         return CloudRequestFingerprint.IsValidKeyId(item.FingerprintKeyId) && item.RequestFingerprint is { Length: 32 }
             ? new("found", item.FingerprintKeyId) : new("legacy_unverifiable");

@@ -60,6 +60,43 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(denied()); }
             });
         },
+        findClassificationFingerprintKey(credential, requestId, signal, traceparent) {
+            const unavailable = () => ({ status: 'unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) || signal?.aborted)
+                return Promise.resolve(unavailable());
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL(`/cloud/internal/v1/classification/quota/fingerprint-key/${requestId}`, url), {
+                        method: 'GET', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.statusCode !== 200) { response.destroy(); finish(unavailable()); return; }
+                        const chunks = [];
+                        let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable()));
+                        response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'keyId'].includes(key))) return finish(unavailable());
+                                if (result.status === 'found' && typeof result.keyId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(result.keyId))
+                                    return finish({ status: 'found', keyId: result.keyId });
+                                if (['not_found', 'legacy_unverifiable'].includes(result.status) && result.keyId == null) return finish({ status: result.status });
+                            } catch { /* Never expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable()));
+                    request.end();
+                } catch { finish(unavailable()); }
+            });
+        },
         matchClassificationDeployment(credential, deployment, signal, traceparent) {
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
                 return Promise.resolve(false);

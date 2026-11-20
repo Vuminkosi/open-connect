@@ -8,7 +8,7 @@ public sealed record CloudFingerprintKeyLookup(string Status, string? KeyId = nu
 public interface ICloudQuotaStore
 {
     Task<CloudQuotaResult> ReserveAsync(CloudQuotaRequest request, DateTimeOffset now, CancellationToken cancellationToken);
-    Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, Guid requestId, CancellationToken cancellationToken);
+    Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, string capabilityId, Guid requestId, CancellationToken cancellationToken);
     Task<CloudQuotaResult> FinalizeAsync(Guid tenantId, Guid applicationId, Guid reservationId, long actual, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
@@ -28,10 +28,10 @@ public sealed class CloudQuotaService(ICloudQuotaStore store, TimeProvider timeP
         return store.ReserveAsync(request with { ExpiresAt = storedExpiry, RequestFingerprint = request.RequestFingerprint.ToArray() }, now, cancellationToken);
     }
 
-    public Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, Guid requestId, CancellationToken cancellationToken) =>
-        tenantId == Guid.Empty || applicationId == Guid.Empty || requestId == Guid.Empty
+    public Task<CloudFingerprintKeyLookup> FindFingerprintKeyAsync(Guid tenantId, Guid applicationId, string capabilityId, Guid requestId, CancellationToken cancellationToken) =>
+        tenantId == Guid.Empty || applicationId == Guid.Empty || requestId == Guid.Empty || string.IsNullOrWhiteSpace(capabilityId) || capabilityId.Length > 80
             ? Task.FromResult(new CloudFingerprintKeyLookup("invalid_request"))
-            : store.FindFingerprintKeyAsync(tenantId, applicationId, requestId, cancellationToken);
+            : store.FindFingerprintKeyAsync(tenantId, applicationId, capabilityId, requestId, cancellationToken);
 
     public Task<CloudQuotaResult> FinalizeAsync(Guid tenantId, Guid applicationId, Guid reservationId, long actual, CancellationToken cancellationToken) =>
         tenantId == Guid.Empty || applicationId == Guid.Empty || reservationId == Guid.Empty || actual < 0

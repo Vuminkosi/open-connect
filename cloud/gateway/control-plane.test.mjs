@@ -21,6 +21,8 @@ test('aborted and invalid calls fail closed without a network request', async ()
     assert.deepEqual(await client.inspectClassification('key', 'invalid', 'private'), { allowed: false, code: 'capability_unavailable' });
     assert.equal(await client.matchClassificationDeployment('key', { endpointReference: 'https://other.example', region: 'region', contractVersion: 'v1', modelRevision: 'v1' }), false);
     assert.equal(await client.matchClassificationDeployment('key', { endpointReference: 'worker', region: 'region', contractVersion: 'v1', modelRevision: 'v1' }, controller.signal), false);
+    assert.deepEqual(await client.findClassificationFingerprintKey('key', 'not-a-uuid'), { status: 'unavailable' });
+    assert.deepEqual(await client.findClassificationFingerprintKey('key', '11111111-1111-1111-1111-111111111111', controller.signal), { status: 'unavailable' });
 });
 
 test('invalid TLS configuration fails closed without exposing diagnostics', async () => {
