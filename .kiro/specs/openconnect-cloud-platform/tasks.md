@@ -193,3 +193,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Exercise a non-streaming inference request through the local gateway, control plane, PostgreSQL and a real provisioned model worker; production deployment, streaming and the broader Cloud acceptance suite remain outstanding.
 
 - [x] Define the Cloud LiveUI planning envelope and validate worker proposals against the exact target-action allowlist, with shared worker and gateway fixtures; protected execution remains outstanding.
+
+- [x] Add independent, fingerprint-bound LiveUI input privacy inspection and append-only evidence, with mutual-TLS and PostgreSQL verification; claim enforcement and routing remain outstanding.
