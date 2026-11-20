@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { handle } from './gateway.mjs';
 import { createLocalServer } from './local-server.mjs';
 import http from 'node:http';
+import { createFingerprintKeyring } from './request-fingerprint.mjs';
 
 test('liveness responds independently of Cloud dependencies', async () => {
     const result = await handle(new Request('http://localhost/health/live'));
@@ -110,6 +111,50 @@ test('classification invokes the independent privacy boundary before any executi
     body.input = { inputRef: 'opaque-handle' }; calls.length = 0;
     assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } })).status, 503);
     assert.deepEqual(calls, ['authorize', 'inventory', 'body']);
+});
+
+test('enabled classification runs only after authorization, regional readiness and privacy, and returns settled results', async () => {
+    const calls = []; let raw;
+    const id = '11111111-1111-1111-1111-111111111111';
+    const value = { schemaVersion: 'openconnect.cloud.classification/v2', requestId: id,
+        expiresAt: new Date(Date.now() + 60000).toISOString(), capability: 'classification.classify', input: { text: 'test input' } };
+    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST',
+        headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
+        readBody: async () => { calls.push('body'); raw = Buffer.from(JSON.stringify(value)); return { bytes: raw }; } };
+    const authorization = {
+        authorize: async () => { calls.push('authorize'); return { authorized: true, identity: { tenantId: id, applicationId: id } }; },
+        matchClassificationDeployment: async () => { calls.push('inventory'); return true; },
+        inspectClassification: async () => { calls.push('privacy'); return { allowed: true }; },
+        findClassificationFingerprintKey: async () => { calls.push('lookup'); return { status: 'not_found' }; },
+        reserveClassification: async () => { calls.push('reserve'); return { status: 'reserved', reservationId: id }; },
+        claimClassification: async () => { calls.push('claim'); return { status: 'claimed', claimId: id }; },
+        completeClassification: async () => { calls.push('complete'); return { status: 'completed' }; },
+    };
+    const keyring = createFingerprintKeyring({ activeKeyId: 'key', keys: [{ id: 'key', key: Buffer.alloc(32, 1) }] });
+    const dispatcher = { executeClaimed: async () => { calls.push('dispatch'); return { status: 'completed', result: {
+        labels: ['safe'], scores: { safe: 0.9 }, abstained: false, modelRevision: 'revision-1', labelSetVersion: 'v1' } }; } };
+    const classificationProbe = { deployment: { endpointReference: 'worker' }, probe: async () => { calls.push('probe'); return { ready: true }; } };
+    try {
+        const result = await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } });
+        assert.equal(result.status, 200);
+        const response = await result.json();
+        assert.equal(response.schemaVersion, 'openconnect.cloud.classification.result/v1');
+        assert.equal(response.requestId, id);
+        assert.equal(response.traceId, result.headers.get('x-trace-id'));
+        assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'dispatch', 'complete']);
+        assert.ok(raw.every(byte => byte === 0));
+        calls.length = 0;
+        authorization.inspectClassification = async () => { calls.push('privacy'); return { allowed: false, code: 'privacy_blocked' }; };
+        assert.equal((await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } })).status, 403);
+        assert.ok(!calls.includes('reserve'));
+        calls.length = 0;
+        authorization.inspectClassification = async () => ({ allowed: true });
+        authorization.reserveClassification = async () => ({ status: 'duplicate', reservationId: id });
+        const duplicate = await handle(request, { authorization, classificationProbe, classificationExecution: { keyring, dispatcher } });
+        assert.equal(duplicate.status, 409);
+        assert.equal((await duplicate.json()).code, 'conflict');
+        assert.ok(!calls.includes('dispatch'));
+    } finally { keyring.dispose(); }
 });
 
 test('trace context is shared across gateway and private checks without carrying request content', async () => {

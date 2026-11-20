@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/schemas/cloud-classification-response-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "traceId", "result"],
+  "properties": {
+    "schemaVersion": { "const": "openconnect.cloud.classification.result/v1" },
+    "requestId": { "type": "string", "format": "uuid" },
+    "traceId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["labels", "scores", "abstained", "modelRevision", "labelSetVersion"],
+      "properties": {
+        "labels": { "type": "array", "uniqueItems": true, "items": { "enum": ["safe", "spam", "toxic", "sensitive", "pii", "injection"] }, "maxItems": 6 },
+        "scores": { "type": "object", "propertyNames": { "enum": ["safe", "spam", "toxic", "sensitive", "pii", "injection"] }, "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }, "maxProperties": 6 },
+        "abstained": { "type": "boolean" },
+        "modelRevision": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "labelSetVersion": { "enum": ["v1", "v2"] }
+      }
+    }
+  }
+}

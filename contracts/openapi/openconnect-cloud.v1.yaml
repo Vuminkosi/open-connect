@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: OpenConnect Cloud API
   version: 1.0.0
-  description: Classification admission contract. Execution is not yet available.
+  description: Classification admission and response contract. Execution requires explicit deployment configuration.
 servers:
   - url: /cloud/v1
 paths:
@@ -10,7 +10,7 @@ paths:
     post:
       operationId: classify
       summary: Request classification
-      description: The gateway validates this envelope after authorization and worker readiness. The v2 envelope requires expiresAt in UTC with millisecond precision, in the future and at most five minutes from admission. The v1 envelope remains accepted for validation but cannot authorize execution. Execution remains unavailable until admission, privacy, and routing are connected.
+      description: The gateway validates this envelope after authorization and worker readiness. The v2 envelope requires expiresAt in UTC with millisecond precision, in the future and at most five minutes from admission. The v1 envelope remains accepted for validation but cannot authorize execution. Execution is disabled by default and requires an explicitly configured worker and control plane.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -21,12 +21,19 @@ paths:
                 - $ref: ../jsonschema/cloud-classification-request.json
                 - $ref: ../jsonschema/cloud-classification-request-v2.json
       responses:
+        '200':
+          description: Classification completed and usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: ../jsonschema/cloud-classification-response-v1.json }
         '400': { description: Malformed request }
         '401': { description: Authentication required }
         '403': { description: Access, entitlement or privacy policy denied }
+        '409': { description: Duplicate request or idempotency conflict }
         '413': { description: Request exceeds the body limit }
         '415': { description: Unsupported media type or content encoding }
         '422': { description: Request does not satisfy the classification contract }
+        '429': { description: Quota exceeded }
         '503': { description: Classification execution is unavailable }
         '504': { description: Request deadline elapsed during admission }
 components:

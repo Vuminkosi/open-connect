@@ -1,5 +1,6 @@
-import { prepareClassificationRequest } from './classification-request.mjs';
+import { withClassificationRequest } from './classification-request.mjs';
 import { createTraceContext } from './trace-context.mjs';
+import { executeClassification } from './classification-execution.mjs';
 
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
@@ -26,18 +27,21 @@ const problems = {
     unsupported_media_type: [415, 'Unsupported media type'],
     privacy_blocked: [403, 'Privacy policy blocked the request'],
     upstream_timeout: [504, 'Request deadline exceeded'],
+    quota_exceeded: [429, 'Quota exceeded'],
+    duplicate: [409, 'Request already submitted'],
+    idempotency_conflict: [409, 'Request identifier conflicts'],
     capability_unavailable: [503, 'Cloud gateway is not ready'],
 };
 
 function problem(code, traceId) {
     const safeCode = Object.hasOwn(problems, code) ? code : 'capability_unavailable';
     const [status, title] = problems[safeCode];
-    const publicCode = ['invalid_semantic_request', 'payload_too_large', 'unsupported_media_type'].includes(safeCode) ? 'invalid_request' : safeCode;
+    const publicCode = ['invalid_semantic_request', 'payload_too_large', 'unsupported_media_type'].includes(safeCode) ? 'invalid_request' : safeCode === 'duplicate' ? 'conflict' : safeCode;
     return Response.json({ type: 'about:blank', title, status, code: publicCode, traceId },
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
-export async function handle(request, { authorization, classificationProbe } = {}) {
+export async function handle(request, { authorization, classificationProbe, classificationExecution } = {}) {
     const trace = createTraceContext(request.headers?.get('traceparent'));
     const reject = code => problem(code, trace.traceId);
     const url = new URL(request.url);
@@ -63,27 +67,36 @@ export async function handle(request, { authorization, classificationProbe } = {
                 return reject('capability_unavailable');
             const readiness = await classificationProbe.probe(request.signal, trace.traceparent);
             if (readiness?.ready !== true) return reject('capability_unavailable');
-            const prepared = await prepareClassificationRequest(request);
-            if (prepared.code) return reject(prepared.code);
-            if (!Object.hasOwn(prepared.value.input, 'text') || typeof authorization.inspectClassification !== 'function')
-                return reject('capability_unavailable');
-            const remaining = prepared.value.expiresAt ? Date.parse(prepared.value.expiresAt) - Date.now() : null;
-            if (remaining !== null && remaining <= 0) return reject('upstream_timeout');
-            const deadline = remaining === null ? null : AbortSignal.timeout(remaining);
-            const signal = deadline ? (request.signal ? AbortSignal.any([request.signal, deadline]) : deadline) : request.signal;
-            let privacy;
-            try { privacy = await authorization.inspectClassification(match[1], prepared.value.requestId, prepared.value.input.text, signal, trace.traceparent); }
-            catch (error) {
-                if (deadline && (deadline.aborted || Date.now() >= Date.parse(prepared.value.expiresAt))) return reject('upstream_timeout');
-                throw error;
-            }
-            if (deadline && (deadline.aborted || Date.now() >= Date.parse(prepared.value.expiresAt))) return reject('upstream_timeout');
-            if (request.signal?.aborted) return reject('capability_unavailable');
-            if (privacy?.allowed !== true) return reject(privacy?.code === 'privacy_blocked' ? 'privacy_blocked' : 'capability_unavailable');
+            const outcome = await withClassificationRequest(request, async (value, body) => {
+                if (!Object.hasOwn(value.input, 'text') || typeof authorization.inspectClassification !== 'function')
+                    return reject('capability_unavailable');
+                const remaining = value.expiresAt ? Date.parse(value.expiresAt) - Date.now() : null;
+                if (remaining !== null && remaining <= 0) return reject('upstream_timeout');
+                const deadline = remaining === null ? null : AbortSignal.timeout(remaining);
+                const signal = deadline ? (request.signal ? AbortSignal.any([request.signal, deadline]) : deadline) : request.signal;
+                let privacy;
+                try { privacy = await authorization.inspectClassification(match[1], value.requestId, value.input.text, signal, trace.traceparent); }
+                catch (error) {
+                    if (deadline && (deadline.aborted || Date.now() >= Date.parse(value.expiresAt))) return reject('upstream_timeout');
+                    throw error;
+                }
+                if (deadline && (deadline.aborted || Date.now() >= Date.parse(value.expiresAt))) return reject('upstream_timeout');
+                if (request.signal?.aborted) return reject('capability_unavailable');
+                if (privacy?.allowed !== true) return reject(privacy?.code === 'privacy_blocked' ? 'privacy_blocked' : 'capability_unavailable');
+                if (!classificationExecution || value.schemaVersion !== 'openconnect.cloud.classification/v2') return reject('capability_unavailable');
+                const result = await executeClassification({ credential: match[1], identity: decision.identity, value, body,
+                    deployment: classificationProbe.deployment, signal, traceparent: trace.traceparent },
+                { ...classificationExecution, controlPlane: authorization });
+                if (deadline && (deadline.aborted || Date.now() >= Date.parse(value.expiresAt))) return reject('upstream_timeout');
+                if (result.status !== 'completed') return reject(result.status);
+                return Response.json({ schemaVersion: 'openconnect.cloud.classification.result/v1', requestId: value.requestId,
+                    traceId: trace.traceId, result: result.result }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+            });
+            return outcome instanceof Response ? outcome : reject(outcome.code);
         }
         catch { /* Readiness errors never enable execution or expose diagnostics. */ }
     }
-    // Authorization alone never permits execution: quota, privacy and routing are not connected.
+    // Other capabilities remain unavailable until their execution paths are connected.
     return reject('capability_unavailable');
 }
 

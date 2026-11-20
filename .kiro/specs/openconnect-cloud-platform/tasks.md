@@ -60,9 +60,9 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a private mutual-TLS classification quota reservation endpoint and Node client with credential-derived scope and stable retry inputs.
 - [x] Return the original reservation expiry with the scoped retry key lookup and verify an exact Node-to-PostgreSQL replay.
 - [x] Add a validated secret-file loader for active and retained fingerprint keys; runtime wiring and operational key management remain outstanding.
-- [x] Add a bounded private classification execution adapter with pinned model and label validation; public routing remains disabled until fencing, egress and settlement are connected.
-- [x] Add claimed Cloud worker dispatch using the exact fingerprinted payload and per-request key; verify mutual TLS and worker response validation against a simulated worker. Public admission and settlement remain disconnected.
-- [x] Add a private classification execution sequence for reservation, payload-bound claim, dispatch and successful settlement; verify control-plane and PostgreSQL integration with a simulated worker. Public admission remains disconnected.
+- [x] Add a bounded private classification execution adapter with pinned model and label validation; public routing is opt-in and remains subject to production release gates.
+- [x] Add claimed Cloud worker dispatch using the exact fingerprinted payload and per-request key; verify mutual TLS and worker response validation against a simulated worker. The public path now composes admission and settlement when explicitly enabled.
+- [x] Add a private classification execution sequence for reservation, payload-bound claim, dispatch and successful settlement; verify control-plane and PostgreSQL integration with a simulated worker. Public admission is now connected behind explicit configuration.
 - [x] Prevent unexpected classification model failures from logging caller-provided task IDs or exception text that may contain request content.
 - [x] Persist an append-only, single-use execution claim per quota reservation and prevent ordinary settlement from racing a claim; worker enforcement and claim-aware settlement remain outstanding.
 - [x] Guard claimed reservations against older transactional finalizers, including lock-wait races, and reject an upgrade with already finalized claims.
@@ -104,3 +104,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.
 
 - [x] Add an opt-in Cloud classification worker route that validates payload bytes, consumes a worker-bound claim, and executes only after success; reject legacy execution in Cloud mode. Verify with a fake engine over mutual TLS and PostgreSQL.
+
+- [x] Connect the opt-in classification HTTP path through authorization, deployment readiness, privacy admission, reservation, claimed dispatch and settlement; verify with PostgreSQL and a simulated worker. Production readiness, active-call revocation, recovery and real-model acceptance remain outstanding.

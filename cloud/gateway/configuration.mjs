@@ -3,6 +3,7 @@ import { isAbsolute } from 'node:path';
 import { createCloudAuthorizationClient } from './control-plane.mjs';
 import { createClassificationProbe } from './classification-probe.mjs';
 import { createFingerprintKeyring } from './request-fingerprint.mjs';
+import { createClassificationDispatcher } from './classification-dispatch.mjs';
 
 // The file contains one key per line as ID:canonical-base64. It is mounted as a secret.
 export function fingerprintKeyringFromEnvironment(environment, read = readFileSync) {
@@ -57,4 +58,22 @@ export function classificationProbeFromEnvironment(environment, read = readFileS
     const token = read(tokenFile).toString('utf8').replace(/\r?\n$/, '');
     const probe = createClassificationProbe({ origin, ca: read(caFile), certificate: read(certFile), privateKey: read(keyFile), workerToken: token, modelRevision });
     return Object.freeze({ ...probe, deployment: Object.freeze({ endpointReference, region, contractVersion, modelRevision }) });
+}
+
+export function classificationExecutionFromEnvironment(environment, authorization, probe, read = readFileSync) {
+    const enabled = environment.CLOUD_CLASSIFICATION_EXECUTION_ENABLED ?? 'false';
+    if (enabled === 'false') return undefined;
+    if (enabled !== 'true' || !authorization || !probe) throw new Error('Cloud classification execution configuration is incomplete.');
+    const { CLOUD_CLASSIFICATION_ORIGIN: origin, CLOUD_CLASSIFICATION_CA_FILE: ca,
+        CLOUD_CLASSIFICATION_CERT_FILE: cert, CLOUD_CLASSIFICATION_KEY_FILE: key,
+        CLOUD_CLASSIFICATION_TOKEN_FILE: token, CLOUD_CLASSIFICATION_MODEL_REVISION: modelRevision } = environment;
+    if (![origin, ca, cert, key, token, modelRevision].every(Boolean) || ![ca, cert, key, token].every(isAbsolute))
+        throw new Error('Cloud classification execution configuration is incomplete.');
+    const keyring = fingerprintKeyringFromEnvironment(environment, read);
+    if (!keyring) throw new Error('Cloud fingerprint key configuration is required.');
+    try {
+        const dispatcher = createClassificationDispatcher({ origin, ca: read(ca), certificate: read(cert), privateKey: read(key),
+            workerToken: read(token).toString('utf8').replace(/\r?\n$/, ''), modelRevision });
+        return Object.freeze({ keyring, dispatcher });
+    } catch (error) { keyring.dispose(); throw error; }
 }

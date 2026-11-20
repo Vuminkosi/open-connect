@@ -1,5 +1,9 @@
 import { createLocalServer } from './local-server.mjs';
-import { authorizationFromEnvironment, classificationProbeFromEnvironment } from './configuration.mjs';
+import { authorizationFromEnvironment, classificationProbeFromEnvironment, classificationExecutionFromEnvironment } from './configuration.mjs';
 
-createLocalServer(authorizationFromEnvironment(process.env), classificationProbeFromEnvironment(process.env))
-    .listen(Number(process.env.PORT || 8091), '0.0.0.0');
+const authorization = authorizationFromEnvironment(process.env);
+const classificationProbe = classificationProbeFromEnvironment(process.env);
+const classificationExecution = classificationExecutionFromEnvironment(process.env, authorization, classificationProbe);
+const server = createLocalServer(authorization, classificationProbe, classificationExecution);
+server.on('close', () => classificationExecution?.keyring.dispose());
+server.listen(Number(process.env.PORT || 8091), '0.0.0.0');
