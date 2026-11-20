@@ -7,6 +7,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 from pathlib import Path
 import ssl
 from urllib.parse import urlsplit
@@ -95,10 +96,12 @@ class CloudConsumptionClient:
                 return None
             value = json.loads(data, object_pairs_hook=_unique_object)
             if (response.status == 200 and isinstance(value, dict) and
-                    set(value) == {"status", "reservedTokens", "modelId"} and
+                    set(value) == {"status", "reservedTokens", "modelId", "modelRevision", "modelDigest"} and
                     value["status"] == "consumed" and type(value["reservedTokens"]) is int and
                     0 < value["reservedTokens"] <= 9223372036854775807 and
-                    isinstance(value["modelId"], str) and 0 < len(value["modelId"]) <= 256):
+                    isinstance(value["modelId"], str) and 0 < len(value["modelId"]) <= 256 and
+                    isinstance(value["modelRevision"], str) and 0 < len(value["modelRevision"]) <= 256 and
+                    isinstance(value["modelDigest"], str) and re.fullmatch(r"sha256:[0-9a-f]{64}", value["modelDigest"])):
                 return value
         except (OSError, http.client.HTTPException, ValueError, UnicodeError):
             pass

@@ -1,6 +1,6 @@
 namespace OpenConnect.Docs.Cloud;
 
-public sealed record CloudInferenceConsumptionResult(string Status, long? ReservedTokens = null, string? ModelId = null);
+public sealed record CloudInferenceConsumptionResult(string Status, long? ReservedTokens = null, string? ModelId = null, string? ModelRevision = null, string? ModelDigest = null);
 
 public interface ICloudInferenceConsumptionStore
 {

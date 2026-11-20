@@ -157,3 +157,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Return authoritative model and token reservation to the worker only on first inference consumption; worker-side enforcement remains outstanding.
 
 - [x] Add opt-in inference worker claim consumption and authoritative token-budget enforcement around an injected local runtime; verified production runtime, real-model acceptance and streaming remain outstanding.
+
+- [x] Bind inference worker consumption to deployment model revision and digest as well as model ID; real artifact verification remains outstanding.

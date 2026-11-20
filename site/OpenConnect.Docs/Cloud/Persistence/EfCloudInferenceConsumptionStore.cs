@@ -58,6 +58,6 @@ public sealed class EfCloudInferenceConsumptionStore(IDbContextFactory<CloudCont
                 reservation.FingerprintKeyId!, reservation.RequestFingerprint, cancellationToken)) return new("unavailable");
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reservationId}, {claimId}, {deploymentId}, {now}) ON CONFLICT (\"ReservationId\") DO NOTHING", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return inserted == 1 ? new("consumed", reservation.Amount, modelId) : new("already_consumed");
+        return inserted == 1 ? new("consumed", reservation.Amount, modelId, deployment.ModelRevision, deployment.ModelDigest) : new("already_consumed");
     }
 }

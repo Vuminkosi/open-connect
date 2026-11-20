@@ -144,8 +144,8 @@ public sealed class CloudInferenceClaimPostgresTests
                 await privacyEvidence.AppendAsync(machine, requestId, "key", new byte[32], "allowed", new string('a', 32), default);
             }
             var attempts = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)));
-            Assert.Single(attempts, x => x.Status == "consumed" && x.ReservedTokens == 5 && x.ModelId == "registry/model-a");
-            Assert.Equal(9, attempts.Count(x => x.Status == "already_consumed" && x.ReservedTokens is null && x.ModelId is null));
+            Assert.Single(attempts, x => x.Status == "consumed" && x.ReservedTokens == 5 && x.ModelId == "registry/model-a" && x.ModelRevision == "revision-1" && x.ModelDigest == "sha256:" + new string('a', 64));
+            Assert.Equal(9, attempts.Count(x => x.Status == "already_consumed" && x.ReservedTokens is null && x.ModelId is null && x.ModelRevision is null && x.ModelDigest is null));
             var claimFirst = await Reserve();
             await using (var reservationBlocker = await factory.CreateDbContextAsync())
             {

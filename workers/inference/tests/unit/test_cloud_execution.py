@@ -33,6 +33,8 @@ class Prepared:
 
 class Runtime:
     model_id = "registry/model-a"
+    model_revision = "revision-1"
+    model_digest = "sha256:" + "a" * 64
 
     def __init__(self, calls):
         self.calls = calls
@@ -51,7 +53,7 @@ class Client:
 
     def consume(self, reservation, claim, raw, key):
         self.calls.append(("consume", json.loads(raw)["modelId"], len(key)))
-        return {"status": "consumed", "reservedTokens": self.reserved, "modelId": self.model}
+        return {"status": "consumed", "reservedTokens": self.reserved, "modelId": self.model, "modelRevision": "revision-1", "modelDigest": "sha256:" + "a" * 64}
 
     def settle(self, reservation, claim, input_tokens, output_tokens):
         self.calls.append(("settle", input_tokens, output_tokens))
@@ -98,3 +100,15 @@ def test_overreported_or_malformed_usage_is_not_settled():
             return BadPrepared(self.calls)
     assert execute_claimed(envelope(payload()), BadRuntime(calls), Client(calls)) is None
     assert not any(item[0] == "settle" for item in calls)
+
+
+def test_worker_refuses_changed_model_revision_or_digest():
+    for field, value in [("modelRevision", "other"), ("modelDigest", "sha256:" + "b" * 64)]:
+        calls = []
+        class MismatchedClient(Client):
+            def consume(self, reservation, claim, raw, key):
+                result = super().consume(reservation, claim, raw, key)
+                result[field] = value
+                return result
+        assert execute_claimed(envelope(payload()), Runtime(calls), MismatchedClient(calls)) is None
+        assert not any(item[0] == "generate" for item in calls)

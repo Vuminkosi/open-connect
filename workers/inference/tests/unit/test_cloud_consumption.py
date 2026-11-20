@@ -44,7 +44,7 @@ def test_rejects_unsafe_configuration_and_loads_private_tls_material(make_client
 @pytest.mark.parametrize(
     ("status", "body", "encoding", "expected"),
     [
-        (200, b'{"status":"consumed","reservedTokens":7,"modelId":"registry/model-a"}', None, {"status": "consumed", "reservedTokens": 7, "modelId": "registry/model-a"}),
+        (200, (b'{"status":"consumed","reservedTokens":7,"modelId":"registry/model-a","modelRevision":"revision-1","modelDigest":"sha256:' + b'a' * 64 + b'"}'), None, {"status": "consumed", "reservedTokens": 7, "modelId": "registry/model-a", "modelRevision": "revision-1", "modelDigest": "sha256:" + "a" * 64}),
         (409, b'{"status":"already_consumed"}', None, None),
         (200, b'{"status":"already_consumed"}', None, None),
         (200, b'{"status":"consumed","status":"consumed"}', None, None),

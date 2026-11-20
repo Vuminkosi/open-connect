@@ -17,6 +17,8 @@ class Prepared:
 
 class Runtime:
     model_id = "registry/model-a"
+    model_revision = "revision-1"
+    model_digest = "sha256:" + "a" * 64
     def prepare(self, payload):
         return Prepared()
 
@@ -28,7 +30,7 @@ class Client:
         return "11111111-1111-1111-1111-111111111111"
     def consume(self, reservation, claim, payload, key):
         self.calls.append("consume")
-        return {"status": "consumed", "reservedTokens": 7, "modelId": "registry/model-a"}
+        return {"status": "consumed", "reservedTokens": 7, "modelId": "registry/model-a", "modelRevision": "revision-1", "modelDigest": "sha256:" + "a" * 64}
     def settle(self, reservation, claim, input_tokens, output_tokens):
         self.calls.append("settle")
         return True

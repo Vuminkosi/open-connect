@@ -56,6 +56,8 @@ class PreparedInference(Protocol):
 
 class InferenceRuntime(Protocol):
     model_id: str
+    model_revision: str
+    model_digest: str
 
     def prepare(self, payload: _Payload) -> PreparedInference:
         """Tokenize the exact prompt locally without running inference or contacting a provider."""
@@ -108,7 +110,8 @@ def execute_claimed(body: bytes, runtime: InferenceRuntime | None, client: Cloud
             return None
         admission = client.consume(envelope.reservationId, envelope.claimId, payload_bytes, key)
         if (not isinstance(admission, dict) or admission.get("status") != "consumed" or
-                admission.get("modelId") != payload.modelId or type(admission.get("reservedTokens")) is not int):
+                admission.get("modelId") != payload.modelId or admission.get("modelRevision") != runtime.model_revision or
+                admission.get("modelDigest") != runtime.model_digest or type(admission.get("reservedTokens")) is not int):
             return None
         reserved = admission["reservedTokens"]
         if not isinstance(reserved, int) or input_tokens + payload.input.maxTokens > reserved:
