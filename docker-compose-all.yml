@@ -8,6 +8,17 @@
 # Environment variables from .env in the root folder are automatically loaded and forwarded.
 
 services:
+  # Cloud data plane is separate from the sample application gateway.
+  cloud-gateway:
+    build:
+      context: ./cloud/gateway
+    image: openconnect-cloud-gateway:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-cloud-gateway
+    ports:
+      - "127.0.0.1:${CLOUD_GATEWAY_PORT:-8091}:8091"
+    networks:
+      - oc-network
+
   # =========================================================================
   # 1. OpenConnect Blazor Web UI & Interactive Gateway Application
   # =========================================================================
