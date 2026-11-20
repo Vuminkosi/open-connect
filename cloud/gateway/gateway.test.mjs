@@ -143,7 +143,7 @@ test('enabled classification runs only after authorization, regional readiness a
         headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
         readBody: async () => { calls.push('body'); raw = Buffer.from(JSON.stringify(value)); return { bytes: raw }; } };
     const authorization = {
-        authorize: async () => { calls.push('authorize'); return { authorized: true, identity: { tenantId: id, applicationId: id } }; },
+        authorize: async () => { calls.push('authorize'); return { authorized: true, identity: { credentialId: id, tenantId: id, applicationId: id, environment: 'Development' } }; },
         matchClassificationDeployment: async () => { calls.push('inventory'); return true; },
         inspectClassification: async () => { calls.push('privacy'); return { allowed: true }; },
         findClassificationFingerprintKey: async () => { calls.push('lookup'); return { status: 'not_found' }; },
@@ -162,7 +162,7 @@ test('enabled classification runs only after authorization, regional readiness a
         assert.equal(response.schemaVersion, 'openconnect.cloud.classification.result/v1');
         assert.equal(response.requestId, id);
         assert.equal(response.traceId, result.headers.get('x-trace-id'));
-        assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'dispatch', 'complete']);
+        assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy', 'lookup', 'reserve', 'claim', 'authorize', 'dispatch', 'authorize', 'complete', 'authorize']);
         assert.ok(raw.every(byte => byte === 0));
         calls.length = 0;
         authorization.inspectClassification = async () => { calls.push('privacy'); return { allowed: false, code: 'privacy_blocked' }; };

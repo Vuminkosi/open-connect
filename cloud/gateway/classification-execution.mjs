@@ -1,6 +1,7 @@
 import { reserveClassificationRequest } from './classification-quota.mjs';
 import { prepareClassificationWorkerPayload } from './classification-dispatch.mjs';
 import { bindClassificationPayload } from './classification-payload.mjs';
+import { createClassificationAccessMonitor } from './classification-access-monitor.mjs';
 
 const unavailable = () => ({ status: 'unavailable' });
 const guid = /^(?!00000000-0000-0000-0000-000000000000)[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -13,7 +14,7 @@ export async function executeClassification({ credential, identity, value, body,
     if (stopped() || !controlPlane || !keyring || !dispatcher || !deployment) return unavailable();
     const prepared = prepareClassificationWorkerPayload(value);
     if (!prepared) return unavailable();
-    let binding;
+    let binding; let monitor;
     try {
         binding = bindClassificationPayload(prepared.payload);
         const reservation = await reserveClassificationRequest({ credential, identity, value, body, signal, traceparent }, { controlPlane, keyring });
@@ -25,11 +26,13 @@ export async function executeClassification({ credential, identity, value, body,
             workerPayloadFingerprint: binding.fingerprint.toString('base64'), deployment,
         }, signal, traceparent);
         if (stopped() || claim?.status !== 'claimed' || typeof claim.claimId !== 'string' || !guid.test(claim.claimId)) return unavailable();
-        const result = await dispatcher.executeClaimed(prepared, { reservationId: reservation.reservationId, claimId: claim.claimId, key: binding.key }, signal, traceparent);
-        if (stopped() || result?.status !== 'completed' || !result.result) return unavailable();
-        const completion = await controlPlane.completeClassification(credential, reservation.reservationId, claim.claimId, signal, traceparent);
-        if (stopped() || !['completed', 'already_completed'].includes(completion?.status)) return unavailable();
+        monitor = createClassificationAccessMonitor({ controlPlane, credential, identity, signal, traceparent });
+        if (!await monitor.start() || stopped()) return unavailable();
+        const result = await dispatcher.executeClaimed(prepared, { reservationId: reservation.reservationId, claimId: claim.claimId, key: binding.key }, monitor.signal, traceparent);
+        if (stopped() || monitor.signal.aborted || result?.status !== 'completed' || !result.result || !await monitor.recheck()) return unavailable();
+        const completion = await controlPlane.completeClassification(credential, reservation.reservationId, claim.claimId, monitor.signal, traceparent);
+        if (stopped() || monitor.signal.aborted || !['completed', 'already_completed'].includes(completion?.status) || !await monitor.recheck()) return unavailable();
         return { status: 'completed', result: result.result };
     } catch { return unavailable(); }
-    finally { prepared.payload.fill(0); binding?.key.fill(0); binding?.fingerprint.fill(0); }
+    finally { monitor?.dispose(); prepared.payload.fill(0); binding?.key.fill(0); binding?.fingerprint.fill(0); }
 }

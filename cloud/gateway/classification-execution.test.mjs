@@ -6,7 +6,7 @@ import { withClassificationRequest } from './classification-request.mjs';
 import { createFingerprintKeyring } from './request-fingerprint.mjs';
 
 const id = '11111111-1111-1111-1111-111111111111';
-const identity = { tenantId: '22222222-2222-2222-2222-222222222222', applicationId: '33333333-3333-3333-3333-333333333333' };
+const identity = { credentialId: id, tenantId: '22222222-2222-2222-2222-222222222222', applicationId: '33333333-3333-3333-3333-333333333333', environment: 'Development' };
 const envelope = () => ({ schemaVersion: 'openconnect.cloud.classification/v2', requestId: id,
     capability: 'classification.classify', expiresAt: new Date(Date.now() + 60000).toISOString(), input: { text: 'test fixture' } });
 
@@ -14,6 +14,7 @@ function fixture() {
     const calls = []; let captured; let workerFingerprint;
     const keyring = createFingerprintKeyring({ activeKeyId: 'key', keys: [{ id: 'key', key: Buffer.alloc(32, 7) }] });
     const controlPlane = {
+        authorize: async () => { calls.push('reauthorize'); return { authorized: true, identity }; },
         findClassificationFingerprintKey: async () => { calls.push('lookup'); return { status: 'not_found' }; },
         reserveClassification: async (_, proof) => { calls.push('reserve'); assert.equal(proof.fingerprintKeyId, 'key'); return { status: 'reserved', reservationId: id }; },
         claimClassification: async (_, reservation, proof) => { calls.push('claim'); assert.equal(reservation, id); workerFingerprint = proof.workerPayloadFingerprint; return { status: 'claimed', claimId: id }; },
@@ -41,7 +42,7 @@ test('reserve, claim, dispatch and settle in order before returning a result', a
     const f = fixture();
     try {
         assert.deepEqual(await f.run(), { status: 'completed', result: { labels: ['safe'] } });
-        assert.deepEqual(f.calls, ['lookup', 'reserve', 'claim', 'dispatch', 'complete']);
+        assert.deepEqual(f.calls, ['lookup', 'reserve', 'claim', 'reauthorize', 'dispatch', 'reauthorize', 'complete', 'reauthorize']);
         assert.ok(f.captured().payload.every(byte => byte === 0));
         assert.ok(f.captured().key.every(byte => byte === 0));
     } finally { f.keyring.dispose(); }
@@ -61,4 +62,19 @@ test('duplicates, denied claims and ambiguous dispatch or settlement never produ
             if (phase === 'dispatch') assert.ok(!f.calls.includes('complete'));
         } finally { f.keyring.dispose(); }
     }
+});
+
+test('revocation during worker execution aborts the request and leaves settlement untouched', async () => {
+    const f = fixture(); let checks = 0; let aborted = false;
+    f.controlPlane.authorize = async () => ({ authorized: ++checks === 1, identity });
+    f.dispatcher.executeClaimed = async (_, __, signal) => {
+        await new Promise(resolve => signal.addEventListener('abort', () => { aborted = true; resolve(); }, { once: true }));
+        return { status: 'upstream_unavailable' };
+    };
+    let timeout;
+    try {
+        assert.deepEqual(await Promise.race([f.run(), new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('revocation timeout')), 3000); })]), { status: 'unavailable' });
+        assert.equal(aborted, true);
+        assert.ok(!f.calls.includes('complete'));
+    } finally { clearTimeout(timeout); f.keyring.dispose(); }
 });

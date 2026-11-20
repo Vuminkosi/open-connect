@@ -109,3 +109,4 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add classification-specific readiness across the gateway, control plane and deployment-bound worker identity; production release gates and real-model verification remain outstanding.
 - [x] Enforce classification deployment concurrency across gateway instances using a database guard; verify concurrent current and older writers, stale snapshots and slot release. Recovery for abandoned holds remains outstanding.
 - [x] Add opt-in recovery of expired, unclaimed classification reservations with a claim-insertion database fence, grace period and bounded concurrent batches; claimed or ambiguous executions remain held.
+- [x] Revalidate authorization during classification and abort the gateway worker request on revocation or control-plane failure; verify active revocation with PostgreSQL and a simulated worker. Worker termination and recovery remain outstanding.

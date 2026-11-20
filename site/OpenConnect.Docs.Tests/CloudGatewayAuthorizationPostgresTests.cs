@@ -533,7 +533,19 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.False(revokedGatewayResult.Checked);
             Assert.Equal(401, revokedGatewayResult.Status);
             Assert.Equal("unauthorized", revokedGatewayResult.Code);
-            Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true).SetProperty(y => y.ConcurrencyLimit, 8));
+            var activeRequestId = Guid.NewGuid();
+            var activeStatus = await NodeActiveRevocationAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference, activeRequestId,
+                async () => Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, appRecord.Id, classificationCredential.Credential!.Id, CancellationToken.None)));
+            Assert.Equal(503, activeStatus);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var held = await db.QuotaReservations.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.RequestId == activeRequestId);
+                Assert.Null(held.FinalizedAt);
+                Assert.True(await db.ExecutionClaims.AnyAsync(x => x.ReservationId == held.Id));
+                Assert.False(await db.ExecutionCompletions.AnyAsync(x => x.ReservationId == held.Id));
+            }
             Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
             Assert.Equal("unavailable", (await NodeFingerprintKeyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, quotaRequestId)).Status);
             Assert.Equal(HttpStatusCode.Unauthorized, (await Reserve(authorized, classificationCredential.Secret, reservationBody)).StatusCode);
@@ -557,6 +569,34 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                         .SetProperty(y => y.AllowedRegions, originalClassificationRegions!).SetProperty(y => y.AllowedRegionsVerified, originalRegionsVerified));
             }
         }
+    }
+
+    private static async Task<int> NodeActiveRevocationAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string reference, Guid requestId, Func<Task> revoke)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const g=await import(process.env.OC_TEST_GATEWAY);const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE));const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_CAPABILITY);const ring=f.createFingerprintKeyring({activeKeyId:'key',keys:[{id:'key',key:Buffer.alloc(32,7)}]}); " +
+            "const dispatcher={executeClaimed:async(_,__,signal)=>{process.stdout.write('dispatch\\n');return await new Promise(resolve=>{const timer=setTimeout(()=>resolve({status:'timeout'}),8000);signal.addEventListener('abort',()=>{clearTimeout(timer);resolve({status:'upstream_unavailable'});},{once:true});});}};const s=g.createLocalServer(c,{deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'},probe:async()=>({ready:true})},{keyring:ring,dispatcher});await new Promise(r=>s.listen(0,'127.0.0.1',r));try{const r=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v2',requestId:x.requestId,expiresAt:new Date(Date.now()+60000).toISOString(),capability:'classification.classify',input:{text:'active fixture'}})});process.stdout.write(String(r.status));}finally{await new Promise(r=>s.close(r));ring.dispose();}";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_GATEWAY"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "local-server.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
+        using var privateKey = client.GetRSAPrivateKey()!; start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
+        start.Environment["OC_TEST_CREDENTIAL"] = credential;
+        start.Environment["OC_TEST_CAPABILITY"] = System.Text.Json.JsonSerializer.Serialize(new { reference, requestId });
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try
+        {
+            Assert.Equal("dispatch", await process.StandardOutput.ReadLineAsync(timeout.Token));
+            await revoke();
+            var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+            Assert.True(process.ExitCode == 0, errors);
+            return int.Parse(output, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
     }
 
     private static async Task<string> PythonConsumeAsync(string python, string workerRoot, Uri address, X509Certificate2 server, X509Certificate2 client, Guid reservationId, Guid claimId)
