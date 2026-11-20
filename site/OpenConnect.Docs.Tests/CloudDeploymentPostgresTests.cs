@@ -12,6 +12,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Security.Claims;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace OpenConnect.Docs.Tests;
 
@@ -96,6 +99,7 @@ public sealed class CloudDeploymentPostgresTests
         builder.Services.AddSingleton<CloudOperatorAccess>();
         builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
         builder.Services.AddScoped<CloudDeploymentRegistry>();
+        builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
         {
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
@@ -114,6 +118,8 @@ public sealed class CloudDeploymentPostgresTests
             var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject, ClaimValueTypes.String, issuer)], CookieAuthenticationDefaults.AuthenticationScheme);
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
         });
+        app.MapGet("/test-antiforgery", (HttpContext context, IAntiforgery antiforgery) =>
+            Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
         app.MapGroup("/cloud/api/v1").RequireAuthorization("CloudApi").MapCloudDeploymentEndpoints();
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
@@ -122,6 +128,9 @@ public sealed class CloudDeploymentPostgresTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         await client.GetAsync("/test-sign-in/ordinary-user");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(path)).StatusCode);
+        var deploymentId = Guid.NewGuid();
+        var writePath = $"/cloud/api/v1/operator/deployments/{deploymentId}";
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsync(writePath, null)).StatusCode);
         await client.GetAsync("/test-sign-in/operator");
         var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -129,6 +138,44 @@ public sealed class CloudDeploymentPostgresTests
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("nextOffset", json);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/cloud/api/v1/operator/deployments?capability=https://example.com")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync(writePath, null)).StatusCode);
+        using var tokenJson = JsonDocument.Parse(await client.GetStringAsync("/test-antiforgery"));
+        var token = tokenJson.RootElement.GetProperty("token").GetString()!;
+        var payload = new { capabilityId = capability, endpointReference = "http-test-" + Guid.NewGuid().ToString("N"),
+            transport = "https-mtls", region = "region-a", contractVersion = "v1", imageDigest = "sha256:" + new string('b', 64), concurrencyLimit = 2, enabled = false };
+        var trace = Guid.NewGuid().ToString("N");
+        HttpRequestMessage Write(string revision)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Put, writePath) { Content = JsonContent.Create(payload) };
+            request.Headers.Add("If-Match", $"\"{revision}\"");
+            request.Headers.Add("X-CSRF-TOKEN", token);
+            request.Headers.Add("traceparent", $"00-{trace}-0123456789abcdef-01");
+            return request;
+        }
+        using (var request = Write("0"))
+        {
+            var created = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.NoContent, created.StatusCode);
+            Assert.Equal("\"1\"", created.Headers.ETag?.ToString());
+        }
+        using (var request = Write("0")) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("1")) Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("2"))
+        {
+            request.Content = new StringContent("{\"enabled\":false,\"Enabled\":true}", System.Text.Encoding.UTF8, "application/json");
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
+        }
+        using (var request = Write("2"))
+        {
+            request.Content = new StringContent(new string('x', 8193), System.Text.Encoding.UTF8, "application/json");
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
+        }
+        await using var db = await factory.CreateDbContextAsync();
+        var events = await db.AuditEvents.Where(x => x.ResourceId == deploymentId.ToString("D")).ToListAsync();
+        Assert.Contains(events, x => x.Outcome == "forbidden" && x.ActorRole == "AuthenticatedUser");
+        Assert.Contains(events, x => x.Outcome == "invalid_request");
+        Assert.Equal(2, events.Count(x => x.Outcome == "succeeded" && x.TraceId == trace));
+        Assert.Contains(events, x => x.Outcome == "conflict" && x.TraceId == trace);
     }
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>

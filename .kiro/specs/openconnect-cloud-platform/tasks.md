@@ -59,6 +59,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a separate persistent deployment inventory with opaque endpoint references, model/image digest metadata, multiple deployments per capability, and optimistic revision checks.
 - [x] Add a read-only operator inventory API gated by explicitly configured, provider-bound issuer/subject identities.
 - [x] Record deployment registry write outcomes with actor and trace metadata, atomically with successful writes; verify concurrent conflicts and failed writes in PostgreSQL.
+- [x] Expose operator deployment PUT with configured-identity authorization, antiforgery, bounded JSON, optimistic revisions and sanitized audit; exercise the HTTP and PostgreSQL path.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.

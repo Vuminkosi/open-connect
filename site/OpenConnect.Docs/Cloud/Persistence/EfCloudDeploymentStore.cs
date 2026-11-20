@@ -45,6 +45,15 @@ public sealed class EfCloudDeploymentStore(IDbContextFactory<CloudControlPlaneDb
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task RecordDeniedAsync(CloudSubject actor, string traceId, Guid deploymentId, CancellationToken cancellationToken)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var audit = CreateAudit(actor, traceId, deploymentId, "forbidden");
+        audit.ActorRole = "AuthenticatedUser";
+        db.AuditEvents.Add(audit);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private CloudAuditEvent CreateAudit(CloudSubject actor, string traceId, Guid deploymentId, string outcome) => new()
     {
         Id = Guid.NewGuid(), SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId, ActorRole = "PlatformOperator",

@@ -29,10 +29,8 @@ public sealed class CloudUsageUpgradePostgresTests
             Assert.Empty(await db.Database.GetAppliedMigrationsAsync());
             await db.GetService<IMigrator>().MigrateAsync("20261120135737_AddQuotaFingerprintKeyVersion");
         }
-        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
-        var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
-        var tenant = await tenants.CreateTenantAsync(owner, "Upgrade test", CancellationToken.None);
-        var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
+        var tenantId = Guid.NewGuid();
+        var applicationId = Guid.NewGuid();
         var capability = "test." + Guid.NewGuid().ToString("N");
         var now = DateTimeOffset.UtcNow;
         var bucketId = Guid.NewGuid();
@@ -40,12 +38,15 @@ public sealed class CloudUsageUpgradePostgresTests
         var pendingId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
+            // Seed only columns present in the historical schema, without the current audit model.
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.tenants (\"Id\", \"Name\", \"CreatedAt\") VALUES ({tenantId}, {"Upgrade test"}, {now})");
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.applications (\"Id\", \"TenantId\", \"Name\", \"Environment\", \"CreatedAt\") VALUES ({applicationId}, {tenantId}, {"App"}, {"Development"}, {now})");
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability,
+            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenantId, ApplicationId = applicationId, CapabilityId = capability,
                 Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10, Consumed = 2, Reserved = 1 });
             db.QuotaReservations.AddRange(
-                new CloudQuotaReservation { Id = oldId, BucketId = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, RequestId = Guid.NewGuid(), Amount = 2, Actual = 2, FinalizedAt = now, ExpiresAt = now.AddMinutes(5) },
-                new CloudQuotaReservation { Id = pendingId, BucketId = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = now.AddMinutes(5) });
+                new CloudQuotaReservation { Id = oldId, BucketId = bucketId, TenantId = tenantId, ApplicationId = applicationId, RequestId = Guid.NewGuid(), Amount = 2, Actual = 2, FinalizedAt = now, ExpiresAt = now.AddMinutes(5) },
+                new CloudQuotaReservation { Id = pendingId, BucketId = bucketId, TenantId = tenantId, ApplicationId = applicationId, RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = now.AddMinutes(5) });
             await db.SaveChangesAsync();
             await db.Database.MigrateAsync();
         }

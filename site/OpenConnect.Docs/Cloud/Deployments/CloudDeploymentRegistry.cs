@@ -6,11 +6,17 @@ public interface ICloudDeploymentStore
 {
     Task<string> PutAsync(CloudSubject actor, string traceId, CloudWorkerDeployment deployment, long expectedRevision, CancellationToken cancellationToken);
     Task RecordAsync(CloudSubject actor, string traceId, Guid deploymentId, string outcome, CancellationToken cancellationToken);
+    Task RecordDeniedAsync(CloudSubject actor, string traceId, Guid deploymentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, int offset, int limit, CancellationToken cancellationToken);
 }
 
 public sealed class CloudDeploymentRegistry(ICloudDeploymentStore store)
 {
+    public Task RecordDeniedAsync(CloudSubject actor, string traceId, Guid deploymentId, CancellationToken cancellationToken) =>
+        store.RecordDeniedAsync(actor, traceId, deploymentId, cancellationToken);
+
+    public Task RecordInvalidAsync(CloudSubject actor, string traceId, Guid deploymentId, CancellationToken cancellationToken) =>
+        store.RecordAsync(actor, traceId, deploymentId, "invalid_request", cancellationToken);
     public Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, int offset, int limit, CancellationToken cancellationToken) =>
         store.ListAsync(capabilityId, offset, limit, cancellationToken);
 
