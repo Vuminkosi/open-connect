@@ -25,6 +25,20 @@ content as an alert and accept streams at least as large as the document input
 limit. The client cannot verify those daemon settings; deployment verification
 must test them and signature freshness before accepting documents.
 
+For explicit document retention, `MinioDocumentStore` uses a configured MinIO
+client and private bucket. It scans the original bytes before upload, generates
+an opaque document ID, derives a separate object prefix from the trusted tenant
+ID, and verifies size and SHA-256 on retrieval. The host must authenticate and
+authorize the tenant and document operation before calling the store and must
+protect the returned reference and digest against tampering. A tenant prefix is
+not a substitute for document ACLs. Configure protected transport, bucket
+access policy, encryption, retention and credential rotation in the MinIO
+deployment; the adapter does not provision them.
+
+Deletion removes the referenced object version. Other versions and related
+chunks, indexes, caches and application records require their own lifecycle
+handling. Synchronous processing does not implicitly retain documents.
+
 There is no document worker API or deployment image yet. A PDF page renderer
 runs in a separate process with byte, page, pixel, output and time limits; it
 must run in an OS sandbox with network access denied. The PDF-to-OCR pipeline,

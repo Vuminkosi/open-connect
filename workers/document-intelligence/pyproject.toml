@@ -3,7 +3,7 @@ name = "openconnect-document-intelligence"
 version = "0.1.0"
 description = "CPU-first document intelligence for OpenConnect"
 requires-python = ">=3.12,<3.13"
-dependencies = ["openconnect-worker-common", "pillow==11.2.1", "pypdfium2==4.30.0"]
+dependencies = ["minio==7.2.15", "openconnect-worker-common", "pillow==11.2.1", "pypdfium2==4.30.0"]
 
 [tool.uv.sources]
 openconnect-worker-common = { path = "../common" }
