@@ -9,6 +9,15 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var gatewayTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:GatewayTrust");
+CloudGatewayClientTrust? gatewayTrust = null;
+if (gatewayTrustSection.GetValue<bool>("Enabled"))
+{
+    gatewayTrust = new CloudGatewayClientTrust(gatewayTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
+    var configuredTrust = gatewayTrust;
+    builder.WebHost.ConfigureKestrel(server => server.ConfigureHttpsDefaults(configuredTrust.ConfigureHttps));
+}
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -145,6 +154,7 @@ app.Use(async (context, next) =>
             title: "Cloud control plane is temporarily unavailable.").ExecuteAsync(context);
     }
 });
+if (gatewayTrust is not null) app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 

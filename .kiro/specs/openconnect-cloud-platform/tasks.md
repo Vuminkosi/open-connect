@@ -44,6 +44,8 @@ Status: In progress. The checkboxes record repository implementation state, not 
 ## Phases 3–7 — Data plane and operations
 
 - [x] Add a separate fail-closed Cloud gateway process to the root Compose stack with liveness only.
+- [x] Add opt-in pinned mutual-TLS control-plane authorization and a Node client; verify the private call against PostgreSQL.
+- [ ] Configure and integrate the private authorization client into gateway dispatch with deployment-managed certificates and active-call revocation.
 
 - [ ] Implement versioned cloud gateway, authenticated private worker adapters, typed errors, bounded streaming, admission controls, and capability routing.
 - [ ] Implement signed, sanitized security receipts and coverage status without replacing application-host privacy enforcement.
