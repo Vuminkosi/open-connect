@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
@@ -50,7 +50,9 @@ class ServiceConfig(BaseModel):
 class Payload(BaseModel):
     model_config = ConfigDict(extra="forbid")
     inputKind: Literal["query", "passage"]
-    texts: list[str] = Field(min_length=1, max_length=32)
+    texts: list[Annotated[str, Field(min_length=1, max_length=8192)]] = Field(
+        min_length=1, max_length=32
+    )
 
 
 class ExecuteRequest(BaseModel):
