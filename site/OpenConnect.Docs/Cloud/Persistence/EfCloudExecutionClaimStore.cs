@@ -6,7 +6,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudExecutionClaimStore
 {
-    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null)
+    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null, string? inferenceModelId = null)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -28,6 +28,8 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             selectedDeployment = await EfCloudClaimDeployment.LockEligibleAsync(db, tenantId, capabilities, deployment!, cancellationToken);
             if (selectedDeployment is null) return new("unavailable");
         }
+        if (capabilityId == "inference.chat" &&
+            !await EfCloudInferenceModelAdmission.LockAllowedAsync(db, tenantId, inferenceModelId, cancellationToken)) return new("unavailable");
         // Lock the reservation against both finalization and competing claims until the claim commits.
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
@@ -50,6 +52,8 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
         db.ExecutionClaims.Add(claim);
         await db.SaveChangesAsync(cancellationToken);
         await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claim_credentials (\"ReservationId\", \"CredentialId\") VALUES ({reservationId}, {credentialId})", cancellationToken);
+        if (capabilityId == "inference.chat")
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claim_inference_models (\"ReservationId\", \"ModelId\") VALUES ({reservationId}, {inferenceModelId})", cancellationToken);
         if (selectedDeployment is not null)
         {
             await db.Database.ExecuteSqlInterpolatedAsync($"""

@@ -16,16 +16,18 @@ public sealed record CloudExecutionClaimResult(string Status, Guid? ClaimId = nu
 
 public interface ICloudExecutionClaimStore
 {
-    Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null);
+    Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null, string? inferenceModelId = null);
 }
 
 public sealed class CloudExecutionClaimService(ICloudExecutionClaimStore store)
 {
-    public Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null) =>
+    public Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null, string? inferenceModelId = null) =>
         credentialId == Guid.Empty || tenantId == Guid.Empty || applicationId == Guid.Empty || reservationId == Guid.Empty || !CloudDeploymentRegistry.ValidToken(capabilityId, 80) ||
             !CloudRequestFingerprint.IsValidKeyId(fingerprintKeyId) || fingerprint is not { Length: 32 } ||
             (workerPayloadFingerprint is not null && workerPayloadFingerprint.Length != 32) ||
-            (capabilityId == "classification.classify" && !CloudClassificationDeploymentService.IsValid(deployment))
+            (capabilityId == "classification.classify" && !CloudClassificationDeploymentService.IsValid(deployment)) ||
+            (capabilityId == "inference.chat" && !CloudInferenceModelPolicyService.ValidModelId(inferenceModelId)) ||
+            (capabilityId != "inference.chat" && inferenceModelId is not null)
             ? Task.FromResult(new CloudExecutionClaimResult("invalid_request"))
-            : store.ClaimAsync(credentialId, tenantId, applicationId, reservationId, capabilityId, fingerprintKeyId, fingerprint.ToArray(), deployment, cancellationToken, workerPayloadFingerprint?.ToArray());
+            : store.ClaimAsync(credentialId, tenantId, applicationId, reservationId, capabilityId, fingerprintKeyId, fingerprint.ToArray(), deployment, cancellationToken, workerPayloadFingerprint?.ToArray(), inferenceModelId);
 }

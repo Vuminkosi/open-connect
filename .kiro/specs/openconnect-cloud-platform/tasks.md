@@ -137,3 +137,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Exercise the Google OIDC authorization-code callback with a simulated signed provider, PKCE, issuer, audience and nonce checks; real Google provider verification remains outstanding.
 
 - [x] Return a generic actionable sign-in failure for OIDC callback errors without exposing provider diagnostics; verify with simulated Google callback failures.
+
+- [x] Require an allowed model and persist its identity in internal inference claims under a policy lock; worker payload binding, token accounting and gateway routing remain outstanding.
