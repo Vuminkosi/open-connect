@@ -1,0 +1,102 @@
+@page "/cloud/operator/entitlements"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using System.Globalization
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CloudOperatorAccess OperatorAccess
+@inject ILogger<OperatorEntitlements> Logger
+
+<PageTitle>Organization entitlements | OpenConnect Cloud</PageTitle>
+<h1>Organization entitlements</h1>
+<p>Grant or revoke a service entitlement for an organization. This declaration does not establish a purchase or activate a service: availability, selections, regions and quotas are checked separately.</p>
+@if (_loading) { <p role="status">Loading services...</p> }
+else if (_error is not null) { <p role="status">@_error</p> }
+else
+{
+    <label for="entitlement-tenant">Organization ID</label>
+    <input id="entitlement-tenant" @bind="_tenantText" disabled="@(!_interactive || _busy)" />
+    <label for="entitlement-service">Service</label>
+    <select id="entitlement-service" @bind="_capability" disabled="@(!_interactive || _busy)">
+        <option value="">Choose a service</option>
+        @foreach (var item in _catalog) { <option value="@item.Id">@item.Name (@item.Id)</option> }
+    </select>
+    <button type="button" @onclick="LoadAsync" disabled="@(!_interactive || _busy)">Load entitlement</button>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+    @if (_loaded)
+    {
+        <section aria-labelledby="entitlement-heading">
+            <h2 id="entitlement-heading">Entitlement for @_loadedTenant / @_loadedCapability</h2>
+            <p>Revision @_revision. @(_revision == 0 ? "No entitlement is recorded; saving checks that the organization and service exist." : "Changes require the displayed revision.")</p>
+            <label><input id="entitlement-granted" type="checkbox" @bind="_granted" disabled="@(!_interactive || _busy)" /> Granted</label>
+            <label for="entitlement-expiry">Expiration in UTC (ISO 8601, optional)</label>
+            <input id="entitlement-expiry" placeholder="2027-01-01T00:00:00Z" @bind="_expiry" disabled="@(!_interactive || _busy)" />
+            <button type="button" @onclick="SaveAsync" disabled="@(!_interactive || _busy)">Save entitlement</button>
+        </section>
+    }
+}
+<p><a href="/cloud/operator">Back to deployments</a> · <a href="/cloud">Organizations</a></p>
+
+@code {
+    private IReadOnlyList<CloudCapabilityView> _catalog = [];
+    private string _tenantText = "", _capability = "", _loadedCapability = "", _expiry = "";
+    private Guid _loadedTenant;
+    private int _revision;
+    private bool _loading = true, _interactive, _busy, _loaded, _granted;
+    private string? _error, _notice;
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (!OperatorAccess.IsAllowed(principal)) { _error = "Operator access is required."; return; }
+            if (Services.GetService(typeof(CloudCapabilityService)) is not CloudCapabilityService catalog || Services.GetService(typeof(CloudOperatorEntitlementAdministration)) is not CloudOperatorEntitlementAdministration)
+            { _error = "The Cloud control plane is not configured."; return; }
+            _catalog = await catalog.GetCatalogAsync(CancellationToken.None);
+        }
+        catch (Exception) { Logger.LogWarning("Cloud entitlement services could not be loaded."); _error = "The Cloud control plane is temporarily unavailable."; }
+        finally { _loading = false; }
+    }
+    private async Task LoadAsync()
+    {
+        _loaded = false; _notice = null;
+        if (!Guid.TryParse(_tenantText, out var tenant) || tenant == Guid.Empty || string.IsNullOrEmpty(_capability)) { _notice = "Enter an organization ID and choose a service."; return; }
+        _busy = true;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorEntitlementAdministration)Services.GetService(typeof(CloudOperatorEntitlementAdministration))!;
+            var result = await service.GetAsync(principal, tenant, _capability, CancellationToken.None);
+            if (result.Status is not ("succeeded" or "not_found")) { _notice = "The entitlement could not be loaded or operator access is no longer available."; return; }
+            _loadedTenant = tenant; _loadedCapability = _capability; _revision = result.Entitlement?.Revision ?? 0;
+            _granted = result.Entitlement?.PlanGranted ?? false; _expiry = result.Entitlement?.ExpiresAt?.ToString("O", CultureInfo.InvariantCulture) ?? ""; _loaded = true;
+        }
+        catch (Exception) { Logger.LogWarning("Cloud entitlement lookup failed."); _notice = "The entitlement is temporarily unavailable."; }
+        finally { _busy = false; }
+    }
+    private async Task SaveAsync()
+    {
+        if (!_loaded) return;
+        DateTimeOffset? expiry = null;
+        if (!string.IsNullOrWhiteSpace(_expiry))
+        {
+            if (!(_expiry.EndsWith("Z", StringComparison.OrdinalIgnoreCase) || _expiry.EndsWith("+00:00", StringComparison.Ordinal)) || !DateTimeOffset.TryParse(_expiry, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) || parsed.Offset != TimeSpan.Zero || parsed.Ticks % 10 != 0)
+            { _notice = "Enter a UTC expiration with a Z or +00:00 offset, using at most microsecond precision."; return; }
+            expiry = parsed;
+        }
+        _busy = true; _notice = null;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorEntitlementAdministration)Services.GetService(typeof(CloudOperatorEntitlementAdministration))!;
+            var result = await service.PutAsync(principal, _loadedTenant, _loadedCapability, new(_granted, expiry), _revision, CancellationToken.None);
+            if (result.Entitlement is not null) { _revision = result.Entitlement.Revision; _notice = "Entitlement saved."; }
+            else _notice = result.Status switch { "conflict" => "The entitlement changed. Load it again before saving.", "invalid_request" => "The organization or service could not be found, or the expiration is invalid.", _ => "The entitlement was not saved. Operator access or the control plane may be unavailable." };
+        }
+        catch (Exception) { Logger.LogWarning("Cloud entitlement update failed."); _notice = "The entitlement was not confirmed."; }
+        finally { _busy = false; }
+    }
+}
