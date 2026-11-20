@@ -1,6 +1,14 @@
 @using OpenConnect.Samples.Blazor.Models
 @inject ITodoStore Store
 @inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject ILogger<TodoListComponent> Logger
+
+@{
+    var filteredItems = FilteredItems;
+    var totalPages = Math.Max(1, (filteredItems.Count + PageSize - 1) / PageSize);
+    var currentPage = Math.Clamp(_page, 1, totalPages);
+}
 
 <MudPaper Elevation="0" Class="oc-surface-card pa-4" data-oc-target="todo-list">
     <!-- Header & Filter Bar -->
@@ -13,7 +21,7 @@
         </div>
 
         <div class="d-flex align-center gap-2">
-            <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true" ApplyEffectsToContainer="false" Color="Color.Transparent">
+            <MudTabs @bind-ActivePanelIndex="_activeTab" @bind-ActivePanelIndex:after="ResetPage" Rounded="true" ApplyEffectsToContainer="false" Color="Color.Transparent">
                 <MudTabPanel Text="All" />
                 <MudTabPanel Text="Active" />
                 <MudTabPanel Text="Completed" />
@@ -25,6 +33,7 @@
     <!-- Search Input -->
     <div class="mb-3">
         <MudTextField @bind-Value="_searchQuery"
+                      @bind-Value:after="ResetPage"
                       Placeholder="Search tasks by title or description..."
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search"
@@ -35,6 +44,30 @@
                       Immediate="true" />
     </div>
 
+    <div class="d-flex flex-wrap align-center gap-3 mb-3">
+        <label for="todo-sort">Sort tasks</label>
+        <select id="todo-sort" @bind="_sort" @bind:after="ResetPage">
+            <option value="priority">Priority</option>
+            <option value="deadline">Earliest deadline</option>
+        </select>
+        <label for="todo-priority-filter">Priority filter</label>
+        <select id="todo-priority-filter" @bind="_priorityFilter" @bind:after="ResetPage">
+            <option value="all">All priorities</option>
+            @foreach (var priority in Enum.GetValues<TodoPriority>())
+            {
+                <option value="@priority">@priority</option>
+            }
+        </select>
+        <label for="todo-overdue-filter">
+            <input id="todo-overdue-filter" type="checkbox" @bind="_overdueOnly" @bind:after="ResetPage" />
+            Overdue incomplete only
+        </label>
+        <label for="todo-old-completed-filter">
+            <input id="todo-old-completed-filter" type="checkbox" @bind="_oldCompletedOnly" @bind:after="ResetPage" />
+            Completed more than 30 days ago
+        </label>
+    </div>
+
     @if (_loading)
     {
         <div class="pa-8 d-flex justify-center align-center flex-column">
@@ -42,7 +75,7 @@
             <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tasks...</MudText>
         </div>
     }
-    else if (FilteredItems.Count == 0)
+    else if (filteredItems.Count == 0)
     {
         <div class="pa-12 d-flex flex-column align-center justify-center text-center">
             <MudAvatar Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Large" Class="mb-3">
@@ -54,6 +87,10 @@
                 {
                     <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
                 }
+                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _activeTab != 0)
+                {
+                    <span>No tasks match the selected filters. Change the filters to see other tasks.</span>
+                }
                 else
                 {
                     <span>All caught up! Add a new task above or ask the OpenConnect Agent (floating button on bottom right) to plan your next milestone.</span>
@@ -64,9 +101,9 @@
     else
     {
         <MudList T="TodoItem" Dense="false" Class="pa-0">
-            @foreach (var item in FilteredItems)
+            @foreach (var item in filteredItems.Skip((currentPage - 1) * PageSize).Take(PageSize))
             {
-                <MudListItem T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
+                <MudListItem @key="item.Id" T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
                              Style="transition: background-color 0.15s ease;">
                     <div class="d-flex align-center justify-space-between w-100 gap-2">
                         <div class="d-flex align-center" style="flex: 1; min-width: 0;">
@@ -87,6 +124,16 @@
                                     </MudText>
                                 }
                                 <div class="d-flex align-center mt-1 gap-2">
+                                    @if (item.DueDateUtc is { } dueDate)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Due @dueDate.ToLocalTime().ToString("yyyy-MM-dd")</MudText>
+                                    }
+                                    @if (item.IsCompleted)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @(item.CompletedAtUtc is { } completedAt ? $"Completed {completedAt.ToLocalTime():yyyy-MM-dd}" : "Completion date unavailable")
+                                        </MudText>
+                                    }
                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 0.72rem;">
                                         @item.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")
                                     </MudText>
@@ -107,11 +154,59 @@
                                            Size="Size.Small"
                                            OnClick="@(() => OnDeleteAsync(item))"
                                            aria-label="Delete task" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => BeginEdit(item))"
+                                           aria-label="Edit task" />
                         </div>
                     </div>
+                    @if (_editingId == item.Id)
+                    {
+                        <div class="d-flex flex-column gap-2 mt-3" aria-label="Edit task details">
+                            <label for="edit-task-title">Task title</label>
+                            <input id="edit-task-title" maxlength="200" @bind="_editTitle" />
+                            <label for="edit-task-description">Description</label>
+                            <textarea id="edit-task-description" @bind="_editDescription"></textarea>
+                            <label for="edit-task-due-date">Due date</label>
+                            <input id="edit-task-due-date" type="date" @bind="_editDueDate" />
+                            <label for="edit-task-priority">Priority</label>
+                            <select id="edit-task-priority" @bind="_editPriority">
+                                @foreach (var priority in Enum.GetValues<TodoPriority>())
+                                {
+                                    <option value="@priority">@priority</option>
+                                }
+                            </select>
+                            @if (!string.IsNullOrEmpty(_editError))
+                            {
+                                <MudText Color="Color.Error" role="alert">@_editError</MudText>
+                            }
+                            <div class="d-flex gap-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="SaveEditAsync">Save changes</MudButton>
+                                <MudButton Variant="Variant.Text" Disabled="@_saving" OnClick="CancelEdit">Cancel</MudButton>
+                            </div>
+                        </div>
+                    }
                 </MudListItem>
             }
         </MudList>
+        @if (totalPages > 1)
+        {
+            <nav aria-label="Task pages" class="d-flex align-center justify-space-between gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Disabled="@(currentPage <= 1)" OnClick="PreviousPage" aria-label="Previous task page">Previous</MudButton>
+                <div class="d-flex align-center gap-2">
+                    <label for="todo-page">Page</label>
+                    <select id="todo-page" aria-label="Task page" @bind="PageSelection">
+                        @for (var number = 1; number <= totalPages; number++)
+                        {
+                            <option value="@number">@number</option>
+                        }
+                    </select>
+                    <MudText Typo="Typo.body2" aria-live="polite">Page @currentPage of @totalPages</MudText>
+                </div>
+                <MudButton Variant="Variant.Text" Disabled="@(currentPage >= totalPages)" OnClick="NextPage" aria-label="Next task page">Next</MudButton>
+            </nav>
+        }
     }
 </MudPaper>
 
@@ -120,6 +215,27 @@
     private string _searchQuery = string.Empty;
     private int _activeTab = 0;
     private bool _loading = true;
+    private const int PageSize = 10;
+    private int _page = 1;
+    private string _sort = "priority";
+    private string _priorityFilter = "all";
+    private bool _overdueOnly;
+    private bool _oldCompletedOnly;
+    private Guid? _editingId;
+    private long _editRevision;
+    private string _editTitle = string.Empty;
+    private string? _editDescription;
+    private DateTime? _editDueDate;
+    private TodoPriority _editPriority;
+    private string? _editError;
+    private bool _saving;
+
+    private int PageCount => Math.Max(1, (FilteredItems.Count + PageSize - 1) / PageSize);
+    private int CurrentPage => Math.Clamp(_page, 1, PageCount);
+    private int PageSelection { get => CurrentPage; set => _page = Math.Clamp(value, 1, PageCount); }
+    private void ResetPage() => _page = 1;
+    private void PreviousPage() => _page = Math.Max(1, CurrentPage - 1);
+    private void NextPage() => _page = Math.Min(PageCount, CurrentPage + 1);
 
     private List<TodoItem> FilteredItems
     {
@@ -143,7 +259,22 @@
                     (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
             }
 
-            return query.OrderByDescending(i => i.Priority).ThenByDescending(i => i.CreatedAtUtc).ToList();
+            if (Enum.TryParse<TodoPriority>(_priorityFilter, out var priority))
+                query = query.Where(i => i.Priority == priority);
+            if (_overdueOnly)
+            {
+                var today = DateTime.Today;
+                query = query.Where(i => !i.IsCompleted && i.DueDateUtc is { } due && due.ToLocalTime().Date < today);
+            }
+            if (_oldCompletedOnly)
+            {
+                var cutoff = DateTime.UtcNow.AddDays(-30);
+                query = query.Where(i => i.IsCompleted && i.CompletedAtUtc is { } completed && completed < cutoff);
+            }
+
+            return (_sort == "deadline"
+                ? query.OrderBy(i => i.DueDateUtc is null).ThenBy(i => i.DueDateUtc).ThenBy(i => i.Title)
+                : query.OrderByDescending(i => i.Priority).ThenByDescending(i => i.CreatedAtUtc)).ToList();
         }
     }
 
@@ -161,16 +292,76 @@
         StateHasChanged();
     }
 
+    private void BeginEdit(TodoItem item)
+    {
+        _editingId = item.Id;
+        _editRevision = item.Revision;
+        _editTitle = item.Title;
+        _editDescription = item.Description;
+        _editDueDate = item.DueDateUtc?.ToLocalTime().Date;
+        _editPriority = item.Priority;
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editError = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_saving || _editingId is not { } id) return;
+        if (string.IsNullOrWhiteSpace(_editTitle) || _editTitle.Trim().Length > 200)
+        {
+            _editError = "Enter a task title of 1 to 200 characters.";
+            return;
+        }
+        _saving = true;
+        try
+        {
+            var dueDateUtc = _editDueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_editDueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
+            var result = await Store.EditAsync(id, _editRevision, new TodoEdit(_editTitle, _editDescription, _editPriority, dueDateUtc));
+            if (result == TodoEditResult.Updated)
+            {
+                CancelEdit();
+                await LoadItemsAsync();
+                Snackbar.Add("Task updated", Severity.Success);
+            }
+            else
+            {
+                _editError = result == TodoEditResult.Conflict
+                    ? "This task changed while you were editing. Cancel and reopen it to review the latest version."
+                    : "This task no longer exists. Your changes were not saved.";
+            }
+        }
+        catch (Exception)
+        {
+            Logger.LogError("Unable to save a task edit.");
+            _editError = "Could not save changes. Please try again.";
+        }
+        finally { _saving = false; }
+    }
+
     private async Task OnStatusChangedAsync(TodoItem item, bool isCompleted)
     {
-        await Store.UpdateStatusAsync(item.Id, isCompleted);
+        var updated = await Store.UpdateStatusAsync(item.Id, isCompleted);
+        if (!updated) Snackbar.Add("The task could not be updated. It may no longer exist.", Severity.Warning);
         await LoadItemsAsync();
     }
 
     private async Task OnDeleteAsync(TodoItem item)
     {
-        await Store.DeleteAsync(item.Id);
-        Snackbar.Add($"Task \"{item.Title}\" deleted", Severity.Info);
+        var confirmed = await Dialogs.ShowMessageBox("Delete task?", $"Delete task \"{item.Title}\"?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed != true) return;
+        var result = await Store.DeleteIfUnchangedAsync(item.Id, item.Revision);
+        Snackbar.Add(result switch
+        {
+            TodoDeleteResult.Deleted => $"Task \"{item.Title}\" deleted",
+            TodoDeleteResult.Conflict => "The task changed. Review the latest version before deleting it.",
+            _ => "The task no longer exists."
+        }, result == TodoDeleteResult.Deleted ? Severity.Info : Severity.Warning);
         await LoadItemsAsync();
     }
 

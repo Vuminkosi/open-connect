@@ -496,6 +496,13 @@
           "OpenConnect.LiveUI": "[1.0.0, )"
         }
       },
+      "openconnect.liveui.hosting": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )"
+        }
+      },
       "openconnect.privacy": {
         "type": "Project",
         "dependencies": {
@@ -1163,6 +1170,13 @@
           "Microsoft.Agents.AI": "[1.28.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
+      "openconnect.liveui.hosting": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )"
         }
       },
       "openconnect.privacy": {
@@ -1842,6 +1856,13 @@
           "Microsoft.Agents.AI": "[1.28.0, )",
           "OpenConnect.Abstractions": "[1.0.0, )",
           "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
+      "openconnect.liveui.hosting": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.LiveUI.Agents": "[1.0.0, )"
         }
       },
       "openconnect.privacy": {

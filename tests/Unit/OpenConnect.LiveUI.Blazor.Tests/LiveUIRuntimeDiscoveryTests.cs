@@ -11,6 +11,36 @@ namespace OpenConnect.LiveUI.Blazor.Tests;
 
 public sealed class LiveUIRuntimeDiscoveryTests
 {
+    [Fact]
+    public async Task RuntimeDiscoveryRequiresConfirmationForInteractiveTargets()
+    {
+        const string observations = "[" +
+            "{\"kind\":\"Button\",\"label\":\"Submit\",\"role\":\"button\"}," +
+            "{\"kind\":\"Input\",\"label\":\"Title\",\"role\":\"textbox\"}," +
+            "{\"kind\":\"Select\",\"label\":\"Priority\",\"role\":\"combobox\"}," +
+            "{\"kind\":\"Checkbox\",\"label\":\"Approve\",\"role\":\"checkbox\"}," +
+            "{\"kind\":\"Link\",\"label\":\"Other\",\"role\":\"link\"}," +
+            "{\"kind\":\"Tab\",\"label\":\"Active\",\"role\":\"tab\"}," +
+            "{\"kind\":\"Heading\",\"label\":\"Reports\",\"role\":\"heading\"}]";
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIBlazor(options => options.Discovery.Mode = LiveUIDiscoveryMode.RuntimeOnly);
+        services.AddScoped<NavigationManager>(_ => new Navigation());
+        services.AddScoped<IJSRuntime>(_ => new Browser(false, observations));
+        services.AddScoped<ILiveUIActionAuthorizer, InspectOnlyAuthorizer>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var state = scope.ServiceProvider.GetRequiredService<LiveUIManifestState>();
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "test", "", [new LiveUIRoute("home", "/", "Home", [])]);
+        state.SetManifest(manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) });
+
+        _ = await scope.ServiceProvider.GetRequiredService<LiveUIAgentTools>().GetCurrentPageAsync();
+
+        var targets = (await state.GetCurrentAsync())!.Routes[0].Targets;
+        Assert.All(targets.Where(target => target.Kind != LiveUITargetKind.Heading), target => Assert.True(target.RequiresConfirmation));
+        Assert.False(Assert.Single(targets, target => target.Kind == LiveUITargetKind.Heading).RequiresConfirmation);
+        Assert.Equal(7, targets.Count);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -331,6 +361,8 @@ public sealed class LiveUIRuntimeDiscoveryTests
         {
             if (identifier == "import")
                 return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "canNavigate")
+                return ValueTask.FromResult((TValue)(object)true);
             if (identifier == "prepareRoute")
             {
                 PreparedParent = args?[1] as string;

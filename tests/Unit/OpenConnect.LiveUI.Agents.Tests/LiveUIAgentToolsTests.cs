@@ -58,8 +58,10 @@ public sealed class LiveUIAgentToolsTests
         }
     }
 
-    [Fact]
-    public async Task Client_execution_forwards_same_target_postcondition()
+    [Theory]
+    [InlineData("Click")]
+    [InlineData("Activate")]
+    public async Task Client_execution_forwards_same_target_postcondition(string action)
     {
         var broker = new RecordingInteractionBroker((_, request, kind) => Task.FromResult<ClientInteractionResponse?>(
             new(request.CorrelationId, kind, "{\"outcome\":\"Completed\",\"postconditionVerified\":true}")));
@@ -67,14 +69,55 @@ public sealed class LiveUIAgentToolsTests
             new SessionId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), TimeSpan.FromSeconds(1));
         var execute = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_execute"));
         await execute.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
-        { ["targetId"] = "todo.completed", ["action"] = "Click", ["stateName"] = "expanded", ["stateValue"] = "true" }));
+        { ["targetId"] = "todo.completed", ["action"] = action, ["stateName"] = "expanded", ["stateValue"] = "true" }));
         var request = Assert.Single(broker.Requests);
         Assert.Equal("expanded", request.StateName);
         Assert.Equal("true", request.StateValue);
+        Assert.Equal(action, request.Action);
         var invalid = Assert.IsType<System.Text.Json.JsonElement>(await execute.InvokeAsync(new AIFunctionArguments(
             new Dictionary<string, object?> { ["targetId"] = "todo.completed", ["action"] = "SetValue", ["value"] = "x", ["stateName"] = "visible" })));
         Assert.Equal("invalid_request", invalid.GetProperty("error").GetString());
         Assert.Single(broker.Requests);
+    }
+
+    [Fact]
+    public async Task Activate_with_postcondition_preserves_authorization_and_rejects_tabs()
+    {
+        var button = new LiveUITarget("todo.save", LiveUITargetKind.Button, "Save",
+            new HashSet<LiveUICapability> { LiveUICapability.Activate });
+        var manifest = Manifest with
+        {
+            Routes = Manifest.Routes.Select(route => route.Id == "todo.home"
+                ? route with { Targets = route.Targets.Append(button).ToArray() } : route).ToArray()
+        };
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var authorizer = new RecordingAuthorizer();
+        var runtime = new RecordingRuntime();
+        using var tools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home")),
+            new ManifestProvider(manifest), authorizer, new LiveUIManifestValidator(),
+            new LiveUIOrchestrator(new ManifestProvider(manifest), authorizer, runtime,
+                Options.Create(new LiveUIOptions()), new LiveUIManifestValidator()), Options.Create(new LiveUIOptions()));
+
+        var receipt = await tools.ExecuteWithPostconditionAsync("todo.save", "activate", "exists", "false");
+
+        Assert.Equal(LiveUIActionOutcome.Completed, receipt.Outcome);
+        Assert.Equal(LiveUIActionType.Click, runtime.LastContext!.Action.Type);
+        Assert.Equal("exists", runtime.LastContext.Action.Parameters.StateName);
+        Assert.Contains(authorizer.Contexts, context => context.Target?.Id == "todo.save");
+        var calls = runtime.Calls;
+        Assert.NotEqual(LiveUIActionOutcome.Completed,
+            (await tools.ExecuteWithPostconditionAsync("todo.completed", "activate", "visible", "false")).Outcome);
+        Assert.Equal(calls, runtime.Calls);
+
+        var deniedAuthorizer = new RecordingAuthorizer((_, _) => false);
+        var deniedRuntime = new RecordingRuntime();
+        using var deniedTools = new LiveUIAgentTools(new ContextAccessor(new LiveUIAgentContext("session", "todo.home")),
+            new ManifestProvider(manifest), deniedAuthorizer, new LiveUIManifestValidator(),
+            new LiveUIOrchestrator(new ManifestProvider(manifest), deniedAuthorizer, deniedRuntime,
+                Options.Create(new LiveUIOptions()), new LiveUIManifestValidator()), Options.Create(new LiveUIOptions()));
+        Assert.Equal(LiveUIActionOutcome.Denied,
+            (await deniedTools.ExecuteWithPostconditionAsync("todo.save", "activate", "exists", "false")).Outcome);
+        Assert.Equal(0, deniedRuntime.Calls);
     }
 
     [Fact]
@@ -1007,6 +1050,31 @@ public sealed class LiveUIAgentToolsTests
 
         Assert.Equal("invalid_request", result.GetProperty("error").GetString());
         Assert.Empty(broker.Requests);
+    }
+
+    [Fact]
+    public async Task Conversation_runner_binds_liveui_tools_to_host_session_and_connection()
+    {
+        var sessionId = new SessionId(Ulid.NewUlid());
+        var broker = new RecordingInteractionBroker((session, request, resultKind) =>
+        {
+            Assert.Equal(sessionId, session);
+            Assert.Equal("trusted-connection", request.ConnectionId);
+            return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, resultKind,
+                "{\"outcome\":\"Completed\",\"postconditionVerified\":true}"));
+        });
+        var agentId = new AgentId("liveui-client-assistant");
+        var client = new ClientBridgeToolCallChatClient();
+        var factory = new MafRealAgentFactory(new TestAgentRegistry(new AgentDefinition(agentId, "LiveUI")), client);
+        var tools = LiveUIClientAgentToolFactory.CreateToolsForConnection(broker,
+            sessionId, "trusted-connection", TimeSpan.FromSeconds(1));
+        var runner = MafConversationRunner.CreateWithTools(factory, agentId, tools, LiveUIAgentGuidance.Instructions);
+
+        var response = await runner.TurnAsync("show completed tasks");
+
+        Assert.Equal(2, client.Calls);
+        Assert.Contains("Completed", response.Text, StringComparison.Ordinal);
+        Assert.Equal("SelectTab", Assert.Single(broker.Requests).Action);
     }
 
     [Fact]

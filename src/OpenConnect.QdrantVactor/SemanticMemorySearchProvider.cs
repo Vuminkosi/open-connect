@@ -25,7 +25,8 @@ public sealed class SemanticMemorySearchProvider(IEmbeddingGenerator embeddings,
             var points = await store.SearchAsync(request.TenantId, request.AgentId, vector, request.Limit, cancellationToken).ConfigureAwait(false);
             // Enforce tenant/agent again at the boundary, independently of backend filtering.
             var matches = points.Where(point => point.TenantId == request.TenantId && point.AgentId == request.AgentId)
-                .Select(point => new MemorySearchMatch(new MemoryDocument(point.Id, point.TenantId, point.AgentId, point.Content), 0))
+                .Select(point => new MemorySearchMatch(new MemoryDocument(point.Id, point.TenantId, point.AgentId, point.Content), point.Score ?? 0))
+                .OrderByDescending(match => match.Score)
                 .ToArray();
             return new MemorySearchResult(matches);
         }

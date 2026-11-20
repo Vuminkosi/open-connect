@@ -15,7 +15,7 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     stage: 'setup', circuitSockets: 0, circuitFrames: 0, circuitClosed: 0,
     circuitHttpResponses: 0, circuitHttpFailures: 0,
     exactTitleMatches: null, scopedTitleMatches: null,
-    editorEnabled: false, editorCleared: false, launcherExpanded: false, dialogVisible: false,
+    editorClearAffordance: false, editorCleared: false, launcherExpanded: false, dialogVisible: false,
   };
   const isCircuit = value => {
     const url = new URL(value);
@@ -109,14 +109,14 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
     readiness.stage = 'circuit-observation';
     await expect.poll(() => readiness.circuitSockets).toBeGreaterThan(0);
     // A socket alone does not prove hydration. Require an actual server-rendered binding roundtrip.
-    // MudTextField is not Immediate: blur commits its normal change binding. Never submit this form.
+    // The current Todo editor binds immediately. Clearing is a UI-only action; never submit the form.
     readiness.stage = 'editor-binding';
     const editor = page.locator('[data-oc-target="todo-editor"]');
     const exactTitleInput = page.getByRole('textbox', { name: 'Task Title', exact: true });
     // Keep the required marker; its contribution to the accessible name may vary.
     const titleInput = editor.getByRole('textbox', { name: /^Task Title\s*\*?\s*$/ });
-    const addTask = editor.getByRole('button', { name: 'Add Task', exact: true });
-    await expect(addTask).toBeDisabled();
+    const clearTitle = editor.getByRole('button', { name: 'Clear', exact: true });
+    await expect(clearTitle).toHaveCount(0);
     await expect(async () => {
       const [exactCount, scopedCount] = await Promise.all([exactTitleInput.count(), titleInput.count()]);
       readiness.exactTitleMatches = Math.min(exactCount, 10000);
@@ -124,16 +124,13 @@ test('synthetic voice reaches real Todo UI and persists exactly once', async ({ 
       expect(scopedCount).toBe(1);
       // A pre-hydration event can be lost; clear first so each attempt sends a fresh change.
       await titleInput.fill('', { timeout: 1000 });
-      await titleInput.blur({ timeout: 1000 });
-      await expect(addTask).toBeDisabled({ timeout: 1000 });
       await titleInput.fill('synthetic readiness probe', { timeout: 1000 });
-      await titleInput.blur({ timeout: 1000 });
-      await expect(addTask).toBeEnabled({ timeout: 1000 });
+      await expect(clearTitle).toBeVisible({ timeout: 1000 });
     }).toPass({ timeout: 15000, intervals: [250] });
-    readiness.editorEnabled = true;
-    await titleInput.fill('');
-    await titleInput.blur();
-    await expect(addTask).toBeDisabled();
+    readiness.editorClearAffordance = true;
+    await clearTitle.click();
+    await expect(titleInput).toHaveValue('');
+    await expect(clearTitle).toHaveCount(0);
     readiness.editorCleared = true;
     expect(await matchingTodos()).toHaveLength(0);
     readiness.stage = 'launcher';

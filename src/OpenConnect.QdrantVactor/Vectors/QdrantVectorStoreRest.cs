@@ -92,7 +92,7 @@ public sealed class QdrantVectorStoreRest : IVectorStore
                 continue;
             var values = result.GetProperty("vector").EnumerateArray().Select(item => item.GetSingle()).ToArray();
             if (values.Length != _vectorSize)
-                continue;
+                throw new InvalidDataException("Vector dimension does not match configured collection size.");
             points.Add(new VectorPoint(result.GetProperty("id").GetString() ?? string.Empty,
                 resultTenant!, resultAgent!, payload.TryGetProperty("content", out var content) ? content.GetString() ?? string.Empty : string.Empty,
                 values, payload.TryGetProperty("revision", out var revision) ? revision.GetInt64() : 0,

@@ -62,6 +62,7 @@ public sealed class VectorStoreRestTests
         Assert.EndsWith("/collections/memory/points/search", request.Uri);
         Assert.True(request.HasApiKey);
         using var body = JsonDocument.Parse(request.Body!);
+        Assert.True(body.RootElement.GetProperty("with_vector").GetBoolean());
         var must = body.RootElement.GetProperty("filter").GetProperty("must");
         Assert.Equal("tenant", must[0].GetProperty("key").GetString());
         Assert.Equal("tenant-a", must[0].GetProperty("match").GetProperty("value").GetString());
@@ -84,6 +85,21 @@ public sealed class VectorStoreRestTests
         Assert.Equal("Sanitized", point.PrivacyClass);
         Assert.Equal(DateTimeOffset.Parse("2025-01-02T03:04:05+00:00"), point.CreatedAt);
         Assert.Equal(0.75, point.Score);
+    }
+
+    [Fact]
+    public async Task SearchReportsDimensionMismatchWithoutLeakingPayload()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"result":[{"id":"11111111-1111-4111-8111-111111111111","vector":[1],"payload":{"tenant":"tenant-a","agent":"agent-a","content":"private content"}}]}""")
+        });
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            Create(handler).SearchAsync("tenant-a", "agent-a", new float[] { 1, 0 }, 5, default));
+
+        Assert.Contains("dimension", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("private content", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -18,5 +18,7 @@ internal sealed class PersistedTodoItem
     public TodoPriority Priority { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? DueDateUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
+    public long Revision { get; set; }
     public PersistedTodoScope ScopeRecord { get; set; } = null!;
 }

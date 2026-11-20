@@ -13,6 +13,7 @@
     <ProjectReference Include="../../../src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../../../src/OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
+    <ProjectReference Include="../../../src/OpenConnect.LiveUI.Hosting/OpenConnect.LiveUI.Hosting.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../Shared/ScriptedVoiceSocket.cs" Link="ScriptedVoiceSocket.cs" />

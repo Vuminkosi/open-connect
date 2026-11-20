@@ -1,0 +1,21 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<MudOverlay Visible="true" DarkBackground="true" LockScroll="true">
+    <MudFocusTrap>
+        <section role="dialog" aria-modal="true" aria-labelledby="create-task-dialog-title"
+                 @onkeydown="OnKeyDown" style="width: min(95vw, 720px); max-height: 90vh; overflow: auto;">
+            <MudPaper Class="pa-4">
+                <MudText id="create-task-dialog-title" Typo="Typo.h6">Create task</MudText>
+                <TodoEditorComponent OnTaskCreated="OnCreated" />
+                <MudButton OnClick="OnCancel">Cancel task creation</MudButton>
+            </MudPaper>
+        </section>
+    </MudFocusTrap>
+</MudOverlay>
+
+@code {
+    [Parameter] public EventCallback OnCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task OnKeyDown(KeyboardEventArgs args) => args.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}

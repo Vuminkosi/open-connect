@@ -5,6 +5,34 @@ import { fileURLToPath } from 'node:url';
 
 const runtimePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src/OpenConnect.LiveUI.Blazor/wwwroot/liveui.js');
 
+test('invalid postconditions never dispatch an action', async ({ page }) => {
+  const runtime = await fs.readFile(runtimePath, 'utf8');
+  await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')
+    ? route.fulfill({ contentType: 'text/javascript', body: runtime })
+    : route.fulfill({ contentType: 'text/html', body: '<button id="save">Save</button>' }));
+  await page.goto('http://liveui.test/');
+  const result = await page.evaluate(async () => {
+    const { execute } = await import('/liveui.js');
+    let clicks = 0;
+    document.querySelector('#save').addEventListener('click', () => clicks++);
+    const run = (type, parameters) => execute({
+      manifest: {}, route: { path: '/' }, target: { id: 'save', kind: 'Button', selector: '#save' },
+      action: { schemaVersion: 'openconnect.liveui/v1', type, parameters },
+    }, 100, false);
+    const receipts = [await run('Click', { stateName: 'textContains', stateValue: '' }),
+      await run('Click', { stateName: 'visible', stateValue: 'perhaps' }),
+      await run('Open', { stateName: 'unknown', stateValue: 'true' }),
+      await run('Close', { stateValue: 'false' }),
+      await run('WaitForState', { stateName: 'exists', stateValue: 'perhaps' })];
+    return { receipts, clicks };
+  });
+  expect(result.receipts.map((receipt) => receipt.code)).toEqual([
+    'state_value_invalid', 'state_value_invalid', 'state_name_invalid', 'state_name_required', 'state_value_invalid',
+  ]);
+  expect(result.receipts.every((receipt) => receipt.outcome === 'Failed' && !receipt.postconditionVerified)).toBe(true);
+  expect(result.clicks).toBe(0);
+});
+
 test('disabled and readonly controls reject synthetic actions without dispatching events', async ({ page }) => {
   const runtime = await fs.readFile(runtimePath, 'utf8');
   await page.route('http://liveui.test/**', async (route) => route.request().url().endsWith('/liveui.js')

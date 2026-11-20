@@ -200,6 +200,7 @@ public sealed class ComposerSessionTests
         Assert.Equal(ComposerConnectionState.Streaming, session.Connection);
         Assert.True(session.ApplyEvent(Event(3, "task.failed", $$"""{"taskId":"{{task.Value}}"}""")));
         Assert.Equal(ComposerConnectionState.Error, session.Connection);
+        Assert.Equal("The assistant could not complete the request. Some actions may have completed; check the current state before retrying.", session.LastError);
     }
 
     [Fact]

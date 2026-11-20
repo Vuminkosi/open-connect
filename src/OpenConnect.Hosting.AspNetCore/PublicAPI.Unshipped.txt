@@ -93,6 +93,7 @@ OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutionServiceCollectionEx
 OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor
 OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor.ExecuteAsync(OpenConnect.Hosting.AspNetCore.Execution.HostTaskExecution! task, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
 OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor.MafHostTaskExecutor(OpenConnect.Hosting.AspNetCore.Execution.IHostTaskAgentExecutionFactory! factory) -> void
+OpenConnect.Hosting.AspNetCore.Execution.MafHostTaskExecutor.MafHostTaskExecutor(OpenConnect.Hosting.AspNetCore.Execution.IHostTaskAgentExecutionFactory! factory, OpenConnect.Hosting.AspNetCore.InMemorySessionStore! sessions) -> void
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.ApproveAsync(Microsoft.Agents.AI.Workflows.ExternalRequest! request, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalDecision! decision, object! responseData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalBridge.NativeWorkflowApprovalBridge(OpenConnect.Agents.Execution.NativeWorkflowInteraction! interaction, OpenConnect.Hosting.AspNetCore.Execution.NativeWorkflowApprovalScope! expectedScope, string! expectedArgumentsHash, string! expectedToolRevision) -> void

@@ -56,6 +56,8 @@ For a browser action requested by an agent, the provider captures the originatin
 
 ## Runtime behavior
 
+Compiled controls with activation, value-setting, or selection capabilities require confirmation by default, matching runtime-discovered interactive controls. Markup alone cannot establish that a tab or link has no side effects, so these controls also require confirmation. Read-only headings, regions and lists do not require confirmation unless the compiled target exposes an activation capability. Host authorization remains mandatory, and hosts without a confirmation provider deny actions that require confirmation.
+
 The browser runtime resolves targets by compiled selector, an optional LiveUI runtime ID, and accessible browser semantics. It rejects ambiguous matches. It supports focus, scroll, highlight, clear highlight, value entry, selection, tab activation, inspection, and bounded state waits. Navigation uses NavigationManager and succeeds only after the requested route and at least one compiled target are present.
 
 Text entry into password or sensitive fields is denied. A dispatched click without an observable postcondition returns Uncertain; a receipt reports Completed only after the runtime verifies the requested state. Highlighting adds a non-modal outline, preserves focus, and respects reduced-motion settings.

@@ -8,7 +8,7 @@ test('discovers task creation controls as they become available in the existing 
     return discoverTargets(500);
   });
   expect(targets).toContainEqual(expect.objectContaining({ kind: 'Input', label: 'Task Title' }));
-  expect(targets).not.toContainEqual(expect.objectContaining({ kind: 'Button', label: expect.stringMatching(/^add task$/i) }));
+  expect(targets).toContainEqual(expect.objectContaining({ kind: 'Button', label: expect.stringMatching(/^add task$/i) }));
 
   await expect(async () => {
     await page.getByRole('textbox', { name: 'Task Title' }).fill('Discovery check');
@@ -34,7 +34,8 @@ test('SDK value interaction reaches the existing Todo component', async ({ page 
   }).toPass({ timeout: 15000, intervals: [250] });
   await title.fill('');
   await title.blur();
-  await expect(add).toBeDisabled();
+  await add.click();
+  await expect(page.getByText('Enter a task title.')).toBeVisible();
 
   const receipt = await page.evaluate(async () => {
     const runtime = await import('/_content/OpenConnect.LiveUI.Blazor/liveui.js');
@@ -45,5 +46,6 @@ test('SDK value interaction reaches the existing Todo component', async ({ page 
     }, 5000, true);
   });
   expect(receipt.outcome).toBe('Completed');
+  await expect(page.getByText('Enter a task title.')).toHaveCount(0);
   await expect(add).toBeEnabled();
 });

@@ -11,6 +11,18 @@ let confirmationDialog = null;
 const cancelledConfirmations = new Set();
 let confirmationCancellationOverflow = false;
 
+function interactionScope() {
+  if (confirmationDialog?.element?.open) return null;
+  const dialogs = [...document.querySelectorAll('dialog[open], [role="dialog"]:not([aria-modal="false"])')]
+    .filter((element) => isVisible(element) && !element.closest('pre, code'));
+  const innermost = dialogs.filter((element) => !dialogs.some((other) => other !== element && element.contains(other)));
+  return innermost.length === 0 ? document : innermost.length === 1 ? innermost[0] : null;
+}
+
+export function canNavigate() {
+  return interactionScope() === document;
+}
+
 export function confirmAction(message, timeoutMs, confirmationId) {
   if (confirmationDialog || confirmationCancellationOverflow || typeof confirmationId !== "string" || !/^[0-9a-f]{32}$/.test(confirmationId) ||
       typeof message !== "string" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)
@@ -70,8 +82,10 @@ export function cancelConfirmation(confirmationId) {
 export function discoverTargets(maximumTargets) {
   const limit = Math.max(0, Math.min(Number(maximumTargets) || 0, 500));
   if (!limit) return [];
+  const scope = interactionScope();
+  if (!scope) return [];
   const selector = "button, a[href], input, textarea, select, ul, ol, h1, h2, h3, h4, h5, h6, [role='button'], [role='link'], [role='tab'], [role='heading'], [role='list'], [role='listbox']";
-  const sections = document.querySelectorAll("section");
+  const sections = scope.querySelectorAll("section");
   const regionCandidates = [];
   for (let index = 0; index < Math.min(sections.length, 5000); index++) {
     const section = sections[index];
@@ -87,7 +101,7 @@ export function discoverTargets(maximumTargets) {
   const regions = regionCandidates.filter((region) => regionCounts.get(normalize(region.label)) === 1).slice(0, limit);
   const regionLabels = new Map(regions.map((region) => [region.element, region.label]));
   const candidates = [];
-  const elements = document.querySelectorAll(selector);
+  const elements = scope.querySelectorAll(selector);
   for (let index = 0; index < Math.min(elements.length, 5000); index++) {
     const element = elements[index];
     if (!isVisible(element) || element.closest("pre, code") || isDisabled(element)) continue;
@@ -161,6 +175,13 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return withMeasurements(result("Completed", "highlight_cleared", true, "cleared"), 0, actionStartedAt);
   }
   if (!target) return result("Failed", "target_missing");
+  const requestedState = action.parameters?.stateName;
+  if (["Click", "Open", "Close"].includes(action.type) && requestedState == null && action.parameters?.stateValue != null)
+    return result("Failed", "state_name_required");
+  if (["Click", "Open", "Close", "WaitForState"].includes(action.type) && requestedState != null) {
+    const validationError = validateState(requestedState, action.parameters?.stateValue);
+    if (validationError) return result("Failed", validationError);
+  }
   const resolutionStartedAt = performance.now();
   const resolution = resolveTarget(target, enableRuntimeFallback, route);
   const targetResolutionMilliseconds = performance.now() - resolutionStartedAt;
@@ -183,7 +204,8 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
     return measured(result("Denied", "control_kind_mismatch"));
   const timeout = Math.max(1, Math.min(Number(timeoutMs) || 10000, 120000));
   const parameters = action.parameters || {};
-  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout);
+  const actionScope = interactionScope();
+  const verifyState = (name, expected) => waitForState(target, route, enableRuntimeFallback, name, expected, timeout, element, actionScope);
   const isCurrentTarget = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
     const current = resolveTarget(target, enableRuntimeFallback, route);
@@ -340,32 +362,33 @@ export function awaitRoute(expectedPath, route, timeoutMs, enableRuntimeFallback
   });
 }
 
-function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()) {
+function resolveTarget(target, enableRuntimeFallback, route, visited = new Set(), includeHidden = false, scopeOverride = null) {
   if (visited.has(target.id)) return { status: "ambiguous" };
   visited.add(target.id);
 
-  let scope = document;
+  let scope = scopeOverride || interactionScope();
+  if (!scope) return { status: "ambiguous" };
   if (target.parentId) {
     const parent = route?.targets?.find((candidate) => candidate.id === target.parentId);
     if (!parent) return { status: "missing" };
-    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited);
+    const parentResolution = resolveTarget(parent, enableRuntimeFallback, route, visited, includeHidden, scopeOverride);
     if (parentResolution.status !== "resolved") return parentResolution;
     scope = parentResolution.element;
   }
 
   const visibleMarked = [...scope.querySelectorAll("[" + idAttribute + "]")]
-    .filter((element) => element.getAttribute(idAttribute) === target.id && isVisible(element));
+    .filter((element) => element.getAttribute(idAttribute) === target.id && (includeHidden || isVisible(element)));
   const marked = visibleMarked.filter((element) => isEligibleTarget(element, target));
   if (marked.length > 1) return { status: "ambiguous" };
   if (marked.length === 1) return { status: "resolved", element: marked[0] };
-  if (visibleMarked.length > 0) return { status: "missing" };
+  if (visibleMarked.length > 0) return { status: includeHidden ? "ambiguous" : "missing" };
   if (target.selector) {
     try {
-      const visibleSelected = [...scope.querySelectorAll(target.selector)].filter(isVisible);
+      const visibleSelected = [...scope.querySelectorAll(target.selector)].filter((element) => includeHidden || isVisible(element));
       const selected = visibleSelected.filter((element) => isEligibleTarget(element, target));
       if (selected.length > 1) return { status: "ambiguous" };
       if (selected.length === 1) return { status: "resolved", element: selected[0] };
-      if (visibleSelected.length > 0) return { status: "missing" };
+      if (visibleSelected.length > 0) return { status: includeHidden ? "ambiguous" : "missing" };
     } catch {
       // Invalid compiler output falls through to semantic resolution.
     }
@@ -374,7 +397,7 @@ function resolveTarget(target, enableRuntimeFallback, route, visited = new Set()
   const label = normalize(target.label);
   if (!label) return { status: "missing" };
   const matches = [...scope.querySelectorAll("*")]
-    .filter(isVisible)
+    .filter((element) => includeHidden || isVisible(element))
     .filter((element) => isEligibleTarget(element, target))
     .filter((element) => kindMatches(target.kind, element))
     .filter((element) => (!target.role || roleOf(element) === target.role) &&
@@ -572,15 +595,65 @@ function inspect(element, target) {
     const selected = element.getAttribute("aria-selected") === "true";
     return result("Completed", "inspection_verified", true, selected ? "tab_selected" : "tab_unselected");
   }
-  if ("checked" in element) return result("Completed", "inspection_verified", true, element.checked ? "control_checked" : "control_unchecked");
+  if (target?.kind === "Checkbox" && "checked" in element)
+    return result("Completed", "inspection_verified", true, element.checked ? "control_checked" : "control_unchecked");
+  if (target?.kind === "Input" || target?.kind === "Select")
+    return result("Completed", "inspection_verified", true, isInvalidControl(element) ? "control_invalid" : "control_valid");
   return result("Completed", "inspection_verified", true, "control_visible");
 }
 
-function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs) {
-  if ((name === "textContains" || name === "textNotContains") &&
-      (typeof expected !== "string" || !normalize(expected))) return result("Failed", "state_value_invalid");
+function isInvalidControl(element) {
+  return element.getAttribute("aria-invalid") === "true" || (element.validity != null && !element.validity.valid);
+}
+
+function validateState(name, expected) {
+  if (["textContains", "textNotContains"].includes(name))
+    return typeof expected === "string" && normalize(expected) ? null : "state_value_invalid";
+  if (!["selected", "checked", "expanded", "visible", "exists", "invalid"].includes(name)) return "state_name_invalid";
+  return expected == null || expected === "true" || expected === "false" ? null : "state_value_invalid";
+}
+
+function waitForState(target, route, enableRuntimeFallback, name, expected, timeoutMs, initialElement = null, initialScope = null) {
+  const validationError = validateState(name, expected);
+  if (validationError) return result("Failed", validationError);
+  const observeRemoval = name === "exists" && expected === "false";
+  const observeHidden = name === "visible" && expected === "false";
+  // A missing initial target or an inferred list cannot establish a known node's hidden or removed state.
+  const initial = observeRemoval || observeHidden ? initialElement
+    ? { status: "resolved", element: initialElement }
+    : resolveTarget(target, enableRuntimeFallback, route) : null;
+  if ((observeRemoval || observeHidden) && (initial.status !== "resolved" || !kindMatches(target.kind, initial.element) ||
+      target.id?.startsWith("oc.runtime.inferred-list.") ||
+      target.kind === "Checkbox" && target.id?.startsWith("oc.runtime.") &&
+        !accessibleNames(initial.element).some((name) => normalize(name) === normalize(target.label))))
+    return result("Uncertain", "state_not_verified");
   const matches = () => {
     if (normalizePath(location.pathname) !== normalizePath(new URL(route.path, document.baseURI).pathname)) return false;
+    if (observeRemoval) {
+      if (initial.element.isConnected) return false;
+      // When the original modal itself was removed, background controls with the same label
+      // are outside that target's former scope and are not replacements for it.
+      if (initialScope && initialScope !== document && initialScope.contains(initial.element) &&
+          !initialScope.isConnected && interactionScope() === document) return true;
+      // Hidden replacements and ambiguous candidates still exist; never count them as removal.
+      return resolveTarget(target, enableRuntimeFallback, route, new Set(), true).status === "missing";
+    }
+    if (observeHidden) {
+      const hidden = resolveTarget(target, enableRuntimeFallback, route, new Set(), true);
+      return hidden.status === "resolved" && hidden.element.isConnected &&
+        kindMatches(target.kind, hidden.element) && !isVisible(hidden.element);
+    }
+    // A modal opener can become inaccessible to ordinary resolution immediately after opening.
+    // Verify only the original, still-unique opener when it explicitly controls the active dialog.
+    if (name === "expanded" && expected !== "false" && initialElement?.isConnected) {
+      const activeScope = interactionScope();
+      if (activeScope && activeScope !== document && !activeScope.contains(initialElement) && activeScope.id &&
+          (initialElement.getAttribute("aria-controls") || "").split(/\s+/).includes(activeScope.id)) {
+        const original = resolveTarget(target, enableRuntimeFallback, route, new Set(), false, document);
+        return original.status === "resolved" && original.element === initialElement &&
+          kindMatches(target.kind, initialElement) && stateMatches(initialElement, name, expected);
+      }
+    }
     const resolution = resolveTarget(target, enableRuntimeFallback, route);
     if (resolution.status !== "resolved" || !resolution.element.isConnected) return false;
     return stateMatches(resolution.element, name, expected);
@@ -593,6 +666,7 @@ function stateMatches(element, name, expected) {
     case "selected": return (element.getAttribute("aria-selected") || element.getAttribute("aria-pressed")) === (expected || "true");
     case "checked": return "checked" in element && String(element.checked) === (expected || "true");
     case "expanded": return element.getAttribute("aria-expanded") === (expected || "true");
+    case "invalid": return ["input", "textarea", "select"].includes(element.tagName.toLowerCase()) && isInvalidControl(element) === (expected !== "false");
     case "visible": return isVisible(element) === (expected !== "false");
     case "exists": return element.isConnected === (expected !== "false");
     case "textContains": return typeof expected === "string" && !!normalize(expected) && normalize(element.innerText ?? "").includes(normalize(expected));

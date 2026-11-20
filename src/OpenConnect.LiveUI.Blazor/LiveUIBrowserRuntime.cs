@@ -104,6 +104,8 @@ public sealed class LiveUIBrowserRuntime(
         {
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>(
                 "import", cancellationToken, ModulePath).ConfigureAwait(false);
+            if (!await _module.InvokeAsync<bool>("canNavigate", cancellationToken).ConfigureAwait(false))
+                return new LiveUIRuntimeResult(LiveUIActionOutcome.Denied, "modal_open", false);
             string? observation = null;
             if (destination.Id.StartsWith(LiveUIRuntimeRouteIds.Prefix, StringComparison.Ordinal))
             {

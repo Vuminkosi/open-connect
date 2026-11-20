@@ -187,6 +187,13 @@ public sealed class LiveUIAgentTools(
         string targetId, string operation, string stateName, string? stateValue = null,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(operation, "activate", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(stateName) || stateName.Length > 32 || stateValue is { Length: > 256 })
+                return ValueTask.FromResult(Rejected("invalid_request"));
+            return ExecuteOnCurrentRouteAsync(targetId, LiveUIActionType.Click,
+                new(StateName: stateName, StateValue: stateValue), cancellationToken, resolveActivate: true);
+        }
         if (!Enum.TryParse<LiveUIActionType>(operation, ignoreCase: true, out var type) ||
             type is not (LiveUIActionType.Click or LiveUIActionType.Open or LiveUIActionType.Close) ||
             string.IsNullOrWhiteSpace(stateName) || stateName.Length > 32 || stateValue is { Length: > 256 })
@@ -268,7 +275,12 @@ public sealed class LiveUIAgentTools(
                             LiveUIActionOutcome.Conflict, "page_context_stale", false, DateTimeOffset.UtcNow);
             }
             if (resolveActivate && route.Targets.SingleOrDefault(target => target.Id == targetId)?.Kind == LiveUITargetKind.Tab)
+            {
+                // SelectTab has its own verification semantics and cannot honor an arbitrary state request.
+                if (parameters.StateName is not null)
+                    return Rejected("operation_unsupported");
                 type = LiveUIActionType.SelectTab;
+            }
             var action = CreateAction(context, manifest, route, targetId, type, parameters);
             var receipt = await orchestrator.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
             if (type == LiveUIActionType.Navigate && receipt.Outcome == LiveUIActionOutcome.Completed && receipt.PostconditionVerified)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Semantic memory search now returns relevance scores instead of always returning zero. Qdrant searches fail on a returned vector dimension mismatch rather than silently omitting the result.
+
+- LiveUI compiled interactive targets now require confirmation by default when they expose activation, value-setting, or selection capabilities. This changes generated manifest hashes and can produce `approval_required` for hosts without a confirmation provider. Tabs and links remain conservative because static markup cannot prove their handlers are side-effect free.
+
 - Made realtime voice transcript admission domain-neutral by default (#73).
   The SDK retains its existing best-final stream-end fallback but no longer applies
   Todo-specific early admission or word substitutions. Hosts can opt into additive

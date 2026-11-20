@@ -91,7 +91,7 @@ public sealed class RazorLiveUIManifestCompiler
                             .Select(ancestor => regionIds.TryGetValue(ancestor, out var parent) ? parent : null)
                             .FirstOrDefault(parent => parent is not null);
                         targets.Add(new(id, descriptor.Kind, descriptor.Label, descriptor.Capabilities, descriptor.Role,
-                            Selector: descriptor.Selector, ParentId: parentId, RequiresConfirmation: descriptor.RequiresConfirmation));
+                            Selector: descriptor.Selector, ParentId: parentId, RequiresConfirmation: RequiresConfirmation(descriptor)));
                         if (descriptor.Kind == LiveUITargetKind.Region && descriptor.Selector is not null)
                             regionIds[item.Node] = id;
                     }
@@ -115,7 +115,7 @@ public sealed class RazorLiveUIManifestCompiler
                                 diagnostics.Add(new("LUI1002", LiveUICompilerDiagnosticSeverity.Warning, component.File,
                                     $"Repeated {descriptor.Kind} target '{descriptor.Label}' is ambiguous at runtime."));
                             targets.Add(new(id, descriptor.Kind, descriptor.Label, descriptor.Capabilities, descriptor.Role,
-                                Selector: descriptor.Selector, RequiresConfirmation: descriptor.RequiresConfirmation));
+                                Selector: descriptor.Selector, RequiresConfirmation: RequiresConfirmation(descriptor)));
                         }
                     }
                 }
@@ -172,6 +172,10 @@ public sealed class RazorLiveUIManifestCompiler
             string.Equals(GetProperty(element, "TagName")?.ToString(), "PageTitle", StringComparison.OrdinalIgnoreCase));
         return pageTitle is null ? null : NormalizeText(ReadStaticText(GetChildren(GetProperty(pageTitle, "Body"))));
     }
+
+    private static bool RequiresConfirmation(TargetDescriptor descriptor) =>
+        descriptor.RequiresConfirmation || descriptor.Capabilities.Contains(LiveUICapability.Activate) ||
+        descriptor.Capabilities.Contains(LiveUICapability.SetValue) || descriptor.Capabilities.Contains(LiveUICapability.Select);
 
     private static IEnumerable<TargetDescriptor> Describe(IntermediateNode element, string source)
     {
@@ -420,7 +424,9 @@ public sealed class RazorLiveUIManifestCompiler
                 {
                     text = StripMarkup(markup[cursor..closeStart]);
                     var closeEnd = markup.IndexOf('>', closeStart);
-                    position = closeEnd < 0 ? closeStart + closingTag.Length : closeEnd + 1;
+                    position = tag.Equals("form", StringComparison.OrdinalIgnoreCase) || tag.Equals("EditForm", StringComparison.OrdinalIgnoreCase)
+                        ? cursor
+                        : closeEnd < 0 ? closeStart + closingTag.Length : closeEnd + 1;
                 }
                 else
                     position = cursor;
@@ -435,7 +441,7 @@ public sealed class RazorLiveUIManifestCompiler
     private static IEnumerable<TargetDescriptor> DescribeRaw(RawMarkupElement element)
     {
         var lower = element.Tag.ToLowerInvariant();
-        var label = First(element.Attributes, "aria-label", "aria-labelledby", "placeholder", "title");
+        var label = First(element.Attributes, "aria-label", "placeholder", "title");
         if (string.IsNullOrWhiteSpace(label) && lower is "button" or "a" or "summary")
             label = element.Text;
         var requiresConfirmation = element.Attributes.Keys.Any(name =>

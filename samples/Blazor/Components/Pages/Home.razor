@@ -13,12 +13,43 @@
 <TodoProgressComponent @ref="_progressRef" />
 
 <TodoEditorComponent OnTaskCreated="@OnTaskCreatedAsync" />
+<MudButton @ref="_dialogButton" Variant="Variant.Outlined" Class="mb-4" OnClick="OpenCreateDialog">New task dialog</MudButton>
+@if (_showCreateDialog)
+{
+    <TodoCreateDialog OnCreated="DialogCreatedAsync" OnCancel="CloseCreateDialog" />
+}
 
 <TodoListComponent @ref="_todoListRef" />
 
 @code {
     private TodoProgressComponent? _progressRef;
     private TodoListComponent? _todoListRef;
+    private MudButton? _dialogButton;
+    private bool _showCreateDialog;
+    private bool _restoreDialogFocus;
+
+    private void OpenCreateDialog() => _showCreateDialog = true;
+
+    private void CloseCreateDialog()
+    {
+        _showCreateDialog = false;
+        _restoreDialogFocus = true;
+    }
+
+    private async Task DialogCreatedAsync()
+    {
+        CloseCreateDialog();
+        await OnTaskCreatedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_restoreDialogFocus && _dialogButton is not null)
+        {
+            _restoreDialogFocus = false;
+            await _dialogButton.FocusAsync();
+        }
+    }
 
     private async Task OnTaskCreatedAsync()
     {

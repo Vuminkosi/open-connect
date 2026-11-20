@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>OpenConnect.LiveUI.Hosting</AssemblyName>
+    <RootNamespace>OpenConnect.LiveUI.Hosting</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="../OpenConnect.LiveUI.Agents/OpenConnect.LiveUI.Agents.csproj" />
+  </ItemGroup>
+</Project>
