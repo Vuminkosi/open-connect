@@ -35,6 +35,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Implement authoritative plan/subscription grant administration, deployment-driven availability updates, full change audit, and revocation.
 - [x] Implement server-to-server credential issuance, one-time no-store response, hash-only persistence, scope/environment/expiry binding, rotation, and revocation.
 - [x] Implement credential validation with fixed-time digest comparison, expiry/revocation checks, environment binding, and last-use metadata.
+- [x] Add control-plane machine credential and current entitlement evaluation with PostgreSQL isolation and revocation checks.
 - [ ] Integrate machine credentials with the Cloud gateway; verify fresh and active requests after revocation are rejected within the specified window.
 - [ ] Verify credential onboarding, one-time display, rotation, and revocation in an authenticated browser with configured entitlements and PostgreSQL.
 - [x] Add authorized catalog/selection APIs and UI; never place machine credentials in browser assets.

@@ -10,7 +10,7 @@ public sealed record CloudCredentialSummary(
     DateTimeOffset? RevokedAt, DateTimeOffset? LastUsedAt);
 public sealed record CloudCredentialIssueResult(string Status, CloudCredentialSummary? Credential = null, string? Secret = null);
 public sealed record CloudCredentialIdentity(
-    Guid TenantId, Guid ApplicationId, string Environment, IReadOnlySet<string> Scopes);
+    Guid CredentialId, Guid TenantId, Guid ApplicationId, string Environment, IReadOnlySet<string> Scopes);
 
 public sealed class CloudCredentialService(
     ICloudCredentialStore store,
@@ -115,7 +115,7 @@ public sealed class CloudCredentialService(
         var now = timeProvider.GetUtcNow();
         if (!await session.TouchIfActiveAsync(credential.Id, now, cancellationToken)) return null;
         var scopes = JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? [];
-        return new CloudCredentialIdentity(credential.TenantId, credential.ApplicationId, credential.Environment,
+        return new CloudCredentialIdentity(credential.Id, credential.TenantId, credential.ApplicationId, credential.Environment,
             new HashSet<string>(scopes, StringComparer.Ordinal));
     }
 
