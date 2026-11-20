@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- LiveUI compiled interactive targets now require confirmation by default when they expose activation, value-setting, or selection capabilities. This changes generated manifest hashes and can produce `approval_required` for hosts without a confirmation provider. Tabs and links remain conservative because static markup cannot prove their handlers are side-effect free.
+
 - Fixed speech synthesis worker failure handling (#66): transport/read failures now
   return generic 502 Problem Details and worker timeouts return 504. Worker 503 is
   preserved; worker 408/504 map to 504; all other unsuccessful worker statuses,
