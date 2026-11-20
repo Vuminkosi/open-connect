@@ -10,7 +10,7 @@ public sealed class EfCloudExecutionCompletionStore(IDbContextFactory<CloudContr
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        if (reservation is null || reservation.Amount != 1 || !await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.TenantId == tenantId && x.ApplicationId == applicationId, cancellationToken) ||
+        if (reservation is null || reservation.Amount != 1 || !await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.DeploymentId != null && x.Region != null, cancellationToken) ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.CapabilityId == "classification.classify" && x.Unit == "request", cancellationToken))
             return new("unavailable");
         if (reservation.FinalizedAt is not null)

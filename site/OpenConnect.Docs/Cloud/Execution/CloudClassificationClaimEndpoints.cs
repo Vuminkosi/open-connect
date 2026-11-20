@@ -6,7 +6,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public static class CloudClassificationClaimEndpoints
 {
-    private sealed record ClaimProof(string FingerprintKeyId, string Fingerprint);
+    private sealed record ClaimProof(string FingerprintKeyId, string Fingerprint, string EndpointReference, string Region, string ContractVersion, string ModelRevision);
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true };
     public static void MapCloudClassificationClaim(this WebApplication app, CloudGatewayClientTrust trust, bool databaseConfigured)
     {
@@ -29,6 +29,8 @@ public static class CloudClassificationClaimEndpoints
             if (reservationId == Guid.Empty) return Results.BadRequest();
             var proof = await ReadProofAsync(context.Request, cancellationToken);
             if (proof is null || !CloudRequestFingerprint.IsValidKeyId(proof.FingerprintKeyId) || proof.Fingerprint is null) return Results.BadRequest();
+            var deployment = new CloudClassificationDeploymentMatchRequest(proof.EndpointReference, proof.Region, proof.ContractVersion, proof.ModelRevision);
+            if (!CloudClassificationDeploymentService.IsValid(deployment)) return Results.BadRequest();
             byte[] fingerprint;
             try { fingerprint = Convert.FromBase64String(proof.Fingerprint); }
             catch (FormatException) { return Results.BadRequest(); }
@@ -36,7 +38,7 @@ public static class CloudClassificationClaimEndpoints
             try
             {
                 var result = await context.RequestServices.GetRequiredService<CloudExecutionClaimService>().ClaimAsync(
-                    authorization.Identity.CredentialId, authorization.Identity.TenantId, authorization.Identity.ApplicationId, reservationId, "classification.classify", proof.FingerprintKeyId, fingerprint, cancellationToken);
+                    authorization.Identity.CredentialId, authorization.Identity.TenantId, authorization.Identity.ApplicationId, reservationId, "classification.classify", proof.FingerprintKeyId, fingerprint, deployment, cancellationToken);
                 return Results.Json(result, statusCode: result.Status switch { "claimed" => 200, "already_claimed" or "idempotency_conflict" => 409, "invalid_request" => 400, _ => 503 });
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

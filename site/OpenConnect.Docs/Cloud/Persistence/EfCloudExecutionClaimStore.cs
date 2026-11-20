@@ -6,7 +6,7 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudExecutionClaimStore
 {
-    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CancellationToken cancellationToken)
+    public async Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId, string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment, CancellationToken cancellationToken)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -21,6 +21,13 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         if (application is null || application.Environment != credential.Environment) return new("unavailable");
         var capabilities = await EfCloudClaimCapabilitySnapshot.LockAsync(db, tenantId, applicationId, cancellationToken);
+        CloudWorkerDeployment? selectedDeployment = null;
+        if (capabilityId == "classification.classify")
+        {
+            if (!CloudClassificationDeploymentService.IsValid(deployment)) return new("unavailable");
+            selectedDeployment = await EfCloudClaimDeployment.LockEligibleAsync(db, tenantId, capabilities, deployment!, cancellationToken);
+            if (selectedDeployment is null) return new("unavailable");
+        }
         // Lock the reservation against both finalization and competing claims until the claim commits.
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
@@ -33,7 +40,8 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
         if (!string.Equals(reservation.FingerprintKeyId, fingerprintKeyId, StringComparison.Ordinal) ||
             !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
         if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
-        var claim = new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenantId, ApplicationId = applicationId, ClaimId = Guid.NewGuid(), ClaimedAt = now };
+        var claim = new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenantId, ApplicationId = applicationId, ClaimId = Guid.NewGuid(),
+            DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, ClaimedAt = now };
         db.ExecutionClaims.Add(claim);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -41,14 +41,15 @@ public sealed class CloudExecutionGuardUpgradeTests
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucket, TenantId = tenant.Id, ApplicationId = application.Id, CapabilityId = capability, Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 1 });
             db.QuotaReservations.Add(new CloudQuotaReservation { Id = reservation, BucketId = bucket, TenantId = tenant.Id, ApplicationId = application.Id, RequestId = Guid.NewGuid(), Amount = 1, Actual = 0, FinalizedAt = now, ExpiresAt = now.AddMinutes(5) });
-            db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservation, TenantId = tenant.Id, ApplicationId = application.Id, ClaimId = Guid.NewGuid(), ClaimedAt = now });
             await db.SaveChangesAsync();
+            var claimId = Guid.NewGuid();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claims (\"ReservationId\", \"TenantId\", \"ApplicationId\", \"ClaimId\", \"ClaimedAt\") VALUES ({reservation}, {tenant.Id}, {application.Id}, {claimId}, {now})");
             await Assert.ThrowsAnyAsync<Exception>(() => db.Database.MigrateAsync());
         }
         await using (var db = await factory.CreateDbContextAsync())
         {
             Assert.DoesNotContain("20261120173456_GuardClaimedReservationFinalization", await db.Database.GetAppliedMigrationsAsync());
-            Assert.True(await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservation));
+            Assert.True(await db.ExecutionClaims.Where(x => x.ReservationId == reservation).Select(x => x.ReservationId).AnyAsync());
         }
     }
 

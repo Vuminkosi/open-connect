@@ -224,9 +224,11 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
 
         modelBuilder.Entity<CloudExecutionClaim>(entity =>
         {
-            entity.ToTable("execution_claims");
+            entity.ToTable("execution_claims", table => table.HasCheckConstraint("ck_execution_claim_deployment", "(\"DeploymentId\" IS NULL) = (\"Region\" IS NULL)"));
             entity.HasKey(x => x.ReservationId);
             entity.HasIndex(x => x.ClaimId).IsUnique();
+            entity.Property(x => x.Region).HasMaxLength(80);
+            entity.HasOne<CloudWorkerDeployment>().WithMany().HasForeignKey(x => x.DeploymentId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<CloudQuotaReservation>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.ApplicationId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.ReservationId }).OnDelete(DeleteBehavior.Restrict);
         });

@@ -250,6 +250,13 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<DateTimeOffset>("ClaimedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("DeploymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -258,9 +265,14 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.HasIndex("ClaimId")
                         .IsUnique();
 
+                    b.HasIndex("DeploymentId");
+
                     b.HasIndex("TenantId", "ApplicationId", "ReservationId");
 
-                    b.ToTable("execution_claims", "cloud");
+                    b.ToTable("execution_claims", "cloud", t =>
+                        {
+                            t.HasCheckConstraint("ck_execution_claim_deployment", "(\"DeploymentId\" IS NULL) = (\"Region\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionCompletion", b =>
@@ -786,6 +798,11 @@ namespace OpenConnect.Docs.Cloud.Migrations
 
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionClaim", b =>
                 {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudWorkerDeployment", null)
+                        .WithMany()
+                        .HasForeignKey("DeploymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("OpenConnect.Docs.Cloud.CloudQuotaReservation", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "ApplicationId", "ReservationId")

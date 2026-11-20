@@ -171,7 +171,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var claimPath = $"/cloud/internal/v1/classification/quota/reservations/{reserved.ReservationId:D}/claim";
             async Task<HttpResponseMessage> Claim(HttpClient client, string? secret, HttpContent? body = null)
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, claimPath) { Content = body ?? JsonContent.Create(new { fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(new byte[32]) }) };
+                using var request = new HttpRequestMessage(HttpMethod.Post, claimPath) { Content = body ?? JsonContent.Create(new { fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(new byte[32]), endpointReference = classificationReference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1" }) };
                 if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
                 return await client.SendAsync(request);
             }
@@ -180,13 +180,58 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Claim(authorized, otherCredential.Secret)).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await Claim(authorized, classificationCredential.Secret, new StringContent("unexpected"))).StatusCode);
             Assert.Equal(HttpStatusCode.Conflict, (await Claim(authorized, classificationCredential.Secret,
-                JsonContent.Create(new { fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()) }))).StatusCode);
-            Assert.Equal("idempotency_conflict", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId!.Value, "wrong_key")).Status);
-            var claim = await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId!.Value);
+                JsonContent.Create(new { fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()), endpointReference = classificationReference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1" }))).StatusCode);
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
+            Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId!.Value, classificationReference)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
+                await db.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            }
+            Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            Assert.Equal("idempotency_conflict", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId!.Value, classificationReference, "wrong_key")).Status);
+            CloudExecutionClaimResult claim;
+            await using (var locker = await factory.CreateDbContextAsync())
+            await using (var regionWriter = await factory.CreateDbContextAsync())
+            await using (var deploymentWriter = await factory.CreateDbContextAsync())
+            await using (var observer = await factory.CreateDbContextAsync())
+            {
+                await using var transaction = await locker.Database.BeginTransactionAsync();
+                await locker.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reserved.ReservationId.Value} FOR UPDATE").AsNoTracking().SingleAsync();
+                var pendingClaim = NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference);
+                var waiting = false;
+                for (var attempt = 0; attempt < 100 && !waiting; attempt++)
+                {
+                    waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.quota_reservations%FOR UPDATE%') AS \"Value\"").SingleAsync();
+                    if (!waiting) await Task.Delay(20);
+                }
+                Assert.True(waiting);
+                var pendingRegion = regionWriter.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
+                var pendingDeployment = deploymentWriter.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+                await Task.Delay(100);
+                Assert.False(pendingRegion.IsCompleted); Assert.False(pendingDeployment.IsCompleted);
+                await transaction.CommitAsync();
+                claim = await pendingClaim;
+                Assert.Equal(1, await pendingRegion); Assert.Equal(1, await pendingDeployment);
+            }
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
+                await db.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            }
             Assert.Equal("claimed", claim.Status);
             Assert.NotNull(claim.ClaimId);
-            Assert.Equal("already_claimed", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value)).Status);
-            Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reserved.ReservationId.Value)).Status);
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                var storedClaim = await db.ExecutionClaims.SingleAsync(x => x.ReservationId == reserved.ReservationId.Value);
+                Assert.Equal("region-a", storedClaim.Region);
+                Assert.Equal((await db.WorkerDeployments.SingleAsync(x => x.EndpointReference == classificationReference)).Id, storedClaim.DeploymentId);
+            }
+            Assert.Equal("already_claimed", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference)).Status);
+            Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference)).Status);
             Assert.Equal("execution_requires_reconciliation", (await quota.FinalizeAsync(tenant.Id, appRecord.Id, reserved.ReservationId.Value, 0, CancellationToken.None)).Status);
             var completions = new CloudExecutionCompletionService(new EfCloudExecutionCompletionStore(factory, TimeProvider.System));
             Assert.Equal("unavailable", (await completions.CompleteClassificationAsync(tenant.Id, otherApp.Id, reserved.ReservationId.Value, claim.ClaimId!.Value, "completed", CancellationToken.None)).Status);
@@ -209,7 +254,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE cloud.execution_completions"));
             }
             var failedReservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
-            var failedClaim = await new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System)).ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id, failedReservation.ReservationId!.Value, "classification.classify", "retained_key", new byte[32], CancellationToken.None);
+            var failedClaim = await new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, TimeProvider.System)).ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id, failedReservation.ReservationId!.Value, "classification.classify", "retained_key", new byte[32], new CloudClassificationDeploymentMatchRequest(classificationReference, "region-a", "openconnect.v1", "revision-1"), CancellationToken.None);
             Assert.Equal("claimed", failedClaim.Status);
             Assert.Equal("invalid_request", (await completions.CompleteClassificationAsync(tenant.Id, appRecord.Id, failedReservation.ReservationId.Value, failedClaim.ClaimId!.Value, "failed", CancellationToken.None)).Status);
             await using (var db = await factory.CreateDbContextAsync())
@@ -220,7 +265,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             }
             var nodeReservation = await quota.ReserveAsync(new CloudQuotaRequest(tenant.Id, appRecord.Id, "classification.classify", "request", Guid.NewGuid(), "retained_key", new byte[32], 1, now.AddMinutes(5)), CancellationToken.None);
             Assert.Equal("reserved", nodeReservation.Status);
-            var nodeClaim = await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId!.Value);
+            var nodeClaim = await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, nodeReservation.ReservationId!.Value, classificationReference);
             Assert.Equal("claimed", nodeClaim.Status);
             var completionPath = $"/cloud/internal/v1/classification/quota/reservations/{nodeReservation.ReservationId:D}/claims/{nodeClaim.ClaimId:D}/completion";
             async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
@@ -379,10 +424,10 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         return System.Text.Json.JsonSerializer.Deserialize<CloudQuotaResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
-    private static async Task<CloudExecutionClaimResult> NodeClaimAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, string keyId = "retained_key")
+    private static async Task<CloudExecutionClaimResult> NodeClaimAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, string reference, string keyId = "retained_key")
     {
-        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:process.env.OC_TEST_DEPLOYMENT,fingerprint:Buffer.alloc(32).toString('base64')})));";
-        var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), keyId);
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_DEPLOYMENT); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:x.keyId,fingerprint:Buffer.alloc(32).toString('base64'),deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}})));";
+        var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), System.Text.Json.JsonSerializer.Serialize(new { keyId, reference }));
         return System.Text.Json.JsonSerializer.Deserialize<CloudExecutionClaimResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
