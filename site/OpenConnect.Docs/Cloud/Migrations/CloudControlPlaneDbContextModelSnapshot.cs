@@ -316,6 +316,27 @@ namespace OpenConnect.Docs.Cloud.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionConsumption", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeploymentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ReservationId");
+
+                    b.HasIndex("DeploymentId");
+
+                    b.ToTable("execution_consumptions", "cloud");
+                });
+
             modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudInvitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -842,6 +863,21 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.HasOne("OpenConnect.Docs.Cloud.CloudExecutionClaim", null)
                         .WithOne()
                         .HasForeignKey("OpenConnect.Docs.Cloud.CloudExecutionCompletion", "ReservationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OpenConnect.Docs.Cloud.CloudExecutionConsumption", b =>
+                {
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudWorkerDeployment", null)
+                        .WithMany()
+                        .HasForeignKey("DeploymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OpenConnect.Docs.Cloud.CloudExecutionClaim", null)
+                        .WithOne()
+                        .HasForeignKey("OpenConnect.Docs.Cloud.CloudExecutionConsumption", "ReservationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

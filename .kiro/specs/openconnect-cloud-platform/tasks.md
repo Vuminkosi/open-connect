@@ -77,6 +77,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add operator-only, audited catalog region declarations with revision checks that account for older writers; declarations are not independent geographic attestation.
 - [x] Add organization and operator region policy pages with role checks, stale-write feedback and component tests; real-browser accessibility and responsive verification remain outstanding.
 - [x] Bind classification claims to a locked deployment and region policy and preserve deployment/region evidence; legacy unbound claims remain held.
+- [x] Add an append-only, deployment-bound single-consumption store and verify concurrent attempts against PostgreSQL; worker identity, transport and invocation remain outstanding.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.

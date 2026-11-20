@@ -243,11 +243,32 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             }
             Assert.Equal("claimed", claim.Status);
             Assert.NotNull(claim.ClaimId);
+            Guid deploymentId;
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var storedClaim = await db.ExecutionClaims.SingleAsync(x => x.ReservationId == reserved.ReservationId.Value);
                 Assert.Equal("region-a", storedClaim.Region);
                 Assert.Equal((await db.WorkerDeployments.SingleAsync(x => x.EndpointReference == classificationReference)).Id, storedClaim.DeploymentId);
+                deploymentId = storedClaim.DeploymentId!.Value;
+            }
+            var consumption = new CloudExecutionConsumptionService(new EfCloudExecutionConsumptionStore(factory, TimeProvider.System));
+            Assert.Equal("invalid_request", await consumption.ConsumeAsync(Guid.Empty, claim.ClaimId!.Value, deploymentId, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, Guid.NewGuid(), deploymentId, default));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, Guid.NewGuid(), default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.Equal("unavailable", await consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            var consumptions = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => consumption.ConsumeAsync(reserved.ReservationId.Value, claim.ClaimId.Value, deploymentId, default)));
+            Assert.Single(consumptions, x => x == "consumed");
+            Assert.Equal(19, consumptions.Count(x => x == "already_consumed"));
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                Assert.Single(await db.ExecutionConsumptions.Where(x => x.ReservationId == reserved.ReservationId.Value).ToListAsync());
+                await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reserved.ReservationId.Value}, {Guid.NewGuid()}, {deploymentId}, {DateTimeOffset.UtcNow})"));
+                await Assert.ThrowsAnyAsync<Exception>(() => db.ExecutionConsumptions.Where(x => x.ReservationId == reserved.ReservationId.Value).ExecuteDeleteAsync());
+                await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE cloud.execution_consumptions"));
             }
             Assert.Equal("already_claimed", (await NodeClaimAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference)).Status);
             Assert.Equal("unavailable", (await NodeClaimAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, reserved.ReservationId.Value, classificationReference)).Status);
