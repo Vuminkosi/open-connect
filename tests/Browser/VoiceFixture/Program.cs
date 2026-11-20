@@ -41,6 +41,16 @@ app.Use(async (context, next) =>
 });
 app.MapGet("/_fixture/config", () => new { app = appOrigin, provider = providerOrigin, title, raw, normalized, guard, todoToken, tenant });
 app.MapGet("/_fixture/evidence", () => state);
+app.MapGet("/_fixture/voice-status", (HttpContext context) =>
+{
+    if (context.Request.Headers["X-OpenConnect-Local-Guard"] != guard)
+        return Results.StatusCode(403);
+    return Results.Json(new {
+        upgrades = Math.Min(Interlocked.Read(ref state.VoiceUpgrades), 10000),
+        acks = Math.Min(Interlocked.Read(ref state.VoiceAcknowledgements), 10000),
+        pcmBytes = Math.Min(state.ReceivedPcmBytes, 32 * 1024 * 1024),
+    });
+});
 using var http = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(2) };
 app.MapGet("/_fixture/ready", async () =>
 {
@@ -61,6 +71,7 @@ app.Map("/internal/v1/realtime", async context =>
         return;
     }
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    Interlocked.Increment(ref state.VoiceUpgrades);
     var buffer = new byte[64 * 1024];
     var sent = false;
     using var control = new MemoryStream();
@@ -70,6 +81,7 @@ app.Map("/internal/v1/realtime", async context =>
         // The gateway waits for a worker acknowledgement before relaying PCM.
         // The real worker forwards the provider's opaque first frame; this fixture owns its marker.
         await socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new { type = sessionAckType }), WebSocketMessageType.Text, true, deadline.Token);
+        Interlocked.Increment(ref state.VoiceAcknowledgements);
         while (socket.State == WebSocketState.Open)
         {
             var result = await socket.ReceiveAsync(buffer.AsMemory(), deadline.Token);
@@ -182,6 +194,8 @@ if (selfTest)
 {
     try
     {
+        using var unguarded = await http.GetAsync(providerOrigin + "/_fixture/voice-status");
+        if (unguarded.StatusCode != HttpStatusCode.Forbidden) throw new Exception("Unguarded voice status was not denied");
         using var unknown = await http.GetAsync(providerOrigin + "/unknown");
         if (unknown.StatusCode != HttpStatusCode.Forbidden) throw new Exception("Unknown HTTP route was not denied");
         using var unauthorized = await http.GetAsync(providerOrigin + "/internal/v1/realtime");
@@ -224,6 +238,16 @@ if (selfTest)
         var result = await ws.ReceiveAsync(bytes.AsMemory(), timeout.Token);
         if (result.MessageType != WebSocketMessageType.Close) throw new Exception("Fragmented endStream did not close");
         if (state.ClosedAt <= state.FinalAt || state.PcmBytes != 4) throw new Exception("Incorrect transport evidence");
+        using var snapshotRequest = new HttpRequestMessage(HttpMethod.Get, providerOrigin + "/_fixture/voice-status");
+        snapshotRequest.Headers.Add("X-OpenConnect-Local-Guard", guard);
+        using var snapshotResponse = await http.SendAsync(snapshotRequest, timeout.Token);
+        snapshotResponse.EnsureSuccessStatusCode();
+        using var snapshot = JsonDocument.Parse(await snapshotResponse.Content.ReadAsStringAsync(timeout.Token));
+        if (snapshot.RootElement.GetProperty("upgrades").GetInt64() != 1 ||
+            snapshot.RootElement.GetProperty("acks").GetInt64() != 1 ||
+            snapshot.RootElement.GetProperty("pcmBytes").GetInt64() != 4 ||
+            snapshot.RootElement.EnumerateObject().Count() != 3)
+            throw new Exception("Incorrect guarded voice status");
         using var oversized = new ClientWebSocket();
         oversized.Options.Proxy = null;
         oversized.Options.SetRequestHeader("Authorization", "Bearer " + workerToken);
@@ -314,6 +338,8 @@ static async Task<JsonDocument> ReceiveFixtureTextAsync(ClientWebSocket socket, 
 
 internal sealed class Evidence
 {
+    public long VoiceUpgrades;
+    public long VoiceAcknowledgements;
     public long PcmBytes;
     public long FinalAt { get; set; }
     public long ClosedAt { get; set; }
