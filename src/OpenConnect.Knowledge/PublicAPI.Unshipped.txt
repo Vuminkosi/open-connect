@@ -1,0 +1,41 @@
+#nullable enable
+OpenConnect.Knowledge.KnowledgeEmbedding
+OpenConnect.Knowledge.KnowledgeEmbedding.<Clone>$() -> OpenConnect.Knowledge.KnowledgeEmbedding!
+OpenConnect.Knowledge.KnowledgeEmbedding.Deconstruct(out System.Collections.Generic.IReadOnlyList<float>! Vector, out bool Truncated, out double Norm) -> void
+OpenConnect.Knowledge.KnowledgeEmbedding.Equals(OpenConnect.Knowledge.KnowledgeEmbedding? other) -> bool
+OpenConnect.Knowledge.KnowledgeEmbedding.KnowledgeEmbedding(System.Collections.Generic.IReadOnlyList<float>! Vector, bool Truncated, double Norm) -> void
+OpenConnect.Knowledge.KnowledgeEmbedding.Norm.get -> double
+OpenConnect.Knowledge.KnowledgeEmbedding.Norm.init -> void
+OpenConnect.Knowledge.KnowledgeEmbedding.Truncated.get -> bool
+OpenConnect.Knowledge.KnowledgeEmbedding.Truncated.init -> void
+OpenConnect.Knowledge.KnowledgeEmbedding.Vector.get -> System.Collections.Generic.IReadOnlyList<float>!
+OpenConnect.Knowledge.KnowledgeEmbedding.Vector.init -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingClient
+OpenConnect.Knowledge.KnowledgeEmbeddingClient.Dispose() -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingClient.EmbedAsync(OpenConnect.Privacy.EgressContext! context, string! inputKind, System.Collections.Generic.IReadOnlyList<string!>! texts, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!
+OpenConnect.Knowledge.KnowledgeEmbeddingClient.KnowledgeEmbeddingClient(OpenConnect.Privacy.IEgressGate! egressGate, System.Uri! endpoint, string! bearerToken, byte[]! signingKey, OpenConnect.Privacy.EgressDestination destination = OpenConnect.Privacy.EgressDestination.ExternalModel, bool allowInsecureHttp = false) -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.<Clone>$() -> OpenConnect.Knowledge.KnowledgeEmbeddingResult!
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Knowledge.KnowledgeEmbedding!>! Items, out string! ModelId, out string! Fingerprint, out int Dimension, out string! SpaceId) -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Dimension.get -> int
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Dimension.init -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Equals(OpenConnect.Knowledge.KnowledgeEmbeddingResult? other) -> bool
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Fingerprint.get -> string!
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Fingerprint.init -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Items.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Knowledge.KnowledgeEmbedding!>!
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.Items.init -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.KnowledgeEmbeddingResult(System.Collections.Generic.IReadOnlyList<OpenConnect.Knowledge.KnowledgeEmbedding!>! Items, string! ModelId, string! Fingerprint, int Dimension, string! SpaceId) -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.get -> string!
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.init -> void
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.get -> string!
+OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.init -> void
+override OpenConnect.Knowledge.KnowledgeEmbedding.Equals(object? obj) -> bool
+override OpenConnect.Knowledge.KnowledgeEmbedding.GetHashCode() -> int
+override OpenConnect.Knowledge.KnowledgeEmbedding.ToString() -> string!
+override OpenConnect.Knowledge.KnowledgeEmbeddingResult.Equals(object? obj) -> bool
+override OpenConnect.Knowledge.KnowledgeEmbeddingResult.GetHashCode() -> int
+override OpenConnect.Knowledge.KnowledgeEmbeddingResult.ToString() -> string!
+static OpenConnect.Knowledge.KnowledgeEmbedding.operator !=(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
+static OpenConnect.Knowledge.KnowledgeEmbedding.operator ==(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
+static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator !=(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool
+static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator ==(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool
