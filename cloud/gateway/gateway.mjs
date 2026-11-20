@@ -29,7 +29,7 @@ function problem(code) {
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
-export async function handle(request, { authorization } = {}) {
+export async function handle(request, { authorization, classificationProbe } = {}) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
@@ -46,6 +46,13 @@ export async function handle(request, { authorization } = {}) {
     try { decision = await authorization.authorize(match[1], capability, request.signal); }
     catch { return problem('capability_unavailable'); }
     if (decision?.authorized !== true) return problem(decision?.code);
+    if (capability === 'classification.classify' && classificationProbe) {
+        try {
+            const readiness = await classificationProbe.probe(request.signal);
+            if (readiness?.ready !== true) return problem('capability_unavailable');
+        }
+        catch { /* Readiness errors never enable execution or expose diagnostics. */ }
+    }
     // Authorization alone never permits execution: quota, privacy and routing are not connected.
     return problem('capability_unavailable');
 }

@@ -14,8 +14,83 @@ using Xunit;
 
 namespace OpenConnect.Docs.Tests;
 
+public sealed class CloudClassificationWorkerFactAttribute : FactAttribute
+{
+    public CloudClassificationWorkerFactAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON")) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT")))
+            Skip = "Set the disposable classification worker Python and source paths to run the real-worker probe.";
+    }
+}
+
 public sealed class CloudClassificationProbeTests
 {
+    [CloudClassificationWorkerFact]
+    public async Task ActualFakeClassificationWorkerIsRejectedThroughMutualTlsProxy()
+    {
+        var portListener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        portListener.Start();
+        var workerPort = ((IPEndPoint)portListener.LocalEndpoint).Port;
+        portListener.Stop();
+        var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON")!)
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
+        foreach (var value in new[] { "-m", "uvicorn", "openconnect_classification.app:app", "--host", "127.0.0.1", "--port", workerPort.ToString(), "--log-level", "warning" })
+            start.ArgumentList.Add(value);
+        start.Environment["PYTHONPATH"] = Path.Combine(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT")!, "src");
+        start.Environment["OC_ENVIRONMENT"] = "Development";
+        start.Environment["OC_WORKER_ENGINE"] = "fake";
+        start.Environment["OC_MODEL_PROVISIONING"] = "disabled";
+        start.Environment["OC_MODEL_OFFLINE"] = "true";
+        start.Environment["OC_MODEL_DEVICE"] = "cpu";
+        start.Environment["OPENCONNECT_WORKER_TOKEN"] = "worker-secret";
+        using var worker = Process.Start(start)!;
+        try
+        {
+            using var workerClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{workerPort}") };
+            var ready = false;
+            for (var attempt = 0; attempt < 100 && !ready; attempt++)
+            {
+                if (worker.HasExited) throw new InvalidOperationException("Classification worker exited before readiness.");
+                try { ready = (await workerClient.GetAsync("/health/live")).IsSuccessStatusCode; }
+                catch (HttpRequestException) { await Task.Delay(100); }
+            }
+            Assert.True(ready);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await workerClient.GetAsync("/internal/v1/capabilities")).StatusCode);
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/internal/v1/capabilities"))
+            {
+                request.Headers.Add("Authorization", "Bearer worker-secret");
+                using var response = await workerClient.SendAsync(request);
+                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                Assert.Equal("classification", json.RootElement.GetProperty("workerKind").GetString());
+                Assert.Equal("fake", json.RootElement.GetProperty("engine").GetString());
+            }
+            using var serverCertificate = Certificate(false);
+            using var clientCertificate = Certificate(true);
+            var trust = new CloudGatewayClientTrust([Convert.ToHexString(clientCertificate.GetCertHash(HashAlgorithmName.SHA256))]);
+            var builder = WebApplication.CreateBuilder();
+            builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, listener => listener.UseHttps(serverCertificate, trust.ConfigureHttps)));
+            await using var app = builder.Build();
+            async Task<IResult> Forward(HttpContext context)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, context.Request.Path.Value);
+                if (context.Request.Headers.TryGetValue("Authorization", out var authorization)) request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
+                using var response = await workerClient.SendAsync(request);
+                return Results.Content(await response.Content.ReadAsStringAsync(), "application/json", statusCode: (int)response.StatusCode);
+            }
+            app.MapGet("/health/ready", (Delegate)Forward);
+            app.MapGet("/internal/v1/capabilities", (Delegate)Forward);
+            await app.StartAsync();
+            var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
+            Assert.False(await ProbeAsync(address, serverCertificate, clientCertificate, "worker-secret", "fake-0.1.0"));
+        }
+        finally
+        {
+            if (!worker.HasExited) worker.Kill(entireProcessTree: true);
+            await worker.WaitForExitAsync();
+        }
+    }
+
     [Fact]
     public async Task ProbeRequiresPrivateTlsHealthyRealEngineAndMatchingAdvertisement()
     {
@@ -47,9 +122,9 @@ public sealed class CloudClassificationProbeTests
         Assert.False(await ProbeAsync(address, wrongCertificate, clientCertificate, "worker-secret"));
     }
 
-    private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token)
+    private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:'revision-1'}); process.stdout.write(JSON.stringify(await p.probe()));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION}); process.stdout.write(JSON.stringify(await p.probe()));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-probe.mjs")).AbsoluteUri;
@@ -59,6 +134,7 @@ public sealed class CloudClassificationProbeTests
         using var key = client.GetRSAPrivateKey()!;
         start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_TOKEN"] = token;
+        start.Environment["OC_TEST_REVISION"] = revision;
         using var process = Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);

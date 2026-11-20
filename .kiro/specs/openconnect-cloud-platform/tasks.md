@@ -62,6 +62,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Expose operator deployment PUT with configured-identity authorization, antiforgery, bounded JSON, optimistic revisions and sanitized audit; exercise the HTTP and PostgreSQL path.
 - [x] Add an operator workspace for catalog-filtered deployment registration and enable/disable actions with audited revision checks.
 - [x] Add a private mutual-TLS classification readiness probe that checks real engine and capability advertisement; verify with a simulated worker over mutual TLS.
+- [x] Configure and invoke that probe after classification authorization; verify fake-engine rejection against the actual worker behind a local mutual-TLS proxy.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.
