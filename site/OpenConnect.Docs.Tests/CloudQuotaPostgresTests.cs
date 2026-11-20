@@ -49,7 +49,7 @@ public sealed class CloudQuotaPostgresTests
             await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }
         var service = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
-        CloudQuotaRequest Request(Guid id, long amount = 1) => new(tenant.Id, app.Id, capability, "request", id, amount, expiry);
+        CloudQuotaRequest Request(Guid id, long amount = 1) => new(tenant.Id, app.Id, capability, "request", id, new byte[32], amount, expiry);
         var attempts = await Task.WhenAll(Enumerable.Range(0, 100).Select(_ => service.ReserveAsync(Request(Guid.NewGuid()), CancellationToken.None)));
         var accepted = attempts.Where(x => x.Status == "reserved").ToArray();
         Assert.Equal(10, accepted.Length);
@@ -67,6 +67,8 @@ public sealed class CloudQuotaPostgresTests
         Assert.Single(duplicates, x => x.Status == "reserved");
         Assert.Equal(11, duplicates.Count(x => x.Status == "duplicate"));
         Assert.Equal("idempotency_conflict", (await service.ReserveAsync(repeatedRequest with { Amount = 2 }, CancellationToken.None)).Status);
+        Assert.Equal("idempotency_conflict", (await service.ReserveAsync(repeatedRequest with { RequestFingerprint = Enumerable.Repeat((byte)1, 32).ToArray() }, CancellationToken.None)).Status);
+        Assert.Equal("invalid_request", (await service.ReserveAsync(repeatedRequest with { RequestId = Guid.NewGuid(), RequestFingerprint = new byte[31] }, CancellationToken.None)).Status);
         var chargeId = accepted[1].ReservationId!.Value;
         Assert.Equal("finalized", (await service.FinalizeAsync(tenant.Id, app.Id, chargeId, 1, CancellationToken.None)).Status);
         Assert.Equal("already_finalized", (await service.FinalizeAsync(tenant.Id, app.Id, chargeId, 1, CancellationToken.None)).Status);
@@ -77,6 +79,42 @@ public sealed class CloudQuotaPostgresTests
         Assert.Equal(9, bucket.Reserved);
         Assert.Equal(1, bucket.Consumed);
         Assert.Equal(11, await verify.QuotaReservations.CountAsync(x => x.BucketId == bucketId));
+    }
+
+    [CloudPostgresFact]
+    public async Task PreFingerprintReservationCannotBeReplayedAfterMigration()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.GetService<IMigrator>().MigrateAsync("20261120134824_BindQuotaReservationToApplication");
+        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
+        var tenant = await tenants.CreateTenantAsync(owner, "Legacy quota", CancellationToken.None);
+        var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
+        var capability = "test." + Guid.NewGuid().ToString("N");
+        var now = DateTimeOffset.UtcNow;
+        var rawExpiry = now.AddMinutes(5);
+        var expiry = new DateTimeOffset(rawExpiry.Ticks - rawExpiry.Ticks % 10, TimeSpan.Zero);
+        var bucketId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability,
+                Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10, Reserved = 1 });
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.quota_reservations (\"Id\", \"BucketId\", \"TenantId\", \"ApplicationId\", \"RequestId\", \"Amount\", \"ExpiresAt\") VALUES ({reservationId}, {bucketId}, {tenant.Id}, {app.Id}, {requestId}, {1L}, {expiry})");
+            await db.Database.MigrateAsync();
+        }
+        var service = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
+        var retry = new CloudQuotaRequest(tenant.Id, app.Id, capability, "request", requestId, new byte[32], 1, expiry);
+        Assert.Equal("idempotency_conflict", (await service.ReserveAsync(retry, CancellationToken.None)).Status);
+        Assert.Equal("finalized", (await service.FinalizeAsync(tenant.Id, app.Id, reservationId, 0, CancellationToken.None)).Status);
+        await using var verify = await factory.CreateDbContextAsync();
+        Assert.Equal(0, (await verify.QuotaBuckets.SingleAsync(x => x.Id == bucketId)).Reserved);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

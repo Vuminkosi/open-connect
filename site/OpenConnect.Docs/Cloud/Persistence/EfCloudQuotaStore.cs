@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -21,7 +22,7 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved + request.Amount), cancellationToken);
         if (updated != 1) return await FindExistingAsync(db, request, cancellationToken) ?? new("quota_exceeded");
         var reservation = new CloudQuotaReservation { Id = Guid.NewGuid(), BucketId = buckets[0].Id, TenantId = request.TenantId,
-            ApplicationId = request.ApplicationId, RequestId = request.RequestId, Amount = request.Amount, ExpiresAt = request.ExpiresAt };
+            ApplicationId = request.ApplicationId, RequestId = request.RequestId, RequestFingerprint = request.RequestFingerprint, Amount = request.Amount, ExpiresAt = request.ExpiresAt };
         db.QuotaReservations.Add(reservation);
         try
         {
@@ -65,9 +66,10 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
         var existing = await (from reservation in db.QuotaReservations.AsNoTracking()
             join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
             where reservation.TenantId == request.TenantId && reservation.ApplicationId == request.ApplicationId && reservation.RequestId == request.RequestId
-            select new { reservation.Id, reservation.Amount, reservation.ExpiresAt, bucket.CapabilityId, bucket.Unit }).SingleOrDefaultAsync(cancellationToken);
+            select new { reservation.Id, reservation.Amount, reservation.ExpiresAt, reservation.RequestFingerprint, bucket.CapabilityId, bucket.Unit }).SingleOrDefaultAsync(cancellationToken);
         if (existing is null) return null;
-        return new(existing.Amount == request.Amount && existing.ExpiresAt == request.ExpiresAt && existing.CapabilityId == request.CapabilityId && existing.Unit == request.Unit
+        return new(existing.RequestFingerprint is { Length: 32 } && CryptographicOperations.FixedTimeEquals(existing.RequestFingerprint, request.RequestFingerprint) &&
+            existing.Amount == request.Amount && existing.ExpiresAt == request.ExpiresAt && existing.CapabilityId == request.CapabilityId && existing.Unit == request.Unit
             ? "duplicate" : "idempotency_conflict", existing.Id);
     }
 }

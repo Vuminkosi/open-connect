@@ -417,6 +417,9 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<DateTimeOffset?>("FinalizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<byte[]>("RequestFingerprint")
+                        .HasColumnType("bytea");
+
                     b.Property<Guid>("RequestId")
                         .HasColumnType("uuid");
 
@@ -432,7 +435,7 @@ namespace OpenConnect.Docs.Cloud.Migrations
 
                     b.ToTable("quota_reservations", "cloud", t =>
                         {
-                            t.HasCheckConstraint("ck_quota_reservation_amounts", "\"Amount\" > 0 AND (\"Actual\" IS NULL OR (\"Actual\" >= 0 AND \"Actual\" <= \"Amount\")) AND ((\"Actual\" IS NULL) = (\"FinalizedAt\" IS NULL))");
+                            t.HasCheckConstraint("ck_quota_reservation_amounts", "\"Amount\" > 0 AND (\"Actual\" IS NULL OR (\"Actual\" >= 0 AND \"Actual\" <= \"Amount\")) AND ((\"Actual\" IS NULL) = (\"FinalizedAt\" IS NULL)) AND (\"RequestFingerprint\" IS NULL OR octet_length(\"RequestFingerprint\") = 32)");
                         });
                 });
 

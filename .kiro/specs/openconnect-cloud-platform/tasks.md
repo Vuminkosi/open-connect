@@ -48,7 +48,8 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Implement versioned cloud gateway, authenticated private worker adapters, typed errors, bounded streaming, admission controls, and capability routing.
 - [ ] Implement signed, sanitized security receipts and coverage status without replacing application-host privacy enforcement.
 - [x] Add app/capability quota buckets and atomic idempotent PostgreSQL reservation/finalization primitives; verify contention and tenant binding.
-- [ ] Integrate quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
+- [x] Bind quota idempotency to a stored fingerprint and fail closed for pre-fingerprint reservation retries.
+- [ ] Implement canonical keyed fingerprint generation and key rotation, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.

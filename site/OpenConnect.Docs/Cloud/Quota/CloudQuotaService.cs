@@ -1,7 +1,7 @@
 namespace OpenConnect.Docs.Cloud;
 
 public sealed record CloudQuotaRequest(Guid TenantId, Guid ApplicationId, string CapabilityId, string Unit,
-    Guid RequestId, long Amount, DateTimeOffset ExpiresAt);
+    Guid RequestId, byte[] RequestFingerprint, long Amount, DateTimeOffset ExpiresAt);
 public sealed record CloudQuotaResult(string Status, Guid? ReservationId = null);
 
 public interface ICloudQuotaStore
@@ -17,12 +17,13 @@ public sealed class CloudQuotaService(ICloudQuotaStore store, TimeProvider timeP
         var now = timeProvider.GetUtcNow();
         if (request.TenantId == Guid.Empty || request.ApplicationId == Guid.Empty || request.RequestId == Guid.Empty ||
             string.IsNullOrWhiteSpace(request.CapabilityId) || request.CapabilityId.Length > 80 ||
-            string.IsNullOrWhiteSpace(request.Unit) || request.Unit.Length > 80 || request.Amount <= 0 || request.ExpiresAt <= now)
+            string.IsNullOrWhiteSpace(request.Unit) || request.Unit.Length > 80 || request.RequestFingerprint is not { Length: 32 } ||
+            request.Amount <= 0 || request.ExpiresAt <= now)
             return Task.FromResult(new CloudQuotaResult("invalid_request"));
         var utcExpiry = request.ExpiresAt.ToUniversalTime();
         var storedExpiry = new DateTimeOffset(utcExpiry.Ticks - utcExpiry.Ticks % 10, TimeSpan.Zero);
         if (storedExpiry <= now) return Task.FromResult(new CloudQuotaResult("invalid_request"));
-        return store.ReserveAsync(request with { ExpiresAt = storedExpiry }, now, cancellationToken);
+        return store.ReserveAsync(request with { ExpiresAt = storedExpiry, RequestFingerprint = request.RequestFingerprint.ToArray() }, now, cancellationToken);
     }
 
     public Task<CloudQuotaResult> FinalizeAsync(Guid tenantId, Guid applicationId, Guid reservationId, long actual, CancellationToken cancellationToken) =>
