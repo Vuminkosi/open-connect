@@ -179,3 +179,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add the gateway client for authenticated inference output inspection and exercise it against the real local endpoint; public response-path integration remains outstanding.
 
 - [x] Compose inference admission, claimed dispatch, access monitoring and output inspection in a fail-closed coordinator; production deployment monitoring and route wiring remain outstanding.
+
+- [x] Add claim-bound inference policy and deployment revalidation with a cancellable gateway access monitor; public route wiring and live execution acceptance remain outstanding.

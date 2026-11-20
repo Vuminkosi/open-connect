@@ -114,6 +114,20 @@ public sealed class CloudInferenceClaimPostgresTests
             Assert.Equal("unavailable", mismatched.Status);
             var firstClaim = await Claim(id, "registry/model-a");
             Assert.Equal("claimed", firstClaim.Status);
+            var access = new EfCloudInferenceAccessStore(factory, TimeProvider.System);
+            Assert.True(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId!.Value, default));
+            Assert.False(await access.IsClaimAllowedAsync(machine with { CredentialId = Guid.NewGuid() }, id, firstClaim.ClaimId.Value, default));
+            Assert.False(await access.IsClaimAllowedAsync(machine with { ApplicationId = Guid.NewGuid() }, id, firstClaim.ClaimId.Value, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.False(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[]"));
+            Assert.False(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-a\"]"));
             var consumption = new CloudInferenceConsumptionService(new EfCloudInferenceConsumptionStore(factory, TimeProvider.System));
             Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, Guid.NewGuid(), new byte[32], default)).Status);
             Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId.Value, deploymentId, Enumerable.Repeat((byte)1, 32).ToArray(), default)).Status);
@@ -135,7 +149,9 @@ public sealed class CloudInferenceClaimPostgresTests
                 Assert.Equal("unavailable", (await pending).Status);
             }
             Assert.Equal("unavailable", (await consumption.ConsumeAsync(id, firstClaim.ClaimId!.Value, deploymentId, new byte[32], default)).Status);
+            Assert.False(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
             Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["registry/model-a"], 2, default)).Status);
+            Assert.True(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var requestId = (await db.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
@@ -178,6 +194,7 @@ public sealed class CloudInferenceClaimPostgresTests
             Assert.Single(completions, x => x == "completed");
             Assert.Equal(9, completions.Count(x => x == "already_completed"));
             Assert.Equal("conflict", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(1, 2), default));
+            Assert.True(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
             Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { CredentialId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
             Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { TenantId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
             Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { ApplicationId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
@@ -244,12 +261,14 @@ public sealed class CloudInferenceClaimPostgresTests
         builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
         builder.Services.AddSingleton(new CloudInferenceOutputPrivacyService(new RulesSecurityDetector()));
         builder.Services.AddScoped<ICloudInferenceOutputEvidenceStore, EfCloudInferenceOutputEvidenceStore>();
+        builder.Services.AddScoped<ICloudInferenceAccessStore, EfCloudInferenceAccessStore>();
         var evidence = new SwitchableInferenceEvidence(new EfCloudInferencePrivacyEvidenceStore(factory, TimeProvider.System));
         builder.Services.AddSingleton<ICloudInferencePrivacyEvidenceStore>(evidence);
         await using var host = builder.Build();
         host.MapCloudGatewayAuthorization(trust, true);
         host.MapCloudInferencePrivacy(trust, true);
         host.MapCloudInferenceOutputPrivacy(trust, true);
+        host.MapCloudInferenceAccess(trust, true);
         host.MapCloudInferenceFingerprintKeyLookup(trust, true); host.MapCloudInferenceQuota(trust, true); host.MapCloudInferenceClaim(trust, true);
         await host.StartAsync();
         var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -307,6 +326,10 @@ public sealed class CloudInferenceClaimPostgresTests
         var claimResult = await claim.Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
         Assert.Equal("claimed", claimResult!.Status);
         var claimId = claimResult.ClaimId!.Value;
+        var accessPath = $"/cloud/internal/v1/inference/claims/{reservation.ReservationId!.Value:D}/{claimId:D}/access";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await untrusted.GetAsync(accessPath)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(accessPath)).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync($"/cloud/internal/v1/inference/claims/{reservation.ReservationId.Value:D}/{Guid.NewGuid():D}/access")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(claimPath, proof)).StatusCode);
         await VerifyNodeClientAsync(address, server, gateway, issued.Secret!, requestId, reservation.ReservationId!.Value, now.AddMinutes(5), reference);
         await VerifyNodeAdmissionAsync(address, server, gateway, issued.Secret!, reference + "-admission");
@@ -331,11 +354,12 @@ public sealed class CloudInferenceClaimPostgresTests
         Assert.Equal(HttpStatusCode.Forbidden, (await InspectOutput(client, "{\"output\":\"person@example.test\"}", claimId)).StatusCode);
         await VerifyNodeOutputPrivacyAsync(address, server, gateway, issued.Secret!, requestId, reservation.ReservationId.Value, claimId);
         Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenantId, appId, issued.Credential!.Id, default));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(accessPath)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/cloud/internal/v1/inference/quota/fingerprint-key/{requestId:D}")).StatusCode);
     }
     private static async Task VerifyNodeOutputPrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId, Guid reservationId, Guid claimId)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'safe');const b=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'person@example.test');process.stdout.write(JSON.stringify([a.code,b.code]));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'safe');const b=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'person@example.test');const access=await c.verifyInferenceClaim(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.claimId);process.stdout.write(JSON.stringify([a.code,b.code,access]));";
         var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
@@ -346,7 +370,7 @@ public sealed class CloudInferenceClaimPostgresTests
         using var process = System.Diagnostics.Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
-        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("[\"allowed\",\"privacy_blocked\"]", output);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("[\"allowed\",\"privacy_blocked\",true]", output);
     }
     private static async Task VerifyNodeAdmissionAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, string reference)
     {

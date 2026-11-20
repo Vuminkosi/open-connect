@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { createFingerprintKeyring } from './request-fingerprint.mjs';
 import { executeInference } from './inference-execution.mjs';
+import { createInferenceAccessMonitor } from './inference-access-monitor.mjs';
 
 const id = '11111111-1111-1111-1111-111111111111';
 const identity = { tenantId: '22222222-2222-2222-2222-222222222222', applicationId: '33333333-3333-3333-3333-333333333333' };
@@ -53,4 +54,20 @@ test('output never leaves when inspection, access or dispatch fails', async () =
             assert.equal(f.calls.at(-1), 'monitor-dispose');
         } finally { f.dispose(); }
     }
+});
+
+test('real claim monitor prevents output when access is revoked during execution', async () => {
+    const f = fixture();
+    const keyring = createFingerprintKeyring({ activeKeyId: 'key', keys: [{ id: 'key', key: Buffer.alloc(32, 7) }] });
+    try {
+        let allowed = true;
+        f.controlPlane.verifyInferenceClaim = async () => allowed;
+        const dispatcher = { executeClaimed: async () => { allowed = false; return { status: 'completed', result: { output: 'safe' } }; } };
+        const result = await executeInference({ credential: 'credential', identity, body: body(), deployment: { endpointReference: 'worker' } },
+            { controlPlane: f.controlPlane, keyring,
+                quote: async ({ payload, key }) => ({ requestId: id, modelId: 'model', maxOutputTokens: 5, inputTokenUpperBound: 3,
+                    workerPayloadFingerprint: createHmac('sha256', key).update(payload).digest('base64') }), dispatcher, createAccessMonitor: createInferenceAccessMonitor });
+        assert.deepEqual(result, { status: 'unavailable' });
+        assert.ok(!f.calls.includes('output-privacy'));
+    } finally { keyring.dispose(); f.dispose(); }
 });

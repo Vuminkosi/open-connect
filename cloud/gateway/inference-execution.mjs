@@ -15,7 +15,8 @@ export async function executeInference(request, { controlPlane, keyring, quote, 
             if (!value || value.schemaVersion !== 'openconnect.cloud.inference.worker/v1' || value.modelId !== claim.modelId ||
                 value.input?.stream !== false || !Number.isSafeInteger(value.input?.maxTokens)) return unavailable();
             monitor = createAccessMonitor({ controlPlane, credential: request.credential, identity: request.identity,
-                deployment: request.deployment, modelId: claim.modelId, signal: claim.signal, traceparent: claim.traceparent });
+                deployment: request.deployment, modelId: claim.modelId, reservationId: claim.reservationId, claimId: claim.claimId,
+                signal: claim.signal, traceparent: claim.traceparent });
             if (!monitor || typeof monitor.start !== 'function' || typeof monitor.recheck !== 'function' ||
                 typeof monitor.dispose !== 'function' || !monitor.signal || !await monitor.start() || monitor.signal.aborted) return unavailable();
             const response = await dispatcher.executeClaimed({ payload: claim.payload, key: claim.key, reservationId: claim.reservationId,

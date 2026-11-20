@@ -357,6 +357,33 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { finish(unavailable()); }
             });
         },
+        verifyInferenceClaim(credential, reservationId, claimId, signal, traceparent) {
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || !validId(claimId) || signal?.aborted)
+                return Promise.resolve(false);
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL(`/cloud/internal/v1/inference/claims/${reservationId}/${claimId}/access`, url), {
+                        method: 'GET', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.statusCode !== 200 || response.headers['content-encoding']) { response.destroy(); finish(false); return; }
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(false); } else chunks.push(chunk); });
+                        response.on('error', () => finish(false)); response.on('aborted', () => finish(false));
+                        response.on('end', () => {
+                            try { const result = parseUniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+                                finish(result && typeof result === 'object' && !Array.isArray(result) && Object.keys(result).length === 1 && result.allowed === true); }
+                            catch { finish(false); }
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(false); }, timeoutMs);
+                    request.on('error', () => finish(false)); request.end();
+                } catch { finish(false); }
+            });
+        },
         matchClassificationDeployment(credential, deployment, signal, traceparent) {
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
                 return Promise.resolve(false);
