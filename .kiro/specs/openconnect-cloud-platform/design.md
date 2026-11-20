@@ -70,6 +70,8 @@ Capability eligibility and dependency evaluation are isolated in a policy compon
 
 Issuance and rotation require an explicit future expiry; permanent credentials are rejected. Authentication rejects existing credentials without an expiry; issue replacements with an expiry.
 
+Revocation and rotation read and modify credential state in serializable transactions. A concurrent update must not silently overwrite a revocation; serialization failures require callers to reload and retry the operation.
+
 **Authentication format:** `oc_<environment>_<credential-guid>_<base64url-random-secret>`. Validation performs fixed-time hash comparison and checks revocation, expiration, and application environment. The resulting credential identity and scopes are inputs to later gateway admission; successful credential authentication alone does not authorize a capability call.
 
 The parser splits only the first three separators because the base64url secret may itself contain underscores.

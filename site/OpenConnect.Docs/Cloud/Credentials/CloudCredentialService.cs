@@ -102,6 +102,7 @@ public sealed class CloudCredentialService(
         CloudSubject subject, Guid tenantId, Guid applicationId, Guid credentialId, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var role = await FindRoleAsync(db, subject, tenantId, cancellationToken);
         if (role is null) return "not_found";
         if (!Administrators.Contains(role, StringComparer.Ordinal)) return "forbidden";
@@ -114,6 +115,7 @@ public sealed class CloudCredentialService(
         credential.RevokedAt = now;
         db.AuditEvents.Add(CreateAudit(subject, tenantId, role, "credential.revoked", credentialId, now));
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return "succeeded";
     }
 

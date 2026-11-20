@@ -34,6 +34,23 @@ public class CloudCredentialPostgresTests
         Assert.Equal("invalid_expiration", noExpiry.Status);
         var initial = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
         Assert.Equal("succeeded", initial.Status);
+        var raceCredential = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+        var credentialGate = new SelectionReadGate("FROM cloud.credentials");
+        var credentialOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).AddInterceptors(credentialGate).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> credentialFactory = new TestFactory(credentialOptions);
+        var rotating = new CloudCredentialService(credentialFactory, new CloudCapabilityService(credentialFactory, TimeProvider.System), TimeProvider.System)
+            .RotateAsync(owner, tenant.Id, app.Id, raceCredential.Credential!.Id, DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);
+        try
+        {
+            await credentialGate.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal("succeeded", await normal.RevokeAsync(owner, tenant.Id, app.Id, raceCredential.Credential.Id, CancellationToken.None));
+        }
+        finally { credentialGate.Resume.TrySetResult(); }
+        var rejected = false;
+        try { rejected = (await rotating).Status == "credential_revoked"; }
+        catch (Exception exception) when (HasSerializationFailure(exception)) { rejected = true; }
+        Assert.True(rejected);
+        Assert.Null(await normal.ValidateAsync(raceCredential.Secret, CancellationToken.None));
         var rotation = await normal.RotateAsync(owner, tenant.Id, app.Id, initial.Credential!.Id, null, CancellationToken.None);
         Assert.Equal("invalid_expiration", rotation.Status);
         Assert.NotNull(await normal.ValidateAsync(initial.Secret, CancellationToken.None));
@@ -66,14 +83,18 @@ public class CloudCredentialPostgresTests
         public CloudControlPlaneDbContext CreateDbContext() => new(options);
     }
 
-    private sealed class SelectionReadGate : DbCommandInterceptor
+    private static bool HasSerializationFailure(Exception exception) =>
+        exception is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure } ||
+        exception.InnerException is not null && HasSerializationFailure(exception.InnerException);
+
+    private sealed class SelectionReadGate(string queryMarker = "FROM cloud.application_capability_selections") : DbCommandInterceptor
     {
         public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool ReadInTransaction { get; private set; }
         public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData, DbDataReader result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("FROM cloud.application_capability_selections", StringComparison.Ordinal))
+            if (command.CommandText.Contains(queryMarker, StringComparison.Ordinal))
             {
                 ReadInTransaction = eventData.Context?.Database.CurrentTransaction is not null;
                 ReadStarted.TrySetResult();
