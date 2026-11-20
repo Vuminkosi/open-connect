@@ -47,8 +47,9 @@ def semantic_errors(schema: dict[str, Any], instance: Any) -> list[str]:
     return []
 
 
-def validate_fixture_set(folder: Path, should_be_valid: bool) -> int:
+def validate_fixture_set(folder: Path, should_be_valid: bool) -> tuple[int, int]:
     count = 0
+    failures = 0
     for fixture in sorted(folder.glob("*.json")):
         schema_path = SCHEMA_DIR / fixture.name
         if not schema_path.exists():
@@ -56,6 +57,7 @@ def validate_fixture_set(folder: Path, should_be_valid: bool) -> int:
                 f"FAIL {fixture.relative_to(ROOT)}: no matching schema {schema_path.name}"
             )
             count += 1
+            failures += 1
             continue
         schema = load(schema_path)
         instance = load(fixture)
@@ -67,6 +69,7 @@ def validate_fixture_set(folder: Path, should_be_valid: bool) -> int:
         errors.extend(semantic_errors(schema, instance))
         passed = not errors if should_be_valid else bool(errors)
         if not passed:
+            failures += 1
             detail = (
                 "; ".join(error.message for error in errors[:3])
                 or "fixture unexpectedly validates"
@@ -75,7 +78,7 @@ def validate_fixture_set(folder: Path, should_be_valid: bool) -> int:
         else:
             print(f"PASS {fixture.relative_to(ROOT)}")
         count += 1
-    return count
+    return count, failures
 
 
 def compatibility_check(baseline: Path) -> bool:
@@ -120,10 +123,13 @@ def main() -> int:
     for schema_path in sorted(SCHEMA_DIR.glob("*.json")):
         Draft202012Validator.check_schema(load(schema_path))
         print(f"PASS schema {schema_path.relative_to(ROOT)}")
-    valid_count = validate_fixture_set(FIXTURE_DIR / "valid", True)
-    invalid_count = validate_fixture_set(FIXTURE_DIR / "invalid", False)
+    valid_count, valid_failures = validate_fixture_set(FIXTURE_DIR / "valid", True)
+    invalid_count, invalid_failures = validate_fixture_set(FIXTURE_DIR / "invalid", False)
     if valid_count == 0 or invalid_count == 0:
         print("FAIL: both fixture classes must contain at least one fixture")
+        return 1
+    if valid_failures or invalid_failures:
+        print(f"FAIL: {valid_failures + invalid_failures} fixture checks failed")
         return 1
     if args.compat_baseline and not compatibility_check(args.compat_baseline):
         return 1
