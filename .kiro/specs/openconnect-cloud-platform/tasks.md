@@ -80,7 +80,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an append-only, deployment-bound single-consumption store and verify concurrent attempts against PostgreSQL; worker invocation remains outstanding.
 - [x] Expose claim consumption to deployment-bound worker certificate identities over mutual TLS, rejecting gateway identities and overlapping certificate pins; worker invocation and payload binding remain outstanding.
 - [x] Add a bounded classification-worker mutual-TLS consumption client with no retries after ambiguous outcomes; verify it against the control plane and disposable PostgreSQL. Worker execution remains disconnected pending payload binding.
-- [x] Bind a claim to a per-request keyed worker-payload fingerprint and require a matching worker proof on consumption; verify mismatched payloads and legacy unbound claims fail closed. Gateway dispatch and worker execution remain disconnected.
+- [x] Bind a claim to a per-request keyed worker-payload fingerprint and require a matching worker proof on consumption; verify mismatched payloads and legacy unbound claims fail closed. Gateway dispatch remains disconnected.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
@@ -100,3 +100,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.
+
+- [x] Add an opt-in Cloud classification worker route that validates payload bytes, consumes a worker-bound claim, and executes only after success; reject legacy execution in Cloud mode. Verify with a fake engine over mutual TLS and PostgreSQL.

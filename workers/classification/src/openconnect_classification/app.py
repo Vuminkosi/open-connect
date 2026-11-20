@@ -12,10 +12,12 @@ import time
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from openconnect_classification.config import Settings
+from openconnect_classification.cloud_execution import configured_client, execute_cloud
 from openconnect_classification.engine import (
     FAKE_WARNING,
     FakeEngine,
@@ -141,12 +143,7 @@ def capabilities() -> CapabilitiesResponse:
     )
 
 
-@app.post(
-    "/internal/v1/execute",
-    response_model=ExecuteResponse,
-    dependencies=[Depends(authenticate)],
-)
-def execute(request: ExecuteRequest) -> ExecuteResponse:
+def run_classification(request: ExecuteRequest) -> ExecuteResponse:
     _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
     if code is not None:
         return JSONResponse(
@@ -242,6 +239,45 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             engineWarning=FAKE_WARNING if outcome.engine == "fake" else None,
         ),
     )
+
+
+@app.post(
+    "/internal/v1/execute",
+    response_model=ExecuteResponse,
+    dependencies=[Depends(authenticate)],
+)
+def execute(request: ExecuteRequest) -> ExecuteResponse:
+    try:
+        if configured_client() is not None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    return run_classification(request)
+
+
+@app.post("/internal/cloud/v1/classification/execute", dependencies=[Depends(authenticate)])
+async def cloud_execute(request: Request):
+    if request.headers.get("content-type", "").lower() != "application/json" or "content-encoding" in request.headers:
+        raise HTTPException(status_code=415, detail="unsupported media type")
+    body = bytearray()
+    try:
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > 180000:
+                raise HTTPException(status_code=413, detail="request too large")
+            body.extend(chunk)
+        client = configured_client()
+        result = await run_in_threadpool(execute_cloud, bytes(body), client, run_classification, settings.max_text_chars)
+        if result is None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    finally:
+        body[:] = b"\0" * len(body)
 
 
 def _valid_lease(task_id: str, lease_id: str) -> bool:

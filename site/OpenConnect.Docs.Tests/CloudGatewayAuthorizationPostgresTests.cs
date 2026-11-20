@@ -19,7 +19,8 @@ namespace OpenConnect.Docs.Tests;
 [Collection("Cloud PostgreSQL")]
 public sealed class CloudGatewayAuthorizationPostgresTests
 {
-    private static readonly byte[] WorkerPayload = System.Text.Encoding.UTF8.GetBytes("worker fixture");
+    private const string WorkerPayloadJson = "{\"schemaVersion\":\"openconnect.v1\",\"taskId\":\"11111111-1111-1111-1111-111111111111\",\"input\":{\"text\":\"worker fixture\"}}";
+    private static readonly byte[] WorkerPayload = System.Text.Encoding.UTF8.GetBytes(WorkerPayloadJson);
     private static readonly byte[] WorkerKey = Enumerable.Repeat((byte)'k', 32).ToArray();
     private static readonly byte[] WorkerProof = HMACSHA256.HashData(WorkerKey, WorkerPayload);
     [CloudPostgresFact]
@@ -342,7 +343,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var python = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON");
             var workerRoot = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT");
             if (!string.IsNullOrWhiteSpace(python) && !string.IsNullOrWhiteSpace(workerRoot))
-                Assert.Equal("unavailable,consumed,already_consumed", await PythonConsumeAsync(python, workerRoot, address, serverCertificate, workerCertificate, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value));
+                Assert.Equal("503,200,503,fake", await PythonConsumeAsync(python, workerRoot, address, serverCertificate, workerCertificate, nodeReservation.ReservationId.Value, nodeClaim.ClaimId!.Value));
             var completionPath = $"/cloud/internal/v1/classification/quota/reservations/{nodeReservation.ReservationId:D}/claims/{nodeClaim.ClaimId:D}/completion";
             async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
             {
@@ -488,11 +489,12 @@ public sealed class CloudGatewayAuthorizationPostgresTests
 
     private static async Task<string> PythonConsumeAsync(string python, string workerRoot, Uri address, X509Certificate2 server, X509Certificate2 client, Guid reservationId, Guid claimId)
     {
-        const string script = "import os,tempfile,pathlib; from openconnect_classification.cloud_consumption import CloudConsumptionClient; " +
+        const string script = "import os,tempfile,pathlib,base64; from dataclasses import replace; from fastapi.testclient import TestClient; import openconnect_classification.app as app; from openconnect_classification.cloud_consumption import CloudConsumptionClient; " +
             "d=tempfile.TemporaryDirectory(); p=pathlib.Path(d.name); " +
             "[(p/n).write_text(os.environ[v],encoding='ascii') for n,v in [('ca','OC_CA'),('cert','OC_CERT'),('key','OC_KEY')]]; " +
-            "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); " +
-            "print(c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'altered fixture',b'k'*32)+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'worker fixture',b'k'*32)+','+c.consume(os.environ['OC_RESERVATION'],os.environ['OC_CLAIM'],b'worker fixture',b'k'*32)); d.cleanup()";
+            "c=CloudConsumptionClient(os.environ['OC_ORIGIN'],p/'ca',p/'cert',p/'key'); app.configured_client=lambda:c; app.settings=replace(app.settings,worker_token='test-worker-token',fake_engine=True,is_production=False); " +
+            "t=TestClient(app.app); e={'schemaVersion':'openconnect.cloud.worker.classification/v1','reservationId':os.environ['OC_RESERVATION'],'claimId':os.environ['OC_CLAIM'],'key':base64.b64encode(b'k'*32).decode(),'payload':base64.b64encode(os.environ['OC_PAYLOAD'].encode()).decode()}; h={'Authorization':'Bearer test-worker-token'}; path='/internal/cloud/v1/classification/execute'; " +
+            "bad=t.post(path,json={**e,'payload':base64.b64encode(os.environ['OC_PAYLOAD'].replace('worker fixture','altered fixture').encode()).decode()},headers=h); ok=t.post(path,json=e,headers=h); again=t.post(path,json=e,headers=h); print(str(bad.status_code)+','+str(ok.status_code)+','+str(again.status_code)+','+ok.json()['result']['engine']); t.close(); d.cleanup()";
         var start = new System.Diagnostics.ProcessStartInfo(python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
         start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
@@ -503,6 +505,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         start.Environment["OC_ORIGIN"] = address.ToString();
         start.Environment["OC_RESERVATION"] = reservationId.ToString("D");
         start.Environment["OC_CLAIM"] = claimId.ToString("D");
+        start.Environment["OC_PAYLOAD"] = WorkerPayloadJson;
         using var process = System.Diagnostics.Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
@@ -539,8 +542,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
 
     private static async Task<CloudExecutionClaimResult> NodeClaimAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, Guid reservationId, string reference, string keyId = "retained_key")
     {
-        var script = "const m=await import(process.env.OC_TEST_MODULE); const crypto=await import('node:crypto'); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_DEPLOYMENT); const workerPayloadFingerprint=crypto.createHmac('sha256',Buffer.alloc(32,107)).update('worker fixture').digest('base64'); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:x.keyId,fingerprint:Buffer.alloc(32).toString('base64'),workerPayloadFingerprint,deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}})));";
-        var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), System.Text.Json.JsonSerializer.Serialize(new { keyId, reference }));
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const crypto=await import('node:crypto'); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const x=JSON.parse(process.env.OC_TEST_DEPLOYMENT); const workerPayloadFingerprint=crypto.createHmac('sha256',Buffer.alloc(32,107)).update(x.payload).digest('base64'); process.stdout.write(JSON.stringify(await c.claimClassification(process.env.OC_TEST_CREDENTIAL,process.env.OC_TEST_CAPABILITY,{fingerprintKeyId:x.keyId,fingerprint:Buffer.alloc(32).toString('base64'),workerPayloadFingerprint,deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'}})));";
+        var output = await NodeCallAsync(script, address, server, client, credential, reservationId.ToString("D"), System.Text.Json.JsonSerializer.Serialize(new { keyId, reference, payload = WorkerPayloadJson }));
         return System.Text.Json.JsonSerializer.Deserialize<CloudExecutionClaimResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
