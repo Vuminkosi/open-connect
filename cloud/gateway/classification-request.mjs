@@ -32,10 +32,17 @@ export function parseUniqueJson(text) {
     return result;
 }
 
-function valid(value) {
-    if (!keysOnly(value, ['schemaVersion', 'requestId', 'capability', 'configuration', 'input']) ||
-        value.schemaVersion !== 'openconnect.cloud.classification/v1' || typeof value.requestId !== 'string' || !guid.test(value.requestId) ||
+function valid(value, now) {
+    if (!keysOnly(value, ['schemaVersion', 'requestId', 'capability', 'expiresAt', 'configuration', 'input']) ||
+        !['openconnect.cloud.classification/v1', 'openconnect.cloud.classification/v2'].includes(value.schemaVersion) || typeof value.requestId !== 'string' || !guid.test(value.requestId) ||
         value.capability !== 'classification.classify' || !keysOnly(value.input, ['text', 'inputRef'])) return false;
+    if (value.schemaVersion === 'openconnect.cloud.classification/v1') {
+        if (Object.hasOwn(value, 'expiresAt')) return false;
+    } else {
+        if (typeof value.expiresAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.expiresAt)) return false;
+        const expiry = Date.parse(value.expiresAt);
+        if (!Number.isFinite(expiry) || new Date(expiry).toISOString() !== value.expiresAt || !Number.isFinite(now) || expiry <= now || expiry > now + 300000) return false;
+    }
     const input = value.input;
     const hasText = Object.hasOwn(input, 'text');
     const hasRef = Object.hasOwn(input, 'inputRef');
@@ -50,7 +57,7 @@ function valid(value) {
         (!Object.hasOwn(config, 'maxLabels') || Number.isInteger(config.maxLabels) && config.maxLabels >= 1 && config.maxLabels <= 10);
 }
 
-export async function prepareClassificationRequest(request) {
+export async function prepareClassificationRequest(request, now = () => Date.now()) {
     const media = request.headers?.get('content-type');
     if (!media || !/^application\/json(?:\s*;\s*charset\s*=\s*utf-8)?\s*$/i.test(media) || request.headers?.has('content-encoding')) return { code: 'unsupported_media_type' };
     const declared = request.headers?.get('content-length');
@@ -63,11 +70,11 @@ export async function prepareClassificationRequest(request) {
         if (!(body.bytes instanceof Uint8Array)) return { code: 'invalid_request' };
         const text = new TextDecoder('utf-8', { fatal: true }).decode(body.bytes);
         const value = parseUniqueJson(text);
-        return valid(value) ? { code: null, value } : { code: 'invalid_semantic_request' };
+        return valid(value, now()) ? { code: null, value } : { code: 'invalid_semantic_request' };
     } catch { return { code: 'invalid_request' }; }
     finally { if (body?.bytes instanceof Uint8Array) body.bytes.fill(0); }
 }
 
-export async function validateClassificationRequest(request) {
-    return (await prepareClassificationRequest(request)).code;
+export async function validateClassificationRequest(request, now) {
+    return (await prepareClassificationRequest(request, now)).code;
 }

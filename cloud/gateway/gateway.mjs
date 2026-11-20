@@ -25,6 +25,7 @@ const problems = {
     payload_too_large: [413, 'Request body is too large'],
     unsupported_media_type: [415, 'Unsupported media type'],
     privacy_blocked: [403, 'Privacy policy blocked the request'],
+    upstream_timeout: [504, 'Request deadline exceeded'],
     capability_unavailable: [503, 'Cloud gateway is not ready'],
 };
 
@@ -66,7 +67,18 @@ export async function handle(request, { authorization, classificationProbe } = {
             if (prepared.code) return reject(prepared.code);
             if (!Object.hasOwn(prepared.value.input, 'text') || typeof authorization.inspectClassification !== 'function')
                 return reject('capability_unavailable');
-            const privacy = await authorization.inspectClassification(match[1], prepared.value.requestId, prepared.value.input.text, request.signal, trace.traceparent);
+            const remaining = prepared.value.expiresAt ? Date.parse(prepared.value.expiresAt) - Date.now() : null;
+            if (remaining !== null && remaining <= 0) return reject('upstream_timeout');
+            const deadline = remaining === null ? null : AbortSignal.timeout(remaining);
+            const signal = deadline ? (request.signal ? AbortSignal.any([request.signal, deadline]) : deadline) : request.signal;
+            let privacy;
+            try { privacy = await authorization.inspectClassification(match[1], prepared.value.requestId, prepared.value.input.text, signal, trace.traceparent); }
+            catch (error) {
+                if (deadline && (deadline.aborted || Date.now() >= Date.parse(prepared.value.expiresAt))) return reject('upstream_timeout');
+                throw error;
+            }
+            if (deadline && (deadline.aborted || Date.now() >= Date.parse(prepared.value.expiresAt))) return reject('upstream_timeout');
+            if (request.signal?.aborted) return reject('capability_unavailable');
             if (privacy?.allowed !== true) return reject(privacy?.code === 'privacy_blocked' ? 'privacy_blocked' : 'capability_unavailable');
         }
         catch { /* Readiness errors never enable execution or expose diagnostics. */ }

@@ -69,6 +69,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Re-evaluate locked catalog, entitlement, tenant/application selection and dependency state when claiming; test disable and claim ordering.
 - [x] Add atomic idempotent full-request accounting for a trusted successful classification completion; failed and ambiguous work remains held for reconciliation.
 - [x] Expose successful claim completion over pinned mutual TLS with a scoped Node client; keep revoked-credential and uncertain results held for recovery.
+- [x] Add a backward-compatible classification v2 envelope with a bounded deadline and enforce it through the current privacy-admission stage.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.

@@ -10,14 +10,16 @@ paths:
     post:
       operationId: classify
       summary: Request classification
-      description: The gateway validates this envelope after authorization and worker readiness. Execution remains unavailable until admission, privacy, and routing are connected.
+      description: The gateway validates this envelope after authorization and worker readiness. The v2 envelope requires expiresAt in UTC with millisecond precision, in the future and at most five minutes from admission. The v1 envelope remains accepted for validation but cannot authorize execution. Execution remains unavailable until admission, privacy, and routing are connected.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ../jsonschema/cloud-classification-request.json
+              oneOf:
+                - $ref: ../jsonschema/cloud-classification-request.json
+                - $ref: ../jsonschema/cloud-classification-request-v2.json
       responses:
         '400': { description: Malformed request }
         '401': { description: Authentication required }
@@ -26,6 +28,7 @@ paths:
         '415': { description: Unsupported media type or content encoding }
         '422': { description: Request does not satisfy the classification contract }
         '503': { description: Classification execution is unavailable }
+        '504': { description: Request deadline elapsed during admission }
 components:
   securitySchemes:
     bearerAuth:

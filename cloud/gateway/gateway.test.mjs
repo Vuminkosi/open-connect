@@ -70,7 +70,7 @@ test('gateway authorizes mapped routes before touching a request body', async ()
 test('classification readiness is checked only after authorization and never enables dispatch', async () => {
     const calls = [];
     const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
-        readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111', capability: 'classification.classify', input: { text: 'test' } })) }; } };
+        readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111', capability: 'classification.classify', expiresAt: new Date(Date.now() + 60000).toISOString(), input: { text: 'test' } })) }; } };
     const classificationProbe = { probe: async () => { calls.push('probe'); return { ready: true }; } };
     const deny = { authorize: async () => { calls.push('authorize'); return { authorized: false, code: 'unauthorized' }; } };
     assert.equal((await handle(request, { authorization: deny, classificationProbe })).status, 401);
@@ -96,7 +96,7 @@ test('classification readiness is checked only after authorization and never ena
 
 test('classification invokes the independent privacy boundary before any execution', async () => {
     const calls = [];
-    const body = { schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111',
+    const body = { schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111', expiresAt: new Date(Date.now() + 60000).toISOString(),
         capability: 'classification.classify', input: { text: 'private input' } };
     const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
         readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify(body)) }; } };
@@ -115,7 +115,7 @@ test('classification invokes the independent privacy boundary before any executi
 test('trace context is shared across gateway and private checks without carrying request content', async () => {
     const traceId = '1234567890abcdef1234567890abcdef';
     const incoming = `00-${traceId}-0123456789abcdef-01`;
-    const body = { schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111',
+    const body = { schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111', expiresAt: new Date(Date.now() + 60000).toISOString(),
         capability: 'classification.classify', input: { text: 'sensitive fixture' } };
     const propagated = [];
     const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST',
@@ -131,6 +131,20 @@ test('trace context is shared across gateway and private checks without carrying
     assert.match(propagated[0], new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`));
     assert.notEqual(propagated[0], incoming);
     assert.doesNotMatch(propagated[0], /sensitive/);
+});
+
+test('classification deadline aborts privacy admission and never returns its late decision', async () => {
+    const body = { schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111',
+        capability: 'classification.classify', expiresAt: new Date(Date.now() + 100).toISOString(), input: { text: 'private input' } };
+    let observedSignal;
+    const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
+        readBody: async () => ({ bytes: Buffer.from(JSON.stringify(body)) }) };
+    const authorization = { authorize: async () => ({ authorized: true }), matchClassificationDeployment: async () => true,
+        inspectClassification: async (credential, requestId, content, signal) => { observedSignal = signal; await new Promise(resolve => setTimeout(resolve, 160)); return { allowed: true }; } };
+    const response = await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } });
+    assert.equal(response.status, 504);
+    assert.equal((await response.json()).code, 'upstream_timeout');
+    assert.equal(observedSignal.aborted, true);
 });
 
 test('gateway denies missing, rejected, and malformed authorization safely', async () => {

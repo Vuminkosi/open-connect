@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { validateClassificationRequest } from './classification-request.mjs';
 import { createLocalServer } from './local-server.mjs';
 
-const envelope = () => ({ schemaVersion: 'openconnect.cloud.classification/v1', requestId: '11111111-1111-1111-1111-111111111111',
-    capability: 'classification.classify', input: { text: 'hello' } });
+const envelope = () => ({ schemaVersion: 'openconnect.cloud.classification/v2', requestId: '11111111-1111-1111-1111-111111111111',
+    capability: 'classification.classify', expiresAt: new Date(Date.now() + 60000).toISOString(), input: { text: 'hello' } });
 
 function request(text, headers = { 'content-type': 'application/json' }) {
     let buffer;
@@ -17,8 +17,28 @@ function request(text, headers = { 'content-type': 'application/json' }) {
 test('shared contract fixtures match gateway validation', async () => {
     const valid = readFileSync(new URL('../../contracts/fixtures/valid/cloud-classification-request.json', import.meta.url), 'utf8');
     const invalid = readFileSync(new URL('../../contracts/fixtures/invalid/cloud-classification-request.json', import.meta.url), 'utf8');
-    assert.equal(await validateClassificationRequest(request(valid)), null);
-    assert.equal(await validateClassificationRequest(request(invalid)), 'invalid_semantic_request');
+    const now = () => Date.parse('2030-01-01T00:00:00.000Z');
+    assert.equal(await validateClassificationRequest(request(valid), now), null);
+    assert.equal(await validateClassificationRequest(request(invalid), now), 'invalid_semantic_request');
+    const v2 = readFileSync(new URL('../../contracts/fixtures/valid/cloud-classification-request-v2.json', import.meta.url), 'utf8');
+    const invalidV2 = readFileSync(new URL('../../contracts/fixtures/invalid/cloud-classification-request-v2.json', import.meta.url), 'utf8');
+    assert.equal(await validateClassificationRequest(request(v2), now), null);
+    assert.equal(await validateClassificationRequest(request(invalidV2), now), 'invalid_semantic_request');
+});
+
+test('classification requires a canonical deadline within five minutes', async () => {
+    const base = Date.parse('2030-01-01T00:00:00.000Z');
+    const now = () => base;
+    for (const [expiry, expected] of [
+        ['2030-01-01T00:00:00.001Z', null], ['2030-01-01T00:05:00.000Z', null],
+        ['2030-01-01T00:00:00.000Z', 'invalid_semantic_request'], ['2030-01-01T00:05:00.001Z', 'invalid_semantic_request'],
+        ['2030-02-30T00:01:00.000Z', 'invalid_semantic_request'], ['2030-01-01T00:01:00Z', 'invalid_semantic_request'],
+        ['2030-01-01T00:01:00.000+00:00', 'invalid_semantic_request'], [null, 'invalid_semantic_request'],
+    ]) {
+        assert.equal(await validateClassificationRequest(request(JSON.stringify({ ...envelope(), expiresAt: expiry })), now), expected);
+    }
+    const missing = envelope(); delete missing.expiresAt;
+    assert.equal(await validateClassificationRequest(request(JSON.stringify(missing)), now), 'invalid_semantic_request');
 });
 
 test('classification envelope enforces worker-derived input and bounds', async () => {
