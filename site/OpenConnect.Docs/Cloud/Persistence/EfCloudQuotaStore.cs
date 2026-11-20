@@ -54,10 +54,11 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var reservation = await db.QuotaReservations.AsNoTracking().SingleOrDefaultAsync(x =>
-            x.Id == reservationId && x.TenantId == tenantId && x.ApplicationId == applicationId, cancellationToken);
+        var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         if (reservation is null) return new("not_found");
         if (reservation.FinalizedAt is not null) return new(reservation.Actual == actual ? "already_finalized" : "idempotency_conflict", reservation.Id);
+        if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("execution_requires_reconciliation", reservationId);
         if (actual > reservation.Amount) return new("overage_requires_reconciliation", reservation.Id);
         var finalized = await db.QuotaReservations.Where(x => x.Id == reservation.Id && x.TenantId == tenantId && x.ApplicationId == applicationId && x.FinalizedAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, actual).SetProperty(y => y.FinalizedAt, now), cancellationToken);

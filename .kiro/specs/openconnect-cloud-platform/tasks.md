@@ -61,6 +61,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Return the original reservation expiry with the scoped retry key lookup and verify an exact Node-to-PostgreSQL replay.
 - [x] Add a validated secret-file loader for active and retained fingerprint keys; runtime wiring and operational key management remain outstanding.
 - [x] Add a bounded private classification execution adapter with pinned model and label validation; public routing remains disabled until fencing, egress and settlement are connected.
+- [x] Persist an append-only, single-use execution claim per quota reservation and prevent ordinary settlement from racing a claim; worker enforcement and claim-aware settlement remain outstanding.
 - [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.

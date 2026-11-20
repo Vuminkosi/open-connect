@@ -17,6 +17,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
     public DbSet<CloudCredential> Credentials => Set<CloudCredential>();
     public DbSet<CloudQuotaBucket> QuotaBuckets => Set<CloudQuotaBucket>();
     public DbSet<CloudQuotaReservation> QuotaReservations => Set<CloudQuotaReservation>();
+    public DbSet<CloudExecutionClaim> ExecutionClaims => Set<CloudExecutionClaim>();
     public DbSet<CloudUsageRecord> UsageRecords => Set<CloudUsageRecord>();
     public DbSet<CloudWorkerDeployment> WorkerDeployments => Set<CloudWorkerDeployment>();
     public DbSet<CloudPrivacyEvidence> PrivacyEvidence => Set<CloudPrivacyEvidence>();
@@ -208,6 +209,15 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.BucketId }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })
                 .HasForeignKey(x => new { x.TenantId, x.ApplicationId }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CloudExecutionClaim>(entity =>
+        {
+            entity.ToTable("execution_claims");
+            entity.HasKey(x => x.ReservationId);
+            entity.HasIndex(x => x.ClaimId).IsUnique();
+            entity.HasOne<CloudQuotaReservation>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.ApplicationId, x.Id })
+                .HasForeignKey(x => new { x.TenantId, x.ApplicationId, x.ReservationId }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CloudUsageRecord>(entity =>
