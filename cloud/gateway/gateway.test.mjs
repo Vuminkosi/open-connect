@@ -32,5 +32,9 @@ test('capability calls fail closed until admission is available', async () => {
     const result = handle(new Request('http://localhost/cloud/v1/inference/chat', { method: 'POST' }));
     assert.equal(result.status, 503);
     assert.equal(result.headers.get('cache-control'), 'no-store');
-    assert.equal((await result.json()).code, 'capability_unavailable');
+    assert.equal(result.headers.get('content-type'), 'application/problem+json');
+    const problem = await result.json();
+    assert.equal(problem.code, 'capability_unavailable');
+    assert.match(problem.traceId, /^[0-9a-f-]{36}$/);
+    assert.equal(problem.traceId, result.headers.get('x-trace-id'));
 });
