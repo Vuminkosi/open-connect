@@ -5,13 +5,13 @@ namespace OpenConnect.Docs.Cloud;
 public interface ICloudDeploymentStore
 {
     Task<string> PutAsync(CloudWorkerDeployment deployment, long expectedRevision, CancellationToken cancellationToken);
-    Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, int offset, int limit, CancellationToken cancellationToken);
 }
 
 public sealed class CloudDeploymentRegistry(ICloudDeploymentStore store)
 {
-    public Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, CancellationToken cancellationToken) =>
-        store.ListAsync(capabilityId, cancellationToken);
+    public Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, int offset, int limit, CancellationToken cancellationToken) =>
+        store.ListAsync(capabilityId, offset, limit, cancellationToken);
 
     public Task<string> PutAsync(CloudWorkerDeployment deployment, long expectedRevision, CancellationToken cancellationToken)
     {
@@ -24,7 +24,7 @@ public sealed class CloudDeploymentRegistry(ICloudDeploymentStore store)
         return store.PutAsync(deployment, expectedRevision, cancellationToken);
     }
 
-    private static bool ValidToken(string? value, int maxLength) => value is not null && value.Length is > 0 && value.Length <= maxLength &&
+    public static bool ValidToken(string? value, int maxLength) => value is not null && value.Length is > 0 && value.Length <= maxLength &&
         value.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.');
 
     private static bool Digest(string? value) => value is not null && Regex.IsMatch(value, "^sha256:[0-9a-f]{64}$", RegexOptions.CultureInvariant);

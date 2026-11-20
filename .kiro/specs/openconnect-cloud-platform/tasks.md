@@ -57,6 +57,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Show paginated quota bucket counters in the authenticated organization workspace, with explicit empty and inaccessible states.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
 - [x] Add a separate persistent deployment inventory with opaque endpoint references, model/image digest metadata, multiple deployments per capability, and optimistic revision checks.
+- [x] Add a read-only operator inventory API gated by explicitly configured, provider-bound issuer/subject identities.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.
 - [ ] Pass every applicable acceptance test in the main cloud requirements specification; keep real provider, browser, deployment, and production evidence distinct from unit tests.

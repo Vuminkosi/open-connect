@@ -71,6 +71,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<CloudOperatorAccess>();
 
 var cloudOidc = builder.Configuration.GetSection("OpenConnect:Cloud:Identity");
 var cloudIdentityEnabled = cloudOidc.GetValue<bool>("Enabled");

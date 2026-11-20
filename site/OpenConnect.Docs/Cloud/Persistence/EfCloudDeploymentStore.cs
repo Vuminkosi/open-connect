@@ -4,10 +4,10 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudDeploymentStore(IDbContextFactory<CloudControlPlaneDbContext> contextFactory) : ICloudDeploymentStore
 {
-    public async Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<CloudWorkerDeployment>> ListAsync(string capabilityId, int offset, int limit, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        return await db.WorkerDeployments.AsNoTracking().Where(x => x.CapabilityId == capabilityId).OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        return await db.WorkerDeployments.AsNoTracking().Where(x => x.CapabilityId == capabilityId).OrderBy(x => x.Id).Skip(offset).Take(limit).ToListAsync(cancellationToken);
     }
 
     public async Task<string> PutAsync(CloudWorkerDeployment deployment, long expectedRevision, CancellationToken cancellationToken)
