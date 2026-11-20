@@ -204,7 +204,7 @@ public sealed class CloudCredentialService(
     {
         id = Guid.Empty;
         if (string.IsNullOrWhiteSpace(token) || token.Length > 160) return false;
-        var parts = token.Split('_');
+        var parts = token.Split('_', 4);
         return parts.Length == 4 && parts[0] == "oc" && Guid.TryParseExact(parts[2], "N", out id) &&
             parts[3].Length >= 40 && parts[3].Length <= 48;
     }

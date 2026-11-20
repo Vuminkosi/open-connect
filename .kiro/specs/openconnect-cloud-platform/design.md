@@ -60,6 +60,8 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 **Authentication format:** `oc_<environment>_<credential-guid>_<base64url-random-secret>`. Validation performs fixed-time hash comparison and checks revocation, expiration, and application environment. The resulting credential identity and scopes are inputs to later gateway admission; successful credential authentication alone does not authorize a capability call.
 
+The parser splits only the first three separators because the base64url secret may itself contain underscores.
+
 **Exposure boundary:** Credential material is returned only by the authenticated management API at issuance/rotation, never placed in static assets or logged by the control plane. The caller must transfer it to server-side secret storage. No management UI displays or persists the raw value.
 
 **Status:** Hash-only persistence, one-time API response, list, rotate, revoke, and credential validation logic are implemented. Gateway integration, credential rate limits/abuse controls, real database revocation-latency proof, and client onboarding UX remain pending.
