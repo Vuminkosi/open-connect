@@ -14,7 +14,10 @@ sandbox. It rejects unrecognized formats and oversized images. English OCR
 accuracy depends on document quality and has not been established by a labeled
 quality evaluation.
 
-There is no document worker API or deployment image yet. PDF, multipage TIFF,
+There is no document worker API or deployment image yet. A PDF page renderer
+runs in a separate process with byte, page, pixel, output and time limits; it
+must run in an OS sandbox with network access denied. The PDF-to-OCR pipeline,
+multipage TIFF,
 tables, structured fields, indexing, multilingual profiles, and document-level
 partial failure are not implemented. Do not advertise `documents.analyze`
 until those integrations and their security checks are complete.
