@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
@@ -214,6 +215,14 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 var expected = CloudRequestFingerprint.Compute("old", Enumerable.Repeat((byte)2, 32).ToArray(), new CloudFingerprintInput(
                     tenant.Id, appRecord.Id, "classification.classify", "POST", "/cloud/v1/classification", "application/json", System.Text.Encoding.UTF8.GetBytes(adapterBody)));
                 Assert.Equal(expected, persisted.RequestFingerprint);
+            }
+            Guid? realRequestId = null;
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON")) &&
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT")))
+            {
+                realRequestId = Guid.NewGuid();
+                await RunSyntheticOnnxGatewayAsync(address, serverCertificate, clientCertificate, workerCertificate, trust,
+                    classificationCredential.Secret!, classificationReference, classificationDeploymentId, realRequestId.Value, factory);
             }
             var sequenceRequestId = Guid.NewGuid();
             var sequenceBody = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.classification/v2", requestId = sequenceRequestId,
@@ -503,12 +512,12 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var verify = await factory.CreateDbContextAsync())
             {
                 var evidence = await verify.PrivacyEvidence.AsNoTracking().Where(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id).ToListAsync();
-                Assert.Equal(4, evidence.Count(x => x.Outcome == "allowed"));
+                Assert.Equal(realRequestId.HasValue ? 6 : 4, evidence.Count(x => x.Outcome == "allowed"));
                 Assert.Equal(2, evidence.Count(x => x.Outcome == "privacy_blocked"));
                 Assert.Equal(2, evidence.Count(x => x.RequestId == sequenceRequestId && x.Outcome == "allowed"));
                 Assert.Contains(evidence, x => x.Outcome == "privacy_blocked" && x.TraceId == blocked.TraceId);
                 Assert.Contains(evidence, x => x.Outcome == "allowed" && x.TraceId == clean.TraceId);
-                Assert.All(evidence, x => { Assert.True(x.RequestId == Guid.Parse("11111111-1111-1111-1111-111111111111") || x.RequestId == sequenceRequestId); Assert.Matches("^[0-9a-f]{32}$", x.TraceId); });
+                Assert.All(evidence, x => { Assert.True(x.RequestId == Guid.Parse("11111111-1111-1111-1111-111111111111") || x.RequestId == sequenceRequestId || x.RequestId == realRequestId); Assert.Matches("^[0-9a-f]{32}$", x.TraceId); });
                 Assert.DoesNotContain("person@example.com", System.Text.Json.JsonSerializer.Serialize(evidence));
                 await Assert.ThrowsAnyAsync<Exception>(() => verify.PrivacyEvidence.Where(x => x.TenantId == tenant.Id).ExecuteDeleteAsync());
                 await Assert.ThrowsAnyAsync<Exception>(() => verify.PrivacyEvidence.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.Outcome, "allowed")));
@@ -588,6 +597,131 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                     .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlatformAvailability, originalClassificationAvailability)
                         .SetProperty(y => y.AllowedRegions, originalClassificationRegions!).SetProperty(y => y.AllowedRegionsVerified, originalRegionsVerified));
             }
+        }
+    }
+
+    // The generated graph is a synthetic fixture. This verifies the plumbing, not model quality.
+    private static async Task RunSyntheticOnnxGatewayAsync(Uri authority, X509Certificate2 serverCertificate,
+        X509Certificate2 gatewayCertificate, X509Certificate2 workerCertificate, CloudGatewayClientTrust trust,
+        string credential, string reference, Guid deploymentId, Guid requestId,
+        IDbContextFactory<CloudControlPlaneDbContext> factory)
+    {
+        var python = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_TEST_PYTHON")!;
+        var workerRoot = Environment.GetEnvironmentVariable("OPENCONNECT_CLASSIFICATION_WORKER_ROOT")!;
+        var temp = Path.Combine(Path.GetTempPath(), "oc-cloud-onnx-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        System.Diagnostics.Process? worker = null;
+        try
+        {
+            var fixture = Path.Combine(workerRoot, "tests", "unit", "test_onnx_classifier.py");
+            var generator = new System.Diagnostics.ProcessStartInfo(python)
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            generator.ArgumentList.Add("-c");
+            generator.ArgumentList.Add("import importlib.util,os,pathlib; s=importlib.util.spec_from_file_location('fixture',os.environ['OC_FIXTURE']); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.bundle(pathlib.Path(os.environ['OC_TEMP'])))");
+            generator.Environment["OC_FIXTURE"] = fixture;
+            generator.Environment["OC_TEMP"] = temp;
+            generator.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
+            using var generation = System.Diagnostics.Process.Start(generator)!;
+            var digest = (await generation.StandardOutput.ReadToEndAsync()).Trim();
+            var generationError = await generation.StandardError.ReadToEndAsync();
+            await generation.WaitForExitAsync();
+            Assert.True(generation.ExitCode == 0, generationError);
+            Assert.Matches("^[a-f0-9]{64}$", digest);
+            var certPath = Path.Combine(temp, "worker.crt");
+            var keyPath = Path.Combine(temp, "worker.key");
+            var caPath = Path.Combine(temp, "authority.crt");
+            await File.WriteAllTextAsync(certPath, workerCertificate.ExportCertificatePem());
+            using (var key = workerCertificate.GetRSAPrivateKey()!) await File.WriteAllTextAsync(keyPath, key.ExportPkcs8PrivateKeyPem());
+            await File.WriteAllTextAsync(caPath, serverCertificate.ExportCertificatePem());
+            var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+            var start = new System.Diagnostics.ProcessStartInfo(python)
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var value in new[] { "-m", "uvicorn", "openconnect_classification.app:app", "--host", "127.0.0.1", "--port", port.ToString(), "--log-level", "error", "--no-access-log" }) start.ArgumentList.Add(value);
+            start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
+            start.Environment["OPENCONNECT_WORKER_TOKEN"] = "test-worker-token";
+            start.Environment["OC_ENVIRONMENT"] = "Development";
+            start.Environment["OC_WORKER_ENGINE"] = "real";
+            start.Environment["OC_MODEL_DEVICE"] = "cpu";
+            start.Environment["OC_MODEL_CACHE_DIR"] = temp;
+            start.Environment["OC_MODEL_PROVISIONING"] = "disabled";
+            start.Environment["OC_MODEL_OFFLINE"] = "true";
+            start.Environment["HF_HUB_OFFLINE"] = "1";
+            start.Environment["OC_CLASSIFICATION_BUNDLE_SHA256"] = digest;
+            start.Environment["OPENCONNECT_CLOUD_CONSUMPTION_ENABLED"] = "true";
+            start.Environment["OPENCONNECT_CLOUD_AUTHORITY_ORIGIN"] = authority.ToString();
+            start.Environment["OPENCONNECT_CLOUD_AUTHORITY_CA_FILE"] = caPath;
+            start.Environment["OPENCONNECT_CLOUD_WORKER_CERT_FILE"] = certPath;
+            start.Environment["OPENCONNECT_CLOUD_WORKER_KEY_FILE"] = keyPath;
+            worker = System.Diagnostics.Process.Start(start)!;
+            using var workerClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+            var ready = false;
+            for (var attempt = 0; attempt < 100 && !ready; attempt++)
+            {
+                if (worker.HasExited) throw new InvalidOperationException("Synthetic ONNX worker exited before readiness.");
+                try { ready = (await workerClient.GetAsync("/health/ready")).IsSuccessStatusCode; }
+                catch (HttpRequestException) { await Task.Delay(100); }
+            }
+            Assert.True(ready);
+            var builder = WebApplication.CreateBuilder();
+            builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0,
+                listenerOptions => listenerOptions.UseHttps(serverCertificate, trust.ConfigureHttps)));
+            await using var proxy = builder.Build();
+            async Task<IResult> Forward(HttpContext context)
+            {
+                using var forwarded = new HttpRequestMessage(new HttpMethod(context.Request.Method), context.Request.Path.Value);
+                if (context.Request.Headers.TryGetValue("Authorization", out var auth)) forwarded.Headers.TryAddWithoutValidation("Authorization", auth.ToArray());
+                if (context.Request.Method == "POST")
+                {
+                    forwarded.Content = new StreamContent(context.Request.Body);
+                    forwarded.Content.Headers.TryAddWithoutValidation("Content-Type", context.Request.ContentType);
+                }
+                using var response = await workerClient.SendAsync(forwarded);
+                return Results.Content(await response.Content.ReadAsStringAsync(), "application/json", statusCode: (int)response.StatusCode);
+            }
+            proxy.MapGet("/health/ready", (Delegate)Forward);
+            proxy.MapGet("/internal/v1/capabilities", (Delegate)Forward);
+            proxy.MapGet("/internal/cloud/v1/classification/ready", (Delegate)Forward);
+            proxy.MapPost("/internal/cloud/v1/classification/execute", (Delegate)Forward);
+            await proxy.StartAsync();
+            var workerOrigin = new Uri(proxy.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.ModelRevision, "synthetic-v1").SetProperty(y => y.ModelDigest, "sha256:" + digest));
+            try
+            {
+                const string script = "const m=await import(process.env.OC_TEST_MODULE);const g=await import(process.env.OC_TEST_GATEWAY);const p=await import(new URL('./classification-probe.mjs',process.env.OC_TEST_MODULE));const d=await import(new URL('./classification-dispatch.mjs',process.env.OC_TEST_MODULE));const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE));const x=JSON.parse(process.env.OC_TEST_CAPABILITY);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const opts={origin:x.workerOrigin,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:'test-worker-token',modelRevision:'synthetic-v1',modelDigest:x.digest};const probe={...p.createClassificationProbe(opts),deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'synthetic-v1',modelDigest:x.digest}};const ring=f.createFingerprintKeyring({activeKeyId:'key',keys:[{id:'key',key:Buffer.alloc(32,7)}]});const s=g.createLocalServer(c,probe,{keyring:ring,dispatcher:d.createClassificationDispatcher(opts),deploymentId:x.deploymentId});await new Promise(r=>s.listen(0,'127.0.0.1',r));try{const body=JSON.stringify({schemaVersion:'openconnect.cloud.classification/v2',requestId:x.requestId,expiresAt:new Date(Date.now()+60000).toISOString(),capability:'classification.classify',input:{text:'hello world'}});async function run(){return fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body});}const a=await run();const value=await a.json();const b=await run();process.stdout.write(JSON.stringify({status:a.status,retry:b.status,result:value.result}));}finally{await new Promise(r=>s.close(r));ring.dispose();}";
+                var input = System.Text.Json.JsonSerializer.Serialize(new { workerOrigin = workerOrigin.ToString(), reference, digest = "sha256:" + digest, deploymentId, requestId });
+                var output = await NodeCallAsync(script, authority, serverCertificate, gatewayCertificate, credential, input);
+                using var json = System.Text.Json.JsonDocument.Parse(output);
+                Assert.Equal(200, json.RootElement.GetProperty("status").GetInt32());
+                Assert.Equal(409, json.RootElement.GetProperty("retry").GetInt32());
+                Assert.Equal("synthetic-v1", json.RootElement.GetProperty("result").GetProperty("modelRevision").GetString());
+                Assert.InRange(json.RootElement.GetProperty("result").GetProperty("scores").GetProperty("safe").GetDouble(), 0.95, 0.96);
+                await using var verify = await factory.CreateDbContextAsync();
+                var reservation = await verify.QuotaReservations.SingleAsync(x => x.RequestId == requestId);
+                Assert.Equal(1, reservation.Actual);
+                Assert.NotNull(reservation.FinalizedAt);
+                Assert.True(await verify.ExecutionConsumptions.AnyAsync(x => x.ReservationId == reservation.Id));
+                Assert.True(await verify.ExecutionCompletions.AnyAsync(x => x.ReservationId == reservation.Id));
+                Assert.Equal(1, (await verify.UsageRecords.SingleAsync(x => x.ReservationId == reservation.Id)).Quantity);
+            }
+            finally
+            {
+                await using var db = await factory.CreateDbContextAsync();
+                await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.ModelRevision, "revision-1").SetProperty(y => y.ModelDigest, "sha256:" + new string('a', 64)));
+            }
+        }
+        finally
+        {
+            if (worker is not null)
+            {
+                if (!worker.HasExited) worker.Kill(entireProcessTree: true);
+                await worker.WaitForExitAsync();
+                worker.Dispose();
+            }
+            Directory.Delete(temp, recursive: true);
         }
     }
 
