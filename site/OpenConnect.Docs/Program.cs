@@ -100,6 +100,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudQuotaReader, EfCloudQuotaReader>();
     builder.Services.AddScoped<CloudQuotaQueryService>();
     builder.Services.AddScoped<CloudQuotaService>();
+    builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>();
+    builder.Services.AddScoped<CloudQuotaAdministration>();
     builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
     builder.Services.AddScoped<CloudDeploymentRegistry>();
     builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
