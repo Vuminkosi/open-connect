@@ -13,7 +13,7 @@ from openconnect_worker_common.models.runtime_cache import (
 )
 
 DATA = b"tiny-test-model"
-HEADER = b"level\tleft\ttop\twidth\theight\tconf\ttext\n"
+HEADER = b"level\tpage_num\tblock_num\tpar_num\tline_num\tleft\ttop\twidth\theight\tconf\ttext\n"
 
 
 @pytest.fixture
@@ -41,7 +41,8 @@ def test_offline_ocr_preserves_text_spans_and_normalized_boxes(model, monkeypatc
         assert args[0] == str(executable) and args[1:3] == ["stdin", "stdout"]
         assert args[-2:] == ["-c", "tessedit_create_tsv=1"]
         assert content.startswith(b"\x89PNG") and timeout == 30
-        return HEADER + b"5\t10\t5\t30\t10\t95\tHello\n" + b"5\t45\t5\t25\t10\t80\tworld\n"
+        return (HEADER + b"5\t1\t1\t1\t1\t10\t5\t30\t10\t95\tHello\n"
+                + b"5\t1\t1\t1\t1\t45\t5\t25\t10\t80\tworld\n")
     monkeypatch.setattr(ocr, "_run_tesseract", run)
     page = TesseractOcr(manager, manifest, executable).analyze(image_bytes())
     assert page.text == "Hello world" and (page.width, page.height) == (100, 50)
@@ -56,12 +57,25 @@ def test_invalid_image_is_rejected(content: bytes):
         _prepare_image(content)
 
 
-@pytest.mark.parametrize("row", [b"5\t-1\t0\t10\t10\t99\tbad\n",
-                                  b"5\t0\t0\t200\t10\t99\tbad\n",
-                                  b"5\t0\t0\t10\t10\tnan\tbad\n"])
+@pytest.mark.parametrize("row", [b"5\t1\t1\t1\t1\t-1\t0\t10\t10\t99\tbad\n",
+                                  b"5\t1\t1\t1\t1\t0\t0\t200\t10\t99\tbad\n",
+                                  b"5\t1\t1\t1\t1\t0\t0\t10\t10\tnan\tbad\n",
+                                  b"5\t1\t0\t1\t1\t0\t0\t10\t10\t90\tbad\n"])
 def test_invalid_ocr_output_is_rejected(row):
     with pytest.raises(RuntimeError, match="ocr_output_invalid"):
         _parse_tsv(HEADER + row, 100, 50)
+
+
+def test_recognized_lines_preserve_source_offsets():
+    data = (HEADER + b"5\t1\t1\t1\t1\t0\t0\t10\t10\t95\tInvoice\n"
+            + b"5\t1\t1\t1\t1\t15\t0\t10\t10\t80\t123\n"
+            + b"5\t1\t1\t1\t2\t0\t15\t10\t10\t75\tTotal:\n"
+            + b"5\t1\t1\t1\t2\t15\t15\t10\t10\t70\t45.00\n"
+            + b"5\t1\t2\t1\t1\t0\t30\t10\t10\t90\tPaid\n")
+    text, spans = _parse_tsv(data, 100, 50)
+    assert text == "Invoice 123\nTotal: 45.00\nPaid"
+    assert [text[span.start:span.end] for span in spans] == [
+        "Invoice", "123", "Total:", "45.00", "Paid"]
 
 
 def test_corrupted_model_never_executes(model, monkeypatch):

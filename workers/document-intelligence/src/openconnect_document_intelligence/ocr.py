@@ -131,16 +131,21 @@ def _parse_tsv(data: bytes, width: int, height: int) -> tuple[str, tuple[WordSpa
         raise RuntimeError("ocr_output_limit")
     try:
         reader = csv.DictReader(io.StringIO(data.decode("utf-8")), delimiter="\t")
-        required = {"level", "left", "top", "width", "height", "conf", "text"}
+        required = {"level", "page_num", "block_num", "par_num", "line_num",
+                    "left", "top", "width", "height", "conf", "text"}
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             raise ValueError("invalid_tsv")
         parts: list[str] = []
         spans: list[WordSpan] = []
         position = 0
+        previous_line: tuple[int, ...] | None = None
         for row in reader:
             if row["level"] != "5" or not row["text"] or not row["text"].strip():
                 continue
             text = row["text"].strip()
+            line = tuple(int(row[key]) for key in ("page_num", "block_num", "par_num", "line_num"))
+            if any(number <= 0 for number in line):
+                raise ValueError("invalid_tsv")
             left, top, box_width, box_height = (int(row[key]) for key in ("left", "top", "width", "height"))
             confidence = float(row["conf"])
             if (not math.isfinite(confidence) or not 0 <= confidence <= 100 or left < 0 or top < 0
@@ -150,14 +155,16 @@ def _parse_tsv(data: bytes, width: int, height: int) -> tuple[str, tuple[WordSpa
             if len(spans) >= MAX_WORDS:
                 raise ValueError("invalid_tsv")
             if parts:
+                parts.append(" " if line == previous_line else "\n")
                 position += 1
             start = position
             position += len(text)
             parts.append(text)
+            previous_line = line
             spans.append(WordSpan(text, start, position,
                                   (left / width, top / height, (left + box_width) / width,
                                    (top + box_height) / height), confidence / 100))
-        return " ".join(parts), tuple(spans)
+        return "".join(parts), tuple(spans)
     except (UnicodeError, ValueError, TypeError, KeyError, csv.Error) as exc:
         raise RuntimeError("ocr_output_invalid") from exc
 
