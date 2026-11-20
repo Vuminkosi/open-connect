@@ -137,6 +137,37 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { finish(unavailable()); }
             });
         },
+        claimClassification(credential, reservationId, signal, traceparent) {
+            const unavailable = () => ({ status: 'unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || signal?.aborted)
+                return Promise.resolve(unavailable());
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL(`/cloud/internal/v1/classification/quota/reservations/${reservationId}/claim`, url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'content-length': '0', 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        const chunks = []; let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(unavailable()); } else chunks.push(chunk); });
+                        response.on('error', () => finish(unavailable())); response.on('aborted', () => finish(unavailable()));
+                        response.on('end', () => {
+                            try {
+                                const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'claimId'].includes(key))) return finish(unavailable());
+                                if (response.statusCode === 200 && result.status === 'claimed' && validId(result.claimId)) return finish(result);
+                                if (response.statusCode === 409 && result.status === 'already_claimed' && result.claimId == null) return finish({ status: 'already_claimed' });
+                            } catch { /* Do not expose private endpoint diagnostics. */ }
+                            finish(unavailable());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
+                    request.on('error', () => finish(unavailable())); request.end();
+                } catch { finish(unavailable()); }
+            });
+        },
         matchClassificationDeployment(credential, deployment, signal, traceparent) {
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
                 return Promise.resolve(false);

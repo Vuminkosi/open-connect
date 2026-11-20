@@ -27,6 +27,9 @@ test('aborted and invalid calls fail closed without a network request', async ()
     assert.deepEqual(await client.reserveClassification('key', reservation, controller.signal), { status: 'quota_unavailable' });
     assert.deepEqual(await client.reserveClassification('key\r\ninjected', reservation), { status: 'quota_unavailable' });
     assert.deepEqual(await client.reserveClassification('key', { ...reservation, fingerprint: 'bad' }), { status: 'quota_unavailable' });
+    assert.deepEqual(await client.claimClassification('key', 'invalid'), { status: 'unavailable' });
+    assert.deepEqual(await client.claimClassification('key\r\ninjected', reservation.requestId), { status: 'unavailable' });
+    assert.deepEqual(await client.claimClassification('key', reservation.requestId, controller.signal), { status: 'unavailable' });
 });
 
 test('invalid TLS configuration fails closed without exposing diagnostics', async () => {

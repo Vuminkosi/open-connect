@@ -178,6 +178,7 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
