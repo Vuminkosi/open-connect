@@ -379,3 +379,4 @@ docs/*
 /tests/Browser/artifacts/
 /tests/Browser/playwright-report/
 /tests/Browser/test-results*/
+/artifacts
