@@ -1,5 +1,14 @@
 # Document intelligence
 
+The optional `documents.fields` capability runs the same malware-screened OCR
+pipeline and returns literal `label: value` candidates from recognized lines.
+Candidates include page-relative Unicode code-point offsets and indexes into
+the returned OCR word spans. Their minimum OCR confidence is not a confidence
+in the meaning or correctness of the field. Values are not semantically
+validated; downstream applications must review and validate them. The result
+reports `field_limit_reached` when more than 1,000 candidates are present and
+`field_candidates_skipped` when an oversized or uncited candidate is omitted.
+
 The current component is a single-page English OCR adapter for admitted PNG
 and JPEG images. It reuses the shared verified model cache and runs a configured
 local Tesseract executable with the pinned `eng.traineddata` asset. It returns

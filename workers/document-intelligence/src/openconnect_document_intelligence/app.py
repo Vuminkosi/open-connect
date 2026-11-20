@@ -20,6 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
+from openconnect_document_intelligence.fields import extract_field_candidates
 from openconnect_document_intelligence.malware import (
     ClamAvScanner, MalwareDetectedError, MalwareScanUnavailableError,
 )
@@ -60,7 +61,7 @@ class ExecuteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schemaVersion: Literal["openconnect.v1"]
     taskId: str = Field(min_length=1, max_length=128)
-    kind: Literal["documents.ocr"]
+    kind: Literal["documents.ocr", "documents.fields"]
     tenantId: str = Field(pattern=r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
     issuedAt: AwareDatetime
     expiresAt: AwareDatetime
@@ -180,9 +181,10 @@ def capabilities(request: Request) -> JSONResponse:
         return _error("unauthorized", 401)
     if not _ready():
         return JSONResponse({"capabilities": []})
-    descriptor = CapabilityDescriptor(id="documents.ocr", kind=CapabilityKind.TOOL,
-                                      state=CapabilityState.READY, version="1.0.0", localOnly=True)
-    return JSONResponse({"capabilities": [descriptor.model_dump(mode="json")]})
+    descriptors = [CapabilityDescriptor(id=capability, kind=CapabilityKind.TOOL,
+                   state=CapabilityState.READY, version="1.0.0", localOnly=True)
+                   for capability in ("documents.ocr", "documents.fields")]
+    return JSONResponse({"capabilities": [item.model_dump(mode="json") for item in descriptors]})
 
 
 @app.post("/internal/v1/execute")
@@ -238,8 +240,11 @@ async def execute(request: Request) -> JSONResponse:
         _slot.release()
     if datetime.now(timezone.utc) >= command.expiresAt:
         return _error("invalid_request", 422)
+    result_payload = asdict(result)
+    if command.kind == "documents.fields":
+        result_payload.update(asdict(extract_field_candidates(result.pages)))
     payload = {"schemaVersion": "openconnect.v1", "taskId": command.taskId,
-               "kind": command.kind, "result": asdict(result)}
+               "kind": command.kind, "result": result_payload}
     output = json.dumps(payload, ensure_ascii=True, allow_nan=False, separators=(",", ":")).encode()
     if len(output) > MAX_RESPONSE_BYTES:
         return _error("capability_unavailable", 503)

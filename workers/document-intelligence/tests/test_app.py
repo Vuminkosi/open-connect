@@ -9,7 +9,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from openconnect_document_intelligence import app as app_module
 from openconnect_document_intelligence.malware import MalwareDetectedError, MalwareScanUnavailableError
-from openconnect_document_intelligence.ocr import OcrPage
+from openconnect_document_intelligence.ocr import OcrPage, WordSpan
 from openconnect_document_intelligence.pipeline import DocumentResult
 from openconnect_worker_common.security.signing import sign_bytes
 
@@ -119,6 +119,37 @@ def test_output_limit_fails_without_disclosing_text(client, monkeypatch):
     monkeypatch.setattr(app_module, "MAX_RESPONSE_BYTES", 1)
     response = submit(client, request_body())
     assert response.status_code == 503 and "redacted result" not in response.text
+
+
+def test_fields_use_screened_ocr_and_return_citable_candidates(client, monkeypatch):
+    class FieldAnalyzer:
+        def analyze(self, content, *, timeout_seconds):
+            Scanner().scan(content)
+            return DocumentResult((OcrPage("Total: 45.00", 10, 10, (
+                WordSpan("Total:", 0, 6, (0, 0, .5, 1), .9),
+                WordSpan("45.00", 7, 12, (.5, 0, 1, 1), .7),
+            ), "test/model", "a" * 64),))
+
+    runtime = app_module.app.state.runtime
+    monkeypatch.setattr(app_module.app.state, "runtime", app_module.Runtime(
+        runtime.scanner, runtime.ocr, FieldAnalyzer()))
+    body = request_body()
+    body["kind"] = "documents.fields"
+    response = submit(client, body)
+    assert response.status_code == 200
+    field = response.json()["result"]["fields"][0]
+    assert (field["label"], field["value"], field["value_start"], field["value_end"]) == (
+        "Total", "45.00", 7, 12)
+    assert field["minimum_ocr_confidence"] == .7
+    schemas = Path(__file__).resolve().parents[3] / "contracts" / "jsonschema"
+    for value, name in [(body, "document-fields-request.json"),
+                        (response.json(), "document-fields-response.json")]:
+        schema = json.loads((schemas / name).read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(value)
+    infected = request_body(b"infected")
+    infected["kind"] = "documents.fields"
+    assert submit(client, infected).json()["error"]["code"] == "malware_detected"
 
 
 def test_disabled_worker_does_not_check_sandbox_or_load_config(monkeypatch):
