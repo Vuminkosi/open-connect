@@ -19,6 +19,8 @@ test('aborted and invalid calls fail closed without a network request', async ()
     assert.deepEqual(await client.inspectClassification('key', '11111111-1111-1111-1111-111111111111', 'private', controller.signal), { allowed: false, code: 'capability_unavailable' });
     assert.deepEqual(await client.inspectClassification('key\r\ninjected', '11111111-1111-1111-1111-111111111111', 'private'), { allowed: false, code: 'capability_unavailable' });
     assert.deepEqual(await client.inspectClassification('key', 'invalid', 'private'), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectInference('key', '11111111-1111-1111-1111-111111111111', [{ role: 'invalid', content: 'private' }]), { allowed: false, code: 'capability_unavailable' });
+    assert.deepEqual(await client.inspectInference('key', '11111111-1111-1111-1111-111111111111', [{ role: 'user', content: 'private', extra: 1 }]), { allowed: false, code: 'capability_unavailable' });
     assert.equal(await client.matchClassificationDeployment('key', { endpointReference: 'https://other.example', region: 'region', contractVersion: 'v1', modelRevision: 'v1' }), false);
     assert.equal(await client.matchClassificationDeployment('key', { endpointReference: 'worker', region: 'region', contractVersion: 'v1', modelRevision: 'v1' }, controller.signal), false);
     assert.deepEqual(await client.findClassificationFingerprintKey('key', 'not-a-uuid'), { status: 'unavailable' });

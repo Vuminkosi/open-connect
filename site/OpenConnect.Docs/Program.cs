@@ -103,6 +103,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
     builder.Services.AddScoped<CloudMachineAuthorizationService>();
     builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
+    builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
+    builder.Services.AddScoped<ICloudInferencePrivacyEvidenceStore, EfCloudInferencePrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
@@ -218,6 +220,7 @@ if (gatewayTrust is not null)
     app.MapCloudGatewayReadiness(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudInferencePrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

@@ -434,5 +434,49 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(rejected()); }
             });
         },
+        inspectInference(credential, requestId, messages, signal, traceparent) {
+            const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||
+                !Array.isArray(messages) || messages.length < 1 || messages.length > 64 || signal?.aborted ||
+                messages.some(item => !item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).some(key => !['role', 'content'].includes(key)) ||
+                    !['system', 'user', 'assistant', 'tool'].includes(item.role) || typeof item.content !== 'string' || item.content.length > 32768) ||
+                messages.reduce((total, item) => total + item.content.length, 0) < 1 || messages.reduce((total, item) => total + item.content.length, 0) > 65536) return Promise.resolve(rejected());
+            const body = Buffer.from(JSON.stringify({ messages: messages.map(item => ({ role: item.role, content: item.content })) }), 'utf8');
+            if (body.length > 131072) { body.fill(0); return Promise.resolve(rejected()); }
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/inference/privacy', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'x-cloud-request-id': requestId,
+                            'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        const chunks = [];
+                        let size = 0;
+                        response.on('data', chunk => {
+                            size += chunk.length;
+                            if (size > 8192) { response.destroy(); finish(rejected()); }
+                            else chunks.push(chunk);
+                        });
+                        response.on('error', () => finish(rejected()));
+                        response.on('aborted', () => finish(rejected()));
+                        response.on('end', () => {
+                            try {
+                                const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                                if (response.statusCode === 200 && value.allowed === true && value.code === 'allowed') return finish({ allowed: true, code: 'allowed' });
+                                if (response.statusCode === 403 && value.allowed === false && value.code === 'privacy_blocked') return finish({ allowed: false, code: 'privacy_blocked' });
+                            } catch { /* Never expose private endpoint diagnostics. */ }
+                            finish(rejected());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(rejected()); }, timeoutMs);
+                    request.on('error', () => { body.fill(0); finish(rejected()); });
+                    request.end(body, () => body.fill(0));
+                } catch { body.fill(0); finish(rejected()); }
+            });
+        },
     };
 }

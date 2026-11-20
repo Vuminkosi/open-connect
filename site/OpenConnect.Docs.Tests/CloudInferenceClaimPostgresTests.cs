@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using OpenConnect.Docs.Cloud;
+using OpenConnect.Privacy.Rules;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -183,13 +184,39 @@ public sealed class CloudInferenceClaimPostgresTests
         builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>(); builder.Services.AddScoped<CloudMachineAuthorizationService>();
         builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
         builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>(); builder.Services.AddScoped<CloudExecutionClaimService>();
+        builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
+        var evidence = new SwitchableInferenceEvidence(new EfCloudInferencePrivacyEvidenceStore(factory, TimeProvider.System));
+        builder.Services.AddSingleton<ICloudInferencePrivacyEvidenceStore>(evidence);
         await using var host = builder.Build();
+        host.MapCloudInferencePrivacy(trust, true);
         host.MapCloudInferenceFingerprintKeyLookup(trust, true); host.MapCloudInferenceQuota(trust, true); host.MapCloudInferenceClaim(trust, true);
         await host.StartAsync();
         var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
         using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
         untrusted.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issued.Secret);
+        var privacyId = Guid.NewGuid();
+        async Task<HttpResponseMessage> Inspect(HttpClient sender, string body)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/inference/privacy") { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+            request.Headers.Add("X-Cloud-Request-Id", privacyId.ToString("D"));
+            return await sender.SendAsync(request);
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Inspect(untrusted, "{}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"x\",\"Content\":\"y\"}]}" )).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"hello world\"}]}" )).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"person@\"},{\"role\":\"assistant\",\"content\":\"example.test\"}]}" )).StatusCode);
+        evidence.Fail = true;
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"hello world\"}]}" )).StatusCode);
+        evidence.Fail = false;
+        var unavailable = new CloudInferencePrivacyService(null);
+        var identity = new CloudCredentialIdentity(issued.Credential!.Id, tenantId, appId, "Development", new HashSet<string> { "inference.chat" });
+        Assert.Equal("detector_unavailable", (await unavailable.EvaluateAsync(identity, privacyId, [new("user", "hello")], default)).Code);
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            Assert.Equal(2, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.inference_privacy_evidence WHERE \"RequestId\" = {privacyId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {appId}").SingleAsync());
+            await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.inference_privacy_evidence WHERE \"RequestId\" = {privacyId}"));
+        }
         var requestId = Guid.NewGuid(); var fingerprint = Convert.ToBase64String(new byte[32]);
         var path = "/cloud/internal/v1/inference/quota/reservations";
         var payload = new { requestId, fingerprintKeyId = "key", fingerprint, expiresAt = now.AddMinutes(5), reservedTokens = 5 };
@@ -219,7 +246,7 @@ public sealed class CloudInferenceClaimPostgresTests
     }
     private static async Task VerifyNodeClientAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId, Guid reservationId, DateTimeOffset expiresAt, string reference)
     {
-        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.findInferenceFingerprintKey(process.env.OC_TEST_CREDENTIAL,x.requestId);const b=await c.reserveInference(process.env.OC_TEST_CREDENTIAL,x.reservation);const d=await c.claimInference(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.proof);process.stdout.write(JSON.stringify([a.status,b.status,d.status]));";
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.findInferenceFingerprintKey(process.env.OC_TEST_CREDENTIAL,x.requestId);const b=await c.reserveInference(process.env.OC_TEST_CREDENTIAL,x.reservation);const d=await c.claimInference(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.proof);const p=await c.inspectInference(process.env.OC_TEST_CREDENTIAL,x.requestId,[{role:'user',content:'hello world'}]);process.stdout.write(JSON.stringify([a.status,b.status,d.status,p.code]));";
         var fingerprint = Convert.ToBase64String(new byte[32]);
         var data = new { requestId, reservationId, reservation = new { requestId, fingerprintKeyId = "key", fingerprint, expiresAt, reservedTokens = 5 },
             proof = new { fingerprintKeyId = "key", fingerprint, workerPayloadFingerprint = fingerprint, modelId = "registry/model-a", deployment = new { endpointReference = reference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) } } };
@@ -234,7 +261,13 @@ public sealed class CloudInferenceClaimPostgresTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
         await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
-        Assert.Equal(new[] { "found", "duplicate", "already_claimed" }, System.Text.Json.JsonSerializer.Deserialize<string[]>(output));
+        Assert.Equal(new[] { "found", "duplicate", "already_claimed", "allowed" }, System.Text.Json.JsonSerializer.Deserialize<string[]>(output));
+    }
+    private sealed class SwitchableInferenceEvidence(ICloudInferencePrivacyEvidenceStore inner) : ICloudInferencePrivacyEvidenceStore
+    {
+        public bool Fail { get; set; }
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken) =>
+            Fail ? Task.FromException(new InvalidOperationException("unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, cancellationToken);
     }
     private static X509Certificate2 Certificate(bool client)
     {
