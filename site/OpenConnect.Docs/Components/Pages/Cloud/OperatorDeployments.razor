@@ -1,0 +1,176 @@
+@page "/cloud/operator"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CloudOperatorAccess OperatorAccess
+@inject ILogger<OperatorDeployments> Logger
+
+<PageTitle>Deployments | OpenConnect Cloud</PageTitle>
+<h1>Worker deployments</h1>
+<p>Inventory entries do not establish worker health, artifact integrity, or permission to route traffic.</p>
+@if (_loading)
+{
+    <p role="status">Loading deployment inventory…</p>
+}
+else if (_accessError is not null)
+{
+    <p role="status">@_accessError</p>
+}
+else
+{
+    <label for="operator-capability">Service</label>
+    <select id="operator-capability" @bind="_capability" @bind:after="OnCapabilityChanged" disabled="@(!_interactive || _busy)">
+        <option value="">Choose a service</option>
+        @foreach (var capability in _catalog) { <option value="@capability.Id">@capability.Name (@capability.Id)</option> }
+    </select>
+    <button class="button" type="button" disabled="@(!_interactive || _busy || string.IsNullOrEmpty(_capability))" @onclick="() => LoadAsync(0)">Show deployments</button>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+    @if (_loaded)
+    {
+        @if (_deployments.Count == 0) { <p>No deployments are registered for this service on this page.</p> }
+        else
+        {
+            <div class="cloud-capabilities">
+                @foreach (var deployment in _deployments)
+                {
+                    <article class="deployment-card">
+                        <h2>@deployment.EndpointReference</h2>
+                        <dl>
+                            <dt>Deployment ID</dt><dd>@deployment.Id</dd>
+                            <dt>Region</dt><dd>@deployment.Region</dd>
+                            <dt>Contract</dt><dd>@deployment.ContractVersion</dd>
+                            <dt>Configured state</dt><dd>@(deployment.Enabled ? "Enabled" : "Disabled")</dd>
+                            <dt>Concurrency limit</dt><dd>@deployment.ConcurrencyLimit</dd>
+                            <dt>Image digest</dt><dd>@deployment.ImageDigest</dd>
+                            <dt>Model</dt><dd>@(deployment.ModelId ?? "Not specified")</dd>
+                            <dt>Model revision</dt><dd>@(deployment.ModelRevision ?? "Not specified")</dd>
+                            <dt>Model digest</dt><dd>@(deployment.ModelDigest ?? "Not specified")</dd>
+                            <dt>Revision</dt><dd>@deployment.Revision</dd>
+                        </dl>
+                        <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => ToggleAsync(deployment)">@(deployment.Enabled ? "Disable" : "Enable")</button>
+                    </article>
+                }
+            </div>
+        }
+        <nav aria-label="Deployment pages">
+            <button class="button" type="button" disabled="@(!_interactive || _busy || _offset == 0)" @onclick="() => LoadAsync(Math.Max(0, _offset - PageSize))">Previous</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy || _nextOffset is null)" @onclick="NextAsync">Next</button>
+        </nav>
+    }
+    @if (!string.IsNullOrEmpty(_capability))
+    {
+        <h2>Register deployment</h2>
+        <p>Use a deployment-managed endpoint reference, not a URL. New entries start disabled.</p>
+        <EditForm Model="_form" OnSubmit="RegisterAsync" FormName="register-cloud-deployment">
+            <label for="deployment-endpoint">Endpoint reference</label><InputText id="deployment-endpoint" @bind-Value="_form.EndpointReference" maxlength="128" required />
+            <label for="deployment-region">Region</label><InputText id="deployment-region" @bind-Value="_form.Region" maxlength="80" required />
+            <label for="deployment-contract">Contract version</label><InputText id="deployment-contract" @bind-Value="_form.ContractVersion" maxlength="32" required />
+            <label for="deployment-image">Image SHA-256 digest</label><InputText id="deployment-image" @bind-Value="_form.ImageDigest" maxlength="71" required />
+            <label for="deployment-limit">Concurrency limit</label><InputNumber id="deployment-limit" @bind-Value="_form.ConcurrencyLimit" min="1" max="100000" />
+            <label for="deployment-model">Model ID (optional)</label><InputText id="deployment-model" @bind-Value="_form.ModelId" maxlength="256" />
+            <label for="deployment-model-revision">Model revision (required with model ID)</label><InputText id="deployment-model-revision" @bind-Value="_form.ModelRevision" maxlength="256" />
+            <label for="deployment-model-digest">Model SHA-256 digest (required with model ID)</label><InputText id="deployment-model-digest" @bind-Value="_form.ModelDigest" maxlength="71" />
+            <button class="button primary" type="submit" disabled="@(!_interactive || _busy)">Register disabled deployment</button>
+        </EditForm>
+    }
+}
+
+@code {
+    private const int PageSize = 20;
+    private readonly DeploymentForm _form = new();
+    private IReadOnlyList<CloudCapabilityView> _catalog = [];
+    private IReadOnlyList<CloudWorkerDeployment> _deployments = [];
+    private string _capability = "";
+    private string? _loadedCapability;
+    private string? _accessError;
+    private string? _notice;
+    private bool _loading = true, _interactive, _busy, _loaded;
+    private int _offset;
+    private int? _nextOffset;
+
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    private void OnCapabilityChanged() { _loaded = false; _loadedCapability = null; _deployments = []; _nextOffset = null; _notice = null; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (!OperatorAccess.IsAllowed(principal)) { _accessError = "Operator access is required."; return; }
+            var catalog = Services.GetService(typeof(CloudCapabilityService)) as CloudCapabilityService;
+            if (catalog is null || Services.GetService(typeof(CloudOperatorDeploymentService)) is not CloudOperatorDeploymentService)
+            { _accessError = "The Cloud control plane is not configured."; return; }
+            _catalog = await catalog.GetCatalogAsync(CancellationToken.None);
+        }
+        catch (Exception) { Logger.LogWarning("Cloud operator inventory could not be loaded."); _accessError = "The Cloud control plane is temporarily unavailable."; }
+        finally { _loading = false; }
+    }
+
+    private Task NextAsync() => _nextOffset is int next ? LoadAsync(next) : Task.CompletedTask;
+
+    private async Task LoadAsync(int offset)
+    {
+        _busy = true; _notice = null; _loaded = false; _deployments = [];
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorDeploymentService)Services.GetService(typeof(CloudOperatorDeploymentService))!;
+            var result = await service.ListAsync(principal, _capability, offset, PageSize, CancellationToken.None);
+            if (result.Status != "succeeded") { _notice = "Deployment access could not be verified."; return; }
+            _deployments = result.Deployments ?? []; _offset = offset; _nextOffset = result.NextOffset; _loadedCapability = _capability; _loaded = true;
+        }
+        catch (Exception) { Logger.LogWarning("Cloud deployment inventory lookup failed."); _notice = "Deployment inventory is temporarily unavailable."; }
+        finally { _busy = false; }
+    }
+
+    private async Task RegisterAsync()
+    {
+        var deployment = new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = _capability, EndpointReference = _form.EndpointReference,
+            Transport = "https-mtls", Region = _form.Region, ContractVersion = _form.ContractVersion, ImageDigest = _form.ImageDigest,
+            ConcurrencyLimit = _form.ConcurrencyLimit, Enabled = false, ModelId = EmptyToNull(_form.ModelId),
+            ModelRevision = EmptyToNull(_form.ModelRevision), ModelDigest = EmptyToNull(_form.ModelDigest) };
+        await SaveAsync(deployment, 0);
+    }
+
+    private Task ToggleAsync(CloudWorkerDeployment deployment)
+    {
+        if (_loadedCapability != _capability) return Task.CompletedTask;
+        return SaveAsync(new CloudWorkerDeployment { Id = deployment.Id, CapabilityId = deployment.CapabilityId,
+            EndpointReference = deployment.EndpointReference, Transport = deployment.Transport, Region = deployment.Region,
+            ContractVersion = deployment.ContractVersion, ImageDigest = deployment.ImageDigest, ConcurrencyLimit = deployment.ConcurrencyLimit,
+            Enabled = !deployment.Enabled, ModelId = deployment.ModelId, ModelRevision = deployment.ModelRevision, ModelDigest = deployment.ModelDigest }, deployment.Revision);
+    }
+
+    private async Task SaveAsync(CloudWorkerDeployment deployment, long revision)
+    {
+        _busy = true; _notice = null;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorDeploymentService)Services.GetService(typeof(CloudOperatorDeploymentService))!;
+            var status = await service.PutAsync(principal, deployment, revision, CancellationToken.None);
+            await LoadAsync(0);
+            _notice = status switch { "succeeded" => "Deployment saved.", "conflict" => "Deployment changed. Review the latest inventory and try again.",
+                "invalid_request" => "Check the reference, region, contract, digests, and concurrency limit.", _ => "Deployment change was not authorized." };
+        }
+        catch (Exception) { Logger.LogWarning("Cloud deployment inventory update failed."); _notice = "Deployment change was not confirmed."; }
+        finally { _busy = false; }
+    }
+
+    private static string? EmptyToNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    private sealed class DeploymentForm
+    {
+        public string EndpointReference { get; set; } = "";
+        public string Region { get; set; } = "";
+        public string ContractVersion { get; set; } = "";
+        public string ImageDigest { get; set; } = "";
+        public int ConcurrencyLimit { get; set; } = 1;
+        public string? ModelId { get; set; }
+        public string? ModelRevision { get; set; }
+        public string? ModelDigest { get; set; }
+    }
+}
