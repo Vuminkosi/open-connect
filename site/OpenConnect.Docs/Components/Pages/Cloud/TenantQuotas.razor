@@ -1,0 +1,109 @@
+@page "/cloud/tenants/{TenantId:guid}/quotas"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantQuotas> Logger
+
+<PageTitle>Quotas | OpenConnect Cloud</PageTitle>
+<h1>Organization quotas</h1>
+<p>These counters show configured limits, finalized consumption, and outstanding reservations. They are not invoices or finalized charges. Times are in UTC.</p>
+@if (_loading)
+{
+    <p role="status">Loading quotas…</p>
+}
+else if (_status is not null)
+{
+    <p role="status">@_status</p>
+}
+else if (_page is not null)
+{
+    @if (_page.Quotas.Count == 0)
+    {
+        <p>No quota buckets are configured for this organization on this page.</p>
+    }
+    else
+    {
+        <div class="cloud-capabilities">
+            @foreach (var quota in _page.Quotas)
+            {
+                <article class="quota-card">
+                    <h2>@quota.CapabilityId</h2>
+                    <dl>
+                        <dt>Application ID</dt><dd><code>@quota.ApplicationId</code></dd>
+                        <dt>Period start (UTC)</dt><dd>@quota.PeriodStart.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        <dt>Period end (UTC)</dt><dd>@quota.PeriodEnd.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        <dt>Limit</dt><dd>@quota.Limit @quota.Unit</dd>
+                        <dt>Consumed</dt><dd>@quota.Consumed @quota.Unit</dd>
+                        <dt>Reserved</dt><dd>@quota.Reserved @quota.Unit</dd>
+                    </dl>
+                </article>
+            }
+        </div>
+    }
+    <nav aria-label="Quota pages">
+        <button class="button" disabled="@(_page.Offset == 0 || !_interactive)" @onclick="PreviousAsync">Previous</button>
+        <button class="button" disabled="@(_page.NextOffset is null || !_interactive)" @onclick="NextAsync">Next</button>
+    </nav>
+}
+<p><a href="/cloud">Back to organizations</a></p>
+
+@code {
+    private const int PageSize = 20;
+    [Parameter] public Guid TenantId { get; set; }
+    private CloudQuotaPage? _page;
+    private string? _status;
+    private bool _loading = true;
+    private bool _interactive;
+    private int _requestVersion;
+
+    protected override Task OnParametersSetAsync() => LoadAsync(0);
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) { _interactive = true; StateHasChanged(); }
+    }
+
+    private Task PreviousAsync() => LoadAsync(Math.Max(0, (_page?.Offset ?? 0) - PageSize));
+    private Task NextAsync() => _page?.NextOffset is int next ? LoadAsync(next) : Task.CompletedTask;
+
+    private async Task LoadAsync(int offset)
+    {
+        var version = ++_requestVersion;
+        var tenantId = TenantId;
+        _loading = true;
+        _page = null;
+        _status = null;
+        try
+        {
+            var service = Services.GetService(typeof(CloudQuotaQueryService)) as CloudQuotaQueryService;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var subject = CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            CloudQuotaPage? page = null;
+            string? status = null;
+            if (service is null) status = "The Cloud control plane is not configured.";
+            else if (subject is null) status = "The authenticated identity is missing a subject.";
+            else
+            {
+                page = await service.GetTenantAsync(subject, tenantId, offset, PageSize, CancellationToken.None);
+                if (page is null) status = "The organization was not found or your role does not allow quota access.";
+            }
+            if (version != _requestVersion) return;
+            _page = page;
+            _status = status;
+        }
+        catch (Exception)
+        {
+            if (version != _requestVersion) return;
+            Logger.LogWarning("Cloud quota lookup failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. Quotas could not be verified.";
+        }
+        finally
+        {
+            if (version == _requestVersion) _loading = false;
+        }
+    }
+}
