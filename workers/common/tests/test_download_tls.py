@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from openconnect_worker_common.models import download
+from openconnect_worker_common.models.initialize import InitializerConfig, initialize
 from openconnect_worker_common.models.runtime_cache import RuntimeModelAsset, RuntimeModelManifest
 
 DATA = b"local tls fixture"
@@ -83,6 +84,22 @@ def test_real_tls_download_and_hostname_verification(tmp_path: Path, tls_server,
                                         max_bytes=1024, timeout_seconds=10)
     fetch(asset, tmp_path / "result")
     assert (tmp_path / "result").read_bytes() == DATA
+
+    config = InitializerConfig.model_validate({
+        "manifest": {"workerKind": "test", "modelId": "model", "immutableRevision": "a" * 40,
+                     "license": "mit", "assets": [asset.model_dump()]},
+        "sources": {"model": {"url": source.url, "mediaTypes": list(source.media_types)}},
+        "allowedHosts": ["models.example"], "resourceRequest": {"memoryMb": 1},
+        "resourceBudget": {"memoryMbAvailable": 2, "vramMbAvailable": 0,
+                           "cpuMillicoresAvailable": 0},
+        "maxDownloadBytes": 1024, "downloadTimeoutSeconds": 10,
+    })
+    first = initialize(config, tmp_path / "cache", provisioning="first-start-if-missing",
+                       offline=False)
+    assert first.ready and first.downloads_attempted == 1
+    cached = initialize(config, tmp_path / "cache", provisioning="verify-existing-only",
+                        offline=True)
+    assert cached.ready and cached.cache_hit and cached.downloads_attempted == 0
 
     wrong = download.AssetSource("https://wrong.example/model", source.media_types)
     fetch = download.StartupAssetFetcher(model, {"model": wrong}, frozenset({"wrong.example"}),

@@ -4,7 +4,8 @@ Shared Python library for OpenConnect workers: wire contracts, security
 primitives, transport helpers, and local model utilities.
 
 - Runtime dependencies: `pydantic v2` + stdlib only.
-- No database, vault, network, or model-download I/O on import or in any helper.
+- No database, vault, network, or model-download I/O on import. The explicit
+  startup initializer may fetch operator-approved model assets over HTTPS.
 - Non-root compatible: no privileged operations, no hard-coded absolute paths.
 - Logging is redacted by default: emails, bearer tokens, secrets, phone
   numbers, and card numbers are scrubbed before they reach log output.
@@ -75,3 +76,25 @@ uv run ruff check src tests
 
 Live NATS access needs `nats-py` in the consuming worker; this package only
 declares settings and subject conventions so imports never require it.
+
+## Model initialization
+
+Run `python -m openconnect_worker_common.models.initialize` only as an init
+stage, with `OC_MODEL_MANIFEST_PATH` pointing to an administrator-controlled
+JSON file and `OC_MODEL_CACHE_DIR` pointing to a persistent cache. The JSON
+contains a pinned runtime `manifest`, a `sources` map keyed by asset path
+(`url` and `mediaTypes`), `allowedHosts`, `resourceRequest`, `resourceBudget`,
+`maxDownloadBytes`, `downloadTimeoutSeconds`, and optional `diskReserveBytes`,
+`licenseAccepted`, and `commercialUse`. The revision must be a 40- or
+64-character hexadecimal immutable digest; every asset needs a nonzero size
+and SHA-256. Resource budgets must reflect the deployment's actual limits.
+Only reviewed administrator-controlled sources and licenses may be selected.
+
+`OC_MODEL_PROVISIONING=disabled` avoids reading the manifest and creating a
+cache. `verify-existing-only` and `OC_MODEL_OFFLINE=true` forbid fetching;
+the default `first-start-if-missing` permits approved HTTPS fetches. Serving
+processes should mount the verified cache read-only and use
+`verify_for_request`, never the initializer. The initializer rejects redirects,
+private DNS addresses, non-HTTPS sources, unapproved hosts, and digest or size
+mismatches. It does not make a model available by itself: a consuming worker
+still needs an approved manifest, model adapter, and readiness integration.
