@@ -21,6 +21,9 @@ from openconnect_knowledge.embeddings import EmbeddingProfile, OnnxEmbeddingEngi
 from openconnect_worker_common.contracts.capability import (
     CapabilityDescriptor, CapabilityKind, CapabilityState,
 )
+from openconnect_worker_common.models.resource_admission import (
+    AdmissionVerdict, ResourceBudget, ResourceRequest, admit,
+)
 from openconnect_worker_common.models.runtime_cache import RuntimeModelCacheManager, RuntimeModelManifest
 from openconnect_worker_common.security.identity import verify_bearer
 from openconnect_worker_common.security.signing import key_from_environment, verify_bytes
@@ -43,6 +46,8 @@ class ServiceConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     manifest: RuntimeModelManifest
     profile: Profile
+    resourceRequest: ResourceRequest
+    resourceBudget: ResourceBudget
     licenseAccepted: bool = False
     commercialUse: bool = False
 
@@ -73,12 +78,19 @@ def _load_engine() -> OnnxEmbeddingEngine | None:
         return None
     if os.environ.get("OC_WORKER_ENGINE", "real").lower() != "real":
         return None
+    if os.environ.get("OC_MODEL_DEVICE", "auto").lower() not in {"auto", "cpu"}:
+        return None
     try:
         path = Path(os.environ["OC_KNOWLEDGE_CONFIG_PATH"])
         if path.stat().st_size > 1024 * 1024:
             return None
         config = ServiceConfig.model_validate_json(path.read_bytes())
         if config.manifest.workerKind != "knowledge":
+            return None
+        requested = config.resourceRequest
+        if (requested.memoryMb <= 0 or requested.cpuMillicores <= 0 or requested.gpuRequired
+                or requested.vramMb > 0
+                or admit(requested, config.resourceBudget).verdict != AdmissionVerdict.ADMIT):
             return None
         profile = config.profile
         engine = OnnxEmbeddingEngine(

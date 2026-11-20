@@ -17,13 +17,17 @@ KEY = bytes.fromhex("ab" * 32)
 @pytest.fixture
 def service(cached_model, tmp_path, monkeypatch):
     cache, manifest, revision = cached_model
-    config = {"manifest": manifest.model_dump(), "profile": {
+    config = {"manifest": manifest.model_dump(), "resourceRequest": {
+        "memoryMb": 1, "cpuMillicores": 1,
+    }, "resourceBudget": {"memoryMbAvailable": 2, "vramMbAvailable": 0,
+                          "cpuMillicoresAvailable": 2}, "profile": {
         "modelAsset": "model.onnx", "tokenizerAsset": "tokenizer.json",
         "dimension": 3, "maxTokens": 8,
     }}
     config_path = tmp_path / "service.json"
     config_path.write_text(json.dumps(config))
     monkeypatch.setenv("OC_KNOWLEDGE_ENABLED", "true")
+    monkeypatch.setenv("OC_MODEL_DEVICE", "cpu")
     monkeypatch.setenv("OC_KNOWLEDGE_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("OC_MODEL_CACHE_DIR", str(cache.cache_root))
     monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "test-token")
@@ -116,6 +120,29 @@ def test_disabled_provisioning_does_not_load_existing_cache(cached_model, monkey
     monkeypatch.setenv("OC_KNOWLEDGE_ENABLED", "true")
     monkeypatch.setenv("OC_MODEL_PROVISIONING", "disabled")
     monkeypatch.setenv("OC_MODEL_CACHE_DIR", str(cache.cache_root))
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "test-token")
+    monkeypatch.setenv("OPENCONNECT_WORKER_SIGNING_KEY", KEY.hex())
+    with TestClient(app) as client:
+        assert client.get("/health/ready").status_code == 503
+        assert client.get("/internal/v1/capabilities", headers={
+            "Authorization": "Bearer test-token"}).json() == {"capabilities": []}
+
+
+@pytest.mark.parametrize("reason", ["insufficient_memory", "gpu_required", "cuda_requested"])
+def test_resource_denial_prevents_loading(cached_model, tmp_path, monkeypatch, reason):
+    cache, manifest, _ = cached_model
+    request = {"memoryMb": 10, "cpuMillicores": 1, "gpuRequired": reason == "gpu_required"}
+    config = {"manifest": manifest.model_dump(), "profile": {
+        "modelAsset": "model.onnx", "tokenizerAsset": "tokenizer.json", "dimension": 3,
+        "maxTokens": 8}, "resourceRequest": request, "resourceBudget": {
+            "memoryMbAvailable": 1 if reason == "insufficient_memory" else 20,
+            "vramMbAvailable": 0, "cpuMillicoresAvailable": 2, "gpuAvailable": True}}
+    path = tmp_path / "service.json"
+    path.write_text(json.dumps(config))
+    monkeypatch.setenv("OC_KNOWLEDGE_ENABLED", "true")
+    monkeypatch.setenv("OC_KNOWLEDGE_CONFIG_PATH", str(path))
+    monkeypatch.setenv("OC_MODEL_CACHE_DIR", str(cache.cache_root))
+    monkeypatch.setenv("OC_MODEL_DEVICE", "cuda" if reason == "cuda_requested" else "cpu")
     monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "test-token")
     monkeypatch.setenv("OPENCONNECT_WORKER_SIGNING_KEY", KEY.hex())
     with TestClient(app) as client:
