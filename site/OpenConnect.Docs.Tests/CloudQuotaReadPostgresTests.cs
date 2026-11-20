@@ -1,4 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Claims;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -54,6 +65,52 @@ public sealed class CloudQuotaReadPostgresTests
         Assert.NotNull(await service.GetTenantAsync(administrator, tenant.Id, 0, 2, CancellationToken.None));
         Assert.Null(await service.GetTenantAsync(new CloudSubject("issuer-b", billing.SubjectId), tenant.Id, 0, 2, CancellationToken.None));
         Assert.Null(await service.GetTenantAsync(billing, other.Id, 0, 2, CancellationToken.None));
+        await VerifyHttpAsync(factory, tenant.Id, other.Id, billing, developer, app.Id);
+    }
+
+    private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid tenantId, Guid otherTenantId,
+        CloudSubject billing, CloudSubject developer, Guid applicationId)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddScoped<ICloudQuotaReader, EfCloudQuotaReader>();
+        builder.Services.AddScoped<CloudQuotaQueryService>();
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
+            options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; });
+        builder.Services.AddAuthorization(options => options.AddPolicy("CloudApi", policy =>
+        {
+            policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme);
+            policy.RequireAuthenticatedUser();
+        }));
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        // Test-only sign-in endpoint issues the same signed authentication cookie used by the API policy.
+        app.MapGet("/test-sign-in/{role}", async (string role, HttpContext context) =>
+        {
+            var subject = role == "billing" ? billing : developer;
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject.SubjectId)], CookieAuthenticationDefaults.AuthenticationScheme);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        });
+        app.MapGroup("/cloud/api/v1").RequireAuthorization("CloudApi").MapCloudQuotaEndpoints(billing.Issuer);
+        await app.StartAsync();
+        var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(address) };
+        var path = $"/cloud/api/v1/tenants/{tenantId}/quotas";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test-sign-in/billing")).StatusCode);
+        var response = await client.GetAsync(path + "?limit=2");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        var page = await response.Content.ReadFromJsonAsync<CloudQuotaPage>();
+        Assert.Equal(2, page!.Quotas.Count);
+        Assert.Equal(2, page.NextOffset);
+        Assert.All(page.Quotas, quota => Assert.Equal(applicationId, quota.ApplicationId));
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(path + "?limit=101")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/cloud/api/v1/tenants/{otherTenantId}/quotas")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test-sign-in/developer")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(path)).StatusCode);
     }
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>
