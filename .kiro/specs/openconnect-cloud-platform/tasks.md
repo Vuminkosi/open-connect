@@ -53,6 +53,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add app/capability quota buckets and atomic idempotent PostgreSQL reservation/finalization primitives; verify contention and tenant binding.
 - [x] Bind quota idempotency to a stored fingerprint and fail closed for pre-fingerprint reservation retries.
 - [x] Add canonical keyed fingerprint generation and persist a scoped key-version reference for retries.
+- [x] Expose paginated tenant quota bucket reads to owners, administrators, and billing readers, with issuer-bound membership and PostgreSQL isolation checks.
 - [ ] Implement key distribution and retention, gateway fingerprint integration, quota admission, execution fencing, overage/orphan reconciliation, idempotent usage ledger, policy administration, and usage reporting.
 - [ ] Implement worker deployment registry and capability-specific inference, LiveUI planning, classification, voice, transcription, translation, and separately gated operations.
 - [ ] Add independent CI, local development topology, observability, release gates, staging evidence, runbooks, and rollback verification.

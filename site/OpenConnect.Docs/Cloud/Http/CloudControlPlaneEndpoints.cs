@@ -49,6 +49,8 @@ public static class CloudControlPlaneEndpoints
             return;
         }
 
+        group.MapCloudQuotaEndpoints(identityIssuer);
+
         group.MapGet("/me", async (ClaimsPrincipal principal, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
