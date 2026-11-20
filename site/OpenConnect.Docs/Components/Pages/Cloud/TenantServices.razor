@@ -1,0 +1,145 @@
+@page "/cloud/tenants/{TenantId:guid}/services"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantServices> Logger
+
+<PageTitle>Services | OpenConnect Cloud</PageTitle>
+<h1>Service catalog</h1>
+@if (_loading)
+{
+    <p role="status">Loading service catalog…</p>
+}
+else if (!string.IsNullOrEmpty(_status))
+{
+    <p role="status">@_status</p>
+}
+else if (_capabilities.Count == 0)
+{
+    <p>No service definitions are configured.</p>
+}
+else
+{
+    <p>Platform availability, organization entitlement, and organization selection are reported separately. Application selection and credential scope are enforced separately.</p>
+    <div class="cloud-capabilities">
+        @foreach (var capability in _capabilities)
+        {
+            <article>
+                <h2>@capability.Name</h2>
+                <p>@capability.Description</p>
+                <dl>
+                    <dt>Service ID</dt><dd><code>@capability.Id</code></dd>
+                    <dt>Platform</dt><dd>@capability.PlatformAvailability</dd>
+                    <dt>Organization entitlement</dt><dd>@(capability.Entitled == true ? "Entitled" : "Not entitled")</dd>
+                    <dt>Organization selection</dt><dd>@(capability.TenantEnabled == true ? "Enabled" : "Disabled")</dd>
+                    <dt>Usage unit</dt><dd>@capability.BillingUnit</dd>
+                </dl>
+                @if (!string.IsNullOrEmpty(capability.ReasonCode))
+                {
+                    <p class="cloud-reason">@capability.ReasonCode</p>
+                }
+                @if (_canAdminister)
+                {
+                    <button class="button" disabled="@(!CanChange(capability))" @onclick="() => SetEnabledAsync(capability, capability.TenantEnabled != true)">
+                        @(capability.TenantEnabled == true ? "Disable for organization" : "Enable for organization")
+                    </button>
+                }
+            </article>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+
+    private CloudCapabilityService? _service;
+    private CloudControlPlaneService? _tenantService;
+    private IReadOnlyList<CloudCapabilityView> _capabilities = [];
+    private bool _loading = true;
+    private bool _canAdminister;
+    private string? _status;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _service = Services.GetService(typeof(CloudCapabilityService)) as CloudCapabilityService;
+        _tenantService = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+        if (_service is null || _tenantService is null)
+        {
+            _status = "The Cloud control plane is not configured.";
+            _loading = false;
+            return;
+        }
+        await ReloadAsync();
+    }
+
+    private bool CanChange(CloudCapabilityView capability) =>
+        _canAdminister && (capability.TenantEnabled == true ||
+            capability.Entitled == true && capability.PlatformAvailability == "available");
+
+    private async Task SetEnabledAsync(CloudCapabilityView capability, bool enabled)
+    {
+        var subject = await GetSubjectAsync();
+        if (subject is null || _service is null) return;
+        try
+        {
+            var result = await _service.SetTenantSelectionAsync(subject, TenantId, capability.Id, enabled, capability.Revision ?? 0, CancellationToken.None);
+            await ReloadAsync();
+            if (result.Status != "succeeded") _status = result.Status;
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud organization service update failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. The service selection was not confirmed.";
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _status = null;
+        try
+        {
+            var service = _service;
+            var tenantService = _tenantService;
+            if (service is null || tenantService is null)
+            {
+                _status = "The Cloud control plane is not configured.";
+                return;
+            }
+            var subject = await GetSubjectAsync();
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject.";
+                return;
+            }
+            var tenants = await tenantService.GetTenantsAsync(subject, CancellationToken.None);
+            var tenant = tenants.SingleOrDefault(item => item.Id == TenantId);
+            if (tenant is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
+            _canAdminister = tenant.Role is "Owner" or "Administrator";
+            _capabilities = await service.GetTenantCapabilitiesAsync(subject, TenantId, CancellationToken.None) ?? [];
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud service catalog lookup failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. Service access could not be verified.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task<CloudSubject?> GetSubjectAsync()
+    {
+        var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+    }
+}

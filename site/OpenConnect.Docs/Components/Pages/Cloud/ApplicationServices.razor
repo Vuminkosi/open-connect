@@ -1,0 +1,147 @@
+@page "/cloud/tenants/{TenantId:guid}/applications/{ApplicationId:guid}/services"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<ApplicationServices> Logger
+
+<PageTitle>Application services | OpenConnect Cloud</PageTitle>
+<h1>Application service selection</h1>
+@if (_loading)
+{
+    <p role="status">Loading application services…</p>
+}
+else if (!string.IsNullOrEmpty(_status))
+{
+    <p role="status">@_status</p>
+}
+else if (_capabilities.Count == 0)
+{
+    <p>No service definitions are configured.</p>
+}
+else
+{
+    <p>An application can select only organization-enabled capabilities. Credential scopes and platform readiness remain additional independent gates.</p>
+    <div class="cloud-capabilities">
+        @foreach (var capability in _capabilities)
+        {
+            <article>
+                <h2>@capability.Name</h2>
+                <p>Organization: @(capability.TenantEnabled == true ? "Enabled" : "Disabled") · Application: @(capability.ApplicationEnabled == true ? "Enabled" : "Disabled")</p>
+                <p>Platform: @capability.PlatformAvailability · Entitlement: @(capability.Entitled == true ? "Entitled" : "Not entitled")</p>
+                @if (!string.IsNullOrEmpty(capability.ReasonCode))
+                {
+                    <p class="cloud-reason">@capability.ReasonCode</p>
+                }
+                @if (_canAdminister)
+                {
+                    <button class="button" disabled="@(!CanChange(capability))" @onclick="() => SetEnabledAsync(capability, capability.ApplicationEnabled != true)">
+                        @(capability.ApplicationEnabled == true ? "Disable for application" : "Enable for application")
+                    </button>
+                }
+            </article>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    [Parameter] public Guid ApplicationId { get; set; }
+
+    private CloudCapabilityService? _service;
+    private CloudControlPlaneService? _tenantService;
+    private IReadOnlyList<CloudCapabilityView> _capabilities = [];
+    private bool _loading = true;
+    private bool _canAdminister;
+    private string? _status;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _service = Services.GetService(typeof(CloudCapabilityService)) as CloudCapabilityService;
+        _tenantService = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+        if (_service is null || _tenantService is null)
+        {
+            _status = "The Cloud control plane is not configured.";
+            _loading = false;
+            return;
+        }
+        await ReloadAsync();
+    }
+
+    private bool CanChange(CloudCapabilityView capability) =>
+        _canAdminister && (capability.ApplicationEnabled == true ||
+            capability.TenantEnabled == true && capability.Entitled == true && capability.PlatformAvailability == "available");
+
+    private async Task SetEnabledAsync(CloudCapabilityView capability, bool enabled)
+    {
+        var subject = await GetSubjectAsync();
+        if (subject is null || _service is null) return;
+        try
+        {
+            var result = await _service.SetApplicationSelectionAsync(
+                subject, TenantId, ApplicationId, capability.Id, enabled, capability.Revision ?? 0, CancellationToken.None);
+            await ReloadAsync();
+            if (result.Status != "succeeded") _status = result.Status;
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud application service update failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. The service selection was not confirmed.";
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _status = null;
+        try
+        {
+            var service = _service;
+            var tenantService = _tenantService;
+            if (service is null || tenantService is null)
+            {
+                _status = "The Cloud control plane is not configured.";
+                return;
+            }
+            var subject = await GetSubjectAsync();
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject.";
+                return;
+            }
+            var tenants = await tenantService.GetTenantsAsync(subject, CancellationToken.None);
+            var tenant = tenants.SingleOrDefault(item => item.Id == TenantId);
+            if (tenant is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
+            _canAdminister = tenant.Role is "Owner" or "Administrator";
+            var capabilities = await service.GetApplicationCapabilitiesAsync(subject, TenantId, ApplicationId, CancellationToken.None);
+            if (capabilities is null)
+            {
+                _status = "The application was not found or you do not have access.";
+                return;
+            }
+            _capabilities = capabilities;
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud application capability lookup failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. Application service access could not be verified.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task<CloudSubject?> GetSubjectAsync()
+    {
+        var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+    }
+}

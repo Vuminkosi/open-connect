@@ -1,0 +1,152 @@
+@page "/cloud"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<Overview> Logger
+
+<PageTitle>Cloud overview | OpenConnect</PageTitle>
+<section class="hero cloud-hero">
+    <p class="eyebrow">Authenticated workspace</p>
+    <h1>OpenConnect Cloud</h1>
+    <p>Cloud administration is separate from public documentation. Service entitlements, usage, and security evidence appear only when their control-plane sources are connected.</p>
+</section>
+<section aria-labelledby="organizations-title">
+    <h2 id="organizations-title">Organizations</h2>
+    @if (_loading)
+    {
+        <p role="status">Loading organizations…</p>
+    }
+    else if (_controlPlane is null)
+    {
+        <p role="status">@_status</p>
+    }
+    else if (!string.IsNullOrEmpty(_status))
+    {
+        <p role="status">@_status</p>
+    }
+    else if (_tenants.Count == 0)
+    {
+        <p>No organizations are connected to your account yet. Create one to begin.</p>
+    }
+    @if (_tenants.Count > 0)
+    {
+        <ul class="cloud-list">
+            @foreach (var tenant in _tenants)
+            {
+                <li>
+                    <strong>@tenant.Name</strong> <span>Role: @tenant.Role</span>
+                    <a href="/cloud/tenants/@tenant.Id/applications">Applications</a>
+                    <a href="/cloud/tenants/@tenant.Id/services">Services</a>
+                </li>
+            }
+        </ul>
+    }
+    @if (_controlPlane is not null)
+    {
+        <EditForm Model="_newTenant" OnValidSubmit="CreateTenantAsync" FormName="create-cloud-tenant">
+            <DataAnnotationsValidator />
+            <label for="cloud-tenant-name">New organization name</label>
+            <InputText id="cloud-tenant-name" @bind-Value="_newTenant.Name" maxlength="200" />
+            <ValidationMessage For="() => _newTenant.Name" />
+            <button class="button primary" type="submit" disabled="@_saving">Create organization</button>
+        </EditForm>
+    }
+</section>
+<section class="cards cloud-status" aria-label="Cloud service status">
+    <article><h2>Service catalog</h2><p>The logical catalog is available. Plan entitlements and deployment availability are not configured, so no service is currently enabled for execution.</p></article>
+    <article><h2>Security evidence</h2><p>No enforcement evidence is shown until authenticated, sanitized receipts are connected.</p></article>
+</section>
+
+@code {
+    private readonly TenantForm _newTenant = new();
+    private CloudControlPlaneService? _controlPlane;
+    private IReadOnlyList<CloudTenantSummary> _tenants = [];
+    private bool _loading = true;
+    private bool _saving;
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _controlPlane = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+        if (_controlPlane is null)
+        {
+            _status = "The Cloud control plane is not configured. Organization data is unavailable.";
+            _loading = false;
+            return;
+        }
+
+        await ReloadTenantsAsync();
+    }
+
+    private async Task CreateTenantAsync()
+    {
+        if (_controlPlane is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _status = null;
+        try
+        {
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var subject = CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject. Sign in again or contact the identity administrator.";
+                return;
+            }
+
+            await _controlPlane.CreateTenantAsync(subject, _newTenant.Name!, CancellationToken.None);
+            _newTenant.Name = string.Empty;
+            await ReloadTenantsAsync();
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud organization creation failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. The organization was not confirmed as created.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ReloadTenantsAsync()
+    {
+        _loading = true;
+        _status = null;
+        try
+        {
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var subject = CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject.";
+                return;
+            }
+
+            _tenants = await _controlPlane!.GetTenantsAsync(subject, CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud organization lookup is unavailable; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. Organization membership could not be verified.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private sealed class TenantForm
+    {
+        [Required, StringLength(200, MinimumLength = 1)]
+        public string? Name { get; set; }
+    }
+}

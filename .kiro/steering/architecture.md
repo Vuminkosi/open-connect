@@ -110,6 +110,16 @@ workers/* <- workers/common
 
 ## Gateway and Communication Protocols
 
+## Cloud portal boundary (OC-CLOUD-001)
+
+- The existing .NET 10 Blazor portal remains the public documentation host. Public documentation, search, API reference, health checks, and the optional assistant do not depend on cloud identity or control-plane availability.
+- Cloud dashboard routes are additive and require authenticated server-side authorization. Interactive navigation state is not an authorization boundary.
+- Cloud identity uses a configurable external OIDC provider with authorization-code flow and PKCE, backed by a server-side secure cookie. Cloud identity is disabled unless explicitly configured; enabling it with incomplete provider configuration fails application startup.
+- Tenant membership and application enrollment are persisted in the separate `cloud` PostgreSQL schema when the optional Cloud connection is configured. The authenticated control-plane API is tenant-membership scoped; application creation is limited to owners and administrators. Entitlements, credentials, complete audit coverage, cloud data-plane routing, and acceptance evidence remain separate unfinished work and must not be reported as operational.
+- Logical capability definitions, plan grants, tenant selections, application selections, and worker deployments are distinct records. A service selection never by itself authorizes execution; the future Cloud gateway must recheck entitlement, policy, credential scope, quota, region, and deployment readiness before dispatch.
+- Cloud machine credentials are random, one-time-displayed server credentials. Persist only a one-way digest and non-secret fingerprint; bind each key to a tenant/application/environment and explicit service scopes. Credential validation identifies a caller but does not replace gateway capability admission.
+- Cloud dashboard content must state when those control-plane services are unavailable; it must not show fabricated tenant state or enforcement evidence.
+
 ### HTTP API
 
 Version prefix: `/openconnect/v1`

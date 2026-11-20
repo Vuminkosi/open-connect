@@ -1,6 +1,18 @@
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="typeof(Layout.MainLayout)">
+                    <PageTitle>Sign in to Cloud | OpenConnect</PageTitle>
+                    <section class="hero">
+                        <p class="eyebrow">Protected workspace</p>
+                        <h1>Sign in to OpenConnect Cloud</h1>
+                        <p>This area requires an authenticated account. Public documentation remains available without sign-in.</p>
+                        <a class="button primary" href="/cloud/sign-in">Sign in</a>
+                    </section>
+                </LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>

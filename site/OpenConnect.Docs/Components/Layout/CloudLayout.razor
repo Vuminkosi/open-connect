@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+
+<header class="site-header">
+    <a class="brand" href="/" aria-label="OpenConnect home">OpenConnect <span>Cloud</span></a>
+    <nav aria-label="Cloud navigation">
+        <a href="/cloud">Overview</a>
+        <a href="/docs">Documentation</a>
+    </nav>
+    <form method="post" action="/cloud/sign-out">
+        <AntiforgeryToken />
+        <button class="button" type="submit">Sign out</button>
+    </form>
+</header>
+<main id="main-content" class="content cloud-content">@Body</main>

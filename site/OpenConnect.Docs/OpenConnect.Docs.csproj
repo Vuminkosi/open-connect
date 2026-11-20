@@ -10,6 +10,12 @@
     <ProjectReference Include="../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content/**/*.md" CopyToOutputDirectory="PreserveNewest" />

@@ -1,0 +1,181 @@
+@page "/cloud/tenants/{TenantId:guid}/applications"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantApplications> Logger
+
+<PageTitle>Applications | OpenConnect Cloud</PageTitle>
+<h1>Applications</h1>
+@if (_loading)
+{
+    <p role="status">Loading applications…</p>
+}
+else if (_controlPlane is null || !string.IsNullOrEmpty(_status))
+{
+    <p role="status">@_status</p>
+}
+else
+{
+    <p>Organization role: @_role</p>
+    @if (_applications.Count == 0)
+    {
+        <p>No applications are registered for this organization.</p>
+    }
+    else
+    {
+        <ul class="cloud-list">
+            @foreach (var application in _applications)
+            {
+                <li><strong>@application.Name</strong> <span>@application.Environment</span>
+                    <a href="/cloud/tenants/@TenantId/applications/@application.Id/services">Service selection</a>
+                </li>
+            }
+        </ul>
+    }
+    @if (_canAdminister)
+    {
+        <h2>Register application</h2>
+        <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync" FormName="create-cloud-application">
+            <DataAnnotationsValidator />
+            <label for="cloud-application-name">Application name</label>
+            <InputText id="cloud-application-name" @bind-Value="_newApplication.Name" maxlength="200" />
+            <ValidationMessage For="() => _newApplication.Name" />
+            <label for="cloud-application-environment">Environment</label>
+            <InputSelect id="cloud-application-environment" @bind-Value="_newApplication.Environment">
+                <option value="Development">Development</option>
+                <option value="Staging">Staging</option>
+                <option value="Production">Production</option>
+            </InputSelect>
+            <button class="button primary" type="submit" disabled="@_saving">Register application</button>
+        </EditForm>
+    }
+    <p>Service selections are shown on each application. Credential management is available through the authenticated API; no raw credential is displayed in this portal.</p>
+}
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+
+    private readonly ApplicationForm _newApplication = new();
+    private CloudControlPlaneService? _controlPlane;
+    private IReadOnlyList<CloudApplicationSummary> _applications = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _canAdminister;
+    private string? _role;
+    private string? _status;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _controlPlane = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
+        if (_controlPlane is null)
+        {
+            _status = "The Cloud control plane is not configured. Application data is unavailable.";
+            _loading = false;
+            return;
+        }
+
+        await ReloadAsync();
+    }
+
+    private async Task CreateApplicationAsync()
+    {
+        if (_controlPlane is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _status = null;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject.";
+                return;
+            }
+
+            var created = await _controlPlane.CreateApplicationAsync(
+                subject, TenantId, _newApplication.Name!, _newApplication.Environment, CancellationToken.None);
+            if (created.Application is null)
+            {
+                _status = "The organization could not be found or your role does not allow application administration.";
+                return;
+            }
+
+            _newApplication.Name = string.Empty;
+            await ReloadAsync();
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud application creation failed; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. The application was not confirmed as registered.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _status = null;
+        try
+        {
+            var subject = await GetSubjectAsync();
+            if (subject is null)
+            {
+                _status = "The authenticated identity is missing a subject.";
+                return;
+            }
+
+            var tenants = await _controlPlane!.GetTenantsAsync(subject, CancellationToken.None);
+            var tenant = tenants.SingleOrDefault(item => item.Id == TenantId);
+            if (tenant is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
+
+            _role = tenant.Role;
+            _canAdminister = tenant.Role is "Owner" or "Administrator";
+            var applications = await _controlPlane.GetApplicationsAsync(subject, TenantId, CancellationToken.None);
+            if (applications is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
+            _applications = applications;
+        }
+        catch (Exception)
+        {
+            Logger.LogWarning("Cloud application lookup is unavailable; no database details were returned to the browser.");
+            _status = "The Cloud control plane is temporarily unavailable. Application membership could not be verified.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task<CloudSubject?> GetSubjectAsync()
+    {
+        var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return CloudSubjectResolver.FromPrincipal(authentication.User, Configuration["OpenConnect:Cloud:Identity:Authority"]);
+    }
+
+    private sealed class ApplicationForm
+    {
+        [Required, StringLength(200, MinimumLength = 1)]
+        public string? Name { get; set; }
+
+        [Required]
+        public string Environment { get; set; } = "Development";
+    }
+}
