@@ -34,10 +34,12 @@ public sealed class CloudExecutionClaimPostgresTests
             return result.ReservationId!.Value;
         }
         var id = await Reserve();
-        Assert.Equal("unavailable", (await claims.ClaimAsync(Guid.NewGuid(), app.Id, id, capability, default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, Guid.NewGuid(), id, capability, default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, id, "other", default)).Status);
-        var attempts = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => claims.ClaimAsync(tenant.Id, app.Id, id, capability, default)));
+        Assert.Equal("unavailable", (await claims.ClaimAsync(Guid.NewGuid(), app.Id, id, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, Guid.NewGuid(), id, capability, "key", new byte[32], default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, id, "other", "key", new byte[32], default)).Status);
+        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(tenant.Id, app.Id, id, capability, "other-key", new byte[32], default)).Status);
+        Assert.Equal("idempotency_conflict", (await claims.ClaimAsync(tenant.Id, app.Id, id, capability, "key", Enumerable.Repeat((byte)1, 32).ToArray(), default)).Status);
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => claims.ClaimAsync(tenant.Id, app.Id, id, capability, "key", new byte[32], default)));
         Assert.Single(attempts, x => x.Status == "claimed" && x.ClaimId is not null);
         Assert.Equal(29, attempts.Count(x => x.Status == "already_claimed" && x.ClaimId is null));
         Assert.Equal("execution_requires_reconciliation", (await quota.FinalizeAsync(tenant.Id, app.Id, id, 0, default)).Status);
@@ -51,16 +53,16 @@ public sealed class CloudExecutionClaimPostgresTests
         }
         var expired = await Reserve();
         var expiredClaims = new CloudExecutionClaimService(new EfCloudExecutionClaimStore(factory, new TestClock(now.AddMinutes(6))));
-        Assert.Equal("unavailable", (await expiredClaims.ClaimAsync(tenant.Id, app.Id, expired, capability, default)).Status);
+        Assert.Equal("unavailable", (await expiredClaims.ClaimAsync(tenant.Id, app.Id, expired, capability, "key", new byte[32], default)).Status);
         var legacy = await Reserve();
         await using (var db = await factory.CreateDbContextAsync())
             await db.QuotaReservations.Where(x => x.Id == legacy).ExecuteUpdateAsync(x => x.SetProperty(y => y.RequestFingerprint, (byte[]?)null).SetProperty(y => y.FingerprintKeyId, (string?)null));
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, legacy, capability, default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, legacy, capability, "key", new byte[32], default)).Status);
         var finalized = await Reserve();
         Assert.Equal("finalized", (await quota.FinalizeAsync(tenant.Id, app.Id, finalized, 0, default)).Status);
-        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, finalized, capability, default)).Status);
+        Assert.Equal("unavailable", (await claims.ClaimAsync(tenant.Id, app.Id, finalized, capability, "key", new byte[32], default)).Status);
         var racing = await Reserve();
-        var claimTask = claims.ClaimAsync(tenant.Id, app.Id, racing, capability, default);
+        var claimTask = claims.ClaimAsync(tenant.Id, app.Id, racing, capability, "key", new byte[32], default);
         var refundTask = quota.FinalizeAsync(tenant.Id, app.Id, racing, 0, default);
         await Task.WhenAll(claimTask, refundTask);
         Assert.True((claimTask.Result.Status == "claimed" && refundTask.Result.Status == "execution_requires_reconciliation") ||

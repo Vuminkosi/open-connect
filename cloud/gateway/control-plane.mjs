@@ -137,17 +137,20 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { finish(unavailable()); }
             });
         },
-        claimClassification(credential, reservationId, signal, traceparent) {
+        claimClassification(credential, reservationId, proof, signal, traceparent) {
             const unavailable = () => ({ status: 'unavailable' });
-            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || signal?.aborted)
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(reservationId) || signal?.aborted ||
+                !proof || !/^[A-Za-z0-9_-]{1,64}$/.test(proof.fingerprintKeyId ?? '') ||
+                typeof proof.fingerprint !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(proof.fingerprint))
                 return Promise.resolve(unavailable());
+            const body = Buffer.from(JSON.stringify({ fingerprintKeyId: proof.fingerprintKeyId, fingerprint: proof.fingerprint }), 'utf8');
             return new Promise(resolve => {
                 let finished = false; let timer;
                 const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
                 try {
                     const request = https.request(new URL(`/cloud/internal/v1/classification/quota/reservations/${reservationId}/claim`, url), {
                         method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
-                        headers: { authorization: `Bearer ${credential}`, 'content-length': '0', 'cache-control': 'no-store',
+                        headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
                             ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
                     }, response => {
                         const chunks = []; let size = 0;
@@ -159,12 +162,13 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                                 if (!result || typeof result !== 'object' || Array.isArray(result) || Object.keys(result).some(key => !['status', 'claimId'].includes(key))) return finish(unavailable());
                                 if (response.statusCode === 200 && result.status === 'claimed' && validId(result.claimId)) return finish(result);
                                 if (response.statusCode === 409 && result.status === 'already_claimed' && result.claimId == null) return finish({ status: 'already_claimed' });
+                                if (response.statusCode === 409 && result.status === 'idempotency_conflict' && result.claimId == null) return finish({ status: 'idempotency_conflict' });
                             } catch { /* Do not expose private endpoint diagnostics. */ }
                             finish(unavailable());
                         });
                     });
                     timer = setTimeout(() => { request.destroy(); finish(unavailable()); }, timeoutMs);
-                    request.on('error', () => finish(unavailable())); request.end();
+                    request.on('error', () => finish(unavailable())); request.end(body);
                 } catch { finish(unavailable()); }
             });
         },
