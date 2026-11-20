@@ -159,3 +159,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add opt-in inference worker claim consumption and authoritative token-budget enforcement around an injected local runtime; verified production runtime, real-model acceptance and streaming remain outstanding.
 
 - [x] Bind inference worker consumption to deployment model revision and digest as well as model ID; real artifact verification remains outstanding.
+
+- [x] Add a digest-checked offline llama.cpp inference adapter and smoke-test bounded token generation against an existing local GGUF; production runtime wiring, tokenizer parity and streaming remain outstanding.
