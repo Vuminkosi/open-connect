@@ -99,6 +99,29 @@ def test_execute_fake_engine_happy_path(monkeypatch) -> None:
     assert result["engineWarning"] is not None
 
 
+def test_execute_failure_does_not_log_request_or_exception(monkeypatch, caplog) -> None:
+    _auth(monkeypatch)
+
+    class FailingEngine:
+        def classify(self, text, **kwargs):
+            raise RuntimeError(f"model failed on {text}")
+
+    monkeypatch.setattr(app_module, "_engine", lambda: FailingEngine())
+    payload = {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "sensitive-task-id",
+        "input": {"text": "sensitive-request-text", "labelSetVersion": "v1"},
+    }
+    response = client.post(
+        "/internal/v1/execute", json=payload, headers={"Authorization": "Bearer local-test-token"}
+    )
+    assert response.json()["status"] == "failed"
+    assert "Classification failed unexpectedly" in caplog.text
+    assert "sensitive-task-id" not in caplog.text
+    assert "sensitive-request-text" not in caplog.text
+    assert "RuntimeError" not in caplog.text
+
+
 def test_execute_unknown_label_set(monkeypatch) -> None:
     _auth(monkeypatch)
     response = _execute("hello", labelSetVersion="v99")

@@ -222,7 +222,8 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             },
         )  # type: ignore[return-value]
     except Exception:
-        logger.exception("Classification failed task_id=%s", request.taskId)
+        # Model exceptions and caller-supplied task IDs may contain request content.
+        logger.error("Classification failed unexpectedly")
         return ExecuteResponse(
             taskId=request.taskId,
             status="failed",
