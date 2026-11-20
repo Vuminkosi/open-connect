@@ -51,6 +51,7 @@ PRE_APPROVED_LICENSES: frozenset[str] = frozenset(
 NON_COMMERCIAL_TOKENS: tuple[str, ...] = ("nc", "noncommercial", "non-commercial", "research-only")
 
 _SAFE_MODEL_ID_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_SAFE_WORKER_KIND_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 _IN_PROCESS_LOCKS_GUARD = threading.Lock()
 _IN_PROCESS_LOCKS: dict[str, threading.Lock] = {}
 
@@ -121,6 +122,11 @@ def sanitize_model_id(model_id: str) -> str:
     return _SAFE_MODEL_ID_RE.sub("__", cleaned)
 
 
+def _contains_link(path: Path) -> bool:
+    """Reject links and Windows junctions in any existing path component."""
+    return any(part.is_symlink() or part.is_junction() for part in (path, *path.parents))
+
+
 def _is_safe_relative_path(base_dir: Path, relative_path: str) -> bool:
     if not relative_path or os.path.isabs(relative_path):
         return False
@@ -130,15 +136,15 @@ def _is_safe_relative_path(base_dir: Path, relative_path: str) -> bool:
     try:
         resolved_base = base_dir.resolve()
         current = base_dir
-        if current.is_symlink():
+        if _contains_link(current):
             return False
         for part in parts:
             current = current / part
-            if current.is_symlink():
+            if current.is_symlink() or current.is_junction():
                 return False
         candidate = (resolved_base / relative_path).resolve()
         candidate.relative_to(resolved_base)
-    except ValueError:
+    except (OSError, RuntimeError, ValueError):
         return False
     return True
 
@@ -233,6 +239,8 @@ class ModelCachePaths:
     def __init__(self, cache_root: Path | str, worker_kind: str, model_id: str) -> None:
         self.cache_root = Path(cache_root)
         self.worker_kind = worker_kind.strip().lower()
+        if not _SAFE_WORKER_KIND_RE.fullmatch(self.worker_kind):
+            raise ValueError("invalid worker kind")
         self.model_id = model_id
         self.model_id_safe = sanitize_model_id(model_id)
         self.model_root = self.cache_root / self.worker_kind / self.model_id_safe
@@ -302,6 +310,8 @@ class RuntimeModelCacheManager:
     def __init__(self, cache_root: Path | str, worker_kind: str) -> None:
         self.cache_root = Path(cache_root)
         self.worker_kind = worker_kind.strip().lower()
+        if not _SAFE_WORKER_KIND_RE.fullmatch(self.worker_kind):
+            raise ValueError("invalid worker kind")
 
     def paths_for(self, model_id: str) -> ModelCachePaths:
         return ModelCachePaths(self.cache_root, self.worker_kind, model_id)
@@ -346,6 +356,12 @@ class RuntimeModelCacheManager:
 
         paths = self.paths_for(manifest.modelId)
         rev_dir = paths.revision_dir(fingerprint)
+        if _contains_link(rev_dir):
+            return CacheProvisionResult(
+                ready=False, status="unavailable", reason="cache_corrupt", fingerprint=fingerprint,
+                model_id=manifest.modelId, revision=manifest.immutableRevision, revision_dir=None,
+                license_approved=True,
+            )
         if not rev_dir.is_dir():
             return CacheProvisionResult(
                 ready=False,
@@ -565,6 +581,15 @@ class RuntimeModelCacheManager:
             )
 
         paths = self.paths_for(manifest.modelId)
+        if any(_contains_link(path) for path in (
+            paths.model_root, paths.revisions_dir, paths.staging_root, paths.locks_dir,
+            paths.revision_dir(fingerprint), paths.lock_path(fingerprint),
+        )):
+            return CacheProvisionResult(
+                ready=False, status="unavailable", reason="cache_corrupt", fingerprint=fingerprint,
+                model_id=manifest.modelId, revision=manifest.immutableRevision, revision_dir=None,
+                license_approved=True,
+            )
         existing = self.verify_revision(
             manifest,
             license_accepted=license_accepted,

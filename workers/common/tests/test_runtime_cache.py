@@ -116,6 +116,41 @@ def test_cached_asset_symlink_is_not_ready(tmp_path: Path) -> None:
     assert checked.reason == "cache_corrupt"
 
 
+def test_symlinked_revision_is_not_ready(tmp_path: Path) -> None:
+    manifest, blobs = _manifest_and_blobs()
+    manager = RuntimeModelCacheManager(tmp_path / "cache", "kokoro")
+    result = manager.provision_or_verify(manifest, asset_fetcher=_make_fetcher(blobs, []))
+    assert result.ready and result.revision_dir is not None
+    revision = result.revision_dir
+    relocated = tmp_path / "relocated"
+    revision.rename(relocated)
+    _symlink_or_skip(revision, relocated)
+
+    assert manager.verify_for_request(manifest).reason == "cache_corrupt"
+    checked = manager.provision_or_verify(manifest, asset_fetcher=_forbid_network)
+    assert not checked.ready and checked.reason == "cache_corrupt"
+
+
+def test_symlinked_staging_directory_cannot_escape_cache(tmp_path: Path) -> None:
+    manifest, _ = _manifest_and_blobs()
+    manager = RuntimeModelCacheManager(tmp_path / "cache", "kokoro")
+    staging = manager.paths_for(manifest.modelId).staging_root
+    staging.parent.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    _symlink_or_skip(staging, outside)
+
+    result = manager.provision_or_verify(manifest, asset_fetcher=_forbid_network)
+    assert not result.ready and result.reason == "cache_corrupt"
+    assert list(outside.iterdir()) == []
+
+
+@pytest.mark.parametrize("worker", ["../escape", "/absolute", "nested/worker", "..", ""])
+def test_worker_kind_cannot_escape_cache(tmp_path: Path, worker: str) -> None:
+    with pytest.raises(ValueError, match="invalid worker kind"):
+        RuntimeModelCacheManager(tmp_path, worker)
+
+
 # Scenario 1: Image build with empty cache & Dockerfile audit
 @pytest.mark.parametrize("worker", EIGHT_PYTHON_WORKERS)
 def test_scenario_01_dockerfile_no_build_downloads(worker: str) -> None:
