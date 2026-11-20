@@ -165,6 +165,11 @@ public sealed class CloudInferenceClaimPostgresTests
             var atCapacity = await Reserve();
             Assert.Equal("unavailable", (await Claim(atCapacity, "registry/model-a")).Status);
             var settlement = new CloudInferenceTokenSettlement(new EfCloudInferenceTokenSettlementStore(factory, TimeProvider.System));
+            var outputEvidence = new EfCloudInferenceOutputEvidenceStore(factory, TimeProvider.System);
+            Guid outputRequestId;
+            await using (var db = await factory.CreateDbContextAsync()) outputRequestId = (await db.QuotaReservations.SingleAsync(x => x.Id == id)).RequestId;
+            var outputTrace = new string('a', 32);
+            Assert.False(await outputEvidence.AppendForCompletedAsync(machine, outputRequestId, id, firstClaim.ClaimId!.Value, "allowed", outputTrace, default));
             Assert.Equal("invalid_request", await settlement.SettleAsync(id, firstClaim.ClaimId!.Value, deploymentId, new(-1, 0), default));
             Assert.Equal("invalid_request", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(long.MaxValue, 1), default));
             Assert.Equal("unavailable", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, Guid.NewGuid(), new(2, 1), default));
@@ -173,6 +178,16 @@ public sealed class CloudInferenceClaimPostgresTests
             Assert.Single(completions, x => x == "completed");
             Assert.Equal(9, completions.Count(x => x == "already_completed"));
             Assert.Equal("conflict", await settlement.SettleAsync(id, firstClaim.ClaimId.Value, deploymentId, new(1, 2), default));
+            Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { CredentialId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
+            Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { TenantId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
+            Assert.False(await outputEvidence.AppendForCompletedAsync(machine with { ApplicationId = Guid.NewGuid() }, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
+            Assert.False(await outputEvidence.AppendForCompletedAsync(machine, Guid.NewGuid(), id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
+            Assert.True(await outputEvidence.AppendForCompletedAsync(machine, outputRequestId, id, firstClaim.ClaimId.Value, "allowed", outputTrace, default));
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.inference_output_privacy_evidence WHERE \"ReservationId\" = {id}").SingleAsync());
+                await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.inference_output_privacy_evidence WHERE \"ReservationId\" = {id}"));
+            }
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var saved = await db.QuotaReservations.SingleAsync(x => x.Id == id);
@@ -227,11 +242,14 @@ public sealed class CloudInferenceClaimPostgresTests
         builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
         builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>(); builder.Services.AddScoped<CloudExecutionClaimService>();
         builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
+        builder.Services.AddSingleton(new CloudInferenceOutputPrivacyService(new RulesSecurityDetector()));
+        builder.Services.AddScoped<ICloudInferenceOutputEvidenceStore, EfCloudInferenceOutputEvidenceStore>();
         var evidence = new SwitchableInferenceEvidence(new EfCloudInferencePrivacyEvidenceStore(factory, TimeProvider.System));
         builder.Services.AddSingleton<ICloudInferencePrivacyEvidenceStore>(evidence);
         await using var host = builder.Build();
         host.MapCloudGatewayAuthorization(trust, true);
         host.MapCloudInferencePrivacy(trust, true);
+        host.MapCloudInferenceOutputPrivacy(trust, true);
         host.MapCloudInferenceFingerprintKeyLookup(trust, true); host.MapCloudInferenceQuota(trust, true); host.MapCloudInferenceClaim(trust, true);
         await host.StartAsync();
         var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -286,10 +304,31 @@ public sealed class CloudInferenceClaimPostgresTests
         Assert.Equal(HttpStatusCode.OK, (await Inspect(client, "{\"messages\":[{\"role\":\"user\",\"content\":\"hello world\"}]}", requestId)).StatusCode);
         var claim = await client.PostAsJsonAsync(claimPath, proof);
         Assert.Equal(HttpStatusCode.OK, claim.StatusCode);
-        Assert.Equal("claimed", (await claim.Content.ReadFromJsonAsync<CloudExecutionClaimResult>())!.Status);
+        var claimResult = await claim.Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
+        Assert.Equal("claimed", claimResult!.Status);
+        var claimId = claimResult.ClaimId!.Value;
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(claimPath, proof)).StatusCode);
         await VerifyNodeClientAsync(address, server, gateway, issued.Secret!, requestId, reservation.ReservationId!.Value, now.AddMinutes(5), reference);
         await VerifyNodeAdmissionAsync(address, server, gateway, issued.Secret!, reference + "-admission");
+        async Task<HttpResponseMessage> InspectOutput(HttpClient sender, string body, Guid targetClaim)
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/inference/output-privacy")
+                { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+            message.Headers.Add("X-Cloud-Request-Id", requestId.ToString("D"));
+            message.Headers.Add("X-Cloud-Reservation-Id", reservation.ReservationId!.Value.ToString("D"));
+            message.Headers.Add("X-Cloud-Claim-Id", targetClaim.ToString("D"));
+            return await sender.SendAsync(message);
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, (await InspectOutput(untrusted, "{\"output\":\"safe\"}", claimId)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await InspectOutput(client, "{\"output\":\"safe\",\"output\":\"other\"}", claimId)).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await InspectOutput(client, "{\"output\":\"safe\"}", claimId)).StatusCode);
+        var consumption = new CloudInferenceConsumptionService(new EfCloudInferenceConsumptionStore(factory, TimeProvider.System));
+        Assert.Equal("consumed", (await consumption.ConsumeAsync(reservation.ReservationId!.Value, claimId, deploymentId, new byte[32], default)).Status);
+        var settlement = new CloudInferenceTokenSettlement(new EfCloudInferenceTokenSettlementStore(factory, TimeProvider.System));
+        Assert.Equal("completed", await settlement.SettleAsync(reservation.ReservationId.Value, claimId, deploymentId, new(2, 1), default));
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await InspectOutput(client, "{\"output\":\"safe\"}", Guid.NewGuid())).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await InspectOutput(client, "{\"output\":\"safe\"}", claimId)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await InspectOutput(client, "{\"output\":\"person@example.test\"}", claimId)).StatusCode);
         Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenantId, appId, issued.Credential!.Id, default));
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/cloud/internal/v1/inference/quota/fingerprint-key/{requestId:D}")).StatusCode);
     }

@@ -173,3 +173,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add opt-in gateway tokenizer configuration and read-only model access to the all-services Compose file; admission wiring and deployment acceptance remain outstanding.
 
 - [x] Add a separately scoped inference output privacy evaluator; authenticated endpoint, evidence and response-path enforcement remain outstanding.
+
+- [x] Expose private authenticated inference output inspection with append-only evidence bound to a completed, settled claim and its original credential; gateway response-path enforcement remains outstanding.
