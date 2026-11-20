@@ -2,6 +2,34 @@ import { readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { createCloudAuthorizationClient } from './control-plane.mjs';
 import { createClassificationProbe } from './classification-probe.mjs';
+import { createFingerprintKeyring } from './request-fingerprint.mjs';
+
+// The file contains one key per line as ID:canonical-base64. It is mounted as a secret.
+export function fingerprintKeyringFromEnvironment(environment, read = readFileSync) {
+    const { CLOUD_FINGERPRINT_ACTIVE_KEY_ID: activeKeyId, CLOUD_FINGERPRINT_KEYS_FILE: path } = environment;
+    if (!activeKeyId && !path) return undefined;
+    if (!activeKeyId || !path || !isAbsolute(path)) throw new Error('Cloud fingerprint key configuration is incomplete.');
+    const material = read(path);
+    const keys = [];
+    try {
+        if (!(material instanceof Uint8Array) || material.byteLength > 4096) throw new Error('Invalid Cloud fingerprint key file.');
+        const content = new TextDecoder('utf-8', { fatal: true }).decode(material);
+        const lines = content.split(/\r?\n/);
+        if (lines.at(-1) === '') lines.pop();
+        if (lines.length < 1 || lines.length > 16) throw new Error('Invalid Cloud fingerprint key file.');
+        for (const line of lines) {
+            const match = /^([A-Za-z0-9_-]{1,64}):([A-Za-z0-9+/]+={0,2})$/.exec(line);
+            if (!match) throw new Error('Invalid Cloud fingerprint key file.');
+            const key = Buffer.from(match[2], 'base64');
+            keys.push({ id: match[1], key });
+            if (key.toString('base64') !== match[2]) throw new Error('Invalid Cloud fingerprint key file.');
+        }
+        return createFingerprintKeyring({ activeKeyId, keys });
+    } finally {
+        for (const { key } of keys) key.fill(0);
+        if (material instanceof Uint8Array) material.fill(0);
+    }
+}
 
 export function authorizationFromEnvironment(environment, read = readFileSync) {
     const { CLOUD_AUTHORITY_ORIGIN: origin, CLOUD_AUTHORITY_CA_FILE: caFile,

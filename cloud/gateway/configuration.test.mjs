@@ -1,6 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { authorizationFromEnvironment, classificationProbeFromEnvironment } from './configuration.mjs';
+import { authorizationFromEnvironment, classificationProbeFromEnvironment, fingerprintKeyringFromEnvironment } from './configuration.mjs';
+
+test('fingerprint keys load only from an absolute secret file and support rotation', () => {
+    assert.equal(fingerprintKeyringFromEnvironment({}), undefined);
+    assert.throws(() => fingerprintKeyringFromEnvironment({ CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active' }));
+    assert.throws(() => fingerprintKeyringFromEnvironment({ CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active', CLOUD_FINGERPRINT_KEYS_FILE: 'relative' }));
+    const path = process.platform === 'win32' ? 'C:\\secrets\\keys' : '/secrets/keys';
+    const env = { CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active', CLOUD_FINGERPRINT_KEYS_FILE: path };
+    const bytes = Buffer.from(`active:${Buffer.alloc(32, 1).toString('base64')}\nold:${Buffer.alloc(32, 2).toString('base64')}\n`);
+    const ring = fingerprintKeyringFromEnvironment(env, value => { assert.equal(value, path); return bytes; });
+    assert.equal(ring.selectKeyId({ status: 'not_found' }), 'active');
+    assert.equal(ring.selectKeyId({ status: 'found', keyId: 'old' }), 'old');
+    assert.ok(bytes.every(x => x === 0));
+    ring.dispose();
+    for (const contents of ['active:not-base64!', `active:${Buffer.alloc(31).toString('base64')}`, `active:${Buffer.alloc(32).toString('base64')}\nactive:${Buffer.alloc(32).toString('base64')}`])
+        assert.throws(() => fingerprintKeyringFromEnvironment(env, () => Buffer.from(contents)));
+});
 
 test('authorization is disabled unless all private configuration is supplied', () => {
     assert.equal(authorizationFromEnvironment({}), undefined);
