@@ -2,7 +2,7 @@
 
 ## Code organization
 
-Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. The existing feature services still access EF Core directly; extracting persistence ports and implementations remains required to isolate application decisions from database implementation.
+Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`), with HTTP routing in `Http` and database infrastructure in `Persistence`. HTTP handlers delegate database operations to services. Tenant operations use a persistence port; membership checks and writes remain together in the persistence implementation. Capability and credential services still access EF Core directly and require persistence separation.
 
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 

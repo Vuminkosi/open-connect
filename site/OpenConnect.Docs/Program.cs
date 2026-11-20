@@ -60,6 +60,7 @@ var cloudDatabaseConnection = builder.Configuration.GetConnectionString("CloudCo
 if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
 {
     builder.Services.AddDbContextFactory<CloudControlPlaneDbContext>(options => options.UseNpgsql(cloudDatabaseConnection));
+    builder.Services.AddScoped<ICloudTenantStore, EfCloudTenantStore>();
     builder.Services.AddScoped<CloudControlPlaneService>();
     builder.Services.AddScoped<CloudCapabilityService>();
     builder.Services.AddScoped<CloudCredentialService>();
