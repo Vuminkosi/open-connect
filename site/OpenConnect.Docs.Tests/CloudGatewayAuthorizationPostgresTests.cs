@@ -34,6 +34,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var tenant = await tenants.CreateTenantAsync(owner, "Gateway test", CancellationToken.None);
             var appRecord = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", CancellationToken.None)).Application!;
             var capability = "inference.chat";
+            var classificationReference = "classification-" + Guid.NewGuid().ToString("N");
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var definition = await db.Capabilities.SingleAsync(x => x.Id == capability);
@@ -48,6 +49,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "classification.classify", PlanGranted = true, Revision = 1 });
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
+                db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "classification.classify", EndpointReference = classificationReference,
+                    Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision-1",
+                    ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
                 await db.SaveChangesAsync();
             }
             var credentials = new CloudCredentialService(new EfCloudCredentialStore(factory), TimeProvider.System);
@@ -76,12 +80,15 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddScoped<CloudCredentialService>();
             builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
             builder.Services.AddScoped<CloudMachineAuthorizationService>();
+            builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
+            builder.Services.AddScoped<CloudClassificationDeploymentService>();
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
             var evidenceStore = new SwitchableEvidenceStore(new EfCloudPrivacyEvidenceStore(factory, TimeProvider.System));
             builder.Services.AddSingleton<ICloudPrivacyEvidenceStore>(evidenceStore);
             await using var app = builder.Build();
             app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
             app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
+            app.MapCloudClassificationDeployment(trust, databaseConfigured: true);
             await app.StartAsync();
             var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
             var address = new Uri(addresses.Addresses.Single());
@@ -113,10 +120,26 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 privacyRequest.Content = new StringContent(new string('x', 65537), System.Text.Encoding.UTF8, "text/plain");
                 Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.SendAsync(privacyRequest)).StatusCode);
             }
-            var blocked = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com");
+            Assert.True(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference));
+            Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "unknown-deployment"));
+            Assert.False(await NodeMatchAsync(address, serverCertificate, otherCertificate, classificationCredential.Secret!, classificationReference));
+            Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, issued.Secret!, classificationReference));
+            using (var invalidMatch = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/classification/deployment-match"))
+            {
+                invalidMatch.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", classificationCredential.Secret);
+                invalidMatch.Content = new StringContent("{\"region\":\"region-a\",\"Region\":\"region-b\"}", System.Text.Encoding.UTF8, "application/json");
+                Assert.Equal(HttpStatusCode.BadRequest, (await authorized.SendAsync(invalidMatch)).StatusCode);
+            }
+            var deploymentService = new CloudClassificationDeploymentService(new EfCloudClassificationDeploymentReader(factory));
+            var match = new CloudClassificationDeploymentMatchRequest(classificationReference, "region-a", "openconnect.v1", "revision-1");
+            Assert.True(await deploymentService.MatchesAsync(match, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(match with { Region = "region-b" }, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(match with { ContractVersion = "other" }, CancellationToken.None));
+            Assert.False(await deploymentService.MatchesAsync(match with { ModelRevision = "other" }, CancellationToken.None));
+            var blocked = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com", classificationReference);
             Assert.Equal(403, blocked.Status);
             Assert.Equal("privacy_blocked", blocked.Code);
-            var clean = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world");
+            var clean = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world", classificationReference);
             Assert.Equal(503, clean.Status);
             Assert.Equal("capability_unavailable", clean.Code);
             await using (var verify = await factory.CreateDbContextAsync())
@@ -135,6 +158,13 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             evidenceStore.Fail = true;
             Assert.Equal("capability_unavailable", (await NodePrivacyAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "hello world")).Code);
             evidenceStore.Fail = false;
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.False(await NodeMatchAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, classificationReference));
+            var disabled = await NodeClassificationGatewayAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, "email person@example.com", classificationReference);
+            Assert.Equal(503, disabled.Status);
+            await using (var db = await factory.CreateDbContextAsync())
+                Assert.False(await db.PrivacyEvidence.AnyAsync(x => x.TraceId == disabled.TraceId));
             var foreign = new CloudCredentialIdentity(Guid.NewGuid(), Guid.NewGuid(), appRecord.Id, "Development", new HashSet<string>());
             await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), CancellationToken.None));
             Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
@@ -183,10 +213,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         return System.Text.Json.JsonSerializer.Deserialize<CloudPrivacyDecision>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
-    private static async Task<GatewayResult> NodeClassificationGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
+    private static async Task<bool> NodeMatchAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string reference)
     {
-        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const s=g.createLocalServer(c,{probe:async()=>({ready:true})}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const trace=crypto.randomUUID().replaceAll('-',''); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json',traceparent:'00-'+trace+'-0123456789abcdef-01'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v1',requestId:'11111111-1111-1111-1111-111111111111',capability:'classification.classify',input:{text:process.env.OC_TEST_CAPABILITY}})}); const b=await x.json(); await new Promise(r=>s.close(r)); if(b.traceId!==trace) throw new Error('trace mismatch'); process.stdout.write(JSON.stringify({status:x.status,checked:true,code:b.code,traceId:b.traceId}));";
-        var output = await NodeCallAsync(script, address, server, client, credential, content);
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); process.stdout.write(JSON.stringify(await c.matchClassificationDeployment(process.env.OC_TEST_CREDENTIAL,{endpointReference:process.env.OC_TEST_CAPABILITY,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'})));";
+        return bool.Parse(await NodeCallAsync(script, address, server, client, credential, reference));
+    }
+
+    private static async Task<GatewayResult> NodeClassificationGatewayAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content, string reference)
+    {
+        var script = "const m=await import(process.env.OC_TEST_MODULE); const g=await import(process.env.OC_TEST_GATEWAY); const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY}); const s=g.createLocalServer(c,{deployment:{endpointReference:process.env.OC_TEST_DEPLOYMENT,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1'},probe:async()=>({ready:true})}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const trace=crypto.randomUUID().replaceAll('-',''); const x=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json',traceparent:'00-'+trace+'-0123456789abcdef-01'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v1',requestId:'11111111-1111-1111-1111-111111111111',capability:'classification.classify',input:{text:process.env.OC_TEST_CAPABILITY}})}); const b=await x.json(); await new Promise(r=>s.close(r)); if(b.traceId!==trace) throw new Error('trace mismatch'); process.stdout.write(JSON.stringify({status:x.status,checked:true,code:b.code,traceId:b.traceId}));";
+        var output = await NodeCallAsync(script, address, server, client, credential, content, reference);
         return System.Text.Json.JsonSerializer.Deserialize<GatewayResult>(output, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
@@ -215,7 +251,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
     }
 
-    private static async Task<string> NodeCallAsync(string script, Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string capability)
+    private static async Task<string> NodeCallAsync(string script, Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string capability, string? deployment = null)
     {
         var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true };
@@ -229,6 +265,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_CREDENTIAL"] = credential;
         start.Environment["OC_TEST_CAPABILITY"] = capability;
+        if (deployment is not null) start.Environment["OC_TEST_DEPLOYMENT"] = deployment;
         using var process = System.Diagnostics.Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);

@@ -57,6 +57,9 @@ export async function handle(request, { authorization, classificationProbe } = {
     if (decision?.authorized !== true) return reject(decision?.code);
     if (capability === 'classification.classify' && classificationProbe) {
         try {
+            if (typeof authorization.matchClassificationDeployment !== 'function' ||
+                !await authorization.matchClassificationDeployment(match[1], classificationProbe.deployment, request.signal, trace.traceparent))
+                return reject('capability_unavailable');
             const readiness = await classificationProbe.probe(request.signal, trace.traceparent);
             if (readiness?.ready !== true) return reject('capability_unavailable');
             const prepared = await prepareClassificationRequest(request);

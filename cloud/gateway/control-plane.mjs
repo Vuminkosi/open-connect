@@ -60,6 +60,42 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                 } catch { body.fill(0); finish(denied()); }
             });
         },
+        matchClassificationDeployment(credential, deployment, signal, traceparent) {
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !deployment || signal?.aborted)
+                return Promise.resolve(false);
+            const { endpointReference, region, contractVersion, modelRevision } = deployment;
+            const token = (value, limit) => typeof value === 'string' && value.length > 0 && value.length <= limit && /^[A-Za-z0-9._-]+$/.test(value);
+            if (!token(endpointReference, 128) || !token(region, 80) || !token(contractVersion, 32) ||
+                typeof modelRevision !== 'string' || !modelRevision.trim() || modelRevision.length > 256) return Promise.resolve(false);
+            const body = Buffer.from(JSON.stringify({ endpointReference, region, contractVersion, modelRevision }), 'utf8');
+            if (body.length > 4096) { body.fill(0); return Promise.resolve(false); }
+            return new Promise(resolve => {
+                let finished = false;
+                let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/classification/deployment-match', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json', 'content-length': body.length,
+                            'cache-control': 'no-store', ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.statusCode !== 200) { response.destroy(); finish(false); return; }
+                        const chunks = [];
+                        let size = 0;
+                        response.on('data', chunk => { size += chunk.length; if (size > 4096) { response.destroy(); finish(false); } else chunks.push(chunk); });
+                        response.on('error', () => finish(false));
+                        response.on('aborted', () => finish(false));
+                        response.on('end', () => {
+                            try { const result = JSON.parse(Buffer.concat(chunks).toString('utf8')); finish(result !== null && typeof result === 'object' && !Array.isArray(result) && Object.keys(result).length === 1 && result.matched === true); }
+                            catch { finish(false); }
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(false); }, timeoutMs);
+                    request.on('error', () => { body.fill(0); finish(false); });
+                    request.end(body, () => body.fill(0));
+                } catch { body.fill(0); finish(false); }
+            });
+        },
         inspectClassification(credential, requestId, content, signal, traceparent) {
             const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
             if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||

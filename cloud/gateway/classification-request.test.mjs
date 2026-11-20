@@ -54,7 +54,7 @@ test('classification rejects duplicate keys, invalid JSON, media and encodings',
 });
 
 test('local gateway bounds chunked bodies after authorization and readiness', async () => {
-    const server = createLocalServer({ authorize: async () => ({ authorized: true }) }, { probe: async () => ({ ready: true }) });
+    const server = createLocalServer({ authorize: async () => ({ authorized: true }), matchClassificationDeployment: async () => true }, { probe: async () => ({ ready: true }) });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     async function send(chunks) {
         return new Promise((resolve, reject) => {

@@ -100,6 +100,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudQuotaService>();
     builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
     builder.Services.AddScoped<CloudDeploymentRegistry>();
+    builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
+    builder.Services.AddScoped<CloudClassificationDeploymentService>();
     builder.Services.AddScoped<CloudOperatorDeploymentService>();
     builder.Services.AddScoped<CloudReadinessService>();
 }
@@ -167,6 +169,7 @@ if (gatewayTrust is not null)
 {
     app.MapCloudGatewayAuthorization(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);

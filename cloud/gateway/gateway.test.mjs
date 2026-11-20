@@ -76,13 +76,18 @@ test('classification readiness is checked only after authorization and never ena
     assert.equal((await handle(request, { authorization: deny, classificationProbe })).status, 401);
     assert.deepEqual(calls, ['authorize']);
     calls.length = 0;
-    const allow = { authorize: async () => { calls.push('authorize'); return { authorized: true }; } };
+    const allow = { authorize: async () => { calls.push('authorize'); return { authorized: true }; },
+        matchClassificationDeployment: async () => { calls.push('inventory'); return true; } };
+    const missing = { authorize: allow.authorize, matchClassificationDeployment: async () => { calls.push('inventory'); return false; } };
+    assert.equal((await handle(request, { authorization: missing, classificationProbe })).status, 503);
+    assert.deepEqual(calls, ['authorize', 'inventory']);
+    calls.length = 0;
     const unready = { probe: async () => { calls.push('probe'); return { ready: false }; } };
     assert.equal((await handle(request, { authorization: allow, classificationProbe: unready })).status, 503);
-    assert.deepEqual(calls, ['authorize', 'probe']);
+    assert.deepEqual(calls, ['authorize', 'inventory', 'probe']);
     calls.length = 0;
     assert.equal((await handle(request, { authorization: allow, classificationProbe })).status, 503);
-    assert.deepEqual(calls, ['authorize', 'probe', 'body']);
+    assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body']);
     calls.length = 0;
     const inference = { url: 'http://localhost/cloud/v1/inference/chat', method: 'POST', headers: request.headers };
     assert.equal((await handle(inference, { authorization: allow, classificationProbe })).status, 503);
@@ -96,14 +101,15 @@ test('classification invokes the independent privacy boundary before any executi
     const request = { url: 'http://localhost/cloud/v1/classification', method: 'POST', headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json' }),
         readBody: async () => { calls.push('body'); return { bytes: Buffer.from(JSON.stringify(body)) }; } };
     const authorization = { authorize: async () => { calls.push('authorize'); return { authorized: true }; },
+        matchClassificationDeployment: async () => { calls.push('inventory'); return true; },
         inspectClassification: async (credential, requestId, content) => { calls.push('privacy'); assert.equal(content, 'private input'); return { allowed: false, code: 'privacy_blocked' }; } };
     const result = await handle(request, { authorization, classificationProbe: { probe: async () => { calls.push('probe'); return { ready: true }; } } });
     assert.equal(result.status, 403);
     assert.equal((await result.json()).code, 'privacy_blocked');
-    assert.deepEqual(calls, ['authorize', 'probe', 'body', 'privacy']);
+    assert.deepEqual(calls, ['authorize', 'inventory', 'probe', 'body', 'privacy']);
     body.input = { inputRef: 'opaque-handle' }; calls.length = 0;
     assert.equal((await handle(request, { authorization, classificationProbe: { probe: async () => ({ ready: true }) } })).status, 503);
-    assert.deepEqual(calls, ['authorize', 'body']);
+    assert.deepEqual(calls, ['authorize', 'inventory', 'body']);
 });
 
 test('trace context is shared across gateway and private checks without carrying request content', async () => {
@@ -116,6 +122,7 @@ test('trace context is shared across gateway and private checks without carrying
         headers: new Headers({ authorization: 'Bearer key', 'content-type': 'application/json', traceparent: incoming }),
         readBody: async () => ({ bytes: Buffer.from(JSON.stringify(body)) }) };
     const authorization = { authorize: async (credential, capability, signal, traceparent) => { propagated.push(traceparent); return { authorized: true }; },
+        matchClassificationDeployment: async (credential, deployment, signal, traceparent) => { propagated.push(traceparent); return true; },
         inspectClassification: async (credential, requestId, content, signal, traceparent) => { propagated.push(traceparent); return { allowed: false, code: 'privacy_blocked' }; } };
     const result = await handle(request, { authorization, classificationProbe: { probe: async (signal, traceparent) => { propagated.push(traceparent); return { ready: true }; } } });
     assert.equal((await result.json()).traceId, traceId);
