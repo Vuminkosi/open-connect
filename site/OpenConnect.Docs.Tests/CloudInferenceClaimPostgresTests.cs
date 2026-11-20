@@ -114,12 +114,15 @@ public sealed class CloudInferenceClaimPostgresTests
             Assert.Equal("unavailable", mismatched.Status);
             var firstClaim = await Claim(id, "registry/model-a");
             Assert.Equal("claimed", firstClaim.Status);
+            var workerReadiness = new EfCloudWorkerReadinessStore(factory);
+            Assert.True(await workerReadiness.IsReadyAsync(deploymentId, default));
             var access = new EfCloudInferenceAccessStore(factory, TimeProvider.System);
             Assert.True(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId!.Value, default));
             Assert.False(await access.IsClaimAllowedAsync(machine with { CredentialId = Guid.NewGuid() }, id, firstClaim.ClaimId.Value, default));
             Assert.False(await access.IsClaimAllowedAsync(machine with { ApplicationId = Guid.NewGuid() }, id, firstClaim.ClaimId.Value, default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            Assert.False(await workerReadiness.IsReadyAsync(deploymentId, default));
             Assert.False(await access.IsClaimAllowedAsync(machine, id, firstClaim.ClaimId.Value, default));
             await using (var db = await factory.CreateDbContextAsync())
                 await db.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, true));

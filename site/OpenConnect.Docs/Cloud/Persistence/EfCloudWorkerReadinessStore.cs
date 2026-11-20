@@ -9,6 +9,7 @@ public sealed class EfCloudWorkerReadinessStore(IDbContextFactory<CloudControlPl
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         return await db.Database.CanConnectAsync(cancellationToken) &&
             !(await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any() &&
-            await db.WorkerDeployments.AsNoTracking().AnyAsync(x => x.Id == deploymentId && x.Enabled && x.CapabilityId == "classification.classify", cancellationToken);
+            await db.WorkerDeployments.AsNoTracking().AnyAsync(x => x.Id == deploymentId && x.Enabled &&
+                (x.CapabilityId == "classification.classify" || x.CapabilityId == "inference.chat"), cancellationToken);
     }
 }

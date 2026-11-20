@@ -187,3 +187,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Support a bounded mounted secret file for private inference worker authentication; mutual-TLS worker deployment and full-system validation remain outstanding.
 
 - [x] Define an opt-in mutual-TLS Cloud inference worker in the root Compose stack with a read-only model and secret mounts; real gateway-to-worker acceptance remains outstanding.
+
+- [x] Include enabled inference deployments in the private worker readiness check and verify the disabled case against PostgreSQL.
