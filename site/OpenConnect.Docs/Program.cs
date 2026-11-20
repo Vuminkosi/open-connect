@@ -116,6 +116,10 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudUsageSummaryService>();
     builder.Services.AddScoped<ICloudQuotaRecoveryStore, EfCloudQuotaRecoveryStore>();
     builder.Services.AddScoped<CloudQuotaRecovery>();
+    builder.Services.AddScoped<ICloudUnconsumedClaimRecoveryStore, EfCloudUnconsumedClaimRecoveryStore>();
+    builder.Services.AddScoped<CloudUnconsumedClaimRecovery>();
+    if (builder.Configuration.GetValue<bool>("OpenConnect:Cloud:QuotaRecovery:UnconsumedClaimsEnabled"))
+        builder.Services.AddHostedService<CloudUnconsumedClaimRecoveryWorker>();
     if (builder.Configuration.GetValue<bool>("OpenConnect:Cloud:QuotaRecovery:Enabled"))
         builder.Services.AddHostedService<CloudQuotaRecoveryWorker>();
     builder.Services.AddScoped<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>();
