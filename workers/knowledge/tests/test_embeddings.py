@@ -11,6 +11,8 @@ from openconnect_knowledge.embeddings import (
     OnnxEmbeddingEngine,
     _reject_external_tensors,
 )
+from openconnect_knowledge.chunking import DocumentScope, SourcePage
+from openconnect_knowledge.index_preparation import prepare_document
 from openconnect_worker_common.models.runtime_cache import (
     RuntimeModelAsset,
     RuntimeModelCacheManager,
@@ -64,6 +66,16 @@ def test_real_onnx_cpu_embeddings_and_restart(cached_model) -> None:
     restarted = OnnxEmbeddingEngine(cache, manifest, profile).embed(["tree wood"], input_kind="query")
     assert restarted.items[0].vector == pytest.approx(batch.items[0].vector)
     assert restarted.space_id == batch.space_id
+
+
+def test_index_preparation_uses_real_onnx_cpu_passage_embeddings(cached_model) -> None:
+    cache, manifest, _ = cached_model
+    engine = OnnxEmbeddingEngine(cache, manifest, EmbeddingProfile("model.onnx", "tokenizer.json", 3, 8))
+    space = engine.embed(["tree"], input_kind="passage").space_id
+    scope = DocumentScope("tenant", "application", "collection", "document", "revision", space)
+    result = prepare_document(scope, [SourcePage("page", "tree wood forest")], engine)
+    assert len(result.chunks) == 1 and result.dimension == 3
+    assert result.chunks[0].vector == pytest.approx(engine.embed(["tree wood forest"], input_kind="passage").items[0].vector)
 
 
 def test_e5_prefix_and_space_separation(cached_model) -> None:

@@ -22,6 +22,10 @@ chunking configuration. It neither authorizes access nor persists text. A host
 must authorize and sanitize content before chunking; durable indexing, ACL
 prefiltering, deletion propagation and search are not implemented by this
 primitive. Do not advertise `knowledge.index` based on chunking alone.
+`prepare_document` can embed these chunks through the existing passage engine
+in bounded batches and rejects truncation, invalid vectors and model-space
+changes. Its in-memory result is sensitive application data and is not a
+durable index or an authorization boundary.
 
 Run `uv sync --locked`, `uv run ruff check .` and `uv run pytest -q` from this
 directory. Model assets must be provisioned separately through the shared
