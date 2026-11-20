@@ -17,4 +17,4 @@ COPY --from=dependencies /app/workers/analytics-inference/.venv ./.venv
 COPY workers/analytics-inference/src/ ./src/
 USER 10001:10001
 EXPOSE 8080
-CMD ["uvicorn", "openconnect_analytics_inference.app:app", "--host", "0.0.0.0", "--port", "8080", "--limit-concurrency", "16"]
+CMD ["uvicorn", "openconnect_analytics_inference.app:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log", "--limit-concurrency", "16"]
