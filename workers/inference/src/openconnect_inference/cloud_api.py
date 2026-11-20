@@ -1,4 +1,4 @@
-"""Opt-in Cloud inference route. No production model runtime is supplied here."""
+"""Opt-in Cloud inference route with private worker authentication."""
 from __future__ import annotations
 
 import hmac
@@ -43,6 +43,22 @@ def configured_client() -> CloudConsumptionClient | None:
 
 def _authorized(request: Request) -> bool:
     token = os.environ.get("OPENCONNECT_WORKER_TOKEN", "")
+    token_file = os.environ.get("OPENCONNECT_WORKER_TOKEN_FILE", "")
+    if token_file:
+        if token or not Path(token_file).is_absolute():
+            return False
+        try:
+            with Path(token_file).open("rb") as source:
+                raw = source.read(515)
+            if raw.endswith(b"\r\n"):
+                raw = raw[:-2]
+            elif raw.endswith(b"\n"):
+                raw = raw[:-1]
+            if not 1 <= len(raw) <= 512 or any(byte < 33 or byte > 126 for byte in raw):
+                return False
+            token = raw.decode("ascii")
+        except (OSError, ValueError):
+            return False
     values = request.headers.getlist("authorization")
     if not token or len(values) != 1 or not values[0].startswith("Bearer "):
         return False

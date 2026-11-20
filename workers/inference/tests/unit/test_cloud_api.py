@@ -82,3 +82,26 @@ def test_cloud_mode_blocks_legacy_execution_even_when_flag_is_invalid(monkeypatc
         with pytest.raises(HTTPException) as error:
             app_module.execute(request)
         assert error.value.status_code == 503
+
+
+def test_worker_token_file_authentication_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENCONNECT_CLOUD_INFERENCE_ENABLED", "true")
+    monkeypatch.delenv("OPENCONNECT_WORKER_TOKEN", raising=False)
+    token_file = tmp_path / "worker-token"
+    token_file.write_bytes(b"file-token\n")
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN_FILE", str(token_file))
+    monkeypatch.setattr(cloud_api, "configured_client", lambda: Client())
+    app = FastAPI()
+    app.state.cloud_inference_runtime = Runtime()
+    app.include_router(cloud_api.router)
+    client = TestClient(app)
+    assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 200
+    assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer wrong"}).status_code == 401
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "another-token")
+    assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 401
+    monkeypatch.delenv("OPENCONNECT_WORKER_TOKEN")
+    for invalid in (b"", b"token with spaces", b"x" * 513):
+        token_file.write_bytes(invalid)
+        assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 401
+    token_file.unlink()
+    assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 401
