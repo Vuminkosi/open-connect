@@ -1,5 +1,6 @@
 import https from 'node:https';
 import { isValidTraceparent } from './trace-context.mjs';
+import { parseUniqueJson } from './classification-request.mjs';
 
 const denied = () => ({ authorized: false, code: 'capability_unavailable' });
 const safeCodes = new Set(['unauthorized', 'forbidden', 'invalid_request', 'capability_unavailable',
@@ -432,6 +433,50 @@ export function createCloudAuthorizationClient({ origin, ca, certificate, privat
                     request.on('error', () => { body.fill(0); finish(rejected()); });
                     request.end(body, () => body.fill(0));
                 } catch { body.fill(0); finish(rejected()); }
+            });
+        },
+        inspectInferenceOutput(credential, requestId, reservationId, claimId, output, signal, traceparent) {
+            const rejected = () => ({ allowed: false, code: 'capability_unavailable' });
+            if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || !validId(requestId) ||
+                !validId(reservationId) || !validId(claimId) || typeof output !== 'string' ||
+                Buffer.byteLength(output, 'utf8') > 131072 || signal?.aborted) return Promise.resolve(rejected());
+            const body = Buffer.from(JSON.stringify({ output }), 'utf8');
+            if (body.length > 786500) { body.fill(0); return Promise.resolve(rejected()); }
+            return new Promise(resolve => {
+                let finished = false; let timer;
+                const finish = value => { if (!finished) { finished = true; clearTimeout(timer); body.fill(0); resolve(value); } };
+                try {
+                    const request = https.request(new URL('/cloud/internal/v1/inference/output-privacy', url), {
+                        method: 'POST', ca, cert: certificate, key: privateKey, rejectUnauthorized: true, signal,
+                        headers: { authorization: `Bearer ${credential}`, 'x-cloud-request-id': requestId,
+                            'x-cloud-reservation-id': reservationId, 'x-cloud-claim-id': claimId,
+                            'content-type': 'application/json', 'content-length': body.length, 'cache-control': 'no-store',
+                            ...(isValidTraceparent(traceparent) ? { traceparent } : {}) },
+                    }, response => {
+                        if (response.headers['content-encoding']) { response.destroy(); finish(rejected()); return; }
+                        const chunks = []; let size = 0;
+                        const clear = () => { for (const chunk of chunks) chunk.fill(0); };
+                        response.on('data', chunk => { size += chunk.length; chunks.push(chunk); if (size > 8192) { response.destroy(); clear(); finish(rejected()); } });
+                        response.on('error', () => { clear(); finish(rejected()); });
+                        response.on('aborted', () => { clear(); finish(rejected()); });
+                        response.on('end', () => {
+                            let bytes;
+                            try {
+                                bytes = Buffer.concat(chunks);
+                                const value = parseUniqueJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+                                if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 2) {
+                                    if (response.statusCode === 200 && value.allowed === true && value.code === 'allowed') return finish({ allowed: true, code: 'allowed' });
+                                    if (response.statusCode === 403 && value.allowed === false && value.code === 'privacy_blocked') return finish({ allowed: false, code: 'privacy_blocked' });
+                                }
+                            } catch { /* No endpoint diagnostics cross this boundary. */ }
+                            finally { bytes?.fill(0); clear(); }
+                            finish(rejected());
+                        });
+                    });
+                    timer = setTimeout(() => { request.destroy(); finish(rejected()); }, timeoutMs);
+                    request.on('error', () => finish(rejected()));
+                    request.end(body, () => body.fill(0));
+                } catch { finish(rejected()); }
             });
         },
         inspectInference(credential, requestId, messages, fingerprintKeyId, fingerprint, signal, traceparent) {

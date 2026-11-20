@@ -329,8 +329,24 @@ public sealed class CloudInferenceClaimPostgresTests
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await InspectOutput(client, "{\"output\":\"safe\"}", Guid.NewGuid())).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await InspectOutput(client, "{\"output\":\"safe\"}", claimId)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await InspectOutput(client, "{\"output\":\"person@example.test\"}", claimId)).StatusCode);
+        await VerifyNodeOutputPrivacyAsync(address, server, gateway, issued.Secret!, requestId, reservation.ReservationId.Value, claimId);
         Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenantId, appId, issued.Credential!.Id, default));
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/cloud/internal/v1/inference/quota/fingerprint-key/{requestId:D}")).StatusCode);
+    }
+    private static async Task VerifyNodeOutputPrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId, Guid reservationId, Guid claimId)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'safe');const b=await c.inspectInferenceOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,'person@example.test');process.stdout.write(JSON.stringify([a.code,b.code]));";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem(); start.Environment["OC_TEST_CERT"] = gateway.ExportCertificatePem();
+        using var privateKey = gateway.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem(); start.Environment["OC_TEST_CREDENTIAL"] = credential;
+        start.Environment["OC_TEST_DATA"] = System.Text.Json.JsonSerializer.Serialize(new { requestId, reservationId, claimId });
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("[\"allowed\",\"privacy_blocked\"]", output);
     }
     private static async Task VerifyNodeAdmissionAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, string reference)
     {
