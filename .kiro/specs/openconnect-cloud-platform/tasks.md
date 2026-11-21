@@ -249,3 +249,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Wire Cloud LiveUI into the same-host development sample with server-side configuration and session ownership validation; production identity and deployment are separate.
 
 - [x] Exercise one same-host browser action and verified receipt through Cloud LiveUI, a real model worker and disposable PostgreSQL, with conversational orchestration supplied by a fixture.
+
+- [x] Add bounded native LiveUI token usage capture and verify it against the provisioned model; atomic token reservations and reconciliation remain outstanding.

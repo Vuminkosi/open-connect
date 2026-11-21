@@ -5,11 +5,13 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import httpx
 
+from .cloud_usage import TokenUsage, model_usage
 from .schemas import ActionPlan, PlannedAction, PlanRequest
 from .settings import Settings
 
@@ -175,6 +177,19 @@ class InferenceEngine:
         self._settings = settings
 
     def generate(self, request: PlanRequest) -> tuple[ActionPlan, str]:
+        return self._generate(request, None)
+
+    def generate_metered(
+        self, request: PlanRequest, report_usage: Callable[[TokenUsage], None]
+    ) -> tuple[ActionPlan, str]:
+        """Report known compute before plan validation; unknown native usage raises and is not reported."""
+        if not callable(report_usage):
+            raise ValueError("A token usage reporter is required")
+        return self._generate(request, report_usage)
+
+    def _generate(
+        self, request: PlanRequest, report_usage: Callable[[TokenUsage], None] | None
+    ) -> tuple[ActionPlan, str]:
         explained, normalized = normalize_explained_filter(request.intent)
         if explained:
             if normalized is None:
@@ -182,6 +197,8 @@ class InferenceEngine:
             request = request.model_copy(update={"intent": normalized})
         deterministic = deterministic_plan(request)
         if deterministic is not None:
+            if report_usage is not None:
+                report_usage(TokenUsage(0, 0))
             return deterministic, "deterministic"
 
         expected_filter = expected_status_and_text_filter(request)
@@ -246,6 +263,8 @@ class InferenceEngine:
             temperature=0,
             top_p=1,
         )
+        if report_usage is not None:
+            report_usage(model_usage(result, self._settings.model_context_size, request.generation.maxOutputTokens))
         content = result["choices"][0]["message"]["content"]
         generated_plan = json.loads(content)
         if not isinstance(generated_plan, dict):

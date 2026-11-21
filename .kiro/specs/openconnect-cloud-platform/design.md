@@ -309,3 +309,5 @@ The Cloud LiveUI browser acceptance script verifies the Completed-tab action and
 The development sample can opt into the Cloud LiveUI provider for an owned same-host session. Cloud origin and service credential are server-side settings; the mode is incompatible with the sample?s other gateway planners and remains development-only.
 
 An opt-in local browser acceptance test starts the same-host development sample and a controlled conversational fixture, then exercises the Cloud gateway, private Qwen worker and disposable PostgreSQL. It verifies a model-generated Completed-tab action, browser postcondition receipt, claim consumption and settled privacy evidence. The conversational fixture is not a real model provider; production identity, TLS, deployment and broader browser journeys remain unverified.
+
+The LiveUI worker exposes an opt-in metered generation method that reports strict bounded native prompt and completion counts before plan validation. Deterministic plans report zero model tokens; missing or inconsistent native usage remains unknown. This does not yet reserve or settle token quota.
