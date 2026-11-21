@@ -4,8 +4,19 @@ namespace OpenConnect.Docs.Services;
 
 public static class DocumentationLiveUIManifest
 {
-    public static LiveUIManifest Create(IEnumerable<DocumentationDocument>? documents = null)
+    public static LiveUIManifest Create(IEnumerable<DocumentationDocument>? documents = null, bool hasGeneratedApiDocuments = false)
     {
+        var apiTargets = new List<LiveUITarget>
+        {
+            Heading("documentation-api-heading", "Generated API reference"),
+            new("documentation-api-rest-worker-contracts", LiveUITargetKind.Heading, "REST and worker contracts",
+                new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
+                Selector: "#api-rest-worker-contracts")
+        };
+        if (hasGeneratedApiDocuments)
+            apiTargets.Add(new("documentation-api-search", LiveUITargetKind.Input, "Search API documents",
+                new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Focus, LiveUICapability.SetValue },
+                Selector: "#api-search"));
         var routes = new List<LiveUIRoute>
         {
             new("documentation-home", "/", "Home", [Heading("documentation-home-heading", "Build AI applications, not AI infrastructure.")]),
@@ -16,10 +27,7 @@ public static class DocumentationLiveUIManifest
                 new("documentation-show-guides", LiveUITargetKind.Button, "Show integration guides",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
                     Selector: "#docs-show-guides")]),
-            new("documentation-api", "/api", "API reference", [Heading("documentation-api-heading", "Generated API reference"),
-                new("documentation-api-rest-worker-contracts", LiveUITargetKind.Heading, "REST and worker contracts",
-                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
-                    Selector: "#api-rest-worker-contracts")])
+            new("documentation-api", "/api", "API reference", apiTargets)
         };
         foreach (var document in documents ?? [])
         {

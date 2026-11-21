@@ -12,6 +12,8 @@ The API reference also exposes its REST and worker contracts heading as a read-o
 
 The generated API index filters by document name and renders a bounded page of metadata at a time; generated reference volume must not require rendering the entire catalog in one response.
 
+When generated API documents are present, LiveUI may inspect, focus, or set the public API search field with a bounded value. It does not advertise that field when the catalog is absent.
+
 When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
 
 The opt-in local Cloud management browser check compares tenant-scoped ledger state around public documentation and authenticated management visits. It requires an isolated test tenant so concurrent capability calls do not affect the comparison.

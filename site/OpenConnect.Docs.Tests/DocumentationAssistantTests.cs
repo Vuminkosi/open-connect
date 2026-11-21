@@ -14,6 +14,28 @@ namespace OpenConnect.Docs.Tests;
 public sealed class DocumentationAssistantTests
 {
     [Fact]
+    public async Task ApiSearchIsAdvertisedOnlyWhenPresentAndRemainsBounded()
+    {
+        var empty = DocumentationLiveUIManifest.Create();
+        Assert.DoesNotContain(empty.Routes.Single(route => route.Path == "/api").Targets,
+            target => target.Id == "documentation-api-search");
+        var manifest = DocumentationLiveUIManifest.Create(hasGeneratedApiDocuments: true);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/api");
+        var target = route.Targets.Single(item => item.Id == "documentation-api-search");
+        Assert.Equal("#api-search", target.Selector);
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.SetValue, new(Value: "OpenConnect"), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer();
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target,
+            action with { Parameters = new(Value: new string('a', 201)) }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target,
+            action with { Type = LiveUIActionType.Click }))).Allowed);
+    }
+
+    [Fact]
     public async Task ApiReferenceContractSectionSupportsReadOnlyGuidance()
     {
         var manifest = DocumentationLiveUIManifest.Create();

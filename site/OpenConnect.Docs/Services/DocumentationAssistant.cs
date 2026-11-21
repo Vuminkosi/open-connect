@@ -22,7 +22,8 @@ public static class DocumentationAssistant
         var configured = gateway is not null;
         services.AddSingleton(new DocumentationAssistantAvailability(configured));
         services.AddSingleton(provider => DocumentationLiveUIManifest.Create(
-            provider.GetRequiredService<DocumentationContentStore>().Documents));
+            provider.GetRequiredService<DocumentationContentStore>().Documents,
+            provider.GetRequiredService<GeneratedApiStore>().Documents.Count > 0));
         services.AddMudServices();
         services.AddOpenConnectComponent<DocumentationGuidesCard>(new OpenConnectComponentDescriptor(
             "documentation-guides", "Integration guides", "Links to getting started, privacy and LiveUI documentation."));
