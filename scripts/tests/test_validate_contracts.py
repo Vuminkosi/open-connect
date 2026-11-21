@@ -83,3 +83,16 @@ def test_response_schema_rejects_unusable_classification_metadata():
         assert not validator.is_valid(modified)
     response["result"]["classifications"][0]["label"] = "  "
     assert not validator.is_valid(response)
+
+
+@pytest.mark.parametrize("filename", ["knowledge-rerank-request.json", "knowledge-rerank-response.json"])
+def test_rerank_contract_rejects_unsafe_candidate_ids(filename):
+    root = SCRIPT.parents[1] / "contracts"
+    schema = json.loads((root / "jsonschema" / filename).read_text(encoding="utf-8"))
+    value = json.loads((root / "fixtures" / "valid" / filename).read_text(encoding="utf-8"))
+    validator = VALIDATOR.Draft202012Validator(schema, format_checker=VALIDATOR.FormatChecker())
+    assert validator.is_valid(value)
+    candidates = value["payload" if "request" in filename else "result"]["candidates"]
+    for bad in ("  ", "bad\x00id", "x" * 257):
+        candidates[0]["id"] = bad
+        assert not validator.is_valid(value)

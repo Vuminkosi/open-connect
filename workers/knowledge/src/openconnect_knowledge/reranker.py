@@ -38,6 +38,16 @@ class Ranking:
     score_type: str = "raw_logit"
 
 
+def _valid_identifier(value: object) -> bool:
+    if not isinstance(value, str) or not value.strip() or len(value) > 256:
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return all(ord(character) >= 32 and ord(character) != 127 for character in value)
+
+
 class OnnxReranker:
     """Scores bounded query/passage pairs; host must filter ACLs beforehand."""
 
@@ -45,7 +55,8 @@ class OnnxReranker:
                  model_asset: str, tokenizer_asset: str, max_tokens: int = 256,
                  pad_token: str = "[PAD]", license_accepted: bool = False,
                  commercial_use: bool = False):
-        if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or not 2 <= max_tokens <= 512:
+        if (manifest.workerKind != "knowledge" or not _valid_identifier(manifest.modelId)
+                or isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or not 2 <= max_tokens <= 512):
             raise ValueError("invalid_profile")
         assets = {asset.relativePath for asset in manifest.assets}
         if model_asset not in assets or tokenizer_asset not in assets:
@@ -85,8 +96,8 @@ class OnnxReranker:
     def rank(self, query: str, candidates: list[Candidate]) -> Ranking:
         if (not isinstance(query, str) or not query.strip() or len(query) > 8192
                 or not isinstance(candidates, list) or not 1 <= len(candidates) <= MAX_CANDIDATES
-                or any(not isinstance(item, Candidate) or not isinstance(item.id, str)
-                       or not 1 <= len(item.id) <= 256 or not isinstance(item.text, str)
+                or any(not isinstance(item, Candidate) or not _valid_identifier(item.id)
+                       or not isinstance(item.text, str)
                        or not item.text.strip() or len(item.text) > 8192 for item in candidates)
                 or sum(len(item.text) for item in candidates) + len(query) > MAX_TOTAL_CHARS
                 or len({item.id for item in candidates}) != len(candidates)):

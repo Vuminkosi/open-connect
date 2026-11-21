@@ -60,3 +60,18 @@ def test_duplicate_identifiers_and_corrupt_cache_fail_closed(engine):
     (revision.revision_dir / "assets" / "model.onnx").write_bytes(b"corrupt")
     with pytest.raises(RuntimeError, match="model_unavailable"):
         model.rank("tree", [Candidate("a", "wood")])
+
+
+@pytest.mark.parametrize("candidate_id", ["  ", "bad\x00id", "\ud800"])
+def test_invalid_candidate_identifiers_are_rejected_before_inference(engine, candidate_id):
+    model, _ = engine
+    with pytest.raises(ValueError, match="invalid_input"):
+        model.rank("tree", [Candidate(candidate_id, "wood")])
+
+
+@pytest.mark.parametrize("model_id", ["  ", "bad\x00model", "\ud800"])
+def test_invalid_model_identity_does_not_load(engine, model_id):
+    model, _ = engine
+    manifest = model._manifest.model_copy(update={"modelId": model_id})
+    with pytest.raises(ValueError, match="invalid_profile"):
+        OnnxReranker(model._cache, manifest, model_asset="model.onnx", tokenizer_asset="tokenizer.json")
