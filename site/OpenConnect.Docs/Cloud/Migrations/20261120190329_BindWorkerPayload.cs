@@ -16,7 +16,7 @@ namespace OpenConnect.Docs.Cloud.Migrations
                 table: "execution_claims",
                 type: "bytea",
                 nullable: true);
-            migrationBuilder.Sql("ALTER TABLE cloud.execution_claims ADD CONSTRAINT ck_worker_payload_fingerprint_length CHECK (\"WorkerPayloadFingerprint\" IS NULL OR octet_length(\"WorkerPayloadFingerprint\") = 32)");
+            migrationBuilder.Sql("ALTER TABLE cloud.execution_claims ADD CONSTRAINT ck_worker_payload_fingerprint_length CHECK (\"WorkerPayloadFingerprint\" IS NULL OR octet_length(\"WorkerPayloadFingerprint\") = 32);");
         }
 
         /// <inheritdoc />

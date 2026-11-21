@@ -309,3 +309,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Provide an explicit root Compose worker-database migration helper; verify first application and replay against disposable PostgreSQL. Workers retain manual migration ownership.
 
 - [x] Provide an optional local development OIDC provider with isolated TLS and a loopback backchannel. Verify a real authorization-code and PKCE sign-in with a disposable provider and portal; Cloud database provisioning and the complete local gateway flow remain outstanding.
+
+- [x] Correct the worker-payload migration's SQL terminator and verify generated idempotent Cloud migrations on fresh and partially migrated disposable PostgreSQL databases, including replay.
