@@ -226,6 +226,7 @@ public sealed class CloudLiveUILiveSystemTests
         proxyBuilder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(certificate)));
         await using var proxy = proxyBuilder.Build();
         using var gateway = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{gatewayPort}") };
+        var returnedProviders = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
         proxy.Run(async context =>
         {
             using var outgoing = new HttpRequestMessage(new HttpMethod(context.Request.Method), context.Request.Path + context.Request.QueryString);
@@ -239,7 +240,18 @@ public sealed class CloudLiveUILiveSystemTests
             using var response = await gateway.SendAsync(outgoing, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
             context.Response.StatusCode = (int)response.StatusCode;
             context.Response.ContentType = response.Content.Headers.ContentType?.ToString();
-            await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+            if (context.Request.Method == "POST" && response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(bytes);
+                    returnedProviders[document.RootElement.GetProperty("requestId").GetString()!] = document.RootElement.GetProperty("provider").GetString()!;
+                    await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
+                }
+                finally { Array.Clear(bytes); }
+            }
+            else await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
         });
         await proxy.StartAsync();
         var proxyPort = new Uri(proxy.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
@@ -265,11 +277,32 @@ public sealed class CloudLiveUILiveSystemTests
             LiveUIInferenceCapabilities.FromPage(page), "hash") { ExecutionId = execution.ToString("N") };
         var result = await provider.GeneratePlanAsync(request);
         Assert.Equal("completed", result.Outcome);
+        Assert.Equal("deterministic", returnedProviders[execution.ToString("D")]);
         Assert.Equal("region-tasks", Assert.Single(result.Plan!.Actions).TargetId);
         await using var verify = await factory.CreateDbContextAsync();
         var reservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenantId && item.ApplicationId == applicationId && item.RequestId == execution);
         Assert.Equal(1, reservation.Actual); Assert.NotNull(reservation.FinalizedAt);
         Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(item => item.ReservationId == reservation.Id));
+        var modelPage = new LiveUIAgentPage("/tasks", "/tasks", "Tasks", "build", "hash",
+        [
+            new("todo.tab.all", "Tab", "All", new HashSet<LiveUICapability> { LiveUICapability.Activate }, false),
+            new("todo.tab.active", "Tab", "Active", new HashSet<LiveUICapability> { LiveUICapability.Activate }, false),
+            new("todo.tab.completed", "Tab", "Completed", new HashSet<LiveUICapability> { LiveUICapability.Activate }, false)
+        ]);
+        var modelAuthorizer = new CloudLiveUIHostAuthorizer(new TestCurrentContext(context.Session.Value.ToString()),
+            new TestManifest(), new TestPage(modelPage), new TestSession(context));
+        var modelProvider = new CloudLiveUIInferenceProvider(modelAuthorizer, new EgressGate(firewall), transport,
+            Options.Create(new LiveUIInferenceOptions()));
+        var modelExecution = Guid.NewGuid();
+        var modelRequest = new LiveUIInferenceRequest("Select the Completed tab.", context.Session.Value.ToString(), "/tasks", "v1",
+            LiveUIInferenceCapabilities.FromPage(modelPage), "hash") { ExecutionId = modelExecution.ToString("N") };
+        var modelResult = await modelProvider.GeneratePlanAsync(modelRequest);
+        Assert.Equal("completed", modelResult.Outcome);
+        Assert.Equal("qwen3-0.6b", returnedProviders[modelExecution.ToString("D")]);
+        Assert.Equal("todo.tab.completed", Assert.Single(modelResult.Plan!.Actions).TargetId);
+        var modelReservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenantId && item.ApplicationId == applicationId && item.RequestId == modelExecution);
+        Assert.Equal(1, modelReservation.Actual); Assert.NotNull(modelReservation.FinalizedAt);
+        Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(item => item.ReservationId == modelReservation.Id));
         await proxy.StopAsync();
     }
 
