@@ -40,7 +40,7 @@ test('transcriber requires mutual TLS, pinned model identity and matching audio 
         const client = createVoiceAudioTranscriber(options);
         const request = { requestId: id, audio: Buffer.alloc(4800), format: 'pcm', locale: 'en-US' };
         assert.equal(await client.isReady(), true);
-        assert.deepEqual(await client.transcribe(request), { transcript: 'hello' });
+        assert.deepEqual(await client.transcribe(request), { transcript: 'hello', modelFingerprint: fingerprint });
         wrongDigest = true; assert.equal(await client.transcribe(request), null);
         wrongModel = true; assert.equal(await client.isReady(), false);
         assert.equal(await client.transcribe(request), null);

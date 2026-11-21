@@ -17,7 +17,7 @@ export function createVoiceSynthesisControlPlaneClient({ origin, ca, certificate
     async function call(method, path, credential, payload, headers, signal, traceparent) {
         if (typeof credential !== 'string' || !/^[^\s,]{1,160}$/.test(credential) || signal?.aborted) return null;
         const body = payload === undefined ? null : Buffer.from(JSON.stringify(payload));
-        if (body && body.length > 32768) { body.fill(0); return null; }
+        if (body && body.length > 65536) { body.fill(0); return null; }
         return new Promise(resolve => {
             let done = false; let timer; let clearResponse = () => {};
             const finish = value => { if (!done) { done = true; clearTimeout(timer); body?.fill(0); clearResponse(); resolve(value); } };
@@ -107,6 +107,17 @@ export function createVoiceSynthesisControlPlaneClient({ origin, ca, certificate
             if (!id(reservationId) || !id(claimId)) return false;
             const result = await call('GET', `/cloud/internal/v1/voice-synthesis/claims/${reservationId}/${claimId}/access`, credential, undefined, {}, signal, traceparent);
             return result?.status === 200 && only(result.value, ['allowed']) && result.value.allowed === true;
+        },
+        async inspectOutput(credential, requestId, reservationId, claimId, transcript, modelFingerprint, signal, traceparent) {
+            if (!id(requestId) || !id(reservationId) || !id(claimId) || typeof transcript !== 'string' || !transcript.isWellFormed() ||
+                !transcript.trim() || transcript.length > 8192 || !/^[0-9a-f]{64}$/.test(modelFingerprint ?? ''))
+                return { allowed: false, code: 'capability_unavailable' };
+            const result = await call('POST', '/cloud/internal/v1/voice-synthesis/output-privacy', credential, { transcript, modelFingerprint },
+                { 'x-cloud-request-id': requestId, 'x-cloud-reservation-id': reservationId, 'x-cloud-claim-id': claimId }, signal, traceparent);
+            if (!only(result?.value, ['allowed', 'code'])) return { allowed: false, code: 'capability_unavailable' };
+            if (result.status === 200 && result.value.allowed === true && result.value.code === 'allowed') return { allowed: true, code: 'allowed' };
+            if (result.status === 403 && result.value.allowed === false && result.value.code === 'privacy_blocked') return { allowed: false, code: 'privacy_blocked' };
+            return { allowed: false, code: 'capability_unavailable' };
         },
     });
 }

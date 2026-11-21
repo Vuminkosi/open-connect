@@ -69,7 +69,7 @@ export function createVoiceAudioTranscriber({ origin, ca, certificate, privateKe
                     v.schemaVersion !== 'openconnect.audio-inspection.transcript/v1' || v.requestId !== requestId || !identityMatches(v) ||
                     v.audioSha256 !== digest || v.locale !== locale || v.durationMs !== durationMs ||
                     typeof v.transcript !== 'string' || !v.transcript.isWellFormed() || v.transcript.length < 1 || v.transcript.length > 8192) return null;
-                return { transcript: v.transcript };
+                return { transcript: v.transcript, modelFingerprint };
             } finally { body.fill(0); }
         },
     });

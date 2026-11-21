@@ -24,7 +24,7 @@ test('voice control-plane client rejects invalid configuration and inputs before
 
 test('voice control-plane client uses mutual TLS and validates inspection, quota and claim results', async t => {
     if (spawnSync('openssl', ['version']).status !== 0) { t.skip('openssl unavailable'); return; }
-    const directory = mkdtempSync(join(tmpdir(), 'oc-voice-control-')); let server; let badCount = false; let calls = 0;
+    const directory = mkdtempSync(join(tmpdir(), 'oc-voice-control-')); let server; let badCount = false; let blocked = false; let calls = 0;
     try {
         const certPath = join(directory, 'cert.pem'); const keyPath = join(directory, 'key.pem');
         execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=localhost',
@@ -37,6 +37,13 @@ test('voice control-plane client uses mutual TLS and validates inspection, quota
                 res.setHeader('content-type', 'application/json');
                 if (req.method === 'GET') return res.end(JSON.stringify(req.url.endsWith('/access') ? { allowed: true } : { status: 'not_found', keyId: null, expiresAt: null }));
                 const value = JSON.parse(Buffer.concat(chunks).toString());
+                if (req.url.endsWith('/output-privacy')) {
+                    assert.equal(value.transcript, 'hello'); assert.equal(value.modelFingerprint, 'a'.repeat(64));
+                    assert.equal(req.headers['x-cloud-request-id'], id); assert.equal(req.headers['x-cloud-reservation-id'], id);
+                    assert.equal(req.headers['x-cloud-claim-id'], id);
+                    if (blocked) res.statusCode = 403;
+                    return res.end(JSON.stringify(blocked ? { allowed: false, code: 'privacy_blocked' } : { allowed: true, code: 'allowed' }));
+                }
                 if (req.url.endsWith('/privacy')) {
                     assert.equal(value.text, request.input.text); assert.equal(req.headers['x-cloud-request-fingerprint'], hash);
                     return res.end(JSON.stringify({ allowed: true, code: 'allowed', characters: badCount ? 8 : 7 }));
@@ -58,8 +65,11 @@ test('voice control-plane client uses mutual TLS and validates inspection, quota
         assert.equal((await client.reserve('fixture-credential', reservation)).status, 'reserved');
         assert.equal((await client.claim('fixture-credential', id, proof)).status, 'claimed');
         assert.equal(await client.verifyClaim('fixture-credential', id, id), true);
+        assert.deepEqual(await client.inspectOutput('fixture-credential', id, id, id, 'hello', 'a'.repeat(64)), { allowed: true, code: 'allowed' });
+        blocked = true;
+        assert.deepEqual(await client.inspectOutput('fixture-credential', id, id, id, 'hello', 'a'.repeat(64)), { allowed: false, code: 'privacy_blocked' });
         badCount = true;
         assert.deepEqual(await client.inspect('fixture-credential', request, 'key', hash), { allowed: false, code: 'capability_unavailable' });
-        assert.equal(calls, 6);
+        assert.equal(calls, 8);
     } finally { if (server) await new Promise(resolve => server.close(resolve)); rmSync(directory, { recursive: true, force: true }); }
 });

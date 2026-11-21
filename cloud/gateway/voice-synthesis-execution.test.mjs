@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFingerprintKeyring } from './request-fingerprint.mjs';
 import { executeVoiceSynthesis } from './voice-synthesis-execution.mjs';
+import { createVoiceOutputScreen } from './voice-output-screen.mjs';
 
 const id = '11111111-1111-1111-1111-111111111111';
 const input = () => ({ credential: 'credential', identity: { tenantId: id, applicationId: id },
@@ -68,4 +69,19 @@ test('cancellation clears audio even if the output screen never responds', async
         assert.equal(result.status, 'unavailable');
         assert.deepEqual(audio, Buffer.alloc(2));
     } finally { request.body.fill(0); keyring.dispose(); }
+});
+
+test('speech admission, output transcription and policy execute before audio release', async () => {
+    const keyring = keys(); const request = input(); const audio = Buffer.from([1, 2]); const calls = [];
+    const outputScreen = createVoiceOutputScreen({
+        transcriber: { isReady: async () => true, transcribe: async value => {
+            calls.push('transcribe'); assert.equal(value.audio, audio); return { transcript: 'Hello!', modelFingerprint: 'a'.repeat(64) }; } },
+        controlPlane: { inspectOutput: async () => { calls.push('policy'); return { allowed: true, code: 'allowed' }; } },
+    });
+    try {
+        const result = await executeVoiceSynthesis(request, { controlPlane: plane(), keyring, createAccessMonitor: () => monitor(),
+            dispatcher: { executeClaimed: async () => { calls.push('worker'); return { status: 'completed', result: { audio, format: 'pcm', sampleRateHz: 24000, channels: 1 } }; } }, outputScreen });
+        assert.equal(result.status, 'completed');
+        assert.deepEqual(calls, ['worker', 'transcribe', 'policy']);
+    } finally { audio.fill(0); request.body.fill(0); keyring.dispose(); }
 });

@@ -18,4 +18,6 @@ The gateway transcription client requires mutual TLS and an expected model ID, r
 
 The voice output privacy endpoint independently evaluates the recognized transcript at the Cloud output boundary. It records only scope, claim, the gateway-supplied model-manifest fingerprint, outcome, trace and timestamp for a completed and consumed speech claim. The record is append-only and does not contain audio or transcript text; it records a transcript inspection decision, not proof of the worker's identity, complete recognition or audio delivery.
 
+The gateway output screen requires an allowed transcript policy decision and normalized word agreement with the inspected synthesis input. Disagreement and missing dependencies fail closed. Agreement is an additional check, not proof that all audio content was recognized; no transcript-based screen guarantees recognition completeness.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
