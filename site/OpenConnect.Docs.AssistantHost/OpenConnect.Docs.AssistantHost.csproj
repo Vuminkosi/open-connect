@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../OpenConnect.Docs/Services/DocumentationGatewayVisitorTokens.cs" Link="Identity/DocumentationGatewayVisitorTokens.cs" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="OpenAI" />
+    <ProjectReference Include="../../src/OpenConnect.LiveUI.Hosting/OpenConnect.LiveUI.Hosting.csproj" />
+  </ItemGroup>
+</Project>

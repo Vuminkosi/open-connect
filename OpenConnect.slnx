@@ -5,8 +5,14 @@
   <Folder Name="/site/OpenConnect.Docs/">
     <Project Path="site/OpenConnect.Docs/OpenConnect.Docs.csproj" />
   </Folder>
+  <Folder Name="/site/OpenConnect.Docs.AssistantHost/">
+    <Project Path="site/OpenConnect.Docs.AssistantHost/OpenConnect.Docs.AssistantHost.csproj" />
+  </Folder>
   <Folder Name="/site/OpenConnect.Docs.Tests/">
     <Project Path="site/OpenConnect.Docs.Tests/OpenConnect.Docs.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/OpenConnect.Docs.AssistantHost.Tests/">
+    <Project Path="tests/Unit/OpenConnect.Docs.AssistantHost.Tests/OpenConnect.Docs.AssistantHost.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/_shared/">
     <Project Path="samples/_shared/OpenConnect.Samples.Shared/OpenConnect.Samples.Shared.csproj" />

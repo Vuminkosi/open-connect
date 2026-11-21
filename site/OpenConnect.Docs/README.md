@@ -30,6 +30,8 @@ To connect the composer, set `OpenConnect__Assistant__Enabled=true` and `OpenCon
 
 For Compose, `docker-compose-docs-assistant.yml` maps the assistant gateway settings. To use visitor identities, also include `docker-compose-docs-visitor.yml` and set `OC_DOCS_ASSISTANT_TENANT` and `OC_DOCS_ASSISTANT_VISITOR_KEY`; the visitor overlay clears the shared bearer. These overlays configure the client and do not start an application gateway.
 
+For a process-local development application host, use `docker-compose-docs-local-host.yml` with the root Compose file and the local HTTPS overlay. See the [assistant host guide](../OpenConnect.Docs.AssistantHost/README.md) for required settings and the limits of that host. It is not a production Cloud gateway.
+
 For local HTTPS, export a trusted localhost development certificate and its key into a protected directory outside the repository, then initialize the dedicated TLS volume once:
 
 ```powershell

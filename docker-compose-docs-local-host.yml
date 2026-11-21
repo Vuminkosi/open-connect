@@ -1,0 +1,40 @@
+services:
+  documentation-site:
+    environment:
+      OpenConnect__Assistant__Enabled: "true"
+      OpenConnect__Assistant__GatewayUrl: https://localhost:8098/
+      OpenConnect__Assistant__GatewayBearer: ""
+      OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}
+      OpenConnect__Assistant__VisitorSigningKey: ${OC_DOCS_ASSISTANT_VISITOR_KEY:?Set OC_DOCS_ASSISTANT_VISITOR_KEY}
+      SSL_CERT_FILE: /run/docs-assistant-ca/ca-bundle.pem
+    volumes:
+      - ${OC_DOCS_ASSISTANT_CA_BUNDLE:?Set OC_DOCS_ASSISTANT_CA_BUNDLE}:/run/docs-assistant-ca/ca-bundle.pem:ro
+
+  documentation-assistant-host:
+    build:
+      context: .
+      dockerfile: site/OpenConnect.Docs.AssistantHost/Dockerfile
+    image: openconnect-docs-assistant:${OC_IMAGE_TAG:-local}
+    network_mode: service:documentation-site
+    depends_on:
+      documentation-site:
+        condition: service_started
+        restart: true
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://127.0.0.1:8098
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /run/openconnect-tls/localhost.pem
+      ASPNETCORE_Kestrel__Certificates__Default__KeyPath: /run/openconnect-tls/localhost.key
+      OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}
+      OpenConnect__Assistant__VisitorSigningKey: ${OC_DOCS_ASSISTANT_VISITOR_KEY:?Set OC_DOCS_ASSISTANT_VISITOR_KEY}
+      OpenConnect__Assistant__Model__Endpoint: ${OC_DOCS_ASSISTANT_MODEL_ENDPOINT:?Set OC_DOCS_ASSISTANT_MODEL_ENDPOINT}
+      OpenConnect__Assistant__Model__Name: ${OC_DOCS_ASSISTANT_MODEL_NAME:?Set OC_DOCS_ASSISTANT_MODEL_NAME}
+      OpenConnect__Assistant__Model__ApiKey: ${OC_DOCS_ASSISTANT_MODEL_API_KEY:?Set OC_DOCS_ASSISTANT_MODEL_API_KEY}
+      Workers__Kokoro__Endpoint: http://worker-kokoro:8080
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?Set OPENCONNECT_WORKER_TOKEN}
+    volumes:
+      - oc_docs_local_tls:/run/openconnect-tls:ro
+    restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
