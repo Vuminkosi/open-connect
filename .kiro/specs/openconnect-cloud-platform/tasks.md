@@ -327,3 +327,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add private speech privacy inspection, append-only fingerprint and character-count evidence, and an admission lookup. Verify Unicode counting, fail-closed evidence writes, latest-decision semantics, immutability and PostgreSQL migration upgrade. Registration and use by speech claims remain outstanding.
 
 - [x] Add deployment-bound speech claim admission that rechecks the latest matching privacy decision and reserved character count. Verify replay, credential revocation, capacity, older writers and migration upgrade in disposable PostgreSQL. Endpoint registration, worker consumption, accounting and gateway execution remain outstanding.
+
+- [x] Add worker-certificate-bound speech claim consumption with current credential, policy, deployment, quota and privacy revalidation. Verify mutual-TLS authorization, concurrent replay and changed-state denial against disposable PostgreSQL. Registration, gateway execution and settlement remain outstanding.
