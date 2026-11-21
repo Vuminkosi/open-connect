@@ -1,0 +1,58 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+@using System.Text.Json
+@using OpenConnect.Docs.Services.AnalyticsDemo
+@inject IServiceProvider Services
+
+<section class="doc-card" aria-labelledby="documentation-analytics-title">
+    <h2 id="documentation-analytics-title">Try analytics</h2>
+    @if (Services.GetService<IDocumentationAnalyticsDemo>() is null)
+    {
+        <p>The analytics example is not configured. It requires an authorized analytics worker.</p>
+    }
+    else
+    {
+        <p>Analyze the synthetic measurements 1, 2, 3, 4, 5 and 100 kg. Statistical signals require human review.</p>
+        <button type="button" class="button" @onclick="AnalyzeAsync" disabled="@_busy">Analyze example</button>
+        @if (_status is not null) { <p role="status">@_status</p> }
+        @if (_result is not null)
+        {
+            var result = _result.RootElement.GetProperty("result");
+            <section aria-labelledby="documentation-analytics-results">
+                <h3 id="documentation-analytics-results">Results</h3>
+                <p>Samples: @result.GetProperty("sample_size").GetInt32(); median: @result.GetProperty("median").GetDouble() kg.</p>
+                <p>Anomalies found: @result.GetProperty("anomalies").GetArrayLength().</p>
+                <p>Algorithm: @result.GetProperty("algorithm_version").GetString().</p>
+            </section>
+        }
+    }
+</section>
+
+@code {
+    private readonly CancellationTokenSource _stopping = new();
+    private JsonDocument? _result;
+    private string? _status;
+    private bool _busy;
+    private bool _disposed;
+
+    private async Task AnalyzeAsync()
+    {
+        if (_busy || Services.GetService<IDocumentationAnalyticsDemo>() is not { } demo) return;
+        _busy = true; _status = "Analyzing the example…";
+        _result?.Dispose(); _result = null;
+        try
+        {
+            var result = await demo.AnalyzeAsync(_stopping.Token);
+            if (_disposed) { result.Dispose(); return; }
+            _result = result; _status = "Analysis complete.";
+        }
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested) { }
+        catch (Exception) { if (!_disposed) _status = "Analysis could not be completed. Try again later."; }
+        finally { _busy = false; }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true; _stopping.Cancel(); _stopping.Dispose(); _result?.Dispose();
+    }
+}

@@ -1119,6 +1119,12 @@
           "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
+      "openconnect.analytics": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.client": {
         "type": "Project",
         "dependencies": {
@@ -1153,6 +1159,7 @@
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.10, )",
           "Microsoft.EntityFrameworkCore": "[10.0.14, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "OpenConnect.Analytics": "[1.0.0, )",
           "OpenConnect.Client": "[1.0.0, )",
           "OpenConnect.Components.Blazor": "[1.0.0, )",
           "OpenConnect.Components.Contracts": "[1.0.0, )",

@@ -11,6 +11,7 @@ using OpenConnect.Docs.Services.Voice;
 using OpenConnect.Docs.Components.AssistantShowcase;
 using OpenConnect.Docs.Services.DocumentDemo;
 using OpenConnect.Docs.Services.KnowledgeDemo;
+using OpenConnect.Docs.Services.AnalyticsDemo;
 
 namespace OpenConnect.Docs.Services;
 
@@ -106,6 +107,7 @@ public static class DocumentationAssistant
         });
         services.AddDocumentationDocumentDemo(configuration, environment);
         services.AddDocumentationKnowledgeDemo(configuration, environment);
+        services.AddDocumentationAnalyticsDemo(configuration, environment);
         return services;
     }
 

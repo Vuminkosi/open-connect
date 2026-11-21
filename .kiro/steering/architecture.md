@@ -405,3 +405,5 @@ The Cloud host registers analytics services when its control-plane database is c
 The optional analytics Cloud Compose profile keeps the worker private behind a mutual-TLS proxy. Certificate and token material is supplied through deployment-owned mounts rather than source files.
 
 Application hosts can use the analytics client to authorize and privacy-check worker input, sign requests and validate worker output before exposing results. The client requires an explicit protected-network opt-in for HTTP.
+
+The documentation analytics example uses a fixed synthetic dataset, anonymous visitor scope, bounded concurrency and the application SDK. It is opt-in in development and keeps worker credentials in protected configuration.
