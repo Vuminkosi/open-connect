@@ -83,7 +83,7 @@ def _run_tesseract(command: list[str], content: bytes, timeout: float) -> bytes:
     return bytes(output)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class WordSpan:
     text: str
     start: int
@@ -92,7 +92,7 @@ class WordSpan:
     confidence: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class OcrPage:
     text: str
     width: int

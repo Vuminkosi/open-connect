@@ -96,3 +96,11 @@ def test_child_output_is_bounded(monkeypatch):
     monkeypatch.setattr(ocr, "MAX_OUTPUT_BYTES", 1024)
     with pytest.raises(RuntimeError, match="ocr_output_limit"):
         ocr._run_tesseract([sys.executable, "-c", "import sys; sys.stdout.write('x'*65536)"], b"", 5)
+def test_ocr_results_hide_document_text_in_default_representation():
+    from openconnect_document_intelligence.ocr import OcrPage, WordSpan
+
+    secret = "private account number"
+    span = WordSpan(secret, 0, len(secret), (0.0, 0.0, 1.0, 1.0), 0.9)
+    page = OcrPage(secret, 100, 100, (span,), "model", "a" * 64)
+    assert secret not in repr(span)
+    assert secret not in repr(page)
