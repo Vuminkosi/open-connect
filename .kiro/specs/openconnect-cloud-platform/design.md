@@ -6,6 +6,10 @@ Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`),
 
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 
+## Usage and site access
+
+Visiting the public site, viewing documentation, or opening the Cloud gateway does not itself create a tenant charge. Metering and settlement apply to billable API consumption under the applicable capability and tenant authorization. Authentication and session isolation protect access and data; they do not by themselves imply billable usage. The assistant's complete gateway-to-metering integration remains to be verified.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.
