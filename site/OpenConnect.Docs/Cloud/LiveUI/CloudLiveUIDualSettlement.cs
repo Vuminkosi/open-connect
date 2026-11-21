@@ -7,6 +7,7 @@ public interface ICloudLiveUIDualSettlementStore
     Task<string> SettleAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken);
     Task<string> FailAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken);
     Task<string> ObserveAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken);
+    Task<string> RecoverAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken);
 }
 
 /// <summary>Validates a consumed LiveUI plan and its model token usage for settlement.</summary>
@@ -21,6 +22,10 @@ public sealed class CloudLiveUIDualSettlement(ICloudLiveUIDualSettlementStore st
     public Task<string> ObserveAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken) =>
         !Valid(reservationId, claimId, deploymentId, usage) ? Task.FromResult("invalid_request")
             : store.ObserveAsync(reservationId, claimId, deploymentId, usage, cancellationToken);
+
+    public Task<string> RecoverAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken) =>
+        !Valid(reservationId, claimId, deploymentId, usage) ? Task.FromResult("invalid_request")
+            : store.RecoverAsync(reservationId, claimId, deploymentId, usage, cancellationToken);
 
     private Task<string> ApplyAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, bool failed, CancellationToken cancellationToken) =>
         !Valid(reservationId, claimId, deploymentId, usage)

@@ -10,10 +10,13 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
     private sealed class UsageRow { public Guid ClaimId { get; set; } public Guid DeploymentId { get; set; } public long InputTokens { get; set; } public long OutputTokens { get; set; } }
 
     public Task<string> SettleAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken) =>
-        ApplyAsync(reservationId, claimId, deploymentId, usage, false, cancellationToken);
+        ApplyAsync(reservationId, claimId, deploymentId, usage, false, false, cancellationToken);
 
     public Task<string> FailAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken) =>
-        ApplyAsync(reservationId, claimId, deploymentId, usage, true, cancellationToken);
+        ApplyAsync(reservationId, claimId, deploymentId, usage, true, false, cancellationToken);
+
+    public Task<string> RecoverAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken) =>
+        ApplyAsync(reservationId, claimId, deploymentId, usage, true, true, cancellationToken);
 
     public async Task<string> ObserveAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, CancellationToken cancellationToken)
     {
@@ -42,7 +45,7 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
         return "observed";
     }
 
-    private async Task<string> ApplyAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, bool failed, CancellationToken cancellationToken)
+    private async Task<string> ApplyAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudLiveUITokenUsage usage, bool failed, bool recovery, CancellationToken cancellationToken)
     {
         var actual = checked(usage.InputTokens + usage.OutputTokens);
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
@@ -74,6 +77,10 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
         if (actual > token.Amount) return "overage_requires_reconciliation";
         var priorUsage = await FindUsageAsync(db, reservationId, cancellationToken);
         if (priorUsage is not null && !Matches(priorUsage, claimId, deploymentId, usage)) return "conflict";
+        if (recovery && (priorUsage is null || !await db.Database.SqlQuery<bool>($"""
+            SELECT "ExpiresAt" <= clock_timestamp() - interval '5 minutes' AS "Value"
+            FROM cloud.quota_reservations WHERE "Id" = {reservationId}
+            """).SingleAsync(cancellationToken))) return "unavailable";
         var buckets = await db.QuotaBuckets.FromSqlInterpolated($"""
             SELECT * FROM cloud.quota_buckets WHERE "TenantId" = {reservation.TenantId} AND "ApplicationId" = {reservation.ApplicationId}
               AND "Id" IN ({reservation.BucketId}, {token.TokenBucketId}) ORDER BY "Id" FOR UPDATE
@@ -83,8 +90,8 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
         var now = timeProvider.GetUtcNow();
         if (failed)
             await db.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO cloud.liveui_execution_failures ("PlanReservationId", "ClaimId", "DeploymentId", "FailedAt")
-                VALUES ({reservationId}, {claimId}, {deploymentId}, {now})
+                INSERT INTO cloud.liveui_execution_failures ("PlanReservationId", "ClaimId", "DeploymentId", "FailedAt", "Source")
+                VALUES ({reservationId}, {claimId}, {deploymentId}, {now}, {(recovery ? "observed_recovery" : "worker")})
                 """, cancellationToken);
         else
         {
