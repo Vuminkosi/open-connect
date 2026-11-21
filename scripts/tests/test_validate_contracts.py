@@ -77,7 +77,7 @@ def test_response_schema_rejects_unusable_classification_metadata():
                            "classifications": [{"label": "tree", "class_index": 2, "score": 0.7}]}}
     validator = VALIDATOR.Draft202012Validator(schema)
     assert validator.is_valid(response)
-    for field, value in [("model_id", " "), ("taxonomy_version", "bad\x00version"), ("width", 16000001)]:
+    for field, value in [("model_id", " "), ("taxonomy_version", "bad\x00version"), ("taxonomy_version", "line\n"), ("width", 16000001)]:
         modified = json.loads(json.dumps(response))
         modified["result"][field] = value
         assert not validator.is_valid(modified)
@@ -93,6 +93,6 @@ def test_rerank_contract_rejects_unsafe_candidate_ids(filename):
     validator = VALIDATOR.Draft202012Validator(schema, format_checker=VALIDATOR.FormatChecker())
     assert validator.is_valid(value)
     candidates = value["payload" if "request" in filename else "result"]["candidates"]
-    for bad in ("  ", "bad\x00id", "x" * 257):
+    for bad in ("  ", "bad\x00id", "line\n", "x" * 257):
         candidates[0]["id"] = bad
         assert not validator.is_valid(value)
