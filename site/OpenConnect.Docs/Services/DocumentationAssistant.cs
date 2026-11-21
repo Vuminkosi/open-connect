@@ -7,6 +7,7 @@ using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using Microsoft.Extensions.Options;
+using OpenConnect.Docs.Services.Voice;
 
 namespace OpenConnect.Docs.Services;
 
@@ -46,6 +47,10 @@ public static class DocumentationAssistant
             if (visitorIdentityEnabled)
             {
                 services.AddSingleton(new DocumentationGatewayVisitorTokens(visitorTenant!, visitorKey!));
+                services.AddSingleton<DocumentationVoiceTickets>();
+                services.AddSingleton(provider => new DocumentationVoiceBridge(
+                    provider.GetRequiredService<DocumentationVoiceTickets>(), gateway!));
+                services.AddSingleton<IStartupFilter, DocumentationVoiceStartupFilter>();
                 services.AddScoped<DocumentationGatewayVisitorIdentity>();
                 services.AddScoped<IOpenConnectClient>(provider => new OpenConnectClient(
                     CreateVisitorClient(provider), Options.Create(provider.GetRequiredService<OpenConnectClientOptions>())));

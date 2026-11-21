@@ -10,6 +10,8 @@ The transcription worker's local realtime route is final-only and requires an ex
 
 Voice clients stop microphone tracks and release audio resources when their transcription connection closes, including when a provider is unavailable.
 
+The documentation voice bridge uses short-lived, single-use, session-bound tickets. Visitor credentials remain server-side, the browser connects from the same HTTPS origin, and the application gateway verifies session ownership before accepting audio.
+
 ## Core Security Principles
 
 1. **Security and privacy by default** - Firewall enabled, auth always active
