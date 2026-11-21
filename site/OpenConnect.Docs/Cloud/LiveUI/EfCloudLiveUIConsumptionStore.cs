@@ -53,11 +53,8 @@ public sealed class EfCloudLiveUIConsumptionStore(IDbContextFactory<CloudControl
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == claim.TenantId && x.ApplicationId == claim.ApplicationId &&
                 x.CapabilityId == "inference.liveui" && x.Unit == "plan", cancellationToken)) return new("unavailable");
         if (!CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) || reservation.RequestFingerprint is not { Length: 32 }) return new("unavailable");
-        var privacyAllowed = await db.Database.SqlQuery<bool>($"""
-            SELECT COALESCE((SELECT "Outcome" = 'allowed' AND "FingerprintKeyId" = {reservation.FingerprintKeyId} AND "RequestFingerprint" = {reservation.RequestFingerprint}
-                FROM cloud.liveui_privacy_evidence WHERE "TenantId" = {claim.TenantId} AND "ApplicationId" = {claim.ApplicationId}
-                    AND "RequestId" = {reservation.RequestId} ORDER BY "Sequence" DESC LIMIT 1), false) AS "Value"
-            """).SingleAsync(cancellationToken);
+        var privacyAllowed = await EfCloudLiveUIPrivacyAdmission.IsAllowedAsync(db, claim.TenantId, claim.ApplicationId,
+            reservation.RequestId, reservation.FingerprintKeyId!, reservation.RequestFingerprint, cancellationToken);
         if (!privacyAllowed) return new("unavailable");
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reservationId}, {claimId}, {deploymentId}, {now}) ON CONFLICT (\"ReservationId\") DO NOTHING", cancellationToken);
         await transaction.CommitAsync(cancellationToken);

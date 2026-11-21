@@ -262,4 +262,6 @@ In explicit Cloud mode, the LiveUI worker blocks its legacy direct planning rout
 
 LiveUI output inspection evaluates each action-plan field and their joined sequence at the output boundary. The private endpoint requires the gateway certificate and original application credential and records a content-free append-only decision only for a matching consumed and settled plan. The gateway must invoke this endpoint and revalidate access before releasing the plan; the endpoint does not execute actions or grant browser authority.
 
+The LiveUI claim access endpoint revalidates the original credential, entitlement, model, region, deployment and current input privacy decision for a pending or settled claim. Claim issuance, worker consumption and access checks use the same fingerprint-bound LiveUI privacy admission rule. Gateway monitoring and public LiveUI execution remain outstanding.
+
 An offline worker smoke test loaded the existing digest-verified Qwen3 model from a read-only volume and exercised a deterministic allowed plan. That test verifies model loading and deterministic routing only; it does not prove model-generated planning or the complete Cloud request path.

@@ -43,11 +43,8 @@ public sealed class EfCloudLiveUIClaimStore(IDbContextFactory<CloudControlPlaneD
         if (!string.Equals(reservation.FingerprintKeyId, fingerprintKeyId, StringComparison.Ordinal) || reservation.RequestFingerprint is not { Length: 32 } ||
             !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
         if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
-        var privacyAllowed = await db.Database.SqlQuery<bool>($"""
-            SELECT COALESCE((SELECT "Outcome" = 'allowed' AND "FingerprintKeyId" = {fingerprintKeyId} AND "RequestFingerprint" = {fingerprint}
-                FROM cloud.liveui_privacy_evidence WHERE "TenantId" = {identity.TenantId} AND "ApplicationId" = {identity.ApplicationId}
-                    AND "RequestId" = {reservation.RequestId} ORDER BY "Sequence" DESC LIMIT 1), false) AS "Value"
-            """).SingleAsync(cancellationToken);
+        var privacyAllowed = await EfCloudLiveUIPrivacyAdmission.IsAllowedAsync(db, identity.TenantId, identity.ApplicationId,
+            reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken);
         if (!privacyAllowed) return new("unavailable");
         if (await (from claim in db.ExecutionClaims join held in db.QuotaReservations on claim.ReservationId equals held.Id
             where claim.DeploymentId == worker.Id && held.FinalizedAt == null select claim.ReservationId).CountAsync(cancellationToken) >= worker.ConcurrencyLimit)

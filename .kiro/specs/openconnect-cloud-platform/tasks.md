@@ -209,3 +209,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add opt-in LiveUI worker claim consumption, model identity checks, allowlisted plan validation and settlement with no automatic Cloud model downloads; gateway integration and real-system acceptance remain outstanding.
 
 - [x] Add authenticated LiveUI output-field inspection and settled-claim-bound append-only evidence; gateway response-path enforcement remains outstanding.
+
+- [x] Add claim-specific LiveUI access revalidation and share the privacy admission rule across claims, consumption and access checks; gateway monitoring remains outstanding.
