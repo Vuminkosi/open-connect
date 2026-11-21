@@ -6,6 +6,8 @@ Audio must pass a configured output privacy screen before the gateway releases i
 
 Cancellation or loss of access ends a pending output-screen request and clears the gateway's audio buffer even if the screen does not respond.
 
-The transcription worker supports a local Whisper adapter alongside its synthetic test engine. Real-mode local execution requires an explicitly selected model and revision in the verified cache, including hashed model, configuration, tokenizer and preprocessor files. Model loading uses local files only; the adapter never provisions or downloads models. A manifest alone does not make the worker ready. Model availability and real transcription accuracy depend on a provisioned compatible model and must be verified independently.
+The transcription worker supports a local Whisper adapter alongside its synthetic test engine. Real-mode local execution requires an explicitly selected model and revision in the verified cache, including hashed model, configuration and tokenizer files, and a preprocessor file when supplied. Model loading uses local files only; the adapter never provisions or downloads models. A manifest alone does not make the worker ready. Model availability and real transcription accuracy depend on a provisioned compatible model and must be verified independently.
+
+The PCM WAV parser accepts extended format chunks and padded metadata chunks while rejecting truncated data and inconsistent RIFF lengths.
 
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.

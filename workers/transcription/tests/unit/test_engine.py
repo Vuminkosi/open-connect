@@ -66,6 +66,23 @@ def test_valid_wav_computes_duration() -> None:
     assert len(audio.raw_pcm) == 3_200
 
 
+def test_extended_fmt_and_padded_chunks_are_accepted() -> None:
+    wav = bytearray(make_wav())
+    struct.pack_into("<I", wav, 16, 18)
+    wav[36:36] = b"\x00\x00"
+    wav[38:38] = b"JUNK\x03\x00\x00\x00abc\x00"
+    struct.pack_into("<I", wav, 4, len(wav) - 8)
+    assert len(validate_audio(**base_kwargs(audio_base64=b64(wav))).raw_pcm) == 3200
+
+
+def test_truncated_wav_data_is_rejected() -> None:
+    wav = bytearray(make_wav())
+    wav = wav[:-2]
+    struct.pack_into("<I", wav, 4, len(wav) - 8)
+    with pytest.raises(AudioValidationError):
+        validate_audio(**base_kwargs(audio_base64=b64(wav)))
+
+
 def test_wav_magic_rejected() -> None:
     with pytest.raises(AudioValidationError):
         validate_audio(**base_kwargs(audio_base64=b64(b"NOTAWAVE" + b"\x00" * 64)))

@@ -17,7 +17,7 @@ def provision(source: Path, manifest_file: Path, cache: Path) -> None:
         raise ValueError("invalid model source or manifest")
     manifest = RuntimeModelManifest.model_validate_json(manifest_file.read_bytes())
     assets = {asset.relativePath for asset in manifest.assets}
-    required = {"model.bin", "config.json", "tokenizer.json", "preprocessor_config.json"}
+    required = {"model.bin", "config.json", "tokenizer.json"}
     if manifest.workerKind != "transcription" or not required.issubset(assets):
         raise ValueError("manifest does not describe a compatible transcription model")
 

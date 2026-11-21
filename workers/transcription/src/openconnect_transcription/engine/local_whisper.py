@@ -31,7 +31,7 @@ def load_model(cfg, device: str):
                 manifest.immutableRevision != cfg.model_revision):
             return None
         assets = {asset.relativePath for asset in manifest.assets}
-        if not {"model.bin", "config.json", "tokenizer.json", "preprocessor_config.json"}.issubset(assets):
+        if not {"model.bin", "config.json", "tokenizer.json"}.issubset(assets):
             return None
         verified = RuntimeModelCacheManager(cfg.model_dir, "transcription").verify_for_request(manifest)
         if not verified.ready or verified.revision_dir is None:

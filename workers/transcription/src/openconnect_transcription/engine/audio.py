@@ -59,25 +59,31 @@ def _parse_wav_header(raw: bytes) -> tuple[int, int, int, bytes]:
     if raw[0:4] != b"RIFF" or raw[8:12] != b"WAVE":
         raise AudioValidationError("invalid_wav_header")
     try:
+        (riff_size,) = struct.unpack_from("<I", raw, 4)
+        (fmt_size,) = struct.unpack_from("<I", raw, 16)
         (audio_format,) = struct.unpack_from("<H", raw, 20)
         (channels,) = struct.unpack_from("<H", raw, 22)
         (sample_rate,) = struct.unpack_from("<I", raw, 24)
         (bits_per_sample,) = struct.unpack_from("<H", raw, 34)
     except struct.error:
         raise AudioValidationError("invalid_wav_header") from None
+    if raw[12:16] != b"fmt " or fmt_size < 16 or riff_size + 8 != len(raw):
+        raise AudioValidationError("invalid_wav_header")
     if audio_format != 1:
         raise AudioValidationError("unsupported_wav_codec")
     # Locate the data chunk (fmt chunk may carry extra bytes).
-    offset = 36
+    offset = 20 + fmt_size + (fmt_size % 2)
     pcm: bytes | None = None
     while offset + 8 <= len(raw):
         chunk_id = raw[offset : offset + 4]
         (chunk_size,) = struct.unpack_from("<I", raw, offset + 4)
+        start = offset + 8
+        if chunk_size > len(raw) - start:
+            raise AudioValidationError("invalid_wav_header")
         if chunk_id == b"data":
-            start = offset + 8
             pcm = raw[start : start + chunk_size]
             break
-        offset += 8 + chunk_size
+        offset += 8 + chunk_size + (chunk_size % 2)
         if offset > 1_048_576:  # bound header scan (sandbox)
             break
     if pcm is None:
