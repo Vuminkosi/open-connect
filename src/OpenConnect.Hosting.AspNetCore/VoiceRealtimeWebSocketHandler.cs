@@ -139,13 +139,7 @@ internal static class VoiceRealtimeWebSocketHandler
                 using var document = JsonDocument.Parse(provider);
                 var root = document.RootElement;
                 var type = root.TryGetProperty("type", out var typeValue) ? typeValue.GetString() : null;
-                logger.LogInformation("Realtime transcription event type {EventType}.", type ?? "unknown");
-                if (string.Equals(type, "error", StringComparison.OrdinalIgnoreCase))
-                {
-                    var errorCode = root.TryGetProperty("code", out var codeValue) ? codeValue.GetString() : null;
-                    var errorDetail = root.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : root.TryGetProperty("error", out var errorValue) && errorValue.ValueKind == JsonValueKind.String ? errorValue.GetString() : null;
-                    logger.LogWarning("Realtime transcription provider error code {ErrorCode} detail {ErrorDetail}.", errorCode ?? "unspecified", string.IsNullOrWhiteSpace(errorDetail) ? "unspecified" : errorDetail[..Math.Min(errorDetail.Length, 120)]);
-                }
+                LogProviderEvent(logger, type);
                 var text = root.TryGetProperty("text", out var textValue) ? textValue.GetString() : root.TryGetProperty("transcript", out var transcript) ? transcript.GetString() : null;
                 var isFinal = root.TryGetProperty("final", out var finalValue) && finalValue.ValueKind == JsonValueKind.True;
                 if (!string.IsNullOrWhiteSpace(text) && text.Trim().Length > (longestProviderTranscript?.Length ?? 0))
@@ -183,6 +177,15 @@ internal static class VoiceRealtimeWebSocketHandler
 
         if (!string.IsNullOrWhiteSpace(bestFinalTranscript))
             await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    internal static void LogProviderEvent(ILogger logger, string? type)
+    {
+        if (string.Equals(type, "error", StringComparison.OrdinalIgnoreCase))
+            logger.LogWarning("Realtime transcription provider reported an error.");
+        else
+            logger.LogInformation("Realtime transcription event type {EventType}.",
+                string.Equals(type, "speechComplete", StringComparison.OrdinalIgnoreCase) ? "speechComplete" : "other");
     }
 
     private static async Task AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, CancellationToken token)

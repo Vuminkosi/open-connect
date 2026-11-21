@@ -226,6 +226,7 @@ Scoped response restoration
 
 - Passwords, API keys, access tokens have highest severity
 - Secrets NEVER restored to model output, tool arguments, logs, or telemetry
+- Realtime transcription logs use fixed event categories; provider-supplied error details and event labels are not logged.
 - Final response scanner catches independently inferred values
 - Structured privacy inspection evaluates bounded JSON fragments and cross-field combinations without changing their structure. Optional host evidence records allowlisted decision metadata and category counts, never source content.
 - Firewall-guarded model clients inspect requests, options, tool content and model output. Streamed responses are buffered for output screening before updates are exposed.
