@@ -337,3 +337,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add private mutual-TLS speech dispatch for an exact claim-bound payload, bounded audio validation and no retry after uncertain outcomes. Gateway admission composition, endpoint registration and real worker verification remain outstanding.
 
 - [x] Add a pinned mutual-TLS speech control-plane client for fingerprint lookup, privacy inspection, character reservation and claim creation. Verify response shapes and inspected character counts with a simulated control plane; composition and endpoint registration remain outstanding.
+
+- [x] Compose speech request fingerprinting, inspection, character reservation and payload-bound claim before private dispatch. Verify denial, duplicate, count mismatch, cancellation and buffer ownership with simulated dependencies. Active-call revocation, registration and real-system execution remain outstanding.
