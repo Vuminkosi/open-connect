@@ -8,7 +8,7 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 ## Usage and site access
 
-Visiting the public site, viewing documentation, or opening the Cloud gateway does not itself create a tenant charge. Metering and settlement apply to billable API consumption under the applicable capability and tenant authorization. Authentication and session isolation protect access and data; they do not by themselves imply billable usage. The assistant's complete gateway-to-metering integration remains to be verified.
+Visiting the public site, viewing documentation, signing in, and using the Cloud dashboard or management functions do not themselves create a tenant charge, including when a tenant is logged in. Metering and settlement apply to billable API consumption under the applicable capability and tenant authorization. Authentication and session isolation protect access and data; they do not by themselves imply billable usage. The assistant's complete gateway-to-metering integration remains to be verified.
 
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
