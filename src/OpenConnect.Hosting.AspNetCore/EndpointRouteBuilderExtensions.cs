@@ -73,6 +73,7 @@ public static class EndpointRouteBuilderExtensions
             group.MapGet("/sessions/{id}/events", HandleGetSessionEventsFromRequestAsync).RequireAuthorization();
             group.MapPost("/sessions/{id}/liveui/responses", HandlePostClientInteractionResponseAsync).RequireAuthorization();
             group.MapGet("/capabilities", HandleCapabilities).RequireAuthorization();
+            group.MapGet("/capabilities/ready", HandleReadyCapabilities).RequireAuthorization();
             group.MapPost("/speech/synthesize", async (HttpContext context, SpeechRequest request, CancellationToken cancellationToken) =>
             {
                 var httpClientFactory = context.RequestServices.GetService<IHttpClientFactory>();
@@ -673,6 +674,16 @@ public static class EndpointRouteBuilderExtensions
         new IdentifierJsonResult(value, statusCode, location);
 
     internal static IResult HandleCapabilities(IServiceProvider services) => Results.Ok(services.GetService<ICapabilityRegistry>()?.GetReady(CapabilityKind.Model) ?? Array.Empty<CapabilityDescriptor>());
+
+    // Preserve the existing model-only endpoint while exposing all ready registry kinds.
+    internal static IResult HandleReadyCapabilities(IServiceProvider services)
+    {
+        var registry = services.GetService<ICapabilityRegistry>();
+        var capabilities = registry is null ? Array.Empty<CapabilityDescriptor>() :
+            Enum.GetValues<CapabilityKind>().SelectMany(registry.GetReady)
+                .OrderBy(item => item.Id.Value, StringComparer.Ordinal).ToArray();
+        return Results.Ok(capabilities);
+    }
 
     internal static IResult HandleComponents(IServiceProvider services) => Results.Ok(services.GetService<IAgentDefinitionRegistry>()?.GetAll() ?? Array.Empty<AgentDefinition>());
 

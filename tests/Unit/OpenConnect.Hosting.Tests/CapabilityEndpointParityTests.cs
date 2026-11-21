@@ -57,6 +57,35 @@ public sealed class CapabilityEndpointParityTests
     }
 
     [Fact]
+    public async Task ReadyCapabilitiesIncludeLiveLogicalIdsAcrossKindsWithoutChangingLegacyEndpoint()
+    {
+        var clock = new FakeTimeProvider();
+        var registry = new CapabilityRegistry(TimeSpan.FromSeconds(10), clock);
+        registry.Register(new CapabilityDescriptor(new CapabilityId("knowledge.embed"), CapabilityKind.Model, DetectorState.Ready));
+        registry.Register(new CapabilityDescriptor(new CapabilityId("knowledge.index"), CapabilityKind.Tool, DetectorState.Ready));
+        registry.Register(new CapabilityDescriptor(new CapabilityId("vision.embed"), CapabilityKind.Model, DetectorState.Loading));
+        var services = new ServiceCollection(); services.AddLogging(); services.AddSingleton<ICapabilityRegistry>(registry);
+        using var provider = services.BuildServiceProvider();
+        var response = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleReadyCapabilities(provider), provider);
+        using var json = JsonDocument.Parse(response.Body);
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, json.RootElement.GetArrayLength());
+        Assert.Equal("knowledge.embed", json.RootElement[0].GetProperty("id").GetProperty("value").GetString());
+        Assert.Equal("model", json.RootElement[0].GetProperty("kind").GetString());
+        Assert.Equal("knowledge.index", json.RootElement[1].GetProperty("id").GetProperty("value").GetString());
+        Assert.Equal("tool", json.RootElement[1].GetProperty("kind").GetString());
+        Assert.Equal("ready", json.RootElement[1].GetProperty("state").GetString());
+        registry.MarkStale(new CapabilityId("knowledge.index"));
+        var afterStale = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleReadyCapabilities(provider), provider);
+        using var staleJson = JsonDocument.Parse(afterStale.Body);
+        Assert.Single(staleJson.RootElement.EnumerateArray());
+        clock.Advance(TimeSpan.FromSeconds(10));
+        var expired = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleReadyCapabilities(provider), provider);
+        using var expiredJson = JsonDocument.Parse(expired.Body);
+        Assert.Empty(expiredJson.RootElement.EnumerateArray());
+    }
+
+    [Fact]
     public async Task Capabilities_ReRegistration_Renews_Lease_And_Reappears()
     {
         var clock = new FakeTimeProvider();

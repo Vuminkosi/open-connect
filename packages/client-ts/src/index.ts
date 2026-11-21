@@ -3,6 +3,7 @@ export type {
   Capability,
   CapabilityKind,
   CapabilityState,
+  ReadyHostCapability,
   CreateTaskRequest,
   ErrorBody,
   OpenConnectErrorCode,

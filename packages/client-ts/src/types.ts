@@ -57,6 +57,13 @@ export type CapabilityState =
   | "degraded"
   | "failed";
 
+/** Ready host registry descriptor returned by GET /capabilities/ready. */
+export interface ReadyHostCapability {
+  id: { value: string };
+  kind: "security" | "model" | "tool" | "transport";
+  state: "ready";
+}
+
 export interface CreateTaskRequest {
   clientTaskId: string;
   message?: string | null;

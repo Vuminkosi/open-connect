@@ -1,5 +1,6 @@
 import type {
   Capability,
+  ReadyHostCapability,
   CreateTaskRequest,
   OpenConnectErrorCode,
   SessionEvent,
@@ -210,6 +211,11 @@ export class OpenConnectClient {
   /** GET /capabilities — list advertised capabilities. */
   async listCapabilities(): Promise<Capability[]> {
     return this.request<Capability[]>("/capabilities");
+  }
+
+  /** Lists ready host capabilities across all registry kinds. */
+  async listReadyHostCapabilities(): Promise<ReadyHostCapability[]> {
+    return this.request<ReadyHostCapability[]>("/capabilities/ready");
   }
 
   /** GET /sessions/{sessionId}/events?afterSequence=n — replay events. */

@@ -19,11 +19,17 @@ const task = await client.createTask(
   "idempotency-key-1",
 );
 const current = await client.getTask(task.id);
-const capabilities = await client.listCapabilities();
+const hostCapabilities = await client.listReadyHostCapabilities();
 const events = await client.replayEvents("<session-ulid>", 0);
 const unsubscribe = client.subscribeEvents("<session-ulid>", { onEvent: console.log });
 unsubscribe();
 ```
+
+`listReadyHostCapabilities()` reads the authenticated host registry across all
+kinds. Descriptors contain the logical ID under `id.value` and include only ready,
+non-expired registrations. Registration and worker readiness remain the host
+application's responsibility. The existing `listCapabilities()` method is retained
+for compatibility.
 
 Task submission sends `clientTaskId`, optional `message`, and an optional existing
 session ULID. Task records contain `id`, `tenantId`, `principalId`, and the host's

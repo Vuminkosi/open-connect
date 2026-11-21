@@ -93,6 +93,19 @@ describe("listCapabilities", () => {
   });
 });
 
+describe("listReadyHostCapabilities", () => {
+  it("reads logical host capabilities in their actual registry shape", async () => {
+    const capabilities = [
+      { id: { value: "knowledge.embed" }, kind: "model", state: "ready" },
+      { id: { value: "knowledge.index" }, kind: "tool", state: "ready" },
+    ];
+    const fetch = vi.fn(async () => jsonResponse(200, capabilities));
+    const client = clientWith(fetch);
+    await expect(client.listReadyHostCapabilities()).resolves.toEqual(capabilities);
+    expect(fetch).toHaveBeenCalledWith("https://api.example.test/openconnect/v1/capabilities/ready", expect.anything());
+  });
+});
+
 describe("replayEvents", () => {
   it("requests events after the cursor", async () => {
     const events: SessionEvent[] = [
