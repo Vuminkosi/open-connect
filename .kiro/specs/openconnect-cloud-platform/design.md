@@ -18,6 +18,8 @@ The generic gateway fixture supports optional application instructions and the e
 
 The documentation LiveUI manifest exposes the public home, documentation and API indexes, plus routes from the loaded documentation catalog. Each route identifies its page heading so navigation can verify the rendered destination and the assistant can inspect, highlight, or scroll to that heading. Navigation is authorized only for those public routes; unknown documentation paths and Cloud management routes remain outside the assistant's navigation authority.
 
+On the documentation index, the assistant can focus, inspect and set the public documentation search input. Search values are bounded to 200 characters; other inputs and Cloud management controls do not gain mutation authority from this permission.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.

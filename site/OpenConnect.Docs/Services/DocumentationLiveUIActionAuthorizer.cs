@@ -19,6 +19,13 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
         }
         if (context.Action.Type == LiveUIActionType.ClearHighlight) return Allow();
         if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null) return Allow();
+        if (context.Route.Path == "/docs" && context.Target is { Id: "documentation-search", Kind: LiveUITargetKind.Input })
+            return context.Action.Type switch
+            {
+                LiveUIActionType.Inspect or LiveUIActionType.Focus => Allow(),
+                LiveUIActionType.SetValue when context.Action.Parameters.Value is { Length: <= 200 } => Allow(),
+                _ => Deny()
+            };
         return context.Target is { Kind: LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.Link } &&
             context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Highlight or LiveUIActionType.Scroll ? Allow() : Deny();
     }

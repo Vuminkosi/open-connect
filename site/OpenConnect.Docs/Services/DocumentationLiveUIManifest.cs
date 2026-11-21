@@ -9,7 +9,10 @@ public static class DocumentationLiveUIManifest
         var routes = new List<LiveUIRoute>
         {
             new("documentation-home", "/", "Home", [Heading("documentation-home-heading", "Build AI applications, not AI infrastructure.")]),
-            new("documentation-index", "/docs", "Documentation", [Heading("documentation-index-heading", "Documentation")]),
+            new("documentation-index", "/docs", "Documentation", [Heading("documentation-index-heading", "Documentation"),
+                new("documentation-search", LiveUITargetKind.Input, "Search documentation",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Focus, LiveUICapability.SetValue },
+                    Selector: "#docs-search")]),
             new("documentation-api", "/api", "API reference", [Heading("documentation-api-heading", "Generated API reference")])
         };
         foreach (var document in documents ?? [])

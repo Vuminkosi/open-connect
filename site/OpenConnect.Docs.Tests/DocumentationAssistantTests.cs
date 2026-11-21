@@ -118,4 +118,22 @@ public sealed class DocumentationAssistantTests
         Assert.False((await authorizer.AuthorizeAsync(new(extended, home, null,
             action with { Parameters = new(DestinationRouteId: unknown.Id) }))).Allowed);
     }
+
+    [Fact]
+    public async Task LiveUIDocumentationSearchIsBoundedAndDoesNotAuthorizeOtherInputs()
+    {
+        var manifest = DocumentationLiveUIManifest.Create();
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs");
+        var search = route.Targets.Single(item => item.Id == "documentation-search");
+        Assert.Contains(LiveUICapability.SetValue, search.Capabilities);
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, search.Id, LiveUIActionType.SetValue, new(Value: "privacy"), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer();
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, search, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, search,
+            action with { Parameters = new(Value: new string('a', 201)) }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, search with { Id = "other-input" }, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/" }, search, action))).Allowed);
+    }
 }
