@@ -18,6 +18,21 @@ test('fingerprint keys load only from an absolute secret file and support rotati
         assert.throws(() => fingerprintKeyringFromEnvironment(env, () => Buffer.from(contents)));
 });
 
+test('fingerprint configuration preserves the default limit and permits a bounded larger deployment', () => {
+    const path = process.platform === 'win32' ? 'C:\\secrets\\keys' : '/secrets/keys';
+    const env = { CLOUD_FINGERPRINT_ACTIVE_KEY_ID: 'active', CLOUD_FINGERPRINT_KEYS_FILE: path };
+    const read = () => Buffer.from(`active:${Buffer.alloc(32, 1).toString('base64')}\n`);
+    const input = { tenantId: '11111111-1111-1111-1111-111111111111', applicationId: '22222222-2222-2222-2222-222222222222',
+        capability: 'analytics.analyze', method: 'POST', route: '/cloud/v1/analytics', mediaType: 'application/json', body: Buffer.alloc(65537) };
+    const standard = fingerprintKeyringFromEnvironment(env, read);
+    const expanded = fingerprintKeyringFromEnvironment(env, read, 262144);
+    try {
+        assert.throws(() => standard.compute('active', input));
+        assert.equal(expanded.compute('active', input).length, 32);
+        assert.throws(() => fingerprintKeyringFromEnvironment(env, read, 262145));
+    } finally { standard.dispose(); expanded.dispose(); }
+});
+
 test('authorization is disabled unless all private configuration is supplied', () => {
     assert.equal(authorizationFromEnvironment({}), undefined);
     assert.throws(() => authorizationFromEnvironment({ CLOUD_AUTHORITY_ORIGIN: 'https://authority.example' }));

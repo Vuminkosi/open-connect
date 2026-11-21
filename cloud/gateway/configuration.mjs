@@ -6,7 +6,7 @@ import { createFingerprintKeyring } from './request-fingerprint.mjs';
 import { createClassificationDispatcher } from './classification-dispatch.mjs';
 
 // The file contains one key per line as ID:canonical-base64. It is mounted as a secret.
-export function fingerprintKeyringFromEnvironment(environment, read = readFileSync) {
+export function fingerprintKeyringFromEnvironment(environment, read = readFileSync, maximumBodyBytes = 65536) {
     const { CLOUD_FINGERPRINT_ACTIVE_KEY_ID: activeKeyId, CLOUD_FINGERPRINT_KEYS_FILE: path } = environment;
     if (!activeKeyId && !path) return undefined;
     if (!activeKeyId || !path || !isAbsolute(path)) throw new Error('Cloud fingerprint key configuration is incomplete.');
@@ -25,7 +25,7 @@ export function fingerprintKeyringFromEnvironment(environment, read = readFileSy
             keys.push({ id: match[1], key });
             if (key.toString('base64') !== match[2]) throw new Error('Invalid Cloud fingerprint key file.');
         }
-        return createFingerprintKeyring({ activeKeyId, keys });
+        return createFingerprintKeyring({ activeKeyId, keys, maximumBodyBytes });
     } finally {
         for (const { key } of keys) key.fill(0);
         if (material instanceof Uint8Array) material.fill(0);
