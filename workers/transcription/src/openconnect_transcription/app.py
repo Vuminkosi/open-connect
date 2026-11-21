@@ -60,7 +60,11 @@ def _settings() -> Settings:
 
 def _model_loaded(cfg: Settings) -> bool:
     if cfg.backend == "local-fake":
-        return True
+        return cfg.fake_engine
+    # A manifest is not a loaded model. This build contains only a fake local
+    # engine; it can use the manifest gate in explicitly configured fake mode.
+    if not cfg.fake_engine:
+        return False
     manifest = os.path.join(cfg.model_dir, "model-manifest.json")
     return os.path.isfile(manifest)
 
@@ -140,8 +144,8 @@ def _cloud_leg_available(cfg: Settings) -> bool:
 
 
 def _local_leg_available(cfg: Settings) -> bool:
-    # This build provisions a local adapter only via local-model + manifest.
-    return cfg.backend == "local-model" and _model_loaded(cfg)
+    # No real local transcription adapter is present in this build.
+    return False
 
 
 def _ordered_legs(cfg: Settings) -> list[str]:
@@ -153,9 +157,7 @@ def _ordered_legs(cfg: Settings) -> list[str]:
 
 
 def _try_local_real(cfg: Settings, audio, locale: str) -> TranscriptResult:
-    """Local leg: serves only a provisioned local-model checkpoint."""
-    if cfg.backend == "local-model" and _model_loaded(cfg):
-        return engine.transcribe(audio, locale)
+    """Reject real local execution until a real adapter is installed."""
     raise _LocalLegUnavailable("no provisioned local model for this request")
 
 
@@ -268,8 +270,7 @@ def ready() -> dict[str, object]:
             "transcriptionModel": cfg.model_id,
             **_routing_status(cfg),
         }
-    # Real mode: ready iff a serving leg exists (opt-in cloud, or a
-    # provisioned local-model checkpoint). Both down -> typed unready.
+    # Real mode: ready only if a real serving leg is configured.
     # (Readiness reports availability; per-request policy verdicts such as
     # strict-local privacy_blocked surface on execute.)
     if not (_cloud_leg_available(cfg) or _local_leg_available(cfg)):
@@ -307,7 +308,8 @@ def capabilities() -> CapabilityResponse:
         modelId=cfg.model_id,
         modelRevision=cfg.model_revision,
         modelLoaded=_model_loaded(cfg),
-        capabilities=advertised_capabilities(backend=cfg.backend),
+        capabilities=advertised_capabilities(backend=cfg.backend)
+        if cfg.fake_engine or _cloud_leg_available(cfg) else [],
         privacyMode=cfg.privacy_mode,
         remoteBlocked=cfg.remote_blocked,
         supportsPartials=engine.supports_partials,

@@ -111,7 +111,7 @@ def _ok_cloud(monkeypatch, transcript="cloud transcript"):
     def _post(**kwargs):
         return {"transcript": transcript}
 
-    monkeypatch.setattr(cloud_module, "post_json", _post)
+    monkeypatch.setattr(cloud_module, "post_multipart", _post)
 
 
 # --- defaults ----------------------------------------------------------------
@@ -174,26 +174,26 @@ def test_local_first_routes_to_cloud_after_local_fails(monkeypatch) -> None:
     assert response.json()["transcript"] == "via cloud second"
 
 
-def test_provisioned_local_model_serves_without_cloud(monkeypatch, tmp_path) -> None:
+def test_manifest_alone_does_not_make_fake_local_engine_real(monkeypatch, tmp_path) -> None:
     (tmp_path / "model-manifest.json").write_text('{"modelId":"stt","revision":"r1"}')
     monkeypatch.setattr(
         app_module,
         "settings",
         _settings(backend="local-model", model_dir=str(tmp_path)),
     )
-    body = client.get("/health/ready").json()
-    assert body["status"] == "ready"
+    assert client.get("/health/ready").status_code == 503
     capabilities = client.get("/internal/v1/capabilities", headers=AUTH).json()
-    assert capabilities["engine"] == "real"
+    assert capabilities["modelLoaded"] is False
+    assert capabilities["capabilities"] == []
     response = _execute()
-    assert response.status_code == 200
-    assert response.json()["isFinal"] is True
+    assert response.status_code == 503
+    assert response.json()["detail"] == "model_unavailable"
 
 
 # --- fallback --------------------------------------------------------------------
 
 
-def test_cloud_down_falls_back_to_provisioned_local(monkeypatch, tmp_path) -> None:
+def test_cloud_down_does_not_fall_back_to_fake_local(monkeypatch, tmp_path) -> None:
     (tmp_path / "model-manifest.json").write_text('{"modelId":"stt","revision":"r1"}')
     monkeypatch.setattr(
         app_module,
@@ -204,10 +204,10 @@ def test_cloud_down_falls_back_to_provisioned_local(monkeypatch, tmp_path) -> No
     def _down(**kwargs):
         raise CloudLegFailed("unreachable")
 
-    monkeypatch.setattr(cloud_module, "post_json", _down)
+    monkeypatch.setattr(cloud_module, "post_multipart", _down)
     response = _execute()
-    assert response.status_code == 200
-    assert response.json()["isFinal"] is True
+    assert response.status_code == 503
+    assert response.json()["detail"] == "model_unavailable"
 
 
 def test_cloud_down_without_local_is_typed_unavailable(monkeypatch) -> None:
@@ -216,13 +216,13 @@ def test_cloud_down_without_local_is_typed_unavailable(monkeypatch) -> None:
     def _down(**kwargs):
         raise CloudLegFailed("unreachable")
 
-    monkeypatch.setattr(cloud_module, "post_json", _down)
+    monkeypatch.setattr(cloud_module, "post_multipart", _down)
     response = _execute()
     assert response.status_code == 503
     assert response.json()["detail"] == "model_unavailable"
 
 
-def test_cloud_500_retries_then_falls_back(monkeypatch) -> None:
+def test_cloud_500_does_not_replay_audio_request(monkeypatch) -> None:
     monkeypatch.setattr(app_module, "settings", _cloud_settings())
     calls = []
 
@@ -240,7 +240,7 @@ def test_cloud_500_retries_then_falls_back(monkeypatch) -> None:
     response = _execute()
     assert response.status_code == 503
     assert response.json()["detail"] == "model_unavailable"
-    assert len(calls) == cloud_module.CLOUD_MAX_ATTEMPTS
+    assert len(calls) == 1
 
 
 # --- privacy ---------------------------------------------------------------------
@@ -256,7 +256,7 @@ def test_strict_zone_blocks_cloud_with_privacy_blocked(monkeypatch) -> None:
     assert privacy_zone_strict() is True
 
 
-def test_strict_zone_local_model_still_serves(monkeypatch, tmp_path) -> None:
+def test_strict_zone_does_not_use_fake_local_as_real(monkeypatch, tmp_path) -> None:
     (tmp_path / "model-manifest.json").write_text('{"modelId":"stt","revision":"r1"}')
     monkeypatch.setattr(
         app_module,
@@ -270,7 +270,7 @@ def test_strict_zone_local_model_still_serves(monkeypatch, tmp_path) -> None:
     )
     monkeypatch.setenv("OC_PRIVACY_ZONE", "strict-local")
     response = _execute()
-    assert response.status_code == 200
+    assert response.status_code == 503
 
 
 # --- startup validation ------------------------------------------------------------

@@ -307,7 +307,7 @@ def test_cloud_ready_once_model_set(monkeypatch) -> None:
     def _post(**kwargs):
         return {"transcript": "cloud transcript"}
 
-    monkeypatch.setattr(cloud_module, "post_json", _post)
+    monkeypatch.setattr(cloud_module, "post_multipart", _post)
     body = client.get("/health/ready").json()
     assert body["status"] == "ready"
     assert body["cloudAvailable"] is True
