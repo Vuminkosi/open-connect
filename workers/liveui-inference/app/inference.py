@@ -122,7 +122,9 @@ def plan_schema(max_actions: int) -> dict[str, Any]:
 
 async def ensure_model(settings: Settings) -> Path:
     path = settings.model_path
-    path.parent.mkdir(parents=True, exist_ok=True)
+    cloud_mode = os.environ.get("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "false").lower() != "false"
+    if cloud_mode and (not path.is_absolute() or any(part.is_symlink() for part in (path, *path.parents))):
+        raise RuntimeError("Cloud model path is unavailable")
     if path.exists():
         if await asyncio.to_thread(sha256_file, path) == settings.model_sha256:
             return path
@@ -130,6 +132,10 @@ async def ensure_model(settings: Settings) -> Path:
             "Existing model file checksum does not match configured MODEL_SHA256; "
             "preserve it and configure a new MODEL_PATH"
         )
+
+    if cloud_mode:
+        raise RuntimeError("Cloud model is not provisioned")
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     url = (
         f"https://huggingface.co/{settings.model_id}/resolve/"

@@ -5,8 +5,11 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from .cloud_api import cloud_mode_blocks_legacy
+from .cloud_api import router as cloud_router
 from .inference import ensure_model, load_model
 from .schemas import PlanRequest, PlanResponse
 from .settings import Settings
@@ -50,7 +53,15 @@ async def initialize_model(app: FastAPI) -> None:
 
 
 app = FastAPI(title="OpenConnect LiveUI Inference Worker", version="1.0.0", lifespan=lifespan)
+app.include_router(cloud_router)
 logger = logging.getLogger(__name__)
+
+
+@app.middleware("http")
+async def block_cloud_legacy_route(request: Request, call_next):
+    if request.url.path == "/v1/liveui/inference/plan" and cloud_mode_blocks_legacy():
+        return JSONResponse(status_code=503, content={"status": "unavailable"}, headers={"Cache-Control": "no-store"})
+    return await call_next(request)
 
 
 @app.get("/health/live")
@@ -67,6 +78,8 @@ async def readiness(request: Request):
 
 @app.post("/v1/liveui/inference/plan", response_model=PlanResponse)
 async def generate_plan(payload: PlanRequest, request: Request, authorization: str | None = Header(default=None)):
+    if cloud_mode_blocks_legacy():
+        raise HTTPException(status_code=503, detail="capability_unavailable")
     settings = request.app.state.settings
     if (
         not settings.bearer_token

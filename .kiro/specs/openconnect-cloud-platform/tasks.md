@@ -205,3 +205,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add deployment-certificate-bound single-use LiveUI claim consumption with current policy and payload revalidation; worker integration and settlement remain outstanding.
 
 - [x] Add transactional, idempotent one-plan settlement fenced by worker consumption; token accounting, output inspection and worker integration remain outstanding.
+
+- [x] Add opt-in LiveUI worker claim consumption, model identity checks, allowlisted plan validation and settlement with no automatic Cloud model downloads; gateway integration and real-system acceptance remain outstanding.

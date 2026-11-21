@@ -3,6 +3,25 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _worker_token() -> str:
+    value = os.getenv("OPENCONNECT_WORKER_TOKEN", "")
+    file_name = os.getenv("OPENCONNECT_WORKER_TOKEN_FILE", "")
+    if not file_name:
+        return value
+    if value or not Path(file_name).is_absolute():
+        return ""
+    try:
+        with Path(file_name).open("rb") as source:
+            raw = source.read(515)
+        if raw.endswith(b"\r\n"):
+            raw = raw[:-2]
+        elif raw.endswith(b"\n"):
+            raw = raw[:-1]
+        return raw.decode("ascii") if 1 <= len(raw) <= 512 and all(33 <= item <= 126 for item in raw) else ""
+    except (OSError, ValueError):
+        return ""
+
+
 @dataclass(frozen=True)
 class Settings:
     enabled: bool
@@ -34,10 +53,17 @@ class Settings:
             max_concurrent=int(os.getenv("MAX_CONCURRENT_INFERENCES", "1")),
             queue_capacity=int(os.getenv("QUEUE_CAPACITY", "4")),
             request_timeout_seconds=int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30")),
-            bearer_token=os.getenv("OPENCONNECT_WORKER_TOKEN", ""),
+            bearer_token=_worker_token(),
         )
 
     def validate(self) -> None:
+        cloud_mode = os.getenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "false").lower()
+        if cloud_mode not in {"true", "false"}:
+            raise ValueError("Invalid Cloud LiveUI mode")
+        approved = os.getenv("OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED", "false").lower() == "true"
+        reviewed = os.getenv("OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED", "false").lower() == "true"
+        if cloud_mode == "true" and (not self.enabled or not approved or not reviewed):
+            raise ValueError("Cloud LiveUI requires an enabled and approved model")
         if not self.enabled:
             return
         if not self.bearer_token:
