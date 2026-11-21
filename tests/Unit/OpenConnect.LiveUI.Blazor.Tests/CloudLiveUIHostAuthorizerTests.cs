@@ -4,6 +4,7 @@ using OpenConnect.LiveUI.Agents;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using OpenConnect.Privacy;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
@@ -43,6 +44,31 @@ public sealed class CloudLiveUIHostAuthorizerTests
         var manifest = new Fixture();
         manifest.Manifests.Value = manifest.Manifests.Value! with { ContentHash = "changed" };
         Assert.Null(await manifest.Authorizer.AuthorizeAsync(manifest.Request));
+    }
+
+    [Fact]
+    public async Task RechecksRealAgentToolsWhenTargetPermissionIsRevoked()
+    {
+        var identity = new EgressContext(new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()),
+            new SessionId(Ulid.NewUlid()), EgressDestination.ExternalModel);
+        var session = identity.Session.Value.ToString();
+        var target = new LiveUITarget("item", LiveUITargetKind.Button, "Open", new HashSet<LiveUICapability> { LiveUICapability.Activate });
+        var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "build", "", [new LiveUIRoute("current", "/items", "Items", [target])]);
+        manifest = manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
+        var manifests = new MutableManifest(manifest);
+        var current = new Current(session);
+        var permissions = new Permissions();
+        var settings = Options.Create(new LiveUIOptions());
+        var orchestrator = new LiveUIOrchestrator(manifests, permissions, new UnusedRuntime(), settings, new LiveUIManifestValidator());
+        using var tools = new LiveUIAgentTools(current, manifests, permissions, new LiveUIManifestValidator(), orchestrator, settings);
+        var page = await tools.GetCurrentPageAsync();
+        Assert.NotNull(page);
+        var request = new LiveUIInferenceRequest("open", session, "current", manifest.SchemaVersion,
+            LiveUIInferenceCapabilities.FromPage(page), manifest.ContentHash);
+        var authorizer = new CloudLiveUIHostAuthorizer(current, manifests, new CloudLiveUIPageProvider(tools), new Sessions(identity));
+        Assert.NotNull(await authorizer.AuthorizeAsync(request));
+        permissions.DenyTarget = true;
+        Assert.Null(await authorizer.AuthorizeAsync(request));
     }
 
     private sealed class Fixture
@@ -92,5 +118,23 @@ public sealed class CloudLiveUIHostAuthorizerTests
     {
         public LiveUIManifest? Value { get; set; } = new("v1", "build", "hash", []);
         public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult(Value);
+    }
+
+    private sealed class MutableManifest(LiveUIManifest manifest) : ILiveUIManifestProvider
+    {
+        public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<LiveUIManifest?>(manifest);
+    }
+
+    private sealed class Permissions : ILiveUIActionAuthorizer
+    {
+        public bool DenyTarget { get; set; }
+        public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new LiveUIAuthorizationDecision(!DenyTarget || context.Target is null, "fixture"));
+    }
+
+    private sealed class UnusedRuntime : ILiveUIRuntime
+    {
+        public ValueTask<LiveUIRuntimeResult> ExecuteAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Authorization must not execute a browser action.");
     }
 }
