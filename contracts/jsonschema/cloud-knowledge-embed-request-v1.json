@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.cloud.knowledge-embed/v1/cloud-knowledge-embed-request-v1.json",
+  "title": "Cloud knowledge embedding request",
+  "description": "Admission also requires an unexpired deadline and at most 65536 Unicode scalar values across the batch.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "capability", "expiresAt", "input"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.cloud.knowledge-embed/v1"},
+    "requestId": {"type": "string", "pattern": "^(?!00000000-0000-0000-0000-000000000000)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"},
+    "capability": {"const": "knowledge.embed"},
+    "expiresAt": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"},
+    "input": {
+      "type": "object", "additionalProperties": false, "required": ["inputKind", "texts"],
+      "properties": {
+        "inputKind": {"enum": ["query", "passage"]},
+        "texts": {"type": "array", "minItems": 1, "maxItems": 32,
+          "items": {"type": "string", "minLength": 1, "maxLength": 8192}}
+      }
+    }
+  }
+}
