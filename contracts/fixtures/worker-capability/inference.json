@@ -1,0 +1,1 @@
+{"worker":"inference","version":"1.0.0","backend":"local","engine":"real","modelId":null,"modelRevision":null,"modelLoaded":false,"capabilities":["chat","documents.extract"],"privacyMode":"strict-local"}

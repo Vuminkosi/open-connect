@@ -225,6 +225,8 @@ A `CapabilityDescriptor` contains:
 
 **Rule:** Advertise *actual* capabilities only. Worker announces only installed/model-verified capabilities.
 
+Hosts can opt into a private-worker capability monitor with explicitly owned capability IDs. The monitor publishes validated ready capabilities and marks its IDs stale on failed, invalid or incomplete worker responses. Its polling interval must be shorter than the registry lease, allowing for all configured sources.
+
 ## Configuration Contract
 
 ```csharp
