@@ -221,7 +221,8 @@ public sealed class CloudLiveUILiveSystemTests
         IDbContextFactory<CloudControlPlaneDbContext> factory, Guid tenantId, Guid applicationId)
     {
         // The production transport validates TLS normally; this isolated proxy pins its own ephemeral test certificate.
-        using var certificate = Certificate("localhost", false);
+        var runBrowser = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_CLOUD_LIVEUI_BROWSER") == "1";
+        using var certificate = runBrowser ? TrustedLocalhostCertificate() : Certificate("localhost", false);
         var proxyBuilder = WebApplication.CreateBuilder();
         proxyBuilder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(certificate)));
         await using var proxy = proxyBuilder.Build();
@@ -303,7 +304,130 @@ public sealed class CloudLiveUILiveSystemTests
         var modelReservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenantId && item.ApplicationId == applicationId && item.RequestId == modelExecution);
         Assert.Equal(1, modelReservation.Actual); Assert.NotNull(modelReservation.FinalizedAt);
         Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(item => item.ReservationId == modelReservation.Id));
+        if (runBrowser)
+        {
+            var existing = returnedProviders.Keys.ToHashSet(StringComparer.Ordinal);
+            await VerifyBrowserAsync(proxyPort, credential);
+            var browserRequests = returnedProviders.Where(item => !existing.Contains(item.Key)).ToArray();
+            Assert.Contains(browserRequests, item => item.Value == "qwen3-0.6b");
+            foreach (var requestId in browserRequests.Select(item => Guid.Parse(item.Key)))
+            {
+                var browserReservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenantId && item.ApplicationId == applicationId && item.RequestId == requestId);
+                Assert.Equal(1, browserReservation.Actual); Assert.NotNull(browserReservation.FinalizedAt);
+                Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(item => item.ReservationId == browserReservation.Id));
+                Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {browserReservation.Id} AND \"Outcome\" = 'allowed'").SingleAsync());
+            }
+        }
         await proxy.StopAsync();
+    }
+
+    private static X509Certificate2 TrustedLocalhostCertificate()
+    {
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadOnly);
+        foreach (var candidate in store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, "CN=localhost", validOnly: true))
+        {
+            using var chain = new X509Chain();
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            if (candidate.HasPrivateKey && chain.Build(candidate)) return candidate;
+        }
+        throw new InvalidOperationException("Browser acceptance requires an existing trusted localhost development certificate.");
+    }
+
+    private static async Task VerifyBrowserAsync(int proxyPort, string credential)
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "OpenConnect.slnx"))) root = root.Parent;
+        if (root is null) throw new InvalidOperationException("Repository root was not found.");
+        var suffix = Guid.NewGuid().ToString("N");
+        var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
+        var testDirectory = Path.GetFullPath(Path.Combine(temporaryRoot, "oc-cloud-browser-" + suffix));
+        if (!testDirectory.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Invalid browser test directory.");
+        Directory.CreateDirectory(testDirectory);
+        var appPort = AvailablePort(); var fixturePort = AvailablePort();
+        var appUrl = $"http://127.0.0.1:{appPort}"; var fixtureUrl = $"http://127.0.0.1:{fixturePort}";
+        Process? app = null; Process? fixture = null;
+        try
+        {
+            fixture = Start("node", root.FullName, ["tests/Browser/scripts/liveui-connected-fixture.js"],
+                new Dictionary<string, string> { ["OPENCONNECT_LIVEUI_FIXTURE_PORT"] = fixturePort.ToString(), ["OPENCONNECT_LIVEUI_EXPECT_PLAN_PROVIDER"] = "Gateway" });
+            await WaitReadyAsync(fixture, fixtureUrl + "/health");
+            app = Start("dotnet", root.FullName, ["run", "--project", "samples/Blazor/OpenConnect.Samples.Blazor.csproj", "--no-build", "--no-launch-profile"],
+                new Dictionary<string, string>
+                {
+                    ["ASPNETCORE_ENVIRONMENT"] = "Development", ["ASPNETCORE_URLS"] = appUrl,
+                    ["OpenConnect__Gateway__Mode"] = "SameHostGateway", ["OpenConnect__Gateway__SameHostBaseUrl"] = appUrl,
+                    ["OpenConnect__LiveUI__Cloud__Enabled"] = "true", ["OpenConnect__LiveUI__Cloud__Origin"] = $"https://localhost:{proxyPort}/",
+                    ["OpenConnect__LiveUI__Cloud__Credential"] = credential, ["OpenConnect__ApiUrl"] = fixtureUrl + "/v1",
+                    ["OpenConnect__ApiKey"] = "fixture-key", ["OpenConnect__ReasoningModel"] = "fixture-model",
+                    ["TODO_SERVICE_URL"] = appUrl, ["TODO_INTERNAL_TOKEN"] = "fixture-todo-token", ["TODO_INTERNAL_TENANT"] = "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                    ["OPENCONNECT_BLAZOR_SQLITE_PATH"] = Path.Combine(testDirectory, "todo.db"),
+                    ["OPENCONNECT_BLAZOR_DATA_PROTECTION_KEYS_PATH"] = Path.Combine(testDirectory, "keys"), ["OPENCONNECT_BLAZOR_ACCEPTANCE_DATA"] = "true"
+                });
+            await WaitReadyAsync(app, appUrl);
+            using var browser = Start("node", root.FullName, ["tests/Browser/scripts/cloud-liveui-browser-acceptance.mjs"],
+                new Dictionary<string, string> { ["OPENCONNECT_CLOUD_BROWSER_APP_URL"] = appUrl, ["OPENCONNECT_CLOUD_BROWSER_FIXTURE_URL"] = fixtureUrl });
+            var output = browser.StandardOutput.ReadToEndAsync(); var error = browser.StandardError.ReadToEndAsync();
+            try { await browser.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(120)); }
+            catch (TimeoutException) { browser.Kill(entireProcessTree: true); throw; }
+            Assert.True(browser.ExitCode == 0, (await output) + (await error));
+        }
+        finally
+        {
+            if (app is not null) await StopAsync(app);
+            if (fixture is not null) await StopAsync(fixture);
+            app?.Dispose();
+            fixture?.Dispose();
+            Directory.Delete(testDirectory, recursive: true);
+        }
+    }
+
+    private static async Task StopAsync(Process process)
+    {
+        try
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (InvalidOperationException) { }
+    }
+
+    private static Process Start(string executable, string directory, string[] arguments, Dictionary<string, string> environment)
+    {
+        var start = new ProcessStartInfo(executable) { WorkingDirectory = directory, UseShellExecute = false,
+            CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        foreach (var pair in environment) start.Environment[pair.Key] = pair.Value;
+        var process = Process.Start(start) ?? throw new InvalidOperationException("Acceptance process could not start.");
+        if (arguments.Length == 0 || !arguments[^1].EndsWith("cloud-liveui-browser-acceptance.mjs", StringComparison.Ordinal))
+        {
+            process.OutputDataReceived += (_, _) => { }; process.ErrorDataReceived += (_, _) => { };
+            process.BeginOutputReadLine(); process.BeginErrorReadLine();
+        }
+        return process;
+    }
+
+    private static async Task WaitReadyAsync(Process process, string url)
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+        for (var attempt = 0; attempt < 120; attempt++)
+        {
+            if (process.HasExited) throw new InvalidOperationException("Acceptance process exited before readiness.");
+            try { using var response = await client.GetAsync(url); if (response.IsSuccessStatusCode) return; }
+            catch (HttpRequestException) { }
+            catch (TaskCanceledException) { }
+            await Task.Delay(250);
+        }
+        throw new TimeoutException("Acceptance process did not become ready.");
+    }
+
+    private static int AvailablePort()
+    {
+        var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try { return ((IPEndPoint)listener.LocalEndpoint).Port; }
+        finally { listener.Stop(); }
     }
 
     private sealed class TestCurrentContext(string session) : ILiveUIAgentContextAccessor

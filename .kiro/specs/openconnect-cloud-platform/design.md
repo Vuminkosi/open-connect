@@ -307,3 +307,5 @@ The host provider integration also verifies a Qwen-generated allowed action thro
 The Cloud LiveUI browser acceptance script verifies the Completed-tab action and a postcondition receipt against a configured application and conversational fixture. The fixture can expect either the existing local worker provider or the Cloud gateway provider; it does not claim real conversational-model coverage.
 
 The development sample can opt into the Cloud LiveUI provider for an owned same-host session. Cloud origin and service credential are server-side settings; the mode is incompatible with the sample?s other gateway planners and remains development-only.
+
+An opt-in local browser acceptance test starts the same-host development sample and a controlled conversational fixture, then exercises the Cloud gateway, private Qwen worker and disposable PostgreSQL. It verifies a model-generated Completed-tab action, browser postcondition receipt, claim consumption and settled privacy evidence. The conversational fixture is not a real model provider; production identity, TLS, deployment and broader browser journeys remain unverified.
