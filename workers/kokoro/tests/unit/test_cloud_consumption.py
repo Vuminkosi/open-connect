@@ -77,3 +77,28 @@ def test_invalid_claim_and_network_failure_never_retry(monkeypatch, make_client)
     assert client.consume(RESERVATION, CLAIM, b"fixture", b"k" * 32) == "unavailable"
     factory.assert_called_once()
     connection.close.assert_called_once()
+
+
+@pytest.mark.parametrize(("status", "body", "encoding", "expected"), [
+    (200, b'{"status":"completed"}', None, "completed"),
+    (200, b'{"status":"already_completed"}', None, "already_completed"),
+    (200, b'{"status":"completed","status":"completed"}', None, "unavailable"),
+    (200, b'{"status":"completed"}', "gzip", "unavailable"),
+    (409, b'{"status":"completed"}', None, "unavailable"),
+    (200, b'x' * 4097, None, "unavailable"),
+])
+def test_completion_requires_bounded_exact_response(monkeypatch, make_client, status, body, encoding, expected):
+    create, _ = make_client
+    response = MagicMock(status=status)
+    response.getheader.return_value = encoding
+    response.read.return_value = body
+    connection = MagicMock()
+    connection.getresponse.return_value = response
+    factory = MagicMock(return_value=connection)
+    monkeypatch.setattr("openconnect_kokoro.cloud_consumption.http.client.HTTPSConnection", factory)
+    assert create().complete(RESERVATION, CLAIM) == expected
+    factory.assert_called_once()
+    connection.request.assert_called_once_with(
+        "POST", f"/cloud/internal/v1/voice-synthesis/quota/reservations/{RESERVATION}/claims/{CLAIM}/complete",
+        body=b"", headers={"Cache-Control": "no-store"})
+    connection.close.assert_called_once()

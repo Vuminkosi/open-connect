@@ -4,6 +4,7 @@ import base64
 import binascii
 import json
 import os
+import struct
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable
@@ -55,6 +56,34 @@ def _parse(data: bytes) -> object:
     return json.loads(data.decode("utf-8"), object_pairs_hook=unique_object, parse_constant=invalid_constant)
 
 
+def _valid_result(value: object, request: ExecuteRequest, speech: SynthesizePayload) -> bool:
+    if not isinstance(value, dict) or set(value) != {"schemaVersion", "taskId", "kind", "idempotentReplay", "result"}:
+        return False
+    result = value["result"]
+    if (value["schemaVersion"] != "openconnect.v1" or value["taskId"] != request.taskId or
+            value["kind"] != "speech.synthesize" or value["idempotentReplay"] is not False or
+            not isinstance(result, dict) or set(result) != {"text", "voiceId", "locale", "format", "sampleRateHz", "channels", "audioBase64"} or
+            result["text"] != speech.text or result["voiceId"] != speech.voiceId or result["locale"] != speech.locale or
+            result["format"] != speech.format or type(result["sampleRateHz"]) is not int or result["sampleRateHz"] != 24000 or
+            type(result["channels"]) is not int or result["channels"] != 1):
+        return False
+    encoded = result["audioBase64"]
+    maximum = 24000 * 2 * 120
+    if not isinstance(encoded, str) or not 4 <= len(encoded) <= ((maximum + 44 + 2) // 3) * 4:
+        return False
+    try:
+        audio = _decode(encoded)
+        if speech.format == "pcm":
+            return 2 <= len(audio) <= maximum and len(audio) % 2 == 0
+        if speech.format != "wav" or not 46 <= len(audio) <= maximum + 44 or (len(audio) - 44) % 2 != 0:
+            return False
+        return (audio[:4] == b"RIFF" and struct.unpack_from("<I", audio, 4)[0] == len(audio) - 8 and
+                audio[8:16] == b"WAVEfmt " and struct.unpack_from("<IHHIIHH", audio, 16) == (16, 1, 1, 24000, 48000, 2, 16) and
+                audio[36:40] == b"data" and struct.unpack_from("<I", audio, 40)[0] == len(audio) - 44)
+    except (ValueError, binascii.Error, struct.error):
+        return False
+
+
 def execute_cloud(body: bytes, client: CloudConsumptionClient | None,
                   execute: Callable[[ExecuteRequest], dict[str, object]]) -> dict[str, object] | None:
     if client is None:
@@ -80,4 +109,9 @@ def execute_cloud(body: bytes, client: CloudConsumptionClient | None,
             return None
     except (ValueError, TypeError, UnicodeError, binascii.Error, ValidationError, RecursionError):
         return None
-    return execute(request)
+    result = execute(request)
+    if not _valid_result(result, request, speech):
+        return None
+    if client.complete(str(envelope.reservationId), str(envelope.claimId)) not in ("completed", "already_completed"):
+        return None
+    return result

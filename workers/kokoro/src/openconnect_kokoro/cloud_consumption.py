@@ -69,3 +69,30 @@ class CloudConsumptionClient:
         finally:
             connection.close()
         return "unavailable"
+
+    def complete(self, reservation_id: str, claim_id: str) -> str:
+        """Report a completed synthesis once; ambiguous responses are never retried."""
+        try:
+            reservation, claim = UUID(reservation_id), UUID(claim_id)
+            if reservation.int == 0 or claim.int == 0:
+                return "unavailable"
+        except (TypeError, ValueError, AttributeError):
+            return "unavailable"
+        connection = http.client.HTTPSConnection(self._host, self._port, context=self._context, timeout=self._timeout)
+        try:
+            path = f"/cloud/internal/v1/voice-synthesis/quota/reservations/{reservation}/claims/{claim}/complete"
+            connection.request("POST", path, body=b"", headers={"Cache-Control": "no-store"})
+            response = connection.getresponse()
+            if response.getheader("Content-Encoding") is not None:
+                return "unavailable"
+            data = response.read(4097)
+            if len(data) > 4096:
+                return "unavailable"
+            value = json.loads(data, object_pairs_hook=unique_object)
+            if response.status == 200 and value in ({"status": "completed"}, {"status": "already_completed"}):
+                return value["status"]
+        except (OSError, http.client.HTTPException, ValueError, UnicodeError):
+            pass
+        finally:
+            connection.close()
+        return "unavailable"
