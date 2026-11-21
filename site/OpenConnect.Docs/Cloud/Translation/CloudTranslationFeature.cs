@@ -10,6 +10,8 @@ public static class CloudTranslationFeature
         services.AddScoped<ICloudTranslationPrivacyEvidenceStore, EfCloudTranslationPrivacyEvidenceStore>();
         services.AddScoped<ICloudTranslationQuotaStore, EfCloudTranslationQuotaStore>();
         services.AddScoped<CloudTranslationQuota>();
+        services.AddScoped<ICloudTranslationDeploymentProfileStore, EfCloudTranslationDeploymentProfileStore>();
+        services.AddScoped<CloudTranslationDeploymentProfiles>();
         return services;
     }
 }
