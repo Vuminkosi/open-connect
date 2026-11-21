@@ -24,6 +24,8 @@ Knowledge embeddings can use either the private signed worker contract or the au
 
 Cloud worker payload binding and tenant-ID conversion are shared gateway boundary operations; knowledge embedding payload preparation does not depend on analytics feature code.
 
+Knowledge embedding execution composes reservation, privacy inspection, a deployment-bound claim, revocation monitoring, worker dispatch, output inspection and settlement before returning a result. Ambiguous outcomes fail closed and are not retried by the gateway execution layer.
+
 The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
 
 The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
