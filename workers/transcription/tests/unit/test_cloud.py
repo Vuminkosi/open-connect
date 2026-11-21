@@ -3,7 +3,9 @@
 import base64
 import logging
 import struct
+import threading
 import urllib.error
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -236,7 +238,11 @@ def test_cloud_500_does_not_replay_audio_request(monkeypatch) -> None:
             None,  # type: ignore[arg-type]
         )
 
-    monkeypatch.setattr("urllib.request.urlopen", _flaky)
+    class Opener:
+        def open(self, request, timeout=None):
+            return _flaky(request, timeout)
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda *handlers: Opener())
     response = _execute()
     assert response.status_code == 503
     assert response.json()["detail"] == "model_unavailable"
@@ -321,6 +327,44 @@ def test_invalid_route_order_falls_back_to_local_first() -> None:
     assert resolve_route_order(None, cloud_configured=False) == cloud_module.LOCAL_FIRST
 
 
+@pytest.mark.parametrize("status_code", [301, 302, 303, 307, 308])
+def test_cloud_requests_do_not_follow_redirects(status_code: int) -> None:
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            requests.append(self.path)
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(status_code)
+            self.send_header("Location", f"http://127.0.0.1:{self.server.server_port}/target")
+            self.end_headers()
+
+        def do_GET(self):
+            requests.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/redirect"
+        with pytest.raises(CloudLegFailed):
+            cloud_module.post_json(url=url, payload={}, api_key="test-secret", timeout_s=2)
+        with pytest.raises(CloudLegFailed):
+            cloud_module.post_multipart(url=url, fields={}, file_field="audio", filename="a.wav",
+                                        file_bytes=b"audio", file_content_type="audio/wav",
+                                        api_key="test-secret", timeout_s=2)
+        assert requests == ["/redirect", "/redirect"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
 # --- secret redaction --------------------------------------------------------------
 
 
@@ -330,7 +374,11 @@ def test_secrets_redacted_in_errors_and_logs(monkeypatch, caplog) -> None:
     def _boom(request, timeout=None):
         raise urllib.error.URLError("connection refused")
 
-    monkeypatch.setattr("urllib.request.urlopen", _boom)
+    class Opener:
+        def open(self, request, timeout=None):
+            return _boom(request, timeout)
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda *handlers: Opener())
     with caplog.at_level(logging.INFO):
         response = _execute()
     assert response.status_code == 503

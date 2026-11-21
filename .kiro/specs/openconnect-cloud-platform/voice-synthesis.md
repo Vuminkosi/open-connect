@@ -7,3 +7,5 @@ Audio must pass a configured output privacy screen before the gateway releases i
 Cancellation or loss of access ends a pending output-screen request and clears the gateway's audio buffer even if the screen does not respond.
 
 The transcription worker's bundled local engine is synthetic. A model manifest alone does not make it a real transcription adapter; real-mode local readiness and fallback stay unavailable until an actual adapter is implemented and loaded.
+
+Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.

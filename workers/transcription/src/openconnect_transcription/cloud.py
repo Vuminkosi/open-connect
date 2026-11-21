@@ -63,6 +63,11 @@ class CloudLegFailed(RuntimeError):
     """Transient cloud leg failure: safe to try the next leg."""
 
 
+class _RejectRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class CloudPolicyDenied(RuntimeError):
     """Terminal policy denial: do NOT fall back, return the typed error."""
 
@@ -159,7 +164,7 @@ def post_json(
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            with urllib.request.build_opener(_RejectRedirect()).open(request, timeout=timeout_s) as response:
                 status = response.status
                 raw = response.read()
         except urllib.error.HTTPError as exc:
@@ -241,7 +246,7 @@ def post_multipart(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+        with urllib.request.build_opener(_RejectRedirect()).open(request, timeout=timeout_s) as response:
             raw = response.read()
             decoded = json.loads(raw.decode("utf-8"))
     except urllib.error.HTTPError as exc:
