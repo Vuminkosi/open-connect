@@ -387,3 +387,5 @@ The Cloud analytics boundary rejects ambiguous or unbounded input, binds worker 
 Cloud analytics transport uses deployment-authenticated TLS and bounded responses. Reservations are bound to the admitted request; worker claims and repeated access checks are required before a result is released.
 
 Analytics execution remains opt-in and returns results only after request and response privacy checks, worker claim consumption, access rechecks and confirmed usage settlement. Response bytes are snapshotted across asynchronous checks and cleared after use.
+
+The analytics worker validates canonical tenant scope and the exact payload before consuming a one-use Cloud claim. Invalid, expired, replayed or ambiguous claims never start inference.
