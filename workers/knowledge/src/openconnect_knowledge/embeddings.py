@@ -15,6 +15,7 @@ import onnxruntime as ort
 from google.protobuf.message import Message
 from tokenizers import Tokenizer
 
+from openconnect_knowledge.chunking import _identifier
 from openconnect_worker_common.models.runtime_cache import (
     RuntimeModelCacheManager,
     RuntimeModelManifest,
@@ -74,9 +75,18 @@ class OnnxEmbeddingEngine:
     def __init__(self, cache: RuntimeModelCacheManager, manifest: RuntimeModelManifest,
                  profile: EmbeddingProfile, *, license_accepted: bool = False,
                  commercial_use: bool = False) -> None:
-        if (not 1 <= profile.dimension <= 8192 or not 2 <= profile.max_tokens <= 512
+        if (not isinstance(profile, EmbeddingProfile) or manifest.workerKind != "knowledge"
+                or type(profile.dimension) is not int or not 1 <= profile.dimension <= 8192
+                or type(profile.max_tokens) is not int or not 2 <= profile.max_tokens <= 512
+                or not isinstance(profile.model_asset, str) or not isinstance(profile.tokenizer_asset, str)
+                or not isinstance(profile.pad_token, str) or not profile.pad_token
+                or not isinstance(profile.prefix_style, str)
                 or profile.prefix_style not in {"none", "e5"}):
             raise ValueError("invalid_profile")
+        try:
+            _identifier(manifest.modelId)
+        except ValueError as exc:
+            raise ValueError("invalid_profile") from exc
         asset_paths = {asset.relativePath for asset in manifest.assets}
         if profile.model_asset not in asset_paths or profile.tokenizer_asset not in asset_paths:
             raise ValueError("profile_asset_missing")

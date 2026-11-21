@@ -100,6 +100,21 @@ def test_dimension_mismatch_and_tampering_fail_closed(cached_model) -> None:
         engine.embed(["tree"], input_kind="query")
 
 
+@pytest.mark.parametrize("dimension,max_tokens", [(True, 8), (3.0, 8), (3, True), (3, 8.0)])
+def test_invalid_profile_types_fail_before_model_loading(cached_model, dimension, max_tokens):
+    cache, manifest, _ = cached_model
+    with pytest.raises(ValueError, match="invalid_profile"):
+        OnnxEmbeddingEngine(cache, manifest, EmbeddingProfile("model.onnx", "tokenizer.json", dimension, max_tokens))
+
+
+@pytest.mark.parametrize("changes", [{"workerKind": "vision"}, {"modelId": "  "},
+                                     {"modelId": "bad\x00model"}, {"modelId": "\ud800"}])
+def test_wrong_worker_or_invalid_model_identity_fails_before_model_loading(cached_model, changes):
+    cache, manifest, _ = cached_model
+    with pytest.raises(ValueError, match="invalid_profile"):
+        OnnxEmbeddingEngine(cache, manifest.model_copy(update=changes), EmbeddingProfile("model.onnx", "tokenizer.json", 3, 8))
+
+
 @pytest.mark.parametrize("texts", [[], [""], ["x" * 8193], ["x"] * 33])
 def test_invalid_batches_rejected(cached_model, texts) -> None:
     cache, manifest, _ = cached_model
