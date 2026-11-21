@@ -8,6 +8,8 @@ public static class CloudQuotaUnits
         capabilityId switch
         {
             "classification.classify" => unit == "request",
+            "analytics.analyze" => unit == "request",
+            "knowledge.embed" => unit == "request",
             "inference.chat" => unit == "token",
             "inference.liveui" => unit == "plan",
             "voice.synthesize" => unit == "character",
