@@ -227,6 +227,8 @@ A `CapabilityDescriptor` contains:
 
 Hosts can opt into a private-worker capability monitor with explicitly owned capability IDs. The monitor publishes validated ready capabilities and marks its IDs stale on failed, invalid or incomplete worker responses. Its polling interval must be shorter than the registry lease, allowing for all configured sources.
 
+The optional vision worker exposes image classification and paired image/text embedding through separate private endpoints. It requires approved, verified offline model artifacts, a restricted runtime and local malware scanning for image input before advertising readiness. Its process-local execution does not provide durable replay protection.
+
 ## Configuration Contract
 
 ```csharp

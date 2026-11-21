@@ -1,0 +1,14 @@
+**
+!workers
+!workers/common
+!workers/common/pyproject.toml
+!workers/common/verify_install.py
+!workers/common/src
+!workers/common/src/**
+!workers/vision
+!workers/vision/pyproject.toml
+!workers/vision/uv.lock
+!workers/vision/src
+!workers/vision/src/**
+**/__pycache__
+**/*.pyc
