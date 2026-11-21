@@ -92,6 +92,24 @@ public sealed class OpenConnectClientTests
         Assert.Equal(DetectorState.Ready, capability.State);
     }
     [Fact]
+    public async Task GetReadyCapabilitiesReadsLogicalModelAndToolDescriptors()
+    {
+        var handler = new StubHandler((request, _) =>
+        {
+            Assert.Equal("/openconnect/v1/capabilities/ready", request.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""[{"id":{"value":"knowledge.embed"},"kind":"model","state":"ready"},{"id":{"value":"knowledge.index"},"kind":"tool","state":"ready"}]""", System.Text.Encoding.UTF8, "application/json")
+            });
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/openconnect/v1/") };
+        var capabilities = await new OpenConnectClient(http).GetReadyCapabilitiesAsync();
+        Assert.Equal("ready", handler.Path);
+        Assert.Equal(new CapabilityId("knowledge.embed"), capabilities[0].Id);
+        Assert.Equal(CapabilityKind.Tool, capabilities[1].Kind);
+        Assert.Equal(DetectorState.Ready, capabilities[1].State);
+    }
+    [Fact]
     public async Task Cancellation_is_forwarded()
     {
         var handler = new StubHandler(async (_, token) => { await Task.Delay(Timeout.Infinite, token); return new HttpResponseMessage(); });

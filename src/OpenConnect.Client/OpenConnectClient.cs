@@ -84,6 +84,10 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         await EnsureSuccessAsync(httpResponse, cancellationToken).ConfigureAwait(false);
     }
     public async Task<IReadOnlyList<CapabilityDescriptor>> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities", cancellationToken).ConfigureAwait(false);
+
+    /// <summary>Gets ready, non-expired host capabilities across all registry kinds.</summary>
+    public async Task<IReadOnlyList<CapabilityDescriptor>> GetReadyCapabilitiesAsync(CancellationToken cancellationToken = default) =>
+        await SendAsync<List<CapabilityDescriptor>>(HttpMethod.Get, "capabilities/ready", cancellationToken).ConfigureAwait(false);
     public async Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
