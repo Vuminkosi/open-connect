@@ -70,7 +70,9 @@
             "type": [
               "number",
               "null"
-            ]
+            ],
+            "minimum": -1e150,
+            "maximum": 1e150
           }
         },
         "threshold": {
@@ -79,7 +81,7 @@
           "maximum": 100
         },
         "forecast": {
-          "type": "object",
+          "type": ["object", "null"],
           "additionalProperties": false,
           "required": [
             "timestamps",
