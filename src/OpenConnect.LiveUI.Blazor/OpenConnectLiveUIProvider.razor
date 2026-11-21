@@ -281,28 +281,6 @@
         request.SpeechEndCharacter is > 0 and <= 32_000 &&
         request.SpeechStartCharacter < request.SpeechEndCharacter;
 
-    private static string? BoundedInferenceLabel(string? label) =>
-        string.IsNullOrWhiteSpace(label) ? null : label.Length <= 256 ? label : label[..256];
-
-    private static IEnumerable<string> ToInferenceActions(LiveUICapability capability, string targetKind)
-    {
-        if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind)) return [];
-        return capability switch
-    {
-        LiveUICapability.Activate => ["activate"],
-        LiveUICapability.Filter when kind == LiveUITargetKind.Tab => ["activate"],
-        LiveUICapability.Filter when kind == LiveUITargetKind.Select => ["select"],
-        LiveUICapability.Filter when kind is LiveUITargetKind.Input or LiveUITargetKind.Checkbox => ["setValue"],
-        LiveUICapability.SetValue => ["setValue"],
-        LiveUICapability.Select => ["select"],
-        LiveUICapability.Highlight => ["highlight"],
-        LiveUICapability.Focus => ["focus"],
-        LiveUICapability.Scroll => ["scroll"],
-        LiveUICapability.Inspect => ["inspect"],
-        _ => []
-        };
-    }
-
     private async Task<LiveUIActionReceipt> HandleHighlightRequestAsync(
         ClientInteractionRequest request,
         CancellationToken cancellationToken)
@@ -372,14 +350,7 @@
                     }
                     else if (router is not null && page is not null && manifest is not null)
                     {
-                        var capabilities = page.Targets.Select(target => new LiveUIInferenceCapability(
-                                target.TargetId,
-                                target.Capabilities.SelectMany(capability => ToInferenceActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray())
-                                { Label = BoundedInferenceLabel(target.Label) })
-                            .Where(capability => capability.Actions.Count > 0)
-                            .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])
-                                { Label = BoundedInferenceLabel(route.Title) }))
-                            .ToArray();
+                        var capabilities = LiveUIInferenceCapabilities.FromPage(page);
                         var inferenceRequest = new LiveUIInferenceRequest(request.Value, sessionText, page.RouteId,
                             manifest.SchemaVersion, capabilities, manifest.ContentHash)
                         {

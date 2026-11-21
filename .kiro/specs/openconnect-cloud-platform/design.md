@@ -287,3 +287,5 @@ Before Cloud LiveUI egress, the host can snapshot capabilities and apply its own
 Host privacy evaluation errors fail closed as privacy denials, preventing provider fallback from treating an unavailable policy as an ordinary planner error.
 
 The Cloud LiveUI host provider requires an application-owned session, route and capability authorizer; screens input through the host egress gate; submits an execution-correlated request over HTTPS without redirects; validates the response against the original allowlist; and screens returned action fields before releasing a proposal. Quota and replay conflicts stop fallback. The host still owns action authorization, browser execution and receipt verification.
+
+The Blazor host builds inference capabilities from the authorized current page through one shared mapper. Host authorization can revalidate the route, manifest hash, target/action pairs and bounded labels against that same mapping before Cloud egress.
