@@ -231,6 +231,32 @@ public sealed class CloudLiveUILiveSystemTests
                 if (injectCrash)
                 {
                     Assert.Null(failedReservation.Actual); Assert.Null(failedReservation.FinalizedAt);
+                    var recovery = new CloudLiveUIObservedRecovery(factory,
+                        new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(factory, TimeProvider.System)), TimeProvider.System);
+                    Assert.Equal(0, await recovery.RecoverExpiredAsync(default));
+                    // Move only the disposable fixture reservation beyond the five-minute grace period.
+                    await failedDb.Database.ExecuteSqlInterpolatedAsync($"""
+                        UPDATE cloud.quota_reservations SET "ExpiresAt" = {DateTimeOffset.UtcNow.AddMinutes(-10)} WHERE "Id" = {failedReservation.Id}
+                        """);
+                    using var services = new ServiceCollection().AddSingleton(factory).AddSingleton(TimeProvider.System)
+                        .AddScoped<ICloudLiveUIDualSettlementStore, EfCloudLiveUIDualSettlementStore>()
+                        .AddScoped<CloudLiveUIDualSettlement>().AddScoped<CloudLiveUIObservedRecovery>().BuildServiceProvider();
+                    using var recoveryWorker = new CloudLiveUIObservedRecoveryWorker(services.GetRequiredService<IServiceScopeFactory>(),
+                        Microsoft.Extensions.Logging.Abstractions.NullLogger<CloudLiveUIObservedRecoveryWorker>.Instance);
+                    await recoveryWorker.StartAsync(default);
+                    for (var attempt = 0; attempt < 100 && failedReservation.FinalizedAt is null; attempt++)
+                    {
+                        await Task.Delay(100);
+                        await failedDb.Entry(failedReservation).ReloadAsync();
+                    }
+                    await recoveryWorker.StopAsync(default);
+                    Assert.Equal(1, failedReservation.Actual); Assert.NotNull(failedReservation.FinalizedAt);
+                    Assert.Equal(tokens, await failedDb.Database.SqlQuery<long>($"""
+                        SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {failedReservation.Id}
+                        """).SingleAsync());
+                    Assert.Equal("observed_recovery", await failedDb.Database.SqlQuery<string>($"""
+                        SELECT "Source" AS "Value" FROM cloud.liveui_execution_failures WHERE "PlanReservationId" = {failedReservation.Id}
+                        """).SingleAsync());
                 }
                 else
                 {

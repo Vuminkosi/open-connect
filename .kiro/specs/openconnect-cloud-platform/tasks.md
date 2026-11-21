@@ -284,10 +284,12 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 - [x] Exercise known-usage failure and normal metered success with a provisioned local model, gateway, worker and PostgreSQL; verify failure accounting and absence of successful output evidence.
 
-- [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks. Crash recovery based on observations remains outstanding.
+- [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks.
 
 - [x] Persist observed LiveUI model usage from the worker before output validation, failing closed on observation failure; verify successful, invalid and unavailable observation paths.
 
-- [x] Verify that a forced worker process exit after real model generation leaves a durable token observation and held reservation. Automatic recovery from that evidence remains outstanding.
+- [x] Verify that a forced worker process exit after real model generation leaves a durable token observation and held reservation.
 
-- [x] Add an expiry-fenced, provenance-preserving recovery transaction for consumed LiveUI claims with durable usage observations. Scheduling and end-to-end crash recovery remain outstanding.
+- [x] Add an expiry-fenced, provenance-preserving recovery transaction for consumed LiveUI claims with durable usage observations.
+
+- [x] Schedule observed-usage recovery under quota recovery, verify concurrent batches, preserve unknown usage, and exercise a forced real-model worker crash through hosted recovery and PostgreSQL.

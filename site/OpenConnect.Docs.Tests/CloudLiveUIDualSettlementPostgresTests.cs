@@ -9,6 +9,31 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudLiveUIDualSettlementPostgresTests
 {
     [CloudPostgresFact]
+    public async Task ObservedRecoveryBatchReconcilesExpiredUsageAndLeavesUnknownAndFreshWorkHeld()
+    {
+        var observed = await Fixture.CreateAsync(); var unknown = await Fixture.CreateAsync(); var fresh = await Fixture.CreateAsync();
+        var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(observed.Factory, TimeProvider.System));
+        var usage = new CloudLiveUITokenUsage(30, 20);
+        Assert.Equal("observed", await service.ObserveAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, usage, default));
+        Assert.Equal("observed", await service.ObserveAsync(fresh.ReservationId, fresh.ClaimId, fresh.DeploymentId, usage, default));
+        await using (var db = await observed.Factory.CreateDbContextAsync())
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE cloud.quota_reservations SET "ExpiresAt" = {DateTimeOffset.UtcNow.AddMinutes(-10)}
+                WHERE "Id" IN ({observed.ReservationId}, {unknown.ReservationId})
+                """);
+        var recovery = new CloudLiveUIObservedRecovery(observed.Factory, service, TimeProvider.System);
+        var outcomes = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => recovery.RecoverExpiredAsync(default)));
+        Assert.Equal(1, outcomes.Sum());
+        Assert.Equal(0, await recovery.RecoverExpiredAsync(default));
+        await using var verify = await observed.Factory.CreateDbContextAsync();
+        Assert.Equal(1, (await verify.QuotaReservations.SingleAsync(x => x.Id == observed.ReservationId)).Actual);
+        Assert.Null((await verify.QuotaReservations.SingleAsync(x => x.Id == unknown.ReservationId)).FinalizedAt);
+        Assert.Null((await verify.QuotaReservations.SingleAsync(x => x.Id == fresh.ReservationId)).FinalizedAt);
+        Assert.Equal(50, (await verify.QuotaBuckets.SingleAsync(x => x.Id == observed.TokenBucketId)).Consumed);
+        Assert.Equal(100, (await verify.QuotaBuckets.SingleAsync(x => x.Id == unknown.TokenBucketId)).Reserved);
+    }
+
+    [CloudPostgresFact]
     public async Task ObservedRecoveryRequiresExpiredEvidenceAndSettlesOnlyOnce()
     {
         var fixture = await Fixture.CreateAsync();
