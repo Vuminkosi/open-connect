@@ -3,6 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Minio" Version="7.0.0" />
     <!-- Microsoft packages -->
     <!-- SqlClient servicing release fixes transitive Pkcs CVE-2026-70162 / CVE-2026-84008. -->
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.8" Condition="'$(TargetFramework)' == 'net10.0'" />
