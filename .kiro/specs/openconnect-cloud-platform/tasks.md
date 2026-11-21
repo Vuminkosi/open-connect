@@ -311,3 +311,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Provide an optional local development OIDC provider with isolated TLS and a loopback backchannel. Verify a real authorization-code and PKCE sign-in with a disposable provider and portal; Cloud database provisioning and the complete local gateway flow remain outstanding.
 
 - [x] Correct the worker-payload migration's SQL terminator and verify generated idempotent Cloud migrations on fresh and partially migrated disposable PostgreSQL databases, including replay.
+
+- [x] Add an explicit local Cloud database creation and migration helper, verified on disposable PostgreSQL for first application, replay, schema presence and preservation of existing data.

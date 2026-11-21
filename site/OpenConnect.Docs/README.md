@@ -47,6 +47,17 @@ docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml -f do
 
 The provider uses a persistent development database and imports its realm only on first startup. Changing environment credentials does not update an existing realm. Protect the identity data, certificate and key volumes. This provider is for local development only; it is not a substitute for a deployed identity provider or verification of Google sign-in. A separately migrated Cloud control-plane database is still required for organizations and applications.
 
+To prepare the separate `openconnect_cloud` database on the root Compose PostgreSQL service, restore the pinned tools and site dependencies, start PostgreSQL, and run the explicit migration helper:
+
+```powershell
+dotnet tool restore
+dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
+docker compose -f docker-compose-all.yml up -d postgres
+./scripts/migrate-local-cloud-database.ps1
+```
+
+The helper creates that database if absent and otherwise applies pending migrations to it. Back up existing data and review the migrations before running it against a database containing data. Set `CLOUD_CONTROL_PLANE_CONNECTION` to the Compose PostgreSQL connection string for `openconnect_cloud` in a protected environment before starting the site. The Cloud control plane and the OpenConnect worker database have separate migration histories.
+
 Generate the API reference before building the image when that reference is needed. Generated artifacts present under the site directory are included in the image; a clean checkout without generated artifacts still serves the static documentation.
 
 The optional outbox and operational workers require the OpenConnect PostgreSQL schema before startup. For the root Compose database, restore the pinned tools and dependencies, start PostgreSQL, and apply the reviewed sample migrations explicitly:
