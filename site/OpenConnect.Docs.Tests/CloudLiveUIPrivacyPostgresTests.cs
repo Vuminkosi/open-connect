@@ -70,6 +70,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddSingleton(new CloudLiveUIPrivacyService(new RulesSecurityDetector()));
             builder.Services.AddScoped<ICloudLiveUIPrivacyEvidenceStore, EfCloudLiveUIPrivacyEvidenceStore>();
             builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
+            builder.Services.AddScoped<ICloudLiveUIDualQuotaStore, EfCloudLiveUIDualQuotaStore>(); builder.Services.AddScoped<CloudLiveUIDualQuotaService>();
             builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>(); builder.Services.AddScoped<CloudLiveUIClaimService>();
             builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
             builder.Services.AddScoped<ICloudLiveUIMeteredConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIMeteredConsumption>();
@@ -83,6 +84,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudLiveUISettlement(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true);
             host.MapCloudLiveUIMeteredConsumption(workerTrust, true);
             host.MapCloudLiveUIDualSettlement(workerTrust, true);
+            host.MapCloudLiveUIDualQuota(trust, true);
             host.MapCloudLiveUIOutputPrivacy(trust, true); host.MapCloudLiveUIAccess(trust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other); using var workerClient = Client(address, server, worker);
@@ -218,9 +220,17 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             meteredClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", meteredCredential.Secret);
             var meteredRequest = Guid.NewGuid();
             Assert.Equal(HttpStatusCode.OK, (await Inspect(meteredClient, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", meteredRequest)).StatusCode);
-            var dualQuota = new CloudLiveUIDualQuotaService(new EfCloudLiveUIDualQuotaStore(factory, TimeProvider.System), TimeProvider.System);
-            var dualReserved = await dualQuota.ReserveAsync(new(tenant.Id, meteredApp.Id, meteredRequest, "key", new byte[32], 2048, meteredNow.AddMinutes(3)), default);
-            Assert.Equal("reserved", dualReserved.Status);
+            var dualPath = "/cloud/internal/v1/liveui/quota/dual-reservations";
+            var dualRequest = new { requestId = meteredRequest, fingerprintKeyId = "key", fingerprint = Convert.ToBase64String(new byte[32]),
+                tokenAmount = 2048, expiresAt = meteredNow.AddMinutes(3) };
+            Assert.Equal(HttpStatusCode.Unauthorized, (await untrusted.PostAsJsonAsync(dualPath, dualRequest)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await meteredClient.PostAsJsonAsync(dualPath, dualRequest with { tokenAmount = 0 })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await meteredClient.PostAsync(dualPath,
+                new StringContent("{\"requestId\":\"00000000-0000-0000-0000-000000000000\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\"}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+            var dualReserved = await (await meteredClient.PostAsJsonAsync(dualPath, dualRequest)).Content.ReadFromJsonAsync<CloudQuotaResult>();
+            Assert.Equal("reserved", dualReserved!.Status);
+            Assert.Equal("duplicate", (await (await meteredClient.PostAsJsonAsync(dualPath, dualRequest)).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
+            Assert.Equal(HttpStatusCode.Conflict, (await meteredClient.PostAsJsonAsync(dualPath, dualRequest with { tokenAmount = 2049 })).StatusCode);
             var meteredClaim = await (await meteredClient.PostAsJsonAsync($"{quotaPath}/{dualReserved.ReservationId!.Value:D}/claim", proof)).Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
             Assert.Equal("claimed", meteredClaim!.Status);
             var meteredPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId!.Value:D}/consume-metered";

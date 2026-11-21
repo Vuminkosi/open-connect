@@ -321,3 +321,5 @@ For dual LiveUI reservations, a database fence requires a claim-bound metered au
 A separate mutual-TLS metered consumption endpoint validates the worker payload proof and model context bound, then rechecks current claim policy and records the metered authorization and consumption in one transaction. Legacy consumption cannot start a dual-reserved request. Production registration, worker integration and gateway activation remain outstanding.
 
 The private metered settlement endpoint accepts bounded token counts only from the deployment-bound mutual-TLS worker and commits one-plan and token accounting through the dual settlement store. Duplicate reports are idempotent and conflicting or over-budget counts are rejected. Failed or unknown compute and production route registration remain outstanding.
+
+A private gateway-authenticated endpoint can reserve LiveUI plan and token capacity together, deriving tenant and application from the credential and validating bounded token amounts and canonical fingerprints. It is not yet registered in the running control plane or selected by the gateway.

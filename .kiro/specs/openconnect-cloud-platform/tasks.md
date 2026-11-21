@@ -261,3 +261,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add and verify the private metered LiveUI consumption service and mutual-TLS endpoint, including legacy-worker rejection and concurrent replay. Production registration and worker integration remain outstanding.
 
 - [x] Add and test the private mutual-TLS dual-settlement endpoint with malformed, overage, concurrent and conflicting reports; worker use and production registration remain outstanding.
+
+- [x] Add and test the private dual-reservation endpoint with the existing machine-authorization boundary; production registration and gateway selection remain outstanding.

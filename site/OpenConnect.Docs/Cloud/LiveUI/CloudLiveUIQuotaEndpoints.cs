@@ -54,7 +54,7 @@ public static class CloudLiveUIQuotaEndpoints
         });
     }
 
-    private static async Task<(CloudCredentialIdentity? Identity, IResult? Result)> AuthorizeAsync(HttpContext context, CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
+    internal static async Task<(CloudCredentialIdentity? Identity, IResult? Result)> AuthorizeAsync(HttpContext context, CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         context.Response.Headers.CacheControl = "no-store";
         if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return (null, Results.Unauthorized());
@@ -63,11 +63,16 @@ public static class CloudLiveUIQuotaEndpoints
         if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
             !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
             header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return (null, Results.Unauthorized());
-        var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>().AuthorizeAsync(header.Parameter, "inference.liveui", cancellationToken);
-        return authorization.Authorized && authorization.Identity is not null ? (authorization.Identity, null) : (null, Results.StatusCode(authorization.Code switch
+        try
         {
-            "unauthorized" => 401, "capability_unavailable" => 503, _ => 403,
-        }));
+            var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>().AuthorizeAsync(header.Parameter, "inference.liveui", cancellationToken);
+            return authorization.Authorized && authorization.Identity is not null ? (authorization.Identity, null) : (null, Results.StatusCode(authorization.Code switch
+            {
+                "unauthorized" => 401, "capability_unavailable" => 503, _ => 403,
+            }));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { return (null, Results.StatusCode(503)); }
     }
 
     private static async Task<CloudLiveUIReserveRequest?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
