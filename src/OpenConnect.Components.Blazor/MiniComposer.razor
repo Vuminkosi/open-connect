@@ -257,15 +257,15 @@
                     <span class="oc-status__text">@StatusText</span>
                 </div>
                 <div class="oc-bubble__speech-action">
-                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="ToggleSpeechAsync" title="@(_speechOn ? "Turn off voice" : "Listen")">
+                    <button type="button" class="oc-speech-item" @onclick="ToggleSpeechAsync" title="@(_speechOn ? "Turn off voice" : "Listen")" aria-pressed="@_speechOn.ToString().ToLowerInvariant()">
                         <MudIcon Icon="@(_speechOn ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)" Size="Size.Small" />
                         <span>@(_speechOn ? "Voice on" : "Listen")</span>
-                    </span>
+                    </button>
 
-                    <span class="oc-speech-item" role="button" tabindex="0" @onclick="ToggleMicrophoneAsync" title="@(_micOn ? "Turn off microphone" : "Turn on microphone")">
+                    <button type="button" class="oc-speech-item" @onclick="ToggleMicrophoneAsync" title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" aria-pressed="@_micOn.ToString().ToLowerInvariant()">
                         <MudIcon Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)" Size="Size.Small" />
                         <span>@(_micOn ? "Mic on" : "Mic off")</span>
-                    </span>
+                    </button>
                 </div>
             </div>
 

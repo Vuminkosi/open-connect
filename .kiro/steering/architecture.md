@@ -20,6 +20,8 @@ The public privacy example runs fixed synthetic inputs through an isolated SDK r
 
 The LiveUI guide describes the site's actual permitted actions and requires inspection of the page and receipt when an interaction is denied or uncertain.
 
+Composer voice controls use native buttons for keyboard operation and expose their toggle state. A transcription failure turns the microphone toggle off and reports the failure while preserving text input.
+
 When generated API documents are present, LiveUI may inspect, focus, or set the public API search field with a bounded value. It does not advertise that field when the catalog is absent.
 
 When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.

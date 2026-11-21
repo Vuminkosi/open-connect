@@ -930,7 +930,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     public Task OnVoiceError(string message)
     {
         _voiceActive = false;
-        Session.MarkError(string.IsNullOrWhiteSpace(message) ? "Voice input is unavailable. Text input remains available." : message);
+        _micOn = false;
+        Session.FailLiveListening(message);
         return InvokeAsync(StateHasChanged);
     }
 
@@ -981,11 +982,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 await WaitForConnectionAsync(Session, Session.SessionId!, CancellationToken.None).ConfigureAwait(false);
             var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
             await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket, Session.ConnectionId).ConfigureAwait(false);
-            _voiceActive = true;
+            _voiceActive = _micOn && Session.MicrophoneState == ComposerMicrophoneState.ListeningLive;
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException or TimeoutException)
         {
-            Session.MarkError("Microphone access or voice transcription is unavailable. Text input remains available.");
+            _voiceActive = false;
+            _micOn = false;
+            Session.FailLiveListening("Microphone access or voice transcription is unavailable. Text input remains available.");
         }
     }
 

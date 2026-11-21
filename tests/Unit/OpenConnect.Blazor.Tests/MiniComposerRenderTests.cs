@@ -39,6 +39,29 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
     }
 
     [Fact]
+    public async Task VoiceFailureTurnsMicrophoneOffAndKeepsTextInputAvailable()
+    {
+        var session = NewSession();
+        var cut = RenderMiniComposer(this, session, startOpen: true);
+        var microphone = cut.Find("button.oc-speech-item[title='Turn on microphone']");
+        Assert.Equal("false", microphone.GetAttribute("aria-pressed"));
+        microphone.Click();
+        Assert.Equal("true", cut.Find("button.oc-speech-item[title='Turn off microphone']").GetAttribute("aria-pressed"));
+        var speechEpoch = session.StartLiveListening(permissionGranted: true);
+        var connection = session.Connection;
+
+        var composer = cut.FindComponent<MiniComposer>();
+        await composer.InvokeAsync(() => composer.Instance.OnVoiceError("Voice transcription is unavailable. Text input remains available."));
+
+        Assert.Equal("false", cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("aria-pressed"));
+        Assert.Contains("Voice transcription is unavailable", cut.Markup);
+        Assert.NotEmpty(cut.FindAll(".oc-bubble__input-row input, .oc-bubble__input-row textarea"));
+        Assert.Equal(connection, session.Connection);
+        Assert.Equal(ComposerMicrophoneState.Failed, session.MicrophoneState);
+        Assert.False(session.UpdateLiveHypothesis("late transcript", speechEpoch));
+    }
+
+    [Fact]
     public void Closed_renders_fab_only_without_bubble()
     {
         var cut = RenderMiniComposer(this, NewSession());
