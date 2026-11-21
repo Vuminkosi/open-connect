@@ -45,6 +45,7 @@ _ = Ulid.Parse(principal);
 builder.Services.AddSingleton(new FixtureIdentity(token, tenant, principal));
 builder.Services.AddAuthentication(FixtureAuth.SchemeName).AddScheme<AuthenticationSchemeOptions, FixtureAuth>(FixtureAuth.SchemeName, _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = TimeSpan.FromSeconds(60));
 builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("liveui-inference", limiter =>
 {
     limiter.PermitLimit = 20;
@@ -123,7 +124,8 @@ internal sealed class FixtureInputsFactory(IAgentDefinitionRegistry registry, IC
         var factory = new MafRealAgentFactory(registry, client, gate, new FixedEgressContextProvider(egress));
         var persistence = new NativeSessionTurnPersistenceContext(new NativeAgentSessionPersistence(store, protector), binding, turnGate);
         return Task.FromResult(new LiveUIHostExecutionInputs(factory, new AgentId("generic-liveui"), context,
-            (_, ct) => { ct.ThrowIfCancellationRequested(); return ValueTask.FromResult(false); }, persistence));
+            (_, ct) => { ct.ThrowIfCancellationRequested(); return ValueTask.FromResult(false); }, persistence,
+            configuration["LIVEUI_GENERIC_INSTRUCTIONS"]));
     }
 }
 

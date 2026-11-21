@@ -14,6 +14,8 @@ The capability gateway treats its root and health routes separately from capabil
 
 Public documentation and API reference pages do not require visitor sign-in. Their assistant may use a configured server-side application credential, while preserving privacy enforcement and isolation between visitor sessions. Credentials are supplied through deployment secrets or an ignored local environment file, never browser assets or source control. Cloud dashboard and management access retain their own authentication requirements. Assistant execution and voice remain dependent on a configured application gateway and require end-to-end verification.
 
+The generic gateway fixture supports optional application instructions and the existing Kokoro HTTP client for development verification. It uses process-local state and a configured external model provider; it is not the Cloud application gateway, a durable deployment, or evidence of Cloud usage settlement.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.
