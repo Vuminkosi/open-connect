@@ -277,3 +277,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Recover expired, unconsumed LiveUI claims with immutable abandonment evidence and atomic dual-quota release; verify consumption races, legacy classification behavior and migration upgrades. Unknown consumed usage recovery remains outstanding.
 
 - [x] Verify metered and plan-only LiveUI execution against the provisioned model, mutual-TLS control plane and disposable PostgreSQL; check native usage against the finalized token reservation. Production deployment and unknown usage recovery remain outstanding.
+
+- [x] Add worker-certificate-bound failed-execution settlement for known LiveUI token usage, with immutable failure evidence, replay and success/failure race checks, output denial and migration-upgrade verification. Worker reporting and unknown-usage reconciliation remain outstanding.

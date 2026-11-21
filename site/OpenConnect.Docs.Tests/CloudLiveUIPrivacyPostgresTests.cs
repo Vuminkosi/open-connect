@@ -266,8 +266,36 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Single(meteredStatuses, status => status == "completed");
             Assert.Equal(7, meteredStatuses.Count(status => status == "already_completed"));
             Assert.Equal(HttpStatusCode.Conflict, (await workerClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 411, outputTokens = 30 })).StatusCode);
+            var failureRequest = Guid.NewGuid();
+            Assert.Equal(HttpStatusCode.OK, (await Inspect(meteredClient, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", failureRequest)).StatusCode);
+            var failureReservation = await (await meteredClient.PostAsJsonAsync(dualPath, dualRequest with { requestId = failureRequest })).Content.ReadFromJsonAsync<CloudQuotaResult>();
+            Assert.Equal("reserved", failureReservation!.Status);
+            var failureClaim = await (await meteredClient.PostAsJsonAsync($"{quotaPath}/{failureReservation.ReservationId!.Value:D}/claim", proof)).Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
+            Assert.Equal("claimed", failureClaim!.Status);
+            var failurePrefix = $"{quotaPath}/{failureReservation.ReservationId.Value:D}/claims/{failureClaim.ClaimId!.Value:D}";
+            using (var message = new HttpRequestMessage(HttpMethod.Post, failurePrefix + "/consume-metered"))
+            {
+                message.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(new byte[32]));
+                message.Headers.Add("X-OpenConnect-Worker-Context-Tokens", "2048");
+                Assert.Equal(HttpStatusCode.OK, (await workerClient.SendAsync(message)).StatusCode);
+            }
+            var failedPath = failurePrefix + "/fail-metered";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await meteredClient.PostAsJsonAsync(failedPath, new { inputTokens = 5, outputTokens = 2 })).StatusCode);
+            var failures = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => workerClient.PostAsJsonAsync(failedPath, new { inputTokens = 5, outputTokens = 2 })));
+            var failureStatuses = await Task.WhenAll(failures.Select(async response => (await response.Content.ReadFromJsonAsync<CloudExecutionCompletionResult>())!.Status));
+            Assert.Single(failureStatuses, status => status == "failed");
+            Assert.Equal(7, failureStatuses.Count(status => status == "already_failed"));
+            Assert.Equal(HttpStatusCode.Conflict, (await workerClient.PostAsJsonAsync(failurePrefix + "/complete-metered", new { inputTokens = 5, outputTokens = 2 })).StatusCode);
+            using (var output = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/liveui/output-privacy")
+                { Content = new StringContent("{\"fields\":[\"v1\",\"activate\",\"safe\"]}", System.Text.Encoding.UTF8, "application/json") })
+            {
+                output.Headers.Add("X-Cloud-Request-Id", failureRequest.ToString("D"));
+                output.Headers.Add("X-Cloud-Reservation-Id", failureReservation.ReservationId.Value.ToString("D"));
+                output.Headers.Add("X-Cloud-Claim-Id", failureClaim.ClaimId.Value.ToString("D"));
+                Assert.Equal(HttpStatusCode.ServiceUnavailable, (await meteredClient.SendAsync(output)).StatusCode);
+            }
             await using (var db = await factory.CreateDbContextAsync())
-                Assert.Equal(441, (await db.QuotaBuckets.SingleAsync(item => item.Id == meteredTokenBucket)).Consumed);
+                Assert.Equal(448, (await db.QuotaBuckets.SingleAsync(item => item.Id == meteredTokenBucket)).Consumed);
             await VerifyNodeControlPlaneAsync(address, server, gateway, issued.Secret!, first.requestId, reserved.ReservationId.Value, claim.ClaimId.Value, expiry);
             await using (var db = await factory.CreateDbContextAsync())
             {

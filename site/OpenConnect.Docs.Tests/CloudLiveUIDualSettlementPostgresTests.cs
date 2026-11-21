@@ -9,6 +9,50 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudLiveUIDualSettlementPostgresTests
 {
     [CloudPostgresFact]
+    public async Task KnownUsageFromFailedExecutionSettlesOnceWithoutSuccessfulOutputEvidence()
+    {
+        var fixture = await Fixture.CreateAsync();
+        var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(fixture.Factory, TimeProvider.System));
+        var usage = new CloudLiveUITokenUsage(30, 20);
+        Assert.Equal("unavailable", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, Guid.NewGuid(), usage, default));
+        Assert.Equal("overage_requires_reconciliation", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(99, 2), default));
+        var results = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default)));
+        Assert.Single(results, result => result == "failed");
+        Assert.Equal(11, results.Count(result => result == "already_failed"));
+        Assert.Equal("conflict", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
+        Assert.Equal("conflict", await service.SettleAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default));
+        await using var verify = await fixture.Factory.CreateDbContextAsync();
+        var plan = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.PlanBucketId);
+        var tokens = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId);
+        Assert.Equal(0, plan.Reserved); Assert.Equal(1, plan.Consumed);
+        Assert.Equal(0, tokens.Reserved); Assert.Equal(50, tokens.Consumed);
+        Assert.False(await verify.ExecutionCompletions.AnyAsync(item => item.ReservationId == fixture.ReservationId));
+        Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_execution_failures WHERE \"PlanReservationId\" = {fixture.ReservationId}").SingleAsync());
+        await Assert.ThrowsAsync<PostgresException>(() => verify.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE cloud.liveui_execution_failures SET "FailedAt" = {DateTimeOffset.UtcNow} WHERE "PlanReservationId" = {fixture.ReservationId}
+            """));
+        await Assert.ThrowsAsync<PostgresException>(() => verify.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO cloud.execution_completions ("ReservationId", "ClaimId", "Outcome", "CompletedAt")
+            VALUES ({fixture.ReservationId}, {fixture.ClaimId}, {"completed"}, {DateTimeOffset.UtcNow})
+            """));
+    }
+
+    [CloudPostgresFact]
+    public async Task SuccessAndFailureReportsCannotBothSettleOneClaim()
+    {
+        var fixture = await Fixture.CreateAsync();
+        var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(fixture.Factory, TimeProvider.System));
+        var usage = new CloudLiveUITokenUsage(30, 20);
+        var outcomes = await Task.WhenAll(service.SettleAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default),
+            service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default));
+        Assert.Single(outcomes, item => item is "completed" or "failed");
+        Assert.Single(outcomes, item => item == "conflict");
+        await using var db = await fixture.Factory.CreateDbContextAsync();
+        Assert.Equal(1, (await db.QuotaBuckets.SingleAsync(item => item.Id == fixture.PlanBucketId)).Consumed);
+        Assert.Equal(50, (await db.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId)).Consumed);
+    }
+
+    [CloudPostgresFact]
     public async Task ExpiredUnconsumedClaimsRecoverExactlyOnceWhileConsumedClaimsRemainHeld()
     {
         var idle = await Fixture.CreateAsync(consume: false);
