@@ -61,3 +61,25 @@ test('snapshots the caller body before asynchronous lookup', async () => {
     f.controlPlane.findFingerprintKey = async () => { body.fill(0); return { status: 'not_found' }; };
     try { assert.deepEqual(await f.run(body), { status: 'completed' }); } finally { f.keyring.dispose(); }
 });
+
+test('metered admission reserves plan and bounded token capacity together', async () => {
+    const f = fixture();
+    f.controlPlane.reserveDual = async (_, input) => {
+        f.calls.push('dual-reserve'); assert.equal(input.tokenAmount, 2048);
+        return { status: 'reserved', reservationId: id };
+    };
+    try {
+        assert.deepEqual(await f.run(Buffer.from(JSON.stringify(envelope())), { tokenAmount: 2048 }), { status: 'completed' });
+        assert.deepEqual(f.calls, ['lookup', 'privacy', 'dual-reserve', 'claim', 'dispatch']);
+    } finally { f.keyring.dispose(); }
+});
+
+test('invalid or unavailable metering never falls back to a plan-only reservation', async () => {
+    for (const tokenAmount of [0, 255, 32769, 2048]) {
+        const f = fixture();
+        try {
+            assert.equal((await f.run(Buffer.from(JSON.stringify(envelope())), { tokenAmount })).status, 'unavailable');
+            assert.ok(!f.calls.includes('reserve') && !f.calls.includes('claim') && !f.calls.includes('dispatch'));
+        } finally { f.keyring.dispose(); }
+    }
+});

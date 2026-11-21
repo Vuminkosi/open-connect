@@ -115,7 +115,8 @@ export async function handle(request, { authorization, classificationProbe, clas
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
                 const result = await executeLiveUI({ credential: match[1], identity: decision.identity, body,
-                    deployment: liveUIExecution.deployment, modelId: liveUIExecution.modelId, signal, traceparent: trace.traceparent },
+                    deployment: liveUIExecution.deployment, modelId: liveUIExecution.modelId, tokenAmount: liveUIExecution.tokenAmount,
+                    signal, traceparent: trace.traceparent },
                 { ...liveUIExecution, authorization });
                 if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
                 if (signal.aborted) return reject('capability_unavailable');

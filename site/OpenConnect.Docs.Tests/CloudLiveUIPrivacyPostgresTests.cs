@@ -231,6 +231,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Equal("reserved", dualReserved!.Status);
             Assert.Equal("duplicate", (await (await meteredClient.PostAsJsonAsync(dualPath, dualRequest)).Content.ReadFromJsonAsync<CloudQuotaResult>())!.Status);
             Assert.Equal(HttpStatusCode.Conflict, (await meteredClient.PostAsJsonAsync(dualPath, dualRequest with { tokenAmount = 2049 })).StatusCode);
+            await VerifyNodeDualQuotaAsync(address, server, gateway, meteredCredential.Secret!, meteredRequest, dualRequest.expiresAt);
             var meteredClaim = await (await meteredClient.PostAsJsonAsync($"{quotaPath}/{dualReserved.ReservationId!.Value:D}/claim", proof)).Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
             Assert.Equal("claimed", meteredClaim!.Status);
             var meteredPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId!.Value:D}/consume-metered";
@@ -306,6 +307,24 @@ public sealed class CloudLiveUIPrivacyPostgresTests
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
         await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
         Assert.Equal("[\"found\",\"duplicate\",true,\"allowed\",\"privacy_blocked\"]", output);
+    }
+
+    private static async Task VerifyNodeDualQuotaAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential,
+        Guid requestId, DateTimeOffset expiresAt)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createLiveUIControlPlaneClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const q={requestId:x.requestId,fingerprintKeyId:'key',fingerprint:Buffer.alloc(32).toString('base64'),expiresAt:x.expiresAt,tokenAmount:2048};const a=await c.reserveDual(process.env.OC_TEST_CREDENTIAL,q);const b=await c.reserveDual(process.env.OC_TEST_CREDENTIAL,{...q,tokenAmount:2049});process.stdout.write(JSON.stringify([a.status,b.status]));";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "liveui-control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_CERT"] = gateway.ExportCertificatePem();
+        using var privateKey = gateway.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem(); start.Environment["OC_TEST_CREDENTIAL"] = credential;
+        start.Environment["OC_TEST_DATA"] = System.Text.Json.JsonSerializer.Serialize(new { requestId, expiresAt });
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors); Assert.Equal("[\"duplicate\",\"idempotency_conflict\"]", output);
     }
 
     private static async Task VerifyNodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId)

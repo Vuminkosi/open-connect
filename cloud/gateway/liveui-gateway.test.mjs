@@ -54,4 +54,8 @@ test('LiveUI execution is opt-in and requires pinned deployment and private TLS 
         assert.throws(() => liveUIExecutionFromEnvironment({ ...config, ...change }, {}, read));
     const execution = liveUIExecutionFromEnvironment(config, {}, read);
     assert.equal(execution.modelId, 'model'); execution.keyring.dispose();
+    assert.throws(() => liveUIExecutionFromEnvironment({ ...config, CLOUD_LIVEUI_METERED_ENABLED: 'true' }, {}, read));
+    assert.throws(() => liveUIExecutionFromEnvironment({ ...config, CLOUD_LIVEUI_METERED_ENABLED: 'true', CLOUD_LIVEUI_MODEL_CONTEXT_TOKENS: '0256' }, {}, read));
+    const metered = liveUIExecutionFromEnvironment({ ...config, CLOUD_LIVEUI_METERED_ENABLED: 'true', CLOUD_LIVEUI_MODEL_CONTEXT_TOKENS: '2048' }, {}, read);
+    assert.equal(metered.tokenAmount, 2048); metered.keyring.dispose();
 });

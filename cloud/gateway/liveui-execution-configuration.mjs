@@ -10,6 +10,12 @@ export function liveUIExecutionFromEnvironment(environment, authorization, read 
     const enabled = environment.CLOUD_LIVEUI_EXECUTION_ENABLED ?? 'false';
     if (enabled === 'false') return undefined;
     if (enabled !== 'true' || !authorization) throw new Error('Cloud LiveUI configuration is incomplete.');
+    const metered = environment.CLOUD_LIVEUI_METERED_ENABLED ?? 'false';
+    if (!['true', 'false'].includes(metered)) throw new Error('Cloud LiveUI metering configuration is invalid.');
+    const tokenAmount = metered === 'true' ? Number(environment.CLOUD_LIVEUI_MODEL_CONTEXT_TOKENS) : undefined;
+    if (metered === 'true' && (!/^[1-9][0-9]*$/.test(environment.CLOUD_LIVEUI_MODEL_CONTEXT_TOKENS ?? '') ||
+        !Number.isInteger(tokenAmount) || tokenAmount < 256 || tokenAmount > 32768))
+        throw new Error('Cloud LiveUI model context is required for metering.');
     const { CLOUD_LIVEUI_ORIGIN: origin, CLOUD_LIVEUI_CA_FILE: caFile, CLOUD_LIVEUI_CERT_FILE: certFile,
         CLOUD_LIVEUI_KEY_FILE: keyFile, CLOUD_LIVEUI_TOKEN_FILE: tokenFile, CLOUD_LIVEUI_DEPLOYMENT_ID: deploymentId,
         CLOUD_LIVEUI_ENDPOINT_REFERENCE: endpointReference, CLOUD_LIVEUI_REGION: region, CLOUD_LIVEUI_CONTRACT_VERSION: contractVersion,
@@ -28,7 +34,7 @@ export function liveUIExecutionFromEnvironment(environment, authorization, read 
     try {
         const options = { origin, ca: read(caFile), certificate: read(certFile), privateKey: read(keyFile),
             workerToken: read(tokenFile).toString('utf8').replace(/\r?\n$/, '') };
-        return Object.freeze({ keyring, modelId, probe: createLiveUIProbe({ ...options, deploymentId }),
+        return Object.freeze({ keyring, modelId, tokenAmount, probe: createLiveUIProbe({ ...options, deploymentId }),
             dispatcher: createLiveUIDispatcher(options), createAccessMonitor: createLiveUIAccessMonitor,
             controlPlane: createLiveUIControlPlaneClient({ origin: authorityOrigin, ca: read(authorityCa),
                 certificate: read(authorityCert), privateKey: read(authorityKey) }),

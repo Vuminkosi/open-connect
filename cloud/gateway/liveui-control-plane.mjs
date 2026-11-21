@@ -45,6 +45,19 @@ export function createLiveUIControlPlaneClient({ origin, ca, certificate, privat
             } catch { finish(null); }
         });
     }
+    async function reserveAt(path, credential, input, signal, traceparent) {
+        if (!input || !id(input.requestId) || !keyId(input.fingerprintKeyId) || !fingerprint(input.fingerprint) ||
+            typeof input.expiresAt !== 'string' || !Number.isFinite(Date.parse(input.expiresAt))) return { status: 'quota_unavailable' };
+        const body = { requestId: input.requestId, fingerprintKeyId: input.fingerprintKeyId, fingerprint: input.fingerprint, expiresAt: input.expiresAt,
+            ...(path.endsWith('/dual-reservations') ? { tokenAmount: input.tokenAmount } : {}) };
+        const result = await call('POST', path, credential, body, {}, signal, traceparent);
+        const value = result?.value;
+        if (!only(value, ['status', 'reservationId'])) return { status: 'quota_unavailable' };
+        if (result.status === 200 && ['reserved', 'duplicate'].includes(value.status) && id(value.reservationId)) return value;
+        if (result.status === 429 && value.status === 'quota_exceeded' && value.reservationId == null) return { status: value.status };
+        if (result.status === 409 && value.status === 'idempotency_conflict' && (value.reservationId == null || id(value.reservationId))) return { status: value.status };
+        return { status: 'quota_unavailable' };
+    }
     return Object.freeze({
         async findFingerprintKey(credential, requestId, signal, traceparent) {
             if (!id(requestId)) return { status: 'unavailable' };
@@ -56,16 +69,11 @@ export function createLiveUIControlPlaneClient({ origin, ca, certificate, privat
             return { status: 'unavailable' };
         },
         async reserve(credential, input, signal, traceparent) {
-            if (!input || !id(input.requestId) || !keyId(input.fingerprintKeyId) || !fingerprint(input.fingerprint) ||
-                typeof input.expiresAt !== 'string' || !Number.isFinite(Date.parse(input.expiresAt))) return { status: 'quota_unavailable' };
-            const body = { requestId: input.requestId, fingerprintKeyId: input.fingerprintKeyId, fingerprint: input.fingerprint, expiresAt: input.expiresAt };
-            const result = await call('POST', '/cloud/internal/v1/liveui/quota/reservations', credential, body, {}, signal, traceparent);
-            const value = result?.value;
-            if (!only(value, ['status', 'reservationId'])) return { status: 'quota_unavailable' };
-            if (result.status === 200 && ['reserved', 'duplicate'].includes(value.status) && id(value.reservationId)) return value;
-            if (result.status === 429 && value.status === 'quota_exceeded' && value.reservationId == null) return { status: value.status };
-            if (result.status === 409 && value.status === 'idempotency_conflict' && (value.reservationId == null || id(value.reservationId))) return { status: value.status };
-            return { status: 'quota_unavailable' };
+            return reserveAt('/cloud/internal/v1/liveui/quota/reservations', credential, input, signal, traceparent);
+        },
+        async reserveDual(credential, input, signal, traceparent) {
+            if (!Number.isInteger(input?.tokenAmount) || input.tokenAmount < 256 || input.tokenAmount > 32768) return { status: 'quota_unavailable' };
+            return reserveAt('/cloud/internal/v1/liveui/quota/dual-reservations', credential, input, signal, traceparent);
         },
         async claim(credential, reservationId, proof, signal, traceparent) {
             const deployment = proof?.deployment;

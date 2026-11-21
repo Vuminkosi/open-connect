@@ -325,3 +325,5 @@ The private metered settlement endpoint accepts bounded token counts only from t
 A private gateway-authenticated endpoint can reserve LiveUI plan and token capacity together, deriving tenant and application from the credential and validating bounded token amounts and canonical fingerprints. It is not yet registered in the running control plane or selected by the gateway.
 
 The LiveUI worker has an explicit opt-in metered mode. It uses the metered consumption endpoint with its actual model context limit, reports bounded native usage, and requires metered settlement before returning a plan. It never falls back to the unmetered path after a metered failure. Failed or unknown compute retains its reservation pending reconciliation; production activation is not yet connected.
+
+When explicitly enabled, the gateway requires a bounded model context token budget and reserves plan and token capacity together through the mutual-TLS control plane. Invalid configuration or a missing dual-reservation capability fails closed. Metering remains disabled by default; production endpoint registration and reconciliation of failed or unknown compute are still required.

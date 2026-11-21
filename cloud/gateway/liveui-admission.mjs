@@ -5,7 +5,7 @@ const guid = /^(?!00000000-0000-0000-0000-000000000000)[0-9a-f]{8}-[0-9a-f]{4}-[
 const unavailable = () => ({ status: 'unavailable' });
 
 // Admission binds the exact inspected request and worker payload before dispatch.
-export async function withLiveUIAdmission({ credential, identity, body, deployment, modelId, signal, traceparent },
+export async function withLiveUIAdmission({ credential, identity, body, deployment, modelId, tokenAmount, signal, traceparent },
     { controlPlane, authorization, keyring }, executeClaimed) {
     if (signal?.aborted || !(body instanceof Uint8Array) || body.byteLength < 1 || body.byteLength > 131072 ||
         !identity || !controlPlane || !authorization || !keyring || !deployment || typeof modelId !== 'string' ||
@@ -31,7 +31,11 @@ export async function withLiveUIAdmission({ credential, identity, body, deployme
         const inspection = await authorization.inspectLiveUI(credential, request.requestId, liveUIInspectionFields(request), fingerprintKeyId, fingerprint, signal, traceparent);
         if (stopped()) return unavailable();
         if (inspection?.allowed !== true) return { status: inspection?.code === 'privacy_blocked' ? 'privacy_blocked' : 'unavailable' };
-        const reservation = await controlPlane.reserve(credential, { requestId: request.requestId, fingerprintKeyId, fingerprint, expiresAt }, signal, traceparent);
+        const reservation = tokenAmount === undefined
+            ? await controlPlane.reserve(credential, { requestId: request.requestId, fingerprintKeyId, fingerprint, expiresAt }, signal, traceparent)
+            : Number.isInteger(tokenAmount) && tokenAmount >= 256 && tokenAmount <= 32768 && typeof controlPlane.reserveDual === 'function'
+                ? await controlPlane.reserveDual(credential, { requestId: request.requestId, fingerprintKeyId, fingerprint, expiresAt, tokenAmount }, signal, traceparent)
+                : unavailable();
         if (stopped()) return unavailable();
         if (reservation?.status !== 'reserved' || !guid.test(reservation.reservationId ?? ''))
             return { status: ['duplicate', 'quota_exceeded', 'idempotency_conflict'].includes(reservation?.status) ? reservation.status : 'unavailable' };
