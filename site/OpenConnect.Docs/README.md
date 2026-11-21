@@ -16,6 +16,16 @@ dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode
 dotnet build site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -warnaserror
 ```
 
+The root Compose file also runs the documentation site on `http://localhost:5050` by default:
+
+```powershell
+docker compose -f docker-compose-all.yml up -d --build documentation-site
+```
+
+Set `OPENCONNECT_DOCS_PORT` to change the loopback port. Public documentation is available without the Cloud database or identity providers. The dedicated `oc_docs_keys` volume preserves server-side authentication protection keys across container replacement; protect and back up that volume when identity is enabled. Cloud sign-in requires a configured provider, a registered callback and an HTTPS deployment or trusted HTTPS termination; it is not enabled by the local HTTP default.
+
+Generate the API reference before building the image when that reference is needed. Generated artifacts present under the site directory are included in the image; a clean checkout without generated artifacts still serves the static documentation.
+
 ## API generation
 
 From the repository root, after a serialized Release build:

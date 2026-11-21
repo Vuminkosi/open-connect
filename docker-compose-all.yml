@@ -131,6 +131,35 @@ services:
     pids_limit: 128
     networks: [oc-network]
 
+  # Public documentation and optional Cloud control plane.
+  documentation-site:
+    build:
+      context: .
+      dockerfile: site/OpenConnect.Docs/Dockerfile
+    image: openconnect-docs:${OC_IMAGE_TAG:-e2e-local}
+    container_name: oc-docs-local
+    restart: unless-stopped
+    environment:
+      OpenConnect__Cloud__Identity__Enabled: ${CLOUD_OIDC_ENABLED:-false}
+      OpenConnect__Cloud__Identity__Authority: ${CLOUD_OIDC_AUTHORITY:-}
+      OpenConnect__Cloud__Identity__ClientId: ${CLOUD_OIDC_CLIENT_ID:-}
+      OpenConnect__Cloud__Identity__ClientSecret: ${CLOUD_OIDC_CLIENT_SECRET:-}
+      OpenConnect__Cloud__Identity__Google__Enabled: ${CLOUD_GOOGLE_ENABLED:-false}
+      OpenConnect__Cloud__Identity__Google__ClientId: ${CLOUD_GOOGLE_CLIENT_ID:-}
+      OpenConnect__Cloud__Identity__Google__ClientSecret: ${CLOUD_GOOGLE_CLIENT_SECRET:-}
+      ConnectionStrings__CloudControlPlane: ${CLOUD_CONTROL_PLANE_CONNECTION:-}
+    ports:
+      - "127.0.0.1:${OPENCONNECT_DOCS_PORT:-5050}:8080"
+    volumes:
+      - oc_docs_keys:/home/app/.aspnet/DataProtection-Keys
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [oc-network]
+
   # Cloud data plane is separate from the sample application gateway.
   cloud-gateway:
     build:
@@ -551,6 +580,7 @@ networks:
     driver: bridge
 
 volumes:
+  oc_docs_keys:
   oc_todo_app_data:
   oc_postgres_data:
   oc_security_models:

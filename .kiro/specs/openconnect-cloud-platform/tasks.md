@@ -299,3 +299,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Keep the four default local workers restartable through root Compose, with model downloads disabled by default and checksum mismatches preserved.
 
 - [x] Put transcription, browser navigation, and operational/outbox workers behind explicit Compose profiles so the default worker set contains only inference, LiveUI, security and Kokoro.
+
+- [x] Add the documentation site to root Compose with a non-root image, health check and dedicated data-protection key volume; verify local site and Todo availability. Cloud identity configuration and HTTPS remain deployment prerequisites.
