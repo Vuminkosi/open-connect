@@ -8,6 +8,8 @@ description: .NET solution architecture, package boundaries, and system design f
 
 Documentation LiveUI section targets derive from the same heading identifiers used by the rendered page and its table of contents. They allow read-only inspection, highlighting and scrolling on public documentation routes; Cloud management remains user-operated.
 
+When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
+
 The documentation component showcase uses the SDK component registry and safe renderer. Its single idempotent display action is authorized only on the public documentation index; arbitrary component names and Cloud management controls are not exposed to that action.
 
 Realtime transcription is application-neutral: only provider-confirmed final text may be submitted as a task, and the host does not rewrite it using sample-specific vocabulary. A capture and speech epoch use the host dispatcher's scoped idempotency mechanism. Provider errors and cancellation do not admit an unfinished turn.

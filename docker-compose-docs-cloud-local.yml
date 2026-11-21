@@ -1,0 +1,8 @@
+services:
+  # Compose this last when local OIDC and the documentation assistant are both enabled.
+  # The bundle must trust both the identity provider and the assistant host.
+  documentation-site:
+    environment:
+      SSL_CERT_FILE: /run/docs-cloud-ca/ca-bundle.pem
+    volumes:
+      - ${OC_DOCS_CLOUD_CA_BUNDLE:?Set OC_DOCS_CLOUD_CA_BUNDLE to a combined identity and assistant CA bundle}:/run/docs-cloud-ca/ca-bundle.pem:ro
