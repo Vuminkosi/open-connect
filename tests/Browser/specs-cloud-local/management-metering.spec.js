@@ -68,6 +68,7 @@ test('documentation and authenticated management visits do not consume tenant us
   await expect(page.getByText('Usage records are temporarily unavailable.')).not.toBeVisible();
   for (const [route, heading] of [
     ['security', 'Security observations'],
+    ['security/host-reports', 'Host privacy reports'],
     ['quotas', 'Organization quotas'],
     ['members', 'Organization members'],
     ['applications', 'Applications'],
@@ -75,6 +76,7 @@ test('documentation and authenticated management visits do not consume tenant us
     await page.goto(`${portal}/cloud/tenants/${tenant}/${route}`);
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     await expect(page.getByText(/^Loading/i)).toHaveCount(0);
+    if (route === 'security/host-reports') await expect(page.getByRole('navigation', { name: 'Host privacy report pages' })).toBeVisible();
     await expect(page.getByText(/temporarily unavailable/i)).toHaveCount(0);
   }
   expect(ledgerSnapshot(tenant)).toBe(before);
