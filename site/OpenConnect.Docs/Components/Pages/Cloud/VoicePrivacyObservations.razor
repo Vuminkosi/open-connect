@@ -1,0 +1,116 @@
+@implements IDisposable
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<VoicePrivacyObservations> Logger
+
+<section aria-label="Voice privacy observations">
+    <h2>Voice privacy observations</h2>
+    <p>Input checks inspect synthesis requests. Output checks inspect recognized transcripts after synthesis. An allowed output check does not confirm audio delivery or complete recognition. Audio and transcript text are not shown. The date filter below does not apply to these observations.</p>
+    @if (_loading) { <p role="status">Loading voice observations…</p> }
+    else if (_status is not null) { <p role="status">@_status</p> }
+    else if (_page is not null)
+    {
+        @if (_page.Observations.Count == 0) { <p>No voice privacy observations were found.</p> }
+        else
+        {
+            <div class="cloud-capabilities">
+                @foreach (var observation in _page.Observations)
+                {
+                    <article class="security-observation">
+                        <h3>@(observation.Boundary == "input" ? "Synthesis input" : "Recognized output transcript") — @Outcome(observation.Outcome)</h3>
+                        <dl>
+                            <dt>Observed at (UTC)</dt><dd>@observation.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                            <dt>Application ID</dt><dd><code>@observation.ApplicationId</code></dd>
+                            <dt>Request ID</dt><dd><code>@observation.RequestId</code></dd>
+                            <dt>Trace ID</dt><dd><code>@observation.TraceId</code></dd>
+                            @if (observation.ModelFingerprint is not null)
+                            {
+                                <dt>Reported transcription model fingerprint</dt><dd><code>@observation.ModelFingerprint</code></dd>
+                            }
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
+        <nav aria-label="Voice observation pages">
+            <button class="button" type="button" disabled="@(!_interactive || _loading || _pageIndex == 0)" @onclick="PreviousAsync">Previous</button>
+            <button class="button" type="button" disabled="@(!_interactive || _loading || _page.Next is null)" @onclick="NextAsync">Next</button>
+        </nav>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    private readonly List<CloudVoicePrivacyCursor?> _history = [null];
+    private CloudVoicePrivacyPage? _page;
+    private int _pageIndex, _generation;
+    private bool _loading = true, _interactive, _disposed;
+    private string? _status;
+
+    protected override void OnInitialized() => AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationChanged;
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+    protected override Task OnParametersSetAsync() { _history.Clear(); _history.Add(null); return LoadAsync(null, 0); }
+
+    private void OnAuthenticationChanged(Task<AuthenticationState> state) => _ = InvokeAsync(() =>
+    {
+        if (_disposed) return;
+        ++_generation; _page = null; _loading = false; _status = "Your identity changed. Reopen security observations to check access.";
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        _disposed = true; ++_generation;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationChanged;
+    }
+
+    private Task PreviousAsync() => _pageIndex > 0 ? LoadAsync(_history[_pageIndex - 1], _pageIndex - 1) : Task.CompletedTask;
+    private Task NextAsync()
+    {
+        if (_page?.Next is not { } next) return Task.CompletedTask;
+        if (_history.Count > _pageIndex + 1) _history.RemoveRange(_pageIndex + 1, _history.Count - _pageIndex - 1);
+        _history.Add(next);
+        return LoadAsync(next, _pageIndex + 1);
+    }
+
+    private async Task LoadAsync(CloudVoicePrivacyCursor? cursor, int pageIndex)
+    {
+        var generation = ++_generation; var tenantId = TenantId;
+        _page = null; _status = null; _loading = true;
+        try
+        {
+            var reader = Services.GetService(typeof(ICloudVoicePrivacyReader)) as ICloudVoicePrivacyReader;
+            var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var subject = CloudIdentity.IsEnabled(authentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
+            var page = reader is not null && subject is not null
+                ? await reader.GetTenantAsync(subject, tenantId, cursor, 20, CancellationToken.None) : null;
+            if (generation != _generation) return;
+            var current = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var currentSubject = CloudIdentity.IsEnabled(current.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(current.User, identity["Authority"]) : null;
+            if (subject is null || currentSubject != subject) page = null;
+            _page = page; _pageIndex = pageIndex;
+            if (page is null) _status = reader is null ? "Voice observations are not configured." : "The organization was not found or your role does not allow security access.";
+        }
+        catch (Exception)
+        {
+            if (generation != _generation) return;
+            Logger.LogWarning("Voice privacy observation lookup failed.");
+            _status = "Voice privacy observations are temporarily unavailable.";
+        }
+        finally { if (generation == _generation) _loading = false; }
+    }
+
+    private static string Outcome(string value) => value switch
+    {
+        "allowed" => "check allowed",
+        "privacy_blocked" => "check blocked",
+        "detector_unavailable" => "detector unavailable",
+        _ => "unknown decision",
+    };
+}

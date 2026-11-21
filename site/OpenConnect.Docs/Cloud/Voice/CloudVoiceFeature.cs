@@ -9,6 +9,7 @@ public static class CloudVoiceFeature
         services.AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()));
         services.AddSingleton(new CloudVoiceOutputPrivacyService(new RulesSecurityDetector()));
         services.AddScoped<ICloudVoiceOutputEvidenceStore, EfCloudVoiceOutputEvidenceStore>();
+        services.AddScoped<ICloudVoicePrivacyReader, EfCloudVoicePrivacyReader>();
         services.AddScoped<ICloudVoicePrivacyEvidenceStore, EfCloudVoicePrivacyEvidenceStore>();
         services.AddScoped<ICloudVoiceClaimStore, EfCloudVoiceClaimStore>();
         services.AddScoped<CloudVoiceClaimService>();

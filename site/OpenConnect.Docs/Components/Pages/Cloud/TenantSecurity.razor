@@ -11,6 +11,7 @@
 
 <PageTitle>Security observations | OpenConnect Cloud</PageTitle>
 <h1>Security observations</h1>
+<VoicePrivacyObservations TenantId="@TenantId" />
 <p>These are Cloud-side classification checks. A passed check does not prove complete detection or worker execution. Application-host inspection is not shown here. Repeated requests can create multiple observations.</p>
 <div class="security-filter">
     <label for="security-from">From date (UTC)</label><input id="security-from" type="date" value="@_fromDate" @onchange="e => _fromDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />

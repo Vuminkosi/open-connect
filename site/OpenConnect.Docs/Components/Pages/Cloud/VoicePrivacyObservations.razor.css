@@ -1,0 +1,3 @@
+.security-observation dl { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
+.security-observation dd { min-width: 0; margin: 0 0 .7rem; overflow-wrap: anywhere; text-align: left; }
+nav[aria-label="Voice observation pages"] { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }

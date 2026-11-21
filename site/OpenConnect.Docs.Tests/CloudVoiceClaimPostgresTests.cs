@@ -160,6 +160,9 @@ public sealed class CloudVoiceClaimPostgresTests
             var outputScript = db.GetService<IMigrator>().GenerateScript("20261123000300_GuardVoiceSettlement",
                 "20261123000400_AddVoiceOutputPrivacyEvidence", MigrationsSqlGenerationOptions.Idempotent);
             await db.Database.ExecuteSqlRawAsync(outputScript);
+            var timelineScript = db.GetService<IMigrator>().GenerateScript("20261123000400_AddVoiceOutputPrivacyEvidence",
+                "20261123000500_IndexVoicePrivacyObservations", MigrationsSqlGenerationOptions.Idempotent);
+            await db.Database.ExecuteSqlRawAsync(timelineScript);
         }
         Assert.Equal("unavailable", await settlement.SettleAsync(first, claimId, Guid.NewGuid(), default));
         var settlements = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => settlement.SettleAsync(first, claimId, deploymentId, default)));
@@ -171,6 +174,37 @@ public sealed class CloudVoiceClaimPostgresTests
             new string('b', 64), "allowed", new string('a', 32), default));
         Assert.False(await outputEvidence.AppendForCompletedAsync(identity with { CredentialId = Guid.NewGuid() }, firstId, first, claimId,
             new string('b', 64), "allowed", new string('a', 32), default));
+        var reader = new EfCloudVoicePrivacyReader(factory, TimeProvider.System);
+        var otherTenant = await tenants.CreateTenantAsync(owner, "Other voice tenant", default);
+        var otherApplication = (await tenants.CreateApplicationAsync(owner, otherTenant.Id, "Other app", "Development", default)).Application!;
+        var otherRequest = Guid.NewGuid();
+        await evidence.AppendAsync(identity with { TenantId = otherTenant.Id, ApplicationId = otherApplication.Id }, otherRequest,
+            "key", fingerprint, 4, "allowed", new string('a', 32), default);
+        var seen = new List<CloudVoicePrivacyObservation>(); CloudVoicePrivacyCursor? cursor = null;
+        do
+        {
+            var page = await reader.GetTenantAsync(owner, tenant.Id, cursor, 1, default);
+            Assert.NotNull(page); seen.AddRange(page.Observations); cursor = page.Next;
+            Assert.True(seen.Count < 100, "Voice observation pagination did not terminate.");
+        } while (cursor is not null);
+        Assert.Equal(seen.Count, seen.Select(x => (x.Id, x.Boundary)).Distinct().Count());
+        Assert.Contains(seen, x => x.RequestId == firstId && x.Boundary == "input");
+        Assert.Contains(seen, x => x.RequestId == firstId && x.Boundary == "output" && x.ModelFingerprint == new string('b', 64));
+        Assert.DoesNotContain(seen, x => x.RequestId == otherRequest);
+        Assert.Null(await reader.GetTenantAsync(new CloudSubject("unknown", "unknown"), tenant.Id, null, 20, default));
+        var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var analyst = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer, SubjectId = developer.SubjectId, Role = "Developer", CreatedAt = now });
+            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = analyst.Issuer, SubjectId = analyst.SubjectId, Role = "SecurityAnalyst", CreatedAt = now });
+            await db.SaveChangesAsync();
+        }
+        Assert.Null(await reader.GetTenantAsync(developer, tenant.Id, null, 20, default));
+        Assert.NotNull(await reader.GetTenantAsync(analyst, tenant.Id, null, 20, default));
+        await using (var db = await factory.CreateDbContextAsync())
+            Assert.True(await db.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == developer.SubjectId &&
+                x.Action == "voice.privacy.read" && x.Outcome == "forbidden"));
         await using (var db = await factory.CreateDbContextAsync())
             await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.voice_output_privacy_evidence WHERE \"ClaimId\" = {claimId}"));
         await using (var db = await factory.CreateDbContextAsync())

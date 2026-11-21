@@ -26,4 +26,6 @@ The local gateway exposes `POST /cloud/v1/voice/synthesis` only when voice execu
 
 The opt-in live-system test exercises the gateway, mutual-TLS worker and control-plane connections, real provisioned synthesis and transcription models, quota settlement, output evidence, replay and privacy denial using a disposable PostgreSQL database. It does not verify the production deployment, user interfaces or recognition accuracy across languages and audio conditions.
 
+The tenant security page presents paginated voice input and output transcript observations to owners, administrators and security analysts. Reads are tenant-scoped and audited, and the view does not expose request text, transcripts or audio. Input decisions and output transcript decisions remain distinct and neither is presented as evidence of audio delivery.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
