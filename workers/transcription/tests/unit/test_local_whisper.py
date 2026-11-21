@@ -101,3 +101,39 @@ def test_local_api_executes_verified_adapter(provisioned, monkeypatch):
     })
     assert response.status_code == 200
     assert response.json()["transcript"] == "spoken text"
+
+
+def test_audio_inspection_requires_local_real_model_and_binds_audio(provisioned, monkeypatch):
+    cfg, _ = provisioned
+
+    class Model:
+        def __init__(self, path, **options):
+            pass
+
+        def transcribe(self, audio, **options):
+            return iter([SimpleNamespace(start=0.0, end=0.1, text="spoken text")]), None
+
+    monkeypatch.setattr(faster_whisper, "WhisperModel", Model)
+    cfg = dataclasses.replace(cfg, worker_token="local-token")
+    monkeypatch.setattr(app_module, "settings", cfg)
+    client = TestClient(app_module.app)
+    audio = b"\0\0" * 1600
+    body = {"schemaVersion": "openconnect.v1", "requestId": "123e4567-e89b-42d3-a456-426614174000",
+            "input": {"audioBase64": base64.b64encode(audio).decode(), "mimeType": "audio/pcm",
+                      "sampleRateHz": 16000, "channels": 1, "bitsPerSample": 16, "durationMs": 100, "locale": "en"}}
+    url = "/internal/v1/audio-inspection/transcribe"
+    assert client.post(url, json=body).status_code == 401
+    headers = {"Authorization": "Bearer local-token"}
+    result = client.post(url, headers=headers, json=body)
+    assert result.status_code == 200
+    assert result.headers["cache-control"] == "no-store"
+    assert result.json()["audioSha256"] == hashlib.sha256(audio).hexdigest()
+    assert result.json()["transcript"] == "spoken text"
+    assert client.post(url, headers={**headers, "Content-Type": "application/json"},
+                       content='{"schemaVersion":"openconnect.v1","schemaVersion":"openconnect.v1"}').status_code == 400
+    assert client.post(url, headers={**headers, "Content-Encoding": "gzip"}, json=body).status_code == 415
+    assert client.post(url, headers={**headers, "Content-Length": "7002049"}, json=body).status_code == 413
+    for changed in (dataclasses.replace(cfg, fake_engine=True),
+                    dataclasses.replace(cfg, cloud_url="https://provider.example")):
+        monkeypatch.setattr(app_module, "settings", changed)
+        assert client.post(url, headers=headers, json=body).status_code == 503

@@ -25,6 +25,7 @@ from openconnect_transcription.engine import (
 )
 from openconnect_transcription.engine.audio import AudioValidationError, validate_audio
 from openconnect_transcription.engine import local_whisper
+from openconnect_transcription.audio_inspection import create_audio_inspection_router
 from openconnect_transcription.schemas import (
     CapabilityResponse,
     ExecuteRequest,
@@ -82,6 +83,9 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
         or not hmac.compare_digest(supplied, token)
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+
+
+app.include_router(create_audio_inspection_router(_settings, authenticate))
 
 
 def _get_task(task_id: str) -> dict[str, Any]:

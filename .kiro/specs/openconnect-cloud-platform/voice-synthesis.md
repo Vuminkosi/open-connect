@@ -10,4 +10,6 @@ The transcription worker supports a local Whisper adapter alongside its syntheti
 
 The PCM WAV parser accepts extended format chunks and padded metadata chunks while rejecting truncated data and inconsistent RIFF lengths.
 
+The worker exposes a separate authenticated audio-inspection transcription endpoint that only runs a verified local real model with the cloud leg disabled. It returns a digest of the received audio and a transcript for downstream screening; a transcript is not proof that all spoken content was recognized or that an output policy allowed release. The private worker transport must be protected before the gateway can use it.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
