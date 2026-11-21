@@ -333,3 +333,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add idempotent worker-bound speech completion and full-character quota settlement, with database guards requiring matching consumption. Verify concurrent settlement, usage ledger, upgrade and inconsistent-data rejection in disposable PostgreSQL. Worker reporting, recovery, registration and gateway execution remain outstanding.
 
 - [x] Validate Kokoro Cloud audio before reporting completion and withhold output if settlement is uncertain. Verify malformed responses, ambiguous settlement, PCM/WAV validation and default worker behavior; real model and control-plane integration remain outstanding.
+
+- [x] Add private mutual-TLS speech dispatch for an exact claim-bound payload, bounded audio validation and no retry after uncertain outcomes. Gateway admission composition, endpoint registration and real worker verification remain outstanding.

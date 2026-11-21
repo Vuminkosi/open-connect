@@ -370,6 +370,8 @@ Speech settlement accepts a completion from the pinned worker deployment only af
 
 The opt-in Kokoro Cloud path validates output metadata and bounded PCM/WAV bytes before attempting worker-certificate-bound completion, and returns no audio if settlement is unavailable or ambiguous. Completion is not retried after an uncertain response. Tests use a simulated model and control plane; the endpoint still requires registration and a live model/control-plane verification.
 
+The private speech dispatcher verifies that the exact claimed worker payload matches the validated request, then sends it over pinned mutual TLS with a worker credential. It bounds and validates the response, clears mutable payload buffers it owns, returns no echoed speech text, and does not retry uncertain calls. Local mutual-TLS tests use a simulated worker; the dispatcher is not yet connected to public admission or a real worker.
+
 The root Compose default includes the inference, LiveUI, security and Kokoro workers with `unless-stopped` restart policies. Transcription, browser navigation, and operational/outbox workers require their respective explicit profiles. LiveUI and Kokoro use provisioned model artifacts by default; downloads require explicit operator opt-in, and existing files with a mismatched digest are preserved and rejected. Worker liveness does not establish Cloud gateway readiness or provider configuration.
 
 The optional operational and outbox hosts use the sample-owned PostgreSQL schema and do not create it on startup. Apply the PostgreSQL sample migrations before enabling those hosts; an absent `openconnect.Leases` table prevents lease acquisition and release. Migration operations must preserve existing database data and the sample's migration history.
