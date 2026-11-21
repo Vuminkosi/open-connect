@@ -9,5 +9,7 @@
 !workers/knowledge/uv.lock
 !workers/knowledge/src
 !workers/knowledge/src/**
+!workers/knowledge/migrations
+!workers/knowledge/migrations/**
 **/__pycache__
 **/*.pyc
