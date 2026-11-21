@@ -33,32 +33,6 @@ public sealed class DocumentationHeadingIds
         return candidate;
     }
 
-    public static bool TryParse(string line, out int level, out string text)
-    {
-        level = line.TakeWhile(character => character == '#').Count();
-        if (level is < 1 or > 3 || line.Length <= level || !char.IsWhiteSpace(line[level]))
-        {
-            text = string.Empty;
-            return false;
-        }
-        text = line[level..].Trim();
-        return text.Length > 0;
-    }
-
     public static IReadOnlyList<DocumentationHeading> Extract(string markdown)
-    {
-        var ids = new DocumentationHeadingIds();
-        var headings = new List<DocumentationHeading>();
-        var inCode = false;
-        foreach (var line in markdown.Replace("\r", string.Empty).Split('\n'))
-        {
-            if (line.StartsWith("```", StringComparison.Ordinal)) { inCode = !inCode; continue; }
-            if (!inCode && TryParse(line, out var level, out var text))
-            {
-                var id = ids.Next(text);
-                if (level >= 2) headings.Add(new DocumentationHeading(level, text, id));
-            }
-        }
-        return headings;
-    }
+        => DocumentationMarkdown.Headings(markdown);
 }

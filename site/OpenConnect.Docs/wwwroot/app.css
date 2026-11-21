@@ -65,6 +65,9 @@
 .doc-toc a:hover { color: #1261a0; text-decoration: underline; }
 .doc-toc :is(a, summary):focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
 .markdown-body :is(h2,h3,h4) { scroll-margin-top: 100px; }
+.markdown-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1rem 0; }
+.markdown-body :is(th, td) { border: 1px solid #aebfd0; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+.markdown-body :not(pre) > code { overflow-wrap: anywhere; }
 @media (max-width: 1199px) {
   .doc-layout { display: flex; flex-direction: column; }
   .doc-toc { order: -1; align-self: stretch; border-left: 0; border-bottom: 1px solid #dbe4ef; padding: 0 0 12px; }
@@ -75,3 +78,7 @@
 }
 :root[data-theme="dark"] .doc-toc { border-color: #284158; }
 :root[data-theme="dark"] .doc-toc :is(a, summary) { color: #dbe8f5; }
+:root[data-theme="dark"] .markdown-body :is(th, td) { border-color: #49617a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .markdown-body :is(th, td) { border-color: #49617a; }
+}

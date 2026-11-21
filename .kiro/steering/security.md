@@ -13,6 +13,8 @@ The voice host treats a disconnected client during an unavailable-worker close a
 
 The documentation voice bridge uses short-lived, single-use, session-bound tickets. Visitor credentials remain server-side, the browser connects from the same HTTPS origin, and the application gateway verifies session ownership before accepting audio.
 
+Documentation Markdown disables raw HTML and automatic image loading. Links are limited to same-origin paths or fragments and explicit HTTP(S) URLs; section IDs are shared by rendering, navigation and LiveUI.
+
 Interactive voice tasks carry the composer's server-issued event connection identity. The host admits them with LiveUI access only while that identity is the sole active connection for the authenticated session; stale or ambiguous connections fail closed.
 
 ## Core Security Principles

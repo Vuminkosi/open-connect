@@ -14,7 +14,7 @@ public sealed class PortalComponentTests : BunitContext
 
         var article = cut.Find("article");
         Assert.Equal("Configure the gateway:", article.QuerySelector("p")?.TextContent);
-        Assert.Equal("services.AddOpenConnect();", article.QuerySelector("pre code")?.TextContent);
+        Assert.Equal("services.AddOpenConnect();", article.QuerySelector("pre code")?.TextContent.TrimEnd('\r', '\n'));
         Assert.Equal("P", article.Children[0].TagName);
         Assert.Equal("PRE", article.Children[1].TagName);
     }
@@ -50,6 +50,35 @@ public sealed class PortalComponentTests : BunitContext
 
         Assert.Contains("&lt;tag&gt;", cut.Markup);
         Assert.DoesNotContain("<tag>", cut.Markup);
+    }
+
+    [Fact]
+    public void MarkdownRenderer_RendersTablesListsAndInlineFormatting()
+    {
+        var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown,
+            "## Use `client`\n\n| Feature | API |\n| --- | --- |\n| **Voice** | `Speak` |\n\n- One\n- Two"));
+
+        Assert.Equal("Use client", cut.Find("h3").TextContent);
+        Assert.NotNull(cut.Find("h3 code"));
+        Assert.Equal("Voice", cut.Find("table tbody strong").TextContent);
+        Assert.Equal("Speak", cut.Find("table tbody code").TextContent);
+        Assert.Equal(2, cut.FindAll("ul li").Count);
+        Assert.Equal("use-client", Assert.Single(OpenConnect.Docs.Services.DocumentationHeadingIds.Extract(
+            "## Use `client`")).Id);
+    }
+
+    [Fact]
+    public void MarkdownRenderer_DoesNotEmitUnsafeLinksOrRemoteImages()
+    {
+        var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown,
+            "[bad](javascript:alert(1)) [encoded](jav&#x61;script:alert(1)) [data](data:text/html,evil) [relative](//evil.example) [safe](/docs) ![image](https://evil.example/pixel.png)\n\n<script>alert(1)</script>"));
+
+        Assert.Empty(cut.FindAll("img"));
+        Assert.DoesNotContain("javascript:", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("href=\"data:", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("href=\"//evil.example", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("href=\"/docs\"", cut.Markup);
+        Assert.DoesNotContain("<script>", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 }
 
