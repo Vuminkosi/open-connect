@@ -26,6 +26,8 @@ The local gateway exposes `POST /cloud/v1/voice/synthesis` only when voice execu
 
 The opt-in live-system test exercises the gateway, mutual-TLS worker and control-plane connections, real provisioned synthesis and transcription models, quota settlement, output evidence, replay and privacy denial using a disposable PostgreSQL database. It does not verify the production deployment, user interfaces or recognition accuracy across languages and audio conditions.
 
+For a Windows local development deployment, `scripts/setup-cloud-local-voice-certificates.ps1` creates separate seven-day self-signed identities and per-service key directories under a new, user-restricted directory. The helper does not install a trusted root, configure or start services, register deployments, or provision models. Certificate fingerprints still have to be pinned to their respective gateway and worker identities. These certificates are local development material and do not establish deployment or artifact attestation.
+
 The tenant security page presents paginated voice input and output transcript observations to owners, administrators and security analysts. Reads are tenant-scoped and audited, and the view does not expose request text, transcripts or audio. Input decisions and output transcript decisions remain distinct and neither is presented as evidence of audio delivery.
 
 The Cloud overview points to organization-specific service and security views without asserting fixed entitlement, deployment or evidence states.
