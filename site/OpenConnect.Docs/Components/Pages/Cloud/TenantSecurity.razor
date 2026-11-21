@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @layout Layout.CloudLayout
 @rendermode InteractiveServer
+@implements IDisposable
 @using System.Globalization
 @using OpenConnect.Docs.Cloud
 @inject IServiceProvider Services
@@ -45,6 +46,37 @@ else if (_page is not null)
         <button class="button" type="button" disabled="@(!_interactive || _loading || _pageIndex == 0)" @onclick="PreviousAsync">Previous</button>
         <button class="button" type="button" disabled="@(!_interactive || _loading || _page.Next is null)" @onclick="NextAsync">Next</button>
     </nav>
+    @if (_analytics is not null)
+    {
+        <section aria-label="Analytics privacy cases">
+            <h2>Analytics privacy cases</h2>
+            <p>All recorded analytics checks are counted, including repeats. The most recent 50 cases are shown. Date filters above do not apply. Inspection can stop after a block, so category counts are not a complete inventory.</p>
+            <h3>Recorded decisions</h3>
+            @if (_analytics.Totals.Count == 0) { <p>No analytics privacy decisions were recorded.</p> }
+            else { <ul>@foreach (var total in _analytics.Totals) { <li>@total.Direction â€” @total.Outcome: @total.Count</li> }</ul> }
+            <h3>Detected categories</h3>
+            @if (_analytics.Categories.Count == 0) { <p>No sensitive categories were recorded.</p> }
+            else { <ul>@foreach (var category in _analytics.Categories) { <li>@category.Direction â€” @category.Category: @category.Count</li> }</ul> }
+            @foreach (var item in _analytics.RecentCases)
+            {
+                <article class="security-observation">
+                    <h3>@item.Direction â€” @item.Outcome</h3>
+                    <dl>
+                        <dt>Case ID</dt><dd><code>@item.Id</code></dd>
+                        <dt>Observed at (UTC)</dt><dd>@item.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        <dt>Application ID</dt><dd><code>@item.ApplicationId</code></dd>
+                        <dt>Request ID</dt><dd><code>@item.RequestId</code></dd>
+                        <dt>Trace ID</dt><dd><code>@item.TraceId</code></dd>
+                        <dt>Action</dt><dd>@(item.Outcome == "allowed" ? "Allowed by the privacy check; execution is not confirmed." : "Content was blocked at this boundary.")</dd>
+                        <dt>Detected categories</dt><dd>
+                            @if (item.Categories.Count == 0) { <span>None recorded.</span> }
+                            else { <ul>@foreach (var category in item.Categories) { <li>@category.Category: @category.Count</li> }</ul> }
+                        </dd>
+                    </dl>
+                </article>
+            }
+        </section>
+    }
 }
 <p><a href="/cloud">Back to organizations</a></p>
 
@@ -52,13 +84,35 @@ else if (_page is not null)
     private const int PageSize = 20;
     [Parameter] public Guid TenantId { get; set; }
     private CloudPrivacyObservationPage? _page;
+    private CloudAnalyticsPrivacyDashboard? _analytics;
     private readonly List<CloudPrivacyObservationCursor?> _history = [null];
     private int _pageIndex;
     private int _generation;
-    private bool _loading = true, _interactive;
+    private bool _loading = true, _interactive, _disposed;
     private string? _status;
     private string? _fromDate, _toDate;
     private DateTimeOffset? _from, _to;
+
+    protected override void OnInitialized() => AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            ++_generation;
+            _page = null; _analytics = null; _loading = false;
+            _status = "Your identity changed. Reopen security observations to check access.";
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        ++_generation;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
 
     protected override Task OnParametersSetAsync()
     {
@@ -100,15 +154,17 @@ else if (_page is not null)
     private async Task LoadAsync(CloudPrivacyObservationCursor? cursor, int pageIndex)
     {
         var generation = ++_generation; var tenantId = TenantId;
-        _loading = true; _status = null; _page = null;
+        _loading = true; _status = null; _page = null; _analytics = null;
         try
         {
             var service = Services.GetService(typeof(CloudPrivacyObservationService)) as CloudPrivacyObservationService;
+            var analyticsReader = Services.GetService(typeof(ICloudAnalyticsPrivacyReader)) as ICloudAnalyticsPrivacyReader;
             var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
             var subject = CloudIdentity.IsEnabled(authentication.User, identity)
                 ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
             CloudPrivacyObservationPage? page = null;
+            CloudAnalyticsPrivacyDashboard? analytics = null;
             string? status = null;
             if (service is null) status = "The Cloud control plane is not configured.";
             else if (subject is null) status = "The authenticated identity is missing a subject.";
@@ -116,10 +172,19 @@ else if (_page is not null)
             {
                 page = await service.GetTenantAsync(subject, tenantId, _from, _to, cursor, PageSize, CancellationToken.None);
                 if (page is null) status = "The organization was not found or your role does not allow security access.";
+                else if (analyticsReader is not null)
+                {
+                    analytics = await analyticsReader.GetTenantAsync(subject, tenantId, CancellationToken.None);
+                    if (analytics is null) { page = null; status = "The organization was not found or your role does not allow security access."; }
+                }
             }
             if (generation != _generation) return;
-            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; status = "The authenticated identity is no longer available."; }
+            var currentAuthentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var currentSubject = CloudIdentity.IsEnabled(currentAuthentication.User, identity) ? CloudSubjectResolver.FromPrincipal(currentAuthentication.User, identity["Authority"]) : null;
+            if (subject is null || currentSubject != subject) { page = null; analytics = null; status = "The authenticated identity is no longer available."; }
             _page = page; _pageIndex = pageIndex; _status = status;
+            _analytics = page is null ? null : analytics;
         }
         catch (Exception)
         {
