@@ -337,3 +337,7 @@ Cloud features use a shared JSON privacy inspection service for decoded worker-b
 The documentation site exposes client guides and common gateway operations without authentication or generated metadata. Generated API metadata remains optional; authored examples follow the current SDK and gateway contracts.
 
 LiveUI manifest labels for public documentation targets must match their rendered page content so assistant guidance remains accurate when pages change.
+
+### Cloud worker capability catalog
+
+Document, knowledge, vision and analytics capabilities enter the Cloud catalog as not configured, without overwriting existing capability settings. Entitlements, application selection, verified deployment and readiness remain separate gates before use.
