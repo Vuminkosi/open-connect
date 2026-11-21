@@ -45,6 +45,10 @@ test('documentation examples accept input when their controls appear', async ({ 
   await page.getByLabel('Example').selectOption('email');
   await page.getByRole('button', { name: 'Check example' }).click();
   await expect(page.getByText('Detected categories:', { exact: false })).toContainText('EMAIL');
+  await page.getByLabel('Example').selectOption('card');
+  await expect(page.getByText('Detected categories:', { exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Check example' }).click();
+  await expect(page.getByText('Detected categories:', { exact: false })).toContainText('PAYMENT_CARD');
 });
 
 test('assistant operates the privacy firewall example through LiveUI', async ({ page }) => {
@@ -55,9 +59,9 @@ test('assistant operates the privacy firewall example through LiveUI', async ({ 
   await page.getByRole('button', { name: /open openconnect assistant/i }).click();
   await expect(page.locator('.oc-status__text')).toHaveText('Ready');
   await page.getByRole('textbox', { name: /message/i }).fill(
-    'Use the privacy firewall example on this page: select the email example and click Check example.');
+    'Use the privacy firewall example on this page: select the card example and click Check example.');
   await page.getByRole('button', { name: /send/i }).click();
-  await expect(page.getByText('Detected categories:', { exact: false })).toContainText('EMAIL', { timeout: 120_000 });
+  await expect(page.getByText('Detected categories:', { exact: false })).toContainText('PAYMENT_CARD', { timeout: 120_000 });
 });
 
 test('unavailable local transcription disables microphone and leaves text usable', async ({ page }) => {

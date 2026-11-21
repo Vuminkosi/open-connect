@@ -14,6 +14,9 @@ public sealed class PrivacyDemoService
     private static readonly IReadOnlyDictionary<string, string> Examples = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["email"] = "Contact alex@example.test about the order.",
+        ["phone"] = "Call +1 202-555-0123 about the order.",
+        ["card"] = "Test card 4111 1111 1111 1111 for the order.",
+        ["secret"] = "password: example-value",
         ["ordinary"] = "The order is ready for collection."
     };
 

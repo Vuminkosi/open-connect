@@ -4,9 +4,12 @@
     <h2 id="privacy-demo-title">Try the privacy firewall</h2>
     <p>Run a synthetic example through the local rules firewall. Nothing is sent to a model or worker.</p>
     <label for="privacy-demo-example">Example</label>
-    <select id="privacy-demo-example" @bind="_example" disabled="@_running">
+    <select id="privacy-demo-example" @bind="_example" @bind:after="ClearResult" disabled="@_running">
         <option value="email">Message containing a sample email address</option>
-        <option value="ordinary">Message without the sample email address</option>
+        <option value="phone">Message containing a sample phone number</option>
+        <option value="card">Message containing a test card number</option>
+        <option value="secret">Message containing a sample password</option>
+        <option value="ordinary">Message without sensitive data</option>
     </select>
     <button id="privacy-demo-run" type="button" class="button" @onclick="RunAsync" disabled="@_running">Check example</button>
     <div role="status" aria-live="polite">
@@ -37,6 +40,12 @@
     private bool _running;
     private string? _error;
     private PrivacyDemoResult? _result;
+
+    private void ClearResult()
+    {
+        _result = null;
+        _error = null;
+    }
 
     private async Task RunAsync()
     {

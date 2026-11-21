@@ -28,7 +28,7 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
             {
                 LiveUIActionType.Inspect or LiveUIActionType.Focus => Allow(),
                 // LiveUI probes capabilities without a value; the orchestrator rejects value-less execution.
-                LiveUIActionType.Select when context.Action.Parameters.Value is null or "email" or "ordinary" => Allow(),
+                LiveUIActionType.Select when context.Action.Parameters.Value is null or "email" or "phone" or "card" or "secret" or "ordinary" => Allow(),
                 _ => Deny()
             };
         if ((context.Route.Path == "/docs" && context.Target is { Id: "documentation-search", Kind: LiveUITargetKind.Input }) ||

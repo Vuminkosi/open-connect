@@ -57,6 +57,9 @@ public sealed class DocumentationAssistantTests
         Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select, selection))).Allowed);
         Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select,
             selection with { Parameters = new(Value: "email") }))).Allowed);
+        foreach (var example in new[] { "phone", "card", "secret" })
+            Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select,
+                selection with { Parameters = new(Value: example) }))).Allowed);
         Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select,
             selection with { Parameters = new() }))).Allowed);
         Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, select,
