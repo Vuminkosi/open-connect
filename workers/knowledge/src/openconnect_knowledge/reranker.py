@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import threading
 from dataclasses import dataclass
+from itertools import islice
 
 import numpy as np
 import onnx
@@ -94,19 +95,22 @@ class OnnxReranker:
         return result
 
     def rank(self, query: str, candidates: list[Candidate]) -> Ranking:
+        if not isinstance(candidates, list):
+            raise ValueError("invalid_input")
+        snapshot = tuple(islice(candidates, MAX_CANDIDATES + 1))
         if (not isinstance(query, str) or not query.strip() or len(query) > 8192
-                or not isinstance(candidates, list) or not 1 <= len(candidates) <= MAX_CANDIDATES
+                or not 1 <= len(snapshot) <= MAX_CANDIDATES
                 or any(not isinstance(item, Candidate) or not _valid_identifier(item.id)
                        or not isinstance(item.text, str)
-                       or not item.text.strip() or len(item.text) > 8192 for item in candidates)
-                or sum(len(item.text) for item in candidates) + len(query) > MAX_TOTAL_CHARS
-                or len({item.id for item in candidates}) != len(candidates)):
+                       or not item.text.strip() or len(item.text) > 8192 for item in snapshot)
+                or sum(len(item.text) for item in snapshot) + len(query) > MAX_TOTAL_CHARS
+                or len({item.id for item in snapshot}) != len(snapshot)):
             raise ValueError("invalid_input")
         self._verify()
         with self._lock:
             self._tokenizer.no_padding()
             self._tokenizer.no_truncation()
-            pairs = [(query, item.text) for item in candidates]
+            pairs = [(query, item.text) for item in snapshot]
             encoded = self._tokenizer.encode_batch(pairs)
             if any(len(item.ids) > self._max_tokens for item in encoded):
                 raise ValueError("token_limit_exceeded")
@@ -118,11 +122,11 @@ class OnnxReranker:
                 feeds["token_type_ids"] = np.asarray([item.type_ids for item in encoded], dtype=np.int64)
             output = self._session.run(None, feeds)
         values = np.asarray(output[0])
-        if values.shape not in {(len(candidates),), (len(candidates), 1)} or not np.isfinite(values).all():
+        if values.shape not in {(len(snapshot),), (len(snapshot), 1)} or not np.isfinite(values).all():
             raise RuntimeError("model_output_invalid")
         scores = [float(value) for value in values.reshape(-1)]
         if not all(math.isfinite(score) for score in scores):
             raise RuntimeError("model_output_invalid")
-        order = sorted(range(len(candidates)), key=lambda i: (-scores[i], i))
-        return Ranking(tuple(RankedCandidate(candidates[i].id, scores[i]) for i in order),
+        order = sorted(range(len(snapshot)), key=lambda i: (-scores[i], i))
+        return Ranking(tuple(RankedCandidate(snapshot[i].id, scores[i]) for i in order),
                        self._manifest.modelId, self._fingerprint)

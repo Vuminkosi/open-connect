@@ -53,6 +53,23 @@ def test_long_pairs_are_rejected_not_silently_truncated(engine):
         model.rank("tree tree tree", [Candidate("a", "wood wood wood")])
 
 
+def test_reranker_uses_the_same_bounded_candidate_snapshot_after_validation(engine):
+    model, _ = engine
+
+    class ChangingCandidates(list):
+        iterations = 0
+
+        def __iter__(self):
+            self.iterations += 1
+            return iter([Candidate("authorized", "wood")] if self.iterations == 1
+                        else [Candidate("other", "forest")])
+
+    candidates = ChangingCandidates([Candidate("authorized", "wood")])
+    result = model.rank("tree", candidates)
+    assert candidates.iterations == 1
+    assert [item.id for item in result.candidates] == ["authorized"]
+
+
 def test_duplicate_identifiers_and_corrupt_cache_fail_closed(engine):
     model, revision = engine
     with pytest.raises(ValueError, match="invalid_input"):
