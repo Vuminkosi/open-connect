@@ -14,6 +14,8 @@ The generated API index filters by document name and renders a bounded page of m
 
 Documentation for document processing and semantic memory describes SDK client contracts, host authorization and scoped data handling; worker readiness or an indexing receipt is not presented as proof of durable, authorized retrieval.
 
+The API reference guide links authored client guides and versioned wire contracts, and documents the repository-pinned DocFX generation workflow separately from published-package validation.
+
 Privacy documentation distinguishes the token vault's tenant, principal, session and purpose scope from any additional turn or policy-revision restrictions imposed by the host.
 
 The public privacy example runs fixed synthetic inputs through an isolated SDK rules firewall without a token vault or external egress. It does not accept visitor-entered sensitive data or imply that detection is complete. The documentation LiveUI policy may select only the predefined examples and trigger this idempotent example only on the privacy guide.
