@@ -14,6 +14,8 @@ The generated API index filters by document name and renders a bounded page of m
 
 Documentation for document processing and semantic memory describes SDK client contracts, host authorization and scoped data handling; worker readiness or an indexing receipt is not presented as proof of durable, authorized retrieval.
 
+The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
+
 The API reference guide links authored client guides and versioned wire contracts, and documents the repository-pinned DocFX generation workflow separately from published-package validation.
 
 The documentation image build context includes the LiveUI source projects and compiler referenced by the site, so a clean container build can compose the interactive documentation client.

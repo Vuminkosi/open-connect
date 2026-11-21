@@ -24,6 +24,7 @@
     <Project Path="src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
     <Project Path="src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
     <Project Path="src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <Project Path="src/OpenConnect.Documents/OpenConnect.Documents.csproj" />
     <Project Path="src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
     <Project Path="src/OpenConnect.Knowledge/OpenConnect.Knowledge.csproj" />
     <Project Path="src/OpenConnect.Metering/OpenConnect.Metering.csproj" />
@@ -52,6 +53,7 @@
     <Project Path="tests/Unit/OpenConnect.Blazor.Tests/OpenConnect.Blazor.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Client.Tests/OpenConnect.Client.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Documents.Tests/OpenConnect.Documents.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Hosting.Tests/OpenConnect.Hosting.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Knowledge.Tests/OpenConnect.Knowledge.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Metering.Tests/OpenConnect.Metering.Tests.csproj" />
