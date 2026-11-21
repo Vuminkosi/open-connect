@@ -47,6 +47,8 @@ public sealed class CloudLiveUILiveSystemTests
         var revision = Required("OPENCONNECT_TEST_MODEL_REVISION");
         var digest = Required("OPENCONNECT_TEST_MODEL_DIGEST");
         var metered = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_METERED"), "true", StringComparison.OrdinalIgnoreCase);
+        var injectFailure = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_FAILURE"), "true", StringComparison.OrdinalIgnoreCase);
+        if (injectFailure && !metered) throw new InvalidOperationException("Failure verification requires metered mode.");
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Required("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
@@ -131,6 +133,21 @@ public sealed class CloudLiveUILiveSystemTests
             File.WriteAllText(Path.Combine(workerSecrets, "authority-ca.crt"), authorityCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "gateway-client-ca.crt"), gatewayCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "worker-token"), "fixture-worker-token\n");
+            if (injectFailure)
+                File.WriteAllText(Path.Combine(workerSecrets, "fault.py"), """
+                    import sys
+                    sys.path.insert(0, '/app')
+                    import uvicorn
+                    from app.inference import InferenceEngine
+                    original = InferenceEngine.generate_metered
+                    def fail_after_usage(self, request, report):
+                        original(self, request, report)
+                        raise ValueError('fixture failure after usage')
+                    InferenceEngine.generate_metered = fail_after_usage
+                    uvicorn.run('app.main:app', host='0.0.0.0', port=8080,
+                        ssl_certfile='/run/openconnect-cloud/server.crt', ssl_keyfile='/run/openconnect-cloud/server.key',
+                        ssl_ca_certs='/run/openconnect-cloud/gateway-client-ca.crt', ssl_cert_reqs=2, access_log=False)
+                    """);
             WriteCertificate(gatewaySecrets, "gateway", gatewayCert);
             File.WriteAllText(Path.Combine(gatewaySecrets, "authority-ca.crt"), authorityCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(gatewaySecrets, "worker-ca.crt"), workerServerCert.ExportCertificatePem());
@@ -150,7 +167,8 @@ public sealed class CloudLiveUILiveSystemTests
                 "OPENCONNECT_CLOUD_WORKER_CERT_FILE=/run/openconnect-cloud/authority-client.crt", "OPENCONNECT_CLOUD_WORKER_KEY_FILE=/run/openconnect-cloud/authority-client.key" }))
                 workerArgs.AddRange(["-e", value]);
             workerArgs.Add(Required("OPENCONNECT_TEST_WORKER_IMAGE"));
-            workerArgs.AddRange(["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080",
+            if (injectFailure) workerArgs.AddRange(["python", "/run/openconnect-cloud/fault.py"]);
+            else workerArgs.AddRange(["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080",
                 "--ssl-certfile", "/run/openconnect-cloud/server.crt", "--ssl-keyfile", "/run/openconnect-cloud/server.key",
                 "--ssl-ca-certs", "/run/openconnect-cloud/gateway-client-ca.crt", "--ssl-cert-reqs", "2", "--no-access-log"]);
             await Docker(workerArgs.ToArray());
@@ -187,6 +205,28 @@ public sealed class CloudLiveUILiveSystemTests
                 Assert.Fail($"Cloud gateway and worker did not become ready. Readiness: {readiness} Gateway: {gatewayLogs} Worker: {workerLogs}");
             }
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential.Secret);
+            if (injectFailure)
+            {
+                var failureId = Guid.NewGuid();
+                var failureRequest = new { schemaVersion = "openconnect.cloud.liveui/v1", requestId = failureId,
+                    capability = "inference.liveui", expiresAt = DateTimeOffset.UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture),
+                    input = new { schemaVersion = "openconnect.liveui/v1", intent = "Select the Completed tab.", context = new { route = "todo.home",
+                        availableActions = new[] { new { target = "todo.tab.all", action = "activate" }, new { target = "todo.tab.completed", action = "activate" } } },
+                        generation = new { maxActions = 8, maxOutputTokens = 128 } } };
+                using var failureResponse = await http.PostAsJsonAsync("/cloud/v1/liveui/plan", failureRequest);
+                Assert.False(failureResponse.IsSuccessStatusCode);
+                await using var failedDb = await factory.CreateDbContextAsync();
+                var failedReservation = await failedDb.QuotaReservations.SingleAsync(r => r.TenantId == tenant.Id && r.RequestId == failureId);
+                Assert.Equal(1, failedReservation.Actual); Assert.NotNull(failedReservation.FinalizedAt);
+                var tokens = await failedDb.Database.SqlQuery<long>($"""
+                    SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {failedReservation.Id}
+                    """).SingleAsync();
+                Assert.InRange(tokens, 1, 2048);
+                Assert.Equal(1, await failedDb.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_execution_failures WHERE \"PlanReservationId\" = {failedReservation.Id}").SingleAsync());
+                Assert.False(await failedDb.ExecutionCompletions.AnyAsync(c => c.ReservationId == failedReservation.Id));
+                Assert.Equal(0, await failedDb.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {failedReservation.Id}").SingleAsync());
+                return;
+            }
             var requestId = Guid.NewGuid();
             var request = new { schemaVersion = "openconnect.cloud.liveui/v1", requestId, capability = "inference.liveui",
                 expiresAt = DateTimeOffset.UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture),

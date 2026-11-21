@@ -281,3 +281,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add worker-certificate-bound failed-execution settlement for known LiveUI token usage, with immutable failure evidence, replay and success/failure race checks, output denial and migration-upgrade verification. Unknown-usage reconciliation remains outstanding.
 
 - [x] Report known, validated LiveUI usage when worker generation or plan validation fails, and retain reservations on unknown usage or uncertain completion. Verify worker behavior and the mutual-TLS client.
+
+- [x] Exercise known-usage failure and normal metered success with a provisioned local model, gateway, worker and PostgreSQL; verify failure accounting and absence of successful output evidence.
