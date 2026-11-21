@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/vision-embed-request.json",
+  "title": "Paired vision embedding request", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "vision.embed"},
+    "tenantId": {"type": "string", "minLength": 26, "maxLength": 26, "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"oneOf": [
+      {"type": "object", "additionalProperties": false, "required": ["modality", "contentBase64"],
+       "properties": {"modality": {"const": "image"},
+                      "contentBase64": {"type": "string", "minLength": 1, "maxLength": 13981016}}},
+      {"type": "object", "additionalProperties": false, "required": ["modality", "text"],
+       "properties": {"modality": {"const": "text"}, "text": {"type": "string", "minLength": 1, "maxLength": 8192}}}
+    ]}
+  }
+}

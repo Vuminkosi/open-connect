@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/vision-analyze-response.json",
+  "title": "Vision analysis response", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "vision.analyze"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_fingerprint", "taxonomy_version", "preprocessing_version", "width", "height", "classifications"],
+      "properties": {
+        "model_id": {"type": "string", "minLength": 1},
+        "model_fingerprint": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+        "taxonomy_version": {"type": "string", "minLength": 1, "maxLength": 128},
+        "preprocessing_version": {"const": "imagenet-center224-v1"},
+        "width": {"type": "integer", "minimum": 1}, "height": {"type": "integer", "minimum": 1},
+        "classifications": {"type": "array", "minItems": 1, "maxItems": 20, "items": {
+          "type": "object", "additionalProperties": false, "required": ["label", "class_index", "score"],
+          "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 256},
+                         "class_index": {"type": "integer", "minimum": 0, "maximum": 999},
+                         "score": {"type": "number", "minimum": 0, "maximum": 1}}
+        }}
+      }}
+  }
+}

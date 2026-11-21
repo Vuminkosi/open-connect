@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/vision-embed-response.json",
+  "title": "Paired vision embedding response", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "vision.embed"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["vector", "model_id", "fingerprint", "space_id", "dimension"],
+      "properties": {
+        "vector": {"type": "array", "minItems": 512, "maxItems": 512,
+                   "items": {"type": "number", "minimum": -1, "maximum": 1}},
+        "model_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "fingerprint": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+        "space_id": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+        "dimension": {"const": 512}
+      }}
+  }
+}
