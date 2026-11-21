@@ -65,11 +65,12 @@ window.ocComposerVoice = (() => {
     socket.addEventListener('close', () => { clearTimeout(timer); reject(new Error('voice_socket_closed')); }, { once: true });
   });
 
-  const start = async (dotnet, sessionId, speechEpoch, endpoint) => {
+  const start = async (dotnet, sessionId, speechEpoch, endpoint, ticket) => {
     await stop(false, 'restarted');
     const captureId = crypto.randomUUID();
     const url = toWs(endpoint || `${window.location.origin}/openconnect/v1/voice/realtime/${encodeURIComponent(sessionId)}`);
-    const socket = new WebSocket(url, 'openconnect.voice.v1');
+    const protocols = ticket ? ['openconnect.voice.v1', `oc-ticket.${ticket}`] : 'openconnect.voice.v1';
+    const socket = new WebSocket(url, protocols);
     socket.binaryType = 'arraybuffer';
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });

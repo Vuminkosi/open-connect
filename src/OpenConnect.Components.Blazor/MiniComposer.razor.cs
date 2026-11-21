@@ -69,6 +69,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// <summary>Optional absolute voice WebSocket endpoint. Defaults to the current origin gateway route.</summary>
     [Parameter] public string? VoiceEndpoint { get; set; }
 
+    /// <summary>Optionally issues a single-use voice connection ticket for the current session.</summary>
+    [Parameter] public Func<string, string?>? VoiceConnectionTicket { get; set; }
+
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
@@ -974,7 +977,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             return;
         try
         {
-            await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint).ConfigureAwait(false);
+            var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
+            await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket).ConfigureAwait(false);
             _voiceActive = true;
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)

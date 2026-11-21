@@ -13,7 +13,7 @@ test(`${scenario} voice socket close stops microphone capture`, async ({ page })
     } });
     window.WebSocket = class {
       static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
-      constructor() { this.readyState = 1; window.__voiceTest.socket = this; }
+      constructor(url, protocols) { this.readyState = 1; window.__voiceTest.socket = this; window.__voiceTest.protocols = protocols; }
       send() {}
     };
     window.AudioContext = class {
@@ -37,7 +37,7 @@ test(`${scenario} voice socket close stops microphone capture`, async ({ page })
   await page.addScriptTag({ path: path.resolve('../../src/OpenConnect.Components.Blazor/wwwroot/js/composer-voice.js') });
   await page.evaluate(async scenario => {
     const dotnet = { invokeMethodAsync: async (...args) => { window.__voiceTest.calls.push(args); } };
-    try { await window.ocComposerVoice.start(dotnet, 'session', 1); }
+    try { await window.ocComposerVoice.start(dotnet, 'session', 1, null, 'ticket-example'); }
     catch (error) { if (scenario === 'during startup') return; throw error; }
     if (scenario === 'completed') await window.__voiceTest.socket.onmessage({ data: JSON.stringify({
       type: 'transcript-final', authoritative: true, text: 'example'
@@ -47,6 +47,7 @@ test(`${scenario} voice socket close stops microphone capture`, async ({ page })
   }, scenario);
   expect(await page.evaluate(() => window.__voiceTest.stopped)).toBe(true);
   expect(await page.evaluate(() => window.__voiceTest.contextClosed)).toBe(true);
+  expect(await page.evaluate(() => window.__voiceTest.protocols)).toEqual(['openconnect.voice.v1', 'oc-ticket.ticket-example']);
   await expect.poll(() => page.evaluate(expected => window.__voiceTest.calls.some(call =>
     call[0] === expected), scenario === 'completed' ? 'OnVoiceStopped' : 'OnVoiceError')).toBe(true);
 });

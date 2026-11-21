@@ -4,11 +4,13 @@
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
+@using OpenConnect.Docs.Services.Voice
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject DocumentationAssistantAvailability Availability
 @inject LiveUIManifest Manifest
 @inject IJSRuntime JS
+@inject IServiceProvider Services
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_dark" />
 <MudPopoverProvider />
@@ -25,12 +27,20 @@
         <MiniComposer Placement="ComposerPlacement.BottomRight"
                       AssistantName="OpenConnect Assistant"
                       Placeholder="Ask about OpenConnect..."
+                      VoiceConnectionTicket="IssueVoiceTicket"
                       CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
         <OpenConnectNavigatorProvider />
     </OpenConnectLiveUIProvider>
 </OpenConnectProvider>
 
 @code {
+    private string? IssueVoiceTicket(string sessionId)
+    {
+        var tickets = Services.GetService<DocumentationVoiceTickets>();
+        var visitor = Services.GetService<DocumentationGatewayVisitorIdentity>();
+        return tickets is not null && visitor is not null ? tickets.Issue(sessionId, visitor.Token) : null;
+    }
+
     private bool _dark;
     private long _subscription;
     private DotNetObjectReference<SiteAssistant>? _reference;
