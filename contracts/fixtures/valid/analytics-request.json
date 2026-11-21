@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","taskId":"fixture","kind":"analytics.analyze","tenantId":"01ARZ3NDEKTSV4RRFFQ69G5FAV","issuedAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:01:00Z","payload":{"feature":"weight","unit":"kg","lineage":"fixture","values":[1,2,null,4],"trend":true}}
