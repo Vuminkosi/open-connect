@@ -25,5 +25,8 @@
 site/OpenConnect.Docs/Properties/
 **/secrets/
 **/.env
+**/.env.*
 **/*.pfx
+**/*.p12
+**/*.pem
 **/*.key
