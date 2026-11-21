@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "fixture",
+  "kind": "knowledge.index.status",
+  "result": {
+    "state": "completed",
+    "attempts": 1,
+    "result_generation": 1,
+    "retry_at": null
+  }
+}

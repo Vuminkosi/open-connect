@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-status-response.json",
+  "title": "Knowledge index status response",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index.status"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["state", "attempts", "result_generation", "retry_at"],
+      "properties": {
+        "state": {"enum": ["pending", "leased", "completed", "dead"]},
+        "attempts": {"type": "integer", "minimum": 0, "maximum": 8},
+        "result_generation": {"type": ["integer", "null"], "minimum": 1, "maximum": 9223372036854775807},
+        "retry_at": {"anyOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]}
+      },
+      "allOf": [
+        {"if": {"properties": {"state": {"const": "completed"}}},
+         "then": {"properties": {"result_generation": {"type": "integer", "minimum": 1}}},
+         "else": {"properties": {"result_generation": {"type": "null"}}}},
+        {"if": {"properties": {"state": {"not": {"const": "pending"}}}},
+         "then": {"properties": {"retry_at": {"type": "null"}}}}
+      ]
+    }
+  }
+}

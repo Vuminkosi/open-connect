@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-delete-response.json",
+  "title": "Knowledge index deletion receipt",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index.delete"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["generation", "reconciliation_state"],
+      "properties": {
+        "generation": {"type": "integer", "minimum": 1},
+        "reconciliation_state": {"enum": ["pending", "leased", "delivered", "dead"]}
+      }
+    }
+  }
+}

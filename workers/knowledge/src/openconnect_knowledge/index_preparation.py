@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from itertools import islice
 from typing import Literal, Protocol, Sequence
 
 from openconnect_knowledge.chunking import Chunk, DocumentScope, SourcePage, chunk_pages
@@ -17,13 +18,13 @@ class PassageEmbedder(Protocol):
     def embed(self, texts: list[str], *, input_kind: Literal["query", "passage"]) -> EmbeddingBatch: ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class PreparedChunk:
     chunk: Chunk
     vector: tuple[float, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class PreparedDocument:
     scope: DocumentScope
     model_id: str
@@ -64,15 +65,20 @@ def prepare_document(scope: DocumentScope, pages: Sequence[SourcePage], engine: 
         elif (batch.model_id, batch.fingerprint, batch.dimension) != (model_id, fingerprint, dimension):
             raise ValueError("embedding_space_changed")
         for chunk, embedding in zip(chunks[offset:end], batch.items, strict=True):
-            vector = embedding.vector
-            if (embedding.truncated or len(vector) != dimension
-                    or any(not isinstance(value, (int, float)) or isinstance(value, bool)
-                           or not math.isfinite(value) or abs(value) > 1 for value in vector)):
+            snapshot = tuple(islice(embedding.vector, 8193))
+            if (embedding.truncated or len(snapshot) != dimension
+                    or any(not isinstance(value, (int, float)) or isinstance(value, bool) for value in snapshot)):
                 raise ValueError("embedding_invalid_or_truncated")
-            norm = math.sqrt(math.fsum(float(value) ** 2 for value in vector))
+            try:
+                vector = tuple(float(value) for value in snapshot)
+            except (OverflowError, ValueError, TypeError):
+                raise ValueError("embedding_invalid_or_truncated") from None
+            if any(not math.isfinite(value) or abs(value) > 1 for value in vector):
+                raise ValueError("embedding_invalid_or_truncated")
+            norm = math.sqrt(math.fsum(value * value for value in vector))
             if not math.isfinite(norm) or abs(norm - 1) > 0.001:
                 raise ValueError("embedding_invalid_or_truncated")
-            prepared.append(PreparedChunk(chunk, tuple(float(value) for value in vector)))
+            prepared.append(PreparedChunk(chunk, vector))
         offset = end
     assert model_id is not None and fingerprint is not None and dimension is not None
     return PreparedDocument(scope, model_id, fingerprint, dimension, tuple(prepared))

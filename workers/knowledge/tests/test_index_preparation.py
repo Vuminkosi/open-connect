@@ -5,6 +5,7 @@ import pytest
 from openconnect_knowledge.chunking import DocumentScope, SourcePage
 from openconnect_knowledge.embeddings import Embedding, EmbeddingBatch
 from openconnect_knowledge.index_preparation import prepare_document
+from openconnect_knowledge.postgres_index import _validate
 
 SCOPE = DocumentScope("tenant", "app", "collection", "document", "revision", "a" * 64)
 
@@ -66,3 +67,40 @@ def test_bad_or_inconsistent_embedding_batches_fail_without_projection(mutation)
 def test_empty_document_cannot_create_projection():
     with pytest.raises(ValueError, match="empty_document"):
         prepare_document(SCOPE, [SourcePage("p", "  \n")], Engine())
+
+
+def test_projection_uses_the_same_converted_vector_it_validates():
+    class ChangingFloat(float):
+        calls = 0
+
+        def __float__(self):
+            self.calls += 1
+            return 1.0 if self.calls == 1 else float("nan")
+
+    value = ChangingFloat(1.0)
+
+    class ChangingEngine(Engine):
+        def embed(self, texts, *, input_kind):
+            return EmbeddingBatch((Embedding((value, 0.0), False, 1.0),), "model", "b" * 64, 2,
+                                  SCOPE.embedding_space_id)
+
+    result = prepare_document(SCOPE, [SourcePage("p", "forest")], ChangingEngine())
+    assert result.chunks[0].vector == (1.0, 0.0)
+    assert value.calls == 1
+
+
+def test_index_writer_rejects_subclassed_vectors_and_values():
+    class ChangingFloat(float):
+        def __float__(self):
+            return float("nan")
+
+    class ChangingTuple(tuple):
+        pass
+
+    document = prepare_document(SCOPE, [SourcePage("p", "forest")], Engine())
+    assert len(_validate(document)) == 64
+    chunk = document.chunks[0]
+    for vector in ((ChangingFloat(1.0), 0.0), ChangingTuple((1.0, 0.0))):
+        invalid = replace(document, chunks=(replace(chunk, vector=vector),))
+        with pytest.raises(ValueError, match="invalid_projection"):
+            _validate(invalid)
