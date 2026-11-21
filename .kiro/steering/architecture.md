@@ -18,6 +18,8 @@ The document SDK composes separately authorized OCR and structured extraction cl
 
 The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
 
+A disposable local wire fixture exercises the documentation document workflow over a Unix socket and HTTP, including signed requests, tenant binding and citation handling. It does not establish scanner, model or real-worker readiness.
+
 The API reference guide links authored client guides and versioned wire contracts, and documents the repository-pinned DocFX generation workflow separately from published-package validation.
 
 The documentation image build context includes the LiveUI source projects and compiler referenced by the site, so a clean container build can compose the interactive documentation client.
