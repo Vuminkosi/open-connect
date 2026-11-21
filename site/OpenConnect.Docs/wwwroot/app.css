@@ -50,10 +50,13 @@
 :root[data-theme="light"] .cloud-content :is(button, input, select, textarea, a):focus-visible { outline-color: #127b72; }
 
 /* Documentation article and its local section navigation. */
+@media (min-width: 801px) {
+  .sidebar { position: sticky; top: 90px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; overscroll-behavior: contain; }
+}
 @media (min-width: 1200px) {
   .shell { max-width: 1520px; grid-template-columns: 250px minmax(0, 1fr); }
   .doc-layout { display: grid; grid-template-columns: minmax(0, 850px) 190px; gap: 38px; align-items: start; }
-  .doc-toc { position: sticky; top: 90px; max-height: calc(100vh - 110px); overflow-y: auto; }
+  .doc-toc { position: sticky; top: 90px; max-height: calc(100vh - 110px); overflow-y: auto; overscroll-behavior: contain; }
 }
 .doc-article { min-width: 0; }
 .doc-toc { border-left: 1px solid #dbe4ef; padding-left: 18px; font-size: .86rem; line-height: 1.4; }

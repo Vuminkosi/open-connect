@@ -1,6 +1,9 @@
 namespace OpenConnect.Docs.Cloud;
 
-public sealed record CloudPrivacyObservation(Guid Id, Guid ApplicationId, Guid RequestId, string Outcome, string TraceId, DateTimeOffset OccurredAt);
+public sealed record CloudPrivacyObservation(Guid Id, Guid ApplicationId, Guid RequestId, string Outcome, string TraceId, DateTimeOffset OccurredAt)
+{
+    public IReadOnlyList<CloudPrivacyCategoryCount>? Categories { get; init; }
+}
 public sealed record CloudPrivacyObservationCursor(DateTimeOffset OccurredAt, Guid Id);
 public sealed record CloudPrivacyObservationPage(IReadOnlyList<CloudPrivacyObservation> Observations, CloudPrivacyObservationCursor? Next);
 

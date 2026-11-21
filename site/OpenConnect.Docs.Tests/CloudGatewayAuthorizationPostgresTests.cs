@@ -555,6 +555,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 Assert.Equal(2, evidence.Count(x => x.Outcome == "privacy_blocked"));
                 Assert.Equal(2, evidence.Count(x => x.RequestId == sequenceRequestId && x.Outcome == "allowed"));
                 Assert.Contains(evidence, x => x.Outcome == "privacy_blocked" && x.TraceId == blocked.TraceId);
+                Assert.All(evidence.Where(x => x.Outcome == "privacy_blocked"), x =>
+                    Assert.Equal(new CloudPrivacyCategoryCount("EMAIL", 1), Assert.Single(CloudPrivacyCategories.Decode(x.CategoryCounts, x.Outcome)!)));
+                Assert.All(evidence.Where(x => x.Outcome == "allowed"), x => Assert.Empty(CloudPrivacyCategories.Decode(x.CategoryCounts, x.Outcome)!));
                 Assert.Contains(evidence, x => x.Outcome == "allowed" && x.TraceId == clean.TraceId);
                 Assert.All(evidence, x => { Assert.True(x.RequestId == Guid.Parse("11111111-1111-1111-1111-111111111111") || x.RequestId == sequenceRequestId || x.RequestId == realRequestId); Assert.Matches("^[0-9a-f]{32}$", x.TraceId); });
                 Assert.DoesNotContain("person@example.com", System.Text.Json.JsonSerializer.Serialize(evidence));

@@ -21,6 +21,7 @@ public sealed class CloudUsageComponentTests : BunitContext
         Services.AddSingleton<ICloudUsageSummaryReader>(new SummaryReader(tenant));
         Services.AddSingleton<CloudUsageSummaryService>();
         Services.AddSingleton<ICloudAnalyticsComputeUsageReader>(new ComputeReader(tenant));
+        Services.AddSingleton<ICloudKnowledgeEmbeddingUsageReader>(new EmbeddingReader(tenant));
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example" }).Build());
@@ -36,6 +37,8 @@ public sealed class CloudUsageComponentTests : BunitContext
         Assert.Contains("Daily breakdown", component.Markup);
         Assert.Contains("Analytics calculation time", component.Markup);
         Assert.Contains("1234 ms", component.Markup);
+        Assert.Contains("Embedding input characters", component.Markup);
+        Assert.Contains("4321", component.Markup);
         Assert.Contains("Ledger records", component.Markup);
         component.Render(p => p.Add(x => x.TenantId, Guid.NewGuid()));
         Assert.Contains("does not allow usage access", component.Markup);
@@ -59,6 +62,12 @@ public sealed class CloudUsageComponentTests : BunitContext
     {
         public Task<CloudAnalyticsComputeSummary?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
             Task.FromResult<CloudAnalyticsComputeSummary?>(tenantId == tenant ? new([new CloudAnalyticsComputeDailyTotal(DateTime.UnixEpoch, Guid.NewGuid(), 1234, 2)], false) : null);
+    }
+
+    private sealed class EmbeddingReader(Guid tenant) : ICloudKnowledgeEmbeddingUsageReader
+    {
+        public Task<CloudKnowledgeEmbeddingUsageSummary?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+            Task.FromResult<CloudKnowledgeEmbeddingUsageSummary?>(tenantId == tenant ? new([new CloudKnowledgeEmbeddingUsageDailyTotal(DateTime.UnixEpoch, Guid.NewGuid(), 4321, 2)], false) : null);
     }
 
     private sealed class Reader(Guid tenant) : ICloudUsageReader

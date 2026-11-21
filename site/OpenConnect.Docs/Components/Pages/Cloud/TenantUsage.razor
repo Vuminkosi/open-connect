@@ -68,6 +68,28 @@ else if (_page is not null)
             </div>
         }
     </section>
+    <section aria-labelledby="embedding-usage-title">
+        <h2 id="embedding-usage-title">Embedding input characters</h2>
+        <p>Unicode scalar values in settled embedding requests. These counts are usage evidence; they are not a price or invoice.</p>
+        @if (_embeddingStatus is not null) { <p role="status">@_embeddingStatus</p> }
+        else if (_embedding is null) { <p>Select a date range of at most 93 days to see embedding usage.</p> }
+        else if (_embedding.LimitExceeded) { <p>There are too many groups to display. Select a shorter date range.</p> }
+        else if (_embedding.Totals.Count == 0) { <p>No embedding usage was recorded for this period.</p> }
+        else
+        {
+            <div class="cloud-capabilities">
+                @foreach (var total in _embedding.Totals)
+                {
+                    <article class="quota-card">
+                        <h3>@total.DayUtc.ToString("yyyy-MM-dd")</h3>
+                        <dl><dt>Application ID</dt><dd><code>@total.ApplicationId</code></dd>
+                            <dt>Input characters</dt><dd>@total.InputCharacters</dd>
+                            <dt>Completed requests</dt><dd>@total.Records</dd></dl>
+                    </article>
+                }
+            </div>
+        }
+    </section>
     <h2>Ledger entries</h2>
     @if (_page.Entries.Count == 0) { <p>No recorded usage was found for this period.</p> }
     else
@@ -109,8 +131,10 @@ else if (_page is not null)
     private CloudUsagePage? _page;
     private CloudUsageSummary? _summary;
     private CloudAnalyticsComputeSummary? _analytics;
+    private CloudKnowledgeEmbeddingUsageSummary? _embedding;
     private string? _summaryStatus;
     private string? _analyticsStatus;
+    private string? _embeddingStatus;
     private readonly List<CloudUsageCursor?> _history = [null];
     private int _pageIndex, _generation;
     private bool _loading = true, _interactive;
@@ -158,7 +182,7 @@ else if (_page is not null)
     private async Task LoadAsync(CloudUsageCursor? cursor, int pageIndex)
     {
         var generation = ++_generation; var tenantId = TenantId;
-        _loading = true; _status = null; _page = null; _summary = null; _summaryStatus = null; _analytics = null; _analyticsStatus = null;
+        _loading = true; _status = null; _page = null; _summary = null; _summaryStatus = null; _analytics = null; _analyticsStatus = null; _embedding = null; _embeddingStatus = null;
         try
         {
             var service = Services.GetService(typeof(CloudUsageQueryService)) as CloudUsageQueryService;
@@ -176,6 +200,7 @@ else if (_page is not null)
             }
             CloudUsageSummary? summary = null; string? summaryStatus = null;
             CloudAnalyticsComputeSummary? analytics = null; string? analyticsStatus = null;
+            CloudKnowledgeEmbeddingUsageSummary? embedding = null; string? embeddingStatus = null;
             if (page is not null && subject is not null && _from is not null && _to is not null && _to.Value - _from.Value <= TimeSpan.FromDays(93))
             {
                 try
@@ -200,12 +225,23 @@ else if (_page is not null)
                     }
                 }
                 catch (Exception) { Logger.LogWarning("Cloud analytics compute usage lookup failed."); analyticsStatus = "Analytics calculation time is temporarily unavailable."; }
-
+                try
+                {
+                    var reader = Services.GetService(typeof(ICloudKnowledgeEmbeddingUsageReader)) as ICloudKnowledgeEmbeddingUsageReader;
+                    if (reader is null) embeddingStatus = "Embedding usage is unavailable.";
+                    else
+                    {
+                        embedding = await reader.GetTenantAsync(subject, tenantId, _from.Value, _to.Value, CancellationToken.None);
+                        if (embedding is null) { page = null; status = "The organization was not found or your role does not allow usage access."; }
+                    }
+                }
+                catch (Exception) { Logger.LogWarning("Cloud embedding usage lookup failed."); embeddingStatus = "Embedding usage is temporarily unavailable."; }
             }
             if (generation != _generation) return;
-            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; summary = null; analytics = null; status = "The authenticated identity is no longer available."; }
+            if (!CloudIdentity.IsEnabled(authentication.User, identity)) { page = null; summary = null; analytics = null; embedding = null; status = "The authenticated identity is no longer available."; }
             _page = page; _pageIndex = pageIndex; _status = status; _summary = summary; _summaryStatus = summaryStatus;
             _analytics = page is null ? null : analytics; _analyticsStatus = analyticsStatus;
+            _embedding = page is null ? null : embedding; _embeddingStatus = embeddingStatus;
         }
         catch (Exception)
         {

@@ -413,3 +413,7 @@ Analytics privacy and compute reports require the appropriate tenant membership 
 The Cloud usage page presents settled analytics calculation time separately from request counts and identifies it as elapsed time rather than a price or invoice.
 
 The Cloud security page presents analytics privacy decisions separately from classification and host reports and clears displayed evidence when the authenticated identity changes.
+
+Document analysis, inference extraction and knowledge indexing run as separately configured workers with application-owned authorization and privacy enforcement. Knowledge indexing uses fenced jobs, an outbox and expiring tenant-scoped records; the optional Cloud and sample integrations require explicit deployment configuration.
+
+Translation execution claims bind a request to its authorized deployment and worker payload. Cloud privacy reporting distinguishes recorded observations from host evidence, and dashboard reads do not themselves consume API quota.

@@ -15,14 +15,17 @@ public sealed partial class CloudTranslationDeploymentMatch(ICloudTranslationDep
 {
     public Task<bool> MatchesAsync(Guid tenantId, CloudTranslationDeploymentMatchRequest? request, CancellationToken cancellationToken)
     {
-        if (tenantId == Guid.Empty || request is null || request.DeploymentId == Guid.Empty ||
+        if (tenantId == Guid.Empty || !IsValid(request)) return Task.FromResult(false);
+        return reader.MatchesAsync(tenantId, request!, cancellationToken);
+    }
+
+    public static bool IsValid(CloudTranslationDeploymentMatchRequest? request) =>
+        !(request is null || request.DeploymentId == Guid.Empty ||
             !CloudDeploymentRegistry.ValidToken(request.EndpointReference, 128) || !CloudDeploymentRegistry.ValidToken(request.Region, 80) ||
             !CloudDeploymentRegistry.ValidToken(request.ContractVersion, 32) || !CloudInferenceModelPolicyService.ValidModelId(request.ModelId) ||
             string.IsNullOrWhiteSpace(request.ModelRevision) || request.ModelRevision.Length > 256 || !Digest(request.ModelDigest) || !Digest(request.ImageDigest) ||
             request.TokenizerHash is null || !HashPattern().IsMatch(request.TokenizerHash) || !Language(request.SourceLang) || !Language(request.TargetLang) ||
-            request.SourceLang == request.TargetLang) return Task.FromResult(false);
-        return reader.MatchesAsync(tenantId, request, cancellationToken);
-    }
+            request.SourceLang == request.TargetLang);
 
     private static bool Digest(string? value) => value is not null && value.StartsWith("sha256:", StringComparison.Ordinal) && HashPattern().IsMatch(value[7..]);
     private static bool Language(string? value) => value is not null && LanguagePattern().IsMatch(value);
