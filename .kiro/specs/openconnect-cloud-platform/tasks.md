@@ -321,3 +321,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Prepare a claim-bindable Kokoro worker payload and validate bounded PCM/WAV responses without returning the worker's echoed text. Private transport, claims, privacy, accounting and public execution remain outstanding.
 
 - [x] Add opt-in Kokoro Cloud execution with bounded envelopes, worker authentication, payload-bound mutual-TLS claim consumption and legacy-route denial. Control-plane claim issuance/consumption, gateway dispatch, metering and real-system verification remain outstanding.
+
+- [x] Add a private speech character-reservation endpoint implementation with pinned gateway identity, capability authorization, bounded amounts and fingerprint replay lookup. Verify endpoint gates and concurrent scoped reservations in disposable PostgreSQL. Route registration, trusted input-to-amount binding, claim/consumption and settlement remain outstanding.
