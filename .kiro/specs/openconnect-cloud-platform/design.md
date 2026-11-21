@@ -303,3 +303,5 @@ A focused integration test exercises Cloud host reauthorization through the actu
 A disposable real-system test also sent a model-generated LiveUI request through the Cloud gateway and mutual-TLS worker. The pinned Qwen3 model returned the permitted completed-tab action; input and output privacy evidence and one-plan settlement were verified in PostgreSQL.
 
 The host provider integration also verifies a Qwen-generated allowed action through the same host privacy and authorization boundary, using a controlled page/session fixture and a test-only certificate-pinned HTTPS proxy.
+
+The Cloud LiveUI browser acceptance script verifies the Completed-tab action and a postcondition receipt against a configured application and conversational fixture. The fixture can expect either the existing local worker provider or the Cloud gateway provider; it does not claim real conversational-model coverage.

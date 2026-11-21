@@ -1,6 +1,8 @@
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 
+const expectedWorkerPlanProvider = process.env.OPENCONNECT_LIVEUI_EXPECT_PLAN_PROVIDER === 'Gateway' ? 'Gateway' : 'LocalWorker';
+
 const steps = [
   { name: 'liveui_get_current_page', arguments: {} },
   {
@@ -583,7 +585,7 @@ function checkPreviousToolResult(run, toolMessages) {
   }
   if (step.kind === 'worker_plan') {
     const actions = receipt?.plan?.actions;
-    if (receipt?.provider !== 'LocalWorker' || receipt.outcome !== 'completed' || !Array.isArray(actions) || actions.length !== 1) {
+    if (receipt?.provider !== expectedWorkerPlanProvider || receipt.outcome !== 'completed' || !Array.isArray(actions) || actions.length !== 1) {
       throw new Error(`The local worker did not return one validated action plan: parsed=${JSON.stringify(receipt)} message=${describeToolMessage(priorMessage)}`);
     }
     const action = actions[0];
@@ -938,7 +940,7 @@ const server = http.createServer(async (request, response) => {
         step.evidence = { outcome: result.outcome, provider: result.provider, fallback: 'server-model' };
       } else if (step.kind === 'worker_plan') {
         const actions = result?.plan?.actions;
-        if (result?.provider !== 'LocalWorker' || result.outcome !== 'completed' || !Array.isArray(actions) || actions.length !== 1) {
+        if (result?.provider !== expectedWorkerPlanProvider || result.outcome !== 'completed' || !Array.isArray(actions) || actions.length !== 1) {
           throw new Error(`The local worker did not return one validated action plan: parsed=${JSON.stringify(result)} message=${describeToolMessage(message)}`);
         }
         const action = actions[0];

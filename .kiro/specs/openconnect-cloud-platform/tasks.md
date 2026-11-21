@@ -243,3 +243,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Verify a Qwen-generated allowed LiveUI action through the gateway and private worker, with input/output evidence and plan settlement in disposable PostgreSQL.
 
 - [x] Exercise model-generated LiveUI planning through the .NET host provider, privacy gate, Cloud gateway and private worker; real browser action and receipt verification remain outstanding.
+
+- [x] Add a Cloud LiveUI browser action and receipt acceptance script using the existing controlled conversational fixture; full environment orchestration and production acceptance remain separate.
