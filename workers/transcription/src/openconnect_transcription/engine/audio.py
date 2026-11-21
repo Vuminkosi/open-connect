@@ -39,7 +39,7 @@ class ValidatedAudio:
 
 
 def _decode_b64(payload: str, max_bytes: int) -> bytes:
-    if len(payload) > 7_000_000:
+    if len(payload) > 8_000_000:
         raise AudioValidationError("audio_too_large")
     try:
         raw = base64.b64decode(payload, validate=True)

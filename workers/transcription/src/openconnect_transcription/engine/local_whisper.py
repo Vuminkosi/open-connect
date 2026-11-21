@@ -18,6 +18,11 @@ _loaded_model = None
 
 
 def load_model(cfg, device: str):
+    loaded = load_verified_model(cfg, device)
+    return loaded[0] if loaded is not None else None
+
+
+def load_verified_model(cfg, device: str):
     """Load a verified local revision; never resolve a model ID over the network."""
     global _loaded_key, _loaded_model
     if cfg.backend != "local-model" or cfg.fake_engine or not cfg.model_id or not cfg.model_revision:
@@ -47,7 +52,7 @@ def load_model(cfg, device: str):
 
                 model = WhisperModel(str(model_path), device=device, local_files_only=True)
                 _loaded_model, _loaded_key = model, key
-            return _loaded_model
+            return _loaded_model, verified.fingerprint
     except Exception:
         return None
 

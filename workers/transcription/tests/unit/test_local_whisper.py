@@ -54,7 +54,7 @@ def test_verified_local_model_is_loaded_offline_and_transcribes(provisioned, mon
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize("rate,channels", [(8000, 1), (16000, 2), (48000, 2)])
+@pytest.mark.parametrize("rate,channels", [(8000, 1), (16000, 2), (24000, 1), (48000, 2)])
 def test_audio_is_resampled_to_mono_16khz(rate, channels):
     class Model:
         def transcribe(self, audio, **options):
@@ -117,23 +117,31 @@ def test_audio_inspection_requires_local_real_model_and_binds_audio(provisioned,
     cfg = dataclasses.replace(cfg, worker_token="local-token")
     monkeypatch.setattr(app_module, "settings", cfg)
     client = TestClient(app_module.app)
-    audio = b"\0\0" * 1600
+    audio = b"\0\0" * 2400
     body = {"schemaVersion": "openconnect.v1", "requestId": "123e4567-e89b-42d3-a456-426614174000",
             "input": {"audioBase64": base64.b64encode(audio).decode(), "mimeType": "audio/pcm",
-                      "sampleRateHz": 16000, "channels": 1, "bitsPerSample": 16, "durationMs": 100, "locale": "en"}}
+                      "sampleRateHz": 24000, "channels": 1, "bitsPerSample": 16, "durationMs": 100, "locale": "en"}}
     url = "/internal/v1/audio-inspection/transcribe"
     assert client.post(url, json=body).status_code == 401
     headers = {"Authorization": "Bearer local-token"}
+    readiness = client.get("/internal/v1/audio-inspection/ready", headers=headers)
+    assert readiness.status_code == 200
+    assert len(readiness.json()["modelFingerprint"]) == 64
+    assert 24000 in readiness.json()["sampleRatesHz"]
+    assert readiness.json()["maxAudioBytes"] == cfg.max_audio_bytes
+    assert readiness.json()["maxDurationMs"] == cfg.max_duration_ms
     result = client.post(url, headers=headers, json=body)
     assert result.status_code == 200
     assert result.headers["cache-control"] == "no-store"
     assert result.json()["audioSha256"] == hashlib.sha256(audio).hexdigest()
+    assert result.json()["modelFingerprint"] == readiness.json()["modelFingerprint"]
     assert result.json()["transcript"] == "spoken text"
     assert client.post(url, headers={**headers, "Content-Type": "application/json"},
                        content='{"schemaVersion":"openconnect.v1","schemaVersion":"openconnect.v1"}').status_code == 400
     assert client.post(url, headers={**headers, "Content-Encoding": "gzip"}, json=body).status_code == 415
-    assert client.post(url, headers={**headers, "Content-Length": "7002049"}, json=body).status_code == 413
+    assert client.post(url, headers={**headers, "Content-Length": "8002049"}, json=body).status_code == 413
     for changed in (dataclasses.replace(cfg, fake_engine=True),
                     dataclasses.replace(cfg, cloud_url="https://provider.example")):
         monkeypatch.setattr(app_module, "settings", changed)
         assert client.post(url, headers=headers, json=body).status_code == 503
+        assert client.get("/internal/v1/audio-inspection/ready", headers=headers).status_code == 503

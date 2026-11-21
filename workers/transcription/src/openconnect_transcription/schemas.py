@@ -17,7 +17,7 @@ AudioMime = Literal[
 WAV_MIMES = frozenset({"audio/wav", "audio/x-wav", "audio/vnd.wave", "audio/wave"})
 PCM_MIMES = frozenset({"audio/L16", "audio/pcm"})
 
-ALLOWED_SAMPLE_RATES = frozenset({8_000, 16_000, 22_050, 44_100, 48_000})
+ALLOWED_SAMPLE_RATES = frozenset({8_000, 16_000, 22_050, 24_000, 44_100, 48_000})
 
 
 class TranscribeInput(BaseModel):
@@ -25,7 +25,7 @@ class TranscribeInput(BaseModel):
 
     # Inline base64 PCM/WAV. Bounded; audio bytes are never logged or
     # placed on NATS - only metadata (length, mime, rate) is logged.
-    audioBase64: str = Field(min_length=44, max_length=7_000_000)
+    audioBase64: str = Field(min_length=44, max_length=8_000_000)
     mimeType: AudioMime
     sampleRateHz: int = Field(ge=8_000, le=48_000)
     channels: int = Field(ge=1, le=2)
