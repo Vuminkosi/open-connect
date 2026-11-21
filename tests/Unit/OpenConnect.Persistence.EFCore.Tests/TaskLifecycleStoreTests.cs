@@ -36,6 +36,8 @@ public sealed class TaskLifecycleStoreTests
         await Assert.ThrowsAsync<ArgumentException>(() => tasks.TransitionAsync(id, tenant, principal, AgentRunState.Accepted, AgentRunState.Completed));
 
         var trackedTask = await db.Set<TaskEntity>().SingleAsync();
+        Assert.Equal(1L, trackedTask.Version);
+        Assert.Null(trackedTask.CompletedUtc);
         trackedTask.AgentId = "locally-modified";
         Assert.Equal(EntityState.Modified, db.Entry(trackedTask).State);
 
@@ -44,13 +46,22 @@ public sealed class TaskLifecycleStoreTests
         Assert.Equal(id, running.Id);
         Assert.Equal(tenant, running.TenantId);
         Assert.Equal(principal, running.PrincipalId);
+        var runningRow = await db.Set<TaskEntity>().AsNoTracking().SingleAsync();
+        Assert.Equal(2L, runningRow.Version);
+        Assert.Null(runningRow.CompletedUtc);
         Assert.Null(await tasks.TransitionAsync(id, tenant, principal, AgentRunState.Accepted, AgentRunState.Running));
+        var before = DateTime.UtcNow;
         var completed = await tasks.TransitionAsync(id, tenant, principal, AgentRunState.Running, AgentRunState.Completed);
+        var after = DateTime.UtcNow;
         Assert.Equal(AgentRunState.Completed, completed!.State);
         Assert.Null(await tasks.TransitionAsync(id, tenant, principal, AgentRunState.Running, AgentRunState.Cancelled));
         Assert.Equal(AgentRunState.Completed, (await tasks.GetAsync(id))!.State);
         Assert.Equal(AgentRunState.Completed, (await tasks.GetByIdempotencyKeyAsync("lifecycle-key", tenant, principal))!.State);
-        Assert.Equal(nameof(AgentRunState.Completed), (await db.Set<TaskEntity>().AsNoTracking().SingleAsync()).State);
+        var completedRow = await db.Set<TaskEntity>().AsNoTracking().SingleAsync();
+        Assert.Equal(nameof(AgentRunState.Completed), completedRow.State);
+        Assert.Equal(3L, completedRow.Version);
+        Assert.NotNull(completedRow.CompletedUtc);
+        Assert.InRange(completedRow.CompletedUtc.Value.Ticks, before.Ticks, after.Ticks);
         Assert.Equal(AgentRunState.Completed, (await tasks.AcceptAsync(new(id, tenant, principal, "lifecycle-key"))).State);
         Assert.Equal("locally-modified", trackedTask.AgentId);
         Assert.Equal(EntityState.Modified, db.Entry(trackedTask).State);
@@ -84,6 +95,43 @@ public sealed class TaskLifecycleStoreTests
         Assert.Equal(AgentRunState.Accepted, (await store.GetAsync(id))!.State);
     }
 
+    [Theory]
+    [InlineData(AgentRunState.Running, AgentRunState.Failed, false)]
+    [InlineData(AgentRunState.Accepted, AgentRunState.Cancelled, false)]
+    [InlineData(AgentRunState.Running, AgentRunState.Completed, true)]
+    public async Task Terminal_transition_sets_utc_and_preserves_a_preexisting_completion(
+        AgentRunState source, AgentRunState destination, bool hasCompletion)
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<RelationalPersistenceTests.ApplicationDbContext>()
+            .UseSqlite(connection)
+            .ReplaceService<IModelCacheKeyFactory, OpenConnectModelCacheKeyFactory>()
+            .Options;
+        await using var db = new RelationalPersistenceTests.ApplicationDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var store = new EfTaskStore<RelationalPersistenceTests.ApplicationDbContext>(db);
+        var id = new TaskId(Ulid.NewUlid());
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        await store.AcceptAsync(new(id, tenant, principal, "terminal-key"));
+        if (source == AgentRunState.Running)
+            Assert.NotNull(await store.TransitionAsync(id, tenant, principal, AgentRunState.Accepted, AgentRunState.Running));
+        var existing = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        if (hasCompletion)
+            await db.Set<TaskEntity>().ExecuteUpdateAsync(setters => setters.SetProperty(x => x.CompletedUtc, existing));
+
+        var before = DateTime.UtcNow;
+        Assert.NotNull(await store.TransitionAsync(id, tenant, principal, source, destination));
+        var after = DateTime.UtcNow;
+        var row = await db.Set<TaskEntity>().AsNoTracking().SingleAsync();
+        Assert.Equal(destination.ToString(), row.State);
+        Assert.Equal(source == AgentRunState.Accepted ? 2L : 3L, row.Version);
+        Assert.NotNull(row.CompletedUtc);
+        var ticks = row.CompletedUtc.Value.Ticks;
+        Assert.InRange(ticks, hasCompletion ? existing.Ticks : before.Ticks, hasCompletion ? existing.Ticks : after.Ticks);
+    }
+
     [Fact]
     public async Task Competing_terminal_compare_and_set_transitions_have_one_winner()
     {
@@ -114,12 +162,18 @@ public sealed class TaskLifecycleStoreTests
                     .TransitionAsync(id, tenant, principal, AgentRunState.Running, destination);
             }
 
+            var before = DateTime.UtcNow;
             var results = await Task.WhenAll(TryTerminalAsync(AgentRunState.Completed), TryTerminalAsync(AgentRunState.Cancelled));
+            var after = DateTime.UtcNow;
             var winner = Assert.Single(results, result => result is not null)!;
             Assert.Single(results, result => result is null);
             Assert.Contains(winner.State, new[] { AgentRunState.Completed, AgentRunState.Cancelled });
             await using var verify = new RelationalPersistenceTests.ApplicationDbContext(options);
-            Assert.Equal(winner.State, (await new EfTaskStore<RelationalPersistenceTests.ApplicationDbContext>(verify).GetAsync(id))!.State);
+            var row = await verify.Set<TaskEntity>().AsNoTracking().SingleAsync();
+            Assert.Equal(winner.State.ToString(), row.State);
+            Assert.Equal(3L, row.Version);
+            Assert.NotNull(row.CompletedUtc);
+            Assert.InRange(row.CompletedUtc.Value.Ticks, before.Ticks, after.Ticks);
         }
         finally
         {

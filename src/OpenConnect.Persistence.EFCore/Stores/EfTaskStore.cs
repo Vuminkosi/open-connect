@@ -51,9 +51,15 @@ internal sealed class EfTaskStore<TContext>(TContext context) : ITaskStore, ITas
         var taskGuid = UlidGuidMapper.ToGuid(taskId.Value);
         var tenant = UlidGuidMapper.Scope(tenantId.Value);
         var principal = UlidGuidMapper.Scope(principalId.Value);
+        DateTime? completedUtc = newState is AgentRunState.Completed or AgentRunState.Failed or AgentRunState.Cancelled
+            ? DateTime.UtcNow
+            : null;
         var affected = await context.Set<TaskEntity>()
             .Where(x => x.TaskId == taskGuid && x.TenantScope == tenant && x.PrincipalScope == principal && x.State == expectedState.ToString())
-            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.State, newState.ToString()), cancellationToken)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.State, newState.ToString())
+                .SetProperty(x => x.Version, x => x.Version + 1)
+                .SetProperty(x => x.CompletedUtc, x => x.CompletedUtc ?? completedUtc), cancellationToken)
             .ConfigureAwait(false);
 
         if (affected == 0)
