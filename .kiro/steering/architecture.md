@@ -12,6 +12,8 @@ The API reference also exposes its REST and worker contracts heading as a read-o
 
 The generated API index filters by document name and renders a bounded page of metadata at a time; generated reference volume must not require rendering the entire catalog in one response.
 
+Documentation for document processing and semantic memory describes SDK client contracts, host authorization and scoped data handling; worker readiness or an indexing receipt is not presented as proof of durable, authorized retrieval.
+
 When generated API documents are present, LiveUI may inspect, focus, or set the public API search field with a bounded value. It does not advertise that field when the catalog is absent.
 
 When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
