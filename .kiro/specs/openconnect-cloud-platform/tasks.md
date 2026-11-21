@@ -255,3 +255,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an additive LiveUI token-reservation schema and a PostgreSQL dual plan/token reservation store with contention, replay, scope and legacy-upgrade tests. Gateway routing, worker settlement and mixed-version enforcement remain outstanding.
 
 - [x] Add atomic completed-plan and token settlement with claim-bound append-only usage and a mixed-version plan-finalization fence; failed/unknown usage and execution-path activation remain outstanding.
+
+- [x] Fence dual-reservation consumption against older workers and unpaired or oversized metered authorizations, with PostgreSQL and legacy-upgrade checks. The worker endpoint remains outstanding.

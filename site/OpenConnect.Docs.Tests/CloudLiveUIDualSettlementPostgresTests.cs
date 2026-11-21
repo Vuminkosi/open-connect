@@ -70,10 +70,36 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         Assert.Equal(0, (await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId)).Consumed);
     }
 
+    [CloudPostgresFact]
+    public async Task DualReservationRejectsOldConsumptionAndUnpairedOrOversizedAuthorization()
+    {
+        var fixture = await Fixture.CreateAsync(consume: false);
+        await using (var db = await fixture.Factory.CreateDbContextAsync())
+        {
+            db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = fixture.ReservationId, ClaimId = fixture.ClaimId,
+                DeploymentId = fixture.DeploymentId, ConsumedAt = DateTimeOffset.UtcNow });
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        }
+        await using (var db = await fixture.Factory.CreateDbContextAsync())
+        {
+            await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+                VALUES ({fixture.ReservationId}, {fixture.ClaimId}, {fixture.DeploymentId}, {101}, {DateTimeOffset.UtcNow})
+                """));
+            await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+                VALUES ({fixture.ReservationId}, {fixture.ClaimId}, {fixture.DeploymentId}, {100}, {DateTimeOffset.UtcNow})
+                """));
+        }
+        await using var verify = await fixture.Factory.CreateDbContextAsync();
+        Assert.False(await verify.ExecutionConsumptions.AnyAsync(item => item.ReservationId == fixture.ReservationId));
+        Assert.Equal(0, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_metered_consumption_authorizations WHERE \"PlanReservationId\" = {fixture.ReservationId}").SingleAsync());
+    }
+
     private sealed record Fixture(IDbContextFactory<CloudControlPlaneDbContext> Factory, Guid ReservationId, Guid ClaimId,
         Guid DeploymentId, Guid PlanBucketId, Guid TokenBucketId)
     {
-        public static async Task<Fixture> CreateAsync(bool dual = true)
+        public static async Task<Fixture> CreateAsync(bool dual = true, bool consume = true)
         {
             var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
                 .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
@@ -111,9 +137,19 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
                 db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenant.Id, ApplicationId = app.Id,
                     ClaimId = claimId, DeploymentId = deploymentId, Region = "test", ClaimedAt = now });
                 await db.SaveChangesAsync();
-                db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = reservationId, ClaimId = claimId,
-                    DeploymentId = deploymentId, ConsumedAt = now });
-                await db.SaveChangesAsync();
+                if (consume)
+                {
+                    await using var transaction = await db.Database.BeginTransactionAsync();
+                    if (dual)
+                        await db.Database.ExecuteSqlInterpolatedAsync($"""
+                            INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+                            VALUES ({reservationId}, {claimId}, {deploymentId}, {100}, {now})
+                            """);
+                    db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = reservationId, ClaimId = claimId,
+                        DeploymentId = deploymentId, ConsumedAt = now });
+                    await db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
             }
             return new(factory, reservationId, claimId, deploymentId, planId, tokenId);
         }
