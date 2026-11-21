@@ -21,6 +21,16 @@ MAX_PIXELS = 16_000_000
 MAX_ASPECT_RATIO = 12
 
 
+def _valid_identifier(value: object, maximum: int) -> bool:
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return all(ord(character) >= 32 and ord(character) != 127 for character in value)
+
+
 def _reject_external_tensors(message: Message) -> None:
     if isinstance(message, onnx.TensorProto) and (
         message.data_location == onnx.TensorProto.EXTERNAL or message.external_data
@@ -93,7 +103,7 @@ class OnnxImageClassifier:
                  commercial_use: bool = False) -> None:
         assets = {asset.relativePath for asset in manifest.assets}
         if (manifest.workerKind != "vision" or model_asset not in assets or labels_asset not in assets
-                or not taxonomy_version or len(taxonomy_version) > 128 or taxonomy_approved is not True):
+                or not _valid_identifier(taxonomy_version, 128) or taxonomy_approved is not True):
             raise ValueError("invalid_profile")
         self._cache = cache
         self._manifest = manifest.model_copy(deep=True)
@@ -108,7 +118,7 @@ class OnnxImageClassifier:
         if len(raw_labels) > 256 * 1024:
             raise ValueError("invalid_taxonomy")
         self._labels = raw_labels.decode("utf-8").splitlines()
-        if len(self._labels) != 1000 or any(not label or len(label) > 256 for label in self._labels):
+        if len(self._labels) != 1000 or any(not _valid_identifier(label, 256) for label in self._labels):
             raise ValueError("invalid_taxonomy")
         path = root / model_asset
         _reject_external_tensors(onnx.load_model(str(path), load_external_data=False))

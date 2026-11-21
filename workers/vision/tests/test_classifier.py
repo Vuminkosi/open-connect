@@ -88,3 +88,26 @@ def test_top_k_is_bounded(classifier, top_k):
     engine, _ = classifier
     with pytest.raises(ValueError):
         engine.classify(image(), top_k=top_k)
+
+
+@pytest.mark.parametrize("taxonomy", ["  ", "bad\x00version", "x" * 129, "\ud800"])
+def test_invalid_taxonomy_never_becomes_ready(classifier, taxonomy):
+    engine, _ = classifier
+    with pytest.raises(ValueError, match="invalid_profile"):
+        OnnxImageClassifier(engine._cache, engine._manifest, model_asset="model.onnx",
+                            labels_asset="labels.txt", taxonomy_version=taxonomy, taxonomy_approved=True)
+
+
+@pytest.mark.parametrize("label", ["  ", "bad\x00label", "x" * 257])
+def test_invalid_labels_never_become_ready(classifier, monkeypatch, label):
+    engine, revision = classifier
+    labels_path = revision / "assets" / "labels.txt"
+    original_read = type(labels_path).read_bytes
+    labels = [f"class-{index}" for index in range(1000)]
+    labels[1] = label
+    def read_bytes(path):
+        return "\n".join(labels).encode() if path == labels_path else original_read(path)
+    monkeypatch.setattr(type(labels_path), "read_bytes", read_bytes)
+    with pytest.raises(ValueError, match="invalid_taxonomy"):
+        OnnxImageClassifier(engine._cache, engine._manifest, model_asset="model.onnx",
+                            labels_asset="labels.txt", taxonomy_version="fixture-v1", taxonomy_approved=True)
