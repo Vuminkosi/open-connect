@@ -102,7 +102,8 @@ class OnnxImageClassifier:
                  taxonomy_approved: bool = False, license_accepted: bool = False,
                  commercial_use: bool = False) -> None:
         assets = {asset.relativePath for asset in manifest.assets}
-        if (manifest.workerKind != "vision" or model_asset not in assets or labels_asset not in assets
+        if (manifest.workerKind != "vision" or not _valid_identifier(manifest.modelId, 256)
+                or model_asset not in assets or labels_asset not in assets
                 or not _valid_identifier(taxonomy_version, 128) or taxonomy_approved is not True):
             raise ValueError("invalid_profile")
         self._cache = cache

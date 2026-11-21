@@ -111,3 +111,12 @@ def test_invalid_labels_never_become_ready(classifier, monkeypatch, label):
     with pytest.raises(ValueError, match="invalid_taxonomy"):
         OnnxImageClassifier(engine._cache, engine._manifest, model_asset="model.onnx",
                             labels_asset="labels.txt", taxonomy_version="fixture-v1", taxonomy_approved=True)
+
+
+@pytest.mark.parametrize("model_id", ["  ", "bad\x00model", "\ud800"])
+def test_invalid_model_identity_never_becomes_ready(classifier, model_id):
+    engine, _ = classifier
+    manifest = engine._manifest.model_copy(update={"modelId": model_id})
+    with pytest.raises(ValueError, match="invalid_profile"):
+        OnnxImageClassifier(engine._cache, manifest, model_asset="model.onnx", labels_asset="labels.txt",
+                            taxonomy_version="fixture-v1", taxonomy_approved=True)

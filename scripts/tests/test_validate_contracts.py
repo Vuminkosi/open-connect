@@ -67,3 +67,19 @@ def test_host_evidence_reason_schema(reason, allowed, categories, valid):
     else:
         value["reasonCode"] = reason
     assert VALIDATOR.Draft202012Validator(schema, format_checker=VALIDATOR.FormatChecker()).is_valid(value) is valid
+
+def test_response_schema_rejects_unusable_classification_metadata():
+    root = SCRIPT.parents[1] / "contracts"
+    schema = json.loads((root / "jsonschema" / "vision-analyze-response.json").read_text(encoding="utf-8"))
+    response = {"schemaVersion": "openconnect.v1", "taskId": "fixture", "kind": "vision.analyze",
+                "result": {"model_id": "model", "model_fingerprint": "a" * 64, "taxonomy_version": "v1",
+                           "preprocessing_version": "imagenet-center224-v1", "width": 320, "height": 240,
+                           "classifications": [{"label": "tree", "class_index": 2, "score": 0.7}]}}
+    validator = VALIDATOR.Draft202012Validator(schema)
+    assert validator.is_valid(response)
+    for field, value in [("model_id", " "), ("taxonomy_version", "bad\x00version"), ("width", 16000001)]:
+        modified = json.loads(json.dumps(response))
+        modified["result"][field] = value
+        assert not validator.is_valid(modified)
+    response["result"]["classifications"][0]["label"] = "  "
+    assert not validator.is_valid(response)
