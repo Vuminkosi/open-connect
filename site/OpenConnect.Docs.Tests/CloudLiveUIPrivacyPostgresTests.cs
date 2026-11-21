@@ -74,6 +74,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
             builder.Services.AddScoped<ICloudLiveUIMeteredConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIMeteredConsumption>();
             builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>(); builder.Services.AddScoped<CloudLiveUISettlement>();
+            builder.Services.AddScoped<ICloudLiveUIDualSettlementStore, EfCloudLiveUIDualSettlementStore>(); builder.Services.AddScoped<CloudLiveUIDualSettlement>();
             builder.Services.AddSingleton(new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector()));
             builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
             builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
@@ -81,6 +82,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true);
             host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudLiveUISettlement(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true);
             host.MapCloudLiveUIMeteredConsumption(workerTrust, true);
+            host.MapCloudLiveUIDualSettlement(workerTrust, true);
             host.MapCloudLiveUIOutputPrivacy(trust, true); host.MapCloudLiveUIAccess(trust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other); using var workerClient = Client(address, server, worker);
@@ -242,8 +244,17 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             var meteredAttempts = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => ConsumeMetered(workerClient, "2048", new byte[32])));
             Assert.Single(meteredAttempts, item => item.StatusCode == HttpStatusCode.OK);
             Assert.Equal(7, meteredAttempts.Count(item => item.StatusCode == HttpStatusCode.Conflict));
-            var dualSettlement = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(factory, TimeProvider.System));
-            Assert.Equal("completed", await dualSettlement.SettleAsync(dualReserved.ReservationId.Value, meteredClaim.ClaimId.Value, deploymentId, new(410, 31), default));
+            var meteredCompletionPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId.Value:D}/complete-metered";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await meteredClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 410, outputTokens = 31 })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await workerClient.PostAsync(meteredCompletionPath,
+                new StringContent("{\"inputTokens\":1,\"InputTokens\":2,\"outputTokens\":1}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await workerClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 2048, outputTokens = 1 })).StatusCode);
+            var meteredCompletions = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
+                workerClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 410, outputTokens = 31 })));
+            var meteredStatuses = await Task.WhenAll(meteredCompletions.Select(async response => (await response.Content.ReadFromJsonAsync<CloudExecutionCompletionResult>())!.Status));
+            Assert.Single(meteredStatuses, status => status == "completed");
+            Assert.Equal(7, meteredStatuses.Count(status => status == "already_completed"));
+            Assert.Equal(HttpStatusCode.Conflict, (await workerClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 411, outputTokens = 30 })).StatusCode);
             await using (var db = await factory.CreateDbContextAsync())
                 Assert.Equal(441, (await db.QuotaBuckets.SingleAsync(item => item.Id == meteredTokenBucket)).Consumed);
             await VerifyNodeControlPlaneAsync(address, server, gateway, issued.Secret!, first.requestId, reserved.ReservationId.Value, claim.ClaimId.Value, expiry);
