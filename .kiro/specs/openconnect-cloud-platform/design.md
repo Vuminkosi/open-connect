@@ -12,6 +12,8 @@ Visiting the public site, viewing documentation, signing in, and using the Cloud
 
 The capability gateway treats its root and health routes separately from capability admission. The portal's management API is a separate control-plane route group; its access must not create capability reservations or usage records.
 
+Public documentation and API reference pages do not require visitor sign-in. Their assistant may use a configured server-side application credential, while preserving privacy enforcement and isolation between visitor sessions. Credentials are supplied through deployment secrets or an ignored local environment file, never browser assets or source control. Cloud dashboard and management access retain their own authentication requirements. Assistant execution and voice remain dependent on a configured application gateway and require end-to-end verification.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.

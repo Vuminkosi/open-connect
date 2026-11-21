@@ -11,6 +11,47 @@ namespace OpenConnect.Docs.Tests;
 public sealed class DocumentationAssistantTests
 {
     [Fact]
+    public void ConfiguredApplicationCredentialIsAppliedToGatewayRequests()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:GatewayBearer"] = "test-token" });
+        builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
+        using var services = builder.Services.BuildServiceProvider();
+        var client = services.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IOpenConnectClient));
+        Assert.Equal("Bearer", client.DefaultRequestHeaders.Authorization?.Scheme);
+        Assert.Equal("test-token", client.DefaultRequestHeaders.Authorization?.Parameter);
+    }
+
+    [Theory]
+    [InlineData("bad token")]
+    [InlineData("bad\ntoken")]
+    public void RejectsMalformedApplicationCredentials(string token)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:GatewayBearer"] = token });
+        Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment));
+    }
+
+    [Theory]
+    [InlineData("http://localhost:5001/", true)]
+    [InlineData("http://gateway.example/", false)]
+    public void PlaintextCredentialsAreRestrictedToDevelopmentLoopback(string gateway, bool allowed)
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = gateway,
+            ["OpenConnect:Assistant:GatewayBearer"] = "test-token" });
+        if (allowed)
+            builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
+        else
+            Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment));
+    }
+
+    [Fact]
     public void ConfiguredComposerUsesApplicationGatewayAndRejectsCloudCapabilityRoutes()
     {
         var builder = WebApplication.CreateBuilder();

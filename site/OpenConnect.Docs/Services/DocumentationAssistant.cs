@@ -21,11 +21,19 @@ public static class DocumentationAssistant
         services.AddMudServices();
         if (configured)
         {
+            var credential = configuration["OpenConnect:Assistant:GatewayBearer"];
+            if (!string.IsNullOrEmpty(credential) &&
+                (credential.Any(char.IsWhiteSpace) || credential.Any(char.IsControl) ||
+                 (gateway!.Scheme != Uri.UriSchemeHttps && !(environment.IsDevelopment() && gateway.IsLoopback))))
+                throw new InvalidOperationException("The assistant gateway credential requires HTTPS or a development loopback gateway and a valid bearer token.");
             services.AddOpenConnectClient(options =>
             {
                 options.ApiBaseAddress = gateway;
                 options.AllowInsecureHttp = environment.IsDevelopment();
             });
+            if (!string.IsNullOrEmpty(credential))
+                services.AddHttpClient(nameof(IOpenConnectClient), client =>
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential));
         }
         else
         {
