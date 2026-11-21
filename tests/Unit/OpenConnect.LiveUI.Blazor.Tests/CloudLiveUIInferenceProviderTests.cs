@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.LiveUI.Inference;
@@ -114,6 +115,18 @@ public sealed class CloudLiveUIInferenceProviderTests
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<CloudLiveUIInferenceProvider>());
+    }
+
+    [Fact]
+    public async Task StartupRejectsMissingHostAuthorizationBeforeServingRequests()
+    {
+        var services = new ServiceCollection();
+        services.AddOpenConnectLiveUIInference();
+        services.AddSingleton<IEgressGate>(new GateForRegistration());
+        services.AddCloudLiveUIInferenceProvider(options => { options.Origin = new Uri("https://cloud.example/"); options.Credential = "credential"; });
+        using var provider = services.BuildServiceProvider();
+        var validator = provider.GetServices<IHostedService>().Single(service => service.GetType().Name == "CloudLiveUIHostStartupValidator");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => validator.StartAsync(CancellationToken.None));
     }
 
     private sealed class GateForRegistration : IEgressGate

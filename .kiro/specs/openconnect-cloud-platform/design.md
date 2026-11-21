@@ -295,3 +295,5 @@ The Blazor Cloud authorizer reads the current authorized page, checks the reques
 The same-host development sample resolves Cloud LiveUI privacy context only for sessions owned by its configured tenant and principal. This identity mode remains development-only and does not establish production authentication.
 
 A local integration test exercises the .NET host Cloud provider, host privacy firewall and controlled page/session authorization through a test-only HTTPS proxy to the real Cloud gateway, mTLS worker and disposable PostgreSQL. It verifies a deterministic proposal and one-plan settlement; browser actions, receipts, model-generated planning and production TLS remain unverified.
+
+Enabling the Cloud LiveUI provider requires host authorization and a privacy egress gate at application startup. Missing boundaries stop startup instead of allowing a planner fallback to bypass them.
