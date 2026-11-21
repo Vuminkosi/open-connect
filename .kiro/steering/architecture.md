@@ -26,6 +26,8 @@ Cloud worker payload binding and tenant-ID conversion are shared gateway boundar
 
 Knowledge embedding execution composes reservation, privacy inspection, a deployment-bound claim, revocation monitoring, worker dispatch, output inspection and settlement before returning a result. Ambiguous outcomes fail closed and are not retried by the gateway execution layer.
 
+The Cloud embedding route is opt-in and reports readiness only when its configured private control plane and worker are ready. The local server retains its existing voice argument position when additional capabilities are configured.
+
 The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
 
 The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
