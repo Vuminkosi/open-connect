@@ -118,6 +118,18 @@ class StartupAssetFetcher:
         deadline = time.monotonic() + self._timeout
         url = source.url
         connection = None
+        timer = None
+        expired = threading.Event()
+
+        def abort(active_connection: _PinnedHTTPSConnection) -> None:
+            expired.set()
+            active_socket = active_connection.sock
+            if active_socket is not None:
+                try:
+                    active_socket.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
         try:
             for hop in range(4):
                 parsed = urlsplit(url)
@@ -138,11 +150,18 @@ class StartupAssetFetcher:
                 if remaining <= 0:
                     raise TimeoutError("download_timeout")
                 connection = _PinnedHTTPSConnection(host, ips[0], remaining)
+                timer = threading.Timer(remaining, abort, args=(connection,))
+                timer.daemon = True
+                timer.start()
                 path = parsed.path or "/"
                 if parsed.query:
                     path += "?" + parsed.query
                 connection.request("GET", path, headers={"Accept-Encoding": "identity"})
+                if expired.is_set() or time.monotonic() >= deadline:
+                    raise TimeoutError("download_timeout")
                 response = connection.getresponse()
+                if expired.is_set() or time.monotonic() >= deadline:
+                    raise TimeoutError("download_timeout")
                 if response.status == 200:
                     break
                 if response.status not in {301, 302, 303, 307, 308} or hop == 3:
@@ -151,6 +170,8 @@ class StartupAssetFetcher:
                 if not location:
                     raise OSError("download_failed")
                 url = urljoin(url, location)
+                timer.cancel()
+                timer = None
                 connection.close()
                 connection = None
             media_type = response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
@@ -172,6 +193,8 @@ class StartupAssetFetcher:
                     if connection.sock is not None:
                         connection.sock.settimeout(remaining)
                     chunk = response.read1(min(64 * 1024, asset.sizeBytes - count))
+                    if expired.is_set() or time.monotonic() >= deadline:
+                        raise TimeoutError("download_timeout")
                     if not chunk:
                         raise OSError("incomplete_download")
                     count += len(chunk)
@@ -181,5 +204,7 @@ class StartupAssetFetcher:
             if digest.hexdigest() != asset.sha256.lower():
                 raise ValueError("checksum_mismatch")
         finally:
+            if timer is not None:
+                timer.cancel()
             if connection is not None:
                 connection.close()

@@ -163,6 +163,44 @@ def test_dns_timeout_does_not_start_repeated_resolvers(tmp_path: Path, monkeypat
         release.set()
 
 
+def test_absolute_deadline_interrupts_stalled_response_headers(tmp_path, monkeypatch):
+    interrupted = threading.Event()
+
+    class Socket:
+        def shutdown(self, how):
+            assert how == socket.SHUT_RDWR
+            interrupted.set()
+
+    class StalledConnection:
+        def __init__(self, host, address, timeout):
+            self.sock = Socket()
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            assert interrupted.wait(2), "absolute deadline did not interrupt the socket"
+            return Response()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(download, "_PinnedHTTPSConnection", StalledConnection)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+    ])
+    model = manifest()
+    downloader = download.StartupAssetFetcher(
+        model, {"model.onnx": download.AssetSource("https://models.example/a", frozenset({
+            "application/octet-stream"
+        }))}, frozenset({"models.example"}), max_bytes=1024, timeout_seconds=0.05,
+    )
+    with pytest.raises(TimeoutError, match="download_timeout"):
+        downloader(model.assets[0], tmp_path / "model")
+    assert interrupted.is_set()
+    assert not (tmp_path / "model").exists()
+
+
 @pytest.mark.parametrize("location,allowed,expected", [
     ("https://cdn.example/model", {"models.example", "cdn.example"}, True),
     ("https://evil.example/model", {"models.example"}, False),
