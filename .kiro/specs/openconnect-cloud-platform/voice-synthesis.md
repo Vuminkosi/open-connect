@@ -20,4 +20,6 @@ The voice output privacy endpoint independently evaluates the recognized transcr
 
 The gateway output screen requires an allowed transcript policy decision and normalized word agreement with the inspected synthesis input. Disagreement and missing dependencies fail closed. Agreement is an additional check, not proof that all audio content was recognized; no transcript-based screen guarantees recognition completeness.
 
+Cloud synthesis readiness requires an authenticated worker with a loaded model, configured claim consumption and a deployment identifier. The gateway verifies that identifier over its configured mutual-TLS transport before dispatch.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.

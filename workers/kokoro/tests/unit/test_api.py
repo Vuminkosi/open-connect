@@ -53,6 +53,20 @@ def test_capabilities_requires_auth(monkeypatch) -> None:
     assert client.get("/internal/v1/capabilities").status_code == 401
 
 
+def test_cloud_readiness_requires_authorization_model_and_deployment(monkeypatch) -> None:
+    _use_auth(monkeypatch)
+    url = "/internal/cloud/v1/voice-synthesis/ready"
+    assert client.get(url).status_code == 401
+    monkeypatch.setattr(app_module, "configured_client", lambda: None)
+    monkeypatch.setenv("OPENCONNECT_CLOUD_DEPLOYMENT_ID", "11111111-1111-1111-1111-111111111111")
+    assert client.get(url, headers=AUTH).status_code == 503
+    monkeypatch.setattr(app_module, "configured_client", lambda: object())
+    monkeypatch.setattr(app_module.synth_engine, "ready", lambda: None)
+    assert client.get(url, headers=AUTH).json() == {"status": "ready", "deploymentId": "11111111-1111-1111-1111-111111111111"}
+    monkeypatch.setenv("OPENCONNECT_CLOUD_DEPLOYMENT_ID", "not-a-guid")
+    assert client.get(url, headers=AUTH).status_code == 503
+
+
 def test_mp3_is_rejected_without_fabricated_audio(monkeypatch) -> None:
     _use_auth(monkeypatch)
     response = _synth(format="mp3")

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hmac
 import logging
+import os
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
@@ -55,6 +57,18 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
     supplied = authorization.removeprefix("Bearer ") if authorization else ""
     if token is None or not authorization or not authorization.startswith("Bearer ") or not hmac.compare_digest(supplied, token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+
+
+@app.get("/internal/cloud/v1/voice-synthesis/ready", dependencies=[Depends(authenticate)])
+def cloud_ready() -> dict[str, str]:
+    try:
+        deployment = UUID(os.environ.get("OPENCONNECT_CLOUD_DEPLOYMENT_ID", ""))
+        if deployment.int == 0 or configured_client() is None:
+            raise ValueError("cloud execution unavailable")
+        synth_engine.ready()
+        return {"status": "ready", "deploymentId": str(deployment)}
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
 
 
 @app.get("/internal/v1/capabilities", dependencies=[Depends(authenticate)])
