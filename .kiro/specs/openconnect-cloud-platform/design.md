@@ -329,3 +329,5 @@ The LiveUI worker has an explicit opt-in metered mode. It uses the metered consu
 When explicitly enabled, the gateway requires a bounded model context token budget and reserves plan and token capacity together through the mutual-TLS control plane. Invalid configuration or a missing dual-reservation capability fails closed. Metering remains disabled by default; coordinated deployment configuration and reconciliation of failed or unknown compute are still required.
 
 The application registers dual-reservation, metered-consumption and dual-settlement services and maps their private endpoints under the existing gateway and worker certificate trust boundaries. Activating metering still requires coordinated deployment configuration and recovery for failed or unknown compute.
+
+The root Compose configuration supplies the same opt-in metering flag and context ceiling to both the gateway and LiveUI worker. The default remains disabled; failed or unknown compute and expired reservation recovery must be addressed before operational activation.

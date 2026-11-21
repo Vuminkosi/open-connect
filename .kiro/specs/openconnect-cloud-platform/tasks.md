@@ -269,3 +269,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add opt-in gateway selection of bounded dual plan/token reservations and verify Node-to-control-plane replay over mutual TLS and PostgreSQL. Production registration and failed/unknown usage reconciliation remain outstanding.
 
 - [x] Register the private metered LiveUI services and routes in the application under existing certificate trust boundaries. Coordinated deployment configuration and recovery remain outstanding.
+
+- [x] Wire a common opt-in metering flag and context ceiling into the root Compose gateway and LiveUI worker; recovery remains a prerequisite for operational activation.
