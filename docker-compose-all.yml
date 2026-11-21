@@ -439,6 +439,7 @@ services:
       start_period: 600s
 
   worker-transcription:
+    profiles: ["transcription"]
     build:
       context: workers/transcription
       dockerfile: Dockerfile
@@ -490,6 +491,7 @@ services:
       start_period: 120s
 
   worker-playwright:
+    profiles: ["navigator"]
     build:
       context: workers/navigator-playwright
       dockerfile: Dockerfile
@@ -499,6 +501,7 @@ services:
       - oc-network
 
   worker-outbox:
+    profiles: ["operational"]
     build:
       context: .
       dockerfile: src/OpenConnect.WorkerHosts.Outbox/Dockerfile
@@ -520,6 +523,7 @@ services:
         condition: service_healthy
 
   worker-operational:
+    profiles: ["operational"]
     build:
       context: .
       dockerfile: src/OpenConnect.WorkerHosts.Operational/Dockerfile

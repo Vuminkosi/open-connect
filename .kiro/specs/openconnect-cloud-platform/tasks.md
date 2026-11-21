@@ -297,3 +297,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Provide an operator-authorized, paginated view and API for expired consumed LiveUI requests with unknown token usage. Resolution using authoritative evidence remains outstanding.
 
 - [x] Keep the four default local workers restartable through root Compose, with model downloads disabled by default and checksum mismatches preserved.
+
+- [x] Put transcription, browser navigation, and operational/outbox workers behind explicit Compose profiles so the default worker set contains only inference, LiveUI, security and Kokoro.
