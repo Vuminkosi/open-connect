@@ -211,3 +211,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add authenticated LiveUI output-field inspection and settled-claim-bound append-only evidence; gateway response-path enforcement remains outstanding.
 
 - [x] Add claim-specific LiveUI access revalidation and share the privacy admission rule across claims, consumption and access checks; gateway monitoring remains outstanding.
+
+- [x] Add the gateway's LiveUI quota, claim, access and output privacy control-plane client; protected dispatch and public route remain outstanding.

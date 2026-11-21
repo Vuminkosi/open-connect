@@ -16,6 +16,7 @@
     <Content Include="../../cloud/gateway/gateway.mjs" Link="gateway/gateway.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/local-server.mjs" Link="gateway/local-server.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/inference-admission.mjs" Link="gateway/inference-admission.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../cloud/gateway/liveui-control-plane.mjs" Link="gateway/liveui-control-plane.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/control-plane.mjs" Link="gateway/control-plane.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-probe.mjs" Link="gateway/classification-probe.mjs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../cloud/gateway/classification-dispatch.mjs" Link="gateway/classification-dispatch.mjs" CopyToOutputDirectory="PreserveNewest" />

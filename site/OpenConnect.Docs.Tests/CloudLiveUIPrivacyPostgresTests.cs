@@ -195,13 +195,14 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Equal(HttpStatusCode.ServiceUnavailable, (await InspectOutput(client, "{\"fields\":[\"v1\",\"activate\",\"safe\"]}", Guid.NewGuid())).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await InspectOutput(client, "{\"fields\":[\"v1\",\"activate\",\"safe\"]}", claim.ClaimId.Value)).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await InspectOutput(client, "{\"fields\":[\"v1\",\"person@\",\"example.test\"]}", claim.ClaimId.Value)).StatusCode);
+            await VerifyNodeControlPlaneAsync(address, server, gateway, issued.Secret!, first.requestId, reserved.ReservationId.Value, claim.ClaimId.Value, expiry);
             await using (var db = await factory.CreateDbContextAsync())
             {
                 var final = await db.QuotaReservations.SingleAsync(x => x.Id == reserved.ReservationId.Value);
                 Assert.Equal(1, final.Actual); Assert.NotNull(final.FinalizedAt);
                 Assert.Equal(1, (await db.QuotaBuckets.SingleAsync(x => x.Id == final.BucketId)).Consumed);
                 Assert.Equal(1, (await db.UsageRecords.SingleAsync(x => x.ReservationId == final.Id)).Quantity);
-                Assert.Equal(2, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {final.Id}").SingleAsync());
+                Assert.Equal(4, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {final.Id}").SingleAsync());
                 await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {final.Id}"));
             }
             Assert.Equal("succeeded", await credentials.RevokeAsync(owner, tenant.Id, app.Id, issued.Credential!.Id, default));
@@ -215,6 +216,24 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             capability.PlatformAvailability = previousAvailability; capability.AllowedRegions = previousRegions; capability.AllowedRegionsVerified = previousRegionsVerified;
             await db.SaveChangesAsync();
         }
+    }
+
+    private static async Task VerifyNodeControlPlaneAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential,
+        Guid requestId, Guid reservationId, Guid claimId, DateTimeOffset expiresAt)
+    {
+        const string script = "const m=await import(process.env.OC_TEST_MODULE);const c=m.createLiveUIControlPlaneClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_DATA);const a=await c.findFingerprintKey(process.env.OC_TEST_CREDENTIAL,x.requestId);const b=await c.reserve(process.env.OC_TEST_CREDENTIAL,{requestId:x.requestId,fingerprintKeyId:'key',fingerprint:Buffer.alloc(32).toString('base64'),expiresAt:x.expiresAt});const v=await c.verifyClaim(process.env.OC_TEST_CREDENTIAL,x.reservationId,x.claimId);const o=await c.inspectOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,['v1','activate','tasks.tab']);const p=await c.inspectOutput(process.env.OC_TEST_CREDENTIAL,x.requestId,x.reservationId,x.claimId,['v1','person@','example.test']);process.stdout.write(JSON.stringify([a.status,b.status,v,o.code,p.code]));";
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "liveui-control-plane.mjs")).AbsoluteUri;
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem(); start.Environment["OC_TEST_CERT"] = gateway.ExportCertificatePem();
+        using var privateKey = gateway.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem(); start.Environment["OC_TEST_CREDENTIAL"] = credential;
+        start.Environment["OC_TEST_DATA"] = System.Text.Json.JsonSerializer.Serialize(new { requestId, reservationId, claimId, expiresAt });
+        using var process = System.Diagnostics.Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
+        Assert.Equal("[\"found\",\"duplicate\",true,\"allowed\",\"privacy_blocked\"]", output);
     }
 
     private static async Task VerifyNodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 gateway, string credential, Guid requestId)

@@ -264,4 +264,6 @@ LiveUI output inspection evaluates each action-plan field and their joined seque
 
 The LiveUI claim access endpoint revalidates the original credential, entitlement, model, region, deployment and current input privacy decision for a pending or settled claim. Claim issuance, worker consumption and access checks use the same fingerprint-bound LiveUI privacy admission rule. Gateway monitoring and public LiveUI execution remain outstanding.
 
+The gateway has a feature-scoped LiveUI control-plane client for fingerprint-key lookup, one-plan reservation, claim creation, access revalidation and output-field inspection over mutual TLS. It fails closed on malformed responses, timeouts and transport errors. This client is not itself a public execution route.
+
 An offline worker smoke test loaded the existing digest-verified Qwen3 model from a read-only volume and exercised a deterministic allowed plan. That test verifies model loading and deterministic routing only; it does not prove model-generated planning or the complete Cloud request path.
