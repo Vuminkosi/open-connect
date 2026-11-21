@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","taskId":"fixture","kind":"documents.extract","result":{"fields":{"reference":{"value":"ABC-123","start":11,"end":18}},"warnings":["source_support_not_semantic_validation"],"schema_valid":true,"confidence_method":"not_estimated"}}

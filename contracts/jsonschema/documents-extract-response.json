@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/documents-extract-response.json",
+  "title": "Structured extraction response", "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "documents.extract"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["fields", "warnings", "schema_valid", "confidence_method"],
+      "properties": {
+        "fields": {"type": "object", "minProperties": 1, "maxProperties": 32,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+          "additionalProperties": {"type": "object", "additionalProperties": false,
+            "required": ["value", "start", "end"], "properties": {
+              "value": {"type": ["string", "number", "boolean", "null"]},
+              "start": {"type": ["integer", "null"], "minimum": 0},
+              "end": {"type": ["integer", "null"], "minimum": 0}},
+            "if": {"properties": {"value": {"type": "null"}}},
+            "then": {"properties": {"start": {"type": "null"}, "end": {"type": "null"}}},
+            "else": {"properties": {"start": {"type": "integer", "minimum": 0},
+                                    "end": {"type": "integer", "minimum": 1}}}}},
+        "warnings": {"type": "array", "maxItems": 32, "uniqueItems": true,
+          "contains": {"const": "source_support_not_semantic_validation"}, "items": {"enum": [
+          "source_support_not_semantic_validation", "required_field_missing", "instruction_like_line_excluded",
+          "subtotal_plus_tax_differs_from_total"]}},
+        "schema_valid": {"type": "boolean"}, "confidence_method": {"const": "not_estimated"}
+      }}
+  }
+}
