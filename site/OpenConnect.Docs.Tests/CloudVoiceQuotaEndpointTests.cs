@@ -33,13 +33,14 @@ public sealed class CloudVoiceQuotaEndpointTests
         var quotas = new QuotaStore();
         var evidence = new EvidenceStore();
         var claims = new ClaimStore();
+        var access = new AccessStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>().AddSingleton<ICloudQuotaStore>(quotas)
             .AddSingleton<CloudQuotaService>().AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudVoicePrivacyEvidenceStore>(evidence).AddSingleton<ICloudVoiceClaimStore>(claims)
-            .AddSingleton<CloudVoiceClaimService>().BuildServiceProvider();
+            .AddSingleton<CloudVoiceClaimService>().AddSingleton<ICloudVoiceAccessStore>(access).BuildServiceProvider();
         var id = Guid.NewGuid();
         string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
             fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
@@ -99,6 +100,12 @@ public sealed class CloudVoiceQuotaEndpointTests
         Assert.Equal(0, claims.Calls);
         Assert.Equal(200, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, Context(claimJson), trust, true, default)));
         Assert.Equal((tenant, application, id), claims.Last);
+        Assert.Equal(401, Status(await CloudVoiceAccessEndpoints.CheckAsync(id, id, claimNoCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudVoiceAccessEndpoints.CheckAsync(Guid.Empty, id, Context(""), trust, true, default)));
+        Assert.Equal(200, Status(await CloudVoiceAccessEndpoints.CheckAsync(id, id, Context(""), trust, true, default)));
+        Assert.Equal((tenant, application, id, id), access.Last);
+        access.Allowed = false;
+        Assert.Equal(503, Status(await CloudVoiceAccessEndpoints.CheckAsync(id, id, Context(""), trust, true, default)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
@@ -124,6 +131,14 @@ public sealed class CloudVoiceQuotaEndpointTests
         public Task<CloudExecutionClaimResult> ClaimAsync(CloudCredentialIdentity identity, Guid reservationId, string fingerprintKeyId,
             byte[] fingerprint, byte[] workerFingerprint, string modelId, CloudInferenceDeploymentMatch deployment, CancellationToken cancellationToken)
         { Calls++; Last = (identity.TenantId, identity.ApplicationId, reservationId); return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid())); }
+    }
+
+    private sealed class AccessStore : ICloudVoiceAccessStore
+    {
+        public bool Allowed { get; set; } = true;
+        public (Guid, Guid, Guid, Guid) Last { get; private set; }
+        public Task<bool> IsClaimAllowedAsync(CloudCredentialIdentity identity, Guid reservationId, Guid claimId, CancellationToken cancellationToken)
+        { Last = (identity.TenantId, identity.ApplicationId, reservationId, claimId); return Task.FromResult(Allowed); }
     }
 
     private sealed class QuotaStore : ICloudQuotaStore

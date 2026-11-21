@@ -35,7 +35,7 @@ test('voice control-plane client uses mutual TLS and validates inspection, quota
             const chunks = []; req.on('data', chunk => chunks.push(chunk));
             req.on('end', () => {
                 res.setHeader('content-type', 'application/json');
-                if (req.method === 'GET') return res.end(JSON.stringify({ status: 'not_found', keyId: null, expiresAt: null }));
+                if (req.method === 'GET') return res.end(JSON.stringify(req.url.endsWith('/access') ? { allowed: true } : { status: 'not_found', keyId: null, expiresAt: null }));
                 const value = JSON.parse(Buffer.concat(chunks).toString());
                 if (req.url.endsWith('/privacy')) {
                     assert.equal(value.text, request.input.text); assert.equal(req.headers['x-cloud-request-fingerprint'], hash);
@@ -57,8 +57,9 @@ test('voice control-plane client uses mutual TLS and validates inspection, quota
         const reservation = { requestId: id, fingerprintKeyId: 'key', fingerprint: hash, characters: 7, expiresAt: '2030-01-01T00:01:00.000Z' };
         assert.equal((await client.reserve('fixture-credential', reservation)).status, 'reserved');
         assert.equal((await client.claim('fixture-credential', id, proof)).status, 'claimed');
+        assert.equal(await client.verifyClaim('fixture-credential', id, id), true);
         badCount = true;
         assert.deepEqual(await client.inspect('fixture-credential', request, 'key', hash), { allowed: false, code: 'capability_unavailable' });
-        assert.equal(calls, 5);
+        assert.equal(calls, 6);
     } finally { if (server) await new Promise(resolve => server.close(resolve)); rmSync(directory, { recursive: true, force: true }); }
 });

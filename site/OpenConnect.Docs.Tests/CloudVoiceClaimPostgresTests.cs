@@ -87,6 +87,10 @@ public sealed class CloudVoiceClaimPostgresTests
         var claimId = attempts.Single(x => x.Status == "claimed").ClaimId!.Value;
         var consumption = new CloudVoiceConsumptionService(new EfCloudVoiceConsumptionStore(factory, TimeProvider.System));
         var settlement = new CloudVoiceSettlement(new EfCloudVoiceSettlementStore(factory, TimeProvider.System));
+        var access = new EfCloudVoiceAccessStore(factory, TimeProvider.System);
+        Assert.True(await access.IsClaimAllowedAsync(identity, first, claimId, default));
+        Assert.False(await access.IsClaimAllowedAsync(identity with { CredentialId = Guid.NewGuid() }, first, claimId, default));
+        Assert.False(await access.IsClaimAllowedAsync(identity with { TenantId = Guid.NewGuid() }, first, claimId, default));
         Assert.Equal("unavailable", await settlement.SettleAsync(first, claimId, deploymentId, default));
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -103,6 +107,7 @@ public sealed class CloudVoiceClaimPostgresTests
             await db.SaveChangesAsync();
         }
         Assert.Equal("unavailable", await Consume(deploymentId, workerHash));
+        Assert.False(await access.IsClaimAllowedAsync(identity, first, claimId, default));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var restored = await db.Credentials.SingleAsync(x => x.Id == material.Id);
@@ -111,6 +116,7 @@ public sealed class CloudVoiceClaimPostgresTests
         }
         await evidence.AppendAsync(identity, firstId, "key", fingerprint, 4, "privacy_blocked", new string('a', 32), default);
         Assert.Equal("unavailable", await Consume(deploymentId, workerHash));
+        Assert.False(await access.IsClaimAllowedAsync(identity, first, claimId, default));
         await evidence.AppendAsync(identity, firstId, "key", fingerprint, 4, "allowed", new string('a', 32), default);
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -119,6 +125,7 @@ public sealed class CloudVoiceClaimPostgresTests
             await db.SaveChangesAsync();
         }
         Assert.Equal("unavailable", await Consume(deploymentId, workerHash));
+        Assert.False(await access.IsClaimAllowedAsync(identity, first, claimId, default));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var restored = await db.WorkerDeployments.SingleAsync(x => x.Id == deploymentId);
@@ -153,6 +160,7 @@ public sealed class CloudVoiceClaimPostgresTests
         var settlements = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => settlement.SettleAsync(first, claimId, deploymentId, default)));
         Assert.Single(settlements, x => x == "completed");
         Assert.Equal(7, settlements.Count(x => x == "already_completed"));
+        Assert.True(await access.IsClaimAllowedAsync(identity, first, claimId, default));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var bucket = await db.QuotaBuckets.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.Unit == "character");

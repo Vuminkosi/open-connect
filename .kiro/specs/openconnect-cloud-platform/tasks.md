@@ -339,3 +339,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a pinned mutual-TLS speech control-plane client for fingerprint lookup, privacy inspection, character reservation and claim creation. Verify response shapes and inspected character counts with a simulated control plane; composition and endpoint registration remain outstanding.
 
 - [x] Compose speech request fingerprinting, inspection, character reservation and payload-bound claim before private dispatch. Verify denial, duplicate, count mismatch, cancellation and buffer ownership with simulated dependencies. Active-call revocation, registration and real-system execution remain outstanding.
+
+- [x] Add claim-specific speech access revalidation and a gateway monitor, with fail-closed audio output-screening requirements. Verify revocation, deployment changes, privacy denial and audio erasure with simulated dependencies and disposable PostgreSQL. Actual audio screening, registration and live revocation verification remain outstanding.

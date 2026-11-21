@@ -103,5 +103,10 @@ export function createVoiceSynthesisControlPlaneClient({ origin, ca, certificate
             if (result.status === 409 && ['already_claimed', 'idempotency_conflict'].includes(value.status) && value.claimId == null) return { status: value.status };
             return { status: 'unavailable' };
         },
+        async verifyClaim(credential, reservationId, claimId, signal, traceparent) {
+            if (!id(reservationId) || !id(claimId)) return false;
+            const result = await call('GET', `/cloud/internal/v1/voice-synthesis/claims/${reservationId}/${claimId}/access`, credential, undefined, {}, signal, traceparent);
+            return result?.status === 200 && only(result.value, ['allowed']) && result.value.allowed === true;
+        },
     });
 }
