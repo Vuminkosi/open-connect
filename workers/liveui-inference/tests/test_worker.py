@@ -690,6 +690,16 @@ async def test_persisted_model_is_reused_after_checksum_validation(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_missing_model_does_not_download_without_explicit_opt_in(tmp_path, monkeypatch):
+    monkeypatch.delenv("LIVEUI_ALLOW_MODEL_DOWNLOAD", raising=False)
+    monkeypatch.delenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", raising=False)
+    model = tmp_path / "model.gguf"
+    with pytest.raises(RuntimeError, match="automatic model download is disabled"):
+        await ensure_model(settings_for(model, "a" * 64))
+    assert not model.exists()
+
+
+@pytest.mark.asyncio
 async def test_readiness_and_model_disabled_behavior(monkeypatch):
     monkeypatch.setenv("MODEL_ENABLED", "false")
     async with app.router.lifespan_context(app):

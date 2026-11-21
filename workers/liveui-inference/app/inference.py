@@ -137,6 +137,8 @@ async def ensure_model(settings: Settings) -> Path:
 
     if cloud_mode:
         raise RuntimeError("Cloud model is not provisioned")
+    if os.environ.get("LIVEUI_ALLOW_MODEL_DOWNLOAD", "false").lower() != "true":
+        raise RuntimeError("LiveUI model is not provisioned; automatic model download is disabled")
     path.parent.mkdir(parents=True, exist_ok=True)
 
     url = (

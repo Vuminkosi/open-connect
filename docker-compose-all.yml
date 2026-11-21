@@ -365,6 +365,7 @@ services:
       dockerfile: Dockerfile
     image: vuminkosimatibe/openconnect-worker-security:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-security
+    restart: unless-stopped
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
@@ -385,6 +386,7 @@ services:
       dockerfile: Dockerfile
     image: vuminkosimatibe/openconnect-worker-inference:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-inference
+    restart: unless-stopped
     environment:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
@@ -403,7 +405,6 @@ services:
       - oc-network
 
   liveui-inference:
-    profiles: ["liveui-inference"]
     build:
       context: ./workers/liveui-inference
       dockerfile: Dockerfile
@@ -411,6 +412,7 @@ services:
     container_name: oc-worker-liveui-inference
     environment:
       MODEL_ENABLED: "true"
+      LIVEUI_ALLOW_MODEL_DOWNLOAD: ${LIVEUI_ALLOW_MODEL_DOWNLOAD:-false}
       MODEL_ID: ${LIVEUI_MODEL_ID:-bartowski/Qwen_Qwen3-0.6B-GGUF}
       MODEL_REVISION: ${LIVEUI_MODEL_REVISION:-60b85c0e3d8fe0f6474f406922a26d12aca4550d}
       MODEL_FILENAME: ${LIVEUI_MODEL_FILENAME:-Qwen_Qwen3-0.6B-Q4_K_M.gguf}
@@ -468,8 +470,10 @@ services:
       dockerfile: Dockerfile
     image: vuminkosimatibe/openconnect-worker-kokoro:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-kokoro
+    restart: unless-stopped
     environment:
       OC_MODEL_CACHE_DIR: /models
+      OC_KOKORO_ALLOW_DOWNLOAD: ${OC_KOKORO_ALLOW_DOWNLOAD:-false}
       OC_KOKORO_MODEL: hexgrad/Kokoro-82M
       OC_KOKORO_VOICE: af_heart
       KOKORO_VOICES: af_heart

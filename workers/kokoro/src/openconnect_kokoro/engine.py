@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import os
 import tempfile
 import threading
 import urllib.request
@@ -53,11 +54,10 @@ def _ensure_artifacts(directory: Path) -> None:
     for relative, (url, expected) in ARTIFACT_URLS.items():
         target = directory / relative
         if target.is_file():
-            try:
-                _verify(target, expected)
-                continue
-            except ModelUnavailable:
-                target.unlink(missing_ok=True)
+            _verify(target, expected)
+            continue
+        if os.environ.get("OC_KOKORO_ALLOW_DOWNLOAD", "false").lower() != "true":
+            raise ModelUnavailable(f"missing Kokoro artifact: {relative}; automatic model download is disabled")
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             with urllib.request.urlopen(url, timeout=120) as response:
