@@ -15,21 +15,30 @@ using Xunit.Abstractions;
 
 namespace OpenConnect.Persistence.EFCore.Tests;
 
+public sealed class PostgresSmokeFixtureFactAttribute : FactAttribute
+{
+    public PostgresSmokeFixtureFactAttribute()
+    {
+        if (!PostgresSmokeTests.RequireProviderTests && string.IsNullOrWhiteSpace(PostgresSmokeTests.ConfiguredConnectionString))
+            Skip = "NOT VERIFIED: an explicitly configured disposable PostgreSQL fixture is required.";
+    }
+}
+
 public sealed class PostgresSmokeTests(ITestOutputHelper output)
 {
-    private const string DefaultConnectionString = "Host=localhost;Port=55432;Database=oc_smoke;Username=postgres;Password=postgres;Timeout=2;";
-    private static readonly bool RequireProviderTests = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_REQUIRE_PROVIDER_TESTS"), "true", StringComparison.OrdinalIgnoreCase);
-    private static readonly string? ConfiguredConnectionString = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_POSTGRES_CONNECTION_STRING");
-    private static readonly string ConnectionString = ConfiguredConnectionString ?? DefaultConnectionString;
+    internal static readonly bool RequireProviderTests = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_REQUIRE_PROVIDER_TESTS"), "true", StringComparison.OrdinalIgnoreCase);
+    internal static readonly string? ConfiguredConnectionString = Environment.GetEnvironmentVariable("OPENCONNECT_TEST_POSTGRES_CONNECTION_STRING");
 
-    private static OpenConnectDbContext CreateContext(string? connectionString = null) => new(new DbContextOptionsBuilder<OpenConnectDbContext>().UseNpgsql(connectionString ?? ConnectionString).Options);
+    private static OpenConnectDbContext CreateScriptContext() =>
+        new(new DbContextOptionsBuilder<OpenConnectDbContext>().UseNpgsql().Options);
+
+    private static OpenConnectDbContext CreateContext(string connectionString) =>
+        new(new DbContextOptionsBuilder<OpenConnectDbContext>().UseNpgsql(connectionString).Options);
 
     [Fact]
     public async Task PostgresSmoke_MigrationContent_has_expected_openconnect_tables()
     {
-        if (!await ServiceAvailableAsync())
-            return;
-        await using var db = CreateContext();
+        await using var db = CreateScriptContext();
         var script = db.Database.GenerateCreateScript();
         var lines = script.Split('\n');
         var scriptPath = Path.Combine(Path.GetTempPath(), $"efsmoke-{Guid.NewGuid():N}.sql");
@@ -51,11 +60,9 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task PostgresSmoke_IdempotentScriptHasOnlyOpenConnectTables()
+    public void PostgresSmoke_IdempotentScriptHasOnlyOpenConnectTables()
     {
-        if (!await ServiceAvailableAsync())
-            return;
-        using var pgContext = CreateContext();
+        using var pgContext = CreateScriptContext();
         var sql = pgContext.Database.GenerateCreateScript();
         var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns", "NativeAgentSessions", "PublicSessionMappings", "ApprovalNonces" };
         Assert.All(expectedTables, table => Assert.Contains($"openconnect.\"{table}\"", sql));
@@ -63,19 +70,13 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         Assert.DoesNotContain("Customers", sql);
         Assert.DoesNotContain("Orders", sql);
     }
-    [Fact]
+    [PostgresSmokeFixtureFact]
     public async Task PostgresSmoke_RoundTrip_persists_openconnect_workflows()
     {
-        if (!await ServiceAvailableAsync())
-            return;
-        if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
-        {
-            output.WriteLine("SKIP Postgres round-trip smoke test: an explicitly configured disposable PostgreSQL fixture is required for isolated database creation.");
-            return;
-        }
+        var configuredConnectionString = GetConfiguredFixture();
 
         var database = $"oc_smoke_roundtrip_{Guid.NewGuid():N}";
-        var connectionString = new NpgsqlConnectionStringBuilder(ConfiguredConnectionString)
+        var connectionString = new NpgsqlConnectionStringBuilder(configuredConnectionString)
         {
             Database = database,
             Pooling = false,
@@ -85,7 +86,7 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         Exception? testFailure = null;
         try
         {
-            await CreateIsolatedDatabaseAsync(database);
+            await CreateIsolatedDatabaseAsync(configuredConnectionString, database);
             databaseCreated = true;
             await using var db = CreateContext(connectionString);
             await db.Database.EnsureCreatedAsync();
@@ -130,7 +131,7 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             if (databaseCreated)
             {
                 try
-                { await DropIsolatedDatabaseAsync(database); }
+                { await DropIsolatedDatabaseAsync(configuredConnectionString, database); }
                 catch (Exception exception) when (testFailure is not null)
                 {
                     output.WriteLine($"Postgres isolated smoke database cleanup failed ({exception.GetType().Name}); the original test failure is preserved.");
@@ -145,19 +146,13 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     /// status/PublishedUtc stable. The publish-success/completion-failure window is NOT
     /// covered here, so this test makes no exactly-once claim.
     /// </summary>
-    [Fact]
+    [PostgresSmokeFixtureFact]
     public async Task PostgresSmoke_DispatcherSuppressesSequentialReplay_marks_claimed_rows_delivered()
     {
-        if (!await ServiceAvailableAsync())
-            return;
-        if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
-        {
-            output.WriteLine("SKIP Postgres dispatcher smoke test: an explicitly configured disposable PostgreSQL fixture is required for isolated database creation.");
-            return;
-        }
+        var configuredConnectionString = GetConfiguredFixture();
 
         var database = $"oc_smoke_dispatch_{Guid.NewGuid():N}";
-        var connectionString = new NpgsqlConnectionStringBuilder(ConfiguredConnectionString)
+        var connectionString = new NpgsqlConnectionStringBuilder(configuredConnectionString)
         {
             Database = database,
             Pooling = false,
@@ -167,7 +162,7 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         Exception? testFailure = null;
         try
         {
-            await CreateIsolatedDatabaseAsync(database);
+            await CreateIsolatedDatabaseAsync(configuredConnectionString, database);
             databaseCreated = true;
             await using var db = CreateContext(connectionString);
             await db.Database.EnsureCreatedAsync();
@@ -225,7 +220,7 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
             if (databaseCreated)
             {
                 try
-                { await DropIsolatedDatabaseAsync(database); }
+                { await DropIsolatedDatabaseAsync(configuredConnectionString, database); }
                 catch (Exception exception) when (testFailure is not null)
                 {
                     output.WriteLine($"Postgres isolated smoke database cleanup failed ({exception.GetType().Name}); the original test failure is preserved.");
@@ -234,21 +229,21 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         }
     }
 
-    private static async Task CreateIsolatedDatabaseAsync(string database)
+    private static async Task CreateIsolatedDatabaseAsync(string configuredConnectionString, string database)
     {
         ValidateIsolatedDatabaseName(database);
-        var adminConnectionString = new NpgsqlConnectionStringBuilder(ConfiguredConnectionString) { Pooling = false, Timeout = 15 }.ConnectionString;
+        var adminConnectionString = new NpgsqlConnectionStringBuilder(configuredConnectionString) { Pooling = false, Timeout = 15 }.ConnectionString;
         await using var connection = new NpgsqlConnection(adminConnectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand($"CREATE DATABASE \"{database}\"", connection) { CommandTimeout = 30 };
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task DropIsolatedDatabaseAsync(string database)
+    private static async Task DropIsolatedDatabaseAsync(string configuredConnectionString, string database)
     {
         ValidateIsolatedDatabaseName(database);
 
-        var adminConnectionString = new NpgsqlConnectionStringBuilder(ConfiguredConnectionString) { Pooling = false, Timeout = 15 }.ConnectionString;
+        var adminConnectionString = new NpgsqlConnectionStringBuilder(configuredConnectionString) { Pooling = false, Timeout = 15 }.ConnectionString;
         await using var connection = new NpgsqlConnection(adminConnectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand($"DROP DATABASE \"{database}\"", connection) { CommandTimeout = 30 };
@@ -277,23 +272,11 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
         public Task PublishAsync(string subject, string eventId, string payload, CancellationToken ct = default) { EventIds.Add(eventId); return Task.CompletedTask; }
     }
 
-    private async Task<bool> ServiceAvailableAsync()
+    private static string GetConfiguredFixture()
     {
-        if (RequireProviderTests && string.IsNullOrWhiteSpace(ConfiguredConnectionString))
+        if (string.IsNullOrWhiteSpace(ConfiguredConnectionString))
             throw new Xunit.Sdk.XunitException("Postgres provider is required but OPENCONNECT_TEST_POSTGRES_CONNECTION_STRING is not configured.");
 
-        try
-        {
-            await using var connection = new NpgsqlConnection(ConnectionString);
-            await connection.OpenAsync();
-            return true;
-        }
-        catch (Exception exception) when (exception is NpgsqlException or System.Net.Sockets.SocketException or OperationCanceledException)
-        {
-            if (RequireProviderTests)
-                throw new Xunit.Sdk.XunitException($"Postgres provider is required but unavailable ({exception.GetType().Name}).");
-            output.WriteLine($"SKIP Postgres: unavailable ({exception.GetType().Name}).");
-            return false;
-        }
+        return ConfiguredConnectionString;
     }
 }
