@@ -7,6 +7,7 @@ namespace OpenConnect.Persistence.EFCore.Stores;
 internal sealed class EfEventJournal<TContext>(TContext context) : IEventJournal where TContext : DbContext
 {
     private const int MaxSequenceAttempts = 64;
+    private const int ReplayPageSize = 200;
 
     public async Task<long> AppendAsync(EventRecord @event, CancellationToken cancellationToken = default)
     {
@@ -54,8 +55,31 @@ internal sealed class EfEventJournal<TContext>(TContext context) : IEventJournal
         if (owner is null)
             yield break;
 
-        var rows = await context.Set<EventEntity>().AsNoTracking().Where(x => x.SessionId == session && x.TenantScope == owner.TenantScope && x.Sequence > afterSequence).OrderBy(x => x.Sequence).Take(200).ToListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var row in rows)
-        { cancellationToken.ThrowIfCancellationRequested(); yield return new(sessionId, row.Sequence, row.EventType, row.SanitizedPayload); }
+        var scoped = context.Set<EventEntity>().AsNoTracking()
+            .Where(x => x.SessionId == session && x.TenantScope == owner.TenantScope);
+        // Capture a finite upper bound when enumeration starts; later appends belong to the next replay.
+        var highWater = await scoped.Select(x => (long?)x.Sequence).MaxAsync(cancellationToken).ConfigureAwait(false);
+        if (highWater is not long upperSequence)
+            yield break;
+
+        var cursor = afterSequence;
+        while (cursor < upperSequence)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var rows = await scoped.Where(x => x.Sequence > cursor && x.Sequence <= upperSequence)
+                .OrderBy(x => x.Sequence)
+                .Take(ReplayPageSize)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (rows.Count == 0)
+                yield break;
+
+            foreach (var row in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return new(sessionId, row.Sequence, row.EventType, row.SanitizedPayload);
+            }
+            cursor = rows[^1].Sequence;
+        }
     }
 }
