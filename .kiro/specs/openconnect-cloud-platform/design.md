@@ -271,3 +271,5 @@ The private LiveUI gateway adapter probes the certificate-bound worker identity 
 An offline worker smoke test loaded the existing digest-verified Qwen3 model from a read-only volume and exercised a deterministic allowed plan. That test verifies model loading and deterministic routing only; it does not prove model-generated planning or the complete Cloud request path.
 
 LiveUI admission snapshots the request, inspects every model-visible field, reserves a plan and binds a single-use claim to the exact worker payload. The public execution route and output enforcement remain separate integration steps.
+
+The LiveUI execution coordinator monitors claim access throughout dispatch and requires output-field privacy inspection and a final access check before releasing a proposal. The public route remains unconnected.

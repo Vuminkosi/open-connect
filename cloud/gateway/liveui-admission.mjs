@@ -25,7 +25,7 @@ export async function withLiveUIAdmission({ credential, identity, body, deployme
         const fingerprint = requestFingerprint.toString('base64');
         payload = Buffer.from(JSON.stringify({ schemaVersion: 'openconnect.cloud.liveui.worker/v1', requestId: request.requestId,
             modelId, input: request.input }), 'utf8');
-        if (payload.length > 262144) return unavailable();
+        if (payload.length > 131072) return unavailable();
         key = randomBytes(32);
         proof = createHmac('sha256', key).update(payload).digest();
         const inspection = await authorization.inspectLiveUI(credential, request.requestId, liveUIInspectionFields(request), fingerprintKeyId, fingerprint, signal, traceparent);
@@ -45,3 +45,4 @@ export async function withLiveUIAdmission({ credential, identity, body, deployme
     } catch { return unavailable(); }
     finally { raw?.fill(0); payload?.fill(0); key?.fill(0); proof?.fill(0); requestFingerprint?.fill(0); }
 }
+

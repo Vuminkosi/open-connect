@@ -217,3 +217,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add mutually authenticated LiveUI worker readiness and claimed dispatch with allowlist validation; admission composition and public route remain outstanding.
 
 - [x] Compose LiveUI input inspection, plan reservation and payload-bound claim before worker dispatch; public execution remains outstanding.
+
+- [x] Gate settled LiveUI proposals on output privacy and ongoing claim access; public routing and end-to-end validation remain outstanding.
