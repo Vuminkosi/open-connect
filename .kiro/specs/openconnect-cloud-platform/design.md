@@ -293,3 +293,5 @@ The Blazor host builds inference capabilities from the authorized current page t
 The Blazor Cloud authorizer reads the current authorized page, checks the request against its manifest and capability mapping, and rechecks the current route and application-owned session context before allowing egress. Applications supply the session ownership resolver; changes to route or session during authorization deny the request.
 
 The same-host development sample resolves Cloud LiveUI privacy context only for sessions owned by its configured tenant and principal. This identity mode remains development-only and does not establish production authentication.
+
+A local integration test exercises the .NET host Cloud provider, host privacy firewall and controlled page/session authorization through a test-only HTTPS proxy to the real Cloud gateway, mTLS worker and disposable PostgreSQL. It verifies a deterministic proposal and one-plan settlement; browser actions, receipts, model-generated planning and production TLS remain unverified.

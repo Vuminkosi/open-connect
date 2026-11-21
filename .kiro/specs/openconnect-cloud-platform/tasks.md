@@ -237,3 +237,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add the Blazor Cloud host authorization adapter with current-page and session revalidation. A concrete application session resolver and real host-to-Cloud validation remain outstanding.
 
 - [x] Add and test same-host development session ownership resolution for Cloud LiveUI; application wiring and real host-to-Cloud acceptance remain outstanding.
+
+- [x] Exercise the host Cloud provider and privacy firewall through the real gateway, worker and PostgreSQL with a controlled page/session fixture; browser and production acceptance remain outstanding.

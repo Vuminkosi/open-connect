@@ -11,7 +11,16 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using OpenConnect.Abstractions;
 using OpenConnect.Docs.Cloud;
+using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Agents;
+using OpenConnect.LiveUI.Blazor;
+using OpenConnect.LiveUI.Inference;
+using OpenConnect.Privacy;
+using OpenConnect.Privacy.Gates;
+using OpenConnect.Privacy.Policy;
 using OpenConnect.Privacy.Rules;
 using Xunit;
 
@@ -182,12 +191,88 @@ public sealed class CloudLiveUILiveSystemTests
             using var replay = await http.PostAsJsonAsync("/cloud/v1/liveui/plan", request);
             Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
             Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(x => x.ReservationId == reservation.Id));
+            await VerifyHostPlanAsync(port, credential.Secret!, factory, tenant.Id, application.Id);
         }
         finally
         {
             await DockerIgnoreFailure("rm", "-f", gateway); await DockerIgnoreFailure("rm", "-f", worker);
             await DockerIgnoreFailure("network", "rm", network); Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static async Task VerifyHostPlanAsync(int gatewayPort, string credential,
+        IDbContextFactory<CloudControlPlaneDbContext> factory, Guid tenantId, Guid applicationId)
+    {
+        // The production transport validates TLS normally; this isolated proxy pins its own ephemeral test certificate.
+        using var certificate = Certificate("localhost", false);
+        var proxyBuilder = WebApplication.CreateBuilder();
+        proxyBuilder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(certificate)));
+        await using var proxy = proxyBuilder.Build();
+        using var gateway = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{gatewayPort}") };
+        proxy.Run(async context =>
+        {
+            using var outgoing = new HttpRequestMessage(new HttpMethod(context.Request.Method), context.Request.Path + context.Request.QueryString);
+            if (context.Request.Headers.TryGetValue("Authorization", out var authorization))
+                outgoing.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
+            if (context.Request.Method == "POST")
+            {
+                outgoing.Content = new StreamContent(context.Request.Body);
+                outgoing.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            }
+            using var response = await gateway.SendAsync(outgoing, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+            context.Response.StatusCode = (int)response.StatusCode;
+            context.Response.ContentType = response.Content.Headers.ContentType?.ToString();
+            await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+        });
+        await proxy.StartAsync();
+        var proxyPort = new Uri(proxy.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false,
+            ServerCertificateCustomValidationCallback = (_, received, _, _) => received is not null &&
+                received.GetCertHashString(HashAlgorithmName.SHA256) == certificate.GetCertHashString(HashAlgorithmName.SHA256) };
+        using var transport = (CloudLiveUIHttpTransport)Activator.CreateInstance(typeof(CloudLiveUIHttpTransport),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, binder: null,
+            args: [new Uri($"https://localhost:{proxyPort}/"), credential, handler], culture: null)!;
+
+        var context = new EgressContext(new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()),
+            new SessionId(Ulid.NewUlid()), EgressDestination.ExternalModel);
+        var page = new LiveUIAgentPage("/tasks", "/tasks", "Tasks", "build", "hash",
+            [new("region-tasks", "Region", "Tasks", new HashSet<LiveUICapability> { LiveUICapability.Inspect }, false)]);
+        var authorizer = new CloudLiveUIHostAuthorizer(new TestCurrentContext(context.Session.Value.ToString()),
+            new TestManifest(), new TestPage(page), new TestSession(context));
+        var firewall = new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(new RulesSecurityDetector()));
+        var provider = new CloudLiveUIInferenceProvider(authorizer, new EgressGate(firewall), transport,
+            Options.Create(new LiveUIInferenceOptions()));
+        Assert.Equal(LiveUIInferenceAvailabilityStatus.Available, (await provider.GetAvailabilityAsync()).Status);
+        var execution = Guid.NewGuid();
+        var request = new LiveUIInferenceRequest("explain current view", context.Session.Value.ToString(), "/tasks", "v1",
+            LiveUIInferenceCapabilities.FromPage(page), "hash") { ExecutionId = execution.ToString("N") };
+        var result = await provider.GeneratePlanAsync(request);
+        Assert.Equal("completed", result.Outcome);
+        Assert.Equal("region-tasks", Assert.Single(result.Plan!.Actions).TargetId);
+        await using var verify = await factory.CreateDbContextAsync();
+        var reservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenantId && item.ApplicationId == applicationId && item.RequestId == execution);
+        Assert.Equal(1, reservation.Actual); Assert.NotNull(reservation.FinalizedAt);
+        Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(item => item.ReservationId == reservation.Id));
+        await proxy.StopAsync();
+    }
+
+    private sealed class TestCurrentContext(string session) : ILiveUIAgentContextAccessor
+    {
+        public ValueTask<LiveUIAgentContext?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<LiveUIAgentContext?>(new(session, "/tasks") { CurrentPath = "/tasks" });
+    }
+    private sealed class TestManifest : ILiveUIManifestProvider
+    {
+        public ValueTask<LiveUIManifest?> GetCurrentAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<LiveUIManifest?>(new("v1", "build", "hash", []));
+    }
+    private sealed class TestPage(LiveUIAgentPage page) : ICloudLiveUIPageProvider
+    {
+        public ValueTask<LiveUIAgentPage?> GetCurrentPageAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult<LiveUIAgentPage?>(page);
+    }
+    private sealed class TestSession(EgressContext context) : ICloudLiveUISessionContextProvider
+    {
+        public ValueTask<EgressContext?> GetContextAsync(string sessionId, CancellationToken cancellationToken = default) => ValueTask.FromResult<EgressContext?>(context);
     }
 
     private static string Required(string name) => Environment.GetEnvironmentVariable(name) ?? throw new InvalidOperationException("Missing test configuration.");
