@@ -98,6 +98,37 @@ services:
     pids_limit: 128
     networks: [oc-network]
 
+  # Dedicated Cloud LiveUI worker is private and uses a pre-provisioned model.
+  cloud-liveui-worker:
+    profiles: ["cloud-liveui"]
+    build:
+      context: ./workers/liveui-inference
+    image: openconnect-cloud-liveui-worker:${OC_IMAGE_TAG:-e2e-local}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--ssl-certfile", "/run/openconnect-cloud/server.crt", "--ssl-keyfile", "/run/openconnect-cloud/server.key", "--ssl-ca-certs", "/run/openconnect-cloud/gateway-client-ca.crt", "--ssl-cert-reqs", "2", "--no-access-log"]
+    environment:
+      OPENCONNECT_CLOUD_LIVEUI_ENABLED: "true"
+      MODEL_ENABLED: "true"
+      MODEL_PATH: /models/liveui.gguf
+      MODEL_ID: ${CLOUD_LIVEUI_MODEL_ID:-}
+      MODEL_REVISION: ${CLOUD_LIVEUI_MODEL_REVISION:-}
+      MODEL_SHA256: ${CLOUD_LIVEUI_MODEL_SHA256:-}
+      OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED: ${CLOUD_LIVEUI_MODEL_LICENSE_ACCEPTED:-false}
+      OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED: ${CLOUD_LIVEUI_MODEL_ARTIFACT_REVIEWED:-false}
+      OPENCONNECT_WORKER_TOKEN_FILE: /run/openconnect-cloud/worker-token
+      OPENCONNECT_CLOUD_AUTHORITY_ORIGIN: ${CLOUD_AUTHORITY_ORIGIN:-}
+      OPENCONNECT_CLOUD_AUTHORITY_CA_FILE: /run/openconnect-cloud/authority-ca.crt
+      OPENCONNECT_CLOUD_WORKER_CERT_FILE: /run/openconnect-cloud/authority-client.crt
+      OPENCONNECT_CLOUD_WORKER_KEY_FILE: /run/openconnect-cloud/authority-client.key
+    volumes:
+      - oc_liveui_models:/models:ro
+      - ${CLOUD_LIVEUI_WORKER_SECRETS_DIR:-./cloud/liveui-worker/secrets}:/run/openconnect-cloud:ro
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    networks: [oc-network]
+
   # Cloud data plane is separate from the sample application gateway.
   cloud-gateway:
     build:
@@ -124,6 +155,19 @@ services:
       CLOUD_CLASSIFICATION_DEPLOYMENT_ID: ${CLOUD_CLASSIFICATION_DEPLOYMENT_ID:-}
       CLOUD_FINGERPRINT_ACTIVE_KEY_ID: ${CLOUD_FINGERPRINT_ACTIVE_KEY_ID:-}
       CLOUD_FINGERPRINT_KEYS_FILE: ${CLOUD_FINGERPRINT_KEYS_FILE:-}
+      CLOUD_LIVEUI_EXECUTION_ENABLED: ${CLOUD_LIVEUI_EXECUTION_ENABLED:-false}
+      CLOUD_LIVEUI_ORIGIN: ${CLOUD_LIVEUI_ORIGIN:-}
+      CLOUD_LIVEUI_CA_FILE: ${CLOUD_LIVEUI_CA_FILE:-}
+      CLOUD_LIVEUI_CERT_FILE: ${CLOUD_LIVEUI_CERT_FILE:-}
+      CLOUD_LIVEUI_KEY_FILE: ${CLOUD_LIVEUI_KEY_FILE:-}
+      CLOUD_LIVEUI_TOKEN_FILE: ${CLOUD_LIVEUI_TOKEN_FILE:-}
+      CLOUD_LIVEUI_DEPLOYMENT_ID: ${CLOUD_LIVEUI_DEPLOYMENT_ID:-}
+      CLOUD_LIVEUI_ENDPOINT_REFERENCE: ${CLOUD_LIVEUI_ENDPOINT_REFERENCE:-}
+      CLOUD_LIVEUI_REGION: ${CLOUD_LIVEUI_REGION:-}
+      CLOUD_LIVEUI_CONTRACT_VERSION: ${CLOUD_LIVEUI_CONTRACT_VERSION:-}
+      CLOUD_LIVEUI_MODEL_ID: ${CLOUD_LIVEUI_MODEL_ID:-}
+      CLOUD_LIVEUI_MODEL_REVISION: ${CLOUD_LIVEUI_MODEL_REVISION:-}
+      CLOUD_LIVEUI_MODEL_DIGEST: ${CLOUD_LIVEUI_MODEL_DIGEST:-}
       CLOUD_INFERENCE_TOKENIZER_ENABLED: ${CLOUD_INFERENCE_TOKENIZER_ENABLED:-false}
       CLOUD_INFERENCE_EXECUTION_ENABLED: ${CLOUD_INFERENCE_EXECUTION_ENABLED:-false}
       CLOUD_INFERENCE_ORIGIN: ${CLOUD_INFERENCE_ORIGIN:-}

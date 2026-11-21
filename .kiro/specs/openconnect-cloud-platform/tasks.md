@@ -221,3 +221,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Gate settled LiveUI proposals on output privacy and ongoing claim access; public routing and end-to-end validation remain outstanding.
 
 - [x] Connect opt-in LiveUI routing, readiness, admission and output enforcement; real-system validation and Compose configuration remain outstanding.
+
+- [x] Add an isolated Cloud LiveUI worker and gateway configuration to root Compose; real-system validation remains outstanding.

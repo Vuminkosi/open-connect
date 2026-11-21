@@ -275,3 +275,5 @@ LiveUI admission snapshots the request, inspects every model-visible field, rese
 The LiveUI execution coordinator monitors claim access throughout dispatch and requires output-field privacy inspection and a final access check before releasing a proposal. The opt-in public route requires worker readiness before reading the request.
 
 The opt-in LiveUI gateway route uses a pinned deployment and private mutual TLS. End-to-end runtime validation and deployment configuration remain outstanding.
+
+The root Compose configuration provides an opt-in Cloud LiveUI worker with mutual TLS, a read-only pre-provisioned model and mounted secrets. Model license and artifact approval must be configured explicitly; no model download is performed in Cloud mode.
