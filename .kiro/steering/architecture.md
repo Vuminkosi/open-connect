@@ -377,3 +377,5 @@ Cloud knowledge settlement requires a consumed claim and matching allowed reques
 Expired unclaimed knowledge and analytics requests and expired unconsumed claims release reserved quota once. Database abandonment fencing rejects late worker consumption after recovery.
 
 The knowledge worker accepts Cloud embedding execution only when its model and trusted claim authority are ready. It validates and consumes the exact claim-bound payload once before starting inference, and rejects ambiguous or expired requests.
+
+The documentation assistant diagnostic handler records gateway failure categories and HTTP status codes without logging request content, credentials, visitor identifiers or exception messages.

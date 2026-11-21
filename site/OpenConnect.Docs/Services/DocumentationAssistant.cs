@@ -52,6 +52,9 @@ public static class DocumentationAssistant
                 options.ApiBaseAddress = gateway;
                 options.AllowInsecureHttp = environment.IsDevelopment();
             });
+            services.AddTransient<DocumentationGatewayDiagnosticsHandler>();
+            services.AddHttpClient(nameof(IOpenConnectClient))
+                .AddHttpMessageHandler<DocumentationGatewayDiagnosticsHandler>();
             if (!string.IsNullOrEmpty(credential))
                 services.AddHttpClient(nameof(IOpenConnectClient), client =>
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential));
