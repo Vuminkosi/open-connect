@@ -9,6 +9,19 @@ public sealed class OutgoingContentScannerTests
     private static readonly EgressContext Context = new(new(Ulid.NewUlid()), new(Ulid.NewUlid()), new(Ulid.NewUlid()), EgressDestination.Output);
 
     [Theory]
+    [InlineData("alice%40example.com", false, "encoded_sensitive_value_detected")]
+    [InlineData("alice%2540example.com", false, "encoded_sensitive_value_detected")]
+    [InlineData("alice%252540example.com", false, "detector_failure")]
+    [InlineData("discount%2525", true, "clean")]
+    public void EncodedOutputIsInspectedBeforeRelease(string content, bool allowed, string reason)
+    {
+        var decision = new OutgoingContentScanner().ScanOutgoing(content, Context, failClosed: false);
+        Assert.Equal(allowed, decision.Allowed);
+        Assert.Equal(reason, decision.Reason);
+        if (!allowed) Assert.Null(decision.SanitizedContent);
+    }
+
+    [Theory]
     [InlineData("Contact alice@example.com", "alice@example.com")]
     [InlineData("Full name: Jordan Example", "Jordan Example")]
     [InlineData("Call +1-555-867-5309", "+1-555-867-5309")]

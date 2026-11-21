@@ -32,6 +32,29 @@ public sealed class OutgoingContentScanner
             return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
         if (result.DetectedEntities.Count == 0 && !string.Equals(result.SanitizedContent, content, StringComparison.Ordinal))
             return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+        if (content.Contains('%'))
+        {
+            if (content.Length > 1_000_000)
+                return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+            var decoded = content;
+            try
+            {
+                for (var depth = 0; depth < 2 && decoded.Contains('%'); depth++)
+                {
+                    var next = Uri.UnescapeDataString(decoded);
+                    if (next == decoded) break;
+                    decoded = next;
+                    var inspected = _policy.EvaluateAsync(decoded, context, FirewallMode.StrictLocal, true).GetAwaiter().GetResult();
+                    if (inspected is null || !inspected.Allowed || inspected.SanitizedContent is null || inspected.DetectedEntities is null)
+                        return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+                    if (inspected.DetectedEntities.Count > 0 || inspected.SanitizedContent != decoded)
+                        return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "encoded_sensitive_value_detected");
+                }
+                if (decoded.Contains('%') && Uri.UnescapeDataString(decoded) != decoded)
+                    return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+            }
+            catch { return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure"); }
+        }
         if (result.DetectedEntities.Count == 0)
             return new EgressDecision(true, content, result.DetectedEntities, SecurityPolicyAction.Allow, "clean");
 
