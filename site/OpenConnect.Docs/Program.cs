@@ -115,6 +115,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddCloudTranslationFeature();
     builder.Services.AddScoped<ICloudInferencePrivacyEvidenceStore, EfCloudInferencePrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudAnalyticsPrivacyEvidenceStore, EfCloudAnalyticsPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudAnalyticsComputeUsageReader, EfCloudAnalyticsComputeUsageReader>();
     builder.Services.AddSingleton(new CloudAnalyticsPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddSingleton(new CloudInferenceOutputPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddScoped<ICloudInferenceOutputEvidenceStore, EfCloudInferenceOutputEvidenceStore>();

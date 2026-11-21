@@ -20,6 +20,7 @@ public sealed class CloudUsageComponentTests : BunitContext
         Services.AddSingleton<CloudUsageQueryService>();
         Services.AddSingleton<ICloudUsageSummaryReader>(new SummaryReader(tenant));
         Services.AddSingleton<CloudUsageSummaryService>();
+        Services.AddSingleton<ICloudAnalyticsComputeUsageReader>(new ComputeReader(tenant));
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example" }).Build());
@@ -33,10 +34,13 @@ public sealed class CloudUsageComponentTests : BunitContext
         Assert.Equal(new DateTimeOffset(2026, 1, 4, 0, 0, 0, TimeSpan.Zero), reader.To);
         Assert.Contains($"/cloud/api/v1/tenants/{tenant:D}/usage/export?", component.Find("a").GetAttribute("href"));
         Assert.Contains("Daily breakdown", component.Markup);
+        Assert.Contains("Analytics calculation time", component.Markup);
+        Assert.Contains("1234 ms", component.Markup);
         Assert.Contains("Ledger records", component.Markup);
         component.Render(p => p.Add(x => x.TenantId, Guid.NewGuid()));
         Assert.Contains("does not allow usage access", component.Markup);
         Assert.DoesNotContain("classification.classify", component.Markup);
+        Assert.DoesNotContain("1234 ms", component.Markup);
     }
 
     private sealed class TestAuthentication : AuthenticationStateProvider
@@ -49,6 +53,12 @@ public sealed class CloudUsageComponentTests : BunitContext
     {
         public Task<CloudUsageSummary?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
             Task.FromResult<CloudUsageSummary?>(tenantId == tenant ? new([new CloudUsageDailyTotal(DateTime.UnixEpoch, Guid.NewGuid(), "classification.classify", "request", 1, 1)], false) : null);
+    }
+
+    private sealed class ComputeReader(Guid tenant) : ICloudAnalyticsComputeUsageReader
+    {
+        public Task<CloudAnalyticsComputeSummary?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+            Task.FromResult<CloudAnalyticsComputeSummary?>(tenantId == tenant ? new([new CloudAnalyticsComputeDailyTotal(DateTime.UnixEpoch, Guid.NewGuid(), 1234, 2)], false) : null);
     }
 
     private sealed class Reader(Guid tenant) : ICloudUsageReader

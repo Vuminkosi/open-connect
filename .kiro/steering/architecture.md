@@ -409,3 +409,5 @@ Application hosts can use the analytics client to authorize and privacy-check wo
 The documentation analytics example uses a fixed synthetic dataset, anonymous visitor scope, bounded concurrency and the application SDK. It is opt-in in development and keeps worker credentials in protected configuration.
 
 Analytics privacy and compute reports require the appropriate tenant membership role. Reading reports creates an audit event but does not reserve or consume tenant API quota.
+
+The Cloud usage page presents settled analytics calculation time separately from request counts and identifies it as elapsed time rather than a price or invoice.
