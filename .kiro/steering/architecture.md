@@ -385,3 +385,5 @@ Cloud analytics defines separate versioned contracts for public requests, public
 The Cloud analytics boundary rejects ambiguous or unbounded input, binds worker payloads to authenticated tenant context, and validates returned statistics against the admitted input before a result can be released.
 
 Cloud analytics transport uses deployment-authenticated TLS and bounded responses. Reservations are bound to the admitted request; worker claims and repeated access checks are required before a result is released.
+
+Analytics execution remains opt-in and returns results only after request and response privacy checks, worker claim consumption, access rechecks and confirmed usage settlement. Response bytes are snapshotted across asynchronous checks and cleared after use.
