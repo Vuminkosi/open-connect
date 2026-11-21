@@ -21,3 +21,13 @@ npx playwright test --config=playwright.cloud-local-voice.config.js site-speech-
 ```
 
 The test submits a short text request and observes a non-silent audio buffer start and finish in the browser. It permits autoplay for automation and does not verify audible output on a physical device or microphone transcription.
+
+## Cloud gateway voice synthesis
+
+To exercise the complete local Cloud capability path, set `OPENCONNECT_CLOUD_ACCEPTANCE_ENABLED=1`, `OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL` to the loopback HTTPS portal, `OPENCONNECT_CLOUD_ACCEPTANCE_GATEWAY` to the loopback HTTP gateway, and `OPENCONNECT_CLOUD_ACCEPTANCE_TENANT` and `OPENCONNECT_CLOUD_ACCEPTANCE_APPLICATION` to an authorized test scope. Supply `OC_LOCAL_OIDC_USERNAME` and `OC_LOCAL_OIDC_PASSWORD` through a protected environment. The selected tenant must have a ready and entitled voice deployment and quota.
+
+```powershell
+npx playwright test --config=playwright.cloud-local-voice.config.js voice-journey.spec.js
+```
+
+This test creates and revokes a short-lived application credential, submits a synthetic synthesis request, and checks the resulting usage and privacy records. It creates a real local ledger entry and audit records; run it only in an appropriate test environment. It verifies generated PCM, not playback on a physical device or microphone transcription.
