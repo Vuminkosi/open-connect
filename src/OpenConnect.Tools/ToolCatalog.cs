@@ -8,7 +8,7 @@ namespace OpenConnect.Tools;
 public sealed record ToolRegistration(ToolDescriptor Descriptor, string JsonSchema, Func<JsonElement, CancellationToken, ValueTask<JsonElement>> InvokeAsync, bool RequiresApproval = false);
 
 /// <summary>Thread-safe tool registry; discovery is always intersected with host policy.</summary>
-public sealed class ToolCatalog(ToolAuthorizationService authorization) : IToolCatalog
+public sealed class ToolCatalog(ToolAuthorizationService authorization) : IToolCatalog, IToolDiscovery
 {
     private readonly ConcurrentDictionary<ToolId, ToolRegistration> _tools = new();
     private readonly ConcurrentDictionary<AgentId, ConcurrentDictionary<ToolId, byte>> _agentAllowLists = new();
