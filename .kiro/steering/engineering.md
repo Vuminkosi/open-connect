@@ -10,7 +10,7 @@ description: Coding standards, testing strategy, CI/CD, and development practice
 
 ### C#/.NET
 
-- **Target Framework:** .NET 8 LTS
+- **Target Frameworks:** Libraries target .NET 8, 9 and 10; executable samples and tests default to .NET 10. Keep each sample's lock file aligned with its configured target and central package versions.
 - **Language Version:** C# 12
 - **Nullable Reference Types:** Enabled
 - **Implicit Usings:** Enabled
@@ -195,6 +195,8 @@ dotnet test OpenConnect.slnx -c Release --no-build
 ```
 
 ### Python Build
+
+Worker container builds can run `workers/common/verify_install.py` to check that the installed shared package matches the source copied into the build context. A mismatch or an empty package fails the check.
 
 ```bash
 cd workers/{name}

@@ -218,6 +218,12 @@ OpenConnect.Hosting.AspNetCore.TaskRequest.Message.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.TaskRequest(string! ClientTaskId, string? Message = null, string? SessionId = null) -> void
+OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor
+OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.RefreshAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.WorkerCapabilityMonitor(OpenConnect.Abstractions.ICapabilityRegistry! registry, System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource!>! sources, System.TimeSpan? interval = null) -> void
+OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitorServiceCollectionExtensions
+OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource
+OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource.WorkerCapabilitySource(string! endpoint, string! token, System.Collections.Generic.IReadOnlyList<string!>! capabilityIds, bool inference = false, bool allowInsecureHttp = false) -> void
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Equals(object? obj) -> bool
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.GetHashCode() -> int
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToString() -> string!
@@ -239,6 +245,7 @@ override OpenConnect.Hosting.AspNetCore.SessionRequest.ToString() -> string!
 override OpenConnect.Hosting.AspNetCore.TaskRequest.Equals(object? obj) -> bool
 override OpenConnect.Hosting.AspNetCore.TaskRequest.GetHashCode() -> int
 override OpenConnect.Hosting.AspNetCore.TaskRequest.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.Dispose() -> void
 static OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter.TryToCanonical(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionUuid, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnect(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectMcp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
@@ -261,3 +268,4 @@ static OpenConnect.Hosting.AspNetCore.SessionRequest.operator !=(OpenConnect.Hos
 static OpenConnect.Hosting.AspNetCore.SessionRequest.operator ==(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator !=(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator ==(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
+static OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitorServiceCollectionExtensions.AddOpenConnectWorkerCapabilityMonitor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource!>! sources, System.TimeSpan? interval = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

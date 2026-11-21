@@ -6,6 +6,84 @@ description: .NET solution architecture, package boundaries, and system design f
 
 # OpenConnect Architecture Steering
 
+Documentation LiveUI section targets derive from the same heading identifiers used by the rendered page and its table of contents. They allow read-only inspection, highlighting and scrolling on public documentation routes; Cloud management remains user-operated.
+
+The API reference also exposes its REST and worker contracts heading as a read-only LiveUI target, so guided navigation can distinguish that section from the generated .NET reference.
+
+The generated API index filters by document name and renders a bounded page of metadata at a time; generated reference volume must not require rendering the entire catalog in one response.
+
+Documentation for document processing and semantic memory describes SDK client contracts, host authorization and scoped data handling; worker readiness or an indexing receipt is not presented as proof of durable, authorized retrieval.
+
+The knowledge SDK's index and search clients require host authorization of the tenant, object, destination and roles, sign worker requests, and screen input and output through the host privacy gate. The composed workflow waits for an indexing completion before searching.
+
+The optional development documentation knowledge example indexes an operator-approved synthetic object separately for each signed visitor, assigns that visitor's principal ACL and a one-hour expiry, and requires completed indexing before search. Index cleanup requires the independently provisioned expiry worker. Cloud embedding credentials, when selected, belong to the site deployment rather than the visitor.
+
+The example reuses its visitor-bound job identity on retry, does not reindex after confirmed completion, and rejects results whose document ID or source revision differs from the approved visitor projection.
+
+Knowledge embeddings can use either the private signed worker contract or the authenticated Cloud gateway contract. The SDK validates the response identity and model space and applies host privacy checks to both paths.
+
+Cloud worker payload binding and tenant-ID conversion are shared gateway boundary operations; knowledge embedding payload preparation does not depend on analytics feature code.
+
+Knowledge embedding execution composes reservation, privacy inspection, a deployment-bound claim, revocation monitoring, worker dispatch, output inspection and settlement before returning a result. Ambiguous outcomes fail closed and are not retried by the gateway execution layer.
+
+The Cloud embedding route is opt-in and reports readiness only when its configured private control plane and worker are ready. The local server retains its existing voice argument position when additional capabilities are configured.
+
+The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
+
+The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
+
+A disposable local wire fixture exercises the documentation document workflow over a Unix socket and HTTP, including signed requests, tenant binding and citation handling. It does not establish scanner, model or real-worker readiness.
+
+The API reference guide links authored client guides and versioned wire contracts, and documents the repository-pinned DocFX generation workflow separately from published-package validation.
+
+The documentation image build context includes the LiveUI source projects and compiler referenced by the site, so a clean container build can compose the interactive documentation client.
+
+The documentation application-host guide identifies the combined local Compose overlays and the default workers needed to run the public assistant; Cloud identity and optional transcription remain separately configured.
+
+Privacy documentation distinguishes the token vault's tenant, principal, session and purpose scope from any additional turn or policy-revision restrictions imposed by the host.
+
+The public privacy example runs fixed synthetic inputs through an isolated SDK rules firewall without a token vault or external egress. It does not accept visitor-entered sensitive data or imply that detection is complete. The documentation LiveUI policy may select only the predefined examples and trigger this idempotent example only on the privacy guide.
+
+The LiveUI guide describes the site's actual permitted actions and requires inspection of the page and receipt when an interaction is denied or uncertain.
+
+Composer voice controls use native buttons for keyboard operation and expose their toggle state. A transcription failure turns the microphone toggle off and reports the failure while preserving text input.
+
+An opt-in local browser check exercises that failure against an intentionally unavailable transcription worker and verifies a subsequent text-driven interaction; it is not a substitute for a successful transcription test.
+
+The transcription worker exposes authenticated local-realtime model readiness separately from its general readiness. It checks the local-only model path without cloud fallback and does not reserve a capture slot.
+
+The development documentation application host exposes only an authenticated, bounded boolean readiness result for its configured local transcription worker; the worker credential remains on the host and worker errors fail closed.
+
+When the local documentation-host readiness integration is enabled, the site checks it with its server-side visitor identity and disables microphone controls until the local model is available. Other SDK clients retain their existing behavior unless their host supplies an availability state.
+
+If microphone availability is withdrawn during capture, the composer aborts the socket without an end-of-stream request and invalidates the active speech epoch.
+
+The documentation assistant renders after its interactive server circuit starts, so its launcher is not presented before it can receive input. Public documentation remains server-rendered.
+
+Interactive documentation examples likewise render their controls after their circuits start, preventing early input from being lost while the surrounding guide remains server-rendered.
+
+The local documentation acceptance suite can exercise the assistant's LiveUI interaction with the synthetic privacy example and verify that the rules firewall reports the expected category.
+
+The privacy demonstration uses a fixed set of synthetic email, phone, test-card, password and ordinary messages; LiveUI may select only those values. Changing the example clears the prior result.
+
+The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
+
+The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.
+
+When generated API documents are present, LiveUI may inspect, focus, or set the public API search field with a bounded value. It does not advertise that field when the catalog is absent.
+
+When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
+
+The opt-in local Cloud management browser check compares tenant-scoped ledger state around public documentation and authenticated management visits. It requires an isolated test tenant so concurrent capability calls do not affect the comparison.
+
+The service catalog and Cloud guides distinguish management access from admitted capability execution and distinguish quota ledger records from invoices.
+
+The Todo reference sample persists its scoped Todo items and OpenConnect state in its application-owned SQLite database; deployment must retain that database if items should survive replacement.
+
+The documentation component showcase uses the SDK component registry and safe renderer. Its single idempotent display action is authorized only on the public documentation index; arbitrary component names and Cloud management controls are not exposed to that action.
+
+Realtime transcription is application-neutral: only provider-confirmed final text may be submitted as a task, and the host does not rewrite it using sample-specific vocabulary. A capture and speech epoch use the host dispatcher's scoped idempotency mechanism. Provider errors and cancellation do not admit an unfinished turn.
+
 ## Solution Architecture
 
 ```
@@ -225,6 +303,10 @@ A `CapabilityDescriptor` contains:
 
 **Rule:** Advertise *actual* capabilities only. Worker announces only installed/model-verified capabilities.
 
+Hosts can opt into a private-worker capability monitor with explicitly owned capability IDs. The monitor publishes validated ready capabilities and marks its IDs stale on failed, invalid or incomplete worker responses. Its polling interval must be shorter than the registry lease, allowing for all configured sources.
+
+The optional vision worker exposes image classification and paired image/text embedding through separate private endpoints. It requires approved, verified offline model artifacts, a restricted runtime and local malware scanning for image input before advertising readiness. Its process-local execution does not provide durable replay protection.
+
 ## Configuration Contract
 
 ```csharp
@@ -245,3 +327,51 @@ app.Run();
 ```
 
 **Constraint:** `.AddOpenConnect()` registers services but NEVER launches Docker or downloads models.
+
+### Shared Cloud JSON privacy inspection
+
+Cloud features use a shared JSON privacy inspection service for decoded worker-bound payloads. Feature endpoints retain responsibility for their own authorization, request contracts, privacy evidence, and settlement; embedding responses use their dedicated bounded inspection budget. Missing detectors fail closed.
+
+### Public API discovery
+
+The documentation site exposes client guides and common gateway operations without authentication or generated metadata. Generated API metadata remains optional; authored examples follow the current SDK and gateway contracts.
+
+LiveUI manifest labels for public documentation targets must match their rendered page content so assistant guidance remains accurate when pages change.
+
+### Cloud worker capability catalog
+
+Document, knowledge, vision and analytics capabilities enter the Cloud catalog as not configured, without overwriting existing capability settings. Entitlements, application selection, verified deployment and readiness remain separate gates before use.
+
+### Local worker model provisioning
+
+The root Compose configuration defaults model provisioning to verification of existing assets and offline operation. Downloading approved, pinned assets requires an explicit provisioning and network configuration; enabling a worker does not implicitly download models.
+
+Knowledge demonstration passages are tied to the submitted question; editing the question clears the previous result and its status before another search.
+
+### Cloud classification privacy evidence
+
+Cloud classification evidence records bounded, allowlisted detector category counts alongside the decision. It never stores the detected values, and historical observations without category data remain valid. Evidence remains append-only.
+
+### Host privacy evidence ingestion
+
+Cloud accepts content-free host privacy decisions only from separately pinned host certificates and authenticated tenant applications. Evidence uses bounded category counts, idempotent event IDs, credential revocation fencing and append-only storage.
+
+Host privacy report reads require tenant security membership, repeat authorization before returning results, and produce audit events. HTTP routes delegate data access to the host privacy reader.
+
+The Cloud security dashboard links to a separate host privacy report view. It clears displayed evidence on identity or tenant changes and distinguishes host decisions from Cloud classification checks.
+
+Cloud documentation and tenant management visits do not consume tenant API quota or usage. Billing verification compares the tenant ledger before and after authenticated management navigation.
+
+Cloud knowledge embedding reserves request quota and records request and response privacy evidence bound to the authenticated tenant, application and request fingerprint. The latest decision gates subsequent execution, and evidence is append-only.
+
+Cloud worker deployment matching is shared infrastructure: each capability selects its own reader and supplies its own capability identifier to the matcher. Region policy and verified catalog regions are both required.
+
+Cloud knowledge worker claims bind a live reservation to the selected deployment, worker payload fingerprint and latest request privacy decision. Claim and quota operations serialize to prevent duplicate execution or racing refunds.
+
+A knowledge worker consumes a claim only once, using its pinned deployment identity and matching payload proof. Tenant authorization, deployment and the latest request privacy decision are rechecked at consumption.
+
+When composer session creation fails, an explicit Retry starts a new session attempt without submitting or discarding the visitor?s draft. Automatic render loops do not retry failed creation.
+
+Cloud knowledge settlement requires a consumed claim and matching allowed request and response privacy evidence. It records input character usage and finalizes quota atomically and idempotently.
+
+Expired unclaimed knowledge and analytics requests and expired unconsumed claims release reserved quota once. Database abandonment fencing rejects late worker consumption after recovery.

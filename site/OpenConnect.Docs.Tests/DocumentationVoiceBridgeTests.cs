@@ -1,0 +1,112 @@
+using System.Net;
+using System.Net.WebSockets;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using OpenConnect.Docs.Services.Voice;
+using Xunit;
+
+namespace OpenConnect.Docs.Tests;
+
+public sealed class DocumentationVoiceBridgeTests
+{
+    private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    private const string Other = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+
+    [Fact]
+    public async Task RelaysOnlyOnceWithSessionBoundVisitorCredential()
+    {
+        await using var fixture = await Fixture.StartAsync();
+        var ticket = fixture.Tickets.Issue(Session, "visitor-credential");
+        using (var socket = fixture.Socket(ticket))
+        {
+            await socket.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None);
+            await socket.SendAsync(Encoding.UTF8.GetBytes("hello"), WebSocketMessageType.Text, true, CancellationToken.None);
+            var buffer = new byte[32];
+            var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            Assert.Equal("hello", Encoding.UTF8.GetString(buffer, 0, result.Count));
+        }
+        Assert.Equal("Bearer visitor-credential", await fixture.Authorization.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        using var replay = fixture.Socket(ticket);
+        await Assert.ThrowsAsync<WebSocketException>(() => replay.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RejectsWrongOriginAndWrongSession()
+    {
+        await using var fixture = await Fixture.StartAsync();
+        var first = fixture.Tickets.Issue(Session, "visitor-credential");
+        using (var socket = fixture.Socket(first, "https://attacker.invalid"))
+            await Assert.ThrowsAsync<WebSocketException>(() => socket.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None));
+        using (var socket = fixture.Socket(first))
+            await Assert.ThrowsAsync<WebSocketException>(() => socket.ConnectAsync(fixture.VoiceUri(Other), CancellationToken.None));
+        using var replay = fixture.Socket(first);
+        await Assert.ThrowsAsync<WebSocketException>(() => replay.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None));
+        Assert.False(fixture.Authorization.Task.IsCompleted);
+    }
+
+    private sealed class Fixture(WebApplication gateway, WebApplication site, X509Certificate2 certificate,
+        string siteAddress, DocumentationVoiceTickets tickets, TaskCompletionSource<string> authorization) : IAsyncDisposable
+    {
+        public DocumentationVoiceTickets Tickets { get; } = tickets;
+        public TaskCompletionSource<string> Authorization { get; } = authorization;
+        public Uri VoiceUri(string session) => new($"{siteAddress.Replace("https://", "wss://", StringComparison.Ordinal)}/openconnect/v1/voice/realtime/{session}");
+
+        public ClientWebSocket Socket(string ticket, string? origin = null)
+        {
+            var socket = new ClientWebSocket();
+            socket.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+            socket.Options.SetRequestHeader("Origin", origin ?? siteAddress);
+            socket.Options.AddSubProtocol("openconnect.voice.v1");
+            socket.Options.AddSubProtocol($"oc-ticket.{ticket}");
+            return socket;
+        }
+
+        public static async Task<Fixture> StartAsync()
+        {
+            using var rsa = RSA.Create(2048);
+            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+            var certificate = X509CertificateLoader.LoadPkcs12(generated.Export(X509ContentType.Pfx), null);
+            var gatewayBuilder = WebApplication.CreateSlimBuilder();
+            gatewayBuilder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+            var gateway = gatewayBuilder.Build();
+            gateway.UseWebSockets();
+            var authorization = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            gateway.Run(async context =>
+            {
+                authorization.TrySetResult(context.Request.Headers.Authorization.ToString());
+                using var socket = await context.WebSockets.AcceptWebSocketAsync("openconnect.voice.v1");
+                var buffer = new byte[32];
+                var result = await socket.ReceiveAsync(buffer, context.RequestAborted);
+                await socket.SendAsync(buffer.AsMemory(0, result.Count), result.MessageType, result.EndOfMessage, context.RequestAborted);
+            });
+            var siteBuilder = WebApplication.CreateSlimBuilder();
+            siteBuilder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
+            await gateway.StartAsync();
+            var gatewayAddress = gateway.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            var tickets = new DocumentationVoiceTickets();
+            var bridge = new DocumentationVoiceBridge(tickets, new Uri(gatewayAddress));
+            siteBuilder.Services.AddSingleton(bridge);
+            siteBuilder.Services.AddSingleton<IStartupFilter, DocumentationVoiceStartupFilter>();
+            var site = siteBuilder.Build();
+            site.Run(_ => Task.CompletedTask);
+            await site.StartAsync();
+            var siteAddress = site.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            return new Fixture(gateway, site, certificate, siteAddress, tickets, authorization);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await site.DisposeAsync();
+            await gateway.DisposeAsync();
+            certificate.Dispose();
+        }
+    }
+}

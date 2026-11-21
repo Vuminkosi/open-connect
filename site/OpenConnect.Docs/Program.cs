@@ -17,15 +17,22 @@ if (gatewayTrustSection.GetValue<bool>("Enabled"))
 {
     gatewayTrust = new CloudGatewayClientTrust(gatewayTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
 }
+var hostPrivacyTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:HostPrivacyTrust");
+CloudGatewayClientTrust? hostPrivacyTrust = null;
+if (hostPrivacyTrustSection.GetValue<bool>("Enabled"))
+    hostPrivacyTrust = new CloudGatewayClientTrust(hostPrivacyTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
 CloudWorkerClientTrust? workerTrust = null;
 var workerTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:WorkerTrust");
 if (workerTrustSection.GetValue<bool>("Enabled"))
     workerTrust = new CloudWorkerClientTrust(workerTrustSection.GetSection("Certificates").Get<CloudWorkerCertificateBinding[]>() ?? [], gatewayTrust);
-if (gatewayTrust is not null || workerTrust is not null)
+if (hostPrivacyTrust is not null && (gatewayTrust?.Overlaps(hostPrivacyTrust) == true || workerTrust?.Overlaps(hostPrivacyTrust) == true))
+    throw new InvalidOperationException("Host privacy certificates must be separate from gateway and worker certificates.");
+if (gatewayTrust is not null || workerTrust is not null || hostPrivacyTrust is not null)
     builder.WebHost.ConfigureKestrel(server => server.ConfigureHttpsDefaults(https =>
     {
         https.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
         https.ClientCertificateValidation = (certificate, _, _) => gatewayTrust?.IsTrusted(certificate, DateTimeOffset.UtcNow) == true ||
+            hostPrivacyTrust?.IsTrusted(certificate, DateTimeOffset.UtcNow) == true ||
             workerTrust?.ResolveDeployment(certificate, DateTimeOffset.UtcNow) is not null;
     }));
 
@@ -128,6 +135,11 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
     builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingPrivacyEvidenceStore, EfCloudKnowledgeEmbeddingPrivacyEvidenceStore>();
+    builder.Services.AddSingleton(new CloudJsonPrivacyService(new RulesSecurityDetector()));
+    builder.Services.AddScoped<ICloudHostPrivacyEvidenceStore, CloudHostPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudHostPrivacyObservationReader, CloudHostPrivacyObservationReader>();
+    builder.Services.AddScoped<ICloudHostPrivacyCaseReader, CloudHostPrivacyObservationReader>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
     builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
@@ -170,7 +182,10 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudOperatorCapabilityAvailabilityService>();
     builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
     builder.Services.AddScoped<CloudExecutionClaimService>();
-    builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
+    builder.Services.AddScoped<EfCloudExecutionConsumptionStore>();
+    builder.Services.AddScoped<ICloudExecutionConsumptionStore>(services => services.GetRequiredService<EfCloudExecutionConsumptionStore>());
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingConsumptionStore, EfCloudKnowledgeEmbeddingConsumptionStore>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingCompletionStore, EfCloudKnowledgeEmbeddingCompletionStore>();
     builder.Services.AddScoped<CloudExecutionConsumptionService>();
     builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>();
     builder.Services.AddScoped<CloudInferenceConsumptionService>();
@@ -188,6 +203,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
     builder.Services.AddScoped<CloudDeploymentRegistry>();
     builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingDeploymentReader, EfCloudKnowledgeEmbeddingDeploymentReader>();
     builder.Services.AddScoped<CloudClassificationDeploymentService>();
     builder.Services.AddScoped<CloudOperatorDeploymentService>();
     builder.Services.AddScoped<CloudReadinessService>();
@@ -203,17 +219,7 @@ builder.Services.AddSingleton<GeneratedApiStore>();
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
 builder.Services.AddOpenConnectComponents();
 
-var assistantEnabled = builder.Configuration.GetValue<bool>("OpenConnect:Assistant:Enabled");
-var gatewayAddress = builder.Configuration["OpenConnect:Assistant:GatewayUrl"];
-if (assistantEnabled && Uri.TryCreate(gatewayAddress, UriKind.Absolute, out var gatewayUri))
-{
-    builder.Services.AddOpenConnectClient(options =>
-    {
-        options.ApiBaseAddress = gatewayUri;
-        options.AllowInsecureHttp = builder.Environment.IsDevelopment();
-    });
-    builder.Services.AddOpenConnectComposer();
-}
+builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 var content = app.Services.GetRequiredService<DocumentationContentStore>();
@@ -261,6 +267,7 @@ if (gatewayTrust is not null)
     app.MapCloudVoiceGatewayEndpoints(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudTranslationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudTranslationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudTranslationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
@@ -270,17 +277,25 @@ if (gatewayTrust is not null)
     app.MapCloudLiveUIOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
+if (hostPrivacyTrust is not null)
+    app.MapCloudHostPrivacyEvidence(hostPrivacyTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudVoiceWorkerEndpoints(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

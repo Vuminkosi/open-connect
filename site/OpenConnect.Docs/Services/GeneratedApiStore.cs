@@ -6,9 +6,12 @@ public sealed class GeneratedApiStore
 {
     public IReadOnlyList<GeneratedApiDocument> Documents { get; }
 
-    public GeneratedApiStore()
+    public GeneratedApiStore() : this(Path.Combine(AppContext.BaseDirectory, "generated", "api", "v1"))
     {
-        var root = Path.Combine(AppContext.BaseDirectory, "generated", "api", "v1");
+    }
+
+    public GeneratedApiStore(string root)
+    {
         Documents = Directory.Exists(root)
             ? Directory.EnumerateFiles(root, "*.yml", SearchOption.AllDirectories)
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)

@@ -38,4 +38,6 @@ public sealed class CloudGatewayClientTrust
             if (CryptographicOperations.FixedTimeEquals(pin, hash)) return true;
         return false;
     }
+
+    internal bool Overlaps(CloudGatewayClientTrust other) => _pins.Any(pin => other.ContainsPin(pin));
 }

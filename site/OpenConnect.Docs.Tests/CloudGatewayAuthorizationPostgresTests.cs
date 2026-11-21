@@ -20,6 +20,16 @@ namespace OpenConnect.Docs.Tests;
 [Collection("Cloud PostgreSQL")]
 public sealed class CloudGatewayAuthorizationPostgresTests
 {
+    private static string HostTenant(Guid value)
+    {
+        UInt128 number = 0;
+        foreach (var item in value.ToByteArray(bigEndian: true)) number = (number << 8) | item;
+        Span<char> encoded = stackalloc char[26];
+        const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        return new string(encoded);
+    }
+
     private const string WorkerPayloadJson = "{\"schemaVersion\":\"openconnect.v1\",\"taskId\":\"11111111-1111-1111-1111-111111111111\",\"input\":{\"text\":\"worker fixture\"}}";
     private static readonly byte[] WorkerPayload = System.Text.Encoding.UTF8.GetBytes(WorkerPayloadJson);
     private static readonly byte[] WorkerKey = Enumerable.Repeat((byte)'k', 32).ToArray();
@@ -129,9 +139,11 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
             var evidenceStore = new SwitchableEvidenceStore(new EfCloudPrivacyEvidenceStore(factory, TimeProvider.System));
             builder.Services.AddSingleton<ICloudPrivacyEvidenceStore>(evidenceStore);
+            builder.Services.AddScoped<ICloudHostPrivacyEvidenceStore, CloudHostPrivacyEvidenceStore>();
             await using var app = builder.Build();
             app.MapCloudGatewayAuthorization(trust, databaseConfigured: true);
             app.MapCloudClassificationPrivacy(trust, databaseConfigured: true);
+            app.MapCloudHostPrivacyEvidence(trust, databaseConfigured: true);
             app.MapCloudClassificationDeployment(trust, databaseConfigured: true);
             app.MapCloudFingerprintKeyLookup(trust, databaseConfigured: true);
             app.MapCloudClassificationQuota(trust, databaseConfigured: true);
@@ -149,6 +161,33 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             using var other = Client(address, serverCertificate, otherCertificate);
             await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
             using var authorized = Client(address, serverCertificate, clientCertificate);
+            var hostEvent = Guid.NewGuid();
+            var hostPayload = new { schemaVersion = "openconnect.privacy-evidence.v1", eventId = hostEvent,
+                tenantId = HostTenant(tenant.Id), destination = "Output", allowed = false, action = "Block", categories = new Dictionary<string, int> { ["EMAIL"] = 1 } };
+            async Task<HttpResponseMessage> ReportAsync(HttpClient client, string secret, object payload)
+            {
+                using var message = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/privacy/evidence");
+                message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                message.Content = JsonContent.Create(payload);
+                return await client.SendAsync(message);
+            }
+            using (var forbidden = await ReportAsync(anonymous, issued.Secret!, hostPayload))
+                Assert.Equal(HttpStatusCode.Unauthorized, forbidden.StatusCode);
+            using (var accepted = await ReportAsync(authorized, issued.Secret!, hostPayload))
+            {
+                Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+                Assert.Equal("no-store", accepted.Headers.CacheControl?.ToString());
+                using var receipt = System.Text.Json.JsonDocument.Parse(await accepted.Content.ReadAsStringAsync());
+                Assert.Equal(hostEvent, receipt.RootElement.GetProperty("eventId").GetGuid());
+            }
+            using (var replay = await ReportAsync(authorized, issued.Secret!, hostPayload))
+                Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+            using (var conflict = await ReportAsync(authorized, otherCredential.Secret!, hostPayload))
+                Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+            using (var mismatch = await ReportAsync(authorized, issued.Secret!, new { schemaVersion = "openconnect.privacy-evidence.v1",
+                eventId = Guid.NewGuid(), tenantId = HostTenant(Guid.NewGuid()), destination = "Output", allowed = false,
+                action = "Block", categories = new Dictionary<string, int> { ["EMAIL"] = 1 } }))
+                Assert.Equal(HttpStatusCode.BadRequest, mismatch.StatusCode);
             using var worker = Client(address, serverCertificate, workerCertificate);
             worker.DefaultRequestHeaders.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(WorkerProof));
             Assert.Equal(HttpStatusCode.Unauthorized, (await worker.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability })).StatusCode);
@@ -534,7 +573,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
                 Assert.False(await db.PrivacyEvidence.AnyAsync(x => x.TraceId == disabled.TraceId));
             var foreign = new CloudCredentialIdentity(Guid.NewGuid(), Guid.NewGuid(), appRecord.Id, "Development", new HashSet<string>());
-            await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), CancellationToken.None));
+            await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), [], CancellationToken.None));
             Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
             Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
             Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
@@ -849,8 +888,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
     private sealed class SwitchableEvidenceStore(ICloudPrivacyEvidenceStore inner) : ICloudPrivacyEvidenceStore
     {
         public bool Fail { get; set; }
-        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken) =>
-            Fail ? Task.FromException(new InvalidOperationException("test evidence unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, cancellationToken);
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId,
+            IReadOnlyList<CloudPrivacyCategoryCount> categories, CancellationToken cancellationToken) =>
+            Fail ? Task.FromException(new InvalidOperationException("test evidence unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, categories, cancellationToken);
     }
 
     private static async Task<CloudPrivacyDecision> NodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)

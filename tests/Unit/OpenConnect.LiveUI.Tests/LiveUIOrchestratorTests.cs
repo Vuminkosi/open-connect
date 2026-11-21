@@ -468,6 +468,22 @@ public sealed class LiveUIOrchestratorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_RejectsSelectionWithoutAValue()
+    {
+        var runtime = new RecordingRuntime();
+        var action = Action() with
+        {
+            Type = LiveUIActionType.Select,
+            Parameters = new LiveUIActionParameters()
+        };
+
+        var receipt = await Create(runtime: runtime).ExecuteAsync(action);
+
+        Assert.Equal("invalid_action", receipt.Code);
+        Assert.Equal(0, runtime.Calls);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_RejectsHighlightDurationOnAnUnrelatedAction()
     {
         var runtime = new RecordingRuntime();

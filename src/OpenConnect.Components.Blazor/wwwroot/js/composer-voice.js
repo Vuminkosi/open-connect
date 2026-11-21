@@ -31,7 +31,7 @@ window.ocComposerVoice = (() => {
     return output;
   };
 
-  const stop = async (notify = true, reason = 'stopped') => {
+  const stop = async (notify = true, reason = 'stopped', abort = false) => {
     const current = state;
     state = null;
     if (!current) return;
@@ -48,7 +48,10 @@ window.ocComposerVoice = (() => {
       current.source.disconnect();
     } catch (_) { }
     try {
-      if (current.socket.readyState === WebSocket.OPEN) {
+      if (abort) {
+        current.pendingPcm.length = 0;
+        current.socket.close();
+      } else if (current.socket.readyState === WebSocket.OPEN) {
         for (const bytes of current.pendingPcm.splice(0)) current.socket.send(bytes);
         current.socket.send(JSON.stringify({ type: 'endStream' }));
       }
@@ -65,21 +68,31 @@ window.ocComposerVoice = (() => {
     socket.addEventListener('close', () => { clearTimeout(timer); reject(new Error('voice_socket_closed')); }, { once: true });
   });
 
-  const start = async (dotnet, sessionId, speechEpoch, endpoint) => {
+  const start = async (dotnet, sessionId, speechEpoch, endpoint, ticket, connectionId) => {
     await stop(false, 'restarted');
     const captureId = crypto.randomUUID();
     const url = toWs(endpoint || `${window.location.origin}/openconnect/v1/voice/realtime/${encodeURIComponent(sessionId)}`);
-    const socket = new WebSocket(url, 'openconnect.voice.v1');
+    const protocols = ticket ? ['openconnect.voice.v1', `oc-ticket.${ticket}`] : 'openconnect.voice.v1';
+    const socket = new WebSocket(url, protocols);
     socket.binaryType = 'arraybuffer';
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    let stream, context, source, processor;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      context = new AudioContext();
+      await context.resume();
+      if (context.state !== 'running') throw new Error('voice_audio_context_not_running');
+      await context.audioWorklet.addModule(workletUrl());
+      source = context.createMediaStreamSource(stream);
+      processor = new AudioWorkletNode(context, 'openconnect-pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
+    } catch (error) {
+      try { processor?.disconnect(); source?.disconnect(); } catch (_) { }
+      try { await context?.close(); } catch (_) { }
+      try { stream?.getTracks().forEach(track => track.stop()); } catch (_) { }
+      try { socket.close(); } catch (_) { }
+      throw error;
+    }
     const track = stream.getAudioTracks()[0];
-    const context = new AudioContext();
-    await context.resume();
-    if (context.state !== 'running') throw new Error('voice_audio_context_not_running');
-    await context.audioWorklet.addModule(workletUrl());
-    const source = context.createMediaStreamSource(stream);
-    const processor = new AudioWorkletNode(context, 'openconnect-pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
     let processorReadyResolve;
     const processorReady = new Promise(resolve => { processorReadyResolve = resolve; });
     const diagnostics = window.__OC_VOICE_DIAGNOSTICS__ ? {
@@ -112,7 +125,7 @@ window.ocComposerVoice = (() => {
     const openTransport = () => {
       if (state !== current || current.transportOpened || socket.readyState !== WebSocket.OPEN) return;
       current.transportOpened = true;
-      socket.send(JSON.stringify({ type: 'open', sessionId, captureId, speechEpoch, sampleRate: targetSampleRate, channels: 1, bitsPerSample: 16 }));
+      socket.send(JSON.stringify({ type: 'open', sessionId, captureId, speechEpoch, clientConnectionId: connectionId || null, sampleRate: targetSampleRate, channels: 1, bitsPerSample: 16 }));
       for (const bytes of current.pendingPcm.splice(0)) socket.send(bytes);
       current.pendingFrameCount = 0;
       if (current.endRequested) socket.send(JSON.stringify({ type: 'endStream' }));
@@ -122,6 +135,11 @@ window.ocComposerVoice = (() => {
     socket.onmessage = async event => {
       try {
         const message = JSON.parse(event.data);
+        if (message.type === 'error') {
+          await stop(false, 'transcription_error');
+          await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription or task submission is unavailable. Text input remains available.');
+          return;
+        }
         if (message.type === 'transcript-partial') {
           if (current.diagnostics) current.diagnostics.lastPartial = message.text || '';
           await dotnet.invokeMethodAsync('OnVoicePartial', message.text || '', speechEpoch);
@@ -140,10 +158,19 @@ window.ocComposerVoice = (() => {
       } catch (_) { }
     };
     socket.onerror = async () => {
-      try { await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.'); } catch (_) { }
+      processorReadyResolve();
       await stop(false, 'socket_error');
+      try { await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.'); } catch (_) { }
     };
-    socket.onclose = () => { if (state === current) state = null; };
+    socket.onclose = async event => {
+      if (state !== current) return;
+      processorReadyResolve();
+      await stop(false, 'socket_closed');
+      try {
+        if (event?.code === 1000 && current.finalTranscript) await dotnet.invokeMethodAsync('OnVoiceStopped');
+        else await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.');
+      } catch (_) { }
+    };
 
     processor.port.onmessage = event => {
       if (event.data && event.data.type === 'ready') {
@@ -194,11 +221,19 @@ window.ocComposerVoice = (() => {
     source.connect(processor);
     processor.connect(context.destination);
     await processorReady;
+    if (state !== current) throw new Error('voice_socket_closed');
     if (window.__ocTestMicrophone?.start) window.__ocTestMicrophone.start();
-    if (socket.readyState !== WebSocket.OPEN) await waitForSocket(socket);
+    if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      await stop(false, 'socket_closed');
+      throw new Error('voice_socket_closed');
+    }
+    if (socket.readyState !== WebSocket.OPEN) {
+      try { await waitForSocket(socket); }
+      catch (error) { await stop(false, 'socket_unavailable'); throw error; }
+    }
     openTransport();
   };
 
   if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
-  return { start, stop };
+  return { start, stop, abort: () => stop(false, 'availability_lost', true) };
 })();

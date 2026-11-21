@@ -18,8 +18,8 @@ services:
     environment:
       OC_MODEL_MANIFEST_PATH: /config/init.json
       OC_MODEL_CACHE_DIR: /models
-      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
-      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
     volumes:
       - oc_knowledge_models:/models
       - ${OC_KNOWLEDGE_INIT_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/init.json:ro
@@ -37,7 +37,7 @@ services:
       OC_KNOWLEDGE_CONFIG_PATH: /config/serve.json
       OC_MODEL_CACHE_DIR: /models
       OC_MODEL_OFFLINE: "true"
-      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
@@ -420,9 +420,9 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
-      OC_MODEL_OFFLINE: "false"
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
       OC_SECURITY_RULES_ENABLED: "true"
       OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
     volumes:
@@ -441,7 +441,7 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
       # Forward Cloud Inference credentials from .env to the Python inference worker
       OC_INFERENCE_PROVIDER: ${OpenConnect__ReasoningBackend:-meta-model-api}
@@ -499,7 +499,7 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
       TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-local-fake}
       TRANSCRIPTION_MODEL_REVISION: ${TRANSCRIPTION_MODEL_REVISION:-}

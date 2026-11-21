@@ -6,6 +6,17 @@ description: Authentication, authorization, privacy firewall, PII handling, and 
 
 # OpenConnect Security Steering
 
+The transcription worker's local realtime route is final-only and requires an explicitly verified local model. It cannot fall back to a remote speech provider. Hosts select this route with `Workers:Transcription:RealtimeLocalOnly`; they must independently authorize the session and enforce privacy policy, since worker authentication does not replace the host security boundary.
+
+Voice clients stop microphone tracks and release audio resources when their transcription connection closes or audio initialization fails, including when a provider is unavailable.
+The voice host treats a disconnected client during an unavailable-worker close as a normal termination and does not expose internal exceptions.
+
+The documentation voice bridge uses short-lived, single-use, session-bound tickets. Visitor credentials remain server-side, the browser connects from the same HTTPS origin, and the application gateway verifies session ownership before accepting audio.
+
+Documentation Markdown disables raw HTML and automatic image loading. Links are limited to same-origin paths or fragments and explicit HTTP(S) URLs; section IDs are shared by rendering, navigation and LiveUI.
+
+Interactive voice tasks carry the composer's server-issued event connection identity. The host admits them with LiveUI access only while that identity is the sole active connection for the authenticated session; stale or ambiguous connections fail closed.
+
 ## Core Security Principles
 
 1. **Security and privacy by default** - Firewall enabled, auth always active
@@ -219,12 +230,17 @@ Scoped response restoration
 - Never from `agent-runtime.md`, YAML prompts, or checked-in config
 - mTLS for host-to-worker communication
 - Worker credentials scoped to worker identity only
+- The shared signed-envelope JSON decoder rejects duplicate properties, invalid UTF-8 and non-finite numbers before a worker interprets an envelope.
+- The shared media scanner uses a protected Unix socket and fails closed on malware, invalid responses or unavailable scanning. Media sandbox readiness checks minimum runtime restrictions; it is not a complete sandbox attestation.
 
 ### Secrets Detection Priority
 
 - Passwords, API keys, access tokens have highest severity
 - Secrets NEVER restored to model output, tool arguments, logs, or telemetry
+- Realtime transcription logs use fixed event categories; provider-supplied error details and event labels are not logged.
 - Final response scanner catches independently inferred values
+- Structured privacy inspection evaluates bounded JSON fragments and cross-field combinations without changing their structure. Optional host evidence records allowlisted decision metadata and category counts, never source content.
+- Firewall-guarded model clients inspect requests, options, tool content and model output. Streamed responses are buffered for output screening before updates are exposed.
 
 ## Testing Requirements
 

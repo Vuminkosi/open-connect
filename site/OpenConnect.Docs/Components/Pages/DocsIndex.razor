@@ -5,6 +5,7 @@
 <h1>Documentation</h1>
 <p class="lede">Versioned guides for integrating OpenConnect into .NET applications.</p>
 <SearchBox />
+<OpenConnect.Docs.Components.AssistantShowcase.DocumentationGuidesShowcase />
 @foreach (var version in Content.Versions())
 {
     <section><h2>@version</h2><div class="doc-grid">@foreach (var doc in Content.Documents.Where(d => d.Version == version)) { <a class="doc-card" href="/docs/@version/@doc.Slug"><strong>@doc.Title</strong><span>@doc.Summary</span></a> }</div></section>

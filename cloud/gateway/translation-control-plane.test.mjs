@@ -10,12 +10,15 @@ const hash = Buffer.alloc(32).toString('base64');
 const request = () => ({ schemaVersion: 'openconnect.cloud.translation/v1', requestId: id, capability: 'translation.translate',
     expiresAt: new Date(Date.now() + 60000).toISOString(), input: { text: 'hello', sourceLang: 'eng_Latn', targetLang: 'fra_Latn' } });
 const reservation = () => ({ requestId: id, fingerprintKeyId: 'key', fingerprint: hash, characters: 5, expiresAt: new Date(Date.now() + 60000).toISOString() });
+const deployment = () => ({ deploymentId: id, endpointReference: 'nllb', region: 'local', contractVersion: 'v1', modelId: 'nllb', modelRevision: 'r1',
+    modelDigest: 'sha256:' + 'a'.repeat(64), imageDigest: 'sha256:' + 'b'.repeat(64), tokenizerHash: 'c'.repeat(64) });
 
 test('translation control client fails closed on invalid settings and inputs', async () => {
     const config = { origin: 'https://localhost', ca: 'bad', certificate: 'bad', privateKey: 'bad' };
     assert.throws(() => createTranslationControlPlaneClient({ ...config, origin: 'http://localhost' }));
     const client = createTranslationControlPlaneClient(config);
     assert.deepEqual(await client.findFingerprintKey('credential', 'bad'), { status: 'unavailable' });
+    assert.equal(await client.matchDeployment('credential', { ...deployment(), tokenizerHash: 'bad' }, request().input), false);
     assert.deepEqual(await client.reserve('credential', { ...reservation(), characters: 5001 }), { status: 'quota_unavailable' });
     assert.deepEqual(await client.inspect('credential', { ...request(), input: { ...request().input, text: '\ud800' } }, 'key', hash),
         { allowed: false, code: 'capability_unavailable' });
@@ -39,7 +42,10 @@ test('translation control client validates privacy and quota responses over mutu
                     return res.end(JSON.stringify({ status: 'not_found', keyId: null, expiresAt: null }));
                 }
                 const value = JSON.parse(Buffer.concat(chunks));
-                if (req.url.endsWith('/privacy')) {
+                if (req.url.endsWith('/deployment-match')) {
+                    assert.equal(value.deploymentId, id); assert.equal(value.sourceLang, 'eng_Latn'); assert.equal(value.targetLang, 'fra_Latn');
+                    res.end(JSON.stringify({ matched: true }));
+                } else if (req.url.endsWith('/privacy')) {
                     assert.deepEqual(value, request().input); assert.equal(req.headers['x-cloud-request-fingerprint'], hash);
                     if (blocked) res.statusCode = 403;
                     res.end(JSON.stringify({ allowed: !blocked, code: blocked ? 'privacy_blocked' : 'allowed', characters: badCount ? 4 : 5 }));
@@ -55,6 +61,7 @@ test('translation control client validates privacy and quota responses over mutu
         try {
             const client = createTranslationControlPlaneClient({ origin: `https://127.0.0.1:${server.address().port}`,
                 ca: serverCert, certificate: clientCert, privateKey: clientKey });
+            assert.equal(await client.matchDeployment('fixture-credential', deployment(), request().input), true);
             assert.deepEqual(await client.findFingerprintKey('fixture-credential', id), { status: 'not_found' });
             assert.deepEqual(await client.inspect('fixture-credential', request(), 'key', hash), { allowed: true, code: 'allowed', characters: 5 });
             assert.equal((await client.reserve('fixture-credential', reservation())).status, 'reserved');
@@ -62,6 +69,6 @@ test('translation control client validates privacy and quota responses over mutu
             assert.deepEqual(await client.inspect('fixture-credential', request(), 'key', hash), { allowed: false, code: 'privacy_blocked' });
             badCount = true;
             assert.deepEqual(await client.inspect('fixture-credential', request(), 'key', hash), { allowed: false, code: 'capability_unavailable' });
-            assert.equal(calls, 5);
+            assert.equal(calls, 6);
         } finally { await new Promise(resolve => server.close(resolve)); }
     });

@@ -1,0 +1,24 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
+
+<OpenConnectProvider AutoSubscribe="false">
+    <section aria-labelledby="docs-guides-title">
+        <h2 id="docs-guides-title">Explore the guides</h2>
+        <p>Open a selection of guides here, or ask the assistant to show them.</p>
+        <button id="docs-show-guides" class="button" type="button" aria-controls="docs-guides-content"
+                aria-expanded="@_shown.ToString().ToLowerInvariant()" @onclick="ShowGuides">Show integration guides</button>
+        <div id="docs-guides-content" aria-live="polite">
+            @if (_shown)
+            {
+                <SafeComponentRenderer Proposal="_proposal" />
+            }
+        </div>
+    </section>
+</OpenConnectProvider>
+
+@code {
+    private bool _shown;
+    private readonly ComponentProposal _proposal = new("documentation-guides");
+    private void ShowGuides() => _shown = true;
+}

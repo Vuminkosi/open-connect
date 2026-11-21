@@ -59,10 +59,14 @@ public sealed class CloudQuotaRecoveryPostgresTests
         var now = DateTimeOffset.UtcNow;
         var classificationBucket = Guid.NewGuid();
         var otherBucket = Guid.NewGuid();
+        var analyticsBucket = Guid.NewGuid();
+        var embeddingBucket = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.QuotaBuckets.AddRange(
                 new CloudQuotaBucket { Id = classificationBucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10 },
+                new CloudQuotaBucket { Id = analyticsBucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "analytics.analyze", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10 },
+                new CloudQuotaBucket { Id = embeddingBucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "knowledge.embed", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10 },
                 new CloudQuotaBucket { Id = otherBucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "inference.chat", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10 });
             await db.SaveChangesAsync();
         }
@@ -78,11 +82,13 @@ public sealed class CloudQuotaRecoveryPostgresTests
         var live = await Reserve("classification.classify");
         var recentlyExpired = await Reserve("classification.classify");
         var other = await Reserve("inference.chat");
+        var analytics = await Reserve("analytics.analyze");
+        var embedding = await Reserve("knowledge.embed");
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = claimed, TenantId = tenant.Id, ApplicationId = app.Id, ClaimId = Guid.NewGuid(), ClaimedAt = now });
             await db.SaveChangesAsync();
-            await db.QuotaReservations.Where(x => x.Id == expired || x.Id == claimed || x.Id == other)
+            await db.QuotaReservations.Where(x => x.Id == expired || x.Id == claimed || x.Id == other || x.Id == analytics || x.Id == embedding)
                 .ExecuteUpdateAsync(x => x.SetProperty(y => y.ExpiresAt, now.AddMinutes(-10)));
             await db.QuotaReservations.Where(x => x.Id == recentlyExpired).ExecuteUpdateAsync(x => x.SetProperty(y => y.ExpiresAt, now.AddMinutes(-2)));
         }
@@ -98,6 +104,12 @@ public sealed class CloudQuotaRecoveryPostgresTests
             Assert.Null((await db.QuotaReservations.SingleAsync(x => x.Id == live)).FinalizedAt);
             Assert.Null((await db.QuotaReservations.SingleAsync(x => x.Id == recentlyExpired)).FinalizedAt);
             Assert.Null((await db.QuotaReservations.SingleAsync(x => x.Id == other)).FinalizedAt);
+            Assert.Equal(0, (await db.QuotaReservations.SingleAsync(x => x.Id == analytics)).Actual);
+            Assert.NotNull((await db.QuotaReservations.SingleAsync(x => x.Id == analytics)).FinalizedAt);
+            Assert.Equal(0, (await db.QuotaReservations.SingleAsync(x => x.Id == embedding)).Actual);
+            Assert.NotNull((await db.QuotaReservations.SingleAsync(x => x.Id == embedding)).FinalizedAt);
+            Assert.Equal(0, (await db.QuotaBuckets.SingleAsync(x => x.Id == analyticsBucket)).Reserved);
+            Assert.Equal(0, (await db.QuotaBuckets.SingleAsync(x => x.Id == embeddingBucket)).Reserved);
             Assert.Equal(3, (await db.QuotaBuckets.SingleAsync(x => x.Id == classificationBucket)).Reserved);
             Assert.Equal(1, (await db.QuotaBuckets.SingleAsync(x => x.Id == otherBucket)).Reserved);
             Assert.Equal(0, (await db.UsageRecords.SingleAsync(x => x.ReservationId == expired)).Quantity);

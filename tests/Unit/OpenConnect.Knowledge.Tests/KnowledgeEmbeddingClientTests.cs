@@ -15,6 +15,141 @@ public sealed class KnowledgeEmbeddingClientTests
     private static EgressContext Context() => new(new TenantId(Ulid.NewUlid()), new PrincipalId(Ulid.NewUlid()),
         new SessionId(Ulid.NewUlid()), EgressDestination.Worker);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EncodedSensitiveTextNeverReachesEmbeddingWorker(bool split)
+    {
+        var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
+        using var http = new HttpClient(handler);
+        var firewall = new PrivacyFirewall(Microsoft.Extensions.Options.Options.Create(new PrivacyOptions()),
+            new OpenConnect.Privacy.Policy.PolicyEngine(new OpenConnect.Privacy.Rules.RulesSecurityDetector()));
+        using var client = new KnowledgeEmbeddingClient(http, new OpenConnect.Privacy.Gates.EgressGate(firewall),
+            new Uri("https://worker.test"), "worker-token", Key, EgressDestination.Worker);
+        var inputs = split ? new[] { "alice%40", "example.com" } : new[] { "alice%2540example.com" };
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context(), "query", inputs));
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Fact]
+    public async Task CloudEmbeddingRejectsMismatchedResponseIdentityAndTrace()
+    {
+        var mismatch = true;
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            var id = json.RootElement.GetProperty("requestId").GetString();
+            using var workerResponse = Response(id!, dimension: 2);
+            using var worker = JsonDocument.Parse(await workerResponse.Content.ReadAsByteArrayAsync());
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
+            { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = mismatch ? Guid.NewGuid().ToString("D") : id,
+                traceId = mismatch ? new string('a', 32) : "invalid", result = worker.RootElement.GetProperty("result") })) };
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new PassThroughGate(), new Uri("https://worker.test"), "cloud-token", Key,
+            EgressDestination.ExternalModel, cloudGateway: true);
+        var context = Context() with { Destination = EgressDestination.ExternalModel };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.EmbedAsync(context, "query", ["forest"]));
+        mismatch = false;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.EmbedAsync(context, "query", ["forest"]));
+    }
+
+    [Fact]
+    public void CloudFactoryRejectsInvalidCredentialsAndInsecureOrigins()
+    {
+        Assert.Throws<ArgumentException>(() => KnowledgeEmbeddingClient.CreateCloud(new PassThroughGate(), new Uri("http://gateway.test"), "token"));
+        Assert.Throws<ArgumentException>(() => KnowledgeEmbeddingClient.CreateCloud(new PassThroughGate(), new Uri("https://gateway.test"), new string('a', 161)));
+        Assert.Throws<ArgumentException>(() => KnowledgeEmbeddingClient.CreateCloud(new PassThroughGate(), new Uri("https://gateway.test"), "token,other"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmbeddingScreensNestedResponseBeforeReturningIt(bool cloud)
+    {
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            var result = new { model_id = "model", fingerprint = new string('a', 64), dimension = 2, space_id = new string('b', 64),
+                items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1, note = "person@example.test" } } };
+            var body = cloud
+                ? JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = json.RootElement.GetProperty("requestId").GetString(), traceId = new string('a', 32), result })
+                : JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(), kind = "knowledge.embed", result });
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
+        });
+        using var http = new HttpClient(handler);
+        var firewall = new PrivacyFirewall(Microsoft.Extensions.Options.Options.Create(new PrivacyOptions()),
+            new OpenConnect.Privacy.Policy.PolicyEngine(new OpenConnect.Privacy.Rules.RulesSecurityDetector()));
+        var destination = cloud ? EgressDestination.ExternalModel : EgressDestination.Worker;
+        using var client = new KnowledgeEmbeddingClient(http, new OpenConnect.Privacy.Gates.EgressGate(firewall),
+            new Uri("https://worker.test"), "worker-token", Key, destination, cloudGateway: cloud);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context() with { Destination = destination }, "query", ["forest"]));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmbeddingBlocksSensitiveTextSplitAcrossInputs(bool cloud)
+    {
+        var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
+        using var http = new HttpClient(handler);
+        var firewall = new PrivacyFirewall(Microsoft.Extensions.Options.Options.Create(new PrivacyOptions()),
+            new OpenConnect.Privacy.Policy.PolicyEngine(new OpenConnect.Privacy.Rules.RulesSecurityDetector()));
+        var destination = cloud ? EgressDestination.ExternalModel : EgressDestination.Worker;
+        using var client = new KnowledgeEmbeddingClient(http, new OpenConnect.Privacy.Gates.EgressGate(firewall),
+            new Uri("https://worker.test"), "worker-token", Key, destination, cloudGateway: cloud);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context() with { Destination = destination },
+            "query", ["alice@", "example.test"]));
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Fact]
+    public async Task CloudEmbeddingUsesAuthenticatedGatewayContractAndHostPrivacyGate()
+    {
+        var context = Context() with { Destination = EgressDestination.ExternalModel };
+        var handler = new Handler(async request =>
+        {
+            Assert.Equal("https://worker.test/cloud/v1/knowledge/embeddings", request.RequestUri!.ToString());
+            Assert.False(request.Headers.Contains("X-OpenConnect-Signature"));
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            var root = json.RootElement;
+            Assert.Equal("openconnect.cloud.knowledge-embed/v1", root.GetProperty("schemaVersion").GetString());
+            Assert.Equal("knowledge.embed", root.GetProperty("capability").GetString());
+            Assert.False(root.TryGetProperty("tenantId", out _));
+            Assert.Equal("sanitized", root.GetProperty("input").GetProperty("texts")[0].GetString());
+            var id = root.GetProperty("requestId").GetString();
+            using var workerResponse = Response(id!, dimension: 2);
+            using var worker = JsonDocument.Parse(await workerResponse.Content.ReadAsByteArrayAsync());
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
+            { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = id, traceId = new string('a', 32), result = worker.RootElement.GetProperty("result") })) };
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new CloudMaskGate(), new Uri("https://worker.test"), "cloud-token", Key,
+            EgressDestination.ExternalModel, cloudGateway: true);
+        var result = await client.EmbedAsync(context, "query", ["private input"]);
+        Assert.Equal(new float[] { 0.6f, 0.8f }, Assert.Single(result.Items).Vector);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    [Fact]
+    public async Task EmbeddingLimitsCountUnicodeScalarsAndRejectInvalidSurrogates()
+    {
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            Assert.Equal(8192, json.RootElement.GetProperty("payload").GetProperty("texts")[0].GetString()!.EnumerateRunes().Count());
+            return Response(json.RootElement.GetProperty("taskId").GetString()!, dimension: 2);
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new PassThroughGate(), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker);
+        var input = string.Concat(Enumerable.Repeat("😀", 8192));
+        Assert.Single((await client.EmbedAsync(Context(), "query", [input])).Items);
+        await Assert.ThrowsAsync<ArgumentException>(() => client.EmbedAsync(Context(), "query", [input + "😀"]));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.EmbedAsync(Context(), "query", ["\ud800"]));
+        Assert.Equal(1, handler.Calls);
+    }
+
     [Fact]
     public async Task SignsExactlyTheSanitizedBodyAndBindsTenant()
     {
@@ -41,6 +176,25 @@ public sealed class KnowledgeEmbeddingClientTests
     }
 
     [Fact]
+    public async Task EmbeddingSnapshotsTheBatchBeforePrivacyEvaluation()
+    {
+        var inputs = new List<string> { "first" };
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            var texts = json.RootElement.GetProperty("payload").GetProperty("texts");
+            Assert.Equal("first", Assert.Single(texts.EnumerateArray()).GetString());
+            return Response(json.RootElement.GetProperty("taskId").GetString()!, dimension: 2);
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new MutatingGate(inputs), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker);
+        var result = await client.EmbedAsync(Context(), "query", inputs);
+        Assert.Single(result.Items);
+        Assert.Equal(2, inputs.Count);
+    }
+
+    [Fact]
     public async Task PrivacyDenialDoesNotSendData()
     {
         var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
@@ -48,6 +202,53 @@ public sealed class KnowledgeEmbeddingClientTests
         var client = new KnowledgeEmbeddingClient(http, new Gate(false), new Uri("https://worker.test"), "worker-token", Key, EgressDestination.Worker);
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context(), "query", ["secret"]));
         Assert.Equal(0, handler.Calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisabledStandardFirewallDoesNotDispatchText(bool disabledMode)
+    {
+        var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
+        using var http = new HttpClient(handler);
+        var options = Microsoft.Extensions.Options.Options.Create(disabledMode
+            ? new PrivacyOptions { Mode = FirewallMode.Disabled } : new PrivacyOptions { Enabled = false });
+        var firewall = new PrivacyFirewall(options, new OpenConnect.Privacy.Policy.PolicyEngine());
+        using var client = new KnowledgeEmbeddingClient(http, new OpenConnect.Privacy.Gates.EgressGate(firewall),
+            new Uri("https://worker.test"), "worker-token", Key, EgressDestination.Worker);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context(), "query", ["private input"]));
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Fact]
+    public async Task OutputPolicyCanBlockEmbeddingResponseMetadata()
+    {
+        var handler = new Handler(async request =>
+        {
+            using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
+            return Response(json.RootElement.GetProperty("taskId").GetString()!, dimension: 2);
+        });
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new OutputDenyGate(), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context(), "query", ["text"]));
+    }
+
+    [Fact]
+    public async Task Detected_but_unmasked_text_never_reaches_worker()
+    {
+        var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
+        using var http = new HttpClient(handler);
+        using var client = new KnowledgeEmbeddingClient(http, new UnmaskedGate(), new Uri("https://worker.test"),
+            "worker-token", Key, EgressDestination.Worker);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.EmbedAsync(Context(), "query", ["secret"]));
+        Assert.Equal(0, handler.Calls);
+    }
+
+    private sealed class UnmaskedGate : IEgressGate
+    {
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new EgressDecision(true, content, [new(0, 6, "SECRET")], SecurityPolicyAction.Allow, "test"));
     }
 
     [Fact]
@@ -185,8 +386,38 @@ public sealed class KnowledgeEmbeddingClientTests
     private sealed class Gate(bool allowed) : IEgressGate
     {
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(new EgressDecision(allowed, allowed ? "sanitized" : null,
+            ValueTask.FromResult(new EgressDecision(allowed, allowed ? content == "private input" && context.Destination != EgressDestination.Output ? "sanitized" : content : null,
                 Array.Empty<EntitySpan>(), allowed ? SecurityPolicyAction.Allow : SecurityPolicyAction.Block, "test"));
+    }
+
+    private sealed class PassThroughGate : IEgressGate
+    {
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
+    }
+
+    private sealed class CloudMaskGate : IEgressGate
+    {
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new EgressDecision(true, content == "private input" ? "sanitized" : content, [], SecurityPolicyAction.Allow, "test"));
+    }
+
+    private sealed class OutputDenyGate : IEgressGate
+    {
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(context.Destination == EgressDestination.Output
+                ? new EgressDecision(false, null, [], SecurityPolicyAction.Block, "test")
+                : new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
+    }
+
+    private sealed class MutatingGate(List<string> inputs) : IEgressGate
+    {
+        private bool _changed;
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
+        {
+            if (!_changed) { inputs.Add("second"); _changed = true; }
+            return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
+        }
     }
 
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler

@@ -1,6 +1,6 @@
 # Blazor Todo sample
 
-The Blazor Server sample combines a Todo interface with MiniComposer and LiveUI. An interactive request stays in its existing OpenConnect session; the server can discover authorized UI capabilities, request a validated plan, execute actions on the connected page, and report verified receipts. The Todo list uses an in-memory store. The sample's EF Core infrastructure uses its own SQLite database and applies its migrations at startup.
+The Blazor Server sample combines a Todo interface with MiniComposer and LiveUI. An interactive request stays in its existing OpenConnect session; the server can discover authorized UI capabilities, request a validated plan, execute actions on the connected page, and report verified receipts. The sample stores Todo items and OpenConnect state in its own SQLite database and applies its migrations at startup.
 
 The sample supports a development-only `SameHostGateway` and an `ExternalGateway`. The external mode requires a gateway with authentication configured by its host. The sample's optional local service credential is restricted to Development and a loopback gateway; it is not a production user-identity mechanism.
 

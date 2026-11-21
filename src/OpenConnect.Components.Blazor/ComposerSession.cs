@@ -302,6 +302,18 @@ public sealed class ComposerSession
         return SpeechEpoch;
     }
 
+    internal void FailLiveListening(string message)
+    {
+        lock (_gate)
+        {
+            SpeechEpoch++;
+            _livePartialTranscript = string.Empty;
+            MicrophoneState = ComposerMicrophoneState.Failed;
+            _errors.Add(string.IsNullOrWhiteSpace(message) ? "Voice input is unavailable. Text input remains available." : message);
+        }
+        Notify();
+    }
+
     /// <summary>
     /// Updates the disposable live STT partial hypothesis for display only.
     /// Never commits a user turn or triggers tools. Rejects stale speech epochs.

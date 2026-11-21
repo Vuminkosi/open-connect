@@ -10,10 +10,13 @@ public interface ICloudTranslationDeploymentProfileStore
 {
     Task<CloudTranslationDeploymentProfile?> GetAsync(Guid deploymentId, CancellationToken cancellationToken);
     Task<string> PutAsync(CloudSubject actor, string traceId, CloudTranslationDeploymentProfile profile, long expectedRevision, CancellationToken cancellationToken);
+    Task RecordAsync(CloudSubject actor, string traceId, Guid deploymentId, string outcome, bool denied, CancellationToken cancellationToken);
 }
 
 public sealed partial class CloudTranslationDeploymentProfiles(ICloudTranslationDeploymentProfileStore store)
 {
+    public Task RecordAsync(CloudSubject actor, string traceId, Guid deploymentId, string outcome, bool denied, CancellationToken cancellationToken) =>
+        store.RecordAsync(actor, traceId, deploymentId, outcome, denied, cancellationToken);
     public Task<CloudTranslationDeploymentProfile?> GetAsync(Guid deploymentId, CancellationToken cancellationToken) =>
         deploymentId == Guid.Empty ? Task.FromResult<CloudTranslationDeploymentProfile?>(null) : store.GetAsync(deploymentId, cancellationToken);
 

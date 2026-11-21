@@ -1149,6 +1149,7 @@
       "openconnect.docs": {
         "type": "Project",
         "dependencies": {
+          "Markdig": "[1.6.0, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.10, )",
           "Microsoft.EntityFrameworkCore": "[10.0.14, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
@@ -1156,6 +1157,15 @@
           "OpenConnect.Components.Blazor": "[1.0.0, )",
           "OpenConnect.Components.Contracts": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Documents": "[1.0.0, )",
+          "OpenConnect.Knowledge": "[1.0.0, )",
+          "OpenConnect.LiveUI.Blazor": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.documents": {
+        "type": "Project",
+        "dependencies": {
           "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
@@ -1164,6 +1174,12 @@
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.knowledge": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
       "openconnect.liveui": {

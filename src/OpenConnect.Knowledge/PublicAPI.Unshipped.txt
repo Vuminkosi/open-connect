@@ -29,6 +29,36 @@ OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.get -> string!
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.init -> void
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.get -> string!
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.init -> void
+OpenConnect.Knowledge.KnowledgeIndexClient
+OpenConnect.Knowledge.KnowledgeIndexClient.DeleteAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, string! documentId, long expectedGeneration, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, string!, long, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeDelete, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeIndexClient.Dispose() -> void
+OpenConnect.Knowledge.KnowledgeIndexClient.KnowledgeIndexClient(OpenConnect.Privacy.IEgressGate! gate, System.Uri! endpoint, string! token, byte[]! key, System.Func<OpenConnect.Privacy.EgressContext!, OpenConnect.Knowledge.KnowledgeIndexSubmission!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeSubmit, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, string!, System.Collections.Generic.IReadOnlyList<string!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeStatus, bool allowInsecureHttp = false) -> void
+OpenConnect.Knowledge.KnowledgeIndexClient.StatusAsync(OpenConnect.Privacy.EgressContext! context, System.Guid jobId, string! applicationId, string! collectionId, string! documentId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeIndexClient.SubmitAsync(OpenConnect.Privacy.EgressContext! context, OpenConnect.Knowledge.KnowledgeIndexSubmission! submission, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeIndexSearchWorkflow
+OpenConnect.Knowledge.KnowledgeIndexSearchWorkflow.IndexAndSearchAsync(OpenConnect.Privacy.EgressContext! context, OpenConnect.Knowledge.KnowledgeIndexSubmission! submission, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!>! embedQuery, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeIndexSearchWorkflow.KnowledgeIndexSearchWorkflow(OpenConnect.Knowledge.KnowledgeIndexClient! index, OpenConnect.Knowledge.KnowledgeSearchClient! search) -> void
+OpenConnect.Knowledge.KnowledgeIndexSubmission
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ApplicationId.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.CollectionId.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.DocumentExpiresAt.get -> System.DateTimeOffset?
+OpenConnect.Knowledge.KnowledgeIndexSubmission.DocumentId.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.EmbeddingSpaceId.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ExpectedGeneration.get -> long
+OpenConnect.Knowledge.KnowledgeIndexSubmission.JobId.get -> System.Guid
+OpenConnect.Knowledge.KnowledgeIndexSubmission.KnowledgeIndexSubmission(System.Guid jobId, string! applicationId, string! collectionId, string! documentId, string! sourceRevision, string! embeddingSpaceId, string! objectId, string! objectSha256, int objectSize, string! objectVersion, long expectedGeneration, System.Collections.Generic.IReadOnlyList<string!>! principals, System.Collections.Generic.IReadOnlyList<string!>! roles, System.DateTimeOffset? documentExpiresAt = null) -> void
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ObjectId.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ObjectSha256.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ObjectSize.get -> int
+OpenConnect.Knowledge.KnowledgeIndexSubmission.ObjectVersion.get -> string!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.Principals.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.Roles.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Knowledge.KnowledgeIndexSubmission.SourceRevision.get -> string!
+OpenConnect.Knowledge.KnowledgeSearchClient
+OpenConnect.Knowledge.KnowledgeSearchClient.Dispose() -> void
+OpenConnect.Knowledge.KnowledgeSearchClient.KnowledgeSearchClient(OpenConnect.Privacy.IEgressGate! gate, System.Uri! endpoint, string! token, byte[]! key, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, System.Collections.Generic.IReadOnlyList<string!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, bool allowInsecureHttp = false) -> void
+OpenConnect.Knowledge.KnowledgeSearchClient.SearchAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeSearchClient.SearchHybridAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!>! embedQuery, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
 override OpenConnect.Knowledge.KnowledgeEmbedding.Equals(object? obj) -> bool
 override OpenConnect.Knowledge.KnowledgeEmbedding.GetHashCode() -> int
 override OpenConnect.Knowledge.KnowledgeEmbedding.ToString() -> string!
@@ -37,5 +67,6 @@ override OpenConnect.Knowledge.KnowledgeEmbeddingResult.GetHashCode() -> int
 override OpenConnect.Knowledge.KnowledgeEmbeddingResult.ToString() -> string!
 static OpenConnect.Knowledge.KnowledgeEmbedding.operator !=(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
 static OpenConnect.Knowledge.KnowledgeEmbedding.operator ==(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
+static OpenConnect.Knowledge.KnowledgeEmbeddingClient.CreateCloud(OpenConnect.Privacy.IEgressGate! egressGate, System.Uri! endpoint, string! bearerToken, bool allowInsecureHttp = false) -> OpenConnect.Knowledge.KnowledgeEmbeddingClient!
 static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator !=(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool
 static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator ==(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool

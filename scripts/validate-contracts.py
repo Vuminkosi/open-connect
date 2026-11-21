@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,30 @@ def describe_error(error: Any) -> str:
 
 def semantic_errors(schema: dict[str, Any], instance: Any) -> list[str]:
     """Check cross-field invariants that JSON Schema cannot express portably."""
+    if schema.get("$id", "").endswith("cloud-knowledge-embed-response-v1.json") and isinstance(instance, dict):
+        result = instance.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get("items"), list):
+            return []
+        errors = []
+        for index, item in enumerate(result["items"]):
+            if not isinstance(item, dict) or not isinstance(item.get("vector"), list):
+                continue
+            vector = item["vector"]
+            if len(vector) != result.get("dimension"):
+                errors.append(f"item {index}: vector dimension does not match")
+                continue
+            try:
+                if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) for value in vector):
+                    errors.append(f"item {index}: vector contains non-finite values")
+                    continue
+                norm = math.sqrt(sum(value * value for value in vector))
+                reported = item.get("norm")
+                if (isinstance(reported, bool) or not isinstance(reported, (int, float)) or not math.isfinite(reported)
+                        or not math.isfinite(norm) or abs(norm - 1) > 0.001 or abs(reported - norm) > 0.001):
+                    errors.append(f"item {index}: vector norm is invalid")
+            except (OverflowError, ValueError):
+                errors.append(f"item {index}: vector norm is invalid")
+        return errors
     if schema.get("$id", "").endswith("security-scan-response.json") and isinstance(
         instance, dict
     ):

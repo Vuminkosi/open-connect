@@ -1,0 +1,22 @@
+#nullable enable
+OpenConnect.Documents.DocumentExtractionResult
+OpenConnect.Documents.DocumentExtractionResult.Citations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, OpenConnect.Documents.DocumentFieldCitation?>!
+OpenConnect.Documents.DocumentExtractionResult.Dispose() -> void
+OpenConnect.Documents.DocumentExtractionResult.Extraction.get -> System.Text.Json.JsonDocument!
+OpenConnect.Documents.DocumentExtractionResult.Ocr.get -> System.Text.Json.JsonDocument!
+OpenConnect.Documents.DocumentExtractionWorkflow
+OpenConnect.Documents.DocumentExtractionWorkflow.DocumentExtractionWorkflow(OpenConnect.Documents.DocumentWorkerClient! documents, OpenConnect.Documents.ExtractionWorkerClient! extraction) -> void
+OpenConnect.Documents.DocumentExtractionWorkflow.ExecuteAsync(OpenConnect.Privacy.EgressContext! context, System.ReadOnlyMemory<byte> content, System.Text.Json.JsonElement schema, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Documents.DocumentExtractionResult!>!
+OpenConnect.Documents.DocumentFieldCitation
+OpenConnect.Documents.DocumentFieldCitation.End.get -> int
+OpenConnect.Documents.DocumentFieldCitation.PageIndex.get -> int
+OpenConnect.Documents.DocumentFieldCitation.Start.get -> int
+OpenConnect.Documents.DocumentWorkerClient
+OpenConnect.Documents.DocumentWorkerClient.Dispose() -> void
+OpenConnect.Documents.DocumentWorkerClient.DocumentWorkerClient(string! socketPath, string! bearerToken, byte[]! signingKey, OpenConnect.Privacy.IPrivacyFirewall! firewall, Microsoft.Extensions.Options.IOptions<OpenConnect.Privacy.PrivacyOptions!>! options, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize) -> void
+OpenConnect.Documents.DocumentWorkerClient.ExecuteAsync(OpenConnect.Privacy.EgressContext! context, string! kind, System.ReadOnlyMemory<byte> document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Documents.ExtractionWorkerClient
+OpenConnect.Documents.ExtractionWorkerClient.Dispose() -> void
+OpenConnect.Documents.ExtractionWorkerClient.ExtractAsync(OpenConnect.Privacy.EgressContext! context, string! document, System.Text.Json.JsonElement schema, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Documents.ExtractionWorkerClient.ExtractionWorkerClient(string! socketPath, string! bearerToken, byte[]! signingKey, OpenConnect.Privacy.IPrivacyFirewall! firewall, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize) -> void
+OpenConnect.Documents.ExtractionWorkerClient.ExtractionWorkerClient(System.Uri! endpoint, string! bearerToken, byte[]! signingKey, OpenConnect.Privacy.IPrivacyFirewall! firewall, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, bool allowInsecureHttp = false) -> void

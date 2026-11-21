@@ -6,9 +6,11 @@
         <a href="/cloud">Overview</a>
         <a href="/docs">Documentation</a>
     </nav>
+    <ThemeToggle />
     <form method="post" action="/cloud/sign-out">
         <AntiforgeryToken />
         <button class="button" type="submit">Sign out</button>
     </form>
 </header>
 <main id="main-content" class="content cloud-content">@Body</main>
+<SiteAssistant />

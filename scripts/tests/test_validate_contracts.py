@@ -47,6 +47,20 @@ def test_semantic_failure_reports_cleanly_for_fixture_and_compatibility(tmp_path
     assert "span 0: start must be less than end" in capsys.readouterr().out
 
 
+def test_cloud_embedding_semantics_reject_dimension_and_norm_mismatches():
+    root = SCRIPT.parents[1] / "contracts"
+    schema = json.loads((root / "jsonschema/cloud-knowledge-embed-response-v1.json").read_text(encoding="utf-8"))
+    response = json.loads((root / "fixtures/valid/cloud-knowledge-embed-response-v1.json").read_text(encoding="utf-8"))
+    assert VALIDATOR.semantic_errors(schema, response) == []
+    response["result"]["dimension"] = 3
+    assert "dimension" in VALIDATOR.semantic_errors(schema, response)[0]
+    response["result"]["dimension"] = 2
+    response["result"]["items"][0]["norm"] = 0.4
+    assert "norm" in VALIDATOR.semantic_errors(schema, response)[0]
+    response["result"]["items"][0]["vector"][0] = float("inf")
+    assert "non-finite" in VALIDATOR.semantic_errors(schema, response)[0]
+
+
 @pytest.mark.parametrize(("reason", "allowed", "categories", "valid"), [
     (None, False, {"EMAIL": 1}, True),
     ("not_recorded", False, {}, True),
