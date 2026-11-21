@@ -284,4 +284,6 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 - [x] Exercise known-usage failure and normal metered success with a provisioned local model, gateway, worker and PostgreSQL; verify failure accounting and absence of successful output evidence.
 
-- [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks. Worker integration and crash recovery based on observations remain outstanding.
+- [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks. Crash recovery based on observations remains outstanding.
+
+- [x] Persist observed LiveUI model usage from the worker before output validation, failing closed on observation failure; verify successful, invalid and unavailable observation paths.

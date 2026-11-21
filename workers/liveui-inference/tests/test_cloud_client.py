@@ -69,12 +69,15 @@ def test_mutual_tls_client_binds_exact_payload_and_rejects_replay(tmp_path):
                             "modelDigest": "sha256:" + "a" * 64,
                         },
                     )
-            elif self.path.endswith(("/complete-metered", "/fail-metered")):
+            elif self.path.endswith(("/complete-metered", "/fail-metered", "/observe-metered")):
                 assert self.headers["Content-Type"] == "application/json"
                 assert json.loads(self.rfile.read(int(self.headers["Content-Length"]))) == {
                     "inputTokens": 410, "outputTokens": 31
                 }
-                self.reply(200, {"status": "failed" if self.path.endswith("/fail-metered") else "completed"})
+                status = "failed" if self.path.endswith("/fail-metered") else (
+                    "observed" if self.path.endswith("/observe-metered") else "completed"
+                )
+                self.reply(200, {"status": status})
             else:
                 self.reply(200, {"status": "completed"})
 
@@ -106,6 +109,7 @@ def test_mutual_tls_client_binds_exact_payload_and_rejects_replay(tmp_path):
         assert client.consume_metered(reservation, claim, payload, secret, 2048) is None
         assert client.settle_metered(reservation, claim, 410, 31)
         assert client.fail_metered(reservation, claim, 410, 31)
+        assert client.observe_metered(reservation, claim, 410, 31)
         assert not client.settle_metered(reservation, claim, True, 31)
         assert not client.fail_metered(reservation, claim, -1, 31)
     finally:

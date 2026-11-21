@@ -43,6 +43,7 @@ class Client:
             "modelDigest": "sha256:" + SETTINGS.model_sha256,
         }
         self.settled = True
+        self.observed = True
 
     def consume(self, *_):
         self.calls.append("consume")
@@ -63,6 +64,10 @@ class Client:
     def fail_metered(self, *args):
         self.calls.append(("fail-metered", args[-2], args[-1]))
         return self.settled
+
+    def observe_metered(self, *args):
+        self.calls.append(("observe-metered", args[-2], args[-1]))
+        return self.observed
 
 
 class Engine:
@@ -119,7 +124,7 @@ def test_metered_execution_consumes_context_and_settles_exact_usage():
     client, engine = Client(), Engine()
     result = execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True)
     assert result["provider"] == "qwen3-0.6b"
-    assert client.calls == [("consume-metered", 2048), ("settle-metered", 410, 31)]
+    assert client.calls == [("consume-metered", 2048), ("observe-metered", 410, 31), ("settle-metered", 410, 31)]
 
 
 def test_metered_failure_never_falls_back_or_returns_unsettled_output():
@@ -138,9 +143,11 @@ def test_metered_failure_never_falls_back_or_returns_unsettled_output():
         if scenario in ("admission", "usage"):
             assert len(client.calls) == 1
         if scenario == "plan":
-            assert client.calls == [("consume-metered", 2048), ("fail-metered", 410, 31)]
+            assert client.calls == [("consume-metered", 2048), ("observe-metered", 410, 31), ("fail-metered", 410, 31)]
         if scenario == "settlement":
-            assert client.calls == [("consume-metered", 2048), ("settle-metered", 410, 31)]
+            assert client.calls == [
+                ("consume-metered", 2048), ("observe-metered", 410, 31), ("settle-metered", 410, 31)
+            ]
 
 
 def test_metered_failure_reports_known_usage_but_never_invents_unknown_usage():
@@ -152,7 +159,16 @@ def test_metered_failure_reports_known_usage_but_never_invents_unknown_usage():
             raise ValueError("model output rejected")
         engine.generate_metered = generate
         assert execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True) is None
-        assert client.calls == [("consume-metered", 2048)] + ([("fail-metered", 410, 31)] if report_first else [])
+        assert client.calls == [("consume-metered", 2048)] + (
+            [("observe-metered", 410, 31), ("fail-metered", 410, 31)] if report_first else []
+        )
+
+
+def test_unavailable_observation_fails_closed_and_attempts_known_failure_settlement():
+    client, engine = Client(), Engine()
+    client.observed = False
+    assert execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True) is None
+    assert client.calls == [("consume-metered", 2048), ("observe-metered", 410, 31), ("fail-metered", 410, 31)]
 
 
 def test_metered_execution_rejects_inconsistent_or_multiple_usage_reports():
@@ -165,4 +181,6 @@ def test_metered_execution_rejects_inconsistent_or_multiple_usage_reports():
             return engine.plan, provider
         engine.generate_metered = generate
         assert execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True) is None
-        assert client.calls == [("consume-metered", 2048)]
+        assert client.calls == [
+            ("consume-metered", 2048), ("observe-metered", values[0].input_tokens, values[0].output_tokens)
+        ]

@@ -110,7 +110,14 @@ def execute_claimed(body: bytes, engine, settings, client, metered: bool = False
         ):
             return None
         admitted = True
-        plan, provider = engine.generate_metered(request, observed.append) if metered else engine.generate(request)
+        def report_usage(usage):
+            observed.append(usage)
+            if not _valid_usage(observed, request, settings) or not client.observe_metered(
+                envelope.reservationId, envelope.claimId, usage.input_tokens, usage.output_tokens
+            ):
+                raise ValueError("Model usage could not be recorded")
+
+        plan, provider = engine.generate_metered(request, report_usage) if metered else engine.generate(request)
         if metered and (
             not _valid_usage(observed, request, settings)
             or (provider == "deterministic" and observed[0] != TokenUsage(0, 0))

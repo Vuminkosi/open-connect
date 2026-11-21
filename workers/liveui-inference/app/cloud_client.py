@@ -155,13 +155,16 @@ class CloudLiveUIClient:
             return False
 
     def settle_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
-        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, False)
+        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, "complete")
 
     def fail_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
-        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, True)
+        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, "fail")
+
+    def observe_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
+        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, "observe")
 
     def _settle_metered(
-        self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int, failed: bool
+        self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int, operation: str
     ) -> bool:
         try:
             reservation, claim = UUID(reservation_id), UUID(claim_id)
@@ -174,14 +177,16 @@ class CloudLiveUIClient:
             body = json.dumps(
                 {"inputTokens": input_tokens, "outputTokens": output_tokens}, separators=(",", ":")
             ).encode()
-            suffix = "fail-metered" if failed else "complete-metered"
+            suffix = operation + "-metered"
             result = self._call(
                 "POST", f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/{suffix}",
                 {"Content-Type": "application/json"}, body,
             )
-            statuses = ({"status": "failed"}, {"status": "already_failed"}) if failed else (
-                {"status": "completed"}, {"status": "already_completed"}
-            )
+            statuses = {
+                "complete": ({"status": "completed"}, {"status": "already_completed"}),
+                "fail": ({"status": "failed"}, {"status": "already_failed"}),
+                "observe": ({"status": "observed"}, {"status": "already_observed"}),
+            }[operation]
             return result is not None and result[0] == 200 and result[1] in statuses
         except (ValueError, TypeError, AttributeError):
             return False
