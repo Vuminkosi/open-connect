@@ -383,3 +383,5 @@ The documentation assistant diagnostic handler records gateway failure categorie
 Cloud analytics defines separate versioned contracts for public requests, public responses and worker responses. Tenant identity comes from the authenticated context rather than the public request.
 
 The Cloud analytics boundary rejects ambiguous or unbounded input, binds worker payloads to authenticated tenant context, and validates returned statistics against the admitted input before a result can be released.
+
+Cloud analytics transport uses deployment-authenticated TLS and bounded responses. Reservations are bound to the admitted request; worker claims and repeated access checks are required before a result is released.
