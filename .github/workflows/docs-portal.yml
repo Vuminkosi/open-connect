@@ -41,6 +41,15 @@ jobs:
       - name: Validate content files
         shell: pwsh
         run: ./scripts/validate-docs-content.ps1
+      - name: Set up Node for the locked OpenAPI YAML parser
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Restore locked validator dependencies
+        working-directory: packages/client-ts
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+      - name: Test OpenAPI reference validation
+        run: node --test scripts/validate-openapi-references.test.cjs
       - name: Validate OpenAPI and JSON Schema contracts
         shell: pwsh
         run: ./scripts/validate-docs-contracts.ps1
