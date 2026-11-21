@@ -6,6 +6,9 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="OpenConnect.Docs.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
