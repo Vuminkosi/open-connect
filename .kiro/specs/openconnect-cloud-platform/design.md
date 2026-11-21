@@ -10,6 +10,8 @@ Status: Decisions for the current portal identity foundation; broader platform d
 
 Visiting the public site, viewing documentation, signing in, and using the Cloud dashboard or management functions do not themselves create a tenant charge, including when a tenant is logged in. Metering and settlement apply to billable API consumption under the applicable capability and tenant authorization. Authentication and session isolation protect access and data; they do not by themselves imply billable usage. The assistant's complete gateway-to-metering integration remains to be verified.
 
+The capability gateway treats its root and health routes separately from capability admission. The portal's management API is a separate control-plane route group; its access must not create capability reservations or usage records.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.
