@@ -341,3 +341,7 @@ LiveUI manifest labels for public documentation targets must match their rendere
 ### Cloud worker capability catalog
 
 Document, knowledge, vision and analytics capabilities enter the Cloud catalog as not configured, without overwriting existing capability settings. Entitlements, application selection, verified deployment and readiness remain separate gates before use.
+
+### Local worker model provisioning
+
+The root Compose configuration defaults model provisioning to verification of existing assets and offline operation. Downloading approved, pinned assets requires an explicit provisioning and network configuration; enabling a worker does not implicitly download models.
