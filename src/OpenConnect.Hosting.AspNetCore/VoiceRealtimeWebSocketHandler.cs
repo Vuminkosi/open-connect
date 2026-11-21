@@ -40,17 +40,17 @@ internal static class VoiceRealtimeWebSocketHandler
         var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
         var workerToken = configuration["OPENCONNECT_WORKER_TOKEN"];
         var workerEndpoint = configuration["Workers:Transcription:Endpoint"];
-        if (string.IsNullOrWhiteSpace(workerToken) || !Uri.TryCreate(workerEndpoint, UriKind.Absolute, out var endpoint))
+        if (string.IsNullOrWhiteSpace(workerToken) || !TryCreateWorkerUri(workerEndpoint,
+                configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly"), out var realtimeUri))
         {
             await CloseAsync(browser, WebSocketCloseStatus.PolicyViolation, "voice_unavailable", cancellationToken).ConfigureAwait(false);
             return;
         }
 
         upstream.Options.SetRequestHeader("Authorization", $"Bearer {workerToken}");
-        var realtimeUri = new UriBuilder(endpoint) { Scheme = endpoint.Scheme == "https" ? "wss" : "ws", Path = "/internal/v1/realtime", Query = string.Empty }.Uri;
         try
         {
-            await upstream.ConnectAsync(realtimeUri, cancellationToken).ConfigureAwait(false);
+            await upstream.ConnectAsync(realtimeUri!, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -89,6 +89,22 @@ internal static class VoiceRealtimeWebSocketHandler
         catch (OperationCanceledException) when (relayCancellation.IsCancellationRequested) { }
         catch (Exception exception) { logger.LogWarning("Realtime voice relay stopped with {ExceptionType}.", exception.GetType().Name); }
         relayCancellation.Dispose();
+    }
+
+    internal static bool TryCreateWorkerUri(string? value, bool localOnly, out Uri? result)
+    {
+        result = null;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint) ||
+            (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Query) ||
+            !string.IsNullOrEmpty(endpoint.Fragment))
+            return false;
+        result = new UriBuilder(endpoint)
+        {
+            Scheme = endpoint.Scheme == "https" ? "wss" : "ws",
+            Path = localOnly ? "/internal/v1/realtime/local" : "/internal/v1/realtime"
+        }.Uri;
+        return true;
     }
 
     private static async Task RelayBrowserToWorkerAsync(WebSocket browser, WebSocket worker, string captureId, long speechEpoch, CancellationToken token)

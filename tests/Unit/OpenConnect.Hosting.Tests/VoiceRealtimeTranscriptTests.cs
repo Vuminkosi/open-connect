@@ -13,6 +13,25 @@ namespace OpenConnect.Hosting.Tests;
 
 public sealed class VoiceRealtimeTranscriptTests
 {
+    [Theory]
+    [InlineData(true, "ws://worker:8080/internal/v1/realtime/local")]
+    [InlineData(false, "ws://worker:8080/internal/v1/realtime")]
+    public void WorkerRouteHonorsLocalOnlySetting(bool localOnly, string expected)
+    {
+        Assert.True(VoiceRealtimeWebSocketHandler.TryCreateWorkerUri("http://worker:8080", localOnly, out var uri));
+        Assert.Equal(expected, uri!.AbsoluteUri);
+    }
+
+    [Theory]
+    [InlineData("file:///tmp/worker")]
+    [InlineData("https://user:password@worker/")]
+    [InlineData("https://worker/?secret=value")]
+    [InlineData("https://worker/#fragment")]
+    public void WorkerRouteRejectsInvalidEndpoint(string endpoint)
+    {
+        Assert.False(VoiceRealtimeWebSocketHandler.TryCreateWorkerUri(endpoint, true, out _));
+    }
+
     [Fact]
     public async Task CompletionAdmitsOnlyFinalTextWithoutApplicationSpecificRewriting()
     {

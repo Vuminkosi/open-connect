@@ -32,6 +32,8 @@ services:
       OpenConnect__Assistant__Model__Name: ${OC_DOCS_ASSISTANT_MODEL_NAME:?Set OC_DOCS_ASSISTANT_MODEL_NAME}
       OpenConnect__Assistant__Model__ApiKey: ${OC_DOCS_ASSISTANT_MODEL_API_KEY:?Set OC_DOCS_ASSISTANT_MODEL_API_KEY}
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
+      Workers__Transcription__Endpoint: http://worker-transcription:8080
+      Workers__Transcription__RealtimeLocalOnly: "true"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?Set OPENCONNECT_WORKER_TOKEN}
       OpenConnect__LiveUI__Inference__Worker__Endpoint: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENDPOINT:-}
       OpenConnect__LiveUI__Inference__Worker__Token: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_TOKEN:-}
