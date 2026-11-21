@@ -45,3 +45,25 @@ def test_semantic_failure_reports_cleanly_for_fixture_and_compatibility(tmp_path
     assert VALIDATOR.validate_fixture_set(fixture_dir / "valid", True) == (1, 1)
     assert not VALIDATOR.compatibility_check(fixture_dir)
     assert "span 0: start must be less than end" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("reason", "allowed", "categories", "valid"), [
+    (None, False, {"EMAIL": 1}, True),
+    ("not_recorded", False, {}, True),
+    ("inspection_failed", False, {}, True),
+    ("sensitive_detected", False, {"EMAIL": 1}, True),
+    ("sensitive_detected", False, {}, False),
+    ("inspection_failed", True, {}, False),
+    ("allowed", False, {}, False),
+    ("private diagnostic", False, {}, False),
+])
+def test_host_evidence_reason_schema(reason, allowed, categories, valid):
+    root = SCRIPT.parents[1] / "contracts"
+    schema = json.loads((root / "jsonschema" / "host-privacy-evidence.json").read_text(encoding="utf-8"))
+    value = json.loads((root / "fixtures" / "valid" / "host-privacy-evidence.json").read_text(encoding="utf-8"))
+    value.update(allowed=allowed, action="Allow" if allowed else "Block", categories=categories)
+    if reason is None:
+        value.pop("reasonCode", None)
+    else:
+        value["reasonCode"] = reason
+    assert VALIDATOR.Draft202012Validator(schema, format_checker=VALIDATOR.FormatChecker()).is_valid(value) is valid

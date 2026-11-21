@@ -6,7 +6,13 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "eventId", "tenantId", "destination", "allowed", "action", "categories"],
   "allOf": [{"if": {"properties": {"action": {"const": "Block"}}, "required": ["action"]},
-             "then": {"properties": {"allowed": {"const": false}}}}],
+             "then": {"properties": {"allowed": {"const": false}}}},
+            {"if": {"properties": {"reasonCode": {"const": "allowed"}}, "required": ["reasonCode"]},
+             "then": {"properties": {"allowed": {"const": true}}}},
+            {"if": {"properties": {"reasonCode": {"enum": ["inspection_failed", "enforcement_unavailable", "sensitive_detected", "policy_blocked"]}}, "required": ["reasonCode"]},
+             "then": {"properties": {"allowed": {"const": false}}}},
+            {"if": {"properties": {"reasonCode": {"const": "sensitive_detected"}}, "required": ["reasonCode"]},
+             "then": {"properties": {"categories": {"minProperties": 1}}}}],
   "properties": {
     "schemaVersion": { "const": "openconnect.privacy-evidence.v1" },
     "eventId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
@@ -14,6 +20,7 @@
     "destination": { "enum": ["ExternalModel", "Tool", "Worker", "Output", "Nats", "WebSocket", "AuditLog"] },
     "allowed": { "type": "boolean" },
     "action": { "enum": ["Allow", "Mask", "Redact", "Block", "Review"] },
+    "reasonCode": { "enum": ["allowed", "inspection_failed", "enforcement_unavailable", "sensitive_detected", "policy_blocked", "not_recorded"] },
     "categories": {
       "type": "object",
       "maxProperties": 6,
