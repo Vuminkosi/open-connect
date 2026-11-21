@@ -24,4 +24,6 @@ Cloud synthesis readiness requires an authenticated worker with a loaded model, 
 
 The local gateway exposes `POST /cloud/v1/voice/synthesis` only when voice execution is explicitly configured. The JSON result contains the requested audio format and base64 audio without echoing input text. Deployment requires separate protected transports and credentials for the synthesis worker, control plane and audio-inspection worker; the worker's claim-consumption certificate is supplied by deployment-managed mounts. The transcription worker's default limits are insufficient for the full 120-second synthesis maximum and must be raised when voice execution is enabled.
 
+The opt-in live-system test exercises the gateway, mutual-TLS worker and control-plane connections, real provisioned synthesis and transcription models, quota settlement, output evidence, replay and privacy denial using a disposable PostgreSQL database. It does not verify the production deployment, user interfaces or recognition accuracy across languages and audio conditions.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
