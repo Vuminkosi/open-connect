@@ -22,6 +22,8 @@ The example reuses its visitor-bound job identity on retry, does not reindex aft
 
 Knowledge embeddings can use either the private signed worker contract or the authenticated Cloud gateway contract. The SDK validates the response identity and model space and applies host privacy checks to both paths.
 
+Cloud worker payload binding and tenant-ID conversion are shared gateway boundary operations; knowledge embedding payload preparation does not depend on analytics feature code.
+
 The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
 
 The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
