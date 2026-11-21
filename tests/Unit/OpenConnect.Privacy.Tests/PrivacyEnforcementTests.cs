@@ -35,6 +35,32 @@ public sealed class PrivacyEnforcementTests
             ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Block, "test"));
     }
 
+    [Theory]
+    [InlineData(SecurityPolicyAction.Review)]
+    [InlineData((SecurityPolicyAction)999)]
+    public async Task DemandAllowedRejectsUnresolvedOrUnknownAction(SecurityPolicyAction action)
+    {
+        var gate = new EgressGate(new ActionFirewall(action));
+        await Assert.ThrowsAsync<PrivacyBlockedException>(async () => await gate.DemandAllowedAsync("private", Context));
+    }
+
+    [Theory]
+    [InlineData(SecurityPolicyAction.Allow)]
+    [InlineData(SecurityPolicyAction.Mask)]
+    [InlineData(SecurityPolicyAction.Redact)]
+    public async Task DemandAllowedAcceptsCompletedPolicyActions(SecurityPolicyAction action)
+    {
+        var gate = new EgressGate(new ActionFirewall(action));
+        Assert.Equal("safe", await gate.DemandAllowedAsync("private", Context));
+    }
+
+    private sealed class ActionFirewall(SecurityPolicyAction action) : IPrivacyFirewall
+    {
+        public bool Enabled => true;
+        public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new EgressDecision(true, "safe", [], action, "test"));
+    }
+
     [Fact]
     public async Task Accepts_valid_unicode_span_when_sensitive_value_is_removed()
     {

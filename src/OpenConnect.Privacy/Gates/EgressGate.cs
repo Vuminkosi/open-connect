@@ -19,7 +19,9 @@ public sealed class EgressGate(IPrivacyFirewall firewall) : IEgressGate
     public async ValueTask<string> DemandAllowedAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
     {
         var decision = await EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false);
-        if (decision is null || !decision.Allowed || decision.Action == SecurityPolicyAction.Block || decision.SanitizedContent is null)
+        if (decision is null || !decision.Allowed ||
+            decision.Action is not (SecurityPolicyAction.Allow or SecurityPolicyAction.Mask or SecurityPolicyAction.Redact) ||
+            decision.SanitizedContent is null)
             throw new PrivacyBlockedException("Content was blocked by privacy policy.");
         return decision.SanitizedContent;
     }
