@@ -24,7 +24,8 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
         Services.AddSingleton<IConfiguration>(config);
         var component = Render<TenantSecurity>(p => p.Add(x => x.TenantId, tenant));
         Assert.Contains("Cloud privacy check blocked", component.Markup);
-        Assert.Contains("Application-host inspection is not shown", component.Markup);
+        Assert.Contains("These are Cloud-side classification checks", component.Markup);
+        Assert.Contains("Host privacy reports are available separately", component.Markup);
         Assert.Contains("does not prove complete detection or worker execution", component.Markup);
         component.Find("#security-from").Change("2026-01-02");
         component.Find("#security-to").Change("2026-01-03");

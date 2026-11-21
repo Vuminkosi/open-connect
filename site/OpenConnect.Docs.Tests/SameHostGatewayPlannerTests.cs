@@ -32,11 +32,14 @@ public sealed class SameHostGatewayPlannerTests
 
         Assert.Equal("completed", result.Outcome);
         Assert.Equal(1, chat.Calls);
-        var context = Assert.IsType<EgressContext>(gate.Context);
-        Assert.Equal(tenant, context.Tenant);
-        Assert.Equal(principal, context.Principal);
-        Assert.Equal(session.Id, context.Session);
-        Assert.Equal(EgressDestination.ExternalModel, context.Destination);
+        Assert.Equal(new[] { EgressDestination.ExternalModel, EgressDestination.Output },
+            gate.Contexts.Select(context => context.Destination).Distinct());
+        Assert.All(gate.Contexts, context =>
+        {
+            Assert.Equal(tenant, context.Tenant);
+            Assert.Equal(principal, context.Principal);
+            Assert.Equal(session.Id, context.Session);
+        });
     }
 
     [Fact]
@@ -56,7 +59,7 @@ public sealed class SameHostGatewayPlannerTests
         }, new FixedContext(foreign.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(foreign.Id.Value.ToString())));
-        Assert.Null(gate.Context);
+        Assert.Empty(gate.Contexts);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -81,7 +84,7 @@ public sealed class SameHostGatewayPlannerTests
         }, new FixedContext(current.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(other.Id.Value.ToString())));
-        Assert.Null(gate.Context);
+        Assert.Empty(gate.Contexts);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -103,7 +106,7 @@ public sealed class SameHostGatewayPlannerTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             planner.GeneratePlanAsync(Request(session.Id.Value.ToString()) with { RouteId = "other" }));
-        Assert.Null(gate.Context);
+        Assert.Empty(gate.Contexts);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -115,10 +118,12 @@ public sealed class SameHostGatewayPlannerTests
 
     private sealed class CapturingGate : IEgressGate
     {
-        public EgressContext? Context { get; private set; }
+        private readonly List<EgressContext> _contexts = [];
+        public IReadOnlyList<EgressContext> Contexts => _contexts;
+
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            Context = context;
+            _contexts.Add(context);
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }
