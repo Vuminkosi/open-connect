@@ -34,6 +34,8 @@ class Settings:
     provisioning: str = "first-start-if-missing"
     environment: str = "Production"
     model_offline: bool = False
+    model_id: str | None = None
+    commercial_use: bool = True
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -67,4 +69,7 @@ class Settings:
             provisioning=parse_provisioning(os.environ.get("OC_MODEL_PROVISIONING")),
             environment=resolve_environment(),
             model_offline=parse_offline(),
+            model_id=os.environ.get("OC_NLLB_MODEL_ID") or None,
+            commercial_use=os.environ.get("OC_NLLB_COMMERCIAL_USE", "true").strip().lower()
+            not in {"0", "false", "no", "off"},
         )

@@ -3,6 +3,7 @@
 import hashlib
 import os
 import shutil
+from dataclasses import replace
 
 import pytest
 
@@ -30,8 +31,18 @@ def test_offline_decoder_loads_and_generates_with_synthetic_model(tmp_path, monk
         vocab_size=len(tokenizer), d_model=16, encoder_layers=1, decoder_layers=1,
         encoder_attention_heads=2, decoder_attention_heads=2, encoder_ffn_dim=32,
         decoder_ffn_dim=32, max_position_embeddings=1024, decoder_start_token_id=2,
-        bos_token_id=0, pad_token_id=1, eos_token_id=2,
+        bos_token_id=0, pad_token_id=1, eos_token_id=2, tie_word_embeddings=False,
     ))
+    model.eval()
+    # Force a short, deterministic synthetic output; this is not a trained model.
+    with torch.inference_mode():
+        inputs = tokenizer("Hello.", return_tensors="pt")
+        target = tokenizer.convert_tokens_to_ids("fra_Latn")
+        hidden = model(**inputs, decoder_input_ids=torch.tensor([[2, target]]),
+                       output_hidden_states=True).decoder_hidden_states[-1][0, -1]
+        model.lm_head.weight.zero_()
+        model.lm_head.weight[5].copy_(hidden * 1000)
+    model.generation_config.eos_token_id = 5
     source = tmp_path / "synthetic-source"
     source.mkdir()
     tokenizer.save_pretrained(source)
@@ -53,6 +64,7 @@ def test_offline_decoder_loads_and_generates_with_synthetic_model(tmp_path, monk
     bundle, reason = resolve_decoder_bundle(tmp_path / "cache", manifest.modelId, license_accepted=False)
     assert reason is None and bundle is not None
     decoder = OfflineNllbDecoder(bundle)
+    assert decoder.translate("Hello.", "eng_Latn", "fra_Latn") == "h"
     inputs = decoder._tokenizer("hello", return_tensors="pt")
     target = decoder._tokenizer.convert_tokens_to_ids("fra_Latn")
     with torch.inference_mode():
@@ -60,3 +72,26 @@ def test_offline_decoder_loads_and_generates_with_synthetic_model(tmp_path, monk
                                             num_beams=1, do_sample=False)
     assert generated.shape[0] == 1
     assert int(generated[0][1]) == target
+
+    from fastapi.testclient import TestClient
+    import openconnect_nllb.app as app_module
+
+    monkeypatch.setattr(app_module, "settings", replace(
+        app_module.settings, worker_token="test-token", model_dir=tmp_path / "cache",
+        fake_engine=False, model_id=manifest.modelId, model_device="cpu", commercial_use=False,
+    ))
+    monkeypatch.setattr(app_module, "_cached_key", None)
+    monkeypatch.setattr(app_module, "_cached_decoder", None)
+    import openconnect_nllb.init_models as init_models
+
+    monkeypatch.setattr(init_models.Settings, "from_environment", lambda: app_module.settings)
+    assert init_models.main() == 0
+    client = TestClient(app_module.app)
+    assert client.get("/health/ready").json()["ready"] is True
+    response = client.post("/internal/v1/execute", headers={"Authorization": "Bearer test-token"}, json={
+        "schemaVersion": "openconnect.v1", "taskId": "synthetic-test",
+        "input": {"text": "Hello.", "sourceLang": "eng_Latn", "targetLang": "fra_Latn"},
+    })
+    assert response.status_code == 200
+    assert response.json()["result"]["translatedText"] == "h"
+    assert response.json()["result"]["engine"] == "real"

@@ -36,12 +36,14 @@ class OfflineNllbDecoder:
             raise DecoderUnavailable("local decoder runtime unavailable")
         try:
             import torch
-            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, NllbTokenizer
 
             self._torch = torch
             self._tokenizer = AutoTokenizer.from_pretrained(
                 str(bundle.assets_dir), local_files_only=True, trust_remote_code=False
             )
+            if not isinstance(self._tokenizer, NllbTokenizer):
+                raise DecoderUnavailable("unsupported tokenizer")
             self._model = AutoModelForSeq2SeqLM.from_pretrained(
                 str(bundle.assets_dir), local_files_only=True, trust_remote_code=False,
                 use_safetensors=True,
@@ -71,7 +73,7 @@ class OfflineNllbDecoder:
                 target_id = self._tokenizer.convert_tokens_to_ids(target_lang)
                 output = self._model.generate(
                     **inputs, forced_bos_token_id=target_id, max_new_tokens=_MAX_NEW_TOKENS,
-                    num_beams=1, do_sample=False,
+                    num_beams=1, num_return_sequences=1, do_sample=False,
                 )
                 tokens = output[0]
                 if len(tokens) >= _MAX_NEW_TOKENS and int(tokens[-1]) != self._tokenizer.eos_token_id:

@@ -48,6 +48,19 @@ def _execute(text="hello world", source="eng_Latn", target="fra_Latn"):
     return client.post("/internal/v1/execute", json=payload, headers=AUTH)
 
 
+def test_decoder_selection_and_license_context_are_explicit(monkeypatch) -> None:
+    monkeypatch.setenv("OC_ENVIRONMENT", "Development")
+    monkeypatch.setenv("OC_NLLB_MODEL_ID", "example/nllb")
+    monkeypatch.delenv("OC_NLLB_COMMERCIAL_USE", raising=False)
+    assert Settings.from_environment().commercial_use is True
+    monkeypatch.setenv("OC_NLLB_COMMERCIAL_USE", "false")
+    configured = Settings.from_environment()
+    assert configured.model_id == "example/nllb"
+    assert configured.commercial_use is False
+    monkeypatch.setenv("OC_NLLB_COMMERCIAL_USE", "unrecognized")
+    assert Settings.from_environment().commercial_use is True
+
+
 # --- default is real --------------------------------------------------------
 
 

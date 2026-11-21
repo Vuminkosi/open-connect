@@ -2,7 +2,8 @@ import openconnect_nllb.app as app_module
 from openconnect_nllb.app import app
 from openconnect_nllb.config import Settings
 from openconnect_nllb.languages import SUPPORTED_LANGUAGES, is_supported_pair
-from openconnect_nllb.manifest import ModelManifest, Readiness
+from openconnect_nllb.decoder import DecoderUnavailable
+from openconnect_nllb.decoder_bundle import DecoderBundle
 
 from fastapi.testclient import TestClient
 
@@ -39,10 +40,16 @@ def test_ready_unready_when_model_missing_and_real(monkeypatch, tmp_path) -> Non
     assert body["reason"] in ("model_unavailable", "tokenizer_mismatch", "license_denied")
 
 
-def test_verified_model_does_not_advertise_unimplemented_real_decoder(monkeypatch, tmp_path) -> None:
-    _auth(monkeypatch, model_dir=tmp_path, fake_engine=False)
-    manifest = ModelManifest("model", "revision", "a" * 64, "b" * 64, "mit")
-    monkeypatch.setattr(app_module, "check_readiness", lambda *args, **kwargs: Readiness(True, None, manifest))
+def test_verified_model_does_not_advertise_unloadable_decoder(monkeypatch, tmp_path) -> None:
+    _auth(monkeypatch, model_dir=tmp_path, fake_engine=False, model_id="model")
+    bundle = DecoderBundle(tmp_path, "model", "revision", "a" * 64, "b" * 64, "c" * 64, "mit")
+    monkeypatch.setattr(app_module, "resolve_decoder_bundle", lambda *args, **kwargs: (bundle, None))
+    monkeypatch.setattr(app_module, "_cached_key", None)
+
+    def unavailable(_bundle):
+        raise DecoderUnavailable("unavailable")
+
+    monkeypatch.setattr(app_module, "OfflineNllbDecoder", unavailable)
     readiness = client.get("/health/ready").json()
     assert readiness == {"status": "unready", "ready": False, "reason": "model_unavailable"}
     capabilities = client.get(
@@ -50,6 +57,59 @@ def test_verified_model_does_not_advertise_unimplemented_real_decoder(monkeypatc
     ).json()
     assert capabilities["engine"] == "real"
     assert capabilities["capabilities"] == []
+
+
+def test_real_worker_loads_selected_bundle_and_executes(monkeypatch, tmp_path) -> None:
+    _auth(monkeypatch, model_dir=tmp_path, fake_engine=False, model_id="model", model_device="cpu")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    bundle = DecoderBundle(tmp_path, "model", "revision", "a" * 64, "b" * 64, "c" * 64, "mit")
+    calls = []
+    monkeypatch.setattr(app_module, "resolve_decoder_bundle", lambda *args, **kwargs: (bundle, None))
+    monkeypatch.setattr(app_module, "_cached_key", None)
+    monkeypatch.setattr(app_module, "_cached_decoder", None)
+
+    class Decoder:
+        def __init__(self, supplied):
+            assert supplied == bundle
+
+        def translate(self, text, source_lang, target_lang):
+            calls.append((text, source_lang, target_lang))
+            return "bonjour"
+
+    monkeypatch.setattr(app_module, "OfflineNllbDecoder", Decoder)
+    readiness = client.get("/health/ready").json()
+    assert readiness["ready"] is True and readiness["engine"] == "real"
+    capabilities = client.get(
+        "/internal/v1/capabilities", headers={"Authorization": "Bearer local-test-token"}
+    ).json()
+    assert capabilities["capabilities"][0]["kind"] == "translation"
+    result = _execute("hello").json()
+    assert result["result"]["translatedText"] == "bonjour"
+    assert result["result"]["engine"] == "real"
+    assert calls == [("Hello.", "eng_Latn", "fra_Latn"), ("hello", "eng_Latn", "fra_Latn")]
+    monkeypatch.delenv("HF_HUB_OFFLINE")
+    assert client.get("/health/ready").json()["ready"] is False
+
+
+def test_unexpected_translation_failure_does_not_log_caller_content(monkeypatch, caplog) -> None:
+    _auth(monkeypatch)
+
+    class Broken:
+        def translate(self, *_args, **_kwargs):
+            raise RuntimeError("private model input")
+
+    monkeypatch.setattr(app_module, "_engine", lambda: Broken())
+    payload = {
+        "schemaVersion": "openconnect.v1",
+        "taskId": "private-task@example.test",
+        "input": {"text": "private model input", "sourceLang": "eng_Latn", "targetLang": "fra_Latn"},
+    }
+    response = client.post(
+        "/internal/v1/execute", json=payload, headers={"Authorization": "Bearer local-test-token"}
+    )
+    assert response.json()["status"] == "failed"
+    assert "private model input" not in caplog.text
+    assert "private-task@example.test" not in caplog.text
 
 
 def test_auth_required(monkeypatch) -> None:

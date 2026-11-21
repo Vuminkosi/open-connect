@@ -29,6 +29,8 @@ class DecoderBundle:
     revision: str
     fingerprint: str
     tokenizer_hash: str
+    weights_hash: str = ""
+    license: str = ""
 
 
 def resolve_decoder_bundle(
@@ -89,6 +91,14 @@ def resolve_decoder_bundle(
             for asset in manifest.assets
             if asset.relativePath == "tokenizer.json"
         )
-        return DecoderBundle(assets_dir, model_id, manifest.immutableRevision, fingerprint, tokenizer_hash), None
+        weights_hash = next(
+            asset.sha256.lower()
+            for asset in manifest.assets
+            if asset.relativePath == "model.safetensors"
+        )
+        return DecoderBundle(
+            assets_dir, model_id, manifest.immutableRevision, fingerprint, tokenizer_hash,
+            weights_hash, manifest.license,
+        ), None
     except (OSError, ValueError, KeyError, TypeError):
         return None, "cache_corrupt"

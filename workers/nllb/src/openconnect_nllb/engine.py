@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-import importlib.util
 
 from openconnect_nllb.languages import is_supported_pair
 from openconnect_nllb.manifest import ModelManifest
+from openconnect_nllb.decoder import DecoderInputError, DecoderUnavailable, OfflineNllbDecoder
 
 FAKE_MODEL_REVISION = "fake-nllb-0.1.0"
 FAKE_TOKENIZER_HASH = "fake-tokenizer-hash"
@@ -36,15 +36,12 @@ class LicenseDeniedError(RuntimeError):
     pass
 
 
+class InputTooLongError(ValueError):
+    pass
+
+
 def _offline_enforced() -> bool:
     return os.environ.get("HF_HUB_OFFLINE", "") == "1"
-
-
-def decoder_available() -> bool:
-    """Pinned neural decoder present (torch + transformers)."""
-    return importlib.util.find_spec("torch") is not None and (
-        importlib.util.find_spec("transformers") is not None
-    )
 
 
 def _require_pair(source: str, target: str) -> None:
@@ -74,10 +71,14 @@ class RealEngine:
 
     engine_name = "real"
 
-    def __init__(self, manifest: ModelManifest | None, *, ready: bool, reason: str | None) -> None:
+    def __init__(
+        self, manifest: ModelManifest | None, *, ready: bool, reason: str | None,
+        decoder: OfflineNllbDecoder | None = None,
+    ) -> None:
         self._manifest = manifest
         self._ready = ready
         self._reason = reason
+        self._decoder = decoder
 
     def translate(self, text: str, *, source_lang: str, target_lang: str) -> TranslateOutcome:
         _require_pair(source_lang, target_lang)
@@ -89,10 +90,13 @@ class RealEngine:
             raise ModelUnavailableError("HF_HUB_OFFLINE=1 required; refusing network fetch")
         if self._manifest is None:  # pragma: no cover - guarded by readiness
             raise ModelUnavailableError("model unavailable")
-        # Local-checkpoint decoding plugs in here (pinned torch/transformers
-        # versions). Without the pinned neural runtime this worker must not
-        # fabricate translations and must not fetch anything remotely: there
-        # is no remote fallback.
-        if not decoder_available():
-            raise ModelUnavailableError("real decoder not installed")
-        raise ModelUnavailableError("model unavailable")
+        if self._decoder is None:
+            raise ModelUnavailableError("local decoder unavailable")
+        try:
+            translated = self._decoder.translate(text, source_lang, target_lang)
+        except DecoderInputError:
+            raise InputTooLongError("translation input exceeds token limit") from None
+        except DecoderUnavailable:
+            raise ModelUnavailableError("local decoder unavailable") from None
+        return TranslateOutcome(translated, source_lang, target_lang, self._manifest.revision,
+                                self._manifest.tokenizer_hash, self.engine_name)

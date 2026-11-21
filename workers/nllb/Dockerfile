@@ -14,8 +14,13 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 
 FROM base AS dependencies
+ARG OC_NLLB_INSTALL_DECODER=false
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN if [ "$OC_NLLB_INSTALL_DECODER" = "true" ]; then \
+      uv sync --locked --no-dev --no-install-project --extra local-decoder; \
+    elif [ "$OC_NLLB_INSTALL_DECODER" = "false" ]; then \
+      uv sync --locked --no-dev --no-install-project; \
+    else echo "OC_NLLB_INSTALL_DECODER must be true or false" >&2; exit 1; fi
 
 FROM base AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \

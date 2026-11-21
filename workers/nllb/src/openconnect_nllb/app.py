@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hmac
 import logging
+import os
+import threading
 import time
 import uuid
 from typing import Annotated
@@ -23,13 +25,16 @@ from openconnect_nllb.engine import (
     FAKE_TOKENIZER_HASH,
     FAKE_WARNING,
     FakeEngine,
+    InputTooLongError,
     LanguageUnsupportedError,
     LicenseDeniedError,
     ModelUnavailableError,
     RealEngine,
 )
+from openconnect_nllb.decoder import DecoderInputError, DecoderUnavailable, OfflineNllbDecoder
+from openconnect_nllb.decoder_bundle import resolve_decoder_bundle
 from openconnect_nllb.languages import SUPPORTED_LANGUAGES, SUPPORTED_PAIRS
-from openconnect_nllb.manifest import check_readiness
+from openconnect_nllb.manifest import ModelManifest, Readiness
 from openconnect_nllb.schemas import (
     CapabilitiesResponse,
     Capability,
@@ -52,15 +57,40 @@ _fake_engine = FakeEngine()
 # taskId -> {leaseId, fencingToken, expiresAtEpoch}
 _leases: dict[str, dict[str, object]] = {}
 LEASE_TTL_SECONDS = 60
+_decoder_lock = threading.Lock()
+_cached_decoder: OfflineNllbDecoder | None = None
+_cached_key: tuple[str, str] | None = None
 
 
 def _real_readiness():
-    result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
-    # A verified bundle and installed libraries do not make the placeholder
-    # decoder executable. Keep real-mode readiness closed until it is wired.
-    if result.ready:
-        return result, "model_unavailable"
-    return result, result.reason
+    global _cached_decoder, _cached_key
+    if (
+        not settings.model_id
+        or settings.model_device == "cuda"
+        or os.environ.get("HF_HUB_OFFLINE") != "1"
+    ):
+        return Readiness(False, "model_unavailable", None), "model_unavailable", None
+    bundle, reason = resolve_decoder_bundle(
+        settings.model_dir, settings.model_id, license_accepted=settings.license_accepted,
+        commercial_use=settings.commercial_use,
+    )
+    if bundle is None:
+        return Readiness(False, reason or "model_unavailable", None), reason or "model_unavailable", None
+    manifest = ModelManifest(bundle.model_id, bundle.revision, bundle.weights_hash,
+                             bundle.tokenizer_hash, bundle.license)
+    key = (str(bundle.assets_dir), bundle.fingerprint)
+    with _decoder_lock:
+        if _cached_key != key or _cached_decoder is None:
+            _cached_decoder = None
+            _cached_key = None
+            try:
+                decoder = OfflineNllbDecoder(bundle)
+                decoder.translate("Hello.", "eng_Latn", "fra_Latn")
+            except (DecoderUnavailable, DecoderInputError):
+                return Readiness(False, "model_unavailable", manifest), "model_unavailable", None
+            _cached_decoder = decoder
+            _cached_key = key
+        return Readiness(True, None, manifest), None, _cached_decoder
 
 
 @app.get("/health/live")
@@ -87,7 +117,7 @@ def ready() -> dict[str, object]:
             "device": info.effective,
             "deviceRequested": info.requested,
         }
-    result, reason = _real_readiness()
+    result, reason, _ = _real_readiness()
     if result.ready and reason is None and result.manifest is not None:
         return {
             "status": "ready",
@@ -97,7 +127,7 @@ def ready() -> dict[str, object]:
             "tokenizerHash": result.manifest.tokenizer_hash,
             "provisioning": settings.provisioning,
             "modelCacheDir": settings.model_dir.as_posix(),
-            "device": info.effective,
+            "device": "cpu",
             "deviceRequested": info.requested,
         }
     return {"status": "unready", "ready": False, "reason": reason}
@@ -121,8 +151,8 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
 def _engine():
     if settings.fake_engine:
         return _fake_engine
-    result, reason = _real_readiness()
-    return RealEngine(result.manifest, ready=(result.ready and reason is None), reason=reason)
+    result, reason, decoder = _real_readiness()
+    return RealEngine(result.manifest, ready=(result.ready and reason is None), reason=reason, decoder=decoder)
 
 
 @app.get(
@@ -140,7 +170,7 @@ def capabilities() -> CapabilitiesResponse:
             capabilities=[Capability(languagePairs=pairs)],
             fakeEngineWarning=FAKE_WARNING,
         )
-    result, reason = _real_readiness()
+    result, reason, _ = _real_readiness()
     return CapabilitiesResponse(
         engine="real",
         modelRevision=result.manifest.revision if result.manifest else None,
@@ -200,6 +230,12 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
                 "error": {"code": "language_unsupported", "message": str(exc)},
             },
         )  # type: ignore[return-value]
+    except InputTooLongError:
+        return JSONResponse(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            content={"schemaVersion": "openconnect.v1", "taskId": request.taskId,
+                     "status": "failed", "error": {"code": "input_too_long", "message": "input exceeds worker limit"}},
+        )  # type: ignore[return-value]
     except LicenseDeniedError:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -221,7 +257,7 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             },
         )  # type: ignore[return-value]
     except Exception:
-        logger.exception("Translation failed task_id=%s", request.taskId)
+        logger.error("Translation failed unexpectedly")
         return ExecuteResponse(
             taskId=request.taskId,
             status="failed",

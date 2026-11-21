@@ -1,6 +1,8 @@
 from contextlib import nullcontext
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+import time
 
 import pytest
 
@@ -24,6 +26,7 @@ def runtime(monkeypatch, tmp_path):
 
         def __call__(self, text, **kwargs):
             events.append(("input", self.src_lang, text, kwargs))
+            time.sleep(0.01)
             return {"input_ids": SimpleNamespace(shape=(1, 3))}
 
         def decode(self, tokens, **kwargs):
@@ -53,6 +56,7 @@ def runtime(monkeypatch, tmp_path):
     transformers = ModuleType("transformers")
     transformers.AutoTokenizer = Loader(Tokenizer())
     transformers.AutoModelForSeq2SeqLM = Loader(Model())
+    transformers.NllbTokenizer = Tokenizer
     monkeypatch.setitem(__import__("sys").modules, "torch", torch)
     monkeypatch.setitem(__import__("sys").modules, "transformers", transformers)
     monkeypatch.setattr(decoder_module, "_runtime_versions_valid", lambda: True)
@@ -85,3 +89,19 @@ def test_decoder_rejects_network_enabled_and_invalid_pair(runtime, monkeypatch):
     decoder = OfflineNllbDecoder(bundle)
     with pytest.raises(DecoderInputError):
         decoder.translate("hello", "eng_Latn", "unknown")
+
+
+def test_concurrent_requests_keep_language_state_isolated(runtime):
+    bundle, events = runtime
+    decoder = OfflineNllbDecoder(bundle)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(
+            lambda item: decoder.translate(*item),
+            [("hello", "eng_Latn", "fra_Latn"), ("jambo", "swh_Latn", "eng_Latn")],
+        ))
+    assert results == ["bonjour", "bonjour"]
+    operations = [event for event in events if event[0] in {"input", "generate", "decode"}]
+    assert [event[0] for event in operations] == ["input", "generate", "decode"] * 2
+    assert {(event[1], event[2]) for event in operations if event[0] == "input"} == {
+        ("eng_Latn", "hello"), ("swh_Latn", "jambo")
+    }
