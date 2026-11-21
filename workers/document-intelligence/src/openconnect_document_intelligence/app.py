@@ -21,6 +21,9 @@ from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 from openconnect_document_intelligence.fields import extract_field_candidates
+from openconnect_document_intelligence.analysis import assemble_partial_analysis
+from openconnect_document_intelligence.layout import extract_line_regions
+from openconnect_document_intelligence.tables import extract_table_candidates
 from openconnect_document_intelligence.malware import (
     ClamAvScanner, MalwareDetectedError, MalwareScanUnavailableError,
 )
@@ -35,6 +38,7 @@ from openconnect_worker_common.models.resource_admission import (
 from openconnect_worker_common.models.runtime_cache import RuntimeModelCacheManager, RuntimeModelManifest
 from openconnect_worker_common.security.identity import verify_bearer
 from openconnect_worker_common.security.signing import key_from_environment, verify_bytes
+from openconnect_worker_common.security.sandbox import restricted_media_sandbox_ready as _sandbox_ready
 
 MAX_BODY_BYTES = 14 * 1024 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -54,15 +58,15 @@ class ServiceConfig(BaseModel):
 
 class Payload(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    contentBase64: str = Field(min_length=1, max_length=((MAX_INPUT_BYTES + 2) // 3) * 4)
+    contentBase64: str = Field(min_length=1, max_length=((MAX_INPUT_BYTES + 2) // 3) * 4, repr=False)
 
 
 class ExecuteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schemaVersion: Literal["openconnect.v1"]
-    taskId: str = Field(min_length=1, max_length=128)
-    kind: Literal["documents.ocr", "documents.fields"]
-    tenantId: str = Field(pattern=r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
+    taskId: str = Field(min_length=1, max_length=128, repr=False)
+    kind: Literal["documents.ocr", "documents.fields", "documents.layout", "documents.tables", "documents.analyze"]
+    tenantId: str = Field(min_length=26, max_length=26, pattern=r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$", repr=False)
     issuedAt: AwareDatetime
     expiresAt: AwareDatetime
     payload: Payload
@@ -75,24 +79,34 @@ class Runtime:
     analyzer: DocumentAnalyzer
 
 
-def _sandbox_ready() -> bool:
-    """Check minimum restrictions; deployment must additionally enforce isolation."""
+class _Busy(Exception):
+    pass
+
+
+def _analyze(runtime: Runtime, content: bytes, expires_at: datetime):
+    # A cancelled HTTP request must not release the slot while its OCR thread runs.
+    if not _slot.acquire(blocking=False):
+        raise _Busy()
     try:
-        if os.name != "posix" or not hasattr(os, "geteuid") or os.geteuid() == 0:
-            return False
-        status = Path("/proc/self/status").read_text(encoding="utf-8")
-        fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
-        if fields.get("NoNewPrivs", "").strip() != "1" or fields.get("Seccomp", "").strip() != "2":
-            return False
-        if set(os.listdir("/sys/class/net")) != {"lo"}:
-            return False
-        if not (os.statvfs("/").f_flag & os.ST_RDONLY):
-            return False
-        memory = Path("/sys/fs/cgroup/memory.max").read_text().strip()
-        processes = Path("/sys/fs/cgroup/pids.max").read_text().strip()
-        return 0 < int(memory) <= 2 * 1024**3 and 0 < int(processes) <= 128
-    except (OSError, ValueError, AttributeError):
-        return False
+        remaining = (expires_at - datetime.now(timezone.utc)).total_seconds()
+        if remaining <= 0:
+            raise ValueError("expired_request")
+        return runtime.analyzer.analyze(content, timeout_seconds=remaining)
+    finally:
+        _slot.release()
+
+
+def _analyze_full(runtime: Runtime, content: bytes, expires_at: datetime):
+    if not _slot.acquire(blocking=False):
+        raise _Busy()
+    try:
+        remaining = (expires_at - datetime.now(timezone.utc)).total_seconds()
+        if remaining <= 0:
+            raise ValueError("expired_request")
+        document = runtime.analyzer.analyze_partial(content, timeout_seconds=remaining)
+        return assemble_partial_analysis(document)
+    finally:
+        _slot.release()
 
 
 def _load_runtime() -> Runtime | None:
@@ -162,6 +176,49 @@ def _authorized(request: Request) -> bool:
         return False
 
 
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("duplicate_property")
+        result[name] = value
+    return result
+
+
+async def _read_signed_request(request: Request) -> tuple[ExecuteRequest, bytes] | JSONResponse:
+    body = bytearray()
+    try:
+        try:
+            async with asyncio.timeout(15):
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > MAX_BODY_BYTES:
+                        return _error("invalid_request", 413)
+                    body.extend(chunk)
+        except TimeoutError:
+            return _error("invalid_request", 408)
+        signature = request.headers.get("x-openconnect-signature", "")
+        key = key_from_environment()
+        if not key or not re.fullmatch(r"[0-9a-f]{64}", signature) or not verify_bytes(bytes(body), signature, key):
+            return _error("unauthorized", 401)
+        try:
+            parsed = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object,
+                                parse_constant=lambda _: (_ for _ in ()).throw(ValueError("invalid_json")))
+            command = ExecuteRequest.model_validate(parsed)
+            now = datetime.now(timezone.utc)
+            if (command.issuedAt > now or command.expiresAt <= now
+                    or command.expiresAt <= command.issuedAt
+                    or command.expiresAt - command.issuedAt > timedelta(minutes=5)):
+                return _error("invalid_request", 422)
+            content = base64.b64decode(command.payload.contentBase64, validate=True)
+            if not content or len(content) > MAX_INPUT_BYTES:
+                return _error("invalid_request", 422)
+            return command, content
+        except (ValidationError, ValueError, binascii.Error, UnicodeError, RecursionError):
+            return _error("invalid_request", 422)
+    finally:
+        body[:] = bytes(len(body))
+
+
 @app.get("/health/live")
 def live() -> dict[str, str]:
     return {"status": "live"}
@@ -181,9 +238,12 @@ def capabilities(request: Request) -> JSONResponse:
         return _error("unauthorized", 401)
     if not _ready():
         return JSONResponse({"capabilities": []})
+    available = ["documents.ocr", "documents.fields", "documents.layout", "documents.tables"]
+    if os.environ.get("OC_DOCUMENT_ANALYZE_ENABLED", "false").lower() == "true":
+        available.append("documents.analyze")
     descriptors = [CapabilityDescriptor(id=capability, kind=CapabilityKind.TOOL,
                    state=CapabilityState.READY, version="1.0.0", localOnly=True)
-                   for capability in ("documents.ocr", "documents.fields")]
+                   for capability in available]
     return JSONResponse({"capabilities": [item.model_dump(mode="json") for item in descriptors]})
 
 
@@ -193,41 +253,19 @@ async def execute(request: Request) -> JSONResponse:
         return _error("capability_unavailable", 503)
     if not _authorized(request):
         return _error("unauthorized", 401)
-    body = bytearray()
-    try:
-        async with asyncio.timeout(15):
-            async for chunk in request.stream():
-                if len(body) + len(chunk) > MAX_BODY_BYTES:
-                    return _error("invalid_request", 413)
-                body.extend(chunk)
-    except TimeoutError:
-        return _error("invalid_request", 408)
-    signature = request.headers.get("x-openconnect-signature", "")
-    key = key_from_environment()
-    if not key or not re.fullmatch(r"[0-9a-f]{64}", signature) or not verify_bytes(bytes(body), signature, key):
-        return _error("unauthorized", 401)
-    try:
-        command = ExecuteRequest.model_validate_json(body)
-        now = datetime.now(timezone.utc)
-        if (command.issuedAt > now or command.expiresAt <= now
-                or command.expiresAt <= command.issuedAt
-                or command.expiresAt - command.issuedAt > timedelta(minutes=5)):
-            return _error("invalid_request", 422)
-        content = base64.b64decode(command.payload.contentBase64, validate=True)
-        if not content or len(content) > MAX_INPUT_BYTES:
-            return _error("invalid_request", 422)
-    except (ValidationError, ValueError, binascii.Error):
-        return _error("invalid_request", 422)
+    parsed = await _read_signed_request(request)
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    command, content = parsed
     runtime = getattr(app.state, "runtime", None)
     if runtime is None or not _sandbox_ready():
         return _error("capability_unavailable", 503)
-    if not _slot.acquire(blocking=False):
-        return _error("rate_limited", 429)
+    if command.kind == "documents.analyze" and os.environ.get("OC_DOCUMENT_ANALYZE_ENABLED", "false").lower() != "true":
+        return _error("capability_unavailable", 503)
     try:
-        remaining = (command.expiresAt - datetime.now(timezone.utc)).total_seconds()
-        if remaining <= 0:
-            return _error("invalid_request", 422)
-        result = await run_in_threadpool(runtime.analyzer.analyze, content, timeout_seconds=remaining)
+        result = await run_in_threadpool(_analyze_full if command.kind == "documents.analyze" else _analyze, runtime, content, command.expiresAt)
+    except _Busy:
+        return _error("rate_limited", 429)
     except MalwareDetectedError:
         return _error("malware_detected", 422)
     except MalwareScanUnavailableError:
@@ -236,13 +274,18 @@ async def execute(request: Request) -> JSONResponse:
         return _error("invalid_request", 422)
     except Exception:
         return _error("capability_unavailable", 503)
-    finally:
-        _slot.release()
     if datetime.now(timezone.utc) >= command.expiresAt:
         return _error("invalid_request", 422)
-    result_payload = asdict(result)
-    if command.kind == "documents.fields":
-        result_payload.update(asdict(extract_field_candidates(result.pages)))
+    try:
+        result_payload = asdict(result)
+        if command.kind == "documents.fields":
+            result_payload.update(asdict(extract_field_candidates(result.pages)))
+        elif command.kind == "documents.layout":
+            result_payload.update(asdict(extract_line_regions(result.pages)))
+        elif command.kind == "documents.tables":
+            result_payload.update(asdict(extract_table_candidates(result.pages)))
+    except Exception:
+        return _error("capability_unavailable", 503)
     payload = {"schemaVersion": "openconnect.v1", "taskId": command.taskId,
                "kind": command.kind, "result": result_payload}
     output = json.dumps(payload, ensure_ascii=True, allow_nan=False, separators=(",", ":")).encode()

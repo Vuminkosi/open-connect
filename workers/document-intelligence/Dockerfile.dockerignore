@@ -2,6 +2,7 @@
 !workers
 !workers/common
 !workers/common/pyproject.toml
+!workers/common/verify_install.py
 !workers/common/src
 !workers/common/src/**
 !workers/document-intelligence
