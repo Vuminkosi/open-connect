@@ -227,3 +227,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Verify deterministic LiveUI request, settlement, privacy evidence and replay through a real worker and disposable PostgreSQL. Model-generated planning remains unverified.
 
 - [x] Publish the versioned LiveUI result schema with valid and invalid fixtures; request-specific host authorization remains required.
+
+- [x] Add a session-bound application-host privacy screen for Cloud LiveUI fields. The host-authorized provider and live host-to-Cloud flow remain outstanding.

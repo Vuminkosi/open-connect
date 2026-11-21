@@ -281,3 +281,5 @@ The root Compose configuration provides an opt-in Cloud LiveUI worker with mutua
 A disposable PostgreSQL and mutual-TLS gateway/worker test verifies a settled deterministic LiveUI plan, input and output privacy evidence, and replay rejection using a pre-provisioned model. Model-generated plans and production deployment remain unverified.
 
 The versioned LiveUI result schema describes the proposal returned by the Cloud gateway. Its action types and value fields match gateway validation; the host must still check the original request allowlist and authorize execution.
+
+Before Cloud LiveUI egress, the host can snapshot capabilities and apply its own external-model egress gate to the sanitized intent and every transmitted metadata field, including their concatenation. The host must independently authorize the current session and route before supplying the egress context; this screen does not itself establish authorization or send a request.
