@@ -4,7 +4,8 @@ namespace OpenConnect.Docs.Services;
 
 public static class DocumentationLiveUIManifest
 {
-    public static LiveUIManifest Create(IEnumerable<DocumentationDocument>? documents = null, bool hasGeneratedApiDocuments = false)
+    public static LiveUIManifest Create(IEnumerable<DocumentationDocument>? documents = null, bool hasGeneratedApiDocuments = false,
+        bool hasDocumentExample = false)
     {
         var apiTargets = new List<LiveUITarget>
         {
@@ -43,6 +44,13 @@ public static class DocumentationLiveUIManifest
                     Selector: "#privacy-demo-example"));
                 targets.Add(new LiveUITarget("documentation-privacy-demo-run", LiveUITargetKind.Button, "Check the privacy firewall example",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate }, Selector: "#privacy-demo-run"));
+            }
+            if (hasDocumentExample && document.Version == "v1" && document.Slug == "documents-and-knowledge")
+            {
+                targets.Add(new LiveUITarget("documentation-document-analyze", LiveUITargetKind.Button,
+                    "Analyze the document selected by the visitor",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
+                    Selector: "#documentation-document-analyze"));
             }
             var sections = DocumentationHeadingIds.Extract(document.Markdown);
             for (var index = 0; index < sections.Count; index++)

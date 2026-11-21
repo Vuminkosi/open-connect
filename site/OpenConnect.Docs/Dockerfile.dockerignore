@@ -17,6 +17,8 @@
 !src/OpenConnect.Components.Contracts/**
 !src/OpenConnect.Core/
 !src/OpenConnect.Core/**
+!src/OpenConnect.Documents/
+!src/OpenConnect.Documents/**
 !src/OpenConnect.LiveUI/
 !src/OpenConnect.LiveUI/**
 !src/OpenConnect.LiveUI.Agents/

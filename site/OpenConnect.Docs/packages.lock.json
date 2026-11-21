@@ -531,6 +531,12 @@
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
+      "openconnect.documents": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.liveui": {
         "type": "Project"
       },

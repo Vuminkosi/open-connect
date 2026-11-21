@@ -2,6 +2,7 @@
 @inject DocumentationContentStore Content
 @inject NavigationManager Navigation
 @using OpenConnect.Docs.Components.PrivacyDemo
+@using OpenConnect.Docs.Components.DocumentDemo
 
 @if (Document is null)
 {
@@ -19,6 +20,10 @@ else
             {
                 <PrivacyDemo />
             }
+            @if (Document.Version == "v1" && Document.Slug == "documents-and-knowledge")
+            {
+                <DocumentationDocumentExample />
+            }
             <MarkdownRenderer Markdown="@Document.Markdown" />
             <p class="edit-link"><a href="https://github.com/Vuminkosi/open-connect/edit/master/site/OpenConnect.Docs/Content/@Document.Version/@($"{Document.Slug}.md")">Edit this page on GitHub</a></p>
         </div>
@@ -31,7 +36,7 @@ else
                         <ul>
                             @foreach (var heading in Headings)
                             {
-                                <li class="@(heading.Level == 3 ? "doc-toc-subsection" : null)"><a href="#@heading.Id">@heading.Text</a></li>
+                                <li class="@(heading.Level == 3 ? "doc-toc-subsection" : null)"><a href="@($"/docs/{Document.Version}/{Document.Slug}#{Uri.EscapeDataString(heading.Id)}")">@heading.Text</a></li>
                             }
                         </ul>
                     </nav>

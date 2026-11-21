@@ -1,0 +1,19 @@
+services:
+  # Explicit development-only document demonstration. Start the provisioned
+  # document and extraction profiles separately before enabling the example.
+  documentation-site:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      OpenConnect__DocumentDemo__Enabled: ${OC_DOCS_DOCUMENT_DEMO_ENABLED:-false}
+      OpenConnect__DocumentDemo__DocumentSocket: /run/openconnect-document/worker.sock
+      OpenConnect__DocumentDemo__ExtractionOrigin: ${OC_DOCS_EXTRACTION_ORIGIN:-http://worker-inference:8080}
+      OpenConnect__DocumentDemo__AllowInsecureHttp: ${OC_DOCS_EXTRACTION_ALLOW_HTTP:-false}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_INFERENCE_TOKEN:-${OPENCONNECT_WORKER_TOKEN:-}}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    group_add: ["10001"]
+    volumes:
+      - oc_document_api_socket:/run/openconnect-document:ro
+
+volumes:
+  oc_document_api_socket:

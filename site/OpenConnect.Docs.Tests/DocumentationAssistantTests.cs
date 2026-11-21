@@ -14,6 +14,25 @@ namespace OpenConnect.Docs.Tests;
 
 public sealed class DocumentationAssistantTests
 {
+    [Fact]
+    public async Task DocumentExampleIsAdvertisedOnlyWhenEnabledAndLimitedToItsGuide()
+    {
+        var content = new DocumentationContentStore();
+        content.Load();
+        var disabled = DocumentationLiveUIManifest.Create(content.Documents);
+        Assert.DoesNotContain(disabled.Routes.SelectMany(route => route.Targets), target => target.Id == "documentation-document-analyze");
+        var manifest = DocumentationLiveUIManifest.Create(content.Documents, hasDocumentExample: true);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs/v1/documents-and-knowledge");
+        var target = route.Targets.Single(item => item.Id == "documentation-document-analyze");
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Click, new(), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer(content);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target, action with { Type = LiveUIActionType.SetValue }))).Allowed);
+    }
+
     [Theory]
     [InlineData("https://localhost:8098/", true)]
     [InlineData("https://gateway.example/", false)]

@@ -25,6 +25,12 @@ The host shares the site's network namespace so its HTTPS listener is reachable 
 
 The local host overlay enables a server-side check of the local transcription model before enabling microphone controls. The check uses the visitor's host credential and the host's private worker credential; neither is sent to browser JavaScript. An unavailable or invalid response disables voice input while leaving text and separately configured speech output available. General worker readiness does not establish that the local-only model is present. Refresh the page after provisioning a verified model; the check does not reserve capacity and a later voice request can still fail.
 
+## Optional document example
+
+The documents and knowledge guide includes an opt-in upload example using the `OpenConnect.Documents` SDK. It requires development mode, documentation visitor identity, an isolated document-worker socket, an explicitly configured extraction worker, and a signing key. It accepts synthetic PDF, TIFF, PNG or JPEG files up to 10 MiB, limits concurrent processing, and shows OCR and an extracted reference for review. Worker scanning, model readiness and retention are deployment responsibilities. Without these prerequisites the example remains disabled; no model is downloaded by the site.
+
+To enable it in a protected local stack, provision the document and extraction profiles as described in `samples/Blazor/README.md`, compose `docker-compose-docs-document-demo.yml` with the site overlays, and set `OC_DOCS_DOCUMENT_DEMO_ENABLED=true` and `OPENCONNECT_WORKER_SIGNING_KEY` in the protected environment. Configure `OC_DOCS_EXTRACTION_ORIGIN` for the worker. Plain HTTP requires an isolated development network and the explicit `OC_DOCS_EXTRACTION_ALLOW_HTTP=true` setting. Worker tokens and signing keys must not be committed. The assistant may activate analysis after a visitor selects a file; it cannot choose or upload a file itself.
+
 ## Use the assistant with local Cloud identity
 
 When the local OIDC provider and assistant are enabled together, the documentation site must trust both HTTPS authorities. Create a PEM bundle containing the CA certificates for both the local identity provider and the assistant host, and set `OC_DOCS_CLOUD_CA_BUNDLE` to its path in the protected environment. Keep private keys out of the bundle. After initializing the existing TLS volumes and setting the identity and assistant variables, compose the combined trust overlay last:
