@@ -269,3 +269,5 @@ The gateway has a feature-scoped LiveUI control-plane client for fingerprint-key
 The private LiveUI gateway adapter probes the certificate-bound worker identity and forwards only a claimed payload over mutual TLS. It validates the returned plan against the original exact target-action allowlist and generation limit. The validated proposal still requires Cloud output inspection and application-host authorization; this transport is not yet connected to the public route.
 
 An offline worker smoke test loaded the existing digest-verified Qwen3 model from a read-only volume and exercised a deterministic allowed plan. That test verifies model loading and deterministic routing only; it does not prove model-generated planning or the complete Cloud request path.
+
+LiveUI admission snapshots the request, inspects every model-visible field, reserves a plan and binds a single-use claim to the exact worker payload. The public execution route and output enforcement remain separate integration steps.
