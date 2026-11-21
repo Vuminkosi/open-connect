@@ -381,3 +381,5 @@ The knowledge worker accepts Cloud embedding execution only when its model and t
 The documentation assistant diagnostic handler records gateway failure categories and HTTP status codes without logging request content, credentials, visitor identifiers or exception messages.
 
 Cloud analytics defines separate versioned contracts for public requests, public responses and worker responses. Tenant identity comes from the authenticated context rather than the public request.
+
+The Cloud analytics boundary rejects ambiguous or unbounded input, binds worker payloads to authenticated tenant context, and validates returned statistics against the admitted input before a result can be released.
