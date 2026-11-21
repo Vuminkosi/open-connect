@@ -75,6 +75,14 @@ public class CloudInvitationPostgresTests
         await using var verify = await factory.CreateDbContextAsync();
         Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.accepted"));
         Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.revoked"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == null && x.SubjectId == wrong.SubjectId &&
+            x.Action == "invitation.create" && x.Outcome == "not_found"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == target.SubjectId &&
+            x.Action == "invitation.create" && x.Outcome == "forbidden"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == administrator.SubjectId &&
+            x.Action == "invitation.revoke" && x.Outcome == "forbidden"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.revoke" && x.Outcome == "conflict"));
+        Assert.False(await verify.AuditEvents.AnyAsync(x => x.ResourceId == created.Code || x.ResourceId == revocable.Code));
         Assert.False(await verify.Memberships.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == racing.SubjectId));
         Assert.NotEqual(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(revocable.Code!)),
             (await verify.Invitations.SingleAsync(x => x.Id == pending.Id)).SecretHash);
