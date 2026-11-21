@@ -108,6 +108,23 @@ def test_invalid_batches_rejected(cached_model, texts) -> None:
         engine.embed(texts, input_kind="query")
 
 
+def test_embedding_validates_and_uses_one_bounded_batch_snapshot(cached_model) -> None:
+    cache, manifest, _ = cached_model
+    engine = OnnxEmbeddingEngine(cache, manifest, EmbeddingProfile("model.onnx", "tokenizer.json", 3, 8))
+
+    class ChangingBatch(list):
+        iterations = 0
+
+        def __iter__(self):
+            self.iterations += 1
+            return iter(["tree"] if self.iterations == 1 else ["x" * 8193])
+
+    batch = ChangingBatch(["tree"])
+    result = engine.embed(batch, input_kind="query")
+    assert batch.iterations == 1
+    assert result.items[0].vector == pytest.approx(engine.embed(["tree"], input_kind="query").items[0].vector)
+
+
 def test_external_tensor_references_rejected() -> None:
     tensor = onnx.TensorProto()
     tensor.data_location = onnx.TensorProto.EXTERNAL

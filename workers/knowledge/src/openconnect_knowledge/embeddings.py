@@ -6,6 +6,7 @@ import hashlib
 import json
 import threading
 from dataclasses import dataclass
+from itertools import islice
 from typing import Literal
 
 import numpy as np
@@ -124,13 +125,16 @@ class OnnxEmbeddingEngine:
     def embed(self, texts: list[str], *, input_kind: Literal["query", "passage"]) -> EmbeddingBatch:
         if input_kind not in {"query", "passage"}:
             raise ValueError("invalid_input_kind")
-        if (not texts or len(texts) > MAX_BATCH or any(not isinstance(text, str) or not text
-                or len(text) > MAX_TEXT_CHARS for text in texts)
-                or sum(len(text) for text in texts) > MAX_TOTAL_CHARS):
+        if not isinstance(texts, (list, tuple)):
+            raise ValueError("invalid_input")
+        snapshot = tuple(islice(texts, MAX_BATCH + 1))
+        if (not snapshot or len(snapshot) > MAX_BATCH or any(not isinstance(text, str) or not text
+                or len(text) > MAX_TEXT_CHARS for text in snapshot)
+                or sum(len(text) for text in snapshot) > MAX_TOTAL_CHARS):
             raise ValueError("invalid_input")
         self._verify()
         prefix = f"{input_kind}: " if self._profile.prefix_style == "e5" else ""
-        inputs = [prefix + text for text in texts]
+        inputs = [prefix + text for text in snapshot]
         with self._lock:
             self._tokenizer.no_truncation()
             self._tokenizer.no_padding()
@@ -146,7 +150,7 @@ class OnnxEmbeddingEngine:
                                                      dtype=np.int64)
             outputs = self._session.run(None, feeds)
         hidden = np.asarray(outputs[0])
-        expected_shape = (len(texts), ids.shape[1], self._profile.dimension)
+        expected_shape = (len(snapshot), ids.shape[1], self._profile.dimension)
         if hidden.shape != expected_shape or not np.isfinite(hidden).all():
             raise RuntimeError("model_output_invalid")
         mask_float = mask.astype(np.float32)
