@@ -393,3 +393,5 @@ The analytics worker validates canonical tenant scope and the exact payload befo
 When Cloud claim consumption is enabled, the analytics worker disables its unclaimed execution endpoint. Its Cloud endpoint reports measured compute time and retains its execution slot until the calculation thread actually finishes.
 
 Analytics privacy evaluation uses the shared JSON privacy boundary for request and response content and denies processing when the detector is unavailable.
+
+Analytics usage settlement atomically records append-only compute evidence and finalizes its request reservation. Database guards require a matching consumed completion and current allowed request and response privacy evidence for the same tenant and application.
