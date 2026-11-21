@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "fixture-task",
+  "kind": "documents.layout",
+  "result": {
+    "pages": [
+      {
+        "text": "\u540d\ud83d\ude00: 42",
+        "width": 100,
+        "height": 50,
+        "model_id": "fixture/model",
+        "model_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "language": "eng",
+        "spans": [
+          {
+            "text": "\u540d\ud83d\ude00:",
+            "start": 0,
+            "end": 3,
+            "box": [
+              0.0,
+              0.0,
+              0.5,
+              1.0
+            ],
+            "confidence": 0.9
+          },
+          {
+            "text": "42",
+            "start": 4,
+            "end": 6,
+            "box": [
+              0.5,
+              0.0,
+              1.0,
+              1.0
+            ],
+            "confidence": 0.7
+          }
+        ]
+      }
+    ],
+    "lines": [
+      {
+        "page_index": 0,
+        "start": 0,
+        "end": 6,
+        "span_indexes": [
+          0,
+          1
+        ],
+        "box": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "minimum_ocr_confidence": 0.7
+      }
+    ],
+    "warnings": []
+  }
+}

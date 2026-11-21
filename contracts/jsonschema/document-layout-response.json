@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/document-layout-response.json",
+  "title": "Document layout response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "kind",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.v1"
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "kind": {
+      "const": "documents.layout"
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pages",
+        "lines",
+        "warnings"
+      ],
+      "properties": {
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "width",
+              "height",
+              "spans",
+              "model_id",
+              "model_fingerprint",
+              "language"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "model_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "model_fingerprint": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "language": {
+                "const": "eng"
+              },
+              "spans": {
+                "type": "array",
+                "maxItems": 50000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "text",
+                    "start",
+                    "end",
+                    "box",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "start": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "end": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "box": {
+                      "type": "array",
+                      "minItems": 4,
+                      "maxItems": 4,
+                      "items": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "line_limit_reached"
+            ]
+          }
+        },
+        "lines": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "page_index",
+              "start",
+              "end",
+              "span_indexes",
+              "box",
+              "minimum_ocr_confidence"
+            ],
+            "properties": {
+              "page_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 29
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "span_indexes": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50000,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 49999
+                }
+              },
+              "box": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "minimum_ocr_confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
