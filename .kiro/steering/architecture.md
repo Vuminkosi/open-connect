@@ -6,6 +6,8 @@ description: .NET solution architecture, package boundaries, and system design f
 
 # OpenConnect Architecture Steering
 
+Realtime transcription is application-neutral: only provider-confirmed final text may be submitted as a task, and the host does not rewrite it using sample-specific vocabulary. A capture and speech epoch use the host dispatcher's scoped idempotency mechanism. Provider errors and cancellation do not admit an unfinished turn.
+
 ## Solution Architecture
 
 ```
