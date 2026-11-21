@@ -40,3 +40,15 @@ test('fingerprint keyring rejects weak, duplicate, missing and invalid keys', ()
     assert.throws(() => ring.compute('key', { ...request(), body: Buffer.alloc(65537) }));
     ring.dispose();
 });
+
+test('larger fingerprints require an explicit bounded deployment configuration', () => {
+    const key = Buffer.alloc(32, 1);
+    const config = { activeKeyId: 'key', keys: [{ id: 'key', key }] };
+    const original = createFingerprintKeyring(config);
+    assert.throws(() => original.compute('key', { ...request(), body: Buffer.alloc(65537) }));
+    const analytics = createFingerprintKeyring({ ...config, maximumBodyBytes: 262144 });
+    assert.equal(analytics.compute('key', { ...request(), body: Buffer.alloc(262144) }).length, 32);
+    assert.throws(() => analytics.compute('key', { ...request(), body: Buffer.alloc(262145) }));
+    assert.throws(() => createFingerprintKeyring({ ...config, maximumBodyBytes: 262145 }));
+    original.dispose(); analytics.dispose();
+});

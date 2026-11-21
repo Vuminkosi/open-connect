@@ -4,8 +4,10 @@ const guid = /^(?!00000000-0000-0000-0000-000000000000)[0-9a-f]{8}-[0-9a-f]{4}-[
 const keyIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Key bytes come only from deployment-controlled secret storage. Retained IDs support retries across rotation.
-export function createFingerprintKeyring({ activeKeyId, keys }) {
+export function createFingerprintKeyring({ activeKeyId, keys, maximumBodyBytes = 65536 }) {
     if (typeof activeKeyId !== 'string' || !keyIdPattern.test(activeKeyId) || !Array.isArray(keys) || keys.length < 1 || keys.length > 16)
+        throw new TypeError('Invalid fingerprint key configuration.');
+    if (!Number.isInteger(maximumBodyBytes) || maximumBodyBytes < 1 || maximumBodyBytes > 262144)
         throw new TypeError('Invalid fingerprint key configuration.');
     const retained = new Map();
     try {
@@ -37,7 +39,7 @@ export function createFingerprintKeyring({ activeKeyId, keys }) {
                 typeof input.method !== 'string' || !input.method.trim() || input.method.length > 16 ||
                 typeof input.route !== 'string' || !input.route.trim() || input.route.length > 2048 ||
                 typeof input.mediaType !== 'string' || !input.mediaType.trim() || input.mediaType.length > 255 ||
-                !(input.body instanceof Uint8Array) || input.body.byteLength > 65536)
+                !(input.body instanceof Uint8Array) || input.body.byteLength > maximumBodyBytes)
                 throw new TypeError('Invalid fingerprint request.');
             const hmac = createHmac('sha256', key);
             const add = value => { const length = Buffer.alloc(8); length.writeBigUInt64BE(BigInt(value.byteLength)); hmac.update(length); hmac.update(value); };
