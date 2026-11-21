@@ -1,0 +1,30 @@
+{
+  "realm": "openconnect-local",
+  "enabled": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "openconnect-portal",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${OC_LOCAL_OIDC_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["https://localhost:5051/cloud/signin-oidc"],
+      "attributes": { "pkce.code.challenge.method": "S256" }
+    }
+  ],
+  "users": [
+    {
+      "username": "${OC_LOCAL_OIDC_USERNAME}",
+      "enabled": true,
+      "firstName": "Local",
+      "lastName": "User",
+      "email": "local@example.invalid",
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "${OC_LOCAL_OIDC_PASSWORD}", "temporary": false }]
+    }
+  ]
+}

@@ -38,6 +38,15 @@ docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml up -d
 
 The HTTPS site is `https://localhost:5051` by default; `OPENCONNECT_DOCS_HTTPS_PORT` changes the port. Register the corresponding `/cloud/signin-google` or `/cloud/signin-oidc` callback with the configured provider. The initializer refuses to overwrite an existing certificate or key. Protect the exported key and the Docker TLS volume; they contain private certificate material.
 
+For local development without a Google OAuth client, the optional `docker-compose-cloud-local-identity.yml` overlay supplies a development-only Keycloak OIDC provider. It requires the HTTPS override above and uses fixed `https://localhost:5051` and `https://localhost:9443` origins. Set `OC_LOCAL_OIDC_ADMIN_USERNAME`, `OC_LOCAL_OIDC_ADMIN_PASSWORD`, `OC_LOCAL_OIDC_USERNAME`, `OC_LOCAL_OIDC_PASSWORD`, and a long random `OC_LOCAL_OIDC_CLIENT_SECRET` in a protected environment. Do not use production credentials. Build the site and gateway images, then initialize the separate TLS volumes and start the provider with the site:
+
+```powershell
+./scripts/setup-cloud-local-identity-tls.ps1 -CertificateDirectory $certificateDirectory
+docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml -f docker-compose-cloud-local-identity.yml up -d documentation-site local-identity local-identity-loopback
+```
+
+The provider uses a persistent development database and imports its realm only on first startup. Changing environment credentials does not update an existing realm. Protect the identity data, certificate and key volumes. This provider is for local development only; it is not a substitute for a deployed identity provider or verification of Google sign-in. A separately migrated Cloud control-plane database is still required for organizations and applications.
+
 Generate the API reference before building the image when that reference is needed. Generated artifacts present under the site directory are included in the image; a clean checkout without generated artifacts still serves the static documentation.
 
 The optional outbox and operational workers require the OpenConnect PostgreSQL schema before startup. For the root Compose database, restore the pinned tools and dependencies, start PostgreSQL, and apply the reviewed sample migrations explicitly:

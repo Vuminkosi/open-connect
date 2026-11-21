@@ -1,0 +1,61 @@
+services:
+  documentation-site:
+    environment:
+      OpenConnect__Cloud__Identity__Enabled: "true"
+      OpenConnect__Cloud__Identity__Authority: https://localhost:9443/realms/openconnect-local
+      OpenConnect__Cloud__Identity__ClientId: openconnect-portal
+      OpenConnect__Cloud__Identity__ClientSecret: ${OC_LOCAL_OIDC_CLIENT_SECRET:?Set OC_LOCAL_OIDC_CLIENT_SECRET}
+      SSL_CERT_FILE: /run/openconnect-oidc-ca/ca-bundle.crt
+    volumes:
+      - oc_local_oidc_ca:/run/openconnect-oidc-ca:ro
+
+  local-identity:
+    image: quay.io/keycloak/keycloak:26.3.3
+    command: ["start-dev", "--import-realm", "--hostname=https://localhost:9443", "--https-certificate-file=/run/oidc-tls/cert.pem", "--https-certificate-key-file=/run/oidc-tls/key.pem"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${OC_LOCAL_OIDC_ADMIN_USERNAME:?Set OC_LOCAL_OIDC_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${OC_LOCAL_OIDC_ADMIN_PASSWORD:?Set OC_LOCAL_OIDC_ADMIN_PASSWORD}
+      OC_LOCAL_OIDC_USERNAME: ${OC_LOCAL_OIDC_USERNAME:?Set OC_LOCAL_OIDC_USERNAME}
+      OC_LOCAL_OIDC_PASSWORD: ${OC_LOCAL_OIDC_PASSWORD:?Set OC_LOCAL_OIDC_PASSWORD}
+      OC_LOCAL_OIDC_CLIENT_SECRET: ${OC_LOCAL_OIDC_CLIENT_SECRET:?Set OC_LOCAL_OIDC_CLIENT_SECRET}
+    ports:
+      - "127.0.0.1:9443:8443"
+    volumes:
+      - ./cloud/local-identity/realm.json:/opt/keycloak/data/import/realm.json:ro
+      - oc_local_oidc_data:/opt/keycloak/data
+      - oc_local_oidc_tls:/run/oidc-tls:ro
+    networks: [oc-network]
+
+  local-identity-loopback:
+    build:
+      context: .
+      dockerfile: cloud/gateway/Dockerfile
+    image: openconnect-cloud-gateway:${OC_IMAGE_TAG:-e2e-local}
+    entrypoint: ["node", "/local/loopback-proxy.mjs"]
+    network_mode: service:documentation-site
+    depends_on:
+      documentation-site:
+        condition: service_started
+      local-identity:
+        condition: service_started
+    volumes:
+      - ./cloud/local-identity/loopback-proxy.mjs:/local/loopback-proxy.mjs:ro
+    restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+  local-identity-tls-init:
+    profiles: ["local-identity-init"]
+    image: openconnect-docs:${OC_IMAGE_TAG:-e2e-local}
+    user: "0"
+    entrypoint: ["sleep", "infinity"]
+    network_mode: none
+    volumes:
+      - oc_local_oidc_tls:/target/tls
+      - oc_local_oidc_ca:/target/ca
+
+volumes:
+  oc_local_oidc_data:
+  oc_local_oidc_tls:
+  oc_local_oidc_ca:
