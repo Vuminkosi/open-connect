@@ -7,6 +7,7 @@ services:
       OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}
       OpenConnect__Assistant__VisitorSigningKey: ${OC_DOCS_ASSISTANT_VISITOR_KEY:?Set OC_DOCS_ASSISTANT_VISITOR_KEY}
       OpenConnect__Assistant__LiveUIWorkerEnabled: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENABLED:-false}
+      OpenConnect__Assistant__LocalVoiceReadinessEnabled: "true"
       SSL_CERT_FILE: /run/docs-assistant-ca/ca-bundle.pem
     volumes:
       - ${OC_DOCS_ASSISTANT_CA_BUNDLE:?Set OC_DOCS_ASSISTANT_CA_BUNDLE}:/run/docs-assistant-ca/ca-bundle.pem:ro

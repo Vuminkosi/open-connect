@@ -30,7 +30,7 @@ When testing an intentionally unavailable local transcription worker or model, s
 npx playwright test --config=playwright.cloud-local-voice.config.js site-voice-unavailable.spec.js
 ```
 
-The test uses a simulated browser microphone, expects voice input to fail, and verifies that the microphone turns off and a subsequent text-driven LiveUI search succeeds. It does not verify successful transcription or a physical microphone.
+With local voice-readiness integration enabled, the test expects the microphone to be disabled before capture and verifies that a subsequent text-driven LiveUI search succeeds. It does not verify successful transcription or a physical microphone.
 
 ## Cloud gateway voice synthesis
 

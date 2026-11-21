@@ -370,6 +370,9 @@
     outline-offset: 2px !important;
 }
 
+.oc-speech-item:disabled { opacity: .6; cursor: not-allowed !important; }
+.oc-voice-unavailable { margin: 4px 12px; font-size: .8rem; }
+
 .oc-speech-item .mud-icon-root {
     color: #00875a !important;
     fill: #00875a !important;

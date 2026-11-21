@@ -21,7 +21,7 @@ internal sealed class DocumentationVoiceReadiness(HttpClient client, IConfigurat
             return false;
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(origin, "/internal/v1/realtime/local/model-ready"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         try

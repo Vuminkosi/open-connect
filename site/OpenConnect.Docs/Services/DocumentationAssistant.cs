@@ -33,9 +33,12 @@ public static class DocumentationAssistant
             var visitorKey = configuration["OpenConnect:Assistant:VisitorSigningKey"];
             var visitorTenant = configuration["OpenConnect:Assistant:VisitorTenant"];
             var visitorIdentityEnabled = !string.IsNullOrWhiteSpace(visitorKey) || !string.IsNullOrWhiteSpace(visitorTenant);
+            var localVoiceReadiness = configuration.GetValue<bool>("OpenConnect:Assistant:LocalVoiceReadinessEnabled");
             if (visitorIdentityEnabled && (!string.IsNullOrEmpty(credential) ||
                 string.IsNullOrWhiteSpace(visitorKey) || string.IsNullOrWhiteSpace(visitorTenant) || gateway!.Scheme != Uri.UriSchemeHttps))
                 throw new InvalidOperationException("The documentation visitor identity requires HTTPS, a tenant and signing key, without a shared gateway bearer.");
+            if (localVoiceReadiness && (!visitorIdentityEnabled || !gateway!.IsLoopback))
+                throw new InvalidOperationException("Local voice readiness requires visitor identity and a loopback application host.");
             if (!string.IsNullOrEmpty(credential) &&
                 (credential.Any(char.IsWhiteSpace) || credential.Any(char.IsControl) ||
                  (gateway!.Scheme != Uri.UriSchemeHttps && !(environment.IsDevelopment() && gateway.IsLoopback))))
@@ -56,6 +59,8 @@ public static class DocumentationAssistant
                     provider.GetRequiredService<DocumentationVoiceTickets>(), gateway!));
                 services.AddSingleton<IStartupFilter, DocumentationVoiceStartupFilter>();
                 services.AddScoped<DocumentationGatewayVisitorIdentity>();
+                if (localVoiceReadiness)
+                    services.AddScoped(provider => new DocumentationVoiceAvailability(CreateVisitorClient(provider)));
                 services.AddScoped<IOpenConnectClient>(provider => new OpenConnectClient(
                     CreateVisitorClient(provider), Options.Create(provider.GetRequiredService<OpenConnectClientOptions>())));
                 services.AddScoped(provider =>

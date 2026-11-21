@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Docs.Services;
+using OpenConnect.Docs.Services.Voice;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,29 @@ namespace OpenConnect.Docs.Tests;
 
 public sealed class DocumentationAssistantTests
 {
+    [Theory]
+    [InlineData("https://localhost:8098/", true)]
+    [InlineData("https://gateway.example/", false)]
+    public void LocalVoiceReadinessRequiresLoopbackVisitorHost(string gateway, bool valid)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = gateway,
+            ["OpenConnect:Assistant:VisitorTenant"] = "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            ["OpenConnect:Assistant:VisitorSigningKey"] = Convert.ToBase64String(new byte[32]),
+            ["OpenConnect:Assistant:LocalVoiceReadinessEnabled"] = "true"
+        });
+        if (!valid)
+        {
+            Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment));
+            return;
+        }
+        builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
+        Assert.Contains(builder.Services, service => service.ServiceType == typeof(DocumentationVoiceAvailability));
+    }
+
     [Fact]
     public async Task PrivacyExampleCanBeTriggeredOnlyOnItsPublicGuide()
     {

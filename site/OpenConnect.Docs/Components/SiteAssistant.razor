@@ -28,6 +28,8 @@
                       AssistantName="OpenConnect Assistant"
                       Placeholder="Ask about OpenConnect..."
                       VoiceConnectionTicket="IssueVoiceTicket"
+                      VoiceInputAvailable="_voiceInputAvailable"
+                      VoiceInputChecking="_voiceInputChecking"
                       CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
         <OpenConnectNavigatorProvider />
     </OpenConnectLiveUIProvider>
@@ -42,6 +44,9 @@
     }
 
     private bool _dark;
+    private bool? _voiceInputAvailable;
+    private bool _voiceInputChecking;
+    private readonly CancellationTokenSource _lifetime = new();
     private long _subscription;
     private DotNetObjectReference<SiteAssistant>? _reference;
     private readonly MudTheme _theme = new()
@@ -50,6 +55,15 @@
         PaletteDark = new PaletteDark { Primary = "#3B82F6", Secondary = "#14B8A6", Background = "#090D16", Surface = "#111827", TextPrimary = "#F8FAFC", TextSecondary = "#94A3B8", LinesDefault = "#1F2937" },
         LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" }
     };
+
+    protected override void OnInitialized()
+    {
+        if (Services.GetService<DocumentationVoiceAvailability>() is not null)
+        {
+            _voiceInputAvailable = false;
+            _voiceInputChecking = true;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -63,6 +77,16 @@
             StateHasChanged();
         }
         catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+        if (Services.GetService<DocumentationVoiceAvailability>() is { } voice)
+        {
+            try
+            {
+                _voiceInputAvailable = await voice.IsAvailableAsync(_lifetime.Token);
+                _voiceInputChecking = false;
+                if (!_lifetime.IsCancellationRequested) StateHasChanged();
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        }
     }
 
     [JSInvokable]
@@ -70,9 +94,11 @@
 
     public async ValueTask DisposeAsync()
     {
+        _lifetime.Cancel();
         try { if (_subscription != 0) await JS.InvokeVoidAsync("ocSiteTheme.unsubscribe", _subscription); }
         catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
         _reference?.Dispose();
+        _lifetime.Dispose();
     }
 
     private sealed record ThemeSubscription(long Id, bool IsDark);

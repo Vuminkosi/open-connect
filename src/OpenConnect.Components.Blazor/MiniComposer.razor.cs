@@ -72,6 +72,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// <summary>Optionally issues a single-use voice connection ticket for the current session.</summary>
     [Parameter] public Func<string, string?>? VoiceConnectionTicket { get; set; }
 
+    /// <summary>Optional host-provided voice input availability; null preserves the host's existing behavior.</summary>
+    [Parameter] public bool? VoiceInputAvailable { get; set; }
+
+    /// <summary>Whether the host is checking voice input availability.</summary>
+    [Parameter] public bool VoiceInputChecking { get; set; }
+
+    private bool VoiceInputBlocked => VoiceInputChecking || VoiceInputAvailable == false;
+
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
@@ -290,6 +298,20 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _open = true;
             _openedOnce = true;
         }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!VoiceInputBlocked || !_micOn) return;
+        _micOn = false;
+        if (_voiceActive)
+        {
+            _voiceActive = false;
+            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); }
+            catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
+        }
+        if (Session.MicrophoneState == ComposerMicrophoneState.ListeningLive)
+            Session.FailLiveListening("Voice input is unavailable. Text input remains available.");
     }
 
     private void OnSessionChanged()
@@ -585,6 +607,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleMicrophoneAsync()
     {
+        if (VoiceInputBlocked) return;
         _micOn = !_micOn;
         if (!_micOn && _voiceActive)
         {
@@ -944,6 +967,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleVoiceAsync()
     {
+        if (VoiceInputBlocked) return;
         if (!_micOn)
         {
             Session.MarkError("Microphone is turned off. Turn it on before starting voice input.");
@@ -982,6 +1006,11 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 await WaitForConnectionAsync(Session, Session.SessionId!, CancellationToken.None).ConfigureAwait(false);
             var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
             await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket, Session.ConnectionId).ConfigureAwait(false);
+            if (!_micOn || VoiceInputBlocked)
+            {
+                await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false);
+                return;
+            }
             _voiceActive = _micOn && Session.MicrophoneState == ComposerMicrophoneState.ListeningLive;
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException or TimeoutException)

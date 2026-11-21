@@ -15,6 +15,8 @@ To use the local Compose setup, combine the root Compose file, `docker-compose-c
 
 The host shares the site's network namespace so its HTTPS listener is reachable only over loopback. The Kokoro worker must be running and ready for speech output. LiveUI worker planning checks session ownership, screens request and response content, and validates proposed actions before returning them; the site still authorizes each interaction. The model and worker credentials must not be committed. The gateway's state and rate limits are local to one process; they do not establish billing or cross-instance guarantees.
 
+The local host overlay enables a server-side check of the local transcription model before enabling microphone controls. The check uses the visitor's host credential and the host's private worker credential; neither is sent to browser JavaScript. An unavailable or invalid response disables voice input while leaving text and separately configured speech output available. General worker readiness does not establish that the local-only model is present. Refresh the page after provisioning a verified model; the check does not reserve capacity and a later voice request can still fail.
+
 ## Use the assistant with local Cloud identity
 
 When the local OIDC provider and assistant are enabled together, the documentation site must trust both HTTPS authorities. Create a PEM bundle containing the CA certificates for both the local identity provider and the assistant host, and set `OC_DOCS_CLOUD_CA_BUNDLE` to its path in the protected environment. Keep private keys out of the bundle. After initializing the existing TLS volumes and setting the identity and assistant variables, compose the combined trust overlay last:
