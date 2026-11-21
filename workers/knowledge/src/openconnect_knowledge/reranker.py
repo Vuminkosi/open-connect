@@ -18,19 +18,19 @@ MAX_CANDIDATES = 32
 MAX_TOTAL_CHARS = 65536
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Candidate:
     id: str
     text: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class RankedCandidate:
     id: str
     score: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Ranking:
     candidates: tuple[RankedCandidate, ...]
     model_id: str

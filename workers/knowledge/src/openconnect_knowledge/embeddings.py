@@ -51,14 +51,14 @@ class EmbeddingProfile:
     pad_token: str = "[PAD]"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Embedding:
     vector: tuple[float, ...]
     truncated: bool
     norm: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class EmbeddingBatch:
     items: tuple[Embedding, ...]
     model_id: str

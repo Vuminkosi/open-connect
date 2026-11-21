@@ -118,3 +118,12 @@ def test_external_tensor_references_rejected() -> None:
     graph.initializer.append(tensor)
     with pytest.raises(ValueError, match="external_tensor_unsupported"):
         _reject_external_tensors(graph)
+
+
+def test_embedding_repr_does_not_expose_vector_values():
+    from openconnect_knowledge.embeddings import Embedding, EmbeddingBatch
+
+    embedding = Embedding((0.123456789,), False, 0.123456789)
+    batch = EmbeddingBatch((embedding,), "model", "a" * 64, 1, "b" * 64)
+    assert "0.123456789" not in repr(embedding)
+    assert "0.123456789" not in repr(batch)

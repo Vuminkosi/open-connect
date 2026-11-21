@@ -14,7 +14,7 @@ MAX_CHUNK_CHARS = 8192
 CHUNKER_VERSION = "source-chunks-v1"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class DocumentScope:
     """Trusted application scope, including the source and embedding revisions."""
 
@@ -26,13 +26,13 @@ class DocumentScope:
     embedding_space_id: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class SourcePage:
     page_id: str
     text: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Chunk:
     chunk_id: str
     page_id: str

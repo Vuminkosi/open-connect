@@ -75,3 +75,9 @@ def test_invalid_model_identity_does_not_load(engine, model_id):
     manifest = model._manifest.model_copy(update={"modelId": model_id})
     with pytest.raises(ValueError, match="invalid_profile"):
         OnnxReranker(model._cache, manifest, model_asset="model.onnx", tokenizer_asset="tokenizer.json")
+
+
+def test_candidate_repr_does_not_expose_sensitive_identifiers_or_text():
+    candidate = Candidate("private-id", "private-content")
+    assert "private-id" not in repr(candidate)
+    assert "private-content" not in repr(candidate)

@@ -55,3 +55,12 @@ def test_ten_thousand_chunk_limit_and_no_partial_result():
     assert len(chunks) == 10_000
     with pytest.raises(ValueError, match="chunk_limit_exceeded"):
         chunk_pages(SCOPE, [SourcePage("p", text + "x")], max_chars=64, overlap_chars=0)
+
+
+def test_document_scope_pages_and_chunks_do_not_expose_contents_in_repr():
+    sensitive = "private-document-content"
+    scope = DocumentScope(sensitive, "app", "collection", "doc", "revision", "a" * 64)
+    page = SourcePage("page", sensitive)
+    chunk = chunk_pages(scope, [page])[0]
+    for value in (scope, page, chunk):
+        assert sensitive not in repr(value)
