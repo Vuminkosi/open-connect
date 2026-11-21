@@ -16,6 +16,8 @@ Documentation for document processing and semantic memory describes SDK client c
 
 The API reference guide links authored client guides and versioned wire contracts, and documents the repository-pinned DocFX generation workflow separately from published-package validation.
 
+The documentation image build context includes the LiveUI source projects and compiler referenced by the site, so a clean container build can compose the interactive documentation client.
+
 Privacy documentation distinguishes the token vault's tenant, principal, session and purpose scope from any additional turn or policy-revision restrictions imposed by the host.
 
 The public privacy example runs fixed synthetic inputs through an isolated SDK rules firewall without a token vault or external egress. It does not accept visitor-entered sensitive data or imply that detection is complete. The documentation LiveUI policy may select only the predefined examples and trigger this idempotent example only on the privacy guide.
