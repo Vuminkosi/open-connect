@@ -37,6 +37,7 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton<ICloudQuotaStore>(quota).AddSingleton<CloudQuotaService>()
+            .AddSingleton<ICloudKnowledgeEmbeddingDeploymentReader>(new DeploymentReader())
             .AddSingleton(new CloudJsonPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudKnowledgeEmbeddingPrivacyEvidenceStore>(evidence).BuildServiceProvider();
         DefaultHttpContext Context(string text, bool response = false)
@@ -78,9 +79,17 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         Assert.Equal("knowledge.embed", quota.Last.CapabilityId);
         Assert.Equal("request", quota.Last.Unit);
         Assert.Equal(id, quota.Last.RequestId);
+        var deploymentContext = Context("unused");
+        deploymentContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
+        { endpointReference = "embedding", region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
+        Assert.Equal(200, Status(await CloudKnowledgeEmbeddingDeploymentEndpoints.MatchAsync(deploymentContext, trust, true, CancellationToken.None)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
+    private sealed class DeploymentReader : ICloudKnowledgeEmbeddingDeploymentReader
+    {
+        public Task<bool> MatchesAsync(Guid tenantId, CloudClassificationDeploymentMatchRequest request, CancellationToken cancellationToken) => Task.FromResult(true);
+    }
     private sealed class QuotaStore : ICloudQuotaStore
     {
         public CloudQuotaRequest? Last { get; private set; }

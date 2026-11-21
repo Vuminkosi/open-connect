@@ -200,6 +200,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudDeploymentStore, EfCloudDeploymentStore>();
     builder.Services.AddScoped<CloudDeploymentRegistry>();
     builder.Services.AddScoped<ICloudClassificationDeploymentReader, EfCloudClassificationDeploymentReader>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingDeploymentReader, EfCloudKnowledgeEmbeddingDeploymentReader>();
     builder.Services.AddScoped<CloudClassificationDeploymentService>();
     builder.Services.AddScoped<CloudOperatorDeploymentService>();
     builder.Services.AddScoped<CloudReadinessService>();
@@ -273,6 +274,7 @@ if (gatewayTrust is not null)
     app.MapCloudLiveUIOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudKnowledgeEmbeddingQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
