@@ -1,68 +1,42 @@
-using System.Text.RegularExpressions;
 using OpenConnect.Abstractions;
+using OpenConnect.Privacy.Policy;
 using OpenConnect.Privacy.Rules;
 
 namespace OpenConnect.Privacy.Gates;
 
-/// <summary>
-/// Scans outgoing model responses and tool results independently for literal sensitive values,
-/// preventing accidental leakage of secrets, credit cards, or PII generated or echoed by models.
-/// </summary>
+/// <summary>Scans outgoing model responses and tool results for supported sensitive values.</summary>
 public sealed class OutgoingContentScanner
 {
-    private static readonly Regex SecretRegex = new(@"(?i)\b(?:bearer\s+[a-z0-9_\-\.]{20,}|ghp_[a-z0-9]{36}|sk-[a-z0-9]{20,}|xox[baprs]-[0-9a-z]{10,}|-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----)", RegexOptions.Compiled);
-    private static readonly Regex PotentialCardRegex = new(@"\b(?:\d[ -]*?){13,19}\b", RegexOptions.Compiled);
+    private static readonly RulesSecurityDetector Detector = new();
+    private readonly PolicyEngine _policy;
+
+    /// <summary>Creates a scanner using the default local rules detector.</summary>
+    public OutgoingContentScanner() : this(Detector) { }
+
+    internal OutgoingContentScanner(ISecurityDetector detector) => _policy = new PolicyEngine(detector ?? throw new ArgumentNullException(nameof(detector)));
 
     /// <summary>Scans outgoing content and returns an egress decision.</summary>
     /// <param name="content">Outgoing content to scan.</param>
     /// <param name="context">Egress context.</param>
     /// <param name="failClosed">Whether to block immediately if any sensitive value is found.</param>
-    /// <returns>Decision indicating whether outgoing content is safe to emit.</returns>
+    /// <returns>Decision indicating whether outgoing content passed the configured inspection.</returns>
     public EgressDecision ScanOutgoing(string content, EgressContext context, bool failClosed = true)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(context);
 
-        if (content.Length == 0)
-        {
-            return new EgressDecision(true, string.Empty, Array.Empty<EntitySpan>(), SecurityPolicyAction.Allow, "clean");
-        }
+        EgressDecision result;
+        try { result = _policy.EvaluateAsync(content, context, FirewallMode.StrictLocal, true).GetAwaiter().GetResult(); }
+        catch { return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure"); }
+        if (result is null || !result.Allowed || result.SanitizedContent is null || result.DetectedEntities is null)
+            return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+        if (result.DetectedEntities.Count == 0 && !string.Equals(result.SanitizedContent, content, StringComparison.Ordinal))
+            return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
+        if (result.DetectedEntities.Count == 0)
+            return new EgressDecision(true, content, result.DetectedEntities, SecurityPolicyAction.Allow, "clean");
 
-        var detectedEntities = new List<EntitySpan>();
-
-        // 1. Scan for literal secrets
-        foreach (Match match in SecretRegex.Matches(content))
-        {
-            detectedEntities.Add(new EntitySpan(match.Index, match.Length, "SECRET"));
-        }
-
-        // 2. Scan for literal payment cards with Luhn check
-        foreach (Match match in PotentialCardRegex.Matches(content))
-        {
-            var digitsOnly = new string(match.Value.Where(char.IsDigit).ToArray());
-            if (digitsOnly.Length is >= 13 and <= 19 && RulesSecurityDetector.PassesLuhnCheck(digitsOnly))
-            {
-                detectedEntities.Add(new EntitySpan(match.Index, match.Length, "PAYMENT_CARD"));
-            }
-        }
-
-        if (detectedEntities.Count == 0)
-        {
-            return new EgressDecision(true, content, Array.Empty<EntitySpan>(), SecurityPolicyAction.Allow, "clean");
-        }
-
-        if (failClosed)
-        {
-            return new EgressDecision(false, null, detectedEntities, SecurityPolicyAction.Block, "literal_sensitive_value_detected");
-        }
-
-        // Mask detected sensitive spans
-        var sanitized = content;
-        foreach (var entity in detectedEntities.OrderByDescending(e => e.Start))
-        {
-            sanitized = sanitized.Remove(entity.Start, entity.Length).Insert(entity.Start, $"[OC_{entity.EntityType}]");
-        }
-
-        return new EgressDecision(true, sanitized, detectedEntities, SecurityPolicyAction.Mask, "outgoing_content_sanitized");
+        return failClosed
+            ? new EgressDecision(false, null, result.DetectedEntities, SecurityPolicyAction.Block, "literal_sensitive_value_detected")
+            : new EgressDecision(true, result.SanitizedContent, result.DetectedEntities, SecurityPolicyAction.Mask, "outgoing_content_sanitized");
     }
 }
