@@ -17,7 +17,8 @@ public static class DocumentationAssistant
         var gateway = ResolveGateway(configuration, environment);
         var configured = gateway is not null;
         services.AddSingleton(new DocumentationAssistantAvailability(configured));
-        services.AddSingleton(DocumentationLiveUIManifest.Create());
+        services.AddSingleton(provider => DocumentationLiveUIManifest.Create(
+            provider.GetRequiredService<DocumentationContentStore>().Documents));
         services.AddMudServices();
         if (configured)
         {

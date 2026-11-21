@@ -3,12 +3,14 @@ using OpenConnect.LiveUI;
 namespace OpenConnect.Docs.Services;
 
 // Public documentation guidance only; Cloud administration remains user-operated.
-public sealed class DocumentationLiveUIActionAuthorizer : ILiveUIActionAuthorizer
+public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStore? content = null) : ILiveUIActionAuthorizer
 {
     public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        static bool PublicRoute(string? path) => path is "/" or "/docs" or "/api";
+        bool PublicRoute(string? path) => path is "/" or "/docs" or "/api" ||
+            (path is not null && content?.Documents.Any(document =>
+                string.Equals(path, $"/docs/{document.Version}/{document.Slug}", StringComparison.Ordinal)) == true);
         if (!PublicRoute(context.Route.Path)) return Deny();
         if (context.Action.Type == LiveUIActionType.Navigate)
         {

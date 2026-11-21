@@ -98,4 +98,24 @@ public sealed class DocumentationAssistantTests
         Assert.False((await authorizer.AuthorizeAsync(new(manifest, home, null, action with { Type = LiveUIActionType.Click }))).Allowed);
         Assert.False((await authorizer.AuthorizeAsync(new(cloudManifest, cloud, null, action with { Type = LiveUIActionType.Inspect }))).Allowed);
     }
+
+    [Fact]
+    public async Task LiveUIExposesLoadedDocumentationAndRejectsUnknownRoutes()
+    {
+        var content = new DocumentationContentStore();
+        content.Load();
+        var manifest = DocumentationLiveUIManifest.Create(content.Documents);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var home = manifest.Routes.Single(route => route.Path == "/");
+        var document = content.Documents.First();
+        var destination = manifest.Routes.Single(route => route.Path == $"/docs/{document.Version}/{document.Slug}");
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            home.Id, null, LiveUIActionType.Navigate, new(DestinationRouteId: destination.Id), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer(content);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, home, null, action))).Allowed);
+        var unknown = new LiveUIRoute("unknown", "/docs/v1/not-a-document", "Unknown", []);
+        var extended = manifest with { Routes = manifest.Routes.Append(unknown).ToArray() };
+        Assert.False((await authorizer.AuthorizeAsync(new(extended, home, null,
+            action with { Parameters = new(DestinationRouteId: unknown.Id) }))).Allowed);
+    }
 }
