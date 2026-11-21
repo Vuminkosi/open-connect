@@ -1,5 +1,8 @@
 using System.Net.Http.Headers;
+using System.Buffers;
+using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using OpenConnect.Privacy;
 
@@ -23,6 +26,7 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
     private readonly byte[] _signingKey;
     private readonly EgressDestination _destination;
     private readonly bool _ownsHttpClient;
+    private readonly bool _cloudGateway;
     private readonly TimeSpan _requestTimeout;
     private bool _disposed;
 
@@ -35,9 +39,25 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
     {
     }
 
+    /// <summary>Creates an embedding client for an authenticated Cloud gateway.</summary>
+    public static KnowledgeEmbeddingClient CreateCloud(IEgressGate egressGate, Uri endpoint, string bearerToken, bool allowInsecureHttp = false)
+    {
+        var httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
+        try
+        {
+            return new KnowledgeEmbeddingClient(httpClient, egressGate, endpoint, bearerToken, new byte[32],
+                EgressDestination.ExternalModel, allowInsecureHttp, ownsHttpClient: true, cloudGateway: true);
+        }
+        catch
+        {
+            httpClient.Dispose();
+            throw;
+        }
+    }
+
     internal KnowledgeEmbeddingClient(HttpClient httpClient, IEgressGate egressGate, Uri endpoint,
         string bearerToken, byte[] signingKey, EgressDestination destination = EgressDestination.ExternalModel,
-        bool allowInsecureHttp = false, bool ownsHttpClient = false, TimeSpan? requestTimeout = null)
+        bool allowInsecureHttp = false, bool ownsHttpClient = false, TimeSpan? requestTimeout = null, bool cloudGateway = false)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(egressGate);
@@ -48,17 +68,20 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
             throw new ArgumentException("A trusted worker endpoint is required.", nameof(endpoint));
         if (string.IsNullOrWhiteSpace(bearerToken) || bearerToken.Any(char.IsWhiteSpace))
             throw new ArgumentException("A worker bearer token is required.", nameof(bearerToken));
+        if (cloudGateway && (bearerToken.Length > 160 || bearerToken.Contains(',')))
+            throw new ArgumentException("A valid Cloud bearer token is required.", nameof(bearerToken));
         if (signingKey.Length < 32)
             throw new ArgumentException("A signing key of at least 32 bytes is required.", nameof(signingKey));
         if (destination is not (EgressDestination.Worker or EgressDestination.ExternalModel))
             throw new ArgumentException("A worker or external-model destination is required.", nameof(destination));
         _httpClient = httpClient;
         _egressGate = egressGate;
-        _endpoint = new Uri(endpoint, "/internal/v1/execute");
+        _endpoint = new Uri(endpoint, cloudGateway ? "/cloud/v1/knowledge/embeddings" : "/internal/v1/execute");
         _bearerToken = bearerToken;
         _signingKey = (byte[])signingKey.Clone();
         _destination = destination;
         _ownsHttpClient = ownsHttpClient;
+        _cloudGateway = cloudGateway;
         _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(100);
         if (_requestTimeout <= TimeSpan.Zero || _requestTimeout > TimeSpan.FromMinutes(10))
             throw new ArgumentOutOfRangeException(nameof(requestTimeout));
@@ -74,87 +97,144 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
         if (context.Tenant.Value == default || context.Principal.Value == default || context.Session.Value == default ||
             context.Destination != _destination)
             throw new ArgumentException("An authenticated egress context matching the configured destination is required.", nameof(context));
-        if (inputKind is not ("query" or "passage") || texts.Count is < 1 or > 32 ||
-            texts.Any(text => string.IsNullOrEmpty(text) || text.Length > 8192) || texts.Sum(text => text.Length) > 65536)
+        if (inputKind is not ("query" or "passage") || texts.Count is < 1 or > 32)
+            throw new ArgumentException("The embedding request is invalid.", nameof(texts));
+        var snapshot = texts.Take(33).ToArray();
+        if (!ValidTexts(snapshot))
             throw new ArgumentException("The embedding request is invalid.", nameof(texts));
 
-        var safeTexts = new List<string>(texts.Count);
-        foreach (var text in texts)
+        var safeTexts = new List<string>(snapshot.Length);
+        foreach (var text in snapshot)
         {
             var decision = await _egressGate.EvaluateAsync(text, context, cancellationToken).ConfigureAwait(false);
-            if (!decision.Allowed || string.IsNullOrEmpty(decision.SanitizedContent))
+            if (!WorkerEgressValidation.IsSafe(text, decision) || string.IsNullOrEmpty(decision!.SanitizedContent))
                 throw new PrivacyBlockedException("Worker egress was denied by privacy policy.");
             safeTexts.Add(decision.SanitizedContent);
         }
-        if (safeTexts.Any(text => text.Length > 8192) || safeTexts.Sum(text => text.Length) > 65536)
+        if (!ValidTexts(safeTexts))
             throw new PrivacyBlockedException("Sanitized worker input exceeds the allowed size.");
+        await PrivacyJsonInspection.DemandGateUnchangedAsync(_egressGate, JsonSerializer.SerializeToElement(safeTexts), context, cancellationToken).ConfigureAwait(false);
 
         var now = DateTimeOffset.UtcNow;
-        var taskId = Guid.NewGuid().ToString("N");
-        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        var taskId = Guid.NewGuid().ToString(_cloudGateway ? "D" : "N");
+        var body = _cloudGateway
+            ? JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.cloud.knowledge-embed/v1", requestId = taskId,
+                capability = "knowledge.embed", expiresAt = now.AddMinutes(2).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+                input = new { inputKind, texts = safeTexts } })
+            : JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId, kind = "knowledge.embed",
+                tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5),
+                expiresAt = now.AddMinutes(2), payload = new { inputKind, texts = safeTexts } });
+        MemoryStream? responseBuffer = null;
+        byte[]? responseBytes = null;
+        byte[]? responseChunk = null;
+        try
         {
-            schemaVersion = "openconnect.v1", taskId, kind = "knowledge.embed",
-            tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5),
-            expiresAt = now.AddMinutes(2), payload = new { inputKind, texts = safeTexts }
-        });
-        if (body.Length > 128 * 1024)
-            throw new ArgumentException("The embedding request is too large.", nameof(texts));
-        using var message = new HttpRequestMessage(HttpMethod.Post, _endpoint);
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _bearerToken);
-        message.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_signingKey, body)).ToLowerInvariant());
-        message.Content = new ByteArrayContent(body);
-        message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(_requestTimeout);
-        using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException("The knowledge worker rejected the request.", null, response.StatusCode);
-        if (response.Content.Headers.ContentLength > MaximumResponseBytes)
-            throw new InvalidOperationException("The knowledge worker response is too large.");
-        await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
-        using var buffer = new MemoryStream();
-        var chunk = new byte[8192];
-        int count;
-        while ((count = await stream.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
-        {
-            if (buffer.Length + count > MaximumResponseBytes)
+            if (body.Length > 128 * 1024)
+                throw new ArgumentException("The embedding request is too large.", nameof(texts));
+            using var message = new HttpRequestMessage(HttpMethod.Post, _endpoint);
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _bearerToken);
+            if (!_cloudGateway)
+                message.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_signingKey, body)).ToLowerInvariant());
+            message.Content = new ByteArrayContent(body);
+            message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(_requestTimeout);
+            using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException("The knowledge worker rejected the request.", null, response.StatusCode);
+            if (response.Content.Headers.ContentLength > MaximumResponseBytes)
                 throw new InvalidOperationException("The knowledge worker response is too large.");
-            buffer.Write(chunk, 0, count);
-        }
-        using var document = JsonDocument.Parse(buffer.ToArray());
-        var root = document.RootElement;
-        EnsureProperties(root, "schemaVersion", "taskId", "kind", "result");
-        if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" ||
-            root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.embed")
-            throw new InvalidOperationException("The knowledge worker response does not match the request.");
-        var result = root.GetProperty("result");
-        EnsureProperties(result, "items", "model_id", "fingerprint", "dimension", "space_id");
-        var dimension = result.GetProperty("dimension").GetInt32();
-        var modelId = result.GetProperty("model_id").GetString();
-        var fingerprint = result.GetProperty("fingerprint").GetString();
-        var spaceId = result.GetProperty("space_id").GetString();
-        if (dimension is < 1 or > 8192 || string.IsNullOrWhiteSpace(modelId) ||
-            !IsDigest(fingerprint) || !IsDigest(spaceId))
-            throw new InvalidOperationException("The knowledge worker response metadata is invalid.");
-        var items = new List<KnowledgeEmbedding>();
-        foreach (var item in result.GetProperty("items").EnumerateArray())
-        {
-            if (items.Count >= texts.Count)
+            await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
+            responseBuffer = new MemoryStream();
+            responseChunk = new byte[8192];
+            int count;
+            while ((count = await stream.ReadAsync(responseChunk, deadline.Token).ConfigureAwait(false)) > 0)
+            {
+                if (responseBuffer.Length + count > MaximumResponseBytes)
+                    throw new InvalidOperationException("The knowledge worker response is too large.");
+                responseBuffer.Write(responseChunk, 0, count);
+            }
+            responseBytes = responseBuffer.ToArray();
+            using var document = JsonDocument.Parse(responseBytes);
+            var root = document.RootElement;
+            if (_cloudGateway)
+            {
+                EnsureProperties(root, "schemaVersion", "requestId", "traceId", "result");
+                var trace = root.GetProperty("traceId").GetString();
+                if (root.GetProperty("schemaVersion").GetString() != "openconnect.cloud.knowledge-embed.result/v1" ||
+                    root.GetProperty("requestId").GetString() != taskId || trace is not { Length: 32 } ||
+                    trace.Any(c => c is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
+                    throw new InvalidOperationException("The Cloud embedding response does not match the request.");
+            }
+            else
+            {
+                EnsureProperties(root, "schemaVersion", "taskId", "kind", "result");
+                if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" ||
+                    root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.embed")
+                    throw new InvalidOperationException("The knowledge worker response does not match the request.");
+            }
+            var result = root.GetProperty("result");
+            EnsureProperties(result, "items", "model_id", "fingerprint", "dimension", "space_id");
+            var dimension = result.GetProperty("dimension").GetInt32();
+            var modelId = result.GetProperty("model_id").GetString();
+            var fingerprint = result.GetProperty("fingerprint").GetString();
+            var spaceId = result.GetProperty("space_id").GetString();
+            if (dimension is < 1 or > 8192 || !KnowledgeIndexSubmission.Identifier(modelId) ||
+                !IsDigest(fingerprint) || !IsDigest(spaceId))
+                throw new InvalidOperationException("The knowledge worker response metadata is invalid.");
+            await PrivacyJsonInspection.DemandGateEmbeddingResponseUnchangedAsync(_egressGate, result,
+                context with { Destination = EgressDestination.Output }, deadline.Token).ConfigureAwait(false);
+            var items = new List<KnowledgeEmbedding>();
+            foreach (var item in result.GetProperty("items").EnumerateArray())
+            {
+                if (items.Count >= snapshot.Length)
+                    throw new InvalidOperationException("The knowledge worker returned an invalid batch.");
+                EnsureProperties(item, "vector", "truncated", "norm");
+                var vector = item.GetProperty("vector").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+                var norm = item.GetProperty("norm").GetDouble();
+                if (vector.Length != dimension || vector.Any(value => !float.IsFinite(value)) || !double.IsFinite(norm) || norm < 0)
+                    throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
+                var actualNorm = Math.Sqrt(vector.Sum(value => (double)value * value));
+                if (!double.IsFinite(actualNorm) || Math.Abs(actualNorm - 1) > 0.001 ||
+                    Math.Abs(norm - actualNorm) > 0.001)
+                    throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
+                items.Add(new KnowledgeEmbedding(vector, item.GetProperty("truncated").GetBoolean(), norm));
+            }
+            if (items.Count != snapshot.Length)
                 throw new InvalidOperationException("The knowledge worker returned an invalid batch.");
-            EnsureProperties(item, "vector", "truncated", "norm");
-            var vector = item.GetProperty("vector").EnumerateArray().Select(value => value.GetSingle()).ToArray();
-            var norm = item.GetProperty("norm").GetDouble();
-            if (vector.Length != dimension || vector.Any(value => !float.IsFinite(value)) || !double.IsFinite(norm) || norm < 0)
-                throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
-            var actualNorm = Math.Sqrt(vector.Sum(value => (double)value * value));
-            if (!double.IsFinite(actualNorm) || Math.Abs(actualNorm - 1) > 0.001 ||
-                Math.Abs(norm - actualNorm) > 0.001)
-                throw new InvalidOperationException("The knowledge worker returned an invalid embedding.");
-            items.Add(new KnowledgeEmbedding(vector, item.GetProperty("truncated").GetBoolean(), norm));
+            return new KnowledgeEmbeddingResult(items, modelId!, fingerprint!, dimension, spaceId!);
         }
-        if (items.Count != texts.Count)
-            throw new InvalidOperationException("The knowledge worker returned an invalid batch.");
-        return new KnowledgeEmbeddingResult(items, modelId, fingerprint!, dimension, spaceId!);
+        finally
+        {
+            CryptographicOperations.ZeroMemory(body);
+            if (responseBytes is not null) CryptographicOperations.ZeroMemory(responseBytes);
+            if (responseChunk is not null) CryptographicOperations.ZeroMemory(responseChunk);
+            if (responseBuffer is not null)
+            {
+                if (responseBuffer.TryGetBuffer(out var contents) && contents.Array is not null)
+                    CryptographicOperations.ZeroMemory(contents.Array);
+                responseBuffer.Dispose();
+            }
+        }
+    }
+
+    private static bool ValidTexts(IReadOnlyList<string> texts)
+    {
+        if (texts.Count is < 1 or > 32) return false;
+        var total = 0;
+        foreach (var text in texts)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            var remaining = text.AsSpan(); var count = 0;
+            while (!remaining.IsEmpty)
+            {
+                if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done || ++count > 8192) return false;
+                remaining = remaining[consumed..];
+            }
+            total += count;
+            if (total > 65536) return false;
+        }
+        return true;
     }
 
     private static bool IsDigest(string? value) =>

@@ -67,5 +67,6 @@ override OpenConnect.Knowledge.KnowledgeEmbeddingResult.GetHashCode() -> int
 override OpenConnect.Knowledge.KnowledgeEmbeddingResult.ToString() -> string!
 static OpenConnect.Knowledge.KnowledgeEmbedding.operator !=(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
 static OpenConnect.Knowledge.KnowledgeEmbedding.operator ==(OpenConnect.Knowledge.KnowledgeEmbedding? left, OpenConnect.Knowledge.KnowledgeEmbedding? right) -> bool
+static OpenConnect.Knowledge.KnowledgeEmbeddingClient.CreateCloud(OpenConnect.Privacy.IEgressGate! egressGate, System.Uri! endpoint, string! bearerToken, bool allowInsecureHttp = false) -> OpenConnect.Knowledge.KnowledgeEmbeddingClient!
 static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator !=(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool
 static OpenConnect.Knowledge.KnowledgeEmbeddingResult.operator ==(OpenConnect.Knowledge.KnowledgeEmbeddingResult? left, OpenConnect.Knowledge.KnowledgeEmbeddingResult? right) -> bool

@@ -16,6 +16,8 @@ Documentation for document processing and semantic memory describes SDK client c
 
 The knowledge SDK's index and search clients require host authorization of the tenant, object, destination and roles, sign worker requests, and screen input and output through the host privacy gate. The composed workflow waits for an indexing completion before searching.
 
+Knowledge embeddings can use either the private signed worker contract or the authenticated Cloud gateway contract. The SDK validates the response identity and model space and applies host privacy checks to both paths.
+
 The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.
 
 The optional documentation document example is a development-only SDK consumer. It binds operations to the current signed visitor, limits concurrent uploads before buffering and bounds upload time, requires a protected document socket and explicitly configured extraction transport, and releases upload buffers after processing. LiveUI can activate analysis only after a visitor selects a file; it cannot select the file.
