@@ -56,11 +56,13 @@ def test_claim_client_uses_real_mutual_tls_and_payload_fingerprint():
                                         root / "gateway/gateway.crt", root / "gateway/gateway.key")
         payload, key = b"synthetic translation payload", b"k" * 32
         assert client.ready_deployment() == deployment
+        assert client.translation_ready() == deployment
         assert client.consume(reservation, claim, payload, key) == "consumed"
         assert client.complete(reservation, claim) == "completed"
-        assert [event[0] for event in events] == ["GET", "POST", "POST"]
-        assert events[1][2] == base64.b64encode(hmac.digest(key, payload, hashlib.sha256)).decode("ascii")
-        assert events[1][1].endswith("/translation/quota/reservations/" + reservation + "/claims/" + claim + "/consume")
+        assert [event[0] for event in events] == ["GET", "GET", "POST", "POST"]
+        assert events[1][1] == "/cloud/internal/v1/translation/ready"
+        assert events[2][2] == base64.b64encode(hmac.digest(key, payload, hashlib.sha256)).decode("ascii")
+        assert events[2][1].endswith("/translation/quota/reservations/" + reservation + "/claims/" + claim + "/consume")
         untrusted = ssl.create_default_context(cafile=str(root / "gateway/authority.crt"))
         connection = http.client.HTTPSConnection("127.0.0.1", server.server_port, context=untrusted, timeout=5)
         try:

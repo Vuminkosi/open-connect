@@ -63,11 +63,13 @@ def execute_claimed_translation(
     *,
     model_revision: str,
     tokenizer_hash: str,
+    max_text_chars: int = 5000,
 ) -> ExecuteResponse | None:
     """Do not execute before consumption or release a result before settlement."""
     if (client is None or not isinstance(body, bytes) or not 0 < len(body) <= 100000 or
             not isinstance(model_revision, str) or not model_revision.strip() or len(model_revision) > 256 or
-            not isinstance(tokenizer_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", tokenizer_hash)):
+            not isinstance(tokenizer_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", tokenizer_hash) or
+            type(max_text_chars) is not int or not 1 <= max_text_chars <= 5000):
         return None
     try:
         envelope = CloudEnvelope.model_validate(_parse(body))
@@ -86,7 +88,7 @@ def execute_claimed_translation(
         request = ExecuteRequest.model_validate(parsed)
         if (str(UUID(request.taskId)) != request.taskId.lower() or UUID(request.taskId).int == 0 or
                 request.leaseId is not None or request.input.inputRef is not None or
-                request.input.text is None or not request.input.text.strip() or
+                request.input.text is None or not request.input.text.strip() or len(request.input.text) > max_text_chars or
                 not _well_formed(request.input.text) or
                 not is_supported_pair(request.input.sourceLang, request.input.targetLang)):
             return None

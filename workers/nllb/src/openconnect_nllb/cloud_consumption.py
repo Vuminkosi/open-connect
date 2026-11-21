@@ -75,6 +75,19 @@ class CloudConsumptionClient:
         except (TypeError, ValueError, AttributeError):
             return None
 
+    def translation_ready(self) -> str | None:
+        result = self._request("GET", "/cloud/internal/v1/translation/ready", {"Cache-Control": "no-store"})
+        if result is None or result[0] != 200 or not isinstance(result[1], dict):
+            return None
+        value = result[1]
+        if set(value) != {"status", "deploymentId"} or value["status"] != "ready":
+            return None
+        try:
+            deployment = UUID(value["deploymentId"])
+            return str(deployment) if deployment.int else None
+        except (TypeError, ValueError, AttributeError):
+            return None
+
     def consume(self, reservation_id: str, claim_id: str, payload: bytes, key: bytes) -> str:
         try:
             reservation, claim = UUID(reservation_id), UUID(claim_id)

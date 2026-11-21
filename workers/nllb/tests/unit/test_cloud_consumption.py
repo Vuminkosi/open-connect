@@ -78,6 +78,10 @@ def test_completion_and_readiness_validate_exact_responses(monkeypatch, make_cli
     deployment = str(uuid4())
     response.read.return_value = ('{"status":"ready","deploymentId":"' + deployment + '"}').encode()
     assert client.ready_deployment() == deployment
+    assert client.translation_ready() == deployment
+    response.status = 404
+    assert client.translation_ready() is None
+    response.status = 200
     response.read.return_value = b'{"status":"completed"}'
     assert client.complete(str(uuid4()), str(uuid4())) == "completed"
     response.read.return_value = b'{"status":"completed","extra":true}'

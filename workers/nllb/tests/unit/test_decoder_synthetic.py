@@ -1,9 +1,17 @@
 """Optional offline runtime smoke test; the random model has no translation quality."""
 
 import hashlib
+import base64
+import hmac
+import json
 import os
 import shutil
+import ssl
+import threading
 from dataclasses import replace
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -95,3 +103,69 @@ def test_offline_decoder_loads_and_generates_with_synthetic_model(tmp_path, monk
     assert response.status_code == 200
     assert response.json()["result"]["translatedText"] == "h"
     assert response.json()["result"]["engine"] == "real"
+
+    tls_dir = os.environ.get("OC_NLLB_TEST_TLS_DIR")
+    if not tls_dir:
+        return
+    from openconnect_nllb.cloud_consumption import CloudConsumptionClient
+
+    certificates = Path(tls_dir)
+    deployment, reservation, claim, task = (str(uuid4()) for _ in range(4))
+    payload = json.dumps({"schemaVersion": "openconnect.v1", "taskId": task,
+        "input": {"text": "Hello.", "sourceLang": "eng_Latn", "targetLang": "fra_Latn"}}).encode()
+    key = b"k" * 32
+    fingerprint = base64.b64encode(hmac.digest(key, payload, hashlib.sha256)).decode("ascii")
+    events = []
+
+    class Authority(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):
+            events.append("ready")
+            self.respond({"status": "ready", "deploymentId": deployment})
+
+        def do_POST(self):
+            if self.path.endswith("/consume"):
+                events.append("consume")
+                assert self.headers["X-OpenConnect-Worker-Payload-Fingerprint"] == fingerprint
+                self.respond({"status": "consumed"})
+            else:
+                events.append("complete")
+                self.respond({"status": "completed"})
+
+        def respond(self, body):
+            data = json.dumps(body).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    server = HTTPServer(("127.0.0.1", 0), Authority)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certificates / "authority/authority.crt", certificates / "authority/authority.key")
+    context.load_verify_locations(certificates / "gateway/gateway.crt")
+    context.verify_mode = ssl.CERT_REQUIRED
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        transport = CloudConsumptionClient(f"https://127.0.0.1:{server.server_port}",
+            certificates / "gateway/authority.crt", certificates / "gateway/gateway.crt", certificates / "gateway/gateway.key")
+        monkeypatch.setattr(app_module, "configured_client", lambda: transport)
+        monkeypatch.setenv("OPENCONNECT_CLOUD_DEPLOYMENT_ID", deployment)
+        assert client.post("/internal/v1/execute", headers={"Authorization": "Bearer test-token"}, json={
+            "schemaVersion": "openconnect.v1", "taskId": task,
+            "input": {"text": "Hello.", "sourceLang": "eng_Latn", "targetLang": "fra_Latn"},
+        }).status_code == 503
+        body = {"schemaVersion": "openconnect.cloud.worker.translation/v1", "reservationId": reservation,
+                "claimId": claim, "payload": base64.b64encode(payload).decode(), "key": base64.b64encode(key).decode()}
+        response = client.post("/internal/cloud/v1/translation/execute", headers={"Authorization": "Bearer test-token"}, json=body)
+        assert response.status_code == 200
+        assert response.json()["result"]["translatedText"] == "h"
+        assert events == ["ready", "consume", "complete"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

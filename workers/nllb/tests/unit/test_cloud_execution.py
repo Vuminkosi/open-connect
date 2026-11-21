@@ -103,3 +103,11 @@ def test_invalid_envelope_and_payload_never_consume():
         events = []
         assert call(value, Client(events), response) is None
         assert not events
+
+
+def test_configured_worker_text_limit_is_checked_before_consumption():
+    _, _, envelope = fixture()
+    events = []
+    assert execute_claimed_translation(json.dumps(envelope).encode(), Client(events), response,
+        model_revision=REVISION, tokenizer_hash=TOKENIZER_HASH, max_text_chars=4) is None
+    assert not events

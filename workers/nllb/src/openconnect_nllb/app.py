@@ -15,8 +15,10 @@ import threading
 import time
 import uuid
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from openconnect_nllb.config import Settings
@@ -33,6 +35,8 @@ from openconnect_nllb.engine import (
 )
 from openconnect_nllb.decoder import DecoderInputError, DecoderUnavailable, OfflineNllbDecoder
 from openconnect_nllb.decoder_bundle import resolve_decoder_bundle
+from openconnect_nllb.cloud_config import configured_client
+from openconnect_nllb.cloud_execution import execute_claimed_translation
 from openconnect_nllb.languages import SUPPORTED_LANGUAGES, SUPPORTED_PAIRS
 from openconnect_nllb.manifest import ModelManifest, Readiness
 from openconnect_nllb.schemas import (
@@ -185,6 +189,17 @@ def capabilities() -> CapabilitiesResponse:
     dependencies=[Depends(authenticate)],
 )
 def execute(request: ExecuteRequest) -> ExecuteResponse:
+    try:
+        if configured_client() is not None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    return run_translation(request)
+
+
+def run_translation(request: ExecuteRequest) -> ExecuteResponse:
     _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
     if code is not None:
         return JSONResponse(
@@ -276,6 +291,59 @@ def execute(request: ExecuteRequest) -> ExecuteResponse:
             engineWarning=FAKE_WARNING if outcome.engine == "fake" else None,
         ),
     )
+
+
+def _cloud_runtime():
+    try:
+        client = configured_client()
+        deployment = UUID(os.environ.get("OPENCONNECT_CLOUD_DEPLOYMENT_ID", ""))
+        if client is None or deployment.int == 0 or settings.fake_engine:
+            return None
+        if client.translation_ready() != str(deployment):
+            return None
+        _, _, rejection = engine_mode.rejection(settings.fake_engine, settings.model_device)
+        result, reason, _ = _real_readiness()
+        if rejection is not None or not result.ready or reason is not None or result.manifest is None:
+            return None
+        return client, deployment, result.manifest
+    except Exception:
+        return None
+
+
+@app.get("/internal/cloud/v1/translation/ready", dependencies=[Depends(authenticate)])
+def cloud_ready() -> dict[str, str]:
+    runtime = _cloud_runtime()
+    if runtime is None:
+        raise HTTPException(status_code=503, detail="execution unavailable")
+    return {"status": "ready", "deploymentId": str(runtime[1])}
+
+
+@app.post("/internal/cloud/v1/translation/execute", dependencies=[Depends(authenticate)])
+async def cloud_execute(request: Request):
+    if request.headers.get("content-type", "").lower() != "application/json" or "content-encoding" in request.headers:
+        raise HTTPException(status_code=415, detail="unsupported media type")
+    runtime = await run_in_threadpool(_cloud_runtime)
+    if runtime is None:
+        raise HTTPException(status_code=503, detail="execution unavailable")
+    body = bytearray()
+    try:
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > 100000:
+                raise HTTPException(status_code=413, detail="request too large")
+            body.extend(chunk)
+        client, _, manifest = runtime
+        result = await run_in_threadpool(execute_claimed_translation, bytes(body), client, run_translation,
+                                         model_revision=manifest.revision, tokenizer_hash=manifest.tokenizer_hash,
+                                         max_text_chars=min(settings.max_text_chars, 5000))
+        if result is None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    finally:
+        body[:] = b"\0" * len(body)
 
 
 def _valid_lease(task_id: str, lease_id: str) -> bool:
