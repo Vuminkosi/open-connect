@@ -56,3 +56,16 @@ test('unavailable audio screening prevents quota reservation', async () => {
         assert.equal(result.status, 'unavailable'); assert.equal(reserved, false);
     } finally { request.body.fill(0); keyring.dispose(); }
 });
+
+test('cancellation clears audio even if the output screen never responds', async () => {
+    const keyring = keys(); const request = input(); const audio = Buffer.from([1, 2]);
+    const cancelled = new AbortController(); request.signal = cancelled.signal;
+    try {
+        const result = await executeVoiceSynthesis(request, { controlPlane: plane(), keyring,
+            createAccessMonitor: ({ signal }) => ({ signal, start: async () => true, recheck: async () => true, dispose() {} }),
+            dispatcher: { executeClaimed: async () => ({ status: 'completed', result: { audio, format: 'pcm', sampleRateHz: 24000, channels: 1 } }) },
+            outputScreen: { isReady: async () => true, inspectAudio: async () => { cancelled.abort(); return new Promise(() => {}); } } });
+        assert.equal(result.status, 'unavailable');
+        assert.deepEqual(audio, Buffer.alloc(2));
+    } finally { request.body.fill(0); keyring.dispose(); }
+});

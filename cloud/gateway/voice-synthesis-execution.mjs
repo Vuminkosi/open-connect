@@ -2,6 +2,20 @@ import { withVoiceSynthesisAdmission } from './voice-synthesis-admission.mjs';
 
 const unavailable = () => ({ status: 'unavailable' });
 
+async function inspectUntilAborted(screen, input, signal, traceparent) {
+    if (signal.aborted) return null;
+    let onAbort;
+    try {
+        const aborted = new Promise(resolve => {
+            onAbort = () => resolve(null);
+            if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true });
+        });
+        return await Promise.race([screen.inspectAudio(input, signal, traceparent), aborted]);
+    } finally {
+        signal.removeEventListener('abort', onAbort);
+    }
+}
+
 // A worker completion does not by itself authorize audio release.
 export async function executeVoiceSynthesis(request, { controlPlane, keyring, dispatcher, createAccessMonitor, outputScreen }) {
     if (!request || !controlPlane || !dispatcher || typeof dispatcher.executeClaimed !== 'function' ||
@@ -29,7 +43,7 @@ export async function executeVoiceSynthesis(request, { controlPlane, keyring, di
             audio = response?.result?.audio;
             if (!(audio instanceof Uint8Array) || audio.byteLength < 1 || monitor.signal.aborted || response.status !== 'completed' ||
                 !await monitor.recheck()) return unavailable();
-            const decision = await outputScreen.inspectAudio({ credential: request.credential, request: claim.request,
+            const decision = await inspectUntilAborted(outputScreen, { credential: request.credential, request: claim.request,
                 reservationId: claim.reservationId, claimId: claim.claimId, audio, format: response.result.format,
                 sampleRateHz: response.result.sampleRateHz, channels: response.result.channels }, monitor.signal, claim.traceparent);
             if (monitor.signal.aborted || !await monitor.recheck()) return unavailable();
