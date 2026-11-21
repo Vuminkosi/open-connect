@@ -116,6 +116,12 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudLiveUIConsumptionService>();
     builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>();
     builder.Services.AddScoped<CloudLiveUISettlement>();
+    builder.Services.AddScoped<ICloudLiveUIDualQuotaStore, EfCloudLiveUIDualQuotaStore>();
+    builder.Services.AddScoped<CloudLiveUIDualQuotaService>();
+    builder.Services.AddScoped<ICloudLiveUIMeteredConsumptionStore, EfCloudLiveUIConsumptionStore>();
+    builder.Services.AddScoped<CloudLiveUIMeteredConsumption>();
+    builder.Services.AddScoped<ICloudLiveUIDualSettlementStore, EfCloudLiveUIDualSettlementStore>();
+    builder.Services.AddScoped<CloudLiveUIDualSettlement>();
     builder.Services.AddSingleton(new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
     builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
@@ -239,6 +245,7 @@ if (gatewayTrust is not null)
     app.MapCloudInferenceAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudLiveUIDualQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
@@ -257,6 +264,8 @@ if (workerTrust is not null)
     app.MapCloudInferenceConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUISettlement(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudLiveUIMeteredConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudLiveUIDualSettlement(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceTokenSettlement(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudWorkerReadiness(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }

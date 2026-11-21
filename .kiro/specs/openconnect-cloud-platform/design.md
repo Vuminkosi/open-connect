@@ -326,4 +326,6 @@ A private gateway-authenticated endpoint can reserve LiveUI plan and token capac
 
 The LiveUI worker has an explicit opt-in metered mode. It uses the metered consumption endpoint with its actual model context limit, reports bounded native usage, and requires metered settlement before returning a plan. It never falls back to the unmetered path after a metered failure. Failed or unknown compute retains its reservation pending reconciliation; production activation is not yet connected.
 
-When explicitly enabled, the gateway requires a bounded model context token budget and reserves plan and token capacity together through the mutual-TLS control plane. Invalid configuration or a missing dual-reservation capability fails closed. Metering remains disabled by default; production endpoint registration and reconciliation of failed or unknown compute are still required.
+When explicitly enabled, the gateway requires a bounded model context token budget and reserves plan and token capacity together through the mutual-TLS control plane. Invalid configuration or a missing dual-reservation capability fails closed. Metering remains disabled by default; coordinated deployment configuration and reconciliation of failed or unknown compute are still required.
+
+The application registers dual-reservation, metered-consumption and dual-settlement services and maps their private endpoints under the existing gateway and worker certificate trust boundaries. Activating metering still requires coordinated deployment configuration and recovery for failed or unknown compute.
