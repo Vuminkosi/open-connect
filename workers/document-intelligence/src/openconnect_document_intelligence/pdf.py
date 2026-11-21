@@ -46,8 +46,10 @@ def render_pdf_page(content: bytes, page_index: int, *, timeout_seconds: float =
             if error in {"invalid_document", "encrypted_document", "page_limit_exceeded", "invalid_page"}:
                 raise ValueError(error)
             raise ValueError("invalid_document")
-        if (set(result) != {"pageCount", "pageIndex", "png"} or result["pageIndex"] != page_index
-                or not isinstance(result["pageCount"], int) or not 1 <= result["pageCount"] <= 30):
+        if (set(result) != {"pageCount", "pageIndex", "png"}
+                or type(result["pageIndex"]) is not int or result["pageIndex"] != page_index
+                or type(result["pageCount"]) is not int or not 1 <= result["pageCount"] <= 30
+                or page_index >= result["pageCount"]):
             raise ValueError("invalid_document")
         png = base64.b64decode(result["png"], validate=True)
         normalized, width, height = _prepare_image(png)

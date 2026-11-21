@@ -1,4 +1,5 @@
 import io
+import json
 
 import pytest
 from PIL import Image
@@ -58,3 +59,13 @@ def test_rejects_encrypted_pdf() -> None:
 def test_rejects_invalid_page_without_child(page) -> None:
     with pytest.raises(ValueError, match="invalid_page"):
         render_pdf_page(make_pdf(), page)
+
+
+@pytest.mark.parametrize(("index", "page_count", "page_index"), [
+    (0, True, 0), (0, 1, False), (1, 1, 1), (1, 2, True),
+])
+def test_rejects_inconsistent_child_page_metadata(monkeypatch, index, page_count, page_index):
+    response = json.dumps({"pageCount": page_count, "pageIndex": page_index, "png": ""}).encode()
+    monkeypatch.setattr("openconnect_document_intelligence.pdf._run_tesseract", lambda *_: response)
+    with pytest.raises(ValueError, match="invalid_document"):
+        render_pdf_page(b"%PDF-fixture", index)
