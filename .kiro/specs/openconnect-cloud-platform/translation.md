@@ -1,0 +1,5 @@
+# Translation capability status
+
+Cloud translation remains unavailable until the NLLB worker has a functioning, offline real decoder and the gateway has authenticated admission, scoped privacy inspection, quota, fenced execution, settlement and output checks. The existing deterministic fake engine is for explicit non-production testing and must not be presented as translation service readiness.
+
+For flat local NLLB bundles, readiness validation checks the weights SHA-256 and tokenizer SHA-256 against the manifest as well as the license policy. The worker does not advertise real translation or report real readiness while the decoder remains unimplemented, even when a bundle and neural libraries are present. The versioned cache has its own asset verification. A verified bundle alone does not establish that the model is safe, commercially licensed, or operational.

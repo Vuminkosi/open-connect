@@ -2,6 +2,7 @@ import openconnect_nllb.app as app_module
 from openconnect_nllb.app import app
 from openconnect_nllb.config import Settings
 from openconnect_nllb.languages import SUPPORTED_LANGUAGES, is_supported_pair
+from openconnect_nllb.manifest import ModelManifest, Readiness
 
 from fastapi.testclient import TestClient
 
@@ -36,6 +37,19 @@ def test_ready_unready_when_model_missing_and_real(monkeypatch, tmp_path) -> Non
     body = client.get("/health/ready").json()
     assert body["status"] == "unready" and body["ready"] is False
     assert body["reason"] in ("model_unavailable", "tokenizer_mismatch", "license_denied")
+
+
+def test_verified_model_does_not_advertise_unimplemented_real_decoder(monkeypatch, tmp_path) -> None:
+    _auth(monkeypatch, model_dir=tmp_path, fake_engine=False)
+    manifest = ModelManifest("model", "revision", "a" * 64, "b" * 64, "mit")
+    monkeypatch.setattr(app_module, "check_readiness", lambda *args, **kwargs: Readiness(True, None, manifest))
+    readiness = client.get("/health/ready").json()
+    assert readiness == {"status": "unready", "ready": False, "reason": "model_unavailable"}
+    capabilities = client.get(
+        "/internal/v1/capabilities", headers={"Authorization": "Bearer local-test-token"}
+    ).json()
+    assert capabilities["engine"] == "real"
+    assert capabilities["capabilities"] == []
 
 
 def test_auth_required(monkeypatch) -> None:

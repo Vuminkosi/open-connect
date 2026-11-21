@@ -27,7 +27,6 @@ from openconnect_nllb.engine import (
     LicenseDeniedError,
     ModelUnavailableError,
     RealEngine,
-    decoder_available,
 )
 from openconnect_nllb.languages import SUPPORTED_LANGUAGES, SUPPORTED_PAIRS
 from openconnect_nllb.manifest import check_readiness
@@ -57,7 +56,9 @@ LEASE_TTL_SECONDS = 60
 
 def _real_readiness():
     result = check_readiness(settings.model_dir, license_accepted=settings.license_accepted)
-    if result.ready and not decoder_available():
+    # A verified bundle and installed libraries do not make the placeholder
+    # decoder executable. Keep real-mode readiness closed until it is wired.
+    if result.ready:
         return result, "model_unavailable"
     return result, result.reason
 
@@ -87,7 +88,7 @@ def ready() -> dict[str, object]:
             "deviceRequested": info.requested,
         }
     result, reason = _real_readiness()
-    if result.ready and result.manifest is not None:
+    if result.ready and reason is None and result.manifest is not None:
         return {
             "status": "ready",
             "ready": True,
@@ -139,12 +140,12 @@ def capabilities() -> CapabilitiesResponse:
             capabilities=[Capability(languagePairs=pairs)],
             fakeEngineWarning=FAKE_WARNING,
         )
-    result, _ = _real_readiness()
+    result, reason = _real_readiness()
     return CapabilitiesResponse(
         engine="real",
         modelRevision=result.manifest.revision if result.manifest else None,
         tokenizerHash=result.manifest.tokenizer_hash if result.manifest else None,
-        capabilities=[Capability(languagePairs=pairs)],
+        capabilities=[Capability(languagePairs=pairs)] if result.ready and reason is None else [],
     )
 
 

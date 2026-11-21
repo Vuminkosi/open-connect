@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -158,13 +159,24 @@ def check_readiness(
     manifest = load_manifest(model_dir)
     if manifest is None:
         return Readiness(ready=False, reason="model_unavailable", manifest=None)
-    if _weights_present(model_dir) is None:
+    weights = _weights_present(model_dir)
+    if weights is None:
         return Readiness(ready=False, reason="model_unavailable", manifest=manifest)
     tokenizer = _tokenizer_present(model_dir)
     if tokenizer is None:
         return Readiness(ready=False, reason="model_unavailable", manifest=manifest)
-    if sha256_file(tokenizer) != manifest.tokenizer_hash:
+    try:
+        tokenizer_hash = sha256_file(tokenizer)
+        weights_hash = sha256_file(weights)
+    except OSError:
+        return Readiness(ready=False, reason="cache_corrupt", manifest=manifest)
+    if tokenizer_hash != manifest.tokenizer_hash:
         return Readiness(ready=False, reason="tokenizer_mismatch", manifest=manifest)
+    if (
+        not re.fullmatch(r"[0-9a-fA-F]{64}", manifest.checksum)
+        or weights_hash != manifest.checksum.lower()
+    ):
+        return Readiness(ready=False, reason="cache_corrupt", manifest=manifest)
     approved = (
         manifest.license.lower() in PRE_APPROVED_LICENSES or license_accepted
     ) and is_license_approved(

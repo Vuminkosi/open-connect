@@ -1,6 +1,7 @@
 import hashlib
 import json
 
+import openconnect_nllb.manifest as manifest_module
 from openconnect_nllb.manifest import check_readiness, sha256_file
 
 
@@ -10,7 +11,7 @@ def _write_manifest(tmp_path, **overrides) -> None:
     data = {
         "modelId": "facebook/nllb-200-distilled-600M",
         "revision": "rev123",
-        "checksum": "deadbeef",
+        "checksum": hashlib.sha256(b"weights").hexdigest(),
         "tokenizerHash": sha256_file(tokenizer),
         "license": "cc-by-nc-4.0",
     }
@@ -60,6 +61,30 @@ def test_permissive_license_needs_no_acceptance(tmp_path) -> None:
     (tmp_path / "model.safetensors").write_bytes(b"weights")
     result = check_readiness(tmp_path, license_accepted=False)
     assert result.ready is True
-    assert (
-        hashlib.sha256(b"weights").hexdigest() != result.manifest.checksum
-    )  # checksum recorded, not verified here
+    assert hashlib.sha256(b"weights").hexdigest() == result.manifest.checksum
+
+
+def test_flat_weights_must_match_manifest(tmp_path) -> None:
+    _write_manifest(tmp_path, license="mit")
+    (tmp_path / "model.safetensors").write_bytes(b"tampered")
+    result = check_readiness(tmp_path, license_accepted=False)
+    assert (result.ready, result.reason) == (False, "cache_corrupt")
+
+
+def test_flat_weights_require_sha256_manifest(tmp_path) -> None:
+    _write_manifest(tmp_path, license="mit", checksum="deadbeef")
+    (tmp_path / "model.safetensors").write_bytes(b"weights")
+    result = check_readiness(tmp_path, license_accepted=False)
+    assert (result.ready, result.reason) == (False, "cache_corrupt")
+
+
+def test_unreadable_flat_asset_is_unready(monkeypatch, tmp_path) -> None:
+    _write_manifest(tmp_path, license="mit")
+    (tmp_path / "model.safetensors").write_bytes(b"weights")
+
+    def unreadable(_path):
+        raise OSError("unreadable")
+
+    monkeypatch.setattr(manifest_module, "sha256_file", unreadable)
+    result = check_readiness(tmp_path, license_accepted=False)
+    assert (result.ready, result.reason) == (False, "cache_corrupt")
