@@ -351,3 +351,7 @@ Knowledge demonstration passages are tied to the submitted question; editing the
 ### Cloud classification privacy evidence
 
 Cloud classification evidence records bounded, allowlisted detector category counts alongside the decision. It never stores the detected values, and historical observations without category data remain valid. Evidence remains append-only.
+
+### Host privacy evidence ingestion
+
+Cloud accepts content-free host privacy decisions only from separately pinned host certificates and authenticated tenant applications. Evidence uses bounded category counts, idempotent event IDs, credential revocation fencing and append-only storage.

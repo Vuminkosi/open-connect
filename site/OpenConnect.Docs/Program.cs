@@ -17,15 +17,22 @@ if (gatewayTrustSection.GetValue<bool>("Enabled"))
 {
     gatewayTrust = new CloudGatewayClientTrust(gatewayTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
 }
+var hostPrivacyTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:HostPrivacyTrust");
+CloudGatewayClientTrust? hostPrivacyTrust = null;
+if (hostPrivacyTrustSection.GetValue<bool>("Enabled"))
+    hostPrivacyTrust = new CloudGatewayClientTrust(hostPrivacyTrustSection.GetSection("ClientCertificateSha256").Get<string[]>() ?? []);
 CloudWorkerClientTrust? workerTrust = null;
 var workerTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:WorkerTrust");
 if (workerTrustSection.GetValue<bool>("Enabled"))
     workerTrust = new CloudWorkerClientTrust(workerTrustSection.GetSection("Certificates").Get<CloudWorkerCertificateBinding[]>() ?? [], gatewayTrust);
-if (gatewayTrust is not null || workerTrust is not null)
+if (hostPrivacyTrust is not null && (gatewayTrust?.Overlaps(hostPrivacyTrust) == true || workerTrust?.Overlaps(hostPrivacyTrust) == true))
+    throw new InvalidOperationException("Host privacy certificates must be separate from gateway and worker certificates.");
+if (gatewayTrust is not null || workerTrust is not null || hostPrivacyTrust is not null)
     builder.WebHost.ConfigureKestrel(server => server.ConfigureHttpsDefaults(https =>
     {
         https.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
         https.ClientCertificateValidation = (certificate, _, _) => gatewayTrust?.IsTrusted(certificate, DateTimeOffset.UtcNow) == true ||
+            hostPrivacyTrust?.IsTrusted(certificate, DateTimeOffset.UtcNow) == true ||
             workerTrust?.ResolveDeployment(certificate, DateTimeOffset.UtcNow) is not null;
     }));
 
@@ -128,6 +135,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
     builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudHostPrivacyEvidenceStore, CloudHostPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
     builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
@@ -269,6 +277,8 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
+if (hostPrivacyTrust is not null)
+    app.MapCloudHostPrivacyEvidence(hostPrivacyTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
