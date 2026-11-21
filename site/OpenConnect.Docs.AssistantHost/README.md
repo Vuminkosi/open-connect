@@ -13,6 +13,14 @@ To use the local Compose setup, combine the root Compose file, `docker-compose-c
 - `OC_DOCS_ASSISTANT_CA_BUNDLE`: a protected CA bundle that lets the site validate the host's localhost certificate and any other TLS authorities the site uses, including its identity provider.
 - Optional LiveUI worker planning: set `OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENABLED=true`, `OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENDPOINT` to the private worker HTTP origin, and `OC_DOCS_ASSISTANT_LIVEUI_WORKER_TOKEN` to its credential. The worker must already be provisioned and ready.
 
+After the TLS volume and required settings are prepared, build and start the public documentation site, its application host, and the default workers:
+
+```powershell
+docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml -f docker-compose-docs-local-host.yml up -d --build documentation-site documentation-assistant-host worker-kokoro worker-inference liveui-inference worker-security
+```
+
+Open `https://localhost:5051/docs` (or the configured `OPENCONNECT_DOCS_HTTPS_PORT`) and open the assistant. The browser must trust the local site certificate. The documentation pages do not require sign-in; Cloud dashboard authentication is configured separately. Start an explicitly provisioned transcription worker with the `transcription` profile when local microphone input is needed. Worker health and an assistant launcher alone do not establish that a model is available or that an interaction completed.
+
 The host shares the site's network namespace so its HTTPS listener is reachable only over loopback. The Kokoro worker must be running and ready for speech output. LiveUI worker planning checks session ownership, screens request and response content, and validates proposed actions before returning them; the site still authorizes each interaction. The model and worker credentials must not be committed. The gateway's state and rate limits are local to one process; they do not establish billing or cross-instance guarantees.
 
 The local host overlay enables a server-side check of the local transcription model before enabling microphone controls. The check uses the visitor's host credential and the host's private worker credential; neither is sent to browser JavaScript. An unavailable or invalid response disables voice input while leaving text and separately configured speech output available. General worker readiness does not establish that the local-only model is present. Refresh the page after provisioning a verified model; the check does not reserve capacity and a later voice request can still fail.

@@ -18,6 +18,8 @@ The API reference guide links authored client guides and versioned wire contract
 
 The documentation image build context includes the LiveUI source projects and compiler referenced by the site, so a clean container build can compose the interactive documentation client.
 
+The documentation application-host guide identifies the combined local Compose overlays and the default workers needed to run the public assistant; Cloud identity and optional transcription remain separately configured.
+
 Privacy documentation distinguishes the token vault's tenant, principal, session and purpose scope from any additional turn or policy-revision restrictions imposed by the host.
 
 The public privacy example runs fixed synthetic inputs through an isolated SDK rules firewall without a token vault or external egress. It does not accept visitor-entered sensitive data or imply that detection is complete. The documentation LiveUI policy may select only the predefined examples and trigger this idempotent example only on the privacy guide.
