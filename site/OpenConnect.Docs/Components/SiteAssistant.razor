@@ -4,10 +4,13 @@
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
 @inject DocumentationAssistantAvailability Availability
 @inject LiveUIManifest Manifest
+@inject IJSRuntime JS
 
-<MudThemeProvider />
+<MudThemeProvider Theme="_theme" IsDarkMode="_dark" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -26,3 +29,41 @@
         <OpenConnectNavigatorProvider />
     </OpenConnectLiveUIProvider>
 </OpenConnectProvider>
+
+@code {
+    private bool _dark;
+    private long _subscription;
+    private DotNetObjectReference<SiteAssistant>? _reference;
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight { Primary = "#2563EB", Secondary = "#0D9488", Background = "#F1F5F9", Surface = "#FFFFFF", TextPrimary = "#0F172A", TextSecondary = "#475569", LinesDefault = "#E2E8F0" },
+        PaletteDark = new PaletteDark { Primary = "#3B82F6", Secondary = "#14B8A6", Background = "#090D16", Surface = "#111827", TextPrimary = "#F8FAFC", TextSecondary = "#94A3B8", LinesDefault = "#1F2937" },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _reference = DotNetObjectReference.Create(this);
+            var subscription = await JS.InvokeAsync<ThemeSubscription>("ocSiteTheme.subscribe", _reference);
+            _subscription = subscription.Id;
+            _dark = subscription.IsDark;
+            StateHasChanged();
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+    }
+
+    [JSInvokable]
+    public Task OnThemeChanged(bool dark) => InvokeAsync(() => { _dark = dark; StateHasChanged(); });
+
+    public async ValueTask DisposeAsync()
+    {
+        try { if (_subscription != 0) await JS.InvokeVoidAsync("ocSiteTheme.unsubscribe", _subscription); }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+        _reference?.Dispose();
+    }
+
+    private sealed record ThemeSubscription(long Id, bool IsDark);
+}

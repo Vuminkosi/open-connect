@@ -22,3 +22,29 @@
 .cloud-content :is(button, input, select, a):focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
 @media(max-width:600px){.site-header:not(.cloud-header){height:auto;min-height:68px;flex-wrap:wrap;padding:12px 18px}.site-header:not(.cloud-header) nav{order:3;flex:1 0 100%;flex-wrap:wrap}.site-header:not(.cloud-header) .theme-toggle{margin-left:auto}}
 @media(prefers-color-scheme:dark){.cloud-content .button:not(.primary){background:#122236;color:#e6eef7;border-color:#7891aa}.cloud-content :is(button,input,select,a):focus-visible{outline-color:#80e4d5}}
+:root[data-theme="dark"] { color-scheme: dark; color: #e6eef7; background: #0c1724; }
+:root[data-theme="dark"] .site-header, :root[data-theme="dark"] .cards article, :root[data-theme="dark"] .doc-card,
+:root[data-theme="dark"] .search-box, :root[data-theme="dark"] .cloud-list li, :root[data-theme="dark"] .cloud-capabilities article { background: #122236; border-color: #284158; }
+:root[data-theme="dark"] .sidebar, :root[data-theme="dark"] .site-footer, :root[data-theme="dark"] .doc-heading { border-color: #284158; }
+:root[data-theme="dark"] .sidebar a, :root[data-theme="dark"] .button { color: #dbe8f5; }
+:root[data-theme="dark"] .theme-toggle, :root[data-theme="dark"] .cloud-content input, :root[data-theme="dark"] .cloud-content select,
+:root[data-theme="dark"] .cloud-content textarea, :root[data-theme="dark"] .cloud-content .button:not(.primary) { background: #122236; color: #e6eef7; border-color: #7891aa; }
+:root[data-theme="dark"] .hero p, :root[data-theme="dark"] .lede, :root[data-theme="dark"] .doc-heading p,
+:root[data-theme="dark"] .search-box small, :root[data-theme="dark"] .cloud-list span { color: #adc0d4; }
+:root[data-theme="dark"] .cloud-reason { color: #ffc28b; }
+:root[data-theme="dark"] .cloud-content :is(button, input, select, textarea, a):focus-visible { outline-color: #80e4d5; }
+:root[data-theme="light"] { color-scheme: light; color: #102033; background: #f7f9fc; }
+:root[data-theme="light"] .site-header, :root[data-theme="light"] .cards article, :root[data-theme="light"] .doc-card,
+:root[data-theme="light"] .cloud-list li, :root[data-theme="light"] .cloud-capabilities article { background: #fff; border-color: #dbe4ef; }
+:root[data-theme="light"] .search-box { background: #eef5fb; border-color: #d3e2ee; }
+:root[data-theme="light"] .sidebar, :root[data-theme="light"] .site-footer, :root[data-theme="light"] .doc-heading { border-color: #dbe4ef; }
+:root[data-theme="light"] .sidebar a { color: #314b63; }
+:root[data-theme="light"] .button { color: #17324d; }
+:root[data-theme="light"] .button.primary { color: #fff; }
+:root[data-theme="light"] .theme-toggle, :root[data-theme="light"] .cloud-content input, :root[data-theme="light"] .cloud-content select,
+:root[data-theme="light"] .cloud-content textarea, :root[data-theme="light"] .cloud-content .button:not(.primary) { background: #fff; color: #102033; border-color: #aebfd0; }
+:root[data-theme="light"] .hero p { color: #4c6278; }
+:root[data-theme="light"] .lede, :root[data-theme="light"] .doc-heading p, :root[data-theme="light"] .search-box small,
+:root[data-theme="light"] .cloud-list span { color: #5c7186; }
+:root[data-theme="light"] .cloud-reason { color: #8a3a00; }
+:root[data-theme="light"] .cloud-content :is(button, input, select, textarea, a):focus-visible { outline-color: #127b72; }
