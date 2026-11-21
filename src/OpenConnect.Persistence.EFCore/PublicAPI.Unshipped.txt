@@ -92,6 +92,9 @@ OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.LeaseId.get -> string!
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.LeaseId.init -> void
 OpenConnect.Persistence.EFCore.Navigator.NavigatorLease.NavigatorLease(string! LeaseId, string! ExecutionId, long FencingToken, System.DateTimeOffset ExpiresAt) -> void
 OpenConnect.Persistence.EFCore.Navigator.NavigatorReceiptMapping
+OpenConnect.Persistence.EFCore.Outbox.EfOutboxDispatcher
+OpenConnect.Persistence.EFCore.Outbox.EfOutboxDispatcher.EfOutboxDispatcher() -> void
+OpenConnect.Persistence.EFCore.Outbox.EfOutboxDispatcher.ExecuteBatchAsync<TContext>(TContext! db, OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher! publisher, string! leaseOwner, System.TimeSpan leaseDuration, int batchSize = 50, int maxAttempts = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
 OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher
 OpenConnect.Persistence.EFCore.Outbox.ICommittedOutboxPublisher.PublishAsync(string! subject, string! eventId, string! payload, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Persistence.EFCore.Stores.EfNavigatorReceiptInput

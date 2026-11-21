@@ -286,6 +286,20 @@ jobs:
           }
           'Privacy-token PostgreSQL upgrades: VERIFIED clean upgrade/rollback and duplicate rejection without row loss.' >> $env:GITHUB_STEP_SUMMARY
 
+      - name: Run real Postgres atomic outbox lease tests
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=OutboxAtomicPostgres"
+          --logger "trx;LogFileName=outbox-atomic-pg.trx" --results-directory artifacts/outbox-atomic-pg
+      - name: Require both Postgres atomic lease tests with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/outbox-atomic-pg/outbox-atomic-pg.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 2 -or [int]$counts.executed -ne 2 -or [int]$counts.passed -ne 2 -or [int]$counts.failed -ne 0) {
+            throw 'Both Postgres atomic outbox tests must execute and pass; skipped coverage is not accepted.'
+          }
+          'Postgres atomic outbox writes: VERIFIED live completion/retry and rejection after natural lease expiry.' >> $env:GITHUB_STEP_SUMMARY
 
   privacy-migrations-sqlserver:
     name: SQL Server privacy-token upgrades (isolated LocalDB)
@@ -322,6 +336,20 @@ jobs:
             throw 'All three SQL Server provider tests must execute and pass; skipped coverage is not accepted.'
           }
           'SQL Server LocalDB: VERIFIED clean token upgrade/rollback, duplicate rejection without row loss and collation-sensitive scope isolation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Run real SqlServer atomic outbox lease tests
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=OutboxAtomicSqlServer"
+          --logger "trx;LogFileName=outbox-atomic-ms.trx" --results-directory artifacts/outbox-atomic-ms
+      - name: Require both SqlServer atomic lease tests with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/outbox-atomic-ms/outbox-atomic-ms.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 2 -or [int]$counts.executed -ne 2 -or [int]$counts.passed -ne 2 -or [int]$counts.failed -ne 0) {
+            throw 'Both SqlServer atomic outbox tests must execute and pass; skipped coverage is not accepted.'
+          }
+          'SqlServer atomic outbox writes: VERIFIED live completion/retry and rejection after natural lease expiry.' >> $env:GITHUB_STEP_SUMMARY
       - name: Stop isolated LocalDB instance
         if: always()
         shell: pwsh
