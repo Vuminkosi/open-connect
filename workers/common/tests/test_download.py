@@ -201,6 +201,51 @@ def test_absolute_deadline_interrupts_stalled_response_headers(tmp_path, monkeyp
     assert not (tmp_path / "model").exists()
 
 
+def test_absolute_deadline_interrupts_detached_response_socket(tmp_path, monkeypatch):
+    interrupted = threading.Event()
+
+    class Socket:
+        def shutdown(self, how):
+            assert how == socket.SHUT_RDWR
+            interrupted.set()
+
+        def settimeout(self, timeout):
+            assert timeout > 0
+
+    class StalledResponse(Response):
+        def read1(self, amount):
+            assert interrupted.wait(2), "detached socket was not interrupted"
+            return b"x"
+
+    class CloseConnection:
+        def __init__(self, host, address, timeout):
+            self.sock = Socket()
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            self.sock = None  # HTTPConnection detaches a Connection: close response.
+            return StalledResponse()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(download, "_PinnedHTTPSConnection", CloseConnection)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+    ])
+    model = manifest()
+    downloader = download.StartupAssetFetcher(
+        model, {"model.onnx": download.AssetSource("https://models.example/a", frozenset({
+            "application/octet-stream"
+        }))}, frozenset({"models.example"}), max_bytes=1024, timeout_seconds=0.05,
+    )
+    with pytest.raises(TimeoutError, match="download_timeout"):
+        downloader(model.assets[0], tmp_path / "model")
+    assert interrupted.is_set()
+
+
 @pytest.mark.parametrize("location,allowed,expected", [
     ("https://cdn.example/model", {"models.example", "cdn.example"}, True),
     ("https://evil.example/model", {"models.example"}, False),

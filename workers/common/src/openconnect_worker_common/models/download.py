@@ -121,9 +121,9 @@ class StartupAssetFetcher:
         timer = None
         expired = threading.Event()
 
-        def abort(active_connection: _PinnedHTTPSConnection) -> None:
+        def abort(active_connection: _PinnedHTTPSConnection, response_socket: list) -> None:
             expired.set()
-            active_socket = active_connection.sock
+            active_socket = active_connection.sock or response_socket[0]
             if active_socket is not None:
                 try:
                     active_socket.shutdown(socket.SHUT_RDWR)
@@ -150,13 +150,15 @@ class StartupAssetFetcher:
                 if remaining <= 0:
                     raise TimeoutError("download_timeout")
                 connection = _PinnedHTTPSConnection(host, ips[0], remaining)
-                timer = threading.Timer(remaining, abort, args=(connection,))
+                response_socket = [None]
+                timer = threading.Timer(remaining, abort, args=(connection, response_socket))
                 timer.daemon = True
                 timer.start()
                 path = parsed.path or "/"
                 if parsed.query:
                     path += "?" + parsed.query
                 connection.request("GET", path, headers={"Accept-Encoding": "identity"})
+                response_socket[0] = connection.sock
                 if expired.is_set() or time.monotonic() >= deadline:
                     raise TimeoutError("download_timeout")
                 response = connection.getresponse()
@@ -190,8 +192,9 @@ class StartupAssetFetcher:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         raise TimeoutError("download_timeout")
-                    if connection.sock is not None:
-                        connection.sock.settimeout(remaining)
+                    active_socket = connection.sock or response_socket[0]
+                    if active_socket is not None:
+                        active_socket.settimeout(remaining)
                     chunk = response.read1(min(64 * 1024, asset.sizeBytes - count))
                     if expired.is_set() or time.monotonic() >= deadline:
                         raise TimeoutError("download_timeout")
