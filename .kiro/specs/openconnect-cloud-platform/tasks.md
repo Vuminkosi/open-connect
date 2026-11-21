@@ -293,3 +293,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an expiry-fenced, provenance-preserving recovery transaction for consumed LiveUI claims with durable usage observations.
 
 - [x] Schedule observed-usage recovery under quota recovery, verify concurrent batches, preserve unknown usage, and exercise a forced real-model worker crash through hosted recovery and PostgreSQL.
+
+- [x] Provide an operator-authorized, paginated view and API for expired consumed LiveUI requests with unknown token usage. Resolution using authoritative evidence remains outstanding.

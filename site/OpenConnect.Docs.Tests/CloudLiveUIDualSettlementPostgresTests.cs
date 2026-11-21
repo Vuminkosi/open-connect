@@ -9,6 +9,35 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudLiveUIDualSettlementPostgresTests
 {
     [CloudPostgresFact]
+    public async Task ReconciliationReaderPagesOnlyExpiredConsumedUsageWithoutObservations()
+    {
+        var unknown = new[] { await Fixture.CreateAsync(), await Fixture.CreateAsync(), await Fixture.CreateAsync() };
+        var observed = await Fixture.CreateAsync(); var fresh = await Fixture.CreateAsync();
+        var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(observed.Factory, TimeProvider.System));
+        Assert.Equal("observed", await service.ObserveAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, new(30, 20), default));
+        var expiry = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await using (var db = await observed.Factory.CreateDbContextAsync())
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE cloud.quota_reservations SET "ExpiresAt" = {expiry}
+                WHERE "Id" IN ({unknown[0].ReservationId}, {unknown[1].ReservationId}, {unknown[2].ReservationId}, {observed.ReservationId})
+                """);
+        var reader = new EfCloudLiveUIReconciliationReader(observed.Factory);
+        CloudLiveUIReconciliationCursor? cursor = null;
+        var all = new List<CloudLiveUIUnknownUsage>();
+        for (var page = 0; page < 100; page++)
+        {
+            var rows = await reader.ReadUnknownAsync(cursor, 2, DateTimeOffset.UtcNow.AddMinutes(-5), default);
+            if (rows.Count == 0) break;
+            all.AddRange(rows);
+            cursor = new(rows[^1].ExpiresAt, rows[^1].ReservationId);
+        }
+        foreach (var item in unknown) Assert.Single(all, x => x.ReservationId == item.ReservationId && x.ReservedTokens == 100);
+        Assert.DoesNotContain(all, x => x.ReservationId == observed.ReservationId || x.ReservationId == fresh.ReservationId);
+        Assert.Equal(all.Count, all.Select(x => x.ReservationId).Distinct().Count());
+        Assert.Equal("failed", await service.FailAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, new(30, 20), default));
+    }
+
+    [CloudPostgresFact]
     public async Task ObservedRecoveryBatchReconcilesExpiredUsageAndLeavesUnknownAndFreshWorkHeld()
     {
         var observed = await Fixture.CreateAsync(); var unknown = await Fixture.CreateAsync(); var fresh = await Fixture.CreateAsync();

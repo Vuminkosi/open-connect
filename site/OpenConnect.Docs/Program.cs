@@ -141,6 +141,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIUnclaimedRecoveryStore, EfCloudLiveUIUnclaimedRecoveryStore>();
     builder.Services.AddScoped<ICloudLiveUIUnconsumedRecoveryStore, EfCloudLiveUIUnconsumedRecoveryStore>();
     builder.Services.AddScoped<CloudLiveUIObservedRecovery>();
+    builder.Services.AddScoped<ICloudLiveUIReconciliationReader, EfCloudLiveUIReconciliationReader>();
+    builder.Services.AddScoped<CloudLiveUIReconciliation>();
     builder.Services.AddScoped<ICloudUnconsumedClaimRecoveryStore, EfCloudUnconsumedClaimRecoveryStore>();
     builder.Services.AddScoped<CloudUnconsumedClaimRecovery>();
     if (builder.Configuration.GetValue<bool>("OpenConnect:Cloud:QuotaRecovery:UnconsumedClaimsEnabled"))
@@ -280,6 +282,7 @@ if (workerTrust is not null)
     app.MapCloudWorkerReadiness(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 app.MapCloudControlPlaneEndpoints(cloudOidc["Authority"], !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+app.MapCloudLiveUIReconciliation(!string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 app.MapCloudIdentityEndpoints(cloudIdentityEnabled, googleIdentityEnabled);
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
