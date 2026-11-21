@@ -105,6 +105,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddSingleton(new CloudClassificationPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
     builder.Services.AddCloudVoiceFeature();
+    builder.Services.AddCloudTranslationFeature();
     builder.Services.AddScoped<ICloudInferencePrivacyEvidenceStore, EfCloudInferencePrivacyEvidenceStore>();
     builder.Services.AddSingleton(new CloudInferenceOutputPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddScoped<ICloudInferenceOutputEvidenceStore, EfCloudInferenceOutputEvidenceStore>();
@@ -258,6 +259,7 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferencePrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudVoiceGatewayEndpoints(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudTranslationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
