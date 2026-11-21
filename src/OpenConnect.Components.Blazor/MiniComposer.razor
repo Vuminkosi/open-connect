@@ -19,7 +19,7 @@
                     Color="Color.Default"
                     Size="Size.Large"
                     aria-label="@(_open ? $"Close {AssistantName}" : $"Open {AssistantName}")"
-                    aria-expanded="@_open"
+                    aria-expanded="@(_open ? "true" : "false")"
                     OnClick="@Toggle"
                     Class="@($"oc-anchored-fab {FabClass}")"
                     Style="@FabStyle" />

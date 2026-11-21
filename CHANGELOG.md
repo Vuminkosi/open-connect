@@ -10,6 +10,14 @@
 
 - LiveUI compiled interactive targets now require confirmation by default when they expose activation, value-setting, or selection capabilities. This changes generated manifest hashes and can produce `approval_required` for hosts without a confirmation provider. Tabs and links remain conservative because static markup cannot prove their handlers are side-effect free.
 
+- Made realtime voice transcript admission domain-neutral by default (#73).
+  The SDK retains its existing best-final stream-end fallback but no longer applies
+  Todo-specific early admission or word substitutions. Hosts can opt into additive
+  `IVoiceTranscriptAdmissionPolicy` timing/text customization; this is not an
+  authorization or rejection policy. Both Todo sample hosts explicitly retain their
+  old behavior through shared registration. Applications depending on the previous
+  implicit sample heuristics must register their own policy.
+
 - Fixed speech synthesis worker failure handling (#66): transport/read failures now
   return generic 502 Problem Details and worker timeouts return 504. Worker 503 is
   preserved; worker 408/504 map to 504; all other unsuccessful worker statuses,

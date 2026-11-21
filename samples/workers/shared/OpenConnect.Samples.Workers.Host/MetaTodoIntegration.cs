@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
@@ -472,6 +473,7 @@ public static class MetaCloudRegistration
     public static IServiceCollection AddMetaTodoIntegration(this IServiceCollection services, IConfiguration configuration)
     {
         var options = MetaCloudOptions.FromConfiguration(configuration);
+        services.TryAddSingleton<IVoiceTranscriptAdmissionPolicy, TodoVoiceTranscriptAdmissionPolicy>();
         services.AddOpenConnectRulesDetector();
         services.AddSingleton(Options.Create(options));
         services.AddHttpClient<TodoServiceClient>(client => client.BaseAddress = new Uri(options.TodoServiceUrl.TrimEnd('/') + "/internal/openconnect/todos/"))

@@ -92,13 +92,16 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
         var cut = RenderMiniComposer(this, NewSession());
 
         Assert.Empty(cut.FindAll(".oc-bubble"));
+        Assert.Equal("false", cut.Find(".oc-anchored-fab").GetAttribute("aria-expanded"));
 
         cut.Find(".oc-anchored-fab").Click();
         Assert.Single(cut.FindAll(".oc-bubble"));
+        Assert.Equal("true", cut.Find(".oc-anchored-fab").GetAttribute("aria-expanded"));
         Assert.Equal("Close Assistant", cut.Find(".oc-anchored-fab").GetAttribute("aria-label"));
 
         cut.Find("button[aria-label='Minimize assistant']").Click();
         Assert.Empty(cut.FindAll(".oc-bubble"));
+        Assert.Equal("false", cut.Find(".oc-anchored-fab").GetAttribute("aria-expanded"));
         Assert.Equal("Open Assistant", cut.Find(".oc-anchored-fab").GetAttribute("aria-label"));
     }
 

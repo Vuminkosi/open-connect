@@ -159,6 +159,9 @@ OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Progressing = 3 ->
 OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus.Started = 2 -> OpenConnect.Hosting.AspNetCore.Execution.ToolInvocationStatus
 OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
 OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
+OpenConnect.Hosting.AspNetCore.IVoiceTranscriptAdmissionPolicy
+OpenConnect.Hosting.AspNetCore.IVoiceTranscriptAdmissionPolicy.NormalizeTranscript(string! transcript) -> string!
+OpenConnect.Hosting.AspNetCore.IVoiceTranscriptAdmissionPolicy.ShouldAdmitEarly(string! authoritativeTranscript) -> bool
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.AppendAsync(OpenConnect.Abstractions.EventRecord! event, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.InMemoryEventJournal() -> void

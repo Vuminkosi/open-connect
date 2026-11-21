@@ -120,6 +120,7 @@ internal static class VoiceRealtimeWebSocketHandler
     private static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token, ILogger logger)
     {
         var buffer = new byte[MaxFrameBytes];
+        var admissionPolicy = context.RequestServices.GetService<IVoiceTranscriptAdmissionPolicy>();
         string? bestFinalTranscript = null;
         string? accumulatedFinalTranscript = null;
         string? longestProviderTranscript = null;
@@ -167,8 +168,8 @@ internal static class VoiceRealtimeWebSocketHandler
                     outgoingText = accumulatedFinalTranscript;
                     if (outgoingText.Length > (bestFinalTranscript?.Length ?? 0))
                         bestFinalTranscript = outgoingText;
-                    if (LooksLikeCompleteTodoTranscript(outgoingText))
-                        await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, outgoingText, tenant, principal, CancellationToken.None).ConfigureAwait(false);
+                    if (admissionPolicy?.ShouldAdmitEarly(outgoingText) == true)
+                        await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, outgoingText, tenant, principal, admissionPolicy, CancellationToken.None).ConfigureAwait(false);
                 }
 
                 var outgoingType = providerError ? "error" : isFinal ? "transcript-final" : speechComplete ? "speech-complete" : "transcript-partial";
@@ -182,10 +183,10 @@ internal static class VoiceRealtimeWebSocketHandler
         }
 
         if (!string.IsNullOrWhiteSpace(bestFinalTranscript))
-            await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, CancellationToken.None).ConfigureAwait(false);
+            await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, admissionPolicy, CancellationToken.None).ConfigureAwait(false);
     }
 
-    private static async Task AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, CancellationToken token)
+    private static async Task AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, IVoiceTranscriptAdmissionPolicy? admissionPolicy, CancellationToken token)
     {
         var key = $"{tenant}:{principal}:{sessionId}:{captureId}:{speechEpoch}";
         if (!CommittedTurns.TryAdd(key, 0))
@@ -194,7 +195,7 @@ internal static class VoiceRealtimeWebSocketHandler
         if (dispatcher is null || context.RequestServices.GetService<IHostTaskExecutionAuthorizer>() is null || context.RequestServices.GetService<IHostTaskExecutor>() is null)
             return;
         var idempotency = $"voice:{captureId}:{speechEpoch}";
-        var taskMessage = NormalizeTodoTranscript(transcript);
+        var taskMessage = admissionPolicy is null ? transcript : admissionPolicy.NormalizeTranscript(transcript);
         var request = new TaskRequest(Guid.NewGuid().ToString("N"), taskMessage, sessionId);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{taskMessage}\n{sessionId}")));
         await dispatcher.AcceptAsync(request, idempotency, fingerprint, new TenantId(tenant), new PrincipalId(principal), token).ConfigureAwait(false);
@@ -209,23 +210,6 @@ internal static class VoiceRealtimeWebSocketHandler
         if (accumulated.EndsWith(segment, StringComparison.OrdinalIgnoreCase))
             return accumulated;
         return $"{accumulated} {segment}";
-    }
-
-    private static bool LooksLikeCompleteTodoTranscript(string transcript)
-    {
-        var value = transcript.ToLowerInvariant();
-        return value.Contains("tomorrow", StringComparison.Ordinal)
-            && value.Contains("weighbridge", StringComparison.Ordinal)
-            && (value.Contains("todo", StringComparison.Ordinal) || value.Contains("create", StringComparison.Ordinal) || value.Contains("check", StringComparison.Ordinal));
-    }
-
-    private static string NormalizeTodoTranscript(string transcript)
-    {
-        return transcript
-            .Replace("toto", "Todo", StringComparison.OrdinalIgnoreCase)
-            .Replace("waybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
-            .Replace("weybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
-            .Replace("weigh bridge", "weighbridge", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryValidateHandshake(string json, string expectedSession, out string captureId, out long speechEpoch)
