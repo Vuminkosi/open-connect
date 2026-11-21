@@ -67,3 +67,16 @@ def test_invalid_limits_are_rejected(options):
 def test_mixed_time_zones_use_elapsed_utc_time():
     stamps = [stamp.astimezone(timezone(timedelta(hours=2))) for stamp in times(8)]
     assert len(run(list(range(8)), timestamps=stamps).points) == 3
+
+
+def test_forecast_rejects_horizon_beyond_datetime_range():
+    end = datetime.max.replace(tzinfo=timezone.utc, microsecond=0)
+    stamps = [end - timedelta(days=7 - index) for index in range(8)]
+    with pytest.raises(ValueError, match="invalid_timestamp"):
+        run(list(range(8)), timestamps=stamps)
+
+
+def test_forecast_rejects_timezone_conversion_outside_datetime_range():
+    stamps = [datetime.min.replace(tzinfo=timezone(timedelta(hours=1)))]
+    with pytest.raises(ValueError, match="invalid_timestamp"):
+        run([1], timestamps=stamps)

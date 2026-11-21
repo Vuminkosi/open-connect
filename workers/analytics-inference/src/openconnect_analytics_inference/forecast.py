@@ -71,7 +71,10 @@ def forecast(values: Sequence[float | None], timestamps: Sequence[datetime], *,
     for timestamp in timestamps:
         if not isinstance(timestamp, datetime) or timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise ValueError("invalid_timestamp")
-        times.append(timestamp.astimezone(timezone.utc))
+        try:
+            times.append(timestamp.astimezone(timezone.utc))
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("invalid_timestamp") from exc
     observed = sum(value is not None for value in numbers)
     common = dict(algorithm_version="seasonal-naive-v1", interval_seconds=interval_seconds,
                   seasonal_period=seasonal_period, sample_size=len(numbers), observed_count=observed,
@@ -87,6 +90,13 @@ def forecast(values: Sequence[float | None], timestamps: Sequence[datetime], *,
         warnings.append("insufficient_history")
     if warnings:
         return Forecast(**common, points=(), backtest=None, warnings=tuple(warnings))
+
+    # Reject the entire result if any forecast timestamp is outside the supported
+    # datetime range. Do this before building points to avoid a partial forecast.
+    try:
+        times[-1] + timedelta(seconds=interval_seconds * horizon)
+    except OverflowError as exc:
+        raise ValueError("invalid_timestamp") from exc
 
     series = [float(value) for value in numbers if value is not None]
     start = len(series) - holdout
