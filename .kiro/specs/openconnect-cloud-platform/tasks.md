@@ -213,3 +213,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add claim-specific LiveUI access revalidation and share the privacy admission rule across claims, consumption and access checks; gateway monitoring remains outstanding.
 
 - [x] Add the gateway's LiveUI quota, claim, access and output privacy control-plane client; protected dispatch and public route remain outstanding.
+
+- [x] Add mutually authenticated LiveUI worker readiness and claimed dispatch with allowlist validation; admission composition and public route remain outstanding.
