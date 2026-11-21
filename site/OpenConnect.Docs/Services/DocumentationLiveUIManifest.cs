@@ -16,7 +16,10 @@ public static class DocumentationLiveUIManifest
                 new("documentation-show-guides", LiveUITargetKind.Button, "Show integration guides",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
                     Selector: "#docs-show-guides")]),
-            new("documentation-api", "/api", "API reference", [Heading("documentation-api-heading", "Generated API reference")])
+            new("documentation-api", "/api", "API reference", [Heading("documentation-api-heading", "Generated API reference"),
+                new("documentation-api-rest-worker-contracts", LiveUITargetKind.Heading, "REST and worker contracts",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
+                    Selector: "#api-rest-worker-contracts")])
         };
         foreach (var document in documents ?? [])
         {

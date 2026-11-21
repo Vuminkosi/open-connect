@@ -8,6 +8,8 @@ description: .NET solution architecture, package boundaries, and system design f
 
 Documentation LiveUI section targets derive from the same heading identifiers used by the rendered page and its table of contents. They allow read-only inspection, highlighting and scrolling on public documentation routes; Cloud management remains user-operated.
 
+The API reference also exposes its REST and worker contracts heading as a read-only LiveUI target, so guided navigation can distinguish that section from the generated .NET reference.
+
 When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
 
 The opt-in local Cloud management browser check compares tenant-scoped ledger state around public documentation and authenticated management visits. It requires an isolated test tenant so concurrent capability calls do not affect the comparison.

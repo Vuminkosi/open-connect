@@ -14,6 +14,22 @@ namespace OpenConnect.Docs.Tests;
 public sealed class DocumentationAssistantTests
 {
     [Fact]
+    public async Task ApiReferenceContractSectionSupportsReadOnlyGuidance()
+    {
+        var manifest = DocumentationLiveUIManifest.Create();
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/api");
+        var target = route.Targets.Single(item => item.Id == "documentation-api-rest-worker-contracts");
+        Assert.Equal("#api-rest-worker-contracts", target.Selector);
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Scroll, new(), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer();
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target,
+            action with { Type = LiveUIActionType.Click }))).Allowed);
+    }
+
+    [Fact]
     public async Task DocumentationGuideShowcaseIsTheOnlyAuthorizedButton()
     {
         var builder = WebApplication.CreateBuilder();
