@@ -233,3 +233,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an opt-in host Cloud LiveUI provider, server-only HTTPS transport and required host authorization contract with privacy and proposal validation. Actual host wiring and host-to-Cloud acceptance remain outstanding.
 
 - [x] Share and test the current-page inference capability mapping for host-side Cloud authorization; the concrete host authorizer remains outstanding.
+
+- [x] Add the Blazor Cloud host authorization adapter with current-page and session revalidation. A concrete application session resolver and real host-to-Cloud validation remain outstanding.
