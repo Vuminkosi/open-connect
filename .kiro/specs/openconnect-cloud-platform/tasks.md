@@ -20,6 +20,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [ ] Add member invitation/removal and role management with immutable audit coverage for denied and failed writes.
 - [x] Record membership-change authorization denials and concurrency conflicts in append-only audit records; invitation and validation failure coverage remains outstanding.
 - [x] Record store-level invitation creation and revocation denials and conflicts without recording codes; pre-store validation and acceptance failure auditing remain outstanding.
+- [x] Audit invitation service validation failures and failed acceptance without persisting codes or associating unverified codes with a tenant; HTTP pre-service rejection and abuse controls remain outstanding.
 - [x] Verify initial subject-bound invitation creation and acceptance through an authenticated local OIDC browser session.
 - [x] Verify invitation revocation in an authenticated local OIDC browser and concurrent PostgreSQL acceptance.
 - [ ] Verify revocation across mixed-version deployments; implement abuse controls and safe reinvitation after historical reconciliation.

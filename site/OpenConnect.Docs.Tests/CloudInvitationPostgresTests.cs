@@ -33,6 +33,9 @@ public class CloudInvitationPostgresTests
         var service = new CloudInvitationService(new EfCloudInvitationStore(factory, clock), config, clock);
         var request = new CreateCloudInvitationRequest(target.Issuer, target.SubjectId, "Developer");
         Assert.Equal("invalid_request", (await service.CreateAsync(owner, tenant.Id, new CreateCloudInvitationRequest("https://other.example", target.SubjectId, "Developer"), CancellationToken.None)).Status);
+        Assert.Equal("invalid_request", (await service.RevokeAsync(owner, tenant.Id, Guid.NewGuid(), 0, CancellationToken.None)).Status);
+        const string malformedCode = "not-an-invitation-secret";
+        Assert.Equal("invalid_invitation", await service.AcceptAsync(wrong, malformedCode, CancellationToken.None));
         Assert.Equal("not_found", (await service.CreateAsync(wrong, tenant.Id, request, CancellationToken.None)).Status);
         var created = await service.CreateAsync(owner, tenant.Id, request, CancellationToken.None);
         Assert.Equal("succeeded", created.Status);
@@ -82,7 +85,12 @@ public class CloudInvitationPostgresTests
         Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == administrator.SubjectId &&
             x.Action == "invitation.revoke" && x.Outcome == "forbidden"));
         Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.revoke" && x.Outcome == "conflict"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.create" && x.Outcome == "invalid_request"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.Action == "invitation.revoke" && x.Outcome == "invalid_request"));
+        Assert.True(await verify.AuditEvents.CountAsync(x => x.TenantId == null && x.SubjectId == wrong.SubjectId &&
+            x.Action == "invitation.accept" && x.Outcome == "invalid_invitation" && x.ResourceId == null) >= 2);
         Assert.False(await verify.AuditEvents.AnyAsync(x => x.ResourceId == created.Code || x.ResourceId == revocable.Code));
+        Assert.False(await verify.AuditEvents.AnyAsync(x => x.ResourceId == malformedCode));
         Assert.False(await verify.Memberships.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == racing.SubjectId));
         Assert.NotEqual(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(revocable.Code!)),
             (await verify.Invitations.SingleAsync(x => x.Id == pending.Id)).SecretHash);

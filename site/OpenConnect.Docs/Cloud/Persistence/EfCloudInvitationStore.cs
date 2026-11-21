@@ -6,6 +6,26 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudInvitationStore(IDbContextFactory<CloudControlPlaneDbContext> contextFactory, TimeProvider timeProvider) : ICloudInvitationStore
 {
+    public async Task AuditInvalidAsync(CloudSubject actor, Guid? tenantId, CloudInvitationOperation operation, CancellationToken cancellationToken)
+    {
+        var action = operation switch
+        {
+            CloudInvitationOperation.Create => "invitation.create",
+            CloudInvitationOperation.Revoke => "invitation.revoke",
+            CloudInvitationOperation.Accept => "invitation.accept",
+            _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+        };
+        string? role = null;
+        if (tenantId is not null && operation != CloudInvitationOperation.Accept)
+        {
+            await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+            role = await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
+                x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId).Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
+        }
+        await AuditFailureAsync(actor, tenantId ?? Guid.Empty, role, action, null,
+            operation == CloudInvitationOperation.Accept ? "invalid_invitation" : "invalid_request", cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CloudInvitationSummary>?> ListAsync(CloudSubject actor, Guid tenantId, CancellationToken cancellationToken)
     {
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -77,13 +97,13 @@ public sealed class EfCloudInvitationStore(IDbContextFactory<CloudControlPlaneDb
         var invitation = await db.Invitations.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (invitation is null || !CryptographicOperations.FixedTimeEquals(invitation.SecretHash, secretHash) ||
             invitation.SubjectIssuer != actor.Issuer || invitation.SubjectId != actor.SubjectId ||
-            invitation.AcceptedAt is not null || invitation.RevokedAt is not null || invitation.Revision == int.MaxValue || invitation.ExpiresAt <= now) return "invalid_invitation";
+            invitation.AcceptedAt is not null || invitation.RevokedAt is not null || invitation.Revision == int.MaxValue || invitation.ExpiresAt <= now) return await AcceptFailureAsync("invalid_invitation");
         if (await db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == invitation.TenantId && x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId, cancellationToken))
-            return "invalid_invitation";
+            return await AcceptFailureAsync("invalid_invitation");
 
         // Reinstatement remains disabled until legacy removals can be reconciled safely.
         if (await HasPriorRemovalAsync(db, invitation.TenantId, actor, cancellationToken))
-            return "reinvitation_unavailable";
+            return await AcceptFailureAsync("reinvitation_unavailable");
 
         db.Memberships.Add(new CloudMembership { TenantId = invitation.TenantId, SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
             Role = invitation.Role, Revision = 1, CreatedAt = now });
@@ -91,8 +111,15 @@ public sealed class EfCloudInvitationStore(IDbContextFactory<CloudControlPlaneDb
         invitation.Revision++;
         db.AuditEvents.Add(Audit(actor, invitation.TenantId, invitation.Role, "invitation.accepted", invitation.Id, now));
         try { await db.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); return "succeeded"; }
-        catch (DbUpdateConcurrencyException) { return "invalid_invitation"; }
-        catch (Exception exception) when (IsConflict(exception)) { return "invalid_invitation"; }
+        catch (DbUpdateConcurrencyException) { return await AcceptFailureAsync("invalid_invitation"); }
+        catch (Exception exception) when (IsConflict(exception)) { return await AcceptFailureAsync("invalid_invitation"); }
+
+        async Task<string> AcceptFailureAsync(string outcome)
+        {
+            // Even a valid-looking code does not grant access to a tenant audit trail.
+            await AuditFailureAsync(actor, Guid.Empty, null, "invitation.accept", null, outcome, cancellationToken);
+            return outcome;
+        }
     }
 
     private static async Task<bool> HasPriorRemovalAsync(CloudControlPlaneDbContext db, Guid tenantId, CloudSubject subject, CancellationToken cancellationToken)
@@ -119,7 +146,7 @@ public sealed class EfCloudInvitationStore(IDbContextFactory<CloudControlPlaneDb
         {
             Id = Guid.NewGuid(), TenantId = role is null ? null : tenantId,
             SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId, ActorRole = role ?? "AuthenticatedUser",
-            Action = action, ResourceId = role is null ? tenantId.ToString("D") : invitationId?.ToString("D"),
+            Action = action, ResourceId = role is null ? (tenantId == Guid.Empty ? null : tenantId.ToString("D")) : invitationId?.ToString("D"),
             Outcome = outcome, OccurredAt = timeProvider.GetUtcNow(),
         });
         await auditDb.SaveChangesAsync(cancellationToken);

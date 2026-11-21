@@ -81,6 +81,7 @@ public sealed class CloudInvitationComponentTests : BunitContext
 
     private sealed class FakeStore : ICloudInvitationStore
     {
+        public Task AuditInvalidAsync(CloudSubject actor, Guid? tenantId, CloudInvitationOperation operation, CancellationToken cancellationToken) => Task.CompletedTask;
         public CloudSubject? Actor { get; private set; }
         public CloudSubject? Target { get; private set; }
         private CloudInvitationSummary? _invitation;
