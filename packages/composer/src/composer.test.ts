@@ -262,6 +262,7 @@ describe("createMiniComposer mount/dispose", () => {
     composer.mount(doc.body as unknown as HTMLElement);
     expect(doc.body.children).toHaveLength(1);
     const shadowHost = doc.body.children[0];
+    if (!shadowHost) throw new Error("Composer shadow host was not mounted.");
     expect(shadowHost.className).toBe("oc-composer-shadow-host");
     expect(shadowHost.shadowRoot).not.toBeNull();
     expect(shadowHost.shadowRoot?.children.some((c) => c.className === "oc-composer-host")).toBe(true);
