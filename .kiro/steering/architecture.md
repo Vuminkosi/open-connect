@@ -391,3 +391,5 @@ Analytics execution remains opt-in and returns results only after request and re
 The analytics worker validates canonical tenant scope and the exact payload before consuming a one-use Cloud claim. Invalid, expired, replayed or ambiguous claims never start inference.
 
 When Cloud claim consumption is enabled, the analytics worker disables its unclaimed execution endpoint. Its Cloud endpoint reports measured compute time and retains its execution slot until the calculation thread actually finishes.
+
+Analytics privacy evaluation uses the shared JSON privacy boundary for request and response content and denies processing when the detector is unavailable.
