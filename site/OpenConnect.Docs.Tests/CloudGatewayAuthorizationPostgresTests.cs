@@ -534,7 +534,7 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
                 Assert.False(await db.PrivacyEvidence.AnyAsync(x => x.TraceId == disabled.TraceId));
             var foreign = new CloudCredentialIdentity(Guid.NewGuid(), Guid.NewGuid(), appRecord.Id, "Development", new HashSet<string>());
-            await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), CancellationToken.None));
+            await Assert.ThrowsAsync<DbUpdateException>(() => evidenceStore.AppendAsync(foreign, Guid.NewGuid(), "allowed", Guid.NewGuid().ToString("N"), [], CancellationToken.None));
             Assert.False((await NodeAuthorizeAsync(address, serverCertificate, otherCertificate, issued.Secret!, capability)).Authorized);
             Assert.False((await NodeAuthorizeAsync(address, otherCertificate, clientCertificate, issued.Secret!, capability)).Authorized);
             Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await authorized.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = new string('x', 5000), capability })).StatusCode);
@@ -849,8 +849,9 @@ public sealed class CloudGatewayAuthorizationPostgresTests
     private sealed class SwitchableEvidenceStore(ICloudPrivacyEvidenceStore inner) : ICloudPrivacyEvidenceStore
     {
         public bool Fail { get; set; }
-        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId, CancellationToken cancellationToken) =>
-            Fail ? Task.FromException(new InvalidOperationException("test evidence unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, cancellationToken);
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string outcome, string traceId,
+            IReadOnlyList<CloudPrivacyCategoryCount> categories, CancellationToken cancellationToken) =>
+            Fail ? Task.FromException(new InvalidOperationException("test evidence unavailable")) : inner.AppendAsync(identity, requestId, outcome, traceId, categories, cancellationToken);
     }
 
     private static async Task<CloudPrivacyDecision> NodePrivacyAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string content)
