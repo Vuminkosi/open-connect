@@ -38,6 +38,8 @@ The documentation assistant renders after its interactive server circuit starts,
 
 Interactive documentation examples likewise render their controls after their circuits start, preventing early input from being lost while the surrounding guide remains server-rendered.
 
+The local documentation acceptance suite can exercise the assistant's LiveUI interaction with the synthetic privacy example and verify that the rules firewall reports the expected category.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.

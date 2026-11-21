@@ -47,6 +47,19 @@ test('documentation examples accept input when their controls appear', async ({ 
   await expect(page.getByText('Detected categories:', { exact: false })).toContainText('EMAIL');
 });
 
+test('assistant operates the privacy firewall example through LiveUI', async ({ page }) => {
+  test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
+    'Explicit local documentation acceptance configuration is required.');
+  test.setTimeout(150_000);
+  await page.goto(`${portalOrigin()}/docs/v1/privacy`);
+  await page.getByRole('button', { name: /open openconnect assistant/i }).click();
+  await expect(page.locator('.oc-status__text')).toHaveText('Ready');
+  await page.getByRole('textbox', { name: /message/i }).fill(
+    'Use the privacy firewall example on this page: select the email example and click Check example.');
+  await page.getByRole('button', { name: /send/i }).click();
+  await expect(page.getByText('Detected categories:', { exact: false })).toContainText('EMAIL', { timeout: 120_000 });
+});
+
 test('unavailable local transcription disables microphone and leaves text usable', async ({ page }) => {
   test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
     'Explicit local unavailable-voice acceptance configuration is required.');
