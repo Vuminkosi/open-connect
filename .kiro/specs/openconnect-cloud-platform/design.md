@@ -16,7 +16,7 @@ Public documentation and API reference pages do not require visitor sign-in. The
 
 The generic gateway fixture supports optional application instructions and the existing Kokoro HTTP client for development verification. It uses process-local state and a configured external model provider; it is not the Cloud application gateway, a durable deployment, or evidence of Cloud usage settlement.
 
-The documentation LiveUI manifest exposes the public home, documentation and API indexes, plus routes from the loaded documentation catalog. Navigation is authorized only for those public routes; unknown documentation paths and Cloud management routes remain outside the assistant's navigation authority.
+The documentation LiveUI manifest exposes the public home, documentation and API indexes, plus routes from the loaded documentation catalog. Each route identifies its page heading so navigation can verify the rendered destination and the assistant can inspect, highlight, or scroll to that heading. Navigation is authorized only for those public routes; unknown documentation paths and Cloud management routes remain outside the assistant's navigation authority.
 
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
