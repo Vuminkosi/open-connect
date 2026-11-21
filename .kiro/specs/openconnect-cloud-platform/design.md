@@ -330,4 +330,6 @@ When explicitly enabled, the gateway requires a bounded model context token budg
 
 The application registers dual-reservation, metered-consumption and dual-settlement services and maps their private endpoints under the existing gateway and worker certificate trust boundaries. Activating metering still requires coordinated deployment configuration and recovery for failed or unknown compute.
 
-The root Compose configuration supplies the same opt-in metering flag and context ceiling to both the gateway and LiveUI worker. The default remains disabled; failed or unknown compute and expired reservation recovery must be addressed before operational activation.
+The root Compose configuration supplies the same opt-in metering flag and context ceiling to both the gateway and LiveUI worker. The default remains disabled; failed or unknown compute and claimed-reservation recovery must be addressed before operational activation.
+
+With quota recovery enabled, expired dual LiveUI reservations that never acquired a claim are released atomically after a five-minute grace period. Recovery locks the plan reservation, skips concurrently locked work, and requires both plan and token balances to be valid. A database fence prevents a claim from racing the release, and requires token and plan finalization in the same transaction. Claimed or consumed executions remain held; recovery for those cases and unknown compute is still required.

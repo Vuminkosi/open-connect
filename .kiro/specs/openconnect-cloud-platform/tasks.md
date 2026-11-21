@@ -271,3 +271,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Register the private metered LiveUI services and routes in the application under existing certificate trust boundaries. Coordinated deployment configuration and recovery remain outstanding.
 
 - [x] Wire a common opt-in metering flag and context ceiling into the root Compose gateway and LiveUI worker; recovery remains a prerequisite for operational activation.
+
+- [x] Recover expired unclaimed dual LiveUI reservations under the opt-in quota recovery worker, with atomic balance release, claim fencing, concurrency and migration-upgrade checks. Claimed and unknown usage recovery remain outstanding.
