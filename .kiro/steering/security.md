@@ -6,6 +6,8 @@ description: Authentication, authorization, privacy firewall, PII handling, and 
 
 # OpenConnect Security Steering
 
+The transcription worker's local realtime route is final-only and requires an explicitly verified local model. It cannot fall back to a remote speech provider. Hosts must independently authorize the session and enforce privacy policy; worker authentication does not replace the host security boundary.
+
 ## Core Security Principles
 
 1. **Security and privacy by default** - Firewall enabled, auth always active
