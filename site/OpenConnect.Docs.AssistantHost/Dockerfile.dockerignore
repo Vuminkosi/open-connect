@@ -19,6 +19,8 @@
 !src/OpenConnect.LiveUI.Agents/**
 !src/OpenConnect.LiveUI.Hosting/
 !src/OpenConnect.LiveUI.Hosting/**
+!src/OpenConnect.LiveUI.Inference/
+!src/OpenConnect.LiveUI.Inference/**
 !src/OpenConnect.Privacy/
 !src/OpenConnect.Privacy/**
 !site/

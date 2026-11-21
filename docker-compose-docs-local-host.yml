@@ -6,6 +6,7 @@ services:
       OpenConnect__Assistant__GatewayBearer: ""
       OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}
       OpenConnect__Assistant__VisitorSigningKey: ${OC_DOCS_ASSISTANT_VISITOR_KEY:?Set OC_DOCS_ASSISTANT_VISITOR_KEY}
+      OpenConnect__Assistant__LiveUIWorkerEnabled: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENABLED:-false}
       SSL_CERT_FILE: /run/docs-assistant-ca/ca-bundle.pem
     volumes:
       - ${OC_DOCS_ASSISTANT_CA_BUNDLE:?Set OC_DOCS_ASSISTANT_CA_BUNDLE}:/run/docs-assistant-ca/ca-bundle.pem:ro
@@ -32,6 +33,8 @@ services:
       OpenConnect__Assistant__Model__ApiKey: ${OC_DOCS_ASSISTANT_MODEL_API_KEY:?Set OC_DOCS_ASSISTANT_MODEL_API_KEY}
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?Set OPENCONNECT_WORKER_TOKEN}
+      OpenConnect__LiveUI__Inference__Worker__Endpoint: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_ENDPOINT:-}
+      OpenConnect__LiveUI__Inference__Worker__Token: ${OC_DOCS_ASSISTANT_LIVEUI_WORKER_TOKEN:-}
     volumes:
       - oc_docs_local_tls:/run/openconnect-tls:ro
     restart: unless-stopped

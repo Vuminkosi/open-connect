@@ -293,6 +293,13 @@
           "OpenConnect.LiveUI.Agents": "[1.0.0, )"
         }
       },
+      "openconnect.liveui.inference": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Agents": "[1.0.0, )",
+          "OpenConnect.LiveUI": "[1.0.0, )"
+        }
+      },
       "openconnect.privacy": {
         "type": "Project",
         "dependencies": {

@@ -12,6 +12,7 @@ using OpenConnect.Agents.Templates;
 using OpenConnect.Core;
 using OpenConnect.Docs.AssistantHost.Execution;
 using OpenConnect.Docs.AssistantHost.Identity;
+using OpenConnect.Docs.AssistantHost.LiveUI;
 using OpenConnect.Docs.AssistantHost.Sessions;
 using OpenConnect.Docs.AssistantHost.Speech;
 using OpenConnect.Docs.Services;
@@ -19,6 +20,7 @@ using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore.Protection;
 using OpenConnect.LiveUI.Hosting;
+using OpenConnect.LiveUI.Inference;
 
 var builder = WebApplication.CreateBuilder(args);
 if (!builder.Environment.IsDevelopment())
@@ -61,6 +63,21 @@ builder.Services.AddSingleton<ILiveUIHostExecutionInputsFactory, DocumentationEx
 builder.Services.AddSingleton<IChatClient>(_ => new ChatClient(model, new ApiKeyCredential(apiKey),
     new OpenAIClientOptions { Endpoint = modelEndpoint }).AsIChatClient());
 builder.Services.AddOpenConnectLiveUIHostExecution();
+var workerEndpoint = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Endpoint"];
+var workerToken = builder.Configuration["OpenConnect:LiveUI:Inference:Worker:Token"];
+if (!string.IsNullOrWhiteSpace(workerEndpoint) || !string.IsNullOrWhiteSpace(workerToken))
+{
+    if (!Uri.TryCreate(workerEndpoint, UriKind.Absolute, out var workerUri) || string.IsNullOrWhiteSpace(workerToken) ||
+        workerToken.Any(char.IsWhiteSpace) || workerToken.Any(char.IsControl))
+        throw new InvalidOperationException("LiveUI worker configuration requires a private endpoint and token.");
+    builder.Services.AddLiveUILocalWorkerInferenceProvider(options =>
+    {
+        options.Endpoint = workerUri;
+        options.BearerToken = workerToken;
+    }, registerRouterProvider: false);
+}
+builder.Services.AddScoped<IDocumentationWorkerPlanner, DocumentationWorkerPlanner>();
+builder.Services.AddScoped<DocumentationLiveUIPlanner>();
 
 var app = builder.Build();
 app.Use(async (context, next) =>
@@ -79,4 +96,5 @@ app.UseAuthorization();
 app.UseMiddleware<SpeechPrivacyMiddleware>();
 app.UseWebSockets();
 app.MapOpenConnect();
+app.MapDocumentationLiveUIInference();
 app.Run();

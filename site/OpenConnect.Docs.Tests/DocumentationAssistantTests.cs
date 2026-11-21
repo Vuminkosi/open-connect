@@ -4,12 +4,29 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Client;
 using OpenConnect.Docs.Services;
 using OpenConnect.LiveUI;
+using OpenConnect.LiveUI.Inference;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
 
 public sealed class DocumentationAssistantTests
 {
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    public void LiveUIWorkerRequiresBothGatewayAndExplicitOptIn(bool gateway, bool enabled, bool expected)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
+            ["OpenConnect:Assistant:Enabled"] = gateway.ToString(), ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:LiveUIWorkerEnabled"] = enabled.ToString() });
+        builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
+        using var provider = builder.Services.BuildServiceProvider();
+        Assert.Equal(expected, provider.GetRequiredService<IOptions<LiveUIInferenceOptions>>().Value.Worker.Enabled);
+    }
+
     [Fact]
     public void ConfiguredApplicationCredentialIsAppliedToGatewayRequests()
     {

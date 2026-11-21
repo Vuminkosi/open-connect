@@ -73,6 +73,8 @@ public static class DocumentationAssistant
             options.EnableVoiceOutput = true;
         });
         services.TryAddScoped<ILiveUIActionAuthorizer, DocumentationLiveUIActionAuthorizer>();
+        services.Configure<LiveUIInferenceOptions>(options =>
+            options.Worker.Enabled = configured && configuration.GetValue<bool>("OpenConnect:Assistant:LiveUIWorkerEnabled"));
         services.AddOpenConnectLiveUIBlazor(options =>
         {
             options.Discovery.EnableRuntimeFallback = true;
