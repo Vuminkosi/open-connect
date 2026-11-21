@@ -6,10 +6,12 @@ import hmac
 import logging
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from openconnect_kokoro.config import Settings
+from openconnect_kokoro.cloud_execution import configured_client, execute_cloud
 from openconnect_kokoro.engine import (
     IdempotencyConflict,
     KokoroEngine,
@@ -74,6 +76,17 @@ def capabilities() -> dict[str, object]:
 
 @app.post("/internal/v1/execute", dependencies=[Depends(authenticate)])
 def execute(request: ExecuteRequest) -> dict[str, object]:
+    try:
+        if configured_client() is not None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    return run_synthesis(request)
+
+
+def run_synthesis(request: ExecuteRequest) -> dict[str, object]:
     if request.kind != "speech.synthesize":
         raise HTTPException(status_code=422, detail="unknown kind")
     try:
@@ -98,6 +111,28 @@ def execute(request: ExecuteRequest) -> dict[str, object]:
     if body.speechEpoch is not None:
         response["speechEpoch"] = body.speechEpoch
     return {"schemaVersion": "openconnect.v1", "taskId": request.taskId, "kind": request.kind, "idempotentReplay": replayed, "result": response}
+
+
+@app.post("/internal/cloud/v1/voice-synthesis/execute", dependencies=[Depends(authenticate)])
+async def cloud_execute(request: Request):
+    if request.headers.get("content-type", "").lower() != "application/json" or "content-encoding" in request.headers:
+        raise HTTPException(status_code=415, detail="unsupported media type")
+    body = bytearray()
+    try:
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > 100000:
+                raise HTTPException(status_code=413, detail="request too large")
+            body.extend(chunk)
+        result = await run_in_threadpool(execute_cloud, bytes(body), configured_client(), run_synthesis)
+        if result is None:
+            raise HTTPException(status_code=503, detail="execution unavailable")
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="execution unavailable") from None
+    finally:
+        body[:] = b"\0" * len(body)
 
 
 def _lease(request: TaskLeaseRequest) -> tuple[str, int]:

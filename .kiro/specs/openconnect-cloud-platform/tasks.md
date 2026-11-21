@@ -319,3 +319,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Define and validate a bounded Kokoro-compatible Cloud speech-synthesis request and privacy inspection fields. Authorization, privacy enforcement, metering, worker dispatch and the public route remain outstanding.
 
 - [x] Prepare a claim-bindable Kokoro worker payload and validate bounded PCM/WAV responses without returning the worker's echoed text. Private transport, claims, privacy, accounting and public execution remain outstanding.
+
+- [x] Add opt-in Kokoro Cloud execution with bounded envelopes, worker authentication, payload-bound mutual-TLS claim consumption and legacy-route denial. Control-plane claim issuance/consumption, gateway dispatch, metering and real-system verification remain outstanding.
