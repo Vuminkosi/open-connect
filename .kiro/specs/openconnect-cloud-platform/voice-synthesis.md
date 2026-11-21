@@ -28,4 +28,6 @@ The opt-in live-system test exercises the gateway, mutual-TLS worker and control
 
 The tenant security page presents paginated voice input and output transcript observations to owners, administrators and security analysts. Reads are tenant-scoped and audited, and the view does not expose request text, transcripts or audio. Input decisions and output transcript decisions remain distinct and neither is presented as evidence of audio delivery.
 
+The Cloud overview points to organization-specific service and security views without asserting fixed entitlement, deployment or evidence states.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
