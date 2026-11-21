@@ -296,7 +296,12 @@ internal static class VoiceRealtimeWebSocketHandler
     }
 
     private static Task SendJsonAsync(WebSocket socket, object value, CancellationToken token) => socket.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, JsonOptions)), WebSocketMessageType.Text, true, token);
-    private static Task CloseAsync(WebSocket socket, WebSocketCloseStatus status, string reason, CancellationToken token) => socket.CloseAsync(status, reason, token);
+    internal static async Task CloseAsync(WebSocket socket, WebSocketCloseStatus status, string reason, CancellationToken token)
+    {
+        try { await socket.CloseAsync(status, reason, token).ConfigureAwait(false); }
+        catch (WebSocketException) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
     private static bool TryIdentity(HttpContext context, out Ulid tenant, out Ulid principal)
     {
         tenant = default;

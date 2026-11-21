@@ -81,6 +81,14 @@ public sealed class VoiceRealtimeTranscriptTests
         Assert.Empty(dispatcher.Admissions);
     }
 
+    [Fact]
+    public async Task ClosingAnAlreadyDisconnectedBrowserDoesNotThrow()
+    {
+        using var browser = new ScriptedSocket([]) { ThrowOnClose = true };
+        await VoiceRealtimeWebSocketHandler.CloseAsync(browser, WebSocketCloseStatus.EndpointUnavailable,
+            "transcription_unavailable", CancellationToken.None);
+    }
+
     [Theory]
     [InlineData("matching")]
     [InlineData("wrong")]
@@ -163,12 +171,14 @@ public sealed class VoiceRealtimeTranscriptTests
     {
         private readonly Queue<string> _events = new(events);
         public List<string> Messages { get; } = [];
+        public bool ThrowOnClose { get; init; }
         public override WebSocketCloseStatus? CloseStatus => null;
         public override string? CloseStatusDescription => null;
         public override WebSocketState State => WebSocketState.Open;
         public override string? SubProtocol => null;
         public override void Abort() { }
-        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) => Task.CompletedTask;
+        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken)
+            => ThrowOnClose ? Task.FromException(new WebSocketException()) : Task.CompletedTask;
         public override Task CloseOutputAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) => Task.CompletedTask;
         public override void Dispose() { }
         public override Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)

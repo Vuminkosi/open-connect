@@ -9,6 +9,7 @@ description: Authentication, authorization, privacy firewall, PII handling, and 
 The transcription worker's local realtime route is final-only and requires an explicitly verified local model. It cannot fall back to a remote speech provider. Hosts select this route with `Workers:Transcription:RealtimeLocalOnly`; they must independently authorize the session and enforce privacy policy, since worker authentication does not replace the host security boundary.
 
 Voice clients stop microphone tracks and release audio resources when their transcription connection closes or audio initialization fails, including when a provider is unavailable.
+The voice host treats a disconnected client during an unavailable-worker close as a normal termination and does not expose internal exceptions.
 
 The documentation voice bridge uses short-lived, single-use, session-bound tickets. Visitor credentials remain server-side, the browser connects from the same HTTPS origin, and the application gateway verifies session ownership before accepting audio.
 
