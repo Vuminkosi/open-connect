@@ -19,7 +19,7 @@ public sealed class CloudKnowledgeClaimPostgresTests
         var tenant = await tenants.CreateTenantAsync(owner, "Knowledge claim", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow; var credential = Guid.NewGuid(); var reservation = Guid.NewGuid();
-        var requestId = Guid.NewGuid(); var bucket = Guid.NewGuid(); var fingerprint = new byte[32];
+        var requestId = Guid.NewGuid(); var bucket = Guid.NewGuid(); var deploymentId = Guid.NewGuid(); var fingerprint = new byte[32];
         var reference = "embed-" + Guid.NewGuid().ToString("N"); var digest = "sha256:" + new string('a', 64);
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -33,7 +33,7 @@ public sealed class CloudKnowledgeClaimPostgresTests
                 KeyHash = new byte[32], Fingerprint = "claim-test", Scopes = "[\"knowledge.embed\"]", IssuedAt = now.AddMinutes(-1), ExpiresAt = now.AddHours(1) });
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "knowledge.embed",
                 Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 10, Reserved = 1 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "knowledge.embed", EndpointReference = reference,
+            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "knowledge.embed", EndpointReference = reference,
                 Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision",
                 ModelDigest = digest, ImageDigest = digest, ConcurrencyLimit = 1, Enabled = true });
             await db.SaveChangesAsync();
@@ -51,6 +51,17 @@ public sealed class CloudKnowledgeClaimPostgresTests
         var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Claim()));
         Assert.Single(results, x => x.Status == "claimed" && x.ClaimId is not null);
         Assert.Equal(7, results.Count(x => x.Status == "already_claimed"));
+        var claim = results.Single(x => x.Status == "claimed").ClaimId!.Value;
+        var consume = new EfCloudKnowledgeEmbeddingConsumptionStore(new EfCloudExecutionConsumptionStore(factory, TimeProvider.System));
+        Assert.Equal("unavailable", await consume.ConsumeAsync(reservation, claim, Guid.NewGuid(), new byte[32], default));
+        Assert.Equal("unavailable", await consume.ConsumeAsync(reservation, claim, deploymentId, Enumerable.Repeat((byte)1, 32).ToArray(), default));
+        var evidence = new EfCloudKnowledgeEmbeddingPrivacyEvidenceStore(factory, TimeProvider.System);
+        await evidence.AppendAsync(identity, requestId, "active", fingerprint, "request", "privacy_blocked", new string('b', 32), [new("EMAIL", 1)], 3, default);
+        Assert.Equal("unavailable", await consume.ConsumeAsync(reservation, claim, deploymentId, new byte[32], default));
+        await evidence.AppendAsync(identity, requestId, "active", fingerprint, "request", "allowed", new string('c', 32), [], 3, default);
+        var consumptions = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => consume.ConsumeAsync(reservation, claim, deploymentId, new byte[32], default)));
+        Assert.Single(consumptions, value => value == "consumed");
+        Assert.Equal(7, consumptions.Count(value => value == "already_consumed"));
     }
     private sealed class Factory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>
     {

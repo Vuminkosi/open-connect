@@ -182,7 +182,9 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudOperatorCapabilityAvailabilityService>();
     builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
     builder.Services.AddScoped<CloudExecutionClaimService>();
-    builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();
+    builder.Services.AddScoped<EfCloudExecutionConsumptionStore>();
+    builder.Services.AddScoped<ICloudExecutionConsumptionStore>(services => services.GetRequiredService<EfCloudExecutionConsumptionStore>());
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingConsumptionStore, EfCloudKnowledgeEmbeddingConsumptionStore>();
     builder.Services.AddScoped<CloudExecutionConsumptionService>();
     builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>();
     builder.Services.AddScoped<CloudInferenceConsumptionService>();
@@ -291,6 +293,7 @@ if (hostPrivacyTrust is not null)
 if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudVoiceWorkerEndpoints(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

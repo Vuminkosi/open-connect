@@ -367,3 +367,5 @@ Cloud knowledge embedding reserves request quota and records request and respons
 Cloud worker deployment matching is shared infrastructure: each capability selects its own reader and supplies its own capability identifier to the matcher. Region policy and verified catalog regions are both required.
 
 Cloud knowledge worker claims bind a live reservation to the selected deployment, worker payload fingerprint and latest request privacy decision. Claim and quota operations serialize to prevent duplicate execution or racing refunds.
+
+A knowledge worker consumes a claim only once, using its pinned deployment identity and matching payload proof. Tenant authorization, deployment and the latest request privacy decision are rechecked at consumption.
