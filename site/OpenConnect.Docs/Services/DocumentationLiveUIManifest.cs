@@ -12,7 +12,10 @@ public static class DocumentationLiveUIManifest
             new("documentation-index", "/docs", "Documentation", [Heading("documentation-index-heading", "Documentation"),
                 new("documentation-search", LiveUITargetKind.Input, "Search documentation",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Focus, LiveUICapability.SetValue },
-                    Selector: "#docs-search")]),
+                    Selector: "#docs-search"),
+                new("documentation-show-guides", LiveUITargetKind.Button, "Show integration guides",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
+                    Selector: "#docs-show-guides")]),
             new("documentation-api", "/api", "API reference", [Heading("documentation-api-heading", "Generated API reference")])
         };
         foreach (var document in documents ?? [])

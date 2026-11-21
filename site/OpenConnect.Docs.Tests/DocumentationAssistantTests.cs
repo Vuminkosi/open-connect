@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Client;
+using OpenConnect.Components.Blazor;
 using OpenConnect.Docs.Services;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;
@@ -12,6 +13,32 @@ namespace OpenConnect.Docs.Tests;
 
 public sealed class DocumentationAssistantTests
 {
+    [Fact]
+    public async Task DocumentationGuideShowcaseIsTheOnlyAuthorizedButton()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddOpenConnectComponents();
+        builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
+        using var services = builder.Services.BuildServiceProvider();
+        using var scope = services.CreateScope();
+        var registry = scope.ServiceProvider.GetRequiredService<OpenConnect.Components.Blazor.OpenConnectComponentRegistry>();
+        foreach (var registration in scope.ServiceProvider.GetServices<OpenConnect.Components.Blazor.IConfigureOpenConnectComponent>())
+            registration.Apply(registry);
+        Assert.True(registry.IsRegistered("documentation-guides"));
+
+        var manifest = DocumentationLiveUIManifest.Create();
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs");
+        var target = route.Targets.Single(item => item.Id == "documentation-show-guides");
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Click, new(), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer();
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target with { Id = "other" }, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target, action with { Type = LiveUIActionType.SetValue }))).Allowed);
+    }
+
     [Fact]
     public async Task LiveUIExposesOnlyRenderedDocumentationSectionsForReadOnlyGuidance()
     {

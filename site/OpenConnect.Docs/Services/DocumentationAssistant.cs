@@ -8,6 +8,7 @@ using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using Microsoft.Extensions.Options;
 using OpenConnect.Docs.Services.Voice;
+using OpenConnect.Docs.Components.AssistantShowcase;
 
 namespace OpenConnect.Docs.Services;
 
@@ -23,6 +24,8 @@ public static class DocumentationAssistant
         services.AddSingleton(provider => DocumentationLiveUIManifest.Create(
             provider.GetRequiredService<DocumentationContentStore>().Documents));
         services.AddMudServices();
+        services.AddOpenConnectComponent<DocumentationGuidesCard>(new OpenConnectComponentDescriptor(
+            "documentation-guides", "Integration guides", "Links to getting started, privacy and LiveUI documentation."));
         if (configured)
         {
             var credential = configuration["OpenConnect:Assistant:GatewayBearer"];

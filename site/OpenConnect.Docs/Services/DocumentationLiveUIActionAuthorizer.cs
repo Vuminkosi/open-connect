@@ -19,6 +19,8 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
         }
         if (context.Action.Type == LiveUIActionType.ClearHighlight) return Allow();
         if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null) return Allow();
+        if (context.Route.Path == "/docs" && context.Target is { Id: "documentation-show-guides", Kind: LiveUITargetKind.Button })
+            return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
         if (context.Route.Path == "/docs" && context.Target is { Id: "documentation-search", Kind: LiveUITargetKind.Input })
             return context.Action.Type switch
             {
