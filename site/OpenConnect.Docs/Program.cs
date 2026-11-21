@@ -135,6 +135,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
     builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingPrivacyEvidenceStore, EfCloudKnowledgeEmbeddingPrivacyEvidenceStore>();
+    builder.Services.AddSingleton(new CloudJsonPrivacyService(new RulesSecurityDetector()));
     builder.Services.AddScoped<ICloudHostPrivacyEvidenceStore, CloudHostPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudHostPrivacyObservationReader, CloudHostPrivacyObservationReader>();
     builder.Services.AddScoped<ICloudHostPrivacyCaseReader, CloudHostPrivacyObservationReader>();
@@ -273,6 +275,8 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

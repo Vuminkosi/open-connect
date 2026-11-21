@@ -361,3 +361,5 @@ Host privacy report reads require tenant security membership, repeat authorizati
 The Cloud security dashboard links to a separate host privacy report view. It clears displayed evidence on identity or tenant changes and distinguishes host decisions from Cloud classification checks.
 
 Cloud documentation and tenant management visits do not consume tenant API quota or usage. Billing verification compares the tenant ledger before and after authenticated management navigation.
+
+Cloud knowledge embedding reserves request quota and records request and response privacy evidence bound to the authenticated tenant, application and request fingerprint. The latest decision gates subsequent execution, and evidence is append-only.
