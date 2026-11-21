@@ -1,4 +1,5 @@
 @page "/api"
+@rendermode InteractiveServer
 @inject GeneratedApiStore Api
 <PageTitle>Generated API reference · OpenConnect</PageTitle>
 <HeadContent><link rel="canonical" href="/api" /><meta name="description" content="Generated OpenConnect .NET API metadata and versioned REST contracts." /></HeadContent>
@@ -11,7 +12,35 @@
 else
 {
     <p>@Api.Documents.Count generated API documents are available.</p>
-    <div class="api-list">@foreach (var document in Api.Documents) { <details><summary>@document.Name</summary><pre><code>@document.Content</code></pre></details> }</div>
+    <label for="api-search">Search API documents</label>
+    <input id="api-search" type="search" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+    <p role="status">@Filtered.Count matching API documents.</p>
+    @if (Filtered.Count == 0)
+    {
+        <p>No API documents match your search.</p>
+    }
+    else
+    {
+        <div class="api-list">@foreach (var document in Filtered.Skip(_page * PageSize).Take(PageSize)) { <details><summary>@document.Name</summary><pre><code>@document.Content</code></pre></details> }</div>
+        <nav aria-label="API document pages">
+            <button type="button" @onclick="PreviousPage" disabled="@(_page == 0)">Previous</button>
+            <span>Page @(_page + 1) of @PageCount</span>
+            <button type="button" @onclick="NextPage" disabled="@(_page + 1 >= PageCount)">Next</button>
+        </nav>
+    }
 }
 <h2 id="api-rest-worker-contracts">REST and worker contracts</h2>
 <p><a href="/docs/v1/rest-api">Read the versioned REST and worker contract guide</a>.</p>
+
+@code {
+    private const int PageSize = 20;
+    private string _search = string.Empty;
+    private int _page;
+    private IReadOnlyList<GeneratedApiDocument> Filtered => string.IsNullOrWhiteSpace(_search)
+        ? Api.Documents
+        : Api.Documents.Where(document => document.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+    private int PageCount => Math.Max(1, (Filtered.Count + PageSize - 1) / PageSize);
+    private void ResetPage() => _page = 0;
+    private void PreviousPage() => _page = Math.Max(0, _page - 1);
+    private void NextPage() => _page = Math.Min(PageCount - 1, _page + 1);
+}
