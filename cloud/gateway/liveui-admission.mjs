@@ -45,4 +45,3 @@ export async function withLiveUIAdmission({ credential, identity, body, deployme
     } catch { return unavailable(); }
     finally { raw?.fill(0); payload?.fill(0); key?.fill(0); proof?.fill(0); requestFingerprint?.fill(0); }
 }
-

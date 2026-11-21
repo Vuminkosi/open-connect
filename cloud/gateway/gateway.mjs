@@ -3,6 +3,8 @@ import { createTraceContext } from './trace-context.mjs';
 import { executeClassification } from './classification-execution.mjs';
 import { withInferenceRequest } from './inference-request.mjs';
 import { executeInference } from './inference-execution.mjs';
+import { withLiveUIRequest } from './liveui-request.mjs';
+import { executeLiveUI } from './liveui-execution.mjs';
 
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
@@ -43,29 +45,32 @@ function problem(code, traceId) {
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
-export async function handle(request, { authorization, classificationProbe, classificationExecution, inferenceExecution } = {}) {
+export async function handle(request, { authorization, classificationProbe, classificationExecution, inferenceExecution, liveUIExecution } = {}) {
     const trace = createTraceContext(request.headers?.get('traceparent'));
     const reject = code => problem(code, trace.traceId);
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/ready') {
-        if ((!classificationExecution && !inferenceExecution) || !authorization || typeof authorization.isReady !== 'function' ||
+        if ((!classificationExecution && !inferenceExecution && !liveUIExecution) || !authorization || typeof authorization.isReady !== 'function' ||
             (classificationExecution && !classificationProbe))
             return reject('capability_unavailable');
         try {
             const signal = request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000);
-            const [controlReady, classificationReady, inferenceReady, tokenizerReady] = await Promise.all([
+            const [controlReady, classificationReady, inferenceReady, tokenizerReady, liveUIReady] = await Promise.all([
                 authorization.isReady(signal, trace.traceparent),
                 classificationExecution ? classificationProbe.probe(signal, trace.traceparent, true, classificationExecution.deploymentId) : null,
                 inferenceExecution ? inferenceExecution.probe.probe(signal, trace.traceparent) : null,
                 inferenceExecution ? inferenceExecution.tokenizer.ready(signal) : null,
+                liveUIExecution ? liveUIExecution.probe.probe(signal, trace.traceparent) : null,
             ]);
             if (signal.aborted || controlReady !== true || (classificationExecution && classificationReady?.ready !== true) ||
-                (inferenceExecution && (inferenceReady !== true || tokenizerReady !== true))) return reject('capability_unavailable');
+                (inferenceExecution && (inferenceReady !== true || tokenizerReady !== true)) ||
+                (liveUIExecution && liveUIReady !== true)) return reject('capability_unavailable');
             const capabilities = [];
             if (classificationExecution) capabilities.push('classification.classify');
             if (inferenceExecution) capabilities.push('inference.chat');
+            if (liveUIExecution) capabilities.push('inference.liveui');
             return Response.json({ status: 'ready', capabilities }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
         } catch { return reject('capability_unavailable'); }
     }
@@ -96,6 +101,27 @@ export async function handle(request, { authorization, classificationProbe, clas
                 if (result.status !== 'completed') return reject(result.status);
                 return Response.json({ schemaVersion: 'openconnect.cloud.inference.result/v1', requestId: value.requestId,
                     modelId: value.modelId, traceId: trace.traceId, output: result.result.output, usage: result.result.usage },
+                { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+            });
+            return outcome instanceof Response ? outcome : reject(outcome.code);
+        } catch { return reject('capability_unavailable'); }
+    }
+    if (capability === 'inference.liveui' && liveUIExecution) {
+        try {
+            if (!await liveUIExecution.probe.probe(request.signal, trace.traceparent)) return reject('capability_unavailable');
+            const outcome = await withLiveUIRequest(request, async (value, body) => {
+                const remaining = Date.parse(value.expiresAt) - Date.now();
+                if (remaining <= 0) return reject('upstream_timeout');
+                const deadline = AbortSignal.timeout(remaining);
+                const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
+                const result = await executeLiveUI({ credential: match[1], identity: decision.identity, body,
+                    deployment: liveUIExecution.deployment, modelId: liveUIExecution.modelId, signal, traceparent: trace.traceparent },
+                { ...liveUIExecution, authorization });
+                if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
+                if (signal.aborted) return reject('capability_unavailable');
+                if (result.status !== 'completed') return reject(result.status);
+                return Response.json({ schemaVersion: 'openconnect.cloud.liveui.result/v1', requestId: value.requestId,
+                    traceId: trace.traceId, plan: result.result.plan, provider: result.result.provider },
                 { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
             });
             return outcome instanceof Response ? outcome : reject(outcome.code);

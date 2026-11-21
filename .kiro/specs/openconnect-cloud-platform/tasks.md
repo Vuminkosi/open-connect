@@ -219,3 +219,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Compose LiveUI input inspection, plan reservation and payload-bound claim before worker dispatch; public execution remains outstanding.
 
 - [x] Gate settled LiveUI proposals on output privacy and ongoing claim access; public routing and end-to-end validation remain outstanding.
+
+- [x] Connect opt-in LiveUI routing, readiness, admission and output enforcement; real-system validation and Compose configuration remain outstanding.

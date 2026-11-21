@@ -266,10 +266,12 @@ The LiveUI claim access endpoint revalidates the original credential, entitlemen
 
 The gateway has a feature-scoped LiveUI control-plane client for fingerprint-key lookup, one-plan reservation, claim creation, access revalidation and output-field inspection over mutual TLS. It fails closed on malformed responses, timeouts and transport errors. This client is not itself a public execution route.
 
-The private LiveUI gateway adapter probes the certificate-bound worker identity and forwards only a claimed payload over mutual TLS. It validates the returned plan against the original exact target-action allowlist and generation limit. The validated proposal still requires Cloud output inspection and application-host authorization; this transport is not yet connected to the public route.
+The private LiveUI gateway adapter probes the certificate-bound worker identity and forwards only a claimed payload over mutual TLS. It validates the returned plan against the original exact target-action allowlist and generation limit. The validated proposal still requires Cloud output inspection and application-host authorization; the public route enables this transport only when explicitly configured.
 
 An offline worker smoke test loaded the existing digest-verified Qwen3 model from a read-only volume and exercised a deterministic allowed plan. That test verifies model loading and deterministic routing only; it does not prove model-generated planning or the complete Cloud request path.
 
-LiveUI admission snapshots the request, inspects every model-visible field, reserves a plan and binds a single-use claim to the exact worker payload. The public execution route and output enforcement remain separate integration steps.
+LiveUI admission snapshots the request, inspects every model-visible field, reserves a plan and binds a single-use claim to the exact worker payload. The public route invokes this admission before worker dispatch.
 
-The LiveUI execution coordinator monitors claim access throughout dispatch and requires output-field privacy inspection and a final access check before releasing a proposal. The public route remains unconnected.
+The LiveUI execution coordinator monitors claim access throughout dispatch and requires output-field privacy inspection and a final access check before releasing a proposal. The opt-in public route requires worker readiness before reading the request.
+
+The opt-in LiveUI gateway route uses a pinned deployment and private mutual TLS. End-to-end runtime validation and deployment configuration remain outstanding.

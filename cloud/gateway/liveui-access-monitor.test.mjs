@@ -25,4 +25,3 @@ test('caller cancellation interrupts a stalled claim check', async () => {
         assert.equal(monitor.signal.aborted, true);
     } finally { monitor.dispose(); }
 });
-
