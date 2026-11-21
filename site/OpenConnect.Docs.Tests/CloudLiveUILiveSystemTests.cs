@@ -46,6 +46,7 @@ public sealed class CloudLiveUILiveSystemTests
         const string modelId = "bartowski/Qwen_Qwen3-0.6B-GGUF";
         var revision = Required("OPENCONNECT_TEST_MODEL_REVISION");
         var digest = Required("OPENCONNECT_TEST_MODEL_DIGEST");
+        var metered = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_METERED"), "true", StringComparison.OrdinalIgnoreCase);
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Required("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
@@ -69,6 +70,8 @@ public sealed class CloudLiveUILiveSystemTests
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = application.Id, CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = application.Id,
                 CapabilityId = "inference.liveui", Unit = "plan", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(15), Limit = 10 });
+            if (metered) db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = application.Id,
+                CapabilityId = "inference.liveui", Unit = "token", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(15), Limit = 20000 });
             await db.SaveChangesAsync();
         }
         var policy = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
@@ -101,6 +104,9 @@ public sealed class CloudLiveUILiveSystemTests
         builder.Services.AddSingleton(new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector()));
         builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
         builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>(); builder.Services.AddScoped<CloudLiveUISettlement>();
+        builder.Services.AddScoped<ICloudLiveUIDualQuotaStore, EfCloudLiveUIDualQuotaStore>(); builder.Services.AddScoped<CloudLiveUIDualQuotaService>();
+        builder.Services.AddScoped<ICloudLiveUIMeteredConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIMeteredConsumption>();
+        builder.Services.AddScoped<ICloudLiveUIDualSettlementStore, EfCloudLiveUIDualSettlementStore>(); builder.Services.AddScoped<CloudLiveUIDualSettlement>();
         builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>(); builder.Services.AddScoped<CloudWorkerReadiness>();
         builder.Services.AddScoped<CloudReadinessService>();
         await using var host = builder.Build();
@@ -108,6 +114,7 @@ public sealed class CloudLiveUILiveSystemTests
         host.MapCloudLiveUIPrivacy(gatewayTrust, true); host.MapCloudLiveUIQuota(gatewayTrust, true); host.MapCloudLiveUIClaim(gatewayTrust, true);
         host.MapCloudLiveUIAccess(gatewayTrust, true); host.MapCloudLiveUIOutputPrivacy(gatewayTrust, true);
         host.MapCloudWorkerReadiness(workerTrust, true); host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudLiveUISettlement(workerTrust, true);
+        host.MapCloudLiveUIDualQuota(gatewayTrust, true); host.MapCloudLiveUIMeteredConsumption(workerTrust, true); host.MapCloudLiveUIDualSettlement(workerTrust, true);
         await host.StartAsync();
         var authorityPort = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
         var suffix = Guid.NewGuid().ToString("N")[..10];
@@ -133,7 +140,8 @@ public sealed class CloudLiveUILiveSystemTests
             var authority = $"https://host.docker.internal:{authorityPort}";
             var modelEnv = new[] { "OPENCONNECT_CLOUD_LIVEUI_ENABLED=true", "MODEL_ENABLED=true", "MODEL_PATH=/models/liveui.gguf",
                 "MODEL_ID=" + modelId, "MODEL_REVISION=" + revision, "MODEL_SHA256=" + digest["sha256:".Length..],
-                "OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED=true", "OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED=true" };
+                "OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED=true", "OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED=true",
+                "OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED=" + (metered ? "true" : "false"), "MODEL_CONTEXT_SIZE=2048" };
             var workerArgs = new List<string> { "run", "-d", "--name", worker, "--network", network, "--network-alias", "cloud-liveui-worker",
                 "--read-only", "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "-v", workerSecrets + ":/run/openconnect-cloud:ro",
                 "-v", Required("OPENCONNECT_TEST_MODEL_VOLUME") + ":/models:ro" };
@@ -150,7 +158,8 @@ public sealed class CloudLiveUILiveSystemTests
                 "-v", gatewaySecrets + ":/run/openconnect-cloud:ro", "-v", Required("OPENCONNECT_TEST_MODEL_VOLUME") + ":/models:ro" };
             var gatewayEnv = new[] { "CLOUD_AUTHORITY_ORIGIN=" + authority, "CLOUD_AUTHORITY_CA_FILE=/run/openconnect-cloud/authority-ca.crt",
                 "CLOUD_AUTHORITY_CERT_FILE=/run/openconnect-cloud/gateway.crt", "CLOUD_AUTHORITY_KEY_FILE=/run/openconnect-cloud/gateway.key",
-                "CLOUD_LIVEUI_EXECUTION_ENABLED=true", "CLOUD_LIVEUI_ORIGIN=https://cloud-liveui-worker:8080",
+                "CLOUD_LIVEUI_EXECUTION_ENABLED=true", "CLOUD_LIVEUI_METERED_ENABLED=" + (metered ? "true" : "false"),
+                "CLOUD_LIVEUI_MODEL_CONTEXT_TOKENS=2048", "CLOUD_LIVEUI_ORIGIN=https://cloud-liveui-worker:8080",
                 "CLOUD_LIVEUI_CA_FILE=/run/openconnect-cloud/worker-ca.crt", "CLOUD_LIVEUI_CERT_FILE=/run/openconnect-cloud/gateway.crt",
                 "CLOUD_LIVEUI_KEY_FILE=/run/openconnect-cloud/gateway.key", "CLOUD_LIVEUI_TOKEN_FILE=/run/openconnect-cloud/worker-token",
                 "CLOUD_LIVEUI_DEPLOYMENT_ID=" + deploymentId, "CLOUD_LIVEUI_ENDPOINT_REFERENCE=" + deploymentRef,
@@ -169,7 +178,14 @@ public sealed class CloudLiveUILiveSystemTests
                 ready = check.IsSuccessStatusCode;
                 if (!ready) await Task.Delay(1000);
             }
-            Assert.True(ready, "Cloud gateway and worker did not become ready.");
+            if (!ready)
+            {
+                var gatewayLogs = await Docker("logs", gateway);
+                var workerLogs = await Docker("logs", worker);
+                const string probe = "import {authorizationFromEnvironment} from './configuration.mjs'; import {liveUIExecutionFromEnvironment} from './liveui-execution-configuration.mjs'; const a=authorizationFromEnvironment(process.env); const l=liveUIExecutionFromEnvironment(process.env,a); console.log(JSON.stringify({authority:await a.isReady(),worker:await l.probe.probe()})); l.keyring.dispose();";
+                var readiness = await Docker("exec", gateway, "node", "--input-type=module", "-e", probe);
+                Assert.Fail($"Cloud gateway and worker did not become ready. Readiness: {readiness} Gateway: {gatewayLogs} Worker: {workerLogs}");
+            }
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential.Secret);
             var requestId = Guid.NewGuid();
             var request = new { schemaVersion = "openconnect.cloud.liveui/v1", requestId, capability = "inference.liveui",
@@ -207,6 +223,18 @@ public sealed class CloudLiveUILiveSystemTests
             Assert.Equal("todo.tab.completed", modelAction.GetProperty("target").GetString());
             var modelReservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenant.Id && item.RequestId == modelRequestId);
             Assert.Equal(1, modelReservation.Actual); Assert.NotNull(modelReservation.FinalizedAt);
+            if (metered)
+            {
+                var total = await verify.Database.SqlQuery<long>($"""
+                    SELECT "InputTokens" + "OutputTokens" AS "Value" FROM cloud.liveui_token_observations
+                    WHERE "PlanReservationId" = {modelReservation.Id}
+                    """).SingleAsync();
+                Assert.InRange(total, 1, 2048);
+                var actual = await verify.Database.SqlQuery<long>($"""
+                    SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {modelReservation.Id}
+                    """).SingleAsync();
+                Assert.Equal(total, actual);
+            }
             Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_privacy_evidence WHERE \"TenantId\" = {tenant.Id} AND \"RequestId\" = {modelRequestId} AND \"Outcome\" = 'allowed'").SingleAsync());
             Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {modelReservation.Id} AND \"Outcome\" = 'allowed'").SingleAsync());
         }
@@ -457,8 +485,9 @@ public sealed class CloudLiveUILiveSystemTests
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Docker unavailable.");
         var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
-        if (process.ExitCode != 0) throw new InvalidOperationException("Docker command failed: " + await errors);
-        return await output;
+        var errorText = await errors;
+        if (process.ExitCode != 0) throw new InvalidOperationException("Docker command failed: " + errorText);
+        return await output + (args[0] == "logs" ? errorText : "");
     }
     private static async Task DockerIgnoreFailure(params string[] args) { try { await Docker(args); } catch { } }
     private static void WriteCertificate(string directory, string name, X509Certificate2 certificate)

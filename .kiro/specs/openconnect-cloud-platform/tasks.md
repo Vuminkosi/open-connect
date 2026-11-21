@@ -275,3 +275,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Recover expired unclaimed dual LiveUI reservations under the opt-in quota recovery worker, with atomic balance release, claim fencing, concurrency and migration-upgrade checks.
 
 - [x] Recover expired, unconsumed LiveUI claims with immutable abandonment evidence and atomic dual-quota release; verify consumption races, legacy classification behavior and migration upgrades. Unknown consumed usage recovery remains outstanding.
+
+- [x] Verify metered and plan-only LiveUI execution against the provisioned model, mutual-TLS control plane and disposable PostgreSQL; check native usage against the finalized token reservation. Production deployment and unknown usage recovery remain outstanding.
