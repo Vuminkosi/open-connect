@@ -219,6 +219,7 @@ Scoped response restoration
 - Never from `agent-runtime.md`, YAML prompts, or checked-in config
 - mTLS for host-to-worker communication
 - Worker credentials scoped to worker identity only
+- The shared signed-envelope JSON decoder rejects duplicate properties, invalid UTF-8 and non-finite numbers before a worker interprets an envelope.
 
 ### Secrets Detection Priority
 
