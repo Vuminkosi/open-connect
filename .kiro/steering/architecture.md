@@ -395,3 +395,5 @@ When Cloud claim consumption is enabled, the analytics worker disables its uncla
 Analytics privacy evaluation uses the shared JSON privacy boundary for request and response content and denies processing when the detector is unavailable.
 
 Analytics usage settlement atomically records append-only compute evidence and finalizes its request reservation. Database guards require a matching consumed completion and current allowed request and response privacy evidence for the same tenant and application.
+
+Analytics control-plane operations require a trusted gateway certificate and an authorized application credential; reservations, privacy decisions, deployment selection and completion are bound to that authenticated scope.
