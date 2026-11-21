@@ -40,6 +40,18 @@ The HTTPS site is `https://localhost:5051` by default; `OPENCONNECT_DOCS_HTTPS_P
 
 Generate the API reference before building the image when that reference is needed. Generated artifacts present under the site directory are included in the image; a clean checkout without generated artifacts still serves the static documentation.
 
+The optional outbox and operational workers require the OpenConnect PostgreSQL schema before startup. For the root Compose database, restore the pinned tools and dependencies, start PostgreSQL, and apply the reviewed sample migrations explicitly:
+
+```powershell
+dotnet tool restore
+dotnet restore samples/PostgreSql/OpenConnect.Samples.PostgreSql.csproj --locked-mode
+docker compose -f docker-compose-all.yml up -d postgres
+./scripts/migrate-local-worker-database.ps1
+docker compose -f docker-compose-all.yml --profile operational up -d worker-outbox worker-operational
+```
+
+The helper uses the running Compose PostgreSQL service's configured user and database. It renders idempotent SQL from the sample migrations; workers do not run schema changes. Back up existing data and review migration compatibility before applying schema changes to a database containing data. This schema is separate from the Cloud control-plane migrations described below.
+
 ## API generation
 
 From the repository root, after a serialized Release build:
