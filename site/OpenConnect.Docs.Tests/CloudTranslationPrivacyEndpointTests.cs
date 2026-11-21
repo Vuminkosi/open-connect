@@ -31,10 +31,12 @@ public sealed class CloudTranslationPrivacyEndpointTests
             new Dictionary<string, CloudTenantCapabilitySelection> { ["translation.translate"] = new() { TenantId = tenant, CapabilityId = "translation.translate", Enabled = true } },
             new Dictionary<string, CloudApplicationCapabilitySelection> { ["translation.translate"] = new() { TenantId = tenant, ApplicationId = application, CapabilityId = "translation.translate", Enabled = true } });
         var evidence = new EvidenceStore();
+        var quota = new TranslationQuotaStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot)).AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton(new CloudTranslationPrivacyService(new RulesSecurityDetector()))
+            .AddSingleton<ICloudTranslationQuotaStore>(quota).AddSingleton<CloudTranslationQuota>()
             .AddSingleton<ICloudTranslationPrivacyEvidenceStore>(evidence).BuildServiceProvider();
         var id = Guid.NewGuid();
         DefaultHttpContext Context(string body)
@@ -69,9 +71,35 @@ public sealed class CloudTranslationPrivacyEndpointTests
         Assert.Equal("privacy_blocked", evidence.Last.Item5);
         evidence.Fail = true;
         Assert.Equal(503, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(Context(safe), trust, true, default)));
+        string Reserve(long characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
+        var quotaNoCert = Context(Reserve(5)); quotaNoCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(quotaNoCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5001)), trust, true, default)));
+        Assert.Equal(400, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5).Replace("{", "{\"characters\":5,", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal(0, quota.Calls);
+        Assert.Equal(200, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5)), trust, true, default)));
+        Assert.Equal((tenant, application, id, "translation.translate", "character", 5L),
+            (quota.Last!.TenantId, quota.Last.ApplicationId, quota.Last.RequestId, quota.Last.CapabilityId, quota.Last.Unit, quota.Last.Amount));
+        quota.Status = "privacy_unavailable";
+        Assert.Equal(503, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5)), trust, true, default)));
+        quota.Status = "quota_exceeded";
+        Assert.Equal(429, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5)), trust, true, default)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
+
+    private sealed class TranslationQuotaStore : ICloudTranslationQuotaStore
+    {
+        public int Calls { get; private set; }
+        public string Status { get; set; } = "reserved";
+        public CloudQuotaRequest? Last { get; private set; }
+        public Task<CloudQuotaResult> ReserveAsync(CloudQuotaRequest request, DateTimeOffset now, CancellationToken cancellationToken)
+        {
+            Calls++; Last = request;
+            return Task.FromResult(new CloudQuotaResult(Status, Status == "reserved" ? Guid.NewGuid() : null));
+        }
+    }
 
     private sealed class EvidenceStore : ICloudTranslationPrivacyEvidenceStore
     {

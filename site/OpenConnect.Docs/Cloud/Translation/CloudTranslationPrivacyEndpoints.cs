@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,20 +17,11 @@ public static class CloudTranslationPrivacyEndpoints
     internal static async Task<IResult> EvaluateAsync(HttpContext context, CloudGatewayClientTrust trust, bool databaseConfigured,
         CancellationToken cancellationToken)
     {
-        context.Response.Headers.CacheControl = "no-store";
-        if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return Results.Unauthorized();
-        if (!databaseConfigured) return Results.StatusCode(503);
-        var authorization = context.Request.Headers.Authorization;
-        if (authorization.Count != 1 || !AuthenticationHeaderValue.TryParse(authorization.ToString(), out var header) ||
-            !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-            header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return Results.Unauthorized();
+        var (identity, error) = await CloudTranslationAuthorization.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
+        if (error is not null) return error;
         try
         {
-            var result = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>()
-                .AuthorizeAsync(header.Parameter, "translation.translate", cancellationToken);
-            if (!result.Authorized || result.Identity is null) return Results.StatusCode(result.Code switch
-                { "unauthorized" => 401, "capability_unavailable" => 503, _ => 403 });
-            return await InspectAsync(context, result.Identity, cancellationToken);
+            return await InspectAsync(context, identity!, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { return Results.StatusCode(503); }

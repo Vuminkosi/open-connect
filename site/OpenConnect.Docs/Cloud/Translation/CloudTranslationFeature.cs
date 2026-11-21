@@ -8,6 +8,8 @@ public static class CloudTranslationFeature
     {
         services.AddSingleton(new CloudTranslationPrivacyService(new RulesSecurityDetector()));
         services.AddScoped<ICloudTranslationPrivacyEvidenceStore, EfCloudTranslationPrivacyEvidenceStore>();
+        services.AddScoped<ICloudTranslationQuotaStore, EfCloudTranslationQuotaStore>();
+        services.AddScoped<CloudTranslationQuota>();
         return services;
     }
 }
