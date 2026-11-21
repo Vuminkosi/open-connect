@@ -11,27 +11,30 @@ ENV UV_COMPILE_BYTECODE=1 \
     TRANSFORMERS_OFFLINE=1 \
     HF_HOME=/models
 
-WORKDIR /app
+WORKDIR /app/workers/inference
 
 FROM base AS dependencies
 ENV CMAKE_BUILD_PARALLEL_LEVEL=2 CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_OPENMP=ON"
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake \
     && rm -rf /var/lib/apt/lists/*
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --extra cloud-inference --no-install-project
+COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
+COPY workers/common/src/ /app/workers/common/src/
+COPY workers/common/verify_install.py /app/workers/common/verify_install.py
+COPY workers/inference/pyproject.toml workers/inference/uv.lock ./
+RUN uv sync --locked --no-cache --no-dev --extra extraction --extra cloud-inference --no-install-project && .venv/bin/python ../common/verify_install.py
 
 FROM base AS runtime
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH=/app/src \
+ENV PATH="/app/workers/inference/.venv/bin:$PATH" \
+    PYTHONPATH=/app/workers/inference/src \
     OC_MODEL_CACHE_DIR=/models \
     MODEL_DIR=/models \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1
-COPY --from=dependencies /app/.venv /app/.venv
-COPY src/ /app/src/
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /models && chown -R 10001:10001 /app /models
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=dependencies /app/workers/inference/.venv /app/workers/inference/.venv
+COPY workers/inference/src/ /app/workers/inference/src/
+RUN mkdir -p /models && chown -R 10001:10001 /app /models
 USER 10001:10001
 
 EXPOSE 8080

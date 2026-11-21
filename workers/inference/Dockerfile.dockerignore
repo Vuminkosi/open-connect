@@ -1,0 +1,14 @@
+**
+!workers
+!workers/common
+!workers/common/pyproject.toml
+!workers/common/verify_install.py
+!workers/common/src
+!workers/common/src/**
+!workers/inference
+!workers/inference/pyproject.toml
+!workers/inference/uv.lock
+!workers/inference/src
+!workers/inference/src/**
+**/__pycache__
+**/*.pyc
