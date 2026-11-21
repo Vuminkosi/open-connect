@@ -165,7 +165,7 @@ public sealed class LiveUIInferenceRouter(
                     cancellationToken.ThrowIfCancellationRequested();
                     return new LiveUIInferenceResult(kind, null, "cancelled", result.Browser);
                 }
-                if (result.Outcome is "browser_response_replay_cache_full" or "rate_limited")
+                if (result.Outcome is "browser_response_replay_cache_full" or "rate_limited" or "conflict")
                 {
                     // Security boundaries and quotas must not be bypassed by fallback or carry a plan.
                     return new LiveUIInferenceResult(kind, null, result.Outcome, result.Browser);

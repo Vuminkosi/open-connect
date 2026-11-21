@@ -229,3 +229,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Publish the versioned LiveUI result schema with valid and invalid fixtures; request-specific host authorization remains required.
 
 - [x] Add a session-bound application-host privacy screen for Cloud LiveUI fields. The host-authorized provider and live host-to-Cloud flow remain outstanding.
+
+- [x] Add an opt-in host Cloud LiveUI provider, server-only HTTPS transport and required host authorization contract with privacy and proposal validation. Actual host wiring and host-to-Cloud acceptance remain outstanding.

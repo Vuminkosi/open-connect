@@ -285,3 +285,5 @@ The versioned LiveUI result schema describes the proposal returned by the Cloud 
 Before Cloud LiveUI egress, the host can snapshot capabilities and apply its own external-model egress gate to the sanitized intent and every transmitted metadata field, including their concatenation. The host must independently authorize the current session and route before supplying the egress context; this screen does not itself establish authorization or send a request.
 
 Host privacy evaluation errors fail closed as privacy denials, preventing provider fallback from treating an unavailable policy as an ordinary planner error.
+
+The Cloud LiveUI host provider requires an application-owned session, route and capability authorizer; screens input through the host egress gate; submits an execution-correlated request over HTTPS without redirects; validates the response against the original allowlist; and screens returned action fields before releasing a proposal. Quota and replay conflicts stop fallback. The host still owns action authorization, browser execution and receipt verification.
