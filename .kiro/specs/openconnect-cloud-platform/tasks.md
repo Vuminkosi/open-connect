@@ -313,3 +313,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Correct the worker-payload migration's SQL terminator and verify generated idempotent Cloud migrations on fresh and partially migrated disposable PostgreSQL databases, including replay.
 
 - [x] Add an explicit local Cloud database creation and migration helper, verified on disposable PostgreSQL for first application, replay, schema presence and preservation of existing data.
+
+- [x] Generate and reload Windows-user-protected local identity credentials without Google OAuth, refusing to replace existing credentials.

@@ -11,6 +11,7 @@ services:
 
   local-identity:
     image: quay.io/keycloak/keycloak:26.3.3
+    restart: unless-stopped
     command: ["start-dev", "--import-realm", "--hostname=https://localhost:9443", "--https-certificate-file=/run/oidc-tls/cert.pem", "--https-certificate-key-file=/run/oidc-tls/key.pem"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${OC_LOCAL_OIDC_ADMIN_USERNAME:?Set OC_LOCAL_OIDC_ADMIN_USERNAME}

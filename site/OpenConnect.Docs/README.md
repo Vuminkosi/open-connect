@@ -45,6 +45,8 @@ For local development without a Google OAuth client, the optional `docker-compos
 docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml -f docker-compose-cloud-local-identity.yml up -d documentation-site local-identity local-identity-loopback
 ```
 
+On Windows, `./scripts/use-cloud-local-identity.ps1 -Create` generates a development account and client secret, encrypts them for the current Windows user outside the repository, and loads them into the current process. On later runs, invoke the script without `-Create` to reload the same values before running Compose. `-ShowLogin` displays the development username and password when needed; keep that output private. The helper refuses to overwrite existing credentials.
+
 The provider uses a persistent development database and imports its realm only on first startup. Changing environment credentials does not update an existing realm. Protect the identity data, certificate and key volumes. This provider is for local development only; it is not a substitute for a deployed identity provider or verification of Google sign-in. A separately migrated Cloud control-plane database is still required for organizations and applications.
 
 To prepare the separate `openconnect_cloud` database on the root Compose PostgreSQL service, restore the pinned tools and site dependencies, start PostgreSQL, and run the explicit migration helper:
