@@ -7,7 +7,7 @@ FROM base AS dependencies
 COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
 COPY workers/common/src/ /app/workers/common/src/
 COPY workers/analytics-inference/pyproject.toml workers/analytics-inference/uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-cache --no-dev --no-install-project
 
 FROM base AS runtime
 ENV PATH="/app/workers/analytics-inference/.venv/bin:$PATH" \

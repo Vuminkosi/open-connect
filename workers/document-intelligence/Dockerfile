@@ -7,7 +7,7 @@ FROM base AS dependencies
 COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
 COPY workers/common/src/ /app/workers/common/src/
 COPY workers/document-intelligence/pyproject.toml workers/document-intelligence/uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-cache --no-dev --no-install-project
 
 FROM base AS runtime
 # Extract only the executable: the Debian tesseract package's language-model
