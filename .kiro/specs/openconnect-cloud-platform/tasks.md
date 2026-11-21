@@ -257,3 +257,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add atomic completed-plan and token settlement with claim-bound append-only usage and a mixed-version plan-finalization fence; failed/unknown usage and execution-path activation remain outstanding.
 
 - [x] Fence dual-reservation consumption against older workers and unpaired or oversized metered authorizations, with PostgreSQL and legacy-upgrade checks. The worker endpoint remains outstanding.
+
+- [x] Add and verify the private metered LiveUI consumption service and mutual-TLS endpoint, including legacy-worker rejection and concurrent replay. Production registration and worker integration remain outstanding.

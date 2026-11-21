@@ -4,9 +4,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace OpenConnect.Docs.Cloud;
 
-public sealed class EfCloudLiveUIConsumptionStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudLiveUIConsumptionStore
+public sealed class EfCloudLiveUIConsumptionStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider)
+    : ICloudLiveUIConsumptionStore, ICloudLiveUIMeteredConsumptionStore
 {
-    public async Task<CloudLiveUIConsumptionResult> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerPayloadFingerprint, CancellationToken cancellationToken)
+    public Task<CloudLiveUIConsumptionResult> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerPayloadFingerprint, CancellationToken cancellationToken) =>
+        ConsumeCoreAsync(reservationId, claimId, deploymentId, workerPayloadFingerprint, null, cancellationToken);
+
+    public Task<CloudLiveUIConsumptionResult> ConsumeMeteredAsync(Guid reservationId, Guid claimId, Guid deploymentId,
+        byte[] workerPayloadFingerprint, int contextTokens, CancellationToken cancellationToken) =>
+        ConsumeCoreAsync(reservationId, claimId, deploymentId, workerPayloadFingerprint, contextTokens, cancellationToken);
+
+    private async Task<CloudLiveUIConsumptionResult> ConsumeCoreAsync(Guid reservationId, Guid claimId, Guid deploymentId,
+        byte[] workerPayloadFingerprint, int? contextTokens, CancellationToken cancellationToken)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -56,6 +65,19 @@ public sealed class EfCloudLiveUIConsumptionStore(IDbContextFactory<CloudControl
         var privacyAllowed = await EfCloudLiveUIPrivacyAdmission.IsAllowedAsync(db, claim.TenantId, claim.ApplicationId,
             reservation.RequestId, reservation.FingerprintKeyId!, reservation.RequestFingerprint, cancellationToken);
         if (!privacyAllowed) return new("unavailable");
+        if (await db.ExecutionConsumptions.AnyAsync(item => item.ReservationId == reservationId, cancellationToken)) return new("already_consumed");
+        if (contextTokens is not null)
+        {
+            var tokenAmount = await db.Database.SqlQuery<long>($"""
+                SELECT "Amount" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {reservationId}
+                  AND "TenantId" = {claim.TenantId} AND "ApplicationId" = {claim.ApplicationId} AND "FinalizedAt" IS NULL FOR UPDATE
+                """).SingleOrDefaultAsync(cancellationToken);
+            if (contextTokens is < 256 or > 32768 || tokenAmount < contextTokens) return new("unavailable");
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+                VALUES ({reservationId}, {claimId}, {deploymentId}, {contextTokens.Value}, {now})
+                """, cancellationToken);
+        }
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_consumptions (\"ReservationId\", \"ClaimId\", \"DeploymentId\", \"ConsumedAt\") VALUES ({reservationId}, {claimId}, {deploymentId}, {now}) ON CONFLICT (\"ReservationId\") DO NOTHING", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return inserted == 1 ? new("consumed", modelId, deployment.ModelRevision, deployment.ModelDigest) : new("already_consumed");

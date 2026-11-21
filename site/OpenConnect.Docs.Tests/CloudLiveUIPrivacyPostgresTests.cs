@@ -72,6 +72,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
             builder.Services.AddScoped<ICloudLiveUIClaimStore, EfCloudLiveUIClaimStore>(); builder.Services.AddScoped<CloudLiveUIClaimService>();
             builder.Services.AddScoped<ICloudLiveUIConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIConsumptionService>();
+            builder.Services.AddScoped<ICloudLiveUIMeteredConsumptionStore, EfCloudLiveUIConsumptionStore>(); builder.Services.AddScoped<CloudLiveUIMeteredConsumption>();
             builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>(); builder.Services.AddScoped<CloudLiveUISettlement>();
             builder.Services.AddSingleton(new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector()));
             builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
@@ -79,6 +80,7 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>(); builder.Services.AddScoped<CloudWorkerReadiness>();
             await using var host = builder.Build(); host.MapCloudLiveUIPrivacy(trust, true); host.MapCloudLiveUIQuota(trust, true); host.MapCloudLiveUIClaim(trust, true);
             host.MapCloudLiveUIConsumption(workerTrust, true); host.MapCloudLiveUISettlement(workerTrust, true); host.MapCloudWorkerReadiness(workerTrust, true);
+            host.MapCloudLiveUIMeteredConsumption(workerTrust, true);
             host.MapCloudLiveUIOutputPrivacy(trust, true); host.MapCloudLiveUIAccess(trust, true); await host.StartAsync();
             var address = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
             using var client = Client(address, server, gateway); using var untrusted = Client(address, server, other); using var workerClient = Client(address, server, worker);
@@ -195,6 +197,55 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Equal(HttpStatusCode.ServiceUnavailable, (await InspectOutput(client, "{\"fields\":[\"v1\",\"activate\",\"safe\"]}", Guid.NewGuid())).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await InspectOutput(client, "{\"fields\":[\"v1\",\"activate\",\"safe\"]}", claim.ClaimId.Value)).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await InspectOutput(client, "{\"fields\":[\"v1\",\"person@\",\"example.test\"]}", claim.ClaimId.Value)).StatusCode);
+            var meteredApp = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Metered app", "Development", default)).Application!;
+            var meteredNow = DateTimeOffset.UtcNow; var meteredTokenBucket = Guid.NewGuid();
+            await using (var db = await factory.CreateDbContextAsync())
+            {
+                db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = meteredApp.Id,
+                    CapabilityId = "inference.liveui", Enabled = true, Revision = 1 });
+                db.QuotaBuckets.AddRange(
+                    new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = meteredApp.Id, CapabilityId = "inference.liveui",
+                        Unit = "plan", PeriodStart = meteredNow.AddMinutes(-1), PeriodEnd = meteredNow.AddHours(1), Limit = 2 },
+                    new CloudQuotaBucket { Id = meteredTokenBucket, TenantId = tenant.Id, ApplicationId = meteredApp.Id, CapabilityId = "inference.liveui",
+                        Unit = "token", PeriodStart = meteredNow.AddMinutes(-1), PeriodEnd = meteredNow.AddHours(1), Limit = 4096 });
+                await db.SaveChangesAsync();
+            }
+            var meteredCredential = await credentials.CreateAsync(owner, tenant.Id, meteredApp.Id, ["inference.liveui"], meteredNow.AddHours(1), default);
+            Assert.Equal("succeeded", meteredCredential.Status);
+            using var meteredClient = Client(address, server, gateway);
+            meteredClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", meteredCredential.Secret);
+            var meteredRequest = Guid.NewGuid();
+            Assert.Equal(HttpStatusCode.OK, (await Inspect(meteredClient, "{\"fields\":[\"v1\",\"safe\",\"route\"]}", meteredRequest)).StatusCode);
+            var dualQuota = new CloudLiveUIDualQuotaService(new EfCloudLiveUIDualQuotaStore(factory, TimeProvider.System), TimeProvider.System);
+            var dualReserved = await dualQuota.ReserveAsync(new(tenant.Id, meteredApp.Id, meteredRequest, "key", new byte[32], 2048, meteredNow.AddMinutes(3)), default);
+            Assert.Equal("reserved", dualReserved.Status);
+            var meteredClaim = await (await meteredClient.PostAsJsonAsync($"{quotaPath}/{dualReserved.ReservationId!.Value:D}/claim", proof)).Content.ReadFromJsonAsync<CloudExecutionClaimResult>();
+            Assert.Equal("claimed", meteredClaim!.Status);
+            var meteredPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId!.Value:D}/consume-metered";
+            using (var legacyMessage = new HttpRequestMessage(HttpMethod.Post,
+                $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId.Value:D}/consume"))
+            {
+                legacyMessage.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(new byte[32]));
+                Assert.Equal(HttpStatusCode.ServiceUnavailable, (await workerClient.SendAsync(legacyMessage)).StatusCode);
+            }
+            async Task<HttpResponseMessage> ConsumeMetered(HttpClient sender, string budget, byte[] binding)
+            {
+                using var message = new HttpRequestMessage(HttpMethod.Post, meteredPath);
+                message.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(binding));
+                message.Headers.Add("X-OpenConnect-Worker-Context-Tokens", budget);
+                return await sender.SendAsync(message);
+            }
+            Assert.Equal(HttpStatusCode.Unauthorized, (await ConsumeMetered(meteredClient, "2048", new byte[32])).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await ConsumeMetered(workerClient, "02048", new byte[32])).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await ConsumeMetered(workerClient, "4096", new byte[32])).StatusCode);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, (await ConsumeMetered(workerClient, "2048", Enumerable.Repeat((byte)1, 32).ToArray())).StatusCode);
+            var meteredAttempts = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => ConsumeMetered(workerClient, "2048", new byte[32])));
+            Assert.Single(meteredAttempts, item => item.StatusCode == HttpStatusCode.OK);
+            Assert.Equal(7, meteredAttempts.Count(item => item.StatusCode == HttpStatusCode.Conflict));
+            var dualSettlement = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(factory, TimeProvider.System));
+            Assert.Equal("completed", await dualSettlement.SettleAsync(dualReserved.ReservationId.Value, meteredClaim.ClaimId.Value, deploymentId, new(410, 31), default));
+            await using (var db = await factory.CreateDbContextAsync())
+                Assert.Equal(441, (await db.QuotaBuckets.SingleAsync(item => item.Id == meteredTokenBucket)).Consumed);
             await VerifyNodeControlPlaneAsync(address, server, gateway, issued.Secret!, first.requestId, reserved.ReservationId.Value, claim.ClaimId.Value, expiry);
             await using (var db = await factory.CreateDbContextAsync())
             {
