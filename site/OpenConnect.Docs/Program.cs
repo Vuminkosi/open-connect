@@ -185,6 +185,7 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<EfCloudExecutionConsumptionStore>();
     builder.Services.AddScoped<ICloudExecutionConsumptionStore>(services => services.GetRequiredService<EfCloudExecutionConsumptionStore>());
     builder.Services.AddScoped<ICloudKnowledgeEmbeddingConsumptionStore, EfCloudKnowledgeEmbeddingConsumptionStore>();
+    builder.Services.AddScoped<ICloudKnowledgeEmbeddingCompletionStore, EfCloudKnowledgeEmbeddingCompletionStore>();
     builder.Services.AddScoped<CloudExecutionConsumptionService>();
     builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>();
     builder.Services.AddScoped<CloudInferenceConsumptionService>();
@@ -286,6 +287,7 @@ if (gatewayTrust is not null)
     app.MapCloudInferenceClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudKnowledgeEmbeddingClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 if (hostPrivacyTrust is not null)

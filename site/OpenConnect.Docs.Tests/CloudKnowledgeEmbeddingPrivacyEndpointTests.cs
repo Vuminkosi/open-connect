@@ -33,12 +33,14 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         var evidence = new EvidenceStore();
         var quota = new QuotaStore();
         var claims = new ClaimStore();
+        var completion = new CompletionStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton<ICloudQuotaStore>(quota).AddSingleton<CloudQuotaService>()
             .AddSingleton<ICloudExecutionClaimStore>(claims).AddSingleton<CloudExecutionClaimService>()
+            .AddSingleton<ICloudKnowledgeEmbeddingCompletionStore>(completion)
             .AddSingleton<ICloudKnowledgeEmbeddingDeploymentReader>(new DeploymentReader())
             .AddSingleton(new CloudJsonPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudKnowledgeEmbeddingPrivacyEvidenceStore>(evidence).BuildServiceProvider();
@@ -92,12 +94,22 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         deploymentContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
         { endpointReference = "embedding", region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
         Assert.Equal(200, Status(await CloudKnowledgeEmbeddingDeploymentEndpoints.MatchAsync(deploymentContext, trust, true, CancellationToken.None)));
+        var completionContext = Context("unused"); completionContext.Request.Body = Stream.Null;
+        Assert.Equal(200, Status(await CloudKnowledgeEmbeddingCompletionEndpoints.CompleteAsync(id, id, completionContext, trust, true, CancellationToken.None)));
+        Assert.Equal((tenant, application, id, id), completion.Last);
+        Assert.Equal(400, Status(await CloudKnowledgeEmbeddingCompletionEndpoints.CompleteAsync(id, id, Context("body"), trust, true, CancellationToken.None)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
     private sealed class DeploymentReader : ICloudKnowledgeEmbeddingDeploymentReader
     {
         public Task<bool> MatchesAsync(Guid tenantId, CloudClassificationDeploymentMatchRequest request, CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+    private sealed class CompletionStore : ICloudKnowledgeEmbeddingCompletionStore
+    {
+        public (Guid, Guid, Guid, Guid) Last { get; private set; }
+        public Task<CloudExecutionCompletionResult> CompleteAsync(Guid tenantId, Guid applicationId, Guid reservationId, Guid claimId, CancellationToken cancellationToken)
+        { Last = (tenantId, applicationId, reservationId, claimId); return Task.FromResult(new CloudExecutionCompletionResult("completed")); }
     }
     private sealed class ClaimStore : ICloudExecutionClaimStore
     {
