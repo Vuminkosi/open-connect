@@ -32,6 +32,8 @@ When the local documentation-host readiness integration is enabled, the site che
 
 If microphone availability is withdrawn during capture, the composer aborts the socket without an end-of-stream request and invalidates the active speech epoch.
 
+The documentation assistant renders after its interactive server circuit starts, so its launcher is not presented before it can receive input. Public documentation remains server-rendered.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.

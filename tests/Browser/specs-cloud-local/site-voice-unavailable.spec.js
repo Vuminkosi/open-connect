@@ -6,16 +6,33 @@ test.use({
   launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
 });
 
-test('unavailable local transcription disables microphone and leaves text usable', async ({ page }) => {
-  test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
-    'Explicit local unavailable-voice acceptance configuration is required.');
+function portalOrigin() {
   const portal = new URL(process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL);
   if (portal.protocol !== 'https:' || !['localhost', '127.0.0.1', '[::1]'].includes(portal.hostname) ||
       portal.username || portal.password || portal.pathname !== '/' || portal.search || portal.hash) {
     throw new Error('Site acceptance requires a loopback HTTPS origin.');
   }
+  return portal.origin;
+}
 
-  await page.goto(`${portal.origin}/docs`);
+test('assistant launcher appears after the interactive circuit starts', async ({ page }) => {
+  test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
+    'Explicit local unavailable-voice acceptance configuration is required.');
+  const origin = portalOrigin();
+  const initial = await page.request.get(`${origin}/docs`);
+  expect(initial.ok()).toBeTruthy();
+  const initialHtml = await initial.text();
+  expect(initialHtml).toContain('<h1>Documentation</h1>');
+  expect(initialHtml).not.toContain('Open OpenConnect Assistant');
+  await page.goto(`${origin}/docs`);
+  await page.getByRole('button', { name: /open openconnect assistant/i }).click();
+  await expect(page.locator('.oc-status__text')).toHaveText('Ready');
+});
+
+test('unavailable local transcription disables microphone and leaves text usable', async ({ page }) => {
+  test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
+    'Explicit local unavailable-voice acceptance configuration is required.');
+  await page.goto(`${portalOrigin()}/docs`);
   await page.getByRole('button', { name: /open openconnect assistant/i }).click();
   await expect(page.locator('.oc-status__text')).toHaveText('Ready');
   await expect(page.getByText('Voice input is unavailable. You can continue using text; voice output is configured separately.'))
