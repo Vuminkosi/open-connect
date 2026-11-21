@@ -34,6 +34,8 @@ The opt-in local Cloud management browser check compares tenant-scoped ledger st
 
 The service catalog and Cloud guides distinguish management access from admitted capability execution and distinguish quota ledger records from invoices.
 
+The Todo reference sample persists its scoped Todo items and OpenConnect state in its application-owned SQLite database; deployment must retain that database if items should survive replacement.
+
 The documentation component showcase uses the SDK component registry and safe renderer. Its single idempotent display action is authorized only on the public documentation index; arbitrary component names and Cloud management controls are not exposed to that action.
 
 Realtime transcription is application-neutral: only provider-confirmed final text may be submitted as a task, and the host does not rewrite it using sample-specific vocabulary. A capture and speech epoch use the host dispatcher's scoped idempotency mechanism. Provider errors and cancellation do not admit an unfinished turn.
