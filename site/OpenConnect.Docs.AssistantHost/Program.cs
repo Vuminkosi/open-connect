@@ -15,6 +15,7 @@ using OpenConnect.Docs.AssistantHost.Identity;
 using OpenConnect.Docs.AssistantHost.LiveUI;
 using OpenConnect.Docs.AssistantHost.Sessions;
 using OpenConnect.Docs.AssistantHost.Speech;
+using OpenConnect.Docs.AssistantHost.Voice;
 using OpenConnect.Docs.Services;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
@@ -51,6 +52,8 @@ builder.Services.AddRateLimiter(options =>
         }));
 });
 builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = TimeSpan.FromSeconds(60));
+builder.Services.AddHttpClient<DocumentationVoiceReadiness>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
 builder.Services.AddOpenConnectAgent("documentation-assistant");
 builder.Services.AddOpenConnectTaskExecution(options => { options.Capacity = 32; options.MaxRetainedTasks = 2048; });
@@ -95,6 +98,11 @@ app.UseRateLimiter();
 app.UseAuthorization();
 app.UseMiddleware<SpeechPrivacyMiddleware>();
 app.UseWebSockets();
+app.MapGet("/internal/docs/voice/model-ready", async (HttpContext context, DocumentationVoiceReadiness readiness, CancellationToken cancellationToken) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new { available = await readiness.IsAvailableAsync(cancellationToken) });
+}).RequireAuthorization();
 app.MapOpenConnect();
 app.MapDocumentationLiveUIInference();
 app.Run();

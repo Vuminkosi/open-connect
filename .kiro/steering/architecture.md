@@ -26,6 +26,8 @@ An opt-in local browser check exercises that failure against an intentionally un
 
 The transcription worker exposes authenticated local-realtime model readiness separately from its general readiness. It checks the local-only model path without cloud fallback and does not reserve a capture slot.
 
+The development documentation application host exposes only an authenticated, bounded boolean readiness result for its configured local transcription worker; the worker credential remains on the host and worker errors fail closed.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.
