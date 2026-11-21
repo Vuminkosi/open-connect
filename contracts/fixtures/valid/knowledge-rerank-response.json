@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","taskId":"fixture","kind":"knowledge.rerank","result":{"model_id":"fixture","fingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","score_type":"raw_logit","candidates":[{"id":"one","score":0.5}]}}
