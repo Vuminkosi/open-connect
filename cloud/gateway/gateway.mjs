@@ -5,6 +5,8 @@ import { withInferenceRequest } from './inference-request.mjs';
 import { executeInference } from './inference-execution.mjs';
 import { withLiveUIRequest } from './liveui-request.mjs';
 import { executeLiveUI } from './liveui-execution.mjs';
+import { withVoiceSynthesisRequest } from './voice-synthesis-request.mjs';
+import { executeVoiceSynthesis } from './voice-synthesis-execution.mjs';
 
 const routes = new Map([
     ['/cloud/v1/inference/chat', 'inference.chat'],
@@ -45,32 +47,36 @@ function problem(code, traceId) {
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
-export async function handle(request, { authorization, classificationProbe, classificationExecution, inferenceExecution, liveUIExecution } = {}) {
+export async function handle(request, { authorization, classificationProbe, classificationExecution, inferenceExecution, liveUIExecution, voiceExecution } = {}) {
     const trace = createTraceContext(request.headers?.get('traceparent'));
     const reject = code => problem(code, trace.traceId);
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/ready') {
-        if ((!classificationExecution && !inferenceExecution && !liveUIExecution) || !authorization || typeof authorization.isReady !== 'function' ||
+        if ((!classificationExecution && !inferenceExecution && !liveUIExecution && !voiceExecution) || !authorization || typeof authorization.isReady !== 'function' ||
             (classificationExecution && !classificationProbe))
             return reject('capability_unavailable');
         try {
             const signal = request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000);
-            const [controlReady, classificationReady, inferenceReady, tokenizerReady, liveUIReady] = await Promise.all([
+            const [controlReady, classificationReady, inferenceReady, tokenizerReady, liveUIReady, voiceReady, voiceScreenReady] = await Promise.all([
                 authorization.isReady(signal, trace.traceparent),
                 classificationExecution ? classificationProbe.probe(signal, trace.traceparent, true, classificationExecution.deploymentId) : null,
                 inferenceExecution ? inferenceExecution.probe.probe(signal, trace.traceparent) : null,
                 inferenceExecution ? inferenceExecution.tokenizer.ready(signal) : null,
                 liveUIExecution ? liveUIExecution.probe.probe(signal, trace.traceparent) : null,
+                voiceExecution ? voiceExecution.probe.probe(signal, trace.traceparent) : null,
+                voiceExecution ? voiceExecution.outputScreen.isReady(signal, trace.traceparent) : null,
             ]);
             if (signal.aborted || controlReady !== true || (classificationExecution && classificationReady?.ready !== true) ||
                 (inferenceExecution && (inferenceReady !== true || tokenizerReady !== true)) ||
-                (liveUIExecution && liveUIReady !== true)) return reject('capability_unavailable');
+                (liveUIExecution && liveUIReady !== true) ||
+                (voiceExecution && (voiceReady !== true || voiceScreenReady !== true))) return reject('capability_unavailable');
             const capabilities = [];
             if (classificationExecution) capabilities.push('classification.classify');
             if (inferenceExecution) capabilities.push('inference.chat');
             if (liveUIExecution) capabilities.push('inference.liveui');
+            if (voiceExecution) capabilities.push('voice.synthesize');
             return Response.json({ status: 'ready', capabilities }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
         } catch { return reject('capability_unavailable'); }
     }
@@ -84,6 +90,31 @@ export async function handle(request, { authorization, classificationProbe, clas
     try { decision = await authorization.authorize(match[1], capability, request.signal, trace.traceparent); }
     catch { return reject('capability_unavailable'); }
     if (decision?.authorized !== true) return reject(decision?.code);
+    if (capability === 'voice.synthesize' && voiceExecution) {
+        try {
+            if (!await voiceExecution.probe.probe(request.signal, trace.traceparent)) return reject('capability_unavailable');
+            const outcome = await withVoiceSynthesisRequest(request, async (value, body) => {
+                const remaining = Date.parse(value.expiresAt) - Date.now();
+                if (remaining <= 0) return reject('upstream_timeout');
+                const deadline = AbortSignal.timeout(remaining);
+                const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
+                const result = await executeVoiceSynthesis({ credential: match[1], identity: decision.identity, body,
+                    deployment: voiceExecution.deployment, modelId: voiceExecution.modelId, signal, traceparent: trace.traceparent }, voiceExecution);
+                const audio = result?.result?.audio;
+                try {
+                    if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
+                    if (signal.aborted) return reject('capability_unavailable');
+                    if (result.status !== 'completed' || !(audio instanceof Uint8Array)) return reject(result.status);
+                    return Response.json({ schemaVersion: 'openconnect.cloud.voice-synthesis.result/v1', requestId: value.requestId,
+                        traceId: trace.traceId, result: { format: result.result.format, sampleRateHz: result.result.sampleRateHz,
+                            channels: result.result.channels, voiceId: result.result.voiceId, locale: result.result.locale,
+                            audioBase64: Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength).toString('base64') } },
+                    { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+                } finally { if (audio instanceof Uint8Array) audio.fill(0); }
+            });
+            return outcome instanceof Response ? outcome : reject(outcome.code);
+        } catch { return reject('capability_unavailable'); }
+    }
     if (capability === 'inference.chat' && inferenceExecution) {
         try {
             if (!await inferenceExecution.probe.probe(request.signal, trace.traceparent)) return reject('capability_unavailable');

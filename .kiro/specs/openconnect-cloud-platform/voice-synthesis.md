@@ -22,4 +22,6 @@ The gateway output screen requires an allowed transcript policy decision and nor
 
 Cloud synthesis readiness requires an authenticated worker with a loaded model, configured claim consumption and a deployment identifier. The gateway verifies that identifier over its configured mutual-TLS transport before dispatch.
 
+The local gateway exposes `POST /cloud/v1/voice/synthesis` only when voice execution is explicitly configured. The JSON result contains the requested audio format and base64 audio without echoing input text. Deployment requires separate protected transports and credentials for the synthesis worker, control plane and audio-inspection worker; the worker's claim-consumption certificate is supplied by deployment-managed mounts. The transcription worker's default limits are insufficient for the full 120-second synthesis maximum and must be raised when voice execution is enabled.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
