@@ -49,6 +49,12 @@ def test_cloud_execution_validates_before_single_use_consumption():
     assert consumer.calls == 2
     assert execute_cloud(b'{"schemaVersion":"x","schemaVersion":"y"}', consumer, invoke) is None
     assert execute_cloud(body, None, invoke) is None
+    malformed_payload = json.loads(payload)
+    malformed_payload["payload"]["text"] = "\ud800"
+    envelope["key"] = base64.b64encode(bytes(32)).decode()
+    envelope["payload"] = base64.b64encode(json.dumps(malformed_payload).encode()).decode()
+    assert execute_cloud(json.dumps(envelope).encode(), consumer, invoke) is None
+    assert consumer.calls == 2
 
 
 def test_cloud_route_requires_auth_and_disables_legacy_bypass(monkeypatch):

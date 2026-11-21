@@ -62,7 +62,7 @@ public static class CloudVoiceQuotaEndpoints
         finally { CryptographicOperations.ZeroMemory(fingerprint); }
     }
 
-    private static async Task<(CloudCredentialIdentity? Identity, IResult? Error)> AuthorizeAsync(HttpContext context,
+    internal static async Task<(CloudCredentialIdentity? Identity, IResult? Error)> AuthorizeAsync(HttpContext context,
         CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         context.Response.Headers.CacheControl = "no-store";

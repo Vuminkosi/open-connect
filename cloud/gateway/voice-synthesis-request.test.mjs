@@ -14,7 +14,7 @@ test('voice requests reflect Kokoro limits and expose all worker-visible text', 
     assert.deepEqual(voiceSynthesisInspectionFields(request), ['Hello world.', 'af_heart', 'en-US', 'wav']);
     assert.throws(() => parseVoiceSynthesisRequest(fixture('invalid'), now));
     for (const mutate of [
-        x => { x.input.text = ' '.repeat(3); }, x => { x.input.text = 'x'.repeat(2001); },
+        x => { x.input.text = ' '.repeat(3); }, x => { x.input.text = 'x'.repeat(2001); }, x => { x.input.text = '\ud800'; },
         x => { x.input.voiceId = 'unsupported'; }, x => { x.input.locale = ''; },
         x => { x.input.format = 'mp3'; }, x => { x.input.extra = true; },
         x => { x.expiresAt = '2030-01-01T00:00:00.000Z'; }, x => { x.expiresAt = '2030-01-01T00:05:00.001Z'; },

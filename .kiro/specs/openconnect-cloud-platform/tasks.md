@@ -323,3 +323,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add opt-in Kokoro Cloud execution with bounded envelopes, worker authentication, payload-bound mutual-TLS claim consumption and legacy-route denial. Control-plane claim issuance/consumption, gateway dispatch, metering and real-system verification remain outstanding.
 
 - [x] Add a private speech character-reservation endpoint implementation with pinned gateway identity, capability authorization, bounded amounts and fingerprint replay lookup. Verify endpoint gates and concurrent scoped reservations in disposable PostgreSQL. Route registration, trusted input-to-amount binding, claim/consumption and settlement remain outstanding.
+
+- [x] Add private speech privacy inspection, append-only fingerprint and character-count evidence, and an admission lookup. Verify Unicode counting, fail-closed evidence writes, latest-decision semantics, immutability and PostgreSQL migration upgrade. Registration and use by speech claims remain outstanding.

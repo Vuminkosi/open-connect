@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Docs.Cloud;
+using OpenConnect.Privacy.Rules;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -30,11 +31,13 @@ public sealed class CloudVoiceQuotaEndpointTests
             new Dictionary<string, CloudTenantCapabilitySelection> { ["voice.synthesize"] = new() { TenantId = tenant, CapabilityId = "voice.synthesize", Enabled = true } },
             new Dictionary<string, CloudApplicationCapabilitySelection> { ["voice.synthesize"] = new() { TenantId = tenant, ApplicationId = application, CapabilityId = "voice.synthesize", Enabled = true } });
         var quotas = new QuotaStore();
+        var evidence = new EvidenceStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>().AddSingleton<ICloudQuotaStore>(quotas)
-            .AddSingleton<CloudQuotaService>().BuildServiceProvider();
+            .AddSingleton<CloudQuotaService>().AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()))
+            .AddSingleton<ICloudVoicePrivacyEvidenceStore>(evidence).BuildServiceProvider();
         var id = Guid.NewGuid();
         string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
             fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
@@ -64,9 +67,43 @@ public sealed class CloudVoiceQuotaEndpointTests
         Assert.Equal(409, Status(await CloudVoiceQuotaEndpoints.ReserveAsync(Context(Json(4)), trust, true, CancellationToken.None)));
         Assert.Equal(200, Status(await CloudVoiceQuotaEndpoints.LookupAsync(Context(""), trust, true, id, CancellationToken.None)));
         Assert.Equal((tenant, application, "voice.synthesize", id), quotas.Lookup);
+
+        DefaultHttpContext PrivacyContext(string body)
+        {
+            var context = Context(body);
+            context.Request.Headers["X-Cloud-Request-Id"] = id.ToString("D");
+            context.Request.Headers["X-Cloud-Fingerprint-Key-Id"] = "active";
+            context.Request.Headers["X-Cloud-Request-Fingerprint"] = Convert.ToBase64String(new byte[32]);
+            return context;
+        }
+        var safe = "{\"text\":\"hello 🌍\",\"voiceId\":\"af_heart\",\"locale\":\"en-US\",\"format\":\"wav\"}";
+        var missingCert = PrivacyContext(safe); missingCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(missingCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe.Replace("{", "{\"text\":\"duplicate\",", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal(0, evidence.Calls);
+        Assert.Equal(200, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe), trust, true, default)));
+        Assert.Equal((tenant, application, id, 7, "allowed"), evidence.Last);
+        Assert.Equal(403, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe.Replace("hello 🌍", "person@example.test", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal("privacy_blocked", evidence.Last.Item5);
+        evidence.Fail = true;
+        Assert.Equal(503, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe), trust, true, default)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
+
+    private sealed class EvidenceStore : ICloudVoicePrivacyEvidenceStore
+    {
+        public int Calls { get; private set; }
+        public bool Fail { get; set; }
+        public (Guid, Guid, Guid, int, string) Last { get; private set; }
+        public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint,
+            int characters, string outcome, string traceId, CancellationToken cancellationToken)
+        {
+            if (Fail) throw new InvalidOperationException();
+            Calls++; Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class QuotaStore : ICloudQuotaStore
     {

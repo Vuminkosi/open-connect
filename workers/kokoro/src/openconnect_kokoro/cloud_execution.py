@@ -74,7 +74,7 @@ def execute_cloud(body: bytes, client: CloudConsumptionClient | None,
                 set(request.payload) != {"schemaVersion", "text", "voiceId", "locale", "format"} or
                 speech.idempotencyKey is not None or speech.speechEpoch is not None or
                 speech.voiceId != "af_heart" or not speech.text.strip() or len(speech.text) > 2000 or
-                not speech.locale):
+                not speech.locale or any(0xD800 <= ord(char) <= 0xDFFF for char in speech.text + speech.locale)):
             return None
         if client.consume(str(envelope.reservationId), str(envelope.claimId), payload, key) != "consumed":
             return None

@@ -16,9 +16,9 @@ export function parseVoiceSynthesisRequest(bytes, now = Date.now()) {
         !Number.isFinite(Date.parse(value.expiresAt)) || new Date(value.expiresAt).toISOString() !== value.expiresAt ||
         !Number.isFinite(now) || Date.parse(value.expiresAt) <= now || Date.parse(value.expiresAt) > now + 300000 ||
         !only(value.input, ['text', 'voiceId', 'locale', 'format']) ||
-        typeof value.input.text !== 'string' || !value.input.text.trim() || length(value.input.text) > 2000 ||
+        typeof value.input.text !== 'string' || !value.input.text.isWellFormed() || !value.input.text.trim() || length(value.input.text) > 2000 ||
         value.input.voiceId !== 'af_heart' || typeof value.input.locale !== 'string' ||
-        length(value.input.locale) < 1 || length(value.input.locale) > 16 || !['wav', 'pcm'].includes(value.input.format))
+        !value.input.locale.isWellFormed() || length(value.input.locale) < 1 || length(value.input.locale) > 16 || !['wav', 'pcm'].includes(value.input.format))
         throw new TypeError('Invalid voice request.');
     Object.freeze(value.input);
     return Object.freeze(value);
