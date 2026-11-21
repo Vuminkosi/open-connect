@@ -36,8 +36,14 @@ public static class DocumentationLiveUIManifest
             var id = $"documentation-{document.Version}-{document.Slug}";
             var targets = new List<LiveUITarget> { Heading($"{id}-heading", document.Title) };
             if (document.Version == "v1" && document.Slug == "privacy")
+            {
+                targets.Add(new LiveUITarget("documentation-privacy-demo-example", LiveUITargetKind.Select,
+                    "Privacy example: email or ordinary",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Focus, LiveUICapability.Select },
+                    Selector: "#privacy-demo-example"));
                 targets.Add(new LiveUITarget("documentation-privacy-demo-run", LiveUITargetKind.Button, "Check the privacy firewall example",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate }, Selector: "#privacy-demo-run"));
+            }
             var sections = DocumentationHeadingIds.Extract(document.Markdown);
             for (var index = 0; index < sections.Count; index++)
             {

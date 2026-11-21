@@ -23,6 +23,14 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
         if (context.Route.Path == "/docs/v1/privacy" && context.Target is { Id: "documentation-privacy-demo-run", Kind: LiveUITargetKind.Button })
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
+        if (context.Route.Path == "/docs/v1/privacy" && context.Target is { Id: "documentation-privacy-demo-example", Kind: LiveUITargetKind.Select })
+            return context.Action.Type switch
+            {
+                LiveUIActionType.Inspect or LiveUIActionType.Focus => Allow(),
+                // LiveUI probes capabilities without a value; the orchestrator rejects value-less execution.
+                LiveUIActionType.Select when context.Action.Parameters.Value is null or "email" or "ordinary" => Allow(),
+                _ => Deny()
+            };
         if ((context.Route.Path == "/docs" && context.Target is { Id: "documentation-search", Kind: LiveUITargetKind.Input }) ||
             (context.Route.Path == "/api" && context.Target is { Id: "documentation-api-search", Kind: LiveUITargetKind.Input }))
             return context.Action.Type switch

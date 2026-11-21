@@ -28,6 +28,16 @@ public sealed class DocumentationAssistantTests
         Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
         Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, target, action))).Allowed);
         Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target with { Id = "other" }, action))).Allowed);
+        var select = route.Targets.Single(item => item.Id == "documentation-privacy-demo-example");
+        var selection = action with { TargetId = select.Id, Type = LiveUIActionType.Select, Parameters = new(Value: "ordinary") };
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select, selection))).Allowed);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select,
+            selection with { Parameters = new(Value: "email") }))).Allowed);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, select,
+            selection with { Parameters = new() }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, select,
+            selection with { Parameters = new(Value: "arbitrary") }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, select, selection))).Allowed);
     }
 
     [Fact]
