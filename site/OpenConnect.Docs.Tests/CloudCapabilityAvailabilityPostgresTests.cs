@@ -22,6 +22,51 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudCapabilityAvailabilityPostgresTests
 {
     [CloudPostgresFact]
+    public async Task AvailabilityDeclarationWaitsForConcurrentDeploymentDisable()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
+        var capability = "availability-race." + Guid.NewGuid().ToString("N");
+        var deploymentId = Guid.NewGuid();
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            await db.Database.MigrateAsync();
+            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test",
+                ContractVersion = "v1", BillingUnit = "request", PlatformAvailability = "not_configured",
+                Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            await db.SaveChangesAsync();
+            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = capability,
+                EndpointReference = "race-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "test",
+                ContractVersion = "v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 1 });
+            await db.SaveChangesAsync();
+        }
+        var service = new CloudCapabilityAvailabilityService(new EfCloudCapabilityAvailabilityStore(factory, TimeProvider.System));
+        var actor = new CloudSubject("https://operator.example", "operator");
+        await using (var writer = await factory.CreateDbContextAsync())
+        await using (var transaction = await writer.Database.BeginTransactionAsync())
+        {
+            await writer.WorkerDeployments.Where(x => x.Id == deploymentId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
+            var declaration = Task.Run(() => service.PutAsync(actor, Guid.NewGuid().ToString("N"), capability, "available", 1, default));
+            var waiting = false;
+            await using (var observer = await factory.CreateDbContextAsync())
+            {
+                for (var attempt = 0; attempt < 150 && !waiting; attempt++)
+                {
+                    waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.worker_deployments%') AS \"Value\"").SingleAsync();
+                    if (!waiting) await Task.Delay(20);
+                }
+            }
+            Assert.True(waiting, "The declaration did not wait for the deployment update.");
+            await transaction.CommitAsync();
+            Assert.Equal("deployment_required", (await declaration).Status);
+        }
+        var current = await service.GetAsync(capability, default);
+        Assert.Equal("not_configured", current!.Availability);
+        Assert.Equal(1, current.Revision);
+    }
+
+    [CloudPostgresFact]
     public async Task AvailabilityRequiresDeploymentAndFencesOlderAndConcurrentWriters()
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
