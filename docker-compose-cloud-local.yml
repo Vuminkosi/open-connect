@@ -1,0 +1,22 @@
+services:
+  documentation-site:
+    environment:
+      ASPNETCORE_URLS: "http://+:8080;https://+:8443"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /run/openconnect-tls/localhost.pem
+      ASPNETCORE_Kestrel__Certificates__Default__KeyPath: /run/openconnect-tls/localhost.key
+    ports:
+      - "127.0.0.1:${OPENCONNECT_DOCS_HTTPS_PORT:-5051}:8443"
+    volumes:
+      - oc_docs_local_tls:/run/openconnect-tls:ro
+
+  documentation-site-tls-init:
+    profiles: ["local-https-init"]
+    image: openconnect-docs:${OC_IMAGE_TAG:-e2e-local}
+    user: "0"
+    entrypoint: ["sleep", "infinity"]
+    network_mode: none
+    volumes:
+      - oc_docs_local_tls:/target
+
+volumes:
+  oc_docs_local_tls:

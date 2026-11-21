@@ -301,3 +301,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Put transcription, browser navigation, and operational/outbox workers behind explicit Compose profiles so the default worker set contains only inference, LiveUI, security and Kokoro.
 
 - [x] Add the documentation site to root Compose with a non-root image, health check and dedicated data-protection key volume; verify local site and Todo availability. Cloud identity configuration and HTTPS remain deployment prerequisites.
+
+- [x] Add an optional local HTTPS site override and non-overwriting certificate-volume initializer. Verify trusted HTTPS and HTTP readiness; provider credentials and actual sign-in remain outstanding.

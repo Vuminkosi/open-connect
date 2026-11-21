@@ -26,6 +26,18 @@ Set `OPENCONNECT_DOCS_PORT` to change the loopback port. Public documentation is
 
 For Compose, `CLOUD_OIDC_ENABLED`, `CLOUD_OIDC_AUTHORITY`, `CLOUD_OIDC_CLIENT_ID` and `CLOUD_OIDC_CLIENT_SECRET` configure an OIDC provider. `CLOUD_GOOGLE_ENABLED`, `CLOUD_GOOGLE_CLIENT_ID` and `CLOUD_GOOGLE_CLIENT_SECRET` configure Google sign-in. `CLOUD_CONTROL_PLANE_CONNECTION` configures the separate Cloud PostgreSQL schema. Supply credentials using deployment secrets or a protected environment, and apply Cloud migrations before enabling the control plane.
 
+For local HTTPS, export a trusted localhost development certificate and its key into a protected directory outside the repository, then initialize the dedicated TLS volume once:
+
+```powershell
+$certificateDirectory = '<private-certificate-directory>'
+dotnet dev-certs https --check --trust
+dotnet dev-certs https --export-path (Join-Path $certificateDirectory 'localhost.pem') --format PEM --no-password
+./scripts/setup-cloud-local-https.ps1 -CertificateDirectory $certificateDirectory
+docker compose -f docker-compose-all.yml -f docker-compose-cloud-local.yml up -d --no-deps documentation-site
+```
+
+The HTTPS site is `https://localhost:5051` by default; `OPENCONNECT_DOCS_HTTPS_PORT` changes the port. Register the corresponding `/cloud/signin-google` or `/cloud/signin-oidc` callback with the configured provider. The initializer refuses to overwrite an existing certificate or key. Protect the exported key and the Docker TLS volume; they contain private certificate material.
+
 Generate the API reference before building the image when that reference is needed. Generated artifacts present under the site directory are included in the image; a clean checkout without generated artifacts still serves the static documentation.
 
 ## API generation
