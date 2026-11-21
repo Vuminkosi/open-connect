@@ -9,6 +9,7 @@ import threading
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -123,6 +124,16 @@ def _configured() -> bool:
     return bool(os.environ.get("OPENCONNECT_WORKER_TOKEN")) and bool(key and len(key) >= 32)
 
 
+def _engine_ready(engine) -> bool:
+    if not _configured() or engine is None:
+        return False
+    try:
+        engine._verify()
+        return True
+    except Exception:
+        return False
+
+
 def _ready() -> bool:
     engine = getattr(app.state, "engine", None)
     if not _configured() or engine is None:
@@ -143,6 +154,38 @@ def _authorized(request: Request) -> bool:
         return verify_bearer(request.headers.get("authorization"), os.environ.get("OPENCONNECT_WORKER_TOKEN"))
     except TypeError:
         return False
+
+
+@lru_cache(maxsize=1)
+def _cloud_consumer():
+    if os.environ.get("OC_KNOWLEDGE_CLOUD_CONSUMPTION_ENABLED", "false").lower() != "true":
+        return None
+    from openconnect_knowledge.cloud_consumption import KnowledgeEmbeddingClaimConsumer
+
+    names = ("OC_KNOWLEDGE_CLOUD_AUTHORITY_ORIGIN", "OC_KNOWLEDGE_CLOUD_CA_FILE",
+             "OC_KNOWLEDGE_CLOUD_CERT_FILE", "OC_KNOWLEDGE_CLOUD_KEY_FILE")
+    values = [os.environ.get(name) for name in names]
+    if not all(values):
+        raise ValueError("incomplete_cloud_configuration")
+    origin, ca, certificate, key = values
+    return KnowledgeEmbeddingClaimConsumer(origin, Path(ca), Path(certificate), Path(key))
+
+
+
+class _Busy(Exception):
+    pass
+
+
+def _execute_model(engine, command):
+    # The inference thread owns the slot until native inference actually ends.
+    if not _slot.acquire(blocking=False):
+        raise _Busy()
+    try:
+        if datetime.now(timezone.utc) >= command.expiresAt:
+            raise ValueError("expired_request")
+        return engine.embed(command.payload.texts, input_kind=command.payload.inputKind)
+    finally:
+        _slot.release()
 
 
 @app.get("/health/live")
@@ -167,6 +210,73 @@ def capabilities(request: Request) -> JSONResponse:
     descriptor = CapabilityDescriptor(id="knowledge.embed", kind=CapabilityKind.EMBEDDING,
         state=CapabilityState.READY, version="1.0.0", localOnly=True)
     return JSONResponse({"capabilities": [descriptor.model_dump(mode="json")]})
+
+
+@app.post("/internal/cloud/v1/knowledge-embed/execute")
+async def execute_cloud_embedding(request: Request) -> JSONResponse:
+    """Consume a Cloud claim before running the private embedding engine."""
+    if not _configured():
+        return _error("capability_unavailable", 503)
+    if not _authorized(request):
+        return _error("unauthorized", 401)
+    if os.environ.get("OC_KNOWLEDGE_CLOUD_CONSUMPTION_ENABLED", "false").lower() != "true":
+        return _error("capability_unavailable", 503)
+    engine = getattr(app.state, "engine", None)
+    if not _engine_ready(engine):
+        return _error("capability_unavailable", 503)
+    try:
+        consumer = _cloud_consumer()
+    except Exception:
+        return _error("capability_unavailable", 503)
+    if consumer is None:
+        return _error("capability_unavailable", 503)
+    body = bytearray()
+    try:
+        async with asyncio.timeout(10):
+            async for chunk in request.stream():
+                if len(body) + len(chunk) > 176000:
+                    return _error("invalid_request", 413)
+                body.extend(chunk)
+        from openconnect_knowledge.cloud_execution import execute_claimed
+
+        command = await run_in_threadpool(execute_claimed, bytes(body), consumer, lambda value: value)
+    except TimeoutError:
+        return _error("invalid_request", 408)
+    finally:
+        body[:] = bytes(len(body))
+    if command is None:
+        return _error("capability_unavailable", 503)
+    try:
+        remaining = (command.expiresAt - datetime.now(timezone.utc)).total_seconds()
+        async with asyncio.timeout(remaining):
+            result = await run_in_threadpool(_execute_model, engine, command)
+    except _Busy:
+        return _error("rate_limited", 429)
+    except (ValueError, TimeoutError):
+        return _error("invalid_request", 422)
+    except Exception:
+        return _error("capability_unavailable", 503)
+    if datetime.now(timezone.utc) >= command.expiresAt:
+        return _error("invalid_request", 422)
+    return JSONResponse({"schemaVersion": "openconnect.v1", "taskId": command.taskId,
+                         "kind": command.kind, "result": asdict(result)}, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/internal/cloud/v1/knowledge-embed/ready")
+async def cloud_embedding_ready(request: Request) -> JSONResponse:
+    if not _authorized(request):
+        return _error("unauthorized", 401)
+    if (not _configured() or os.environ.get("OC_KNOWLEDGE_CLOUD_CONSUMPTION_ENABLED", "false").lower() != "true"
+            or not _engine_ready(getattr(app.state, "engine", None))):
+        return _error("capability_unavailable", 503)
+    try:
+        consumer = _cloud_consumer()
+        deployment = await run_in_threadpool(consumer.ready_deployment) if consumer is not None else None
+    except Exception:
+        deployment = None
+    if deployment is None:
+        return _error("capability_unavailable", 503)
+    return JSONResponse({"ready": True, "deploymentId": deployment}, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/internal/v1/execute")
