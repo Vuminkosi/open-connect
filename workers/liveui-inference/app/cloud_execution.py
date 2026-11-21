@@ -52,6 +52,16 @@ def _id(value: str) -> bool:
     )
 
 
+def _valid_usage(observed: list[TokenUsage], request, settings) -> bool:
+    return (
+        len(observed) == 1 and isinstance(observed[0], TokenUsage)
+        and type(observed[0].input_tokens) is int and type(observed[0].output_tokens) is int
+        and observed[0].input_tokens >= 0 and observed[0].output_tokens >= 0
+        and observed[0].output_tokens <= request.generation.maxOutputTokens
+        and observed[0].input_tokens + observed[0].output_tokens <= settings.model_context_size
+    )
+
+
 def execute_claimed(body: bytes, engine, settings, client, metered: bool = False) -> dict | None:
     """Consume the exact request once, generate only after approval, and settle before returning."""
     if (
@@ -63,6 +73,10 @@ def execute_claimed(body: bytes, engine, settings, client, metered: bool = False
         or type(metered) is not bool
     ):
         return None
+    observed: list[TokenUsage] = []
+    admitted = False
+    completion_attempted = False
+    reportable = True
     try:
         envelope = Envelope.model_validate(_json(body))
         if not _id(envelope.reservationId) or not _id(envelope.claimId):
@@ -95,17 +109,14 @@ def execute_claimed(body: bytes, engine, settings, client, metered: bool = False
             or admission.get("modelDigest") != "sha256:" + settings.model_sha256
         ):
             return None
-        observed: list[TokenUsage] = []
+        admitted = True
         plan, provider = engine.generate_metered(request, observed.append) if metered else engine.generate(request)
         if metered and (
-            len(observed) != 1 or not isinstance(observed[0], TokenUsage)
-            or type(observed[0].input_tokens) is not int or type(observed[0].output_tokens) is not int
-            or observed[0].input_tokens < 0 or observed[0].output_tokens < 0
-            or observed[0].output_tokens > request.generation.maxOutputTokens
-            or observed[0].input_tokens + observed[0].output_tokens > settings.model_context_size
+            not _valid_usage(observed, request, settings)
             or (provider == "deterministic" and observed[0] != TokenUsage(0, 0))
             or (provider == "qwen3-0.6b" and observed[0].input_tokens == 0)
         ):
+            reportable = False
             return None
         if (
             not isinstance(plan, ActionPlan)
@@ -132,6 +143,7 @@ def execute_claimed(body: bytes, engine, settings, client, metered: bool = False
         }
         if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 131072:
             return None
+        completion_attempted = True
         settled = (
             client.settle_metered(
                 envelope.reservationId, envelope.claimId, observed[0].input_tokens, observed[0].output_tokens
@@ -146,3 +158,13 @@ def execute_claimed(body: bytes, engine, settings, client, metered: bool = False
     except Exception:
         # Model and provider exceptions may contain request content.
         return None
+    finally:
+        if metered and admitted and not completion_attempted and reportable:
+            try:
+                if _valid_usage(observed, request, settings):
+                    client.fail_metered(
+                        envelope.reservationId, envelope.claimId, observed[0].input_tokens, observed[0].output_tokens
+                    )
+            except Exception:
+                # Failure to report leaves the reservation held for reconciliation.
+                pass

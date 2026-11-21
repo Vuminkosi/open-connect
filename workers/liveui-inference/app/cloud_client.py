@@ -155,6 +155,14 @@ class CloudLiveUIClient:
             return False
 
     def settle_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
+        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, False)
+
+    def fail_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
+        return self._settle_metered(reservation_id, claim_id, input_tokens, output_tokens, True)
+
+    def _settle_metered(
+        self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int, failed: bool
+    ) -> bool:
         try:
             reservation, claim = UUID(reservation_id), UUID(claim_id)
             if (
@@ -166,12 +174,14 @@ class CloudLiveUIClient:
             body = json.dumps(
                 {"inputTokens": input_tokens, "outputTokens": output_tokens}, separators=(",", ":")
             ).encode()
+            suffix = "fail-metered" if failed else "complete-metered"
             result = self._call(
-                "POST", f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/complete-metered",
+                "POST", f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/{suffix}",
                 {"Content-Type": "application/json"}, body,
             )
-            return result is not None and result[0] == 200 and result[1] in (
+            statuses = ({"status": "failed"}, {"status": "already_failed"}) if failed else (
                 {"status": "completed"}, {"status": "already_completed"}
             )
+            return result is not None and result[0] == 200 and result[1] in statuses
         except (ValueError, TypeError, AttributeError):
             return False

@@ -60,6 +60,10 @@ class Client:
         self.calls.append(("settle-metered", args[-2], args[-1]))
         return self.settled
 
+    def fail_metered(self, *args):
+        self.calls.append(("fail-metered", args[-2], args[-1]))
+        return self.settled
+
 
 class Engine:
     def __init__(self):
@@ -131,8 +135,24 @@ def test_metered_failure_never_falls_back_or_returns_unsettled_output():
             client.settled = False
         assert execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True) is None
         assert not any(call in ("consume", "settle") for call in client.calls)
-        if scenario in ("admission", "usage", "plan"):
+        if scenario in ("admission", "usage"):
             assert len(client.calls) == 1
+        if scenario == "plan":
+            assert client.calls == [("consume-metered", 2048), ("fail-metered", 410, 31)]
+        if scenario == "settlement":
+            assert client.calls == [("consume-metered", 2048), ("settle-metered", 410, 31)]
+
+
+def test_metered_failure_reports_known_usage_but_never_invents_unknown_usage():
+    for report_first in (True, False):
+        client, engine = Client(), Engine()
+        def generate(_, report):
+            if report_first:
+                report(TokenUsage(410, 31))
+            raise ValueError("model output rejected")
+        engine.generate_metered = generate
+        assert execute_claimed(json.dumps(envelope()).encode(), engine, SETTINGS, client, True) is None
+        assert client.calls == [("consume-metered", 2048)] + ([("fail-metered", 410, 31)] if report_first else [])
 
 
 def test_metered_execution_rejects_inconsistent_or_multiple_usage_reports():

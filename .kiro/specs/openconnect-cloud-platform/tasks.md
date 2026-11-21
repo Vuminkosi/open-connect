@@ -278,4 +278,6 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 - [x] Verify metered and plan-only LiveUI execution against the provisioned model, mutual-TLS control plane and disposable PostgreSQL; check native usage against the finalized token reservation. Production deployment and unknown usage recovery remain outstanding.
 
-- [x] Add worker-certificate-bound failed-execution settlement for known LiveUI token usage, with immutable failure evidence, replay and success/failure race checks, output denial and migration-upgrade verification. Worker reporting and unknown-usage reconciliation remain outstanding.
+- [x] Add worker-certificate-bound failed-execution settlement for known LiveUI token usage, with immutable failure evidence, replay and success/failure race checks, output denial and migration-upgrade verification. Unknown-usage reconciliation remains outstanding.
+
+- [x] Report known, validated LiveUI usage when worker generation or plan validation fails, and retain reservations on unknown usage or uncertain completion. Verify worker behavior and the mutual-TLS client.
