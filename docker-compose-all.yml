@@ -52,7 +52,7 @@ services:
       - oc-network
 
   worker-analytics:
-    profiles: ["analytics"]
+    profiles: ["analytics", "analytics-cloud"]
     build:
       context: .
       dockerfile: workers/analytics-inference/Dockerfile
@@ -60,8 +60,46 @@ services:
     environment:
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
       OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+      OPENCONNECT_CLOUD_CONSUMPTION_ENABLED: ${OC_ANALYTICS_CLOUD_CONSUMPTION_ENABLED:-false}
+      OPENCONNECT_CLOUD_AUTHORITY_ORIGIN: ${OC_ANALYTICS_CLOUD_AUTHORITY_ORIGIN:-}
+      OPENCONNECT_CLOUD_AUTHORITY_CA_FILE: ${OC_ANALYTICS_CLOUD_AUTHORITY_CA_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_CERT_FILE: ${OC_ANALYTICS_CLOUD_WORKER_CERT_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_KEY_FILE: ${OC_ANALYTICS_CLOUD_WORKER_KEY_FILE:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 2.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    volumes:
+      - ${OC_ANALYTICS_WORKER_SECRETS_DIR:-./workers/analytics-inference/secrets}:/run/analytics-cloud-worker:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - oc-network
+
+  analytics-tls:
+    profiles: ["analytics-cloud"]
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    user: "101:101"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=8m"]
+    command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    depends_on:
+      worker-analytics:
+        condition: service_started
+    volumes:
+      - ./cloud/analytics-tls/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CLOUD_ANALYTICS_TLS_SECRETS_DIR:-./cloud/analytics-tls/secrets}:/run/analytics-tls:ro
+    networks: [oc-network]
+    restart: unless-stopped
 
   # Dedicated Cloud inference is private, opt-in and requires deployment-owned certificates.
   cloud-inference-worker:
@@ -184,6 +222,18 @@ services:
       CLOUD_CLASSIFICATION_CONTRACT_VERSION: ${CLOUD_CLASSIFICATION_CONTRACT_VERSION:-}
       CLOUD_CLASSIFICATION_EXECUTION_ENABLED: ${CLOUD_CLASSIFICATION_EXECUTION_ENABLED:-false}
       CLOUD_CLASSIFICATION_DEPLOYMENT_ID: ${CLOUD_CLASSIFICATION_DEPLOYMENT_ID:-}
+      CLOUD_ANALYTICS_EXECUTION_ENABLED: ${CLOUD_ANALYTICS_EXECUTION_ENABLED:-false}
+      CLOUD_ANALYTICS_ORIGIN: ${CLOUD_ANALYTICS_ORIGIN:-}
+      CLOUD_ANALYTICS_CA_FILE: ${CLOUD_ANALYTICS_CA_FILE:-}
+      CLOUD_ANALYTICS_CERT_FILE: ${CLOUD_ANALYTICS_CERT_FILE:-}
+      CLOUD_ANALYTICS_KEY_FILE: ${CLOUD_ANALYTICS_KEY_FILE:-}
+      CLOUD_ANALYTICS_TOKEN_FILE: ${CLOUD_ANALYTICS_TOKEN_FILE:-}
+      CLOUD_ANALYTICS_DEPLOYMENT_ID: ${CLOUD_ANALYTICS_DEPLOYMENT_ID:-}
+      CLOUD_ANALYTICS_ENDPOINT_REFERENCE: ${CLOUD_ANALYTICS_ENDPOINT_REFERENCE:-}
+      CLOUD_ANALYTICS_REGION: ${CLOUD_ANALYTICS_REGION:-}
+      CLOUD_ANALYTICS_CONTRACT_VERSION: ${CLOUD_ANALYTICS_CONTRACT_VERSION:-}
+      CLOUD_ANALYTICS_MODEL_REVISION: ${CLOUD_ANALYTICS_MODEL_REVISION:-}
+      CLOUD_ANALYTICS_MODEL_DIGEST: ${CLOUD_ANALYTICS_MODEL_DIGEST:-}
       CLOUD_FINGERPRINT_ACTIVE_KEY_ID: ${CLOUD_FINGERPRINT_ACTIVE_KEY_ID:-}
       CLOUD_FINGERPRINT_KEYS_FILE: ${CLOUD_FINGERPRINT_KEYS_FILE:-}
       CLOUD_VOICE_EXECUTION_ENABLED: ${CLOUD_VOICE_EXECUTION_ENABLED:-false}
