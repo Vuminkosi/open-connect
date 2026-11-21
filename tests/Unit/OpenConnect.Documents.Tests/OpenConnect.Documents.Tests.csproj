@@ -10,6 +10,11 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
+    <!-- These synthetic worker responses exercise the .NET validator. They are not
+         shared JSON Schema fixtures until the matching public schemas are published. -->
+    <None Update="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../../src/OpenConnect.Documents/OpenConnect.Documents.csproj" />
   </ItemGroup>
 </Project>

@@ -66,12 +66,9 @@ public sealed class DocumentWorkerResponseValidatorTests
     [InlineData("page_order")]
     [InlineData("misleading_status")]
     [InlineData("missing_warning")]
-    public void ValidatesSharedPartialAnalysisFixture(string mutation)
+    public void ValidatesPartialAnalysisFixture(string mutation)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "contracts", "fixtures"))) directory = directory.Parent;
-        Assert.NotNull(directory);
-        var fixture = File.ReadAllText(Path.Combine(directory.FullName, "contracts", "fixtures", "valid", "document-analyze-response.json"));
+        var fixture = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "document-analyze-response.json"));
         var result = JsonNode.Parse(fixture)!["result"]!;
         switch (mutation)
         {
@@ -94,13 +91,9 @@ public sealed class DocumentWorkerResponseValidatorTests
     [InlineData("duplicate_span")]
     [InlineData("misaligned_column")]
     [InlineData("distant_row")]
-    public void ValidatesSharedTableCandidateCitations(string mutation)
+    public void ValidatesTableCandidateCitationsFixture(string mutation)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "contracts", "fixtures")))
-            directory = directory.Parent;
-        Assert.NotNull(directory);
-        var fixture = File.ReadAllText(Path.Combine(directory.FullName, "contracts", "fixtures", "valid", "document-tables-response.json"));
+        var fixture = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "document-tables-response.json"));
         var result = JsonNode.Parse(fixture)!["result"]!;
         var cells = result["tables"]![0]!["cells"]!;
         switch (mutation)
