@@ -317,3 +317,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Generate and reload Windows-user-protected local identity credentials without Google OAuth, refusing to replace existing credentials.
 
 - [x] Define and validate a bounded Kokoro-compatible Cloud speech-synthesis request and privacy inspection fields. Authorization, privacy enforcement, metering, worker dispatch and the public route remain outstanding.
+
+- [x] Prepare a claim-bindable Kokoro worker payload and validate bounded PCM/WAV responses without returning the worker's echoed text. Private transport, claims, privacy, accounting and public execution remain outstanding.
