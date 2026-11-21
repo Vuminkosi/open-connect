@@ -46,6 +46,32 @@ def test_final_audio_is_transcribed_locally_even_when_cloud_is_configured(local_
     )
 
 
+def test_local_model_readiness_is_authenticated_and_never_uses_cloud(local_worker, monkeypatch):
+    path = "/internal/v1/realtime/local/model-ready"
+    assert local_worker.get(path).status_code == 401
+    assert local_worker.get(path, headers={"Authorization": "Bearer wrong"}).status_code == 401
+    ready = local_worker.get(path, headers={"Authorization": "Bearer local-token"})
+    assert ready.status_code == 200
+    assert ready.json() == {"modelReady": True}
+    monkeypatch.setattr(realtime_local.local_whisper, "load_model", lambda *_: None)
+    unavailable = local_worker.get(path, headers={"Authorization": "Bearer local-token"})
+    assert unavailable.status_code == 503
+    assert unavailable.json() == {"detail": "model_unavailable"}
+
+
+@pytest.mark.parametrize("overrides", [
+    {"backend": "local-fake", "fake_engine": True},
+    {"backend": "local-model", "fake_engine": True},
+    {"backend": "local-model", "max_audio_bytes": 2},
+])
+def test_local_model_readiness_rejects_ineligible_configuration(local_worker, monkeypatch, overrides):
+    monkeypatch.setattr(app_module, "settings", dataclasses.replace(app_module.settings, **overrides))
+    response = local_worker.get(
+        "/internal/v1/realtime/local/model-ready", headers={"Authorization": "Bearer local-token"}
+    )
+    assert response.status_code == 503
+
+
 @pytest.mark.parametrize("authorization", [None, "local-token", "Bearer wrong"])
 def test_local_route_requires_bearer(local_worker, authorization):
     headers = {"Authorization": authorization} if authorization else {}

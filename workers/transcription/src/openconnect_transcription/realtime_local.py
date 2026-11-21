@@ -21,6 +21,19 @@ _MAX_CAPTURE_BYTES = 32 * 1024 * 1024
 _MAX_CAPTURE_MS = 120_000
 
 
+def load_local_model(settings: Settings):
+    """Load only a verified local model; this does not reserve capture capacity."""
+    if settings.backend != "local-model" or settings.fake_engine:
+        return None
+    duration_limit = min(settings.max_duration_ms, _MAX_CAPTURE_MS)
+    limit = min(settings.max_audio_bytes, _MAX_CAPTURE_BYTES,
+                duration_limit * _BYTES_PER_SECOND // 1000)
+    if limit < _BYTES_PER_SECOND // 1000:
+        return None
+    device = engine_mode.device_info(settings.model_device)
+    return None if device.gpu_required_missing else local_whisper.load_model(settings, device.effective)
+
+
 async def _run_blocking(function, *args):
     # A cancelled request must keep its slot until the model thread stops.
     task = asyncio.create_task(asyncio.to_thread(function, *args))
@@ -40,10 +53,7 @@ async def transcribe(websocket: WebSocket, settings: Settings) -> None:
         await websocket.close(code=1013, reason="model_unavailable")
         return
     try:
-        device = engine_mode.device_info(settings.model_device)
-        model = None if device.gpu_required_missing else await _run_blocking(
-            local_whisper.load_model, settings, device.effective
-        )
+        model = await _run_blocking(load_local_model, settings)
         if model is None:
             await websocket.close(code=1013, reason="model_unavailable")
             return

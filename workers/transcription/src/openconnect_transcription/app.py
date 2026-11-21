@@ -134,6 +134,14 @@ async def local_realtime_transcription(websocket: WebSocket) -> None:
     await realtime_local.transcribe(websocket, _settings())
 
 
+@app.get("/internal/v1/realtime/local/model-ready", dependencies=[Depends(authenticate)])
+def local_realtime_model_ready() -> dict[str, bool]:
+    """Report verified local model availability, without reserving a capture slot."""
+    if realtime_local.load_local_model(_settings()) is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable")
+    return {"modelReady": True}
+
+
 class _LocalLegUnavailable(RuntimeError):
     """Local leg cannot serve this request."""
 
