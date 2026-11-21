@@ -251,3 +251,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Exercise one same-host browser action and verified receipt through Cloud LiveUI, a real model worker and disposable PostgreSQL, with conversational orchestration supplied by a fixture.
 
 - [x] Add bounded native LiveUI token usage capture and verify it against the provisioned model; atomic token reservations and reconciliation remain outstanding.
+
+- [x] Add an additive LiveUI token-reservation schema and a PostgreSQL dual plan/token reservation store with contention, replay, scope and legacy-upgrade tests. Gateway routing, worker settlement and mixed-version enforcement remain outstanding.
