@@ -196,6 +196,8 @@ dotnet test OpenConnect.slnx -c Release --no-build
 
 ### Python Build
 
+Worker container builds can run `workers/common/verify_install.py` to check that the installed shared package matches the source copied into the build context. A mismatch or an empty package fails the check.
+
 ```bash
 cd workers/{name}
 uv sync --locked
