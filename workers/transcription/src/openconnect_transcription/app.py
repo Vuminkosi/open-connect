@@ -24,6 +24,7 @@ from openconnect_transcription.engine import (
     supported_sample_rates,
 )
 from openconnect_transcription.engine.audio import AudioValidationError, validate_audio
+from openconnect_transcription.engine import local_whisper
 from openconnect_transcription.schemas import (
     CapabilityResponse,
     ExecuteRequest,
@@ -61,10 +62,9 @@ def _settings() -> Settings:
 def _model_loaded(cfg: Settings) -> bool:
     if cfg.backend == "local-fake":
         return cfg.fake_engine
-    # A manifest is not a loaded model. This build contains only a fake local
-    # engine; it can use the manifest gate in explicitly configured fake mode.
     if not cfg.fake_engine:
-        return False
+        info = engine_mode.device_info(cfg.model_device)
+        return not info.gpu_required_missing and local_whisper.load_model(cfg, info.effective) is not None
     manifest = os.path.join(cfg.model_dir, "model-manifest.json")
     return os.path.isfile(manifest)
 
@@ -144,8 +144,7 @@ def _cloud_leg_available(cfg: Settings) -> bool:
 
 
 def _local_leg_available(cfg: Settings) -> bool:
-    # No real local transcription adapter is present in this build.
-    return False
+    return cfg.backend == "local-model" and not cfg.fake_engine and _model_loaded(cfg)
 
 
 def _ordered_legs(cfg: Settings) -> list[str]:
@@ -157,8 +156,15 @@ def _ordered_legs(cfg: Settings) -> list[str]:
 
 
 def _try_local_real(cfg: Settings, audio, locale: str) -> TranscriptResult:
-    """Reject real local execution until a real adapter is installed."""
-    raise _LocalLegUnavailable("no provisioned local model for this request")
+    """Run the verified local adapter, without network access or fake fallback."""
+    info = engine_mode.device_info(cfg.model_device)
+    model = None if info.gpu_required_missing else local_whisper.load_model(cfg, info.effective)
+    if model is None:
+        raise _LocalLegUnavailable("no verified local model for this request")
+    try:
+        return local_whisper.transcribe(model, audio, locale)
+    except Exception as exc:
+        raise _LocalLegUnavailable("local transcription failed") from exc
 
 
 def _pcm_to_wav(audio) -> bytes:
@@ -309,7 +315,7 @@ def capabilities() -> CapabilityResponse:
         modelRevision=cfg.model_revision,
         modelLoaded=_model_loaded(cfg),
         capabilities=advertised_capabilities(backend=cfg.backend)
-        if cfg.fake_engine or _cloud_leg_available(cfg) else [],
+        if cfg.fake_engine or _cloud_leg_available(cfg) or _local_leg_available(cfg) else [],
         privacyMode=cfg.privacy_mode,
         remoteBlocked=cfg.remote_blocked,
         supportsPartials=engine.supports_partials,
