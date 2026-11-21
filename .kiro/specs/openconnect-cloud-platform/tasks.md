@@ -272,4 +272,6 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 - [x] Wire a common opt-in metering flag and context ceiling into the root Compose gateway and LiveUI worker; recovery remains a prerequisite for operational activation.
 
-- [x] Recover expired unclaimed dual LiveUI reservations under the opt-in quota recovery worker, with atomic balance release, claim fencing, concurrency and migration-upgrade checks. Claimed and unknown usage recovery remain outstanding.
+- [x] Recover expired unclaimed dual LiveUI reservations under the opt-in quota recovery worker, with atomic balance release, claim fencing, concurrency and migration-upgrade checks.
+
+- [x] Recover expired, unconsumed LiveUI claims with immutable abandonment evidence and atomic dual-quota release; verify consumption races, legacy classification behavior and migration upgrades. Unknown consumed usage recovery remains outstanding.

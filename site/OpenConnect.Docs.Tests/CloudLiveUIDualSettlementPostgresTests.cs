@@ -9,6 +9,58 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudLiveUIDualSettlementPostgresTests
 {
     [CloudPostgresFact]
+    public async Task ExpiredUnconsumedClaimsRecoverExactlyOnceWhileConsumedClaimsRemainHeld()
+    {
+        var idle = await Fixture.CreateAsync(consume: false);
+        var consumed = await Fixture.CreateAsync();
+        var racing = await Fixture.CreateAsync(consume: false);
+        var now = DateTimeOffset.UtcNow;
+        await using (var db = await idle.Factory.CreateDbContextAsync())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE cloud.quota_reservations SET "ExpiresAt" = {now.AddMinutes(-10)}
+                WHERE "Id" IN ({idle.ReservationId}, {consumed.ReservationId})
+                """);
+            await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO cloud.execution_abandonments ("ReservationId", "ClaimId", "AbandonedAt", "Reason")
+                VALUES ({consumed.ReservationId}, {consumed.ClaimId}, {now}, {"expired_unconsumed"})
+                """));
+        }
+        var recovery = new EfCloudLiveUIUnconsumedRecoveryStore(idle.Factory, TimeProvider.System);
+        await using (var worker = await racing.Factory.CreateDbContextAsync())
+        await using (var transaction = await worker.Database.BeginTransactionAsync())
+        {
+            await worker.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+                VALUES ({racing.ReservationId}, {racing.ClaimId}, {racing.DeploymentId}, {100}, {now})
+                """);
+            worker.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = racing.ReservationId, ClaimId = racing.ClaimId,
+                DeploymentId = racing.DeploymentId, ConsumedAt = now });
+            await worker.SaveChangesAsync();
+            await worker.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE cloud.quota_reservations SET "ExpiresAt" = {now.AddMinutes(-10)} WHERE "Id" = {racing.ReservationId}
+                """);
+            var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => recovery.ReleaseAsync(now.AddMinutes(-5), 100, default)));
+            Assert.Equal(1, results.Sum());
+            await transaction.CommitAsync();
+        }
+        Assert.Equal(0, await recovery.ReleaseAsync(now.AddMinutes(-5), 100, default));
+        await using var verify = await idle.Factory.CreateDbContextAsync();
+        Assert.Equal(0, (await verify.QuotaBuckets.SingleAsync(b => b.Id == idle.PlanBucketId)).Reserved);
+        Assert.Equal(0, (await verify.QuotaBuckets.SingleAsync(b => b.Id == idle.TokenBucketId)).Reserved);
+        Assert.Equal(0, (await verify.QuotaReservations.SingleAsync(r => r.Id == idle.ReservationId)).Actual);
+        Assert.Equal(1, (await verify.QuotaBuckets.SingleAsync(b => b.Id == consumed.PlanBucketId)).Reserved);
+        Assert.Equal(100, (await verify.QuotaBuckets.SingleAsync(b => b.Id == consumed.TokenBucketId)).Reserved);
+        Assert.Null((await verify.QuotaReservations.SingleAsync(r => r.Id == consumed.ReservationId)).FinalizedAt);
+        Assert.Null((await verify.QuotaReservations.SingleAsync(r => r.Id == racing.ReservationId)).FinalizedAt);
+        Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.execution_abandonments WHERE \"ReservationId\" = {idle.ReservationId}").SingleAsync());
+        await Assert.ThrowsAsync<PostgresException>(() => verify.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
+            VALUES ({idle.ReservationId}, {idle.ClaimId}, {idle.DeploymentId}, {100}, {now})
+            """));
+    }
+
+    [CloudPostgresFact]
     public async Task ConsumedPlanAndTokensSettleAtomicallyExactlyOnce()
     {
         var fixture = await Fixture.CreateAsync();
@@ -135,7 +187,7 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
             await using (var db = await factory.CreateDbContextAsync())
             {
                 db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenant.Id, ApplicationId = app.Id,
-                    ClaimId = claimId, DeploymentId = deploymentId, Region = "test", ClaimedAt = now });
+                    ClaimId = claimId, DeploymentId = deploymentId, Region = "test", WorkerPayloadFingerprint = new byte[32], ClaimedAt = now });
                 await db.SaveChangesAsync();
                 if (consume)
                 {
