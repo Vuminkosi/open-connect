@@ -22,6 +22,16 @@ npx playwright test --config=playwright.cloud-local-voice.config.js site-speech-
 
 The test submits a short text request and observes a non-silent audio buffer start and finish in the browser. It permits autoplay for automation and does not verify audible output on a physical device or microphone transcription.
 
+## Unavailable transcription recovery
+
+When testing an intentionally unavailable local transcription worker or model, set `OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED=1` and `OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL` to the loopback HTTPS site origin. Run:
+
+```powershell
+npx playwright test --config=playwright.cloud-local-voice.config.js site-voice-unavailable.spec.js
+```
+
+The test uses a simulated browser microphone, expects voice input to fail, and verifies that the microphone turns off and a subsequent text-driven LiveUI search succeeds. It does not verify successful transcription or a physical microphone.
+
 ## Cloud gateway voice synthesis
 
 To exercise the complete local Cloud capability path, set `OPENCONNECT_CLOUD_ACCEPTANCE_ENABLED=1`, `OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL` to the loopback HTTPS portal, `OPENCONNECT_CLOUD_ACCEPTANCE_GATEWAY` to the loopback HTTP gateway, and `OPENCONNECT_CLOUD_ACCEPTANCE_TENANT` and `OPENCONNECT_CLOUD_ACCEPTANCE_APPLICATION` to an authorized test scope. Supply `OC_LOCAL_OIDC_USERNAME` and `OC_LOCAL_OIDC_PASSWORD` through a protected environment. The selected tenant must have a ready and entitled voice deployment and quota.

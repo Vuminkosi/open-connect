@@ -22,6 +22,8 @@ The LiveUI guide describes the site's actual permitted actions and requires insp
 
 Composer voice controls use native buttons for keyboard operation and expose their toggle state. A transcription failure turns the microphone toggle off and reports the failure while preserving text input.
 
+An opt-in local browser check exercises that failure against an intentionally unavailable transcription worker and verifies a subsequent text-driven interaction; it is not a substitute for a successful transcription test.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.
