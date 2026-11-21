@@ -379,3 +379,5 @@ Expired unclaimed knowledge and analytics requests and expired unconsumed claims
 The knowledge worker accepts Cloud embedding execution only when its model and trusted claim authority are ready. It validates and consumes the exact claim-bound payload once before starting inference, and rejects ambiguous or expired requests.
 
 The documentation assistant diagnostic handler records gateway failure categories and HTTP status codes without logging request content, credentials, visitor identifiers or exception messages.
+
+Cloud analytics defines separate versioned contracts for public requests, public responses and worker responses. Tenant identity comes from the authenticated context rather than the public request.
