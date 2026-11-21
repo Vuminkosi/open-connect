@@ -29,8 +29,13 @@ public sealed class CloudTranslationDeploymentProfileTests
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
         var deploymentId = Guid.NewGuid();
+        var tenant = await new EfCloudTenantStore(factory, TimeProvider.System)
+            .CreateTenantAsync(new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N")), "Translation matching", default);
         await using (var db = await factory.CreateDbContextAsync())
         {
+            var capability = await db.Capabilities.SingleAsync(x => x.Id == "translation.translate");
+            capability.AllowedRegions = "[\"region-a\"]"; capability.AllowedRegionsVerified = true;
+            db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
             db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "translation.translate",
                 EndpointReference = "nllb-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "region-a",
                 ContractVersion = "v1", ModelId = "nllb", ModelRevision = "revision-1", ModelDigest = "sha256:" + new string('a', 64),
@@ -53,15 +58,31 @@ public sealed class CloudTranslationDeploymentProfileTests
         stored = await service.GetAsync(deploymentId, default);
         Assert.NotNull(stored); Assert.Equal(2, stored.Revision); Assert.Equal(changed.TokenizerHash, stored.TokenizerHash);
         Assert.Equal(changed.LanguagePairs, stored.LanguagePairs);
+        var matcher = new CloudTranslationDeploymentMatch(new EfCloudTranslationDeploymentReader(factory));
+        var match = new CloudTranslationDeploymentMatchRequest(deploymentId, await EndpointAsync(factory, deploymentId), "region-a", "v1", "nllb", "revision-1",
+            "sha256:" + new string('a', 64), "sha256:" + new string('b', 64), changed.TokenizerHash, "fra_Latn", "eng_Latn");
+        Assert.True(await matcher.MatchesAsync(tenant.Id, match, default));
+        Assert.False(await matcher.MatchesAsync(Guid.NewGuid(), match, default));
+        Assert.False(await matcher.MatchesAsync(tenant.Id, match with { SourceLang = "eng_Latn", TargetLang = "fra_Latn" }, default));
+        Assert.False(await matcher.MatchesAsync(tenant.Id, match with { TokenizerHash = new string('a', 64) }, default));
+        Assert.False(await matcher.MatchesAsync(tenant.Id, match with { ImageDigest = "sha256:" + new string('c', 64) }, default));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var deployment = await db.WorkerDeployments.SingleAsync(x => x.Id == deploymentId);
             deployment.Revision = 2;
             await db.SaveChangesAsync();
         }
+        Assert.False(await matcher.MatchesAsync(tenant.Id, match, default));
         Assert.Equal("conflict", await service.PutAsync(actor, "trace", changed, 2, default));
         Assert.Equal("succeeded", await service.PutAsync(actor, "trace", changed with { DeploymentRevision = 2 }, 2, default));
+        Assert.True(await matcher.MatchesAsync(tenant.Id, match, default));
         await VerifyHttpAsync(factory, deploymentId);
+    }
+
+    private static async Task<string> EndpointAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid deploymentId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return (await db.WorkerDeployments.SingleAsync(x => x.Id == deploymentId)).EndpointReference;
     }
 
     private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid deploymentId)

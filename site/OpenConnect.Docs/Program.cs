@@ -261,6 +261,7 @@ if (gatewayTrust is not null)
     app.MapCloudVoiceGatewayEndpoints(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudTranslationPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudTranslationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudTranslationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceAccess(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));

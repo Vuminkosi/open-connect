@@ -48,6 +48,22 @@ export function createTranslationControlPlaneClient({ origin, ca, certificate, p
         });
     }
     return Object.freeze({
+        async matchDeployment(credential, deployment, input, signal, traceparent) {
+            const token = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max && /^[A-Za-z0-9._-]+$/.test(value);
+            const language = value => typeof value === 'string' && /^[a-z]{3}_[A-Z][a-z]{3}$/.test(value);
+            if (!deployment || !id(deployment.deploymentId) || !token(deployment.endpointReference, 128) || !token(deployment.region, 80) ||
+                !token(deployment.contractVersion, 32) || typeof deployment.modelId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/.test(deployment.modelId) ||
+                typeof deployment.modelRevision !== 'string' || !deployment.modelRevision.trim() || deployment.modelRevision.length > 256 ||
+                !/^sha256:[0-9a-f]{64}$/.test(deployment.modelDigest ?? '') || !/^sha256:[0-9a-f]{64}$/.test(deployment.imageDigest ?? '') ||
+                !/^[0-9a-f]{64}$/.test(deployment.tokenizerHash ?? '') || !input || !language(input.sourceLang) || !language(input.targetLang) ||
+                input.sourceLang === input.targetLang) return false;
+            const body = { deploymentId: deployment.deploymentId, endpointReference: deployment.endpointReference, region: deployment.region,
+                contractVersion: deployment.contractVersion, modelId: deployment.modelId, modelRevision: deployment.modelRevision,
+                modelDigest: deployment.modelDigest, imageDigest: deployment.imageDigest, tokenizerHash: deployment.tokenizerHash,
+                sourceLang: input.sourceLang, targetLang: input.targetLang };
+            const result = await call('POST', '/cloud/internal/v1/translation/deployment-match', credential, body, {}, signal, traceparent);
+            return result?.status === 200 && only(result.value, ['matched']) && result.value.matched === true;
+        },
         async findFingerprintKey(credential, requestId, signal, traceparent) {
             if (!id(requestId)) return { status: 'unavailable' };
             const result = await call('GET', `/cloud/internal/v1/translation/quota/fingerprint-key/${requestId}`, credential, undefined, {}, signal, traceparent);
