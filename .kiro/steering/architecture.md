@@ -355,3 +355,5 @@ Cloud classification evidence records bounded, allowlisted detector category cou
 ### Host privacy evidence ingestion
 
 Cloud accepts content-free host privacy decisions only from separately pinned host certificates and authenticated tenant applications. Evidence uses bounded category counts, idempotent event IDs, credential revocation fencing and append-only storage.
+
+Host privacy report reads require tenant security membership, repeat authorization before returning results, and produce audit events. HTTP routes delegate data access to the host privacy reader.

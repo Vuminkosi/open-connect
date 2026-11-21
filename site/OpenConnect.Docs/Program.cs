@@ -136,6 +136,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudLiveUIAccessStore, EfCloudLiveUIAccessStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudHostPrivacyEvidenceStore, CloudHostPrivacyEvidenceStore>();
+    builder.Services.AddScoped<ICloudHostPrivacyObservationReader, CloudHostPrivacyObservationReader>();
+    builder.Services.AddScoped<ICloudHostPrivacyCaseReader, CloudHostPrivacyObservationReader>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
     builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();

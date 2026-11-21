@@ -40,6 +40,44 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
         var store = new CloudHostPrivacyEvidenceStore(factory);
         var results = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => store.AppendAsync(identity, report, CancellationToken.None)));
         Assert.All(results, Assert.True);
+        var reader = new CloudHostPrivacyObservationReader(factory, TimeProvider.System);
+        var page = await reader.GetTenantAsync(subject, tenant.Id, null, 10, CancellationToken.None);
+        var item = Assert.Single(page!.Observations);
+        Assert.Equal(eventId, item.EventId);
+        Assert.Equal("Output", item.Destination);
+        Assert.Equal("Mask", item.Action);
+        Assert.Equal("allowed", item.ReasonCode);
+        Assert.Equal(new CloudPrivacyCategoryCount("EMAIL", 1), Assert.Single(item.Categories));
+        Assert.Equal(1, page.Statistics!.OutputDecisions);
+        Assert.Equal(1, page.Statistics.Allowed);
+        Assert.Equal(new CloudPrivacyActionTotal("Mask", 1), Assert.Single(page.Statistics.Actions));
+        Assert.Equal(new CloudPrivacyCategoryTotal("EMAIL", 1), Assert.Single(page.Statistics.Categories));
+        var blocked = report with { EventId = Guid.NewGuid(), Allowed = false, ReasonCode = "policy_blocked",
+            Action = OpenConnect.Abstractions.SecurityPolicyAction.Block, CategoryCounts = "{\"EMAIL\":2,\"PHONE\":1}" };
+        Assert.True(await store.AppendAsync(identity, blocked, CancellationToken.None));
+        Assert.True(await store.AppendAsync(identity, blocked, CancellationToken.None));
+        Assert.False(await store.AppendAsync(identity, blocked with { ReasonCode = "inspection_failed" }, CancellationToken.None));
+        var blockedDetail = await reader.GetAsync(subject, tenant.Id, blocked.EventId, CancellationToken.None);
+        Assert.NotNull(blockedDetail);
+        Assert.Equal("policy_blocked", blockedDetail.ReasonCode);
+        var totals = (await reader.GetTenantAsync(subject, tenant.Id, null, 10, CancellationToken.None))!.Statistics!;
+        Assert.Equal((2L, 1L, 1L), (totals.OutputDecisions, totals.Allowed, totals.Blocked));
+        Assert.Equal([new CloudPrivacyActionTotal("Block", 1), new CloudPrivacyActionTotal("Mask", 1)], totals.Actions);
+        Assert.Equal([new CloudPrivacyReasonTotal("allowed", 1), new CloudPrivacyReasonTotal("policy_blocked", 1)], totals.Reasons);
+        Assert.Equal([new CloudPrivacyCategoryTotal("EMAIL", 3), new CloudPrivacyCategoryTotal("PHONE", 1)], totals.Categories);
+        Assert.Equal(totals.Categories, totals.OutputCategories);
+        Assert.Empty(totals.OtherDestinationCategories);
+        var detail = await reader.GetAsync(subject, tenant.Id, eventId, CancellationToken.None);
+        Assert.NotNull(detail);
+        Assert.Equal(eventId, detail.EventId);
+        Assert.Equal("Mask", detail.Action);
+        Assert.Equal("allowed", detail.ReasonCode);
+        Assert.Equal(new CloudPrivacyCategoryCount("EMAIL", 1), Assert.Single(detail.Categories));
+        Assert.Null(await reader.GetAsync(subject, tenant.Id, Guid.NewGuid(), CancellationToken.None));
+        Assert.Null(await reader.GetAsync(new CloudSubject(subject.Issuer, Guid.NewGuid().ToString("N")),
+            tenant.Id, eventId, CancellationToken.None));
+        Assert.Null(await reader.GetTenantAsync(new CloudSubject(subject.Issuer, Guid.NewGuid().ToString("N")), tenant.Id,
+            null, 10, CancellationToken.None));
         Assert.False(await store.AppendAsync(identity, report with { Allowed = false, ReasonCode = "policy_blocked" }, CancellationToken.None));
         await using (var db = await factory.CreateDbContextAsync())
         {
