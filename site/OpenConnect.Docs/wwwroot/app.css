@@ -20,4 +20,5 @@
 @media(prefers-color-scheme:dark){.cloud-list li,.cloud-capabilities article{background:#122236;border-color:#284158}.cloud-list span{color:#adc0d4}.cloud-reason{color:#ffc28b}.cloud-content input,.cloud-content select{background:#122236;color:#e6eef7;border-color:#49617a}}
 .cloud-content .button:not(.primary) { background: #fff; color: #17324d; }
 .cloud-content :is(button, input, select, a):focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
+@media(max-width:600px){.site-header:not(.cloud-header){height:auto;min-height:68px;flex-wrap:wrap;padding:12px 18px}.site-header:not(.cloud-header) nav{order:3;flex:1 0 100%;flex-wrap:wrap}.site-header:not(.cloud-header) .theme-toggle{margin-left:auto}}
 @media(prefers-color-scheme:dark){.cloud-content .button:not(.primary){background:#122236;color:#e6eef7;border-color:#7891aa}.cloud-content :is(button,input,select,a):focus-visible{outline-color:#80e4d5}}

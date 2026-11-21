@@ -203,17 +203,7 @@ builder.Services.AddSingleton<GeneratedApiStore>();
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
 builder.Services.AddOpenConnectComponents();
 
-var assistantEnabled = builder.Configuration.GetValue<bool>("OpenConnect:Assistant:Enabled");
-var gatewayAddress = builder.Configuration["OpenConnect:Assistant:GatewayUrl"];
-if (assistantEnabled && Uri.TryCreate(gatewayAddress, UriKind.Absolute, out var gatewayUri))
-{
-    builder.Services.AddOpenConnectClient(options =>
-    {
-        options.ApiBaseAddress = gatewayUri;
-        options.AllowInsecureHttp = builder.Environment.IsDevelopment();
-    });
-    builder.Services.AddOpenConnectComposer();
-}
+builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 var content = app.Services.GetRequiredService<DocumentationContentStore>();

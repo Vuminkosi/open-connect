@@ -6,7 +6,7 @@ The official OpenConnect developer portal is an ASP.NET Core .NET 10 Blazor Web 
 - Interactive Server is limited to search and theme controls.
 - Documentation content is versioned Markdown under `Content/<version>/`.
 - `/health/live`, `/health/ready` and `/sitemap.xml` are available without AI infrastructure.
-- The optional OpenConnect assistant is disabled unless explicitly configured.
+- The OpenConnect composer is visible on documentation and Cloud pages. It reports unavailable until an application gateway is explicitly configured; public documentation remains usable without it.
 - The protected Cloud workspace is additive; public docs do not depend on Cloud identity or PostgreSQL.
 
 Build with:
@@ -25,6 +25,8 @@ docker compose -f docker-compose-all.yml up -d --build documentation-site
 Set `OPENCONNECT_DOCS_PORT` to change the loopback port. Public documentation is available without the Cloud database or identity providers. The dedicated `oc_docs_keys` volume preserves server-side authentication protection keys across container replacement; protect and back up that volume when identity is enabled. Cloud sign-in requires a configured provider, a registered callback and an HTTPS deployment or trusted HTTPS termination; it is not enabled by the local HTTP default.
 
 For Compose, `CLOUD_OIDC_ENABLED`, `CLOUD_OIDC_AUTHORITY`, `CLOUD_OIDC_CLIENT_ID` and `CLOUD_OIDC_CLIENT_SECRET` configure an OIDC provider. `CLOUD_GOOGLE_ENABLED`, `CLOUD_GOOGLE_CLIENT_ID` and `CLOUD_GOOGLE_CLIENT_SECRET` configure Google sign-in. `CLOUD_CONTROL_PLANE_CONNECTION` configures the separate Cloud PostgreSQL schema. Supply credentials using deployment secrets or a protected environment, and apply Cloud migrations before enabling the control plane.
+
+To connect the composer, set `OpenConnect__Assistant__Enabled=true` and `OpenConnect__Assistant__GatewayUrl` to the HTTPS origin or `/openconnect/v1/` base URL of an OpenConnect application gateway. HTTP is accepted only in the Development environment. The Cloud capability gateway exposes a different contract and cannot be used as the composer application gateway. The site does not yet forward user credentials to that gateway; identity-aware integration is required before using a gateway that requires per-user authentication. LiveUI is limited to reviewed public documentation navigation and visual guidance; Cloud administration actions remain user-operated.
 
 For local HTTPS, export a trusted localhost development certificate and its key into a protected directory outside the repository, then initialize the dedicated TLS volume once:
 

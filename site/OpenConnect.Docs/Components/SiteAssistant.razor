@@ -1,0 +1,28 @@
+@rendermode InteractiveServer
+@using MudBlazor
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
+@using OpenConnect.LiveUI.Blazor
+@using OpenConnect.LiveUI
+@inject DocumentationAssistantAvailability Availability
+@inject LiveUIManifest Manifest
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (!Availability.Configured)
+{
+    <p class="site-assistant-status" role="status">Assistant unavailable: an application gateway has not been configured.
+        <a href="/docs/v1/troubleshooting">Setup help</a></p>
+}
+<OpenConnectProvider>
+    <OpenConnectLiveUIProvider Manifest="Manifest">
+        <MiniComposer Placement="ComposerPlacement.BottomRight"
+                      AssistantName="OpenConnect Assistant"
+                      Placeholder="Ask about OpenConnect..."
+                      CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
+        <OpenConnectNavigatorProvider />
+    </OpenConnectLiveUIProvider>
+</OpenConnectProvider>

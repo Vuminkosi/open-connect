@@ -20,7 +20,7 @@ Status: Active implementation specification. The authoritative requirements and 
 - **CLOUD-CREDENTIAL-001:** Issue one-time server credentials bound to tenant, application, environment, and non-empty service scopes; store only a one-way hash, and support list, rotation, expiry, and revocation.
 - **CLOUD-CREDENTIAL-002:** Credential authentication must not grant service execution; every Cloud call still passes entitlement, selection, policy, region, quota, and deployment admission.
 - **CLOUD-TRUTH-001:** Show tenant/application and capability state only from the control-plane store. Usage and firewall evidence remain unavailable until their authoritative APIs and persistence exist; label those gaps explicitly.
-- **CLOUD-PORTAL-003:** Keep the existing assistant opt-in and independent from Cloud identity.
+- **CLOUD-PORTAL-003:** Show the OpenConnect composer on documentation and Cloud pages while keeping its application-gateway connection explicitly configured and independent from Cloud identity. When unconfigured, indicate unavailability and do not transmit requests. LiveUI actions require a host-owned authorization policy.
 - **CLOUD-FEATURE-PARITY-001:** Support all OpenConnect capabilities through the site and Cloud gateway, including those exercised by the Todo sample, with corresponding end-to-end verification. Preserve application-owned execution, authorization, privacy enforcement, and capability-specific admission boundaries.
 
 ## Remaining platform requirements
