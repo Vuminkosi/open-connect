@@ -33,6 +33,18 @@ public sealed class ApiReferenceComponentTests : BunitContext
     }
 
     [Fact]
+    public void LiveUiHeadingMatchesTheRenderedApiPage()
+    {
+        Services.AddSingleton<GeneratedApiStore>();
+        var component = Render<ApiIndex>();
+        var route = DocumentationLiveUIManifest.Create().Routes.Single(item => item.Path == "/api");
+        var target = route.Targets.Single(item => item.Id == "documentation-api-heading");
+
+        Assert.Equal("main h1", target.Selector);
+        Assert.Equal(component.Find("h1").TextContent, target.Label);
+    }
+
+    [Fact]
     public void GeneratedDocumentsCanBeSearchedAndPaged()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"openconnect-api-test-{Guid.NewGuid():N}");

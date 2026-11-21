@@ -9,7 +9,7 @@ public static class DocumentationLiveUIManifest
     {
         var apiTargets = new List<LiveUITarget>
         {
-            Heading("documentation-api-heading", "Generated API reference"),
+            Heading("documentation-api-heading", "API reference"),
             new("documentation-api-rest-worker-contracts", LiveUITargetKind.Heading, "REST and worker contracts",
                 new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
                 Selector: "#api-rest-worker-contracts")

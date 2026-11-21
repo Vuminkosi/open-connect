@@ -335,3 +335,5 @@ Cloud features use a shared JSON privacy inspection service for decoded worker-b
 ### Public API discovery
 
 The documentation site exposes client guides and common gateway operations without authentication or generated metadata. Generated API metadata remains optional; authored examples follow the current SDK and gateway contracts.
+
+LiveUI manifest labels for public documentation targets must match their rendered page content so assistant guidance remains accurate when pages change.
