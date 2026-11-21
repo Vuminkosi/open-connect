@@ -20,7 +20,9 @@ public sealed class CloudVoiceConsumptionEndpointTests
         var deployment = Guid.NewGuid(); var reservation = Guid.NewGuid(); var claim = Guid.NewGuid();
         var trust = new CloudWorkerClientTrust([new(deployment, Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256)))], null);
         var store = new ConsumptionStore();
-        using var services = new ServiceCollection().AddSingleton<ICloudVoiceConsumptionStore>(store).AddSingleton<CloudVoiceConsumptionService>().BuildServiceProvider();
+        var settlements = new SettlementStore();
+        using var services = new ServiceCollection().AddSingleton<ICloudVoiceConsumptionStore>(store).AddSingleton<CloudVoiceConsumptionService>()
+            .AddSingleton<ICloudVoiceSettlementStore>(settlements).AddSingleton<CloudVoiceSettlement>().BuildServiceProvider();
         DefaultHttpContext Context(string body = "")
         {
             var context = new DefaultHttpContext { RequestServices = services };
@@ -41,6 +43,13 @@ public sealed class CloudVoiceConsumptionEndpointTests
         Assert.Equal((reservation, claim, deployment), store.Last);
         store.Next = "already_consumed";
         Assert.Equal(409, Status(await CloudVoiceConsumptionEndpoints.ConsumeAsync(reservation, claim, Context(), trust, true, default)));
+        Assert.Equal(401, Status(await CloudVoiceSettlementEndpoints.SettleAsync(reservation, claim, noCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudVoiceSettlementEndpoints.SettleAsync(reservation, claim, Context("x"), trust, true, default)));
+        Assert.Equal(0, settlements.Calls);
+        Assert.Equal(200, Status(await CloudVoiceSettlementEndpoints.SettleAsync(reservation, claim, Context(), trust, true, default)));
+        Assert.Equal((reservation, claim, deployment), settlements.Last);
+        settlements.Next = "conflict";
+        Assert.Equal(409, Status(await CloudVoiceSettlementEndpoints.SettleAsync(reservation, claim, Context(), trust, true, default)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
@@ -50,6 +59,14 @@ public sealed class CloudVoiceConsumptionEndpointTests
         public string Next { get; set; } = "consumed";
         public (Guid, Guid, Guid) Last { get; private set; }
         public Task<string> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerFingerprint, CancellationToken cancellationToken)
+        { Calls++; Last = (reservationId, claimId, deploymentId); return Task.FromResult(Next); }
+    }
+    private sealed class SettlementStore : ICloudVoiceSettlementStore
+    {
+        public int Calls { get; private set; }
+        public string Next { get; set; } = "completed";
+        public (Guid, Guid, Guid) Last { get; private set; }
+        public Task<string> SettleAsync(Guid reservationId, Guid claimId, Guid deploymentId, CancellationToken cancellationToken)
         { Calls++; Last = (reservationId, claimId, deploymentId); return Task.FromResult(Next); }
     }
 }

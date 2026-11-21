@@ -86,6 +86,13 @@ public sealed class CloudVoiceClaimPostgresTests
         Assert.Equal(7, attempts.Count(x => x.Status == "already_claimed"));
         var claimId = attempts.Single(x => x.Status == "claimed").ClaimId!.Value;
         var consumption = new CloudVoiceConsumptionService(new EfCloudVoiceConsumptionStore(factory, TimeProvider.System));
+        var settlement = new CloudVoiceSettlement(new EfCloudVoiceSettlementStore(factory, TimeProvider.System));
+        Assert.Equal("unavailable", await settlement.SettleAsync(first, claimId, deploymentId, default));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.ExecutionCompletions.Add(new CloudExecutionCompletion { ReservationId = first, ClaimId = claimId, Outcome = "completed", CompletedAt = now });
+            await Assert.ThrowsAnyAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        }
         Task<string> Consume(Guid worker, byte[] proof) => consumption.ConsumeAsync(first, claimId, worker, proof, default);
         Assert.Equal("unavailable", await Consume(Guid.NewGuid(), workerHash));
         Assert.Equal("unavailable", await Consume(deploymentId, new byte[32]));
@@ -119,6 +126,14 @@ public sealed class CloudVoiceClaimPostgresTests
             await db.SaveChangesAsync();
         }
         await ConsumeThroughTlsAsync(factory, first, claimId, deploymentId, workerHash);
+        await using (var db = await factory.CreateDbContextAsync())
+        await using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            db.ExecutionCompletions.Add(new CloudExecutionCompletion { ReservationId = first, ClaimId = claimId, Outcome = "completed", CompletedAt = now });
+            await db.SaveChangesAsync();
+            await Assert.ThrowsAnyAsync<Exception>(() => db.QuotaReservations.Where(x => x.Id == first)
+                .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 3L).SetProperty(y => y.FinalizedAt, now)));
+        }
         Assert.Equal("unavailable", (await Claim(second)).Status);
         Assert.Equal("idempotency_conflict", (await claim.ClaimAsync(identity, second, "key", Enumerable.Repeat((byte)1, 32).ToArray(),
             workerHash, "kokoro", deployment, default)).Status);
@@ -131,9 +146,21 @@ public sealed class CloudVoiceClaimPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             var script = db.GetService<IMigrator>().GenerateScript("20261123000100_AddVoicePrivacyEvidence",
-                "20261123000200_AllowVoiceDeploymentClaims", MigrationsSqlGenerationOptions.Idempotent);
+                "20261123000300_GuardVoiceSettlement", MigrationsSqlGenerationOptions.Idempotent);
             await db.Database.ExecuteSqlRawAsync(script);
         }
+        Assert.Equal("unavailable", await settlement.SettleAsync(first, claimId, Guid.NewGuid(), default));
+        var settlements = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => settlement.SettleAsync(first, claimId, deploymentId, default)));
+        Assert.Single(settlements, x => x == "completed");
+        Assert.Equal(7, settlements.Count(x => x == "already_completed"));
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            var bucket = await db.QuotaBuckets.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.Unit == "character");
+            Assert.Equal(4, bucket.Reserved);
+            Assert.Equal(4, bucket.Consumed);
+            Assert.Single(await db.UsageRecords.Where(x => x.ReservationId == first).ToArrayAsync());
+        }
+        Assert.Equal("claimed", (await Claim(second)).Status);
     }
 
     private static async Task ConsumeThroughTlsAsync(IDbContextFactory<CloudControlPlaneDbContext> factory,
