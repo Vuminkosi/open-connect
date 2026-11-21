@@ -223,3 +223,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Connect opt-in LiveUI routing, readiness, admission and output enforcement; real-system validation and Compose configuration remain outstanding.
 
 - [x] Add an isolated Cloud LiveUI worker and gateway configuration to root Compose; real-system validation remains outstanding.
+
+- [x] Verify deterministic LiveUI request, settlement, privacy evidence and replay through a real worker and disposable PostgreSQL. Model-generated planning remains unverified.

@@ -277,3 +277,5 @@ The LiveUI execution coordinator monitors claim access throughout dispatch and r
 The opt-in LiveUI gateway route uses a pinned deployment and private mutual TLS. End-to-end runtime validation and deployment configuration remain outstanding.
 
 The root Compose configuration provides an opt-in Cloud LiveUI worker with mutual TLS, a read-only pre-provisioned model and mounted secrets. Model license and artifact approval must be configured explicitly; no model download is performed in Cloud mode.
+
+A disposable PostgreSQL and mutual-TLS gateway/worker test verifies a settled deterministic LiveUI plan, input and output privacy evidence, and replay rejection using a pre-provisioned model. Model-generated plans and production deployment remain unverified.
