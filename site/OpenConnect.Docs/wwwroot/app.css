@@ -13,9 +13,9 @@
 .cloud-status { margin-top: 2rem; }
 .cloud-capabilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; }
 .cloud-capabilities article { border: 1px solid #dbe4ef; border-radius: 10px; padding: 1rem; background: #fff; }
-.cloud-capabilities dl { display: grid; grid-template-columns: 1fr auto; gap: .35rem .75rem; }
-.cloud-capabilities dt { font-weight: 700; }
-.cloud-capabilities dd { margin: 0; text-align: right; }
+.cloud-capabilities dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .35rem .75rem; }
+.cloud-capabilities dt { font-weight: 700; overflow-wrap: anywhere; }
+.cloud-capabilities dd { min-width: 0; margin: 0; text-align: right; overflow-wrap: anywhere; }
 .cloud-reason { font-family: ui-monospace, monospace; color: #8a3a00; }
 @media(prefers-color-scheme:dark){.cloud-list li,.cloud-capabilities article{background:#122236;border-color:#284158}.cloud-list span{color:#adc0d4}.cloud-reason{color:#ffc28b}.cloud-content input,.cloud-content select{background:#122236;color:#e6eef7;border-color:#49617a}}
 .cloud-content .button:not(.primary) { background: #fff; color: #17324d; }

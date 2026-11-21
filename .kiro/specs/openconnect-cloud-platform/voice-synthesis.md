@@ -32,6 +32,10 @@ For a Windows local development deployment, `scripts/setup-cloud-local-voice-cer
 
 The tenant security page presents paginated voice input and output transcript observations to owners, administrators and security analysts. Reads are tenant-scoped and audited, and the view does not expose request text, transcripts or audio. Input decisions and output transcript decisions remain distinct and neither is presented as evidence of audio delivery.
 
+Voice observation cards wrap request identifiers and transcription fingerprints within their available width so populated cards remain usable on narrow screens.
+
+The opt-in `tests/Browser/playwright.cloud-local-voice.config.js` browser test creates and revokes a scoped credential, runs synthesis, and checks the usage and security pages on desktop and narrow viewports. It requires a disposable, provisioned local organization and application, running local identity and voice services, and explicit `OPENCONNECT_CLOUD_ACCEPTANCE_ENABLED`, `OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL`, `OPENCONNECT_CLOUD_ACCEPTANCE_GATEWAY`, `OPENCONNECT_CLOUD_ACCEPTANCE_TENANT`, `OPENCONNECT_CLOUD_ACCEPTANCE_APPLICATION`, `OC_LOCAL_OIDC_USERNAME` and `OC_LOCAL_OIDC_PASSWORD` process settings. The optional `OPENCONNECT_CLOUD_ACCEPTANCE_CHROME` selects an installed browser executable. Run it from `tests/Browser` with `npx playwright test --config=playwright.cloud-local-voice.config.js`. The test accepts only loopback origins, consumes quota and creates audit records; it is skipped without explicit configuration. Traces, screenshots, video and failure page snapshots are disabled to avoid retaining the one-time credential. Production-provider and production-deployment acceptance remain separate.
+
 The Cloud overview points to organization-specific service and security views without asserting fixed entitlement, deployment or evidence states.
 
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.
