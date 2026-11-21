@@ -164,6 +164,9 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<ICloudCatalogRegionsStore, EfCloudCatalogRegionsStore>();
     builder.Services.AddScoped<CloudCatalogRegionsService>();
     builder.Services.AddScoped<CloudOperatorCatalogRegionsService>();
+    builder.Services.AddScoped<ICloudCapabilityAvailabilityStore, EfCloudCapabilityAvailabilityStore>();
+    builder.Services.AddScoped<CloudCapabilityAvailabilityService>();
+    builder.Services.AddScoped<CloudOperatorCapabilityAvailabilityService>();
     builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
     builder.Services.AddScoped<CloudExecutionClaimService>();
     builder.Services.AddScoped<ICloudExecutionConsumptionStore, EfCloudExecutionConsumptionStore>();

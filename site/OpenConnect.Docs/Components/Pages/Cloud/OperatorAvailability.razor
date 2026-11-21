@@ -1,0 +1,99 @@
+@page "/cloud/operator/availability"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CloudOperatorAccess OperatorAccess
+@inject ILogger<OperatorAvailability> Logger
+
+<PageTitle>Service availability | OpenConnect Cloud</PageTitle>
+<h1>Service availability</h1>
+<p>This declaration controls catalog availability. It requires an enabled deployment, but does not establish worker health or artifact integrity.</p>
+@if (_loading) { <p role="status">Loading services…</p> }
+else if (_error is not null) { <p role="status">@_error</p> }
+else
+{
+    <label for="availability-service">Service</label>
+    <select id="availability-service" @bind="_capability" @bind:after="LoadAsync" disabled="@(!_interactive || _busy)">
+        <option value="">Choose a service</option>
+        @foreach (var item in _catalog) { <option value="@item.Id">@item.Name (@item.Id)</option> }
+    </select>
+    @if (_notice is not null) { <p role="status">@_notice</p> }
+    @if (_current is not null)
+    {
+        <section aria-labelledby="availability-heading">
+            <h2 id="availability-heading">Availability declaration</h2>
+            <p>Current state: @_current.Availability · Revision @_current.Revision</p>
+            <label for="availability-state">New state</label>
+            <select id="availability-state" @bind="_state" disabled="@(!_interactive || _busy)">
+                <option value="not_configured">Not configured</option>
+                <option value="available">Available</option>
+            </select>
+            <button class="button primary" type="button" @onclick="SaveAsync" disabled="@(!_interactive || _busy)">Save availability</button>
+            <button class="button" type="button" @onclick="LoadAsync" disabled="@(!_interactive || _busy)">Reload saved availability</button>
+        </section>
+    }
+}
+<p><a href="/cloud/operator">Back to deployments</a> · <a href="/cloud">Organizations</a></p>
+
+@code {
+    private IReadOnlyList<CloudCapabilityView> _catalog = [];
+    private CloudCapabilityAvailabilityView? _current;
+    private string _capability = "", _state = "not_configured";
+    private string? _error, _notice;
+    private bool _loading = true, _interactive, _busy;
+
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { _interactive = true; StateHasChanged(); } }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (!OperatorAccess.IsAllowed(principal)) { _error = "Operator access is required."; return; }
+            if (Services.GetService(typeof(CloudCapabilityService)) is not CloudCapabilityService catalog ||
+                Services.GetService(typeof(CloudOperatorCapabilityAvailabilityService)) is not CloudOperatorCapabilityAvailabilityService)
+            { _error = "The Cloud control plane is not configured."; return; }
+            _catalog = await catalog.GetCatalogAsync(CancellationToken.None);
+        }
+        catch (Exception) { Logger.LogWarning("Cloud availability could not be loaded."); _error = "The Cloud control plane is temporarily unavailable."; }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadAsync()
+    {
+        _current = null; _notice = null;
+        if (string.IsNullOrEmpty(_capability)) return;
+        _busy = true;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorCapabilityAvailabilityService)Services.GetService(typeof(CloudOperatorCapabilityAvailabilityService))!;
+            var result = await service.GetAsync(principal, _capability, CancellationToken.None);
+            if (result.Availability is null) { _notice = "Availability could not be loaded or access is no longer available."; return; }
+            _current = result.Availability; _state = _current.Availability;
+        }
+        catch (Exception) { Logger.LogWarning("Cloud availability lookup failed."); _notice = "Availability is temporarily unavailable."; }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_current is null) return;
+        _busy = true; _notice = null;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var service = (CloudOperatorCapabilityAvailabilityService)Services.GetService(typeof(CloudOperatorCapabilityAvailabilityService))!;
+            var result = await service.PutAsync(principal, _current.CapabilityId, _state, _current.Revision, CancellationToken.None);
+            if (result.Availability is not null) { _current = result.Availability; _state = _current.Availability; _notice = "Availability saved."; }
+            else _notice = result.Status switch { "conflict" => "Availability changed. Reload before trying again.",
+                "deployment_required" => "Enable a deployment for this service before declaring it available.",
+                _ => "Availability was not saved. Operator access or the control plane may be unavailable." };
+        }
+        catch (Exception) { Logger.LogWarning("Cloud availability update failed."); _notice = "The change was not confirmed."; }
+        finally { _busy = false; }
+    }
+}
