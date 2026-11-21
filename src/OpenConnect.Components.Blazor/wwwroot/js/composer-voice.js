@@ -140,10 +140,19 @@ window.ocComposerVoice = (() => {
       } catch (_) { }
     };
     socket.onerror = async () => {
-      try { await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.'); } catch (_) { }
+      processorReadyResolve();
       await stop(false, 'socket_error');
+      try { await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.'); } catch (_) { }
     };
-    socket.onclose = () => { if (state === current) state = null; };
+    socket.onclose = async event => {
+      if (state !== current) return;
+      processorReadyResolve();
+      await stop(false, 'socket_closed');
+      try {
+        if (event?.code === 1000 && current.finalTranscript) await dotnet.invokeMethodAsync('OnVoiceStopped');
+        else await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription is unavailable. Text input remains available.');
+      } catch (_) { }
+    };
 
     processor.port.onmessage = event => {
       if (event.data && event.data.type === 'ready') {
@@ -194,8 +203,16 @@ window.ocComposerVoice = (() => {
     source.connect(processor);
     processor.connect(context.destination);
     await processorReady;
+    if (state !== current) throw new Error('voice_socket_closed');
     if (window.__ocTestMicrophone?.start) window.__ocTestMicrophone.start();
-    if (socket.readyState !== WebSocket.OPEN) await waitForSocket(socket);
+    if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      await stop(false, 'socket_closed');
+      throw new Error('voice_socket_closed');
+    }
+    if (socket.readyState !== WebSocket.OPEN) {
+      try { await waitForSocket(socket); }
+      catch (error) { await stop(false, 'socket_unavailable'); throw error; }
+    }
     openTransport();
   };
 
