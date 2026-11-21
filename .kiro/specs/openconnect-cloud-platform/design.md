@@ -291,3 +291,5 @@ The Cloud LiveUI host provider requires an application-owned session, route and 
 The Blazor host builds inference capabilities from the authorized current page through one shared mapper. Host authorization can revalidate the route, manifest hash, target/action pairs and bounded labels against that same mapping before Cloud egress.
 
 The Blazor Cloud authorizer reads the current authorized page, checks the request against its manifest and capability mapping, and rechecks the current route and application-owned session context before allowing egress. Applications supply the session ownership resolver; changes to route or session during authorization deny the request.
+
+The same-host development sample resolves Cloud LiveUI privacy context only for sessions owned by its configured tenant and principal. This identity mode remains development-only and does not establish production authentication.

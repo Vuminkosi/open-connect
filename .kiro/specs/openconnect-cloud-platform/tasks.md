@@ -235,3 +235,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Share and test the current-page inference capability mapping for host-side Cloud authorization; the concrete host authorizer remains outstanding.
 
 - [x] Add the Blazor Cloud host authorization adapter with current-page and session revalidation. A concrete application session resolver and real host-to-Cloud validation remain outstanding.
+
+- [x] Add and test same-host development session ownership resolution for Cloud LiveUI; application wiring and real host-to-Cloud acceptance remain outstanding.
