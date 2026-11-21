@@ -60,6 +60,9 @@ class Settings:
         cloud_mode = os.getenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "false").lower()
         if cloud_mode not in {"true", "false"}:
             raise ValueError("Invalid Cloud LiveUI mode")
+        metered_mode = os.getenv("OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED", "false").lower()
+        if metered_mode not in {"true", "false"} or (metered_mode == "true" and cloud_mode != "true"):
+            raise ValueError("Invalid Cloud LiveUI metering mode")
         approved = os.getenv("OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED", "false").lower() == "true"
         reviewed = os.getenv("OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED", "false").lower() == "true"
         if cloud_mode == "true" and (not self.enabled or not approved or not reviewed):

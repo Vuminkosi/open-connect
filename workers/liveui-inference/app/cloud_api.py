@@ -117,6 +117,7 @@ async def execute(request: Request) -> JSONResponse:
             request.app.state.engine,
             request.app.state.settings,
             client,
+            os.environ.get("OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED", "false").lower() == "true",
         )
         result = await asyncio.wait_for(
             asyncio.shield(future), timeout=request.app.state.settings.request_timeout_seconds

@@ -323,3 +323,5 @@ A separate mutual-TLS metered consumption endpoint validates the worker payload 
 The private metered settlement endpoint accepts bounded token counts only from the deployment-bound mutual-TLS worker and commits one-plan and token accounting through the dual settlement store. Duplicate reports are idempotent and conflicting or over-budget counts are rejected. Failed or unknown compute and production route registration remain outstanding.
 
 A private gateway-authenticated endpoint can reserve LiveUI plan and token capacity together, deriving tenant and application from the credential and validating bounded token amounts and canonical fingerprints. It is not yet registered in the running control plane or selected by the gateway.
+
+The LiveUI worker has an explicit opt-in metered mode. It uses the metered consumption endpoint with its actual model context limit, reports bounded native usage, and requires metered settlement before returning a plan. It never falls back to the unmetered path after a metered failure. Failed or unknown compute retains its reservation pending reconciliation; production activation is not yet connected.

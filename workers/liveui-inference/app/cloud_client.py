@@ -47,13 +47,15 @@ class CloudLiveUIClient:
         self._context.load_verify_locations(cafile=str(ca))
         self._context.load_cert_chain(certfile=str(cert), keyfile=str(key))
 
-    def _call(self, method: str, path: str, headers: dict[str, str] | None = None) -> tuple[int, object] | None:
+    def _call(
+        self, method: str, path: str, headers: dict[str, str] | None = None, body: bytes | None = None
+    ) -> tuple[int, object] | None:
         connection = http.client.HTTPSConnection(self._host, self._port, context=self._context, timeout=self._timeout)
         try:
             connection.request(
                 method,
                 path,
-                body=b"" if method == "POST" else None,
+                body=(body if body is not None else b"") if method == "POST" else None,
                 headers={"Cache-Control": "no-store", **(headers or {})},
             )
             response = connection.getresponse()
@@ -85,6 +87,18 @@ class CloudLiveUIClient:
             return None
 
     def consume(self, reservation_id: str, claim_id: str, payload: bytes, key: bytes) -> dict | None:
+        return self._consume(reservation_id, claim_id, payload, key, None)
+
+    def consume_metered(
+        self, reservation_id: str, claim_id: str, payload: bytes, key: bytes, context_tokens: int
+    ) -> dict | None:
+        if type(context_tokens) is not int or not 256 <= context_tokens <= 32768:
+            return None
+        return self._consume(reservation_id, claim_id, payload, key, context_tokens)
+
+    def _consume(
+        self, reservation_id: str, claim_id: str, payload: bytes, key: bytes, context_tokens: int | None
+    ) -> dict | None:
         try:
             reservation, claim = UUID(reservation_id), UUID(claim_id)
             if (
@@ -97,10 +111,14 @@ class CloudLiveUIClient:
             ):
                 return None
             digest = base64.b64encode(hmac.digest(key, payload, hashlib.sha256)).decode("ascii")
+            suffix = "consume-metered" if context_tokens is not None else "consume"
+            headers = {"X-OpenConnect-Worker-Payload-Fingerprint": digest}
+            if context_tokens is not None:
+                headers["X-OpenConnect-Worker-Context-Tokens"] = str(context_tokens)
             result = self._call(
                 "POST",
-                f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/consume",
-                {"X-OpenConnect-Worker-Payload-Fingerprint": digest},
+                f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/{suffix}",
+                headers,
             )
             if result is None or result[0] != 200 or not isinstance(result[1], dict):
                 return None
@@ -132,6 +150,28 @@ class CloudLiveUIClient:
                 result is not None
                 and result[0] == 200
                 and result[1] in ({"status": "completed"}, {"status": "already_completed"})
+            )
+        except (ValueError, TypeError, AttributeError):
+            return False
+
+    def settle_metered(self, reservation_id: str, claim_id: str, input_tokens: int, output_tokens: int) -> bool:
+        try:
+            reservation, claim = UUID(reservation_id), UUID(claim_id)
+            if (
+                reservation.int == 0 or claim.int == 0
+                or type(input_tokens) is not int or type(output_tokens) is not int
+                or input_tokens < 0 or output_tokens < 0 or input_tokens + output_tokens > 32768
+            ):
+                return False
+            body = json.dumps(
+                {"inputTokens": input_tokens, "outputTokens": output_tokens}, separators=(",", ":")
+            ).encode()
+            result = self._call(
+                "POST", f"/cloud/internal/v1/liveui/quota/reservations/{reservation}/claims/{claim}/complete-metered",
+                {"Content-Type": "application/json"}, body,
+            )
+            return result is not None and result[0] == 200 and result[1] in (
+                {"status": "completed"}, {"status": "already_completed"}
             )
         except (ValueError, TypeError, AttributeError):
             return False

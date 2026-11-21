@@ -86,3 +86,14 @@ def test_legacy_generation_does_not_require_native_usage_metadata():
 def test_model_usage_rejects_non_dictionary_response():
     with pytest.raises(ValueError):
         model_usage(None, 2048, 128)
+
+
+def test_metering_requires_an_explicit_valid_cloud_mode(monkeypatch):
+    monkeypatch.setenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "false")
+    monkeypatch.setenv("OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED", "true")
+    with pytest.raises(ValueError):
+        settings().validate()
+    monkeypatch.setenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "true")
+    monkeypatch.setenv("OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED", "invalid")
+    with pytest.raises(ValueError):
+        settings().validate()

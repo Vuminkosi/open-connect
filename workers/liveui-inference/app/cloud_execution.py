@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from .cloud_client import _unique
+from .cloud_usage import TokenUsage
 from .schemas import ActionPlan, PlanRequest
 
 
@@ -51,7 +52,7 @@ def _id(value: str) -> bool:
     )
 
 
-def execute_claimed(body: bytes, engine, settings, client) -> dict | None:
+def execute_claimed(body: bytes, engine, settings, client, metered: bool = False) -> dict | None:
     """Consume the exact request once, generate only after approval, and settle before returning."""
     if (
         not isinstance(body, bytes)
@@ -59,6 +60,7 @@ def execute_claimed(body: bytes, engine, settings, client) -> dict | None:
         or engine is None
         or settings is None
         or client is None
+        or type(metered) is not bool
     ):
         return None
     try:
@@ -79,7 +81,12 @@ def execute_claimed(body: bytes, engine, settings, client) -> dict | None:
         ):
             return None
         request = PlanRequest.model_validate({"requestId": payload.requestId, **payload.input}, strict=True)
-        admission = client.consume(envelope.reservationId, envelope.claimId, payload_bytes, key)
+        admission = (
+            client.consume_metered(
+                envelope.reservationId, envelope.claimId, payload_bytes, key, settings.model_context_size
+            )
+            if metered else client.consume(envelope.reservationId, envelope.claimId, payload_bytes, key)
+        )
         if (
             not isinstance(admission, dict)
             or admission.get("status") != "consumed"
@@ -88,7 +95,18 @@ def execute_claimed(body: bytes, engine, settings, client) -> dict | None:
             or admission.get("modelDigest") != "sha256:" + settings.model_sha256
         ):
             return None
-        plan, provider = engine.generate(request)
+        observed: list[TokenUsage] = []
+        plan, provider = engine.generate_metered(request, observed.append) if metered else engine.generate(request)
+        if metered and (
+            len(observed) != 1 or not isinstance(observed[0], TokenUsage)
+            or type(observed[0].input_tokens) is not int or type(observed[0].output_tokens) is not int
+            or observed[0].input_tokens < 0 or observed[0].output_tokens < 0
+            or observed[0].output_tokens > request.generation.maxOutputTokens
+            or observed[0].input_tokens + observed[0].output_tokens > settings.model_context_size
+            or (provider == "deterministic" and observed[0] != TokenUsage(0, 0))
+            or (provider == "qwen3-0.6b" and observed[0].input_tokens == 0)
+        ):
+            return None
         if (
             not isinstance(plan, ActionPlan)
             or provider not in {"deterministic", "qwen3-0.6b"}
@@ -112,9 +130,15 @@ def execute_claimed(body: bytes, engine, settings, client) -> dict | None:
             "status": "completed",
             "plan": plan.model_dump(exclude_none=True),
         }
-        if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 131072 or not client.settle(
-            envelope.reservationId, envelope.claimId
-        ):
+        if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 131072:
+            return None
+        settled = (
+            client.settle_metered(
+                envelope.reservationId, envelope.claimId, observed[0].input_tokens, observed[0].output_tokens
+            )
+            if metered else client.settle(envelope.reservationId, envelope.claimId)
+        )
+        if not settled:
             return None
         return result
     except (ValueError, TypeError, UnicodeError, binascii.Error, RecursionError, AttributeError):

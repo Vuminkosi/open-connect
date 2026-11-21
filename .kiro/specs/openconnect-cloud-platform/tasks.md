@@ -263,3 +263,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add and test the private mutual-TLS dual-settlement endpoint with malformed, overage, concurrent and conflicting reports; worker use and production registration remain outstanding.
 
 - [x] Add and test the private dual-reservation endpoint with the existing machine-authorization boundary; production registration and gateway selection remain outstanding.
+
+- [x] Add opt-in metered worker execution, mutual-TLS client calls and fail-closed usage validation. Gateway activation and failed/unknown usage reconciliation remain outstanding.
