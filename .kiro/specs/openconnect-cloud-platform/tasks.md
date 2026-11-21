@@ -315,3 +315,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add an explicit local Cloud database creation and migration helper, verified on disposable PostgreSQL for first application, replay, schema presence and preservation of existing data.
 
 - [x] Generate and reload Windows-user-protected local identity credentials without Google OAuth, refusing to replace existing credentials.
+
+- [x] Define and validate a bounded Kokoro-compatible Cloud speech-synthesis request and privacy inspection fields. Authorization, privacy enforcement, metering, worker dispatch and the public route remain outstanding.
