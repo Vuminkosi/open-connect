@@ -19,6 +19,7 @@ using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Core;
+using OpenConnect.Docs.Services;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore.Protection;
@@ -42,7 +43,9 @@ if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(tenant) || str
     throw new InvalidOperationException("The fixture requires authentication and model configuration.");
 _ = Ulid.Parse(tenant);
 _ = Ulid.Parse(principal);
-builder.Services.AddSingleton(new FixtureIdentity(token, tenant, principal));
+var visitorKey = builder.Configuration["OC_DOCS_ASSISTANT_VISITOR_KEY"];
+var visitors = string.IsNullOrWhiteSpace(visitorKey) ? null : new DocumentationGatewayVisitorTokens(tenant, visitorKey);
+builder.Services.AddSingleton(new FixtureIdentity(token, tenant, principal, visitors));
 builder.Services.AddAuthentication(FixtureAuth.SchemeName).AddScheme<AuthenticationSchemeOptions, FixtureAuth>(FixtureAuth.SchemeName, _ => { });
 builder.Services.AddAuthorization();
 builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = TimeSpan.FromSeconds(60));
@@ -78,7 +81,7 @@ app.MapOpenConnect();
 app.MapOpenConnectLiveUIInference();
 app.Run();
 
-internal sealed record FixtureIdentity(string Token, string Tenant, string Principal);
+internal sealed record FixtureIdentity(string Token, string Tenant, string Principal, DocumentationGatewayVisitorTokens? Visitors);
 
 internal sealed class FixtureAuth(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
     UrlEncoder encoder, FixtureIdentity identity) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
@@ -87,6 +90,14 @@ internal sealed class FixtureAuth(IOptionsMonitor<AuthenticationSchemeOptions> o
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var header = Request.Headers.Authorization.ToString();
+        if (identity.Visitors is not null)
+        {
+            if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                !identity.Visitors.TryValidate(header[7..], out var tenant, out var principal))
+                return Task.FromResult(AuthenticateResult.NoResult());
+            var visitorClaims = new[] { new Claim("tenant_id", tenant), new Claim(ClaimTypes.NameIdentifier, principal) };
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(visitorClaims, SchemeName)), SchemeName)));
+        }
         var expected = Encoding.UTF8.GetBytes("Bearer " + identity.Token);
         var actual = Encoding.UTF8.GetBytes(header);
         if (!CryptographicOperations.FixedTimeEquals(expected, actual)) return Task.FromResult(AuthenticateResult.NoResult());

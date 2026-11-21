@@ -1,0 +1,6 @@
+services:
+  documentation-site:
+    environment:
+      OpenConnect__Assistant__GatewayBearer: ""
+      OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}
+      OpenConnect__Assistant__VisitorSigningKey: ${OC_DOCS_ASSISTANT_VISITOR_KEY:?Set OC_DOCS_ASSISTANT_VISITOR_KEY}

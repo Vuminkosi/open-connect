@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../samples/workers/shared/OpenConnect.Samples.Workers.Host/LiveUIInferenceEndpoints.cs" Link="LiveUIInferenceEndpoints.cs" />
+    <Compile Include="../../../site/OpenConnect.Docs/Services/DocumentationGatewayVisitorTokens.cs" Link="DocumentationGatewayVisitorTokens.cs" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="OpenAI" />
     <ProjectReference Include="../../../src/OpenConnect.LiveUI.Hosting/OpenConnect.LiveUI.Hosting.csproj" />

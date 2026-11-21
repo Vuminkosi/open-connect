@@ -5,6 +5,8 @@ using OpenConnect.Components.Blazor;
 using OpenConnect.Components.Contracts;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
+using OpenConnect.LiveUI.Inference;
+using Microsoft.Extensions.Options;
 
 namespace OpenConnect.Docs.Services;
 
@@ -23,6 +25,12 @@ public static class DocumentationAssistant
         if (configured)
         {
             var credential = configuration["OpenConnect:Assistant:GatewayBearer"];
+            var visitorKey = configuration["OpenConnect:Assistant:VisitorSigningKey"];
+            var visitorTenant = configuration["OpenConnect:Assistant:VisitorTenant"];
+            var visitorIdentityEnabled = !string.IsNullOrWhiteSpace(visitorKey) || !string.IsNullOrWhiteSpace(visitorTenant);
+            if (visitorIdentityEnabled && (!string.IsNullOrEmpty(credential) ||
+                string.IsNullOrWhiteSpace(visitorKey) || string.IsNullOrWhiteSpace(visitorTenant) || gateway!.Scheme != Uri.UriSchemeHttps))
+                throw new InvalidOperationException("The documentation visitor identity requires HTTPS, a tenant and signing key, without a shared gateway bearer.");
             if (!string.IsNullOrEmpty(credential) &&
                 (credential.Any(char.IsWhiteSpace) || credential.Any(char.IsControl) ||
                  (gateway!.Scheme != Uri.UriSchemeHttps && !(environment.IsDevelopment() && gateway.IsLoopback))))
@@ -35,6 +43,20 @@ public static class DocumentationAssistant
             if (!string.IsNullOrEmpty(credential))
                 services.AddHttpClient(nameof(IOpenConnectClient), client =>
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential));
+            if (visitorIdentityEnabled)
+            {
+                services.AddSingleton(new DocumentationGatewayVisitorTokens(visitorTenant!, visitorKey!));
+                services.AddScoped<DocumentationGatewayVisitorIdentity>();
+                services.AddScoped<IOpenConnectClient>(provider => new OpenConnectClient(
+                    CreateVisitorClient(provider), Options.Create(provider.GetRequiredService<OpenConnectClientOptions>())));
+                services.AddScoped(provider =>
+                {
+                    var client = CreateVisitorClient(provider);
+                    client.Timeout = Timeout.InfiniteTimeSpan;
+                    return new GatewayWorkerLiveUIInferenceProvider(client);
+                });
+                services.AddScoped<ILiveUIInferenceProvider>(provider => provider.GetRequiredService<GatewayWorkerLiveUIInferenceProvider>());
+            }
         }
         else
         {
@@ -62,6 +84,15 @@ public static class DocumentationAssistant
         return services;
     }
 
+    private static HttpClient CreateVisitorClient(IServiceProvider provider)
+    {
+        var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IOpenConnectClient));
+        client.BaseAddress = provider.GetRequiredService<OpenConnectClientOptions>().ApiBaseAddress;
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
+            provider.GetRequiredService<DocumentationGatewayVisitorIdentity>().Token);
+        return client;
+    }
+
     private static Uri? ResolveGateway(IConfiguration configuration, IHostEnvironment environment)
     {
         if (!configuration.GetValue<bool>("OpenConnect:Assistant:Enabled")) return null;
@@ -84,4 +115,9 @@ public static class DocumentationAssistant
             return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
         }
     }
+}
+
+internal sealed class DocumentationGatewayVisitorIdentity(DocumentationGatewayVisitorTokens tokens)
+{
+    public string Token { get; } = tokens.Issue();
 }

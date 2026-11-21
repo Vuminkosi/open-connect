@@ -16,6 +16,8 @@ Public documentation and API reference pages do not require visitor sign-in. The
 
 The generic gateway fixture supports optional application instructions and the existing Kokoro HTTP client for development verification. It uses process-local state and a configured external model provider; it is not the Cloud application gateway, a durable deployment, or evidence of Cloud usage settlement.
 
+The documentation application can issue a short-lived signed visitor identity per server-side circuit, using a configured application tenant and deployment secret. Gateway session authorization must bind both tenant and visitor principal; enabling visitor identities excludes the shared bearer mode. Identity tokens stay server-side and require HTTPS. Circuit identities expire after twelve hours, so a new circuit is required after expiry.
+
 The documentation LiveUI manifest exposes the public home, documentation and API indexes, plus routes from the loaded documentation catalog. Each route identifies its page heading so navigation can verify the rendered destination and the assistant can inspect, highlight, or scroll to that heading. Navigation is authorized only for those public routes; unknown documentation paths and Cloud management routes remain outside the assistant's navigation authority.
 
 On the documentation index, the assistant can focus, inspect and set the public documentation search input. Search values are bounded to 200 characters; other inputs and Cloud management controls do not gain mutation authority from this permission.
