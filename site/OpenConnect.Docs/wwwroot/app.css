@@ -86,6 +86,15 @@
 }
 :root[data-theme="dark"] .doc-toc { border-color: #284158; }
 :root[data-theme="dark"] .doc-toc :is(a, summary) { color: #dbe8f5; }
+.api-operation-table { max-width: 100%; overflow-x: auto; margin: 1rem 0; }
+.api-operation-table table { width: 100%; border-collapse: collapse; text-align: left; }
+.api-operation-table :is(th, td) { border-bottom: 1px solid #dbe4ef; padding: .7rem; vertical-align: top; }
+.api-operation-table code { white-space: nowrap; }
+.api-list summary { overflow-wrap: anywhere; }
+.api-list pre { max-width: 100%; overflow-x: auto; }
+.api-operation-table:focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
+:root[data-theme="dark"] .api-operation-table :is(th, td) { border-color: #284158; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .api-operation-table :is(th, td) { border-color: #284158; } }
 :root[data-theme="dark"] .markdown-body :is(th, td) { border-color: #49617a; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .markdown-body :is(th, td) { border-color: #49617a; }

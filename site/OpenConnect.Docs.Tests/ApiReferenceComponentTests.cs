@@ -17,6 +17,22 @@ public sealed class ApiReferenceComponentTests : BunitContext
     }
 
     [Fact]
+    public void ApiReferenceOffersClientGuidesAndCommonOperationsWithoutGeneratedMetadata()
+    {
+        var missingDirectory = Path.Combine(Path.GetTempPath(), $"openconnect-missing-api-{Guid.NewGuid():N}");
+        Services.AddSingleton(new GeneratedApiStore(missingDirectory));
+        var component = Render<ApiIndex>();
+
+        Assert.NotNull(component.Find("a[href='/docs/v1/dotnet-client']"));
+        Assert.NotNull(component.Find("a[href='/docs/v1/typescript-client']"));
+        Assert.NotNull(component.Find("a[href='/docs/v1/rest-api']"));
+        Assert.Contains("CreateTaskAsync", component.Find(".api-operation-table").TextContent);
+        Assert.Contains("createTask", component.Find(".api-operation-table").TextContent);
+        Assert.Contains("POST /tasks", component.Find(".api-operation-table").TextContent);
+        Assert.Contains("Generated metadata is not included", component.Markup);
+    }
+
+    [Fact]
     public void GeneratedDocumentsCanBeSearchedAndPaged()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"openconnect-api-test-{Guid.NewGuid():N}");

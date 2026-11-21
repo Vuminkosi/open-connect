@@ -331,3 +331,7 @@ app.Run();
 ### Shared Cloud JSON privacy inspection
 
 Cloud features use a shared JSON privacy inspection service for decoded worker-bound payloads. Feature endpoints retain responsibility for their own authorization, request contracts, privacy evidence, and settlement; embedding responses use their dedicated bounded inspection budget. Missing detectors fail closed.
+
+### Public API discovery
+
+The documentation site exposes client guides and common gateway operations without authentication or generated metadata. Generated API metadata remains optional; authored examples follow the current SDK and gateway contracts.
