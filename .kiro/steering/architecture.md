@@ -397,3 +397,5 @@ Analytics privacy evaluation uses the shared JSON privacy boundary for request a
 Analytics usage settlement atomically records append-only compute evidence and finalizes its request reservation. Database guards require a matching consumed completion and current allowed request and response privacy evidence for the same tenant and application.
 
 Analytics control-plane operations require a trusted gateway certificate and an authorized application credential; reservations, privacy decisions, deployment selection and completion are bound to that authenticated scope.
+
+Analytics claim admission and worker consumption recheck the tenant, selected deployment and latest request privacy evidence. Each claim is consumed at most once using a deployment-bound worker payload proof.
