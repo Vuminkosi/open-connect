@@ -227,6 +227,7 @@ Scoped response restoration
 - Passwords, API keys, access tokens have highest severity
 - Secrets NEVER restored to model output, tool arguments, logs, or telemetry
 - Final response scanner catches independently inferred values
+- Structured privacy inspection evaluates bounded JSON fragments and cross-field combinations without changing their structure. Optional host evidence records allowlisted decision metadata and category counts, never source content.
 
 ## Testing Requirements
 
