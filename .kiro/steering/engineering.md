@@ -10,7 +10,7 @@ description: Coding standards, testing strategy, CI/CD, and development practice
 
 ### C#/.NET
 
-- **Target Framework:** .NET 8 LTS
+- **Target Frameworks:** Libraries target .NET 8, 9 and 10; executable samples and tests default to .NET 10. Keep each sample's lock file aligned with its configured target and central package versions.
 - **Language Version:** C# 12
 - **Nullable Reference Types:** Enabled
 - **Implicit Usings:** Enabled
