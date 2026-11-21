@@ -224,7 +224,7 @@ Status: In progress. The checkboxes record repository implementation state, not 
 
 - [x] Add an isolated Cloud LiveUI worker and gateway configuration to root Compose; real-system validation remains outstanding.
 
-- [x] Verify deterministic LiveUI request, settlement, privacy evidence and replay through a real worker and disposable PostgreSQL. Model-generated planning remains unverified.
+- [x] Verify deterministic LiveUI request, settlement, privacy evidence and replay through a real worker and disposable PostgreSQL. Model-generated planning through the host remains unverified.
 
 - [x] Publish the versioned LiveUI result schema with valid and invalid fixtures; request-specific host authorization remains required.
 
@@ -239,3 +239,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add and test same-host development session ownership resolution for Cloud LiveUI; application wiring and real host-to-Cloud acceptance remain outstanding.
 
 - [x] Exercise the host Cloud provider and privacy firewall through the real gateway, worker and PostgreSQL with a controlled page/session fixture; browser and production acceptance remain outstanding.
+
+- [x] Verify a Qwen-generated allowed LiveUI action through the gateway and private worker, with input/output evidence and plan settlement in disposable PostgreSQL.

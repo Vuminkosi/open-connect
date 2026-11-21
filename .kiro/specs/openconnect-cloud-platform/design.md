@@ -278,7 +278,7 @@ The opt-in LiveUI gateway route uses a pinned deployment and private mutual TLS.
 
 The root Compose configuration provides an opt-in Cloud LiveUI worker with mutual TLS, a read-only pre-provisioned model and mounted secrets. Model license and artifact approval must be configured explicitly; no model download is performed in Cloud mode.
 
-A disposable PostgreSQL and mutual-TLS gateway/worker test verifies a settled deterministic LiveUI plan, input and output privacy evidence, and replay rejection using a pre-provisioned model. Model-generated plans and production deployment remain unverified.
+A disposable PostgreSQL and mutual-TLS gateway/worker test verifies a settled deterministic LiveUI plan, input and output privacy evidence, and replay rejection using a pre-provisioned model. A model-generated allowed action has also been verified through the gateway; production deployment remains unverified.
 
 The versioned LiveUI result schema describes the proposal returned by the Cloud gateway. Its action types and value fields match gateway validation; the host must still check the original request allowlist and authorize execution.
 
@@ -294,8 +294,10 @@ The Blazor Cloud authorizer reads the current authorized page, checks the reques
 
 The same-host development sample resolves Cloud LiveUI privacy context only for sessions owned by its configured tenant and principal. This identity mode remains development-only and does not establish production authentication.
 
-A local integration test exercises the .NET host Cloud provider, host privacy firewall and controlled page/session authorization through a test-only HTTPS proxy to the real Cloud gateway, mTLS worker and disposable PostgreSQL. It verifies a deterministic proposal and one-plan settlement; browser actions, receipts, model-generated planning and production TLS remain unverified.
+A local integration test exercises the .NET host Cloud provider, host privacy firewall and controlled page/session authorization through a test-only HTTPS proxy to the real Cloud gateway, mTLS worker and disposable PostgreSQL. It verifies a deterministic proposal and one-plan settlement; browser actions, receipts, model-generated planning through the host and production TLS remain unverified.
 
 Enabling the Cloud LiveUI provider requires host authorization and a privacy egress gate at application startup. Missing boundaries stop startup instead of allowing a planner fallback to bypass them.
 
 A focused integration test exercises Cloud host reauthorization through the actual LiveUI agent tools and verifies that revoking a target permission prevents subsequent Cloud egress; no browser action is executed by this check.
+
+A disposable real-system test also sent a model-generated LiveUI request through the Cloud gateway and mutual-TLS worker. The pinned Qwen3 model returned the permitted completed-tab action; input and output privacy evidence and one-plan settlement were verified in PostgreSQL.

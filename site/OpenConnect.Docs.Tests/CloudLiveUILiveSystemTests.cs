@@ -192,6 +192,23 @@ public sealed class CloudLiveUILiveSystemTests
             Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
             Assert.Equal(1, await verify.ExecutionConsumptions.CountAsync(x => x.ReservationId == reservation.Id));
             await VerifyHostPlanAsync(port, credential.Secret!, factory, tenant.Id, application.Id);
+            var modelRequestId = Guid.NewGuid();
+            var modelRequest = new { schemaVersion = "openconnect.cloud.liveui/v1", requestId = modelRequestId,
+                capability = "inference.liveui", expiresAt = DateTimeOffset.UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture),
+                input = new { schemaVersion = "openconnect.liveui/v1", intent = "Select the Completed tab.", context = new { route = "todo.home",
+                    availableActions = new[] { new { target = "todo.tab.all", action = "activate" }, new { target = "todo.tab.active", action = "activate" },
+                        new { target = "todo.tab.completed", action = "activate" } } }, generation = new { maxActions = 8, maxOutputTokens = 128 } } };
+            using var modelResponse = await http.PostAsJsonAsync("/cloud/v1/liveui/plan", modelRequest);
+            Assert.True(modelResponse.IsSuccessStatusCode, await modelResponse.Content.ReadAsStringAsync());
+            using var modelResult = System.Text.Json.JsonDocument.Parse(await modelResponse.Content.ReadAsStringAsync());
+            Assert.Equal("qwen3-0.6b", modelResult.RootElement.GetProperty("provider").GetString());
+            var modelAction = Assert.Single(modelResult.RootElement.GetProperty("plan").GetProperty("actions").EnumerateArray());
+            Assert.Equal("activate", modelAction.GetProperty("type").GetString());
+            Assert.Equal("todo.tab.completed", modelAction.GetProperty("target").GetString());
+            var modelReservation = await verify.QuotaReservations.SingleAsync(item => item.TenantId == tenant.Id && item.RequestId == modelRequestId);
+            Assert.Equal(1, modelReservation.Actual); Assert.NotNull(modelReservation.FinalizedAt);
+            Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_privacy_evidence WHERE \"TenantId\" = {tenant.Id} AND \"RequestId\" = {modelRequestId} AND \"Outcome\" = 'allowed'").SingleAsync());
+            Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {modelReservation.Id} AND \"Outcome\" = 'allowed'").SingleAsync());
         }
         finally
         {
