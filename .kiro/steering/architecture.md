@@ -407,3 +407,5 @@ The optional analytics Cloud Compose profile keeps the worker private behind a m
 Application hosts can use the analytics client to authorize and privacy-check worker input, sign requests and validate worker output before exposing results. The client requires an explicit protected-network opt-in for HTTP.
 
 The documentation analytics example uses a fixed synthetic dataset, anonymous visitor scope, bounded concurrency and the application SDK. It is opt-in in development and keeps worker credentials in protected configuration.
+
+Analytics privacy and compute reports require the appropriate tenant membership role. Reading reports creates an audit event but does not reserve or consume tenant API quota.

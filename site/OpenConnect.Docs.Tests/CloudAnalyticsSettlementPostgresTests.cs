@@ -60,6 +60,18 @@ public sealed class CloudAnalyticsSettlementPostgresTests
         Assert.Single(attempts, result => result.Status == "completed");
         Assert.Equal(7, attempts.Count(result => result.Status == "already_completed"));
         Assert.Equal("conflict", (await completion.CompleteAsync(tenant.Id, application.Id, reservation, claim, 13, default)).Status);
+        var usageReader = new EfCloudAnalyticsComputeUsageReader(factory, TimeProvider.System);
+        var privacyReader = new EfCloudAnalyticsPrivacyReader(factory, TimeProvider.System);
+        var outsider = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var summary = await usageReader.GetTenantAsync(owner, tenant.Id, now.AddHours(-1), now.AddHours(1), default);
+        Assert.NotNull(summary);
+        Assert.Equal(12, Assert.Single(summary.Totals).ComputeMilliseconds);
+        Assert.Null(await usageReader.GetTenantAsync(outsider, tenant.Id, now.AddHours(-1), now.AddHours(1), default));
+        var privacy = await privacyReader.GetTenantAsync(owner, tenant.Id, default);
+        Assert.NotNull(privacy);
+        Assert.Equal(2, privacy.RecentCases.Count);
+        Assert.Null(await privacyReader.GetTenantAsync(outsider, tenant.Id, default));
+        Assert.Null(await privacyReader.GetTenantAsync(outsider, Guid.NewGuid(), default));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var milliseconds = await db.Database.SqlQuery<int>($"SELECT \"ComputeMilliseconds\" AS \"Value\" FROM cloud.analytics_compute_usage WHERE \"ReservationId\" = {reservation}").SingleAsync();
