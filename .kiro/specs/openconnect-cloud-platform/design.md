@@ -305,3 +305,5 @@ A disposable real-system test also sent a model-generated LiveUI request through
 The host provider integration also verifies a Qwen-generated allowed action through the same host privacy and authorization boundary, using a controlled page/session fixture and a test-only certificate-pinned HTTPS proxy.
 
 The Cloud LiveUI browser acceptance script verifies the Completed-tab action and a postcondition receipt against a configured application and conversational fixture. The fixture can expect either the existing local worker provider or the Cloud gateway provider; it does not claim real conversational-model coverage.
+
+The development sample can opt into the Cloud LiveUI provider for an owned same-host session. Cloud origin and service credential are server-side settings; the mode is incompatible with the sample?s other gateway planners and remains development-only.

@@ -47,6 +47,10 @@ builder.Services.AddRazorComponents()
 var gatewayOptions = TodoGatewayOptions.FromConfiguration(builder.Configuration, builder.Environment);
 var sameHostGatewayPlanner = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:SameHostGatewayPlanner");
 var externalGatewayPlanner = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:ExternalGatewayPlanner");
+var cloudLiveUIEnabled = builder.Configuration.GetValue<bool>("OpenConnect:LiveUI:Cloud:Enabled");
+if (cloudLiveUIEnabled && (gatewayOptions.Mode != TodoGatewayMode.SameHostGateway || !builder.Environment.IsDevelopment() ||
+    sameHostGatewayPlanner || externalGatewayPlanner))
+    throw new InvalidOperationException("Cloud LiveUI in this sample requires SameHostGateway in Development and no other gateway planner.");
 if (externalGatewayPlanner && gatewayOptions.Mode != TodoGatewayMode.ExternalGateway)
     throw new InvalidOperationException("The external gateway planner requires ExternalGateway mode.");
 var sameHostWorkerConfigured = gatewayOptions.Mode == TodoGatewayMode.SameHostGateway &&
@@ -144,14 +148,23 @@ builder.Services.AddOpenConnectLiveUIBlazor(options =>
 });
 builder.Services.Configure<LiveUIInferenceOptions>(options =>
 {
-    options.Worker.Enabled = !sameHostGatewayPlanner || sameHostWorkerConfigured;
-    options.Gateway.Enabled = sameHostGatewayPlanner || externalGatewayPlanner;
+    options.Worker.Enabled = !(sameHostGatewayPlanner || cloudLiveUIEnabled) || sameHostWorkerConfigured;
+    options.Gateway.Enabled = sameHostGatewayPlanner || externalGatewayPlanner || cloudLiveUIEnabled;
     var configuredFallback = builder.Configuration.GetValue<LiveUIFallbackPolicy?>("OpenConnect:LiveUI:Inference:Gateway:FallbackPolicy");
     if (configuredFallback.HasValue)
         options.Gateway.FallbackPolicy = configuredFallback.Value;
-    if (sameHostGatewayPlanner && !sameHostWorkerConfigured)
+    if ((sameHostGatewayPlanner || cloudLiveUIEnabled) && !sameHostWorkerConfigured)
         options.Mode = LiveUIInferenceMode.GatewayOnly;
 });
+if (cloudLiveUIEnabled)
+{
+    builder.Services.AddCloudLiveUIBlazorHostAuthorizer<SameHostCloudLiveUISessionContextProvider>();
+    builder.Services.AddCloudLiveUIInferenceProvider(options =>
+    {
+        options.Origin = Uri.TryCreate(builder.Configuration["OpenConnect:LiveUI:Cloud:Origin"], UriKind.Absolute, out var origin) ? origin : null;
+        options.Credential = builder.Configuration["OpenConnect:LiveUI:Cloud:Credential"];
+    });
+}
 if (sameHostGatewayPlanner)
     builder.Services.AddLiveUIGatewayInferenceProvider<SameHostGatewayPlanner>();
 if (externalGatewayPlanner)
