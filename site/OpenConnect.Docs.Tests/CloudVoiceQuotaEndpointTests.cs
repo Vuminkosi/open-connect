@@ -32,12 +32,14 @@ public sealed class CloudVoiceQuotaEndpointTests
             new Dictionary<string, CloudApplicationCapabilitySelection> { ["voice.synthesize"] = new() { TenantId = tenant, ApplicationId = application, CapabilityId = "voice.synthesize", Enabled = true } });
         var quotas = new QuotaStore();
         var evidence = new EvidenceStore();
+        var claims = new ClaimStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>().AddSingleton<ICloudQuotaStore>(quotas)
             .AddSingleton<CloudQuotaService>().AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()))
-            .AddSingleton<ICloudVoicePrivacyEvidenceStore>(evidence).BuildServiceProvider();
+            .AddSingleton<ICloudVoicePrivacyEvidenceStore>(evidence).AddSingleton<ICloudVoiceClaimStore>(claims)
+            .AddSingleton<CloudVoiceClaimService>().BuildServiceProvider();
         var id = Guid.NewGuid();
         string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
             fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
@@ -87,6 +89,16 @@ public sealed class CloudVoiceQuotaEndpointTests
         Assert.Equal("privacy_blocked", evidence.Last.Item5);
         evidence.Fail = true;
         Assert.Equal(503, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe), trust, true, default)));
+
+        var claimJson = System.Text.Json.JsonSerializer.Serialize(new { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), endpointReference = "voice-worker", region = "region-a",
+            contractVersion = "v1", modelId = "kokoro", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) });
+        var claimNoCert = Context(claimJson); claimNoCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, claimNoCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, Context(claimJson.Replace("workerPayloadFingerprint", "unknown", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal(0, claims.Calls);
+        Assert.Equal(200, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, Context(claimJson), trust, true, default)));
+        Assert.Equal((tenant, application, id), claims.Last);
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
@@ -103,6 +115,15 @@ public sealed class CloudVoiceQuotaEndpointTests
             Calls++; Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class ClaimStore : ICloudVoiceClaimStore
+    {
+        public int Calls { get; private set; }
+        public (Guid, Guid, Guid) Last { get; private set; }
+        public Task<CloudExecutionClaimResult> ClaimAsync(CloudCredentialIdentity identity, Guid reservationId, string fingerprintKeyId,
+            byte[] fingerprint, byte[] workerFingerprint, string modelId, CloudInferenceDeploymentMatch deployment, CancellationToken cancellationToken)
+        { Calls++; Last = (identity.TenantId, identity.ApplicationId, reservationId); return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid())); }
     }
 
     private sealed class QuotaStore : ICloudQuotaStore

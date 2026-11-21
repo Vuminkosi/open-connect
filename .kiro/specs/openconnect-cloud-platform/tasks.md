@@ -325,3 +325,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a private speech character-reservation endpoint implementation with pinned gateway identity, capability authorization, bounded amounts and fingerprint replay lookup. Verify endpoint gates and concurrent scoped reservations in disposable PostgreSQL. Route registration, trusted input-to-amount binding, claim/consumption and settlement remain outstanding.
 
 - [x] Add private speech privacy inspection, append-only fingerprint and character-count evidence, and an admission lookup. Verify Unicode counting, fail-closed evidence writes, latest-decision semantics, immutability and PostgreSQL migration upgrade. Registration and use by speech claims remain outstanding.
+
+- [x] Add deployment-bound speech claim admission that rechecks the latest matching privacy decision and reserved character count. Verify replay, credential revocation, capacity, older writers and migration upgrade in disposable PostgreSQL. Endpoint registration, worker consumption, accounting and gateway execution remain outstanding.
