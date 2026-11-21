@@ -34,6 +34,8 @@ If microphone availability is withdrawn during capture, the composer aborts the 
 
 The documentation assistant renders after its interactive server circuit starts, so its launcher is not presented before it can receive input. Public documentation remains server-rendered.
 
+Interactive documentation examples likewise render their controls after their circuits start, preventing early input from being lost while the surrounding guide remains server-rendered.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.

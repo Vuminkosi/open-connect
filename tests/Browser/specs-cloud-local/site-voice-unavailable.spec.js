@@ -29,6 +29,24 @@ test('assistant launcher appears after the interactive circuit starts', async ({
   await expect(page.locator('.oc-status__text')).toHaveText('Ready');
 });
 
+test('documentation examples accept input when their controls appear', async ({ page }) => {
+  test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
+    'Explicit local documentation acceptance configuration is required.');
+  const origin = portalOrigin();
+  const docsHtml = await (await page.request.get(`${origin}/docs`)).text();
+  expect(docsHtml).not.toContain('id="docs-show-guides"');
+  await page.goto(`${origin}/docs`);
+  await page.getByRole('button', { name: 'Show integration guides' }).click();
+  await expect(page.getByRole('region', { name: 'OpenConnect integration guides' })).toBeVisible();
+
+  const privacyHtml = await (await page.request.get(`${origin}/docs/v1/privacy`)).text();
+  expect(privacyHtml).not.toContain('id="privacy-demo-run"');
+  await page.goto(`${origin}/docs/v1/privacy`);
+  await page.getByLabel('Example').selectOption('email');
+  await page.getByRole('button', { name: 'Check example' }).click();
+  await expect(page.getByText('Detected categories:', { exact: false })).toContainText('EMAIL');
+});
+
 test('unavailable local transcription disables microphone and leaves text usable', async ({ page }) => {
   test.skip(process.env.OPENCONNECT_SITE_VOICE_UNAVAILABLE_ACCEPTANCE_ENABLED !== '1' || !process.env.OPENCONNECT_CLOUD_ACCEPTANCE_PORTAL,
     'Explicit local unavailable-voice acceptance configuration is required.');
