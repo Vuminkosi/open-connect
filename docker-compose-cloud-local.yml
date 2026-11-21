@@ -4,6 +4,7 @@ services:
       ASPNETCORE_URLS: "http://+:8080;https://+:8443"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /run/openconnect-tls/localhost.pem
       ASPNETCORE_Kestrel__Certificates__Default__KeyPath: /run/openconnect-tls/localhost.key
+      ASPNETCORE_Kestrel__Certificates__Default__Password: null
     ports:
       - "127.0.0.1:${OPENCONNECT_DOCS_HTTPS_PORT:-5051}:8443"
     volumes:
