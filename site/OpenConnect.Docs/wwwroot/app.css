@@ -48,3 +48,30 @@
 :root[data-theme="light"] .cloud-list span { color: #5c7186; }
 :root[data-theme="light"] .cloud-reason { color: #8a3a00; }
 :root[data-theme="light"] .cloud-content :is(button, input, select, textarea, a):focus-visible { outline-color: #127b72; }
+
+/* Documentation article and its local section navigation. */
+@media (min-width: 1200px) {
+  .shell { max-width: 1520px; grid-template-columns: 250px minmax(0, 1fr); }
+  .doc-layout { display: grid; grid-template-columns: minmax(0, 850px) 190px; gap: 38px; align-items: start; }
+  .doc-toc { position: sticky; top: 90px; max-height: calc(100vh - 110px); overflow-y: auto; }
+}
+.doc-article { min-width: 0; }
+.doc-toc { border-left: 1px solid #dbe4ef; padding-left: 18px; font-size: .86rem; line-height: 1.4; }
+.doc-toc summary { cursor: pointer; font-weight: 700; color: #314b63; }
+.doc-toc ul { list-style: none; padding: 0; margin: 12px 0; }
+.doc-toc li { margin: 8px 0; overflow-wrap: anywhere; }
+.doc-toc-subsection { padding-left: 12px; }
+.doc-toc a { color: #314b63; text-decoration: none; }
+.doc-toc a:hover { color: #1261a0; text-decoration: underline; }
+.doc-toc :is(a, summary):focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
+.markdown-body :is(h2,h3,h4) { scroll-margin-top: 100px; }
+@media (max-width: 1199px) {
+  .doc-layout { display: flex; flex-direction: column; }
+  .doc-toc { order: -1; align-self: stretch; border-left: 0; border-bottom: 1px solid #dbe4ef; padding: 0 0 12px; }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .doc-toc { border-color: #284158; }
+  :root:not([data-theme="light"]) .doc-toc :is(a, summary) { color: #dbe8f5; }
+}
+:root[data-theme="dark"] .doc-toc { border-color: #284158; }
+:root[data-theme="dark"] .doc-toc :is(a, summary) { color: #dbe8f5; }

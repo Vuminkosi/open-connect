@@ -18,6 +18,7 @@
         var paragraph = new List<string>();
         var inCode = false;
         var code = new List<string>();
+        var headingIds = new DocumentationHeadingIds();
         foreach (var line in lines)
         {
             if (line.StartsWith("```") && !inCode)
@@ -36,13 +37,13 @@
                 foreach (var block in FlushParagraph(paragraph)) yield return block;
                 paragraph.Clear(); continue;
             }
-            if (line.StartsWith("#"))
+            if (DocumentationHeadingIds.TryParse(line, out var level, out var heading))
             {
                 foreach (var block in FlushParagraph(paragraph)) yield return block;
                 paragraph.Clear();
-                var level = Math.Min(3, line.TakeWhile(c => c == '#').Count());
-                var text = WebUtility.HtmlEncode(line[level..].Trim());
-                yield return $"<h{level + 1}>{text}</h{level + 1}>";
+                var text = WebUtility.HtmlEncode(heading);
+                var id = WebUtility.HtmlEncode(headingIds.Next(heading));
+                yield return $"<h{level + 1} id=\"{id}\">{text}</h{level + 1}>";
                 continue;
             }
             paragraph.Add(line);

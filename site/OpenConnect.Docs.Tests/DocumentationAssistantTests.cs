@@ -12,6 +12,32 @@ namespace OpenConnect.Docs.Tests;
 
 public sealed class DocumentationAssistantTests
 {
+    [Fact]
+    public async Task LiveUIExposesOnlyRenderedDocumentationSectionsForReadOnlyGuidance()
+    {
+        const string markdown = "# Guide\n## Install\n### Configure\n## Install\n```text\n## Hidden code\n```";
+        var document = new DocumentationDocument("v1", "guide", "Guide", "", 0, markdown, []);
+        var manifest = DocumentationLiveUIManifest.Create([document]);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs/v1/guide");
+        Assert.Equal(4, route.Targets.Count);
+        Assert.Equal(new[] { ".markdown-body [id=\"install\"]", ".markdown-body [id=\"configure\"]",
+            ".markdown-body [id=\"install-1\"]" }, route.Targets.Skip(1).Select(target => target.Selector));
+        Assert.DoesNotContain(route.Targets, target => target.Label == "Hidden code");
+
+        var content = new DocumentationContentStore();
+        content.Load();
+        var realManifest = DocumentationLiveUIManifest.Create(content.Documents);
+        var realRoute = realManifest.Routes.First(item => item.Path.StartsWith("/docs/v1/", StringComparison.Ordinal) && item.Targets.Count > 1);
+        var target = realRoute.Targets[1];
+        var authorizer = new DocumentationLiveUIActionAuthorizer(content);
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", realManifest.ContentHash,
+            realRoute.Id, target.Id, LiveUIActionType.Scroll, new(), TimeSpan.FromSeconds(1));
+        Assert.True((await authorizer.AuthorizeAsync(new(realManifest, realRoute, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(realManifest, realRoute, target,
+            action with { Type = LiveUIActionType.SetValue }))).Allowed);
+    }
+
     [Theory]
     [InlineData(true, true, true)]
     [InlineData(false, true, false)]

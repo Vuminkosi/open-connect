@@ -24,10 +24,23 @@ public sealed class PortalComponentTests : BunitContext
     {
         var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown, "# Hello\n\n<script>alert(1)</script>\n\n[Safe](/docs/v1/getting-started)"));
 
-        Assert.Contains("<h2>Hello</h2>", cut.Markup);
+        Assert.Contains("<h2 id=\"hello\">Hello</h2>", cut.Markup);
         Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", cut.Markup);
         Assert.Contains("href=\"/docs/v1/getting-started\"", cut.Markup);
         Assert.DoesNotContain("<script>", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MarkdownHeadings_ProduceMatchingUniqueLinksAndIgnoreCode()
+    {
+        const string markdown = "# Guide\n## Start here\n### Details\n## Start here\n## Start here-1\n```text\n## Not a section\n```";
+        var headings = OpenConnect.Docs.Services.DocumentationHeadingIds.Extract(markdown);
+        var cut = Render<MarkdownRenderer>(p => p.Add(x => x.Markdown, markdown));
+
+        Assert.Equal(new[] { "start-here", "details", "start-here-1", "start-here-1-1" }, headings.Select(h => h.Id));
+        Assert.Equal(new[] { 2, 3, 2, 2 }, headings.Select(h => h.Level));
+        foreach (var heading in headings) Assert.NotNull(cut.Find($"#{heading.Id}"));
+        Assert.DoesNotContain(headings, h => h.Text == "Not a section");
     }
 
     [Fact]

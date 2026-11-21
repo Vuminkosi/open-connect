@@ -20,8 +20,16 @@ public static class DocumentationLiveUIManifest
             if (!SafeSegment(document.Version) || !SafeSegment(document.Slug))
                 throw new InvalidOperationException("Documentation routes contain an invalid segment.");
             var id = $"documentation-{document.Version}-{document.Slug}";
-            routes.Add(new(id, $"/docs/{document.Version}/{document.Slug}", document.Title,
-                [Heading($"{id}-heading", document.Title)]));
+            var targets = new List<LiveUITarget> { Heading($"{id}-heading", document.Title) };
+            var sections = DocumentationHeadingIds.Extract(document.Markdown);
+            for (var index = 0; index < sections.Count; index++)
+            {
+                var section = sections[index];
+                targets.Add(new LiveUITarget($"{id}-section-{index + 1}", LiveUITargetKind.Heading, section.Text,
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
+                    Selector: $".markdown-body [id=\"{section.Id}\"]"));
+            }
+            routes.Add(new(id, $"/docs/{document.Version}/{document.Slug}", document.Title, targets));
         }
         var manifest = new LiveUIManifest(LiveUISchema.CurrentVersion, "documentation-v1", "pending", routes);
         return manifest with { ContentHash = LiveUIManifestHasher.ComputeContentHash(manifest) };
