@@ -327,3 +327,7 @@ app.Run();
 ```
 
 **Constraint:** `.AddOpenConnect()` registers services but NEVER launches Docker or downloads models.
+
+### Shared Cloud JSON privacy inspection
+
+Cloud features use a shared JSON privacy inspection service for decoded worker-bound payloads. Feature endpoints retain responsibility for their own authorization, request contracts, privacy evidence, and settlement; embedding responses use their dedicated bounded inspection budget. Missing detectors fail closed.
