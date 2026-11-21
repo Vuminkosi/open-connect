@@ -59,6 +59,25 @@ public sealed class MiniComposerSessionCreationTests
     }
 
     [Fact]
+    public async Task Retry_button_recreates_failed_session_without_sending_or_losing_draft()
+    {
+        await using var context = new BunitContext();
+        var (client, rendered, session) = await RenderComposerAsync(context, sessionCreationException:
+            new HttpRequestException("session creation unavailable"));
+        await rendered.Find("input").InputAsync("Keep this draft");
+        client.SessionCreationException = null;
+        client.CompleteSessionCreationImmediately = true;
+
+        await rendered.FindAll("button").Single(button => button.TextContent.Trim() == "Retry").ClickAsync();
+
+        Assert.Equal(2, client.SessionCreationCount);
+        Assert.Equal(client.SessionId.ToString(), session.SessionId);
+        Assert.Empty(client.TaskRequests);
+        Assert.Equal("Keep this draft", rendered.FindComponent<MudTextField<string>>().Instance.Value);
+        Assert.Null(session.LastError);
+    }
+
+    [Fact]
     public async Task Task_not_found_is_not_retried_without_its_session_and_restores_draft()
     {
         await using var context = new BunitContext();

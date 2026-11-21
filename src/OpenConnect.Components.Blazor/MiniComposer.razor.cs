@@ -1064,10 +1064,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void Retry()
+    private async Task Retry()
     {
         Session?.DismissError();
         Provider?.Reconnect();
+        if (Session is null || !string.IsNullOrWhiteSpace(Session.SessionId) || !_sessionCreationFailed)
+            return;
+
+        _sessionCreationFailed = false;
+        _sessionCreationTask = null;
+        try { await EnsureSessionAsync(); }
+        catch (Exception ex) { Session.MarkError(FriendlyError(ex)); }
     }
 
     private Task EnsureSessionAsync()
@@ -1095,7 +1102,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         catch
         {
             // A completed failed task remains cached until an explicit action
-            // (Send) retries, so each render cannot recreate the same failure.
+            // (Send or Retry) retries, so each render cannot recreate the same failure.
             _sessionCreationFailed = true;
             throw;
         }

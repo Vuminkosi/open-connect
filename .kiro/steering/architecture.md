@@ -369,3 +369,5 @@ Cloud worker deployment matching is shared infrastructure: each capability selec
 Cloud knowledge worker claims bind a live reservation to the selected deployment, worker payload fingerprint and latest request privacy decision. Claim and quota operations serialize to prevent duplicate execution or racing refunds.
 
 A knowledge worker consumes a claim only once, using its pinned deployment identity and matching payload proof. Tenant authorization, deployment and the latest request privacy decision are rechecked at consumption.
+
+When composer session creation fails, an explicit Retry starts a new session attempt without submitting or discarding the visitor?s draft. Automatic render loops do not retry failed creation.
