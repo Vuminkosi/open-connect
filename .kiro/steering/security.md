@@ -220,6 +220,7 @@ Scoped response restoration
 - mTLS for host-to-worker communication
 - Worker credentials scoped to worker identity only
 - The shared signed-envelope JSON decoder rejects duplicate properties, invalid UTF-8 and non-finite numbers before a worker interprets an envelope.
+- The shared media scanner uses a protected Unix socket and fails closed on malware, invalid responses or unavailable scanning. Media sandbox readiness checks minimum runtime restrictions; it is not a complete sandbox attestation.
 
 ### Secrets Detection Priority
 
