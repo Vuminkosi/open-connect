@@ -22,6 +22,7 @@ public sealed class CloudVoiceFeatureTests
         var paths = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>().Select(endpoint => endpoint.RoutePattern.RawText).ToArray();
         Assert.Contains("/cloud/internal/v1/voice-synthesis/quota/fingerprint-key/{requestId:guid}", paths);
+        Assert.Contains("/cloud/internal/v1/voice-synthesis/output-privacy", paths);
         Assert.Contains("/cloud/internal/v1/voice-synthesis/quota/reservations/{reservationId:guid}/claims/{claimId:guid}/consume", paths);
         Assert.Contains("/cloud/internal/v1/voice-synthesis/quota/reservations/{reservationId:guid}/claims/{claimId:guid}/complete", paths);
         Assert.NotNull(app.Services.GetService<CloudVoicePrivacyService>());

@@ -7,6 +7,8 @@ public static class CloudVoiceFeature
     public static IServiceCollection AddCloudVoiceFeature(this IServiceCollection services)
     {
         services.AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()));
+        services.AddSingleton(new CloudVoiceOutputPrivacyService(new RulesSecurityDetector()));
+        services.AddScoped<ICloudVoiceOutputEvidenceStore, EfCloudVoiceOutputEvidenceStore>();
         services.AddScoped<ICloudVoicePrivacyEvidenceStore, EfCloudVoicePrivacyEvidenceStore>();
         services.AddScoped<ICloudVoiceClaimStore, EfCloudVoiceClaimStore>();
         services.AddScoped<CloudVoiceClaimService>();
@@ -22,6 +24,7 @@ public static class CloudVoiceFeature
     {
         app.MapCloudVoiceQuota(trust, databaseConfigured);
         app.MapCloudVoicePrivacy(trust, databaseConfigured);
+        app.MapCloudVoiceOutputPrivacy(trust, databaseConfigured);
         app.MapCloudVoiceClaim(trust, databaseConfigured);
         app.MapCloudVoiceAccess(trust, databaseConfigured);
     }

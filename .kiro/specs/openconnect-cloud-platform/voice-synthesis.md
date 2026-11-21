@@ -16,4 +16,6 @@ The transcription contract accepts the 24 kHz mono PCM output used by the synthe
 
 The gateway transcription client requires mutual TLS and an expected model ID, revision and manifest fingerprint. It checks worker limits before use and verifies the returned audio digest. This client provides a transcript only; it does not authorize release or replace the output privacy policy.
 
+The voice output privacy endpoint independently evaluates the recognized transcript at the Cloud output boundary. It records only scope, claim, the gateway-supplied model-manifest fingerprint, outcome, trace and timestamp for a completed and consumed speech claim. The record is append-only and does not contain audio or transcript text; it records a transcript inspection decision, not proof of the worker's identity, complete recognition or audio delivery.
+
 Outbound transcription requests do not follow redirects, so provider credentials and audio cannot be redirected to another endpoint.

@@ -34,13 +34,16 @@ public sealed class CloudVoiceQuotaEndpointTests
         var evidence = new EvidenceStore();
         var claims = new ClaimStore();
         var access = new AccessStore();
+        var outputEvidence = new OutputEvidenceStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>().AddSingleton<ICloudQuotaStore>(quotas)
             .AddSingleton<CloudQuotaService>().AddSingleton(new CloudVoicePrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudVoicePrivacyEvidenceStore>(evidence).AddSingleton<ICloudVoiceClaimStore>(claims)
-            .AddSingleton<CloudVoiceClaimService>().AddSingleton<ICloudVoiceAccessStore>(access).BuildServiceProvider();
+            .AddSingleton<CloudVoiceClaimService>().AddSingleton<ICloudVoiceAccessStore>(access)
+            .AddSingleton(new CloudVoiceOutputPrivacyService(new RulesSecurityDetector()))
+            .AddSingleton<ICloudVoiceOutputEvidenceStore>(outputEvidence).BuildServiceProvider();
         var id = Guid.NewGuid();
         string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
             fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
@@ -104,11 +107,39 @@ public sealed class CloudVoiceQuotaEndpointTests
         Assert.Equal(400, Status(await CloudVoiceAccessEndpoints.CheckAsync(Guid.Empty, id, Context(""), trust, true, default)));
         Assert.Equal(200, Status(await CloudVoiceAccessEndpoints.CheckAsync(id, id, Context(""), trust, true, default)));
         Assert.Equal((tenant, application, id, id), access.Last);
+
+        DefaultHttpContext OutputContext(string transcript)
+        {
+            var context = Context(System.Text.Json.JsonSerializer.Serialize(new { transcript, modelFingerprint = new string('a', 64) }));
+            context.Request.Headers["X-Cloud-Request-Id"] = id.ToString("D");
+            context.Request.Headers["X-Cloud-Reservation-Id"] = id.ToString("D");
+            context.Request.Headers["X-Cloud-Claim-Id"] = id.ToString("D");
+            return context;
+        }
+        var outputNoCert = OutputContext("hello"); outputNoCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(outputNoCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext(" "), trust, true, default)));
+        Assert.Equal(200, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext("hello"), trust, true, default)));
+        Assert.Equal((tenant, application, id, "allowed"), outputEvidence.Last);
+        Assert.Equal(403, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext("person@example.test"), trust, true, default)));
+        Assert.Equal("privacy_blocked", outputEvidence.Last.Item4);
+        outputEvidence.Accept = false;
+        Assert.Equal(503, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext("hello"), trust, true, default)));
         access.Allowed = false;
         Assert.Equal(503, Status(await CloudVoiceAccessEndpoints.CheckAsync(id, id, Context(""), trust, true, default)));
+        Assert.Equal(503, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext("hello"), trust, true, default)));
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
+
+    private sealed class OutputEvidenceStore : ICloudVoiceOutputEvidenceStore
+    {
+        public bool Accept { get; set; } = true;
+        public (Guid, Guid, Guid, string) Last { get; private set; }
+        public Task<bool> AppendForCompletedAsync(CloudCredentialIdentity identity, Guid requestId, Guid reservationId, Guid claimId,
+            string modelFingerprint, string outcome, string traceId, CancellationToken cancellationToken)
+        { Last = (identity.TenantId, identity.ApplicationId, requestId, outcome); return Task.FromResult(Accept); }
+    }
 
     private sealed class EvidenceStore : ICloudVoicePrivacyEvidenceStore
     {

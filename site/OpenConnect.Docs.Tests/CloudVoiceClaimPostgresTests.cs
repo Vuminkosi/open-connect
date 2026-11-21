@@ -85,6 +85,8 @@ public sealed class CloudVoiceClaimPostgresTests
         Assert.Single(attempts, x => x.Status == "claimed");
         Assert.Equal(7, attempts.Count(x => x.Status == "already_claimed"));
         var claimId = attempts.Single(x => x.Status == "claimed").ClaimId!.Value;
+        var outputEvidence = new EfCloudVoiceOutputEvidenceStore(factory, TimeProvider.System);
+        Assert.False(await outputEvidence.AppendForCompletedAsync(identity, firstId, first, claimId, new string('b', 64), "allowed", new string('a', 32), default));
         var consumption = new CloudVoiceConsumptionService(new EfCloudVoiceConsumptionStore(factory, TimeProvider.System));
         var settlement = new CloudVoiceSettlement(new EfCloudVoiceSettlementStore(factory, TimeProvider.System));
         var access = new EfCloudVoiceAccessStore(factory, TimeProvider.System);
@@ -155,12 +157,22 @@ public sealed class CloudVoiceClaimPostgresTests
             var script = db.GetService<IMigrator>().GenerateScript("20261123000100_AddVoicePrivacyEvidence",
                 "20261123000300_GuardVoiceSettlement", MigrationsSqlGenerationOptions.Idempotent);
             await db.Database.ExecuteSqlRawAsync(script);
+            var outputScript = db.GetService<IMigrator>().GenerateScript("20261123000300_GuardVoiceSettlement",
+                "20261123000400_AddVoiceOutputPrivacyEvidence", MigrationsSqlGenerationOptions.Idempotent);
+            await db.Database.ExecuteSqlRawAsync(outputScript);
         }
         Assert.Equal("unavailable", await settlement.SettleAsync(first, claimId, Guid.NewGuid(), default));
         var settlements = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => settlement.SettleAsync(first, claimId, deploymentId, default)));
         Assert.Single(settlements, x => x == "completed");
         Assert.Equal(7, settlements.Count(x => x == "already_completed"));
         Assert.True(await access.IsClaimAllowedAsync(identity, first, claimId, default));
+        Assert.True(await outputEvidence.AppendForCompletedAsync(identity, firstId, first, claimId, new string('b', 64), "allowed", new string('a', 32), default));
+        Assert.False(await outputEvidence.AppendForCompletedAsync(identity with { TenantId = Guid.NewGuid() }, firstId, first, claimId,
+            new string('b', 64), "allowed", new string('a', 32), default));
+        Assert.False(await outputEvidence.AppendForCompletedAsync(identity with { CredentialId = Guid.NewGuid() }, firstId, first, claimId,
+            new string('b', 64), "allowed", new string('a', 32), default));
+        await using (var db = await factory.CreateDbContextAsync())
+            await Assert.ThrowsAnyAsync<Exception>(() => db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM cloud.voice_output_privacy_evidence WHERE \"ClaimId\" = {claimId}"));
         await using (var db = await factory.CreateDbContextAsync())
         {
             var bucket = await db.QuotaBuckets.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == app.Id && x.Unit == "character");
