@@ -12,14 +12,14 @@ MIN_ANOMALY_SAMPLES = 5
 ALGORITHM_VERSION = "robust-mad-v1"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Anomaly:
     index: int
     value: float
     robust_score: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Analysis:
     sample_size: int
     observed_count: int

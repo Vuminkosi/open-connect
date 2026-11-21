@@ -14,7 +14,7 @@ MAX_HORIZON = 100
 MAX_INTERVAL_SECONDS = 365 * 24 * 60 * 60
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class ForecastPoint:
     timestamp: str
     value: float
@@ -22,7 +22,7 @@ class ForecastPoint:
     upper: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Backtest:
     samples: int
     mean_absolute_error: float
@@ -31,7 +31,7 @@ class Backtest:
     residual_upper: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Forecast:
     algorithm_version: str
     interval_seconds: int

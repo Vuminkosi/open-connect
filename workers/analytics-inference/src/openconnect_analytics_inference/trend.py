@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from openconnect_analytics_inference.statistics import MAX_SAMPLES
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Trend:
     algorithm_version: str
     sample_size: int

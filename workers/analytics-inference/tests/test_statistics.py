@@ -2,7 +2,22 @@ import math
 
 import pytest
 
-from openconnect_analytics_inference.statistics import MAX_SAMPLES, analyze
+from openconnect_analytics_inference.forecast import Backtest, Forecast, ForecastPoint
+from openconnect_analytics_inference.statistics import MAX_SAMPLES, Anomaly, analyze
+from openconnect_analytics_inference.trend import Trend
+
+
+def test_analytics_result_representations_do_not_expose_customer_values() -> None:
+    value = 123456.789
+    anomaly = Anomaly(1, value, 2.0)
+    analysis = analyze([value])
+    trend = Trend("v1", 1, 1, value, ())
+    point = ForecastPoint("2026-01-01T00:00:00Z", value, value, value)
+    backtest = Backtest(1, value, value, value, value)
+    result = Forecast("v1", 60, 2, 2, 2, 1.0, (point,), backtest, ())
+    for item in (anomaly, analysis, trend, point, backtest, result):
+        assert str(value) not in repr(item)
+    assert point.timestamp not in repr(point)
 
 
 def test_summary_and_anomaly_preserve_source_position() -> None:
