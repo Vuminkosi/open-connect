@@ -14,7 +14,7 @@
     {
         <p>Search an operator-approved synthetic document. Passages are source evidence and require review.</p>
         <label for="documentation-knowledge-query">Question</label>
-        <input id="documentation-knowledge-query" @bind="_query" @bind:event="oninput" maxlength="2000" disabled="@_busy" />
+        <input id="documentation-knowledge-query" value="@_query" @oninput="OnQueryChanged" maxlength="2000" disabled="@_busy" />
         <button id="documentation-knowledge-search" type="button" class="button" @onclick="SearchAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_query))">Search document</button>
         @if (_status is not null) { <p role="status">@_status</p> }
         @if (_result is not null)
@@ -49,6 +49,14 @@
     private JsonDocument? _result;
     private bool _busy;
     private bool _disposed;
+
+    private void OnQueryChanged(ChangeEventArgs args)
+    {
+        _query = args.Value?.ToString() ?? string.Empty;
+        _result?.Dispose();
+        _result = null;
+        _status = null;
+    }
 
     private async Task SearchAsync()
     {

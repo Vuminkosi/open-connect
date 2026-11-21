@@ -90,6 +90,33 @@ public sealed class DocumentationKnowledgeDemoTests
         Assert.DoesNotContain("private backend detail", component.Markup);
     }
 
+    [Fact]
+    public void ChangingQuestionClearsPriorPassagesAndEscapesTheirText()
+    {
+        using var context = new BunitContext();
+        context.Services.AddSingleton<IDocumentationKnowledgeDemo>(new SuccessfulDemo());
+        var component = context.Render<DocumentationKnowledgeExample>();
+        component.Find("input").Input("first question");
+        component.Find("button").Click();
+        component.WaitForAssertion(() => Assert.Contains("Search complete", component.Markup));
+        Assert.Contains("&lt;script&gt;", component.Markup);
+        Assert.DoesNotContain("<script>", component.Markup);
+        Assert.Contains("Relevant passages", component.Markup);
+
+        component.Find("input").Input("different question");
+        Assert.DoesNotContain("Relevant passages", component.Markup);
+        Assert.DoesNotContain("Search complete", component.Markup);
+        Assert.DoesNotContain("&lt;script&gt;", component.Markup);
+    }
+
+    private sealed class SuccessfulDemo : IDocumentationKnowledgeDemo
+    {
+        public Task<JsonDocument> SearchAsync(string query, CancellationToken cancellationToken) =>
+            Task.FromResult(JsonDocument.Parse("""
+                {"result":{"warnings":[],"hits":[{"hit":{"text":"<script>alert(1)</script>","document_id":"demo","source_revision":"v1","page_index":0,"start":0,"end":25}}]}}
+                """));
+    }
+
     private static void AddVisitor(WebApplicationBuilder builder)
     {
         builder.Services.AddSingleton(new DocumentationGatewayVisitorTokens("01ARZ3NDEKTSV4RRFFQ69G5FAV", Convert.ToBase64String(new byte[32])));

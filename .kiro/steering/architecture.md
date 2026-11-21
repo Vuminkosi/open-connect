@@ -345,3 +345,5 @@ Document, knowledge, vision and analytics capabilities enter the Cloud catalog a
 ### Local worker model provisioning
 
 The root Compose configuration defaults model provisioning to verification of existing assets and offline operation. Downloading approved, pinned assets requires an explicit provisioning and network configuration; enabling a worker does not implicitly download models.
+
+Knowledge demonstration passages are tied to the submitted question; editing the question clears the previous result and its status before another search.
