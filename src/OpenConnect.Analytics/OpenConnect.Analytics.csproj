@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(OpenConnectLibraryTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>OpenConnect.Analytics</AssemblyName>
+    <RootNamespace>OpenConnect.Analytics</RootNamespace>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <ProjectReference Include="../OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
+  </ItemGroup>
+</Project>

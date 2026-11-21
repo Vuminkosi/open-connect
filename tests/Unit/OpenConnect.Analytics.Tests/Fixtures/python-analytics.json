@@ -1,0 +1,243 @@
+{
+  "empty": {
+    "payload": {
+      "feature": "weight",
+      "forecast": {
+        "horizon": 1,
+        "intervalSeconds": 86400,
+        "seasonalPeriod": 1,
+        "timestamps": []
+      },
+      "lineage": "fixture",
+      "trend": true,
+      "unit": "kg",
+      "values": []
+    },
+    "response": {
+      "kind": "analytics.analyze",
+      "result": {
+        "algorithm_version": "robust-mad-v1",
+        "anomalies": [],
+        "coverage": 0.0,
+        "feature": "weight",
+        "forecast": {
+          "algorithm_version": "seasonal-naive-v1",
+          "backtest": null,
+          "coverage": 0.0,
+          "interval_seconds": 86400,
+          "observed_count": 0,
+          "points": [],
+          "sample_size": 0,
+          "seasonal_period": 1,
+          "warnings": [
+            "insufficient_history"
+          ]
+        },
+        "lineage": "fixture",
+        "maximum": null,
+        "median": null,
+        "median_absolute_deviation": null,
+        "minimum": null,
+        "missing_count": 0,
+        "observed_count": 0,
+        "sample_size": 0,
+        "threshold": 3.5,
+        "trend": {
+          "algorithm_version": "linear-position-v1",
+          "observed_count": 0,
+          "sample_size": 0,
+          "slope_per_sample": null,
+          "warnings": [
+            "descriptive_only_no_significance_test",
+            "insufficient_history"
+          ]
+        },
+        "unit": "kg",
+        "warnings": [
+          "insufficient_baseline"
+        ]
+      },
+      "schemaVersion": "openconnect.v1",
+      "taskId": "fixture"
+    }
+  },
+  "missing": {
+    "payload": {
+      "feature": "weight",
+      "forecast": {
+        "horizon": 2,
+        "intervalSeconds": 86400,
+        "seasonalPeriod": 1,
+        "timestamps": [
+          "2026-01-01T00:00:00+00:00",
+          "2026-01-02T00:00:00+00:00",
+          "2026-01-03T00:00:00+00:00"
+        ]
+      },
+      "lineage": "fixture",
+      "trend": true,
+      "unit": "kg",
+      "values": [
+        1,
+        null,
+        3
+      ]
+    },
+    "response": {
+      "kind": "analytics.analyze",
+      "result": {
+        "algorithm_version": "robust-mad-v1",
+        "anomalies": [],
+        "coverage": 0.6666666666666666,
+        "feature": "weight",
+        "forecast": {
+          "algorithm_version": "seasonal-naive-v1",
+          "backtest": null,
+          "coverage": 0.6666666666666666,
+          "interval_seconds": 86400,
+          "observed_count": 2,
+          "points": [],
+          "sample_size": 3,
+          "seasonal_period": 1,
+          "warnings": [
+            "missing_values",
+            "insufficient_history"
+          ]
+        },
+        "lineage": "fixture",
+        "maximum": 3.0,
+        "median": 2.0,
+        "median_absolute_deviation": 1.0,
+        "minimum": 1.0,
+        "missing_count": 1,
+        "observed_count": 2,
+        "sample_size": 3,
+        "threshold": 3.5,
+        "trend": {
+          "algorithm_version": "linear-position-v1",
+          "observed_count": 2,
+          "sample_size": 3,
+          "slope_per_sample": null,
+          "warnings": [
+            "descriptive_only_no_significance_test",
+            "missing_values",
+            "insufficient_history"
+          ]
+        },
+        "unit": "kg",
+        "warnings": [
+          "insufficient_baseline"
+        ]
+      },
+      "schemaVersion": "openconnect.v1",
+      "taskId": "fixture"
+    }
+  },
+  "regular": {
+    "payload": {
+      "feature": "weight",
+      "forecast": {
+        "horizon": 3,
+        "intervalSeconds": 86400,
+        "seasonalPeriod": 2,
+        "timestamps": [
+          "2026-01-01T00:00:00+00:00",
+          "2026-01-02T00:00:00+00:00",
+          "2026-01-03T00:00:00+00:00",
+          "2026-01-04T00:00:00+00:00",
+          "2026-01-05T00:00:00+00:00",
+          "2026-01-06T00:00:00+00:00",
+          "2026-01-07T00:00:00+00:00",
+          "2026-01-08T00:00:00+00:00",
+          "2026-01-09T00:00:00+00:00"
+        ]
+      },
+      "lineage": "fixture",
+      "trend": true,
+      "unit": "kg",
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    "response": {
+      "kind": "analytics.analyze",
+      "result": {
+        "algorithm_version": "robust-mad-v1",
+        "anomalies": [],
+        "coverage": 1.0,
+        "feature": "weight",
+        "forecast": {
+          "algorithm_version": "seasonal-naive-v1",
+          "backtest": {
+            "mean_absolute_error": 2.0,
+            "naive_mean_absolute_error": 1.0,
+            "residual_lower": 2.0,
+            "residual_upper": 2.0,
+            "samples": 5
+          },
+          "coverage": 1.0,
+          "interval_seconds": 86400,
+          "observed_count": 9,
+          "points": [
+            {
+              "lower": 10.0,
+              "timestamp": "2026-01-10T00:00:00+00:00",
+              "upper": 10.0,
+              "value": 8.0
+            },
+            {
+              "lower": 11.0,
+              "timestamp": "2026-01-11T00:00:00+00:00",
+              "upper": 11.0,
+              "value": 9.0
+            },
+            {
+              "lower": 10.0,
+              "timestamp": "2026-01-12T00:00:00+00:00",
+              "upper": 10.0,
+              "value": 8.0
+            }
+          ],
+          "sample_size": 9,
+          "seasonal_period": 2,
+          "warnings": [
+            "empirical_bands_not_calibrated",
+            "multi_step_uncertainty_not_estimated",
+            "limited_backtest_samples",
+            "seasonality_not_improved_over_naive"
+          ]
+        },
+        "lineage": "fixture",
+        "maximum": 9.0,
+        "median": 5.0,
+        "median_absolute_deviation": 2.0,
+        "minimum": 1.0,
+        "missing_count": 0,
+        "observed_count": 9,
+        "sample_size": 9,
+        "threshold": 3.5,
+        "trend": {
+          "algorithm_version": "linear-position-v1",
+          "observed_count": 9,
+          "sample_size": 9,
+          "slope_per_sample": 1.0,
+          "warnings": [
+            "descriptive_only_no_significance_test"
+          ]
+        },
+        "unit": "kg",
+        "warnings": []
+      },
+      "schemaVersion": "openconnect.v1",
+      "taskId": "fixture"
+    }
+  }
+}

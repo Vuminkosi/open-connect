@@ -403,3 +403,5 @@ Analytics claim admission and worker consumption recheck the tenant, selected de
 The Cloud host registers analytics services when its control-plane database is configured and maps gateway and worker endpoints only when their respective certificate trust is configured.
 
 The optional analytics Cloud Compose profile keeps the worker private behind a mutual-TLS proxy. Certificate and token material is supplied through deployment-owned mounts rather than source files.
+
+Application hosts can use the analytics client to authorize and privacy-check worker input, sign requests and validate worker output before exposing results. The client requires an explicit protected-network opt-in for HTTP.

@@ -20,6 +20,7 @@
   <Folder Name="/src/">
     <Project Path="src/OpenConnect.Abstractions/OpenConnect.Abstractions.csproj" />
     <Project Path="src/OpenConnect.Agents/OpenConnect.Agents.csproj" />
+    <Project Path="src/OpenConnect.Analytics/OpenConnect.Analytics.csproj" />
     <Project Path="src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <Project Path="src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
     <Project Path="src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
@@ -50,6 +51,7 @@
     <Project Path="tests/Contracts/OpenConnect.Contracts.Tests/OpenConnect.Contracts.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Abstractions.Tests/OpenConnect.Abstractions.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Agents.Tests/OpenConnect.Agents.Tests.csproj" />
+    <Project Path="tests/Unit/OpenConnect.Analytics.Tests/OpenConnect.Analytics.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Blazor.Tests/OpenConnect.Blazor.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Client.Tests/OpenConnect.Client.Tests.csproj" />
     <Project Path="tests/Unit/OpenConnect.Core.Tests/OpenConnect.Core.Tests.csproj" />

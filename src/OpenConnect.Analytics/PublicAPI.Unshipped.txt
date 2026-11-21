@@ -1,0 +1,5 @@
+#nullable enable
+OpenConnect.Analytics.AnalyticsWorkerClient
+OpenConnect.Analytics.AnalyticsWorkerClient.AnalyticsWorkerClient(System.Uri! endpoint, string! token, byte[]! key, OpenConnect.Privacy.IPrivacyFirewall! firewall, System.Func<OpenConnect.Privacy.EgressContext!, System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, bool allowInsecureHttp = false) -> void
+OpenConnect.Analytics.AnalyticsWorkerClient.AnalyzeAsync(OpenConnect.Privacy.EgressContext! context, System.Text.Json.JsonElement payload, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Analytics.AnalyticsWorkerClient.Dispose() -> void
