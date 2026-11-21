@@ -207,3 +207,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add transactional, idempotent one-plan settlement fenced by worker consumption; token accounting, output inspection and worker integration remain outstanding.
 
 - [x] Add opt-in LiveUI worker claim consumption, model identity checks, allowlisted plan validation and settlement with no automatic Cloud model downloads; gateway integration and real-system acceptance remain outstanding.
+
+- [x] Add authenticated LiveUI output-field inspection and settled-claim-bound append-only evidence; gateway response-path enforcement remains outstanding.

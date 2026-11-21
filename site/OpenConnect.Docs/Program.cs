@@ -116,6 +116,8 @@ if (!string.IsNullOrWhiteSpace(cloudDatabaseConnection))
     builder.Services.AddScoped<CloudLiveUIConsumptionService>();
     builder.Services.AddScoped<ICloudLiveUISettlementStore, EfCloudLiveUISettlementStore>();
     builder.Services.AddScoped<CloudLiveUISettlement>();
+    builder.Services.AddSingleton(new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector()));
+    builder.Services.AddScoped<ICloudLiveUIOutputEvidenceStore, EfCloudLiveUIOutputEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyEvidenceStore, EfCloudPrivacyEvidenceStore>();
     builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
     builder.Services.AddScoped<CloudPrivacyObservationService>();
@@ -237,6 +239,7 @@ if (gatewayTrust is not null)
     app.MapCloudLiveUIPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudLiveUIClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudLiveUIOutputPrivacy(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationDeployment(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudFingerprintKeyLookup(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
