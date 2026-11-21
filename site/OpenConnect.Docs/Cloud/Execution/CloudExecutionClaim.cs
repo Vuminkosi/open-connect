@@ -26,6 +26,7 @@ public sealed class CloudExecutionClaimService(ICloudExecutionClaimStore store)
             !CloudRequestFingerprint.IsValidKeyId(fingerprintKeyId) || fingerprint is not { Length: 32 } ||
             (workerPayloadFingerprint is not null && workerPayloadFingerprint.Length != 32) ||
             (capabilityId == "classification.classify" && !CloudClassificationDeploymentService.IsValid(deployment)) ||
+            (capabilityId == "knowledge.embed" && (!CloudClassificationDeploymentService.IsValid(deployment) || workerPayloadFingerprint is not { Length: 32 })) ||
             (capabilityId == "inference.chat" && (!CloudInferenceModelPolicyService.ValidModelId(inferenceModelId) || inferenceDeployment?.IsValid() != true || workerPayloadFingerprint is not { Length: 32 })) ||
             (capabilityId != "inference.chat" && (inferenceModelId is not null || inferenceDeployment is not null))
             ? Task.FromResult(new CloudExecutionClaimResult("invalid_request"))

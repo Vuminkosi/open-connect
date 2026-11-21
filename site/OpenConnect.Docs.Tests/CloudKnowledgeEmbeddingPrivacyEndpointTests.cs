@@ -32,11 +32,13 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
             new Dictionary<string, CloudApplicationCapabilitySelection> { ["knowledge.embed"] = new() { TenantId = tenant, ApplicationId = application, CapabilityId = "knowledge.embed", Enabled = true } });
         var evidence = new EvidenceStore();
         var quota = new QuotaStore();
+        var claims = new ClaimStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot))
             .AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton<ICloudQuotaStore>(quota).AddSingleton<CloudQuotaService>()
+            .AddSingleton<ICloudExecutionClaimStore>(claims).AddSingleton<CloudExecutionClaimService>()
             .AddSingleton<ICloudKnowledgeEmbeddingDeploymentReader>(new DeploymentReader())
             .AddSingleton(new CloudJsonPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudKnowledgeEmbeddingPrivacyEvidenceStore>(evidence).BuildServiceProvider();
@@ -79,6 +81,13 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         Assert.Equal("knowledge.embed", quota.Last.CapabilityId);
         Assert.Equal("request", quota.Last.Unit);
         Assert.Equal(id, quota.Last.RequestId);
+        var claimContext = Context("unused");
+        claimContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
+        { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), endpointReference = "embedding", region = "region-a",
+            contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
+        Assert.Equal(200, Status(await CloudKnowledgeEmbeddingClaimEndpoints.ClaimAsync(id, claimContext, trust, true, CancellationToken.None)));
+        Assert.Equal((tenant, application, id, "knowledge.embed"), claims.Last);
         var deploymentContext = Context("unused");
         deploymentContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
         { endpointReference = "embedding", region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
@@ -89,6 +98,15 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
     private sealed class DeploymentReader : ICloudKnowledgeEmbeddingDeploymentReader
     {
         public Task<bool> MatchesAsync(Guid tenantId, CloudClassificationDeploymentMatchRequest request, CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+    private sealed class ClaimStore : ICloudExecutionClaimStore
+    {
+        public (Guid, Guid, Guid, string) Last { get; private set; }
+        public Task<CloudExecutionClaimResult> ClaimAsync(Guid credentialId, Guid tenantId, Guid applicationId, Guid reservationId,
+            string capabilityId, string fingerprintKeyId, byte[] fingerprint, CloudClassificationDeploymentMatchRequest? deployment,
+            CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null, string? inferenceModelId = null,
+            CloudInferenceDeploymentMatch? inferenceDeployment = null)
+        { Last = (tenantId, applicationId, reservationId, capabilityId); return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid())); }
     }
     private sealed class QuotaStore : ICloudQuotaStore
     {

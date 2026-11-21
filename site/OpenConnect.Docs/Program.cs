@@ -283,6 +283,7 @@ if (gatewayTrust is not null)
     app.MapCloudInferenceQuota(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudInferenceClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudKnowledgeEmbeddingClaim(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 if (hostPrivacyTrust is not null)

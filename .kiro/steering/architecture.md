@@ -365,3 +365,5 @@ Cloud documentation and tenant management visits do not consume tenant API quota
 Cloud knowledge embedding reserves request quota and records request and response privacy evidence bound to the authenticated tenant, application and request fingerprint. The latest decision gates subsequent execution, and evidence is append-only.
 
 Cloud worker deployment matching is shared infrastructure: each capability selects its own reader and supplies its own capability identifier to the matcher. Region policy and verified catalog regions are both required.
+
+Cloud knowledge worker claims bind a live reservation to the selected deployment, worker payload fingerprint and latest request privacy decision. Claim and quota operations serialize to prevent duplicate execution or racing refunds.
