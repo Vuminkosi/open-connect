@@ -31,7 +31,7 @@ window.ocComposerVoice = (() => {
     return output;
   };
 
-  const stop = async (notify = true, reason = 'stopped') => {
+  const stop = async (notify = true, reason = 'stopped', abort = false) => {
     const current = state;
     state = null;
     if (!current) return;
@@ -48,7 +48,10 @@ window.ocComposerVoice = (() => {
       current.source.disconnect();
     } catch (_) { }
     try {
-      if (current.socket.readyState === WebSocket.OPEN) {
+      if (abort) {
+        current.pendingPcm.length = 0;
+        current.socket.close();
+      } else if (current.socket.readyState === WebSocket.OPEN) {
         for (const bytes of current.pendingPcm.splice(0)) current.socket.send(bytes);
         current.socket.send(JSON.stringify({ type: 'endStream' }));
       }
@@ -232,5 +235,5 @@ window.ocComposerVoice = (() => {
   };
 
   if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
-  return { start, stop };
+  return { start, stop, abort: () => stop(false, 'availability_lost', true) };
 })();

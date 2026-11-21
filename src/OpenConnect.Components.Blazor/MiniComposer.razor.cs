@@ -307,7 +307,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (_voiceActive)
         {
             _voiceActive = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false); }
+            try { await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false); }
             catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
         }
         if (Session.MicrophoneState == ComposerMicrophoneState.ListeningLive)
@@ -1008,7 +1008,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket, Session.ConnectionId).ConfigureAwait(false);
             if (!_micOn || VoiceInputBlocked)
             {
-                await JS.InvokeVoidAsync("ocComposerVoice.stop").ConfigureAwait(false);
+                await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false);
                 return;
             }
             _voiceActive = _micOn && Session.MicrophoneState == ComposerMicrophoneState.ListeningLive;

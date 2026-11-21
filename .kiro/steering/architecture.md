@@ -30,6 +30,8 @@ The development documentation application host exposes only an authenticated, bo
 
 When the local documentation-host readiness integration is enabled, the site checks it with its server-side visitor identity and disables microphone controls until the local model is available. Other SDK clients retain their existing behavior unless their host supplies an availability state.
 
+If microphone availability is withdrawn during capture, the composer aborts the socket without an end-of-stream request and invalidates the active speech epoch.
+
 The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
 
 The opt-in local Cloud voice journey issues and revokes a scoped test credential and verifies synthesis, usage and privacy records for a real capability request. It creates test ledger and audit entries and must use an appropriate test tenant.
