@@ -373,3 +373,5 @@ A knowledge worker consumes a claim only once, using its pinned deployment ident
 When composer session creation fails, an explicit Retry starts a new session attempt without submitting or discarding the visitor?s draft. Automatic render loops do not retry failed creation.
 
 Cloud knowledge settlement requires a consumed claim and matching allowed request and response privacy evidence. It records input character usage and finalizes quota atomically and idempotently.
+
+Expired unclaimed knowledge and analytics requests and expired unconsumed claims release reserved quota once. Database abandonment fencing rejects late worker consumption after recovery.

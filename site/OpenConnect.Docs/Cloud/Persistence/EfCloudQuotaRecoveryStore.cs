@@ -15,7 +15,7 @@ public sealed class EfCloudQuotaRecoveryStore(IDbContextFactory<CloudControlPlan
             SELECT r.* FROM cloud.quota_reservations r
             WHERE r."FinalizedAt" IS NULL AND r."ExpiresAt" <= {cutoff} AND r."Amount" = 1
               AND EXISTS (SELECT 1 FROM cloud.quota_buckets b WHERE b."Id" = r."BucketId" AND b."TenantId" = r."TenantId"
-                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" = 'classification.classify' AND b."Unit" = 'request')
+                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request')
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_claims c WHERE c."ReservationId" = r."Id")
             ORDER BY r."BucketId", r."Id" LIMIT {limit} FOR UPDATE OF r SKIP LOCKED
             """).AsNoTracking().ToArrayAsync(cancellationToken);
