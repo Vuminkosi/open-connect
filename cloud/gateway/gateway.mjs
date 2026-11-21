@@ -51,6 +51,9 @@ export async function handle(request, { authorization, classificationProbe, clas
     const trace = createTraceContext(request.headers?.get('traceparent'));
     const reject = code => problem(code, trace.traceId);
     const url = new URL(request.url);
+    if (request.method === 'GET' && url.pathname === '/' && !url.search)
+        return Response.json({ service: 'OpenConnect Cloud Gateway', description: 'Cloud capability API',
+            readiness: '/health/ready', liveness: '/health/live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/ready') {

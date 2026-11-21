@@ -1,5 +1,7 @@
 # Cloud gateway local process
 
+The gateway root identifies the capability API and links to its liveness and readiness endpoints. This informational response does not indicate that any capability is ready or authorized.
+
 A local gateway is ready only when its control-plane authority and at least one configured execution capability pass their readiness checks. Voice synthesis additionally requires the synthesis worker and audio-inspection worker to pass their independent probes. The root Compose gateway is loopback-bound and mounts its configured secrets directory read-only; an unconfigured gateway returns 503 from `/health/ready`. Enabling a capability requires its complete private transport, identity, inventory, policy and quota configuration. A running container alone does not demonstrate a usable capability.
 
 The notes below record the implementation stages in which they were written. Statements that an adapter or execution stage was not yet connected describe those stages and do not necessarily describe the current gateway. Current capability-specific wiring and its verification are recorded in the relevant feature documents and source.
