@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-search-request.json",
+  "title": "Knowledge search request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.search"},
+    "tenantId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": false,
+      "required": ["applicationId", "collectionId", "principalId", "query"],
+      "properties": {
+        "applicationId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "collectionId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "principalId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "roleIds": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+        "query": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 32},
+        "hybrid": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false,
+          "required": ["vector", "embeddingSpaceId", "modelId", "fingerprint"],
+          "properties": {
+            "vector": {"type": "array", "minItems": 1, "maxItems": 8192, "items": {"type": "number"}},
+            "embeddingSpaceId": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+            "modelId": {"type": "string", "minLength": 1, "maxLength": 256},
+            "fingerprint": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}
+          }
+        }]}
+      }
+    }
+  }
+}

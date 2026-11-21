@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-search-response.json",
+  "title": "Knowledge search response",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"},
+    "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.search"},
+    "result": {"type": "object", "additionalProperties": false,
+      "required": ["hits", "model_id", "fingerprint", "score_type", "warnings"],
+      "properties": {
+        "model_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 256},
+        "fingerprint": {"type": ["string", "null"], "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+        "score_type": {"const": "raw_logit"},
+        "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["access_or_source_changed"]}},
+        "hits": {"type": "array", "maxItems": 32, "items": {
+          "type": "object", "additionalProperties": false, "required": ["hit", "rerank_score"],
+          "properties": {
+            "rerank_score": {"type": "number"},
+            "hit": {"type": "object", "additionalProperties": false,
+              "required": ["document_id", "source_revision", "chunk_id", "page_id", "page_index", "start", "end", "text", "score"],
+              "properties": {
+                "document_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                "source_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+                "chunk_id": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+                "page_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                "page_index": {"type": "integer", "minimum": 0, "maximum": 29},
+                "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1},
+                "text": {"type": "string", "minLength": 1, "maxLength": 8192}, "score": {"type": "number"}
+              }
+            }
+          }
+        }}
+      }
+    }
+  }
+}

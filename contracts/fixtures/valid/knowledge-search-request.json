@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.v1","taskId":"fixture","kind":"knowledge.search","tenantId":"01ARZ3NDEKTSV4RRFFQ69G5FAV","issuedAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:01:00Z","payload":{"applicationId":"app","collectionId":"docs","principalId":"reader","query":"forest","limit":5}}
