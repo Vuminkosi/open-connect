@@ -65,7 +65,7 @@ window.ocComposerVoice = (() => {
     socket.addEventListener('close', () => { clearTimeout(timer); reject(new Error('voice_socket_closed')); }, { once: true });
   });
 
-  const start = async (dotnet, sessionId, speechEpoch, endpoint, ticket) => {
+  const start = async (dotnet, sessionId, speechEpoch, endpoint, ticket, connectionId) => {
     await stop(false, 'restarted');
     const captureId = crypto.randomUUID();
     const url = toWs(endpoint || `${window.location.origin}/openconnect/v1/voice/realtime/${encodeURIComponent(sessionId)}`);
@@ -122,7 +122,7 @@ window.ocComposerVoice = (() => {
     const openTransport = () => {
       if (state !== current || current.transportOpened || socket.readyState !== WebSocket.OPEN) return;
       current.transportOpened = true;
-      socket.send(JSON.stringify({ type: 'open', sessionId, captureId, speechEpoch, sampleRate: targetSampleRate, channels: 1, bitsPerSample: 16 }));
+      socket.send(JSON.stringify({ type: 'open', sessionId, captureId, speechEpoch, clientConnectionId: connectionId || null, sampleRate: targetSampleRate, channels: 1, bitsPerSample: 16 }));
       for (const bytes of current.pendingPcm.splice(0)) socket.send(bytes);
       current.pendingFrameCount = 0;
       if (current.endRequested) socket.send(JSON.stringify({ type: 'endStream' }));
@@ -132,6 +132,11 @@ window.ocComposerVoice = (() => {
     socket.onmessage = async event => {
       try {
         const message = JSON.parse(event.data);
+        if (message.type === 'error') {
+          await stop(false, 'transcription_error');
+          await dotnet.invokeMethodAsync('OnVoiceError', 'Voice transcription or task submission is unavailable. Text input remains available.');
+          return;
+        }
         if (message.type === 'transcript-partial') {
           if (current.diagnostics) current.diagnostics.lastPartial = message.text || '';
           await dotnet.invokeMethodAsync('OnVoicePartial', message.text || '', speechEpoch);

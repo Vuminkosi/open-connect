@@ -7,8 +7,8 @@ test('voice client sends its short-lived ticket as a WebSocket subprotocol', asy
   let socket;
   class Socket {
     static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
-    constructor(url, protocols) { this.url = url; this.protocols = protocols; this.readyState = 1; socket = this; }
-    send() {}
+    constructor(url, protocols) { this.url = url; this.protocols = protocols; this.readyState = 1; this.sent = []; socket = this; }
+    send(data) { this.sent.push(data); }
   }
   class Context {
     state = 'running'; sampleRate = 24000; destination = {};
@@ -28,10 +28,13 @@ test('voice client sends its short-lived ticket as a WebSocket subprotocol', asy
     URL, setTimeout, clearTimeout, Float32Array, ArrayBuffer, DataView });
   const source = await readFile(new URL('../../src/OpenConnect.Components.Blazor/wwwroot/js/composer-voice.js', import.meta.url), 'utf8');
   vm.runInContext(source, context);
-  await window.ocComposerVoice.start({ invokeMethodAsync: async () => {} }, 'session', 1, null, 'one-use-ticket');
+  const calls = [];
+  await window.ocComposerVoice.start({ invokeMethodAsync: async (...args) => calls.push(args) }, 'session', 1, null, 'one-use-ticket', 'connection');
   assert.equal(socket.url, 'wss://docs.example/openconnect/v1/voice/realtime/session');
   assert.deepEqual(Array.from(socket.protocols), ['openconnect.voice.v1', 'oc-ticket.one-use-ticket']);
-  await window.ocComposerVoice.stop(false);
+  assert.equal(JSON.parse(socket.sent[0]).clientConnectionId, 'connection');
+  await socket.onmessage({ data: JSON.stringify({ type: 'error' }) });
+  assert.equal(calls[0][0], 'OnVoiceError');
 });
 
 for (const failure of ['permission', 'worklet']) {

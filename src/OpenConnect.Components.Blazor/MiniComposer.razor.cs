@@ -977,11 +977,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             return;
         try
         {
+            if (Client is IRealtimeOpenConnectClient)
+                await WaitForConnectionAsync(Session, Session.SessionId!, CancellationToken.None).ConfigureAwait(false);
             var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
-            await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket).ConfigureAwait(false);
+            await JS.InvokeVoidAsync("ocComposerVoice.start", _dotNetRef, Session.SessionId, epoch, VoiceEndpoint, ticket, Session.ConnectionId).ConfigureAwait(false);
             _voiceActive = true;
         }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException or TimeoutException)
         {
             Session.MarkError("Microphone access or voice transcription is unavailable. Text input remains available.");
         }

@@ -32,6 +32,25 @@ public sealed class VoiceRealtimeTranscriptTests
         Assert.False(VoiceRealtimeWebSocketHandler.TryCreateWorkerUri(endpoint, true, out _));
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("{\"sessionId\":1}")]
+    [InlineData("{\"sessionId\":\"session\",\"captureId\":\"00000000-0000-0000-0000-000000000001\",\"speechEpoch\":1,\"sampleRate\":\"24000\",\"channels\":1,\"bitsPerSample\":16}")]
+    public void MalformedVoiceHandshakeIsRejected(string json)
+    {
+        Assert.False(VoiceRealtimeWebSocketHandler.TryValidateHandshake(json, "session", out _, out _, out _));
+    }
+
+    [Fact]
+    public void VoiceHandshakePreservesConnectionIdentity()
+    {
+        var connection = Ulid.NewUlid().ToString();
+        var json = System.Text.Json.JsonSerializer.Serialize(new { sessionId = "session", captureId = Guid.NewGuid(),
+            speechEpoch = 1, clientConnectionId = connection, sampleRate = 24000, channels = 1, bitsPerSample = 16 });
+        Assert.True(VoiceRealtimeWebSocketHandler.TryValidateHandshake(json, "session", out _, out _, out var actual));
+        Assert.Equal(connection, actual);
+    }
+
     [Fact]
     public async Task CompletionAdmitsOnlyFinalTextWithoutApplicationSpecificRewriting()
     {
@@ -62,6 +81,46 @@ public sealed class VoiceRealtimeTranscriptTests
         Assert.Empty(dispatcher.Admissions);
     }
 
+    [Theory]
+    [InlineData("matching")]
+    [InlineData("wrong")]
+    [InlineData("ambiguous")]
+    [InlineData("disconnected")]
+    public async Task InteractiveVoiceRequiresTheSoleBoundConnection(string scenario)
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var sessions = new InMemorySessionStore();
+        var session = sessions.Create(tenant, principal);
+        using var connection = sessions.RegisterBoundConnection(session)!;
+        using var other = scenario == "ambiguous" ? sessions.RegisterBoundConnection(session) : null;
+        if (scenario == "disconnected") connection.Dispose();
+        var requested = scenario == "wrong" ? Ulid.NewUlid().ToString() : connection.ConnectionId;
+        var dispatcher = new RecordingDispatcher();
+        using var services = new ServiceCollection()
+            .AddSingleton(sessions)
+            .AddSingleton<IHostTaskExecutionDispatcher>(dispatcher)
+            .AddSingleton<IHostTaskExecutor, Executor>()
+            .AddSingleton<IHostTaskExecutionAuthorizer, Authorizer>()
+            .BuildServiceProvider();
+        using var worker = new ScriptedSocket(["{\"type\":\"speechComplete\",\"text\":\"show privacy\"}"]);
+        using var browser = new ScriptedSocket([]);
+        await VoiceRealtimeWebSocketHandler.RelayWorkerToBrowserAsync(worker, browser,
+            new DefaultHttpContext { RequestServices = services }, session.Id.Value.ToString(), "capture", 1,
+            tenant.Value, principal.Value, CancellationToken.None, NullLogger.Instance, requested);
+        if (scenario == "matching")
+        {
+            var admission = Assert.Single(dispatcher.Admissions);
+            Assert.Equal(HostTaskOrigin.MiniComposer, admission.Origin);
+            Assert.Equal(connection.ConnectionId, admission.Request.BoundConnectionId);
+        }
+        else
+        {
+            Assert.Empty(dispatcher.Admissions);
+            Assert.Contains(browser.Messages, message => message.Contains("\"type\":\"error\"", StringComparison.Ordinal));
+        }
+    }
+
     private static async Task<RecordingDispatcher> RelayAsync(params string[] events)
     {
         var dispatcher = new RecordingDispatcher();
@@ -80,11 +139,11 @@ public sealed class VoiceRealtimeTranscriptTests
 
     private sealed class RecordingDispatcher : IHostTaskExecutionDispatcher
     {
-        public List<(TaskRequest Request, string Key)> Admissions { get; } = [];
+        public List<(TaskRequest Request, string Key, HostTaskOrigin Origin)> Admissions { get; } = [];
         public Task<AdmissionResult> AcceptAsync(TaskRequest request, string key, string fingerprint, TenantId tenant,
             PrincipalId principal, CancellationToken cancellationToken, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
         {
-            Admissions.Add((request, key));
+            Admissions.Add((request, key, origin));
             return Task.FromResult(new AdmissionResult(ExecutionAdmissionStatus.Accepted, null));
         }
         public Task<TaskRecord?> CancelAsync(Ulid taskId, CancellationToken cancellationToken) => Task.FromResult<TaskRecord?>(null);
@@ -103,6 +162,7 @@ public sealed class VoiceRealtimeTranscriptTests
     private sealed class ScriptedSocket(IEnumerable<string> events) : WebSocket
     {
         private readonly Queue<string> _events = new(events);
+        public List<string> Messages { get; } = [];
         public override WebSocketCloseStatus? CloseStatus => null;
         public override string? CloseStatusDescription => null;
         public override WebSocketState State => WebSocketState.Open;
@@ -119,6 +179,10 @@ public sealed class VoiceRealtimeTranscriptTests
             bytes.CopyTo(buffer.AsSpan());
             return Task.FromResult(new WebSocketReceiveResult(bytes.Length, WebSocketMessageType.Text, true));
         }
-        public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken) => Task.CompletedTask;
+        public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
+        {
+            Messages.Add(Encoding.UTF8.GetString(buffer));
+            return Task.CompletedTask;
+        }
     }
 }

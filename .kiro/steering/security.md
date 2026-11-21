@@ -12,6 +12,8 @@ Voice clients stop microphone tracks and release audio resources when their tran
 
 The documentation voice bridge uses short-lived, single-use, session-bound tickets. Visitor credentials remain server-side, the browser connects from the same HTTPS origin, and the application gateway verifies session ownership before accepting audio.
 
+Interactive voice tasks carry the composer's server-issued event connection identity. The host admits them with LiveUI access only while that identity is the sole active connection for the authenticated session; stale or ambiguous connections fail closed.
+
 ## Core Security Principles
 
 1. **Security and privacy by default** - Firewall enabled, auth always active
