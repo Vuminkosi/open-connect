@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authorization;
+using OpenConnect.Hosting.AspNetCore.Execution;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
@@ -18,6 +20,7 @@ public class GatewayEndpointMappingTests
         services.AddAuthorization();
         services.AddLogging();
         services.AddOpenConnect();
+        services.AddOpenConnectTaskExecution();
 
         using var sp = services.BuildServiceProvider();
         var builder = new DefaultEndpointRouteBuilder(sp);
@@ -32,6 +35,9 @@ public class GatewayEndpointMappingTests
         builder.MapOpenConnect();
 
         Assert.NotEmpty(builder.DataSources);
+        var route = Assert.Single(builder.DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>(),
+            endpoint => endpoint.RoutePattern.RawText == "/openconnect/v1/capabilities/ready");
+        Assert.NotEmpty(route.Metadata.GetOrderedMetadata<IAuthorizeData>());
     }
 
     [Fact]
