@@ -73,14 +73,23 @@ window.ocComposerVoice = (() => {
     const socket = new WebSocket(url, protocols);
     socket.binaryType = 'arraybuffer';
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    let stream, context, source, processor;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      context = new AudioContext();
+      await context.resume();
+      if (context.state !== 'running') throw new Error('voice_audio_context_not_running');
+      await context.audioWorklet.addModule(workletUrl());
+      source = context.createMediaStreamSource(stream);
+      processor = new AudioWorkletNode(context, 'openconnect-pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
+    } catch (error) {
+      try { processor?.disconnect(); source?.disconnect(); } catch (_) { }
+      try { await context?.close(); } catch (_) { }
+      try { stream?.getTracks().forEach(track => track.stop()); } catch (_) { }
+      try { socket.close(); } catch (_) { }
+      throw error;
+    }
     const track = stream.getAudioTracks()[0];
-    const context = new AudioContext();
-    await context.resume();
-    if (context.state !== 'running') throw new Error('voice_audio_context_not_running');
-    await context.audioWorklet.addModule(workletUrl());
-    const source = context.createMediaStreamSource(stream);
-    const processor = new AudioWorkletNode(context, 'openconnect-pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
     let processorReadyResolve;
     const processorReady = new Promise(resolve => { processorReadyResolve = resolve; });
     const diagnostics = window.__OC_VOICE_DIAGNOSTICS__ ? {
