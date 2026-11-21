@@ -399,3 +399,5 @@ Analytics usage settlement atomically records append-only compute evidence and f
 Analytics control-plane operations require a trusted gateway certificate and an authorized application credential; reservations, privacy decisions, deployment selection and completion are bound to that authenticated scope.
 
 Analytics claim admission and worker consumption recheck the tenant, selected deployment and latest request privacy evidence. Each claim is consumed at most once using a deployment-bound worker payload proof.
+
+The Cloud host registers analytics services when its control-plane database is configured and maps gateway and worker endpoints only when their respective certificate trust is configured.
