@@ -22,6 +22,8 @@ The LiveUI guide describes the site's actual permitted actions and requires insp
 
 Composer voice controls use native buttons for keyboard operation and expose their toggle state. A transcription failure turns the microphone toggle off and reports the failure while preserving text input.
 
+The opt-in documentation speech acceptance check observes non-silent browser PCM playback through the configured application host and synthesis worker; it does not establish physical-device audio or transcription readiness.
+
 When generated API documents are present, LiveUI may inspect, focus, or set the public API search field with a bounded value. It does not advertise that field when the catalog is absent.
 
 When the local documentation assistant and local Cloud identity are composed together, the site uses a combined CA bundle that trusts both loopback HTTPS services. The identity and assistant remain separate services with their own credentials and authorization boundaries.
