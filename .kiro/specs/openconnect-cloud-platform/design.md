@@ -343,3 +343,5 @@ The private worker settlement API can record a consumed execution as failed when
 The opt-in system test can inject a failure after real model generation and usage capture. It verifies a failed response, settled nonzero token usage, immutable failure evidence and absence of successful completion and output evidence through the local gateway, worker and PostgreSQL boundary.
 
 The private worker API can persist an immutable, claim-bound token observation before outcome settlement. Repeated matching observations are idempotent, conflicting observations or later settlement counts are rejected, and recording usage alone does not release quota or create a completion. The worker records the observation immediately after generation, before validating the model output. Recovery based on observations remains outstanding.
+
+The opt-in system test can terminate the worker process immediately after real model generation and observation. It verifies that nonzero usage remains durable while the plan and token reservations remain unfinalized; this demonstrates the crash evidence boundary, not automatic recovery.

@@ -287,3 +287,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks. Crash recovery based on observations remains outstanding.
 
 - [x] Persist observed LiveUI model usage from the worker before output validation, failing closed on observation failure; verify successful, invalid and unavailable observation paths.
+
+- [x] Verify that a forced worker process exit after real model generation leaves a durable token observation and held reservation. Automatic recovery from that evidence remains outstanding.

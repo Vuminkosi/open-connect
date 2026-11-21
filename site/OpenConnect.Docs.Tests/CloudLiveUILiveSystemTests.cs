@@ -48,7 +48,9 @@ public sealed class CloudLiveUILiveSystemTests
         var digest = Required("OPENCONNECT_TEST_MODEL_DIGEST");
         var metered = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_METERED"), "true", StringComparison.OrdinalIgnoreCase);
         var injectFailure = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_FAILURE"), "true", StringComparison.OrdinalIgnoreCase);
-        if (injectFailure && !metered) throw new InvalidOperationException("Failure verification requires metered mode.");
+        var injectCrash = string.Equals(Environment.GetEnvironmentVariable("OPENCONNECT_TEST_LIVEUI_CRASH"), "true", StringComparison.OrdinalIgnoreCase);
+        if ((injectFailure || injectCrash) && !metered || injectFailure && injectCrash)
+            throw new InvalidOperationException("Fault verification requires one metered fault mode.");
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Required("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
         await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
@@ -133,15 +135,18 @@ public sealed class CloudLiveUILiveSystemTests
             File.WriteAllText(Path.Combine(workerSecrets, "authority-ca.crt"), authorityCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "gateway-client-ca.crt"), gatewayCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "worker-token"), "fixture-worker-token\n");
-            if (injectFailure)
+            if (injectFailure || injectCrash)
                 File.WriteAllText(Path.Combine(workerSecrets, "fault.py"), """
                     import sys
                     sys.path.insert(0, '/app')
+                    import os
                     import uvicorn
                     from app.inference import InferenceEngine
                     original = InferenceEngine.generate_metered
                     def fail_after_usage(self, request, report):
                         original(self, request, report)
+                        if os.getenv('OPENCONNECT_TEST_LIVEUI_CRASH') == 'true':
+                            os._exit(73)
                         raise ValueError('fixture failure after usage')
                     InferenceEngine.generate_metered = fail_after_usage
                     uvicorn.run('app.main:app', host='0.0.0.0', port=8080,
@@ -158,7 +163,8 @@ public sealed class CloudLiveUILiveSystemTests
             var modelEnv = new[] { "OPENCONNECT_CLOUD_LIVEUI_ENABLED=true", "MODEL_ENABLED=true", "MODEL_PATH=/models/liveui.gguf",
                 "MODEL_ID=" + modelId, "MODEL_REVISION=" + revision, "MODEL_SHA256=" + digest["sha256:".Length..],
                 "OPENCONNECT_CLOUD_MODEL_LICENSE_ACCEPTED=true", "OPENCONNECT_CLOUD_MODEL_ARTIFACT_REVIEWED=true",
-                "OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED=" + (metered ? "true" : "false"), "MODEL_CONTEXT_SIZE=2048" };
+                "OPENCONNECT_CLOUD_LIVEUI_METERED_ENABLED=" + (metered ? "true" : "false"),
+                "OPENCONNECT_TEST_LIVEUI_CRASH=" + (injectCrash ? "true" : "false"), "MODEL_CONTEXT_SIZE=2048" };
             var workerArgs = new List<string> { "run", "-d", "--name", worker, "--network", network, "--network-alias", "cloud-liveui-worker",
                 "--read-only", "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "-v", workerSecrets + ":/run/openconnect-cloud:ro",
                 "-v", Required("OPENCONNECT_TEST_MODEL_VOLUME") + ":/models:ro" };
@@ -167,7 +173,7 @@ public sealed class CloudLiveUILiveSystemTests
                 "OPENCONNECT_CLOUD_WORKER_CERT_FILE=/run/openconnect-cloud/authority-client.crt", "OPENCONNECT_CLOUD_WORKER_KEY_FILE=/run/openconnect-cloud/authority-client.key" }))
                 workerArgs.AddRange(["-e", value]);
             workerArgs.Add(Required("OPENCONNECT_TEST_WORKER_IMAGE"));
-            if (injectFailure) workerArgs.AddRange(["python", "/run/openconnect-cloud/fault.py"]);
+            if (injectFailure || injectCrash) workerArgs.AddRange(["python", "/run/openconnect-cloud/fault.py"]);
             else workerArgs.AddRange(["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080",
                 "--ssl-certfile", "/run/openconnect-cloud/server.crt", "--ssl-keyfile", "/run/openconnect-cloud/server.key",
                 "--ssl-ca-certs", "/run/openconnect-cloud/gateway-client-ca.crt", "--ssl-cert-reqs", "2", "--no-access-log"]);
@@ -205,7 +211,7 @@ public sealed class CloudLiveUILiveSystemTests
                 Assert.Fail($"Cloud gateway and worker did not become ready. Readiness: {readiness} Gateway: {gatewayLogs} Worker: {workerLogs}");
             }
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential.Secret);
-            if (injectFailure)
+            if (injectFailure || injectCrash)
             {
                 var failureId = Guid.NewGuid();
                 var failureRequest = new { schemaVersion = "openconnect.cloud.liveui/v1", requestId = failureId,
@@ -217,12 +223,22 @@ public sealed class CloudLiveUILiveSystemTests
                 Assert.False(failureResponse.IsSuccessStatusCode);
                 await using var failedDb = await factory.CreateDbContextAsync();
                 var failedReservation = await failedDb.QuotaReservations.SingleAsync(r => r.TenantId == tenant.Id && r.RequestId == failureId);
-                Assert.Equal(1, failedReservation.Actual); Assert.NotNull(failedReservation.FinalizedAt);
                 var tokens = await failedDb.Database.SqlQuery<long>($"""
-                    SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {failedReservation.Id}
+                    SELECT "InputTokens" + "OutputTokens" AS "Value" FROM cloud.liveui_token_observations WHERE "PlanReservationId" = {failedReservation.Id}
                     """).SingleAsync();
                 Assert.InRange(tokens, 1, 2048);
-                Assert.Equal(1, await failedDb.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_execution_failures WHERE \"PlanReservationId\" = {failedReservation.Id}").SingleAsync());
+                Assert.Equal(injectFailure ? 1 : 0, await failedDb.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_execution_failures WHERE \"PlanReservationId\" = {failedReservation.Id}").SingleAsync());
+                if (injectCrash)
+                {
+                    Assert.Null(failedReservation.Actual); Assert.Null(failedReservation.FinalizedAt);
+                }
+                else
+                {
+                    Assert.Equal(1, failedReservation.Actual); Assert.NotNull(failedReservation.FinalizedAt);
+                    Assert.Equal(tokens, await failedDb.Database.SqlQuery<long>($"""
+                        SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {failedReservation.Id}
+                        """).SingleAsync());
+                }
                 Assert.False(await failedDb.ExecutionCompletions.AnyAsync(c => c.ReservationId == failedReservation.Id));
                 Assert.Equal(0, await failedDb.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_output_privacy_evidence WHERE \"ReservationId\" = {failedReservation.Id}").SingleAsync());
                 return;
