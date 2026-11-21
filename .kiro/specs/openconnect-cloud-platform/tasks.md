@@ -283,3 +283,5 @@ Status: In progress. The checkboxes record repository implementation state, not 
 - [x] Report known, validated LiveUI usage when worker generation or plan validation fails, and retain reservations on unknown usage or uncertain completion. Verify worker behavior and the mutual-TLS client.
 
 - [x] Exercise known-usage failure and normal metered success with a provisioned local model, gateway, worker and PostgreSQL; verify failure accounting and absence of successful output evidence.
+
+- [x] Add a mutual-TLS token observation endpoint with claim binding, bounded usage, idempotency and settlement consistency checks. Worker integration and crash recovery based on observations remain outstanding.

@@ -9,6 +9,30 @@ namespace OpenConnect.Docs.Tests;
 public sealed class CloudLiveUIDualSettlementPostgresTests
 {
     [CloudPostgresFact]
+    public async Task DurableUsageObservationIsBoundedIdempotentAndMatchesLaterSettlement()
+    {
+        var fixture = await Fixture.CreateAsync();
+        var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(fixture.Factory, TimeProvider.System));
+        var usage = new CloudLiveUITokenUsage(30, 20);
+        Assert.Equal("unavailable", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, Guid.NewGuid(), usage, default));
+        Assert.Equal("overage_requires_reconciliation", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(90, 11), default));
+        var observations = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default)));
+        Assert.Single(observations, x => x == "observed"); Assert.Equal(7, observations.Count(x => x == "already_observed"));
+        Assert.Equal("conflict", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
+        Assert.Equal("conflict", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
+        await using (var before = await fixture.Factory.CreateDbContextAsync())
+        {
+            Assert.Null((await before.QuotaReservations.SingleAsync(x => x.Id == fixture.ReservationId)).FinalizedAt);
+            Assert.Equal(100, (await before.QuotaBuckets.SingleAsync(x => x.Id == fixture.TokenBucketId)).Reserved);
+        }
+        Assert.Equal("failed", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default));
+        Assert.Equal("already_observed", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default));
+        await using var verify = await fixture.Factory.CreateDbContextAsync();
+        Assert.Equal(50, (await verify.QuotaBuckets.SingleAsync(x => x.Id == fixture.TokenBucketId)).Consumed);
+        Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_token_observations WHERE \"PlanReservationId\" = {fixture.ReservationId}").SingleAsync());
+    }
+
+    [CloudPostgresFact]
     public async Task KnownUsageFromFailedExecutionSettlesOnceWithoutSuccessfulOutputEvidence()
     {
         var fixture = await Fixture.CreateAsync();

@@ -256,6 +256,12 @@ public sealed class CloudLiveUIPrivacyPostgresTests
             Assert.Single(meteredAttempts, item => item.StatusCode == HttpStatusCode.OK);
             Assert.Equal(7, meteredAttempts.Count(item => item.StatusCode == HttpStatusCode.Conflict));
             var meteredCompletionPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId.Value:D}/complete-metered";
+            var meteredObservationPath = $"{quotaPath}/{dualReserved.ReservationId.Value:D}/claims/{meteredClaim.ClaimId.Value:D}/observe-metered";
+            Assert.Equal(HttpStatusCode.Unauthorized, (await meteredClient.PostAsJsonAsync(meteredObservationPath, new { inputTokens = 410, outputTokens = 31 })).StatusCode);
+            var observed = await (await workerClient.PostAsJsonAsync(meteredObservationPath, new { inputTokens = 410, outputTokens = 31 })).Content.ReadFromJsonAsync<CloudExecutionCompletionResult>();
+            Assert.Equal("observed", observed!.Status);
+            Assert.Equal("already_observed", (await (await workerClient.PostAsJsonAsync(meteredObservationPath, new { inputTokens = 410, outputTokens = 31 })).Content.ReadFromJsonAsync<CloudExecutionCompletionResult>())!.Status);
+            Assert.Equal(HttpStatusCode.Conflict, (await workerClient.PostAsJsonAsync(meteredObservationPath, new { inputTokens = 411, outputTokens = 30 })).StatusCode);
             Assert.Equal(HttpStatusCode.Unauthorized, (await meteredClient.PostAsJsonAsync(meteredCompletionPath, new { inputTokens = 410, outputTokens = 31 })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await workerClient.PostAsync(meteredCompletionPath,
                 new StringContent("{\"inputTokens\":1,\"InputTokens\":2,\"outputTokens\":1}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);

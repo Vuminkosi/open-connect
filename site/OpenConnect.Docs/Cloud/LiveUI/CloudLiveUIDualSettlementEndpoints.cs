@@ -15,14 +15,17 @@ public static class CloudLiveUIDualSettlementEndpoints
     {
         app.MapPost("/cloud/internal/v1/liveui/quota/reservations/{reservationId:guid}/claims/{claimId:guid}/complete-metered",
             (Guid reservationId, Guid claimId, HttpContext context, CancellationToken cancellationToken) =>
-                HandleAsync(reservationId, claimId, context, trust, databaseConfigured, false, cancellationToken));
+                HandleAsync(reservationId, claimId, context, trust, databaseConfigured, "complete", cancellationToken));
         app.MapPost("/cloud/internal/v1/liveui/quota/reservations/{reservationId:guid}/claims/{claimId:guid}/fail-metered",
             (Guid reservationId, Guid claimId, HttpContext context, CancellationToken cancellationToken) =>
-                HandleAsync(reservationId, claimId, context, trust, databaseConfigured, true, cancellationToken));
+                HandleAsync(reservationId, claimId, context, trust, databaseConfigured, "fail", cancellationToken));
+        app.MapPost("/cloud/internal/v1/liveui/quota/reservations/{reservationId:guid}/claims/{claimId:guid}/observe-metered",
+            (Guid reservationId, Guid claimId, HttpContext context, CancellationToken cancellationToken) =>
+                HandleAsync(reservationId, claimId, context, trust, databaseConfigured, "observe", cancellationToken));
     }
 
     private static async Task<IResult> HandleAsync(Guid reservationId, Guid claimId, HttpContext context,
-        CloudWorkerClientTrust trust, bool databaseConfigured, bool failed, CancellationToken cancellationToken)
+        CloudWorkerClientTrust trust, bool databaseConfigured, string operation, CancellationToken cancellationToken)
     {
         context.Response.Headers.CacheControl = "no-store";
         var deploymentId = context.Request.IsHttps ? trust.ResolveDeployment(context.Connection.ClientCertificate, DateTimeOffset.UtcNow) : null;
@@ -48,12 +51,16 @@ public static class CloudLiveUIDualSettlementEndpoints
             var usage = document.RootElement.Deserialize<CloudLiveUITokenUsage>(Options);
             if (usage is null) return Results.BadRequest();
             var settlement = context.RequestServices.GetRequiredService<CloudLiveUIDualSettlement>();
-            var status = failed
-                ? await settlement.FailAsync(reservationId, claimId, deploymentId.Value, usage, cancellationToken)
-                : await settlement.SettleAsync(reservationId, claimId, deploymentId.Value, usage, cancellationToken);
+            var status = operation switch
+            {
+                "fail" => await settlement.FailAsync(reservationId, claimId, deploymentId.Value, usage, cancellationToken),
+                "observe" => await settlement.ObserveAsync(reservationId, claimId, deploymentId.Value, usage, cancellationToken),
+                _ => await settlement.SettleAsync(reservationId, claimId, deploymentId.Value, usage, cancellationToken),
+            };
             return Results.Json(new { status }, statusCode: status switch
             {
-                "completed" or "already_completed" or "failed" or "already_failed" => 200, "conflict" or "overage_requires_reconciliation" => 409,
+                "completed" or "already_completed" or "failed" or "already_failed" or "observed" or "already_observed" => 200,
+                "conflict" or "overage_requires_reconciliation" => 409,
                 "invalid_request" => 400, _ => 503,
             });
         }
