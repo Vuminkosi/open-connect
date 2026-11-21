@@ -14,6 +14,23 @@ namespace OpenConnect.Docs.Tests;
 public sealed class DocumentationAssistantTests
 {
     [Fact]
+    public async Task PrivacyExampleCanBeTriggeredOnlyOnItsPublicGuide()
+    {
+        var content = new DocumentationContentStore();
+        content.Load();
+        var manifest = DocumentationLiveUIManifest.Create(content.Documents);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs/v1/privacy");
+        var target = route.Targets.Single(item => item.Id == "documentation-privacy-demo-run");
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, target.Id, LiveUIActionType.Click, new(), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer(content);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, target, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, target with { Id = "other" }, action))).Allowed);
+    }
+
+    [Fact]
     public async Task ApiSearchIsAdvertisedOnlyWhenPresentAndRemainsBounded()
     {
         var empty = DocumentationLiveUIManifest.Create();

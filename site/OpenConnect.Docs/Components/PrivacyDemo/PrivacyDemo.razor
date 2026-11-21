@@ -1,0 +1,50 @@
+@rendermode InteractiveServer
+
+<section class="doc-card privacy-demo" aria-labelledby="privacy-demo-title">
+    <h2 id="privacy-demo-title">Try the privacy firewall</h2>
+    <p>Run a synthetic example through the local rules firewall. Nothing is sent to a model or worker.</p>
+    <label for="privacy-demo-example">Example</label>
+    <select id="privacy-demo-example" @bind="_example" disabled="@_running">
+        <option value="email">Message containing a sample email address</option>
+        <option value="ordinary">Message without the sample email address</option>
+    </select>
+    <button id="privacy-demo-run" type="button" class="button" @onclick="RunAsync" disabled="@_running">Check example</button>
+    <div role="status" aria-live="polite">
+        @if (_error is not null)
+        {
+            <p>@_error</p>
+        }
+        else if (_result is not null)
+        {
+            <p><strong>Input:</strong> @_result.Input</p>
+            @if (_result.Decision.Allowed && _result.Decision.SanitizedContent is not null)
+            {
+                <p><strong>Firewall output:</strong> @_result.Decision.SanitizedContent</p>
+                <p>Detected categories: @(_result.Decision.DetectedEntities.Count == 0 ? "none" : string.Join(", ", _result.Decision.DetectedEntities.Select(entity => entity.EntityType).Distinct()))</p>
+            }
+            else
+            {
+                <p>The firewall blocked the example; no output was sent.</p>
+            }
+        }
+    </div>
+    <p>This example uses non-reversible placeholders. Detection depends on configured rules and is not a guarantee that all sensitive data is found.</p>
+</section>
+
+@code {
+    private readonly PrivacyDemoService Demo = new();
+    private string _example = "email";
+    private bool _running;
+    private string? _error;
+    private PrivacyDemoResult? _result;
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _error = null;
+        _result = null;
+        try { _result = await Demo.EvaluateAsync(_example); }
+        catch (Exception) { _error = "The privacy example is temporarily unavailable."; }
+        finally { _running = false; }
+    }
+}

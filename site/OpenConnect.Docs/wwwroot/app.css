@@ -68,6 +68,14 @@
 .markdown-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1rem 0; }
 .markdown-body :is(th, td) { border: 1px solid #aebfd0; padding: .5rem .75rem; text-align: left; vertical-align: top; }
 .markdown-body :not(pre) > code { overflow-wrap: anywhere; }
+.privacy-demo { margin-bottom: 2rem; }
+.privacy-demo label { display: block; font-weight: 700; }
+.privacy-demo select { display: block; width: 100%; max-width: 32rem; margin: .35rem 0 .75rem; padding: .6rem; font: inherit; color: #102033; background: #fff; border: 1px solid #aebfd0; border-radius: 6px; }
+.privacy-demo :is(select, button):focus-visible { outline: 3px solid #127b72; outline-offset: 3px; }
+:root[data-theme="dark"] .privacy-demo select { color: #e6eef7; background: #122236; border-color: #49617a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .privacy-demo select { color: #e6eef7; background: #122236; border-color: #49617a; }
+}
 @media (max-width: 1199px) {
   .doc-layout { display: flex; flex-direction: column; }
   .doc-toc { order: -1; align-self: stretch; border-left: 0; border-bottom: 1px solid #dbe4ef; padding: 0 0 12px; }

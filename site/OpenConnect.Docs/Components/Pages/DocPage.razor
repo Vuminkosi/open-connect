@@ -1,6 +1,7 @@
 @page "/docs/{Version}/{Slug}"
 @inject DocumentationContentStore Content
 @inject NavigationManager Navigation
+@using OpenConnect.Docs.Components.PrivacyDemo
 
 @if (Document is null)
 {
@@ -14,6 +15,10 @@ else
     <div class="doc-heading"><span class="version-label">@Document.Version</span><h1>@Document.Title</h1><p>@Document.Summary</p></div>
     <div class="doc-layout">
         <div class="doc-article">
+            @if (Document.Version == "v1" && Document.Slug == "privacy")
+            {
+                <PrivacyDemo />
+            }
             <MarkdownRenderer Markdown="@Document.Markdown" />
             <p class="edit-link"><a href="https://github.com/Vuminkosi/open-connect/edit/master/site/OpenConnect.Docs/Content/@Document.Version/@($"{Document.Slug}.md")">Edit this page on GitHub</a></p>
         </div>
