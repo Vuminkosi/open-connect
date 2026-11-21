@@ -25,6 +25,15 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
         if (context.Route.Path == "/docs/v1/documents-and-knowledge" && context.Target is { Id: "documentation-document-analyze", Kind: LiveUITargetKind.Button })
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
+        if (context.Route.Path == "/docs/v1/documents-and-knowledge" && context.Target is { Id: "documentation-knowledge-search", Kind: LiveUITargetKind.Button })
+            return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
+        if (context.Route.Path == "/docs/v1/documents-and-knowledge" && context.Target is { Id: "documentation-knowledge-query", Kind: LiveUITargetKind.Input })
+            return context.Action.Type switch
+            {
+                LiveUIActionType.Inspect or LiveUIActionType.Focus => Allow(),
+                LiveUIActionType.SetValue when context.Action.Parameters.Value is { Length: <= 2000 } => Allow(),
+                _ => Deny()
+            };
         if (context.Route.Path == "/docs/v1/privacy" && context.Target is { Id: "documentation-privacy-demo-example", Kind: LiveUITargetKind.Select })
             return context.Action.Type switch
             {

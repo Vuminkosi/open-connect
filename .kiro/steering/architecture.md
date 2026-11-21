@@ -16,6 +16,10 @@ Documentation for document processing and semantic memory describes SDK client c
 
 The knowledge SDK's index and search clients require host authorization of the tenant, object, destination and roles, sign worker requests, and screen input and output through the host privacy gate. The composed workflow waits for an indexing completion before searching.
 
+The optional development documentation knowledge example indexes an operator-approved synthetic object separately for each signed visitor, assigns that visitor's principal ACL and a one-hour expiry, and requires completed indexing before search. Index cleanup requires the independently provisioned expiry worker. Cloud embedding credentials, when selected, belong to the site deployment rather than the visitor.
+
+The example reuses its visitor-bound job identity on retry, does not reindex after confirmed completion, and rejects results whose document ID or source revision differs from the approved visitor projection.
+
 Knowledge embeddings can use either the private signed worker contract or the authenticated Cloud gateway contract. The SDK validates the response identity and model space and applies host privacy checks to both paths.
 
 The document SDK composes separately authorized OCR and structured extraction clients, validates worker responses and maps citations to OCR pages. Its worker execution depends on explicitly provisioned services and does not by itself provide a public site workflow.

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using OpenConnect.Docs.Services.Voice;
 using OpenConnect.Docs.Components.AssistantShowcase;
 using OpenConnect.Docs.Services.DocumentDemo;
+using OpenConnect.Docs.Services.KnowledgeDemo;
 
 namespace OpenConnect.Docs.Services;
 
@@ -25,7 +26,8 @@ public static class DocumentationAssistant
         services.AddSingleton(provider => DocumentationLiveUIManifest.Create(
             provider.GetRequiredService<DocumentationContentStore>().Documents,
             provider.GetRequiredService<GeneratedApiStore>().Documents.Count > 0,
-            configuration.GetValue<bool>("OpenConnect:DocumentDemo:Enabled")));
+            configuration.GetValue<bool>("OpenConnect:DocumentDemo:Enabled"),
+            configuration.GetValue<bool>("OpenConnect:KnowledgeDemo:Enabled")));
         services.AddMudServices();
         services.AddOpenConnectComponent<DocumentationGuidesCard>(new OpenConnectComponentDescriptor(
             "documentation-guides", "Integration guides", "Links to getting started, privacy and LiveUI documentation."));
@@ -100,6 +102,7 @@ public static class DocumentationAssistant
             options.Narration.SynchronizeWithSpeech = true;
         });
         services.AddDocumentationDocumentDemo(configuration, environment);
+        services.AddDocumentationKnowledgeDemo(configuration, environment);
         return services;
     }
 

@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @using OpenConnect.Docs.Components.PrivacyDemo
 @using OpenConnect.Docs.Components.DocumentDemo
+@using OpenConnect.Docs.Components.KnowledgeDemo
 
 @if (Document is null)
 {
@@ -23,6 +24,7 @@ else
             @if (Document.Version == "v1" && Document.Slug == "documents-and-knowledge")
             {
                 <DocumentationDocumentExample />
+                <DocumentationKnowledgeExample />
             }
             <MarkdownRenderer Markdown="@Document.Markdown" />
             <p class="edit-link"><a href="https://github.com/Vuminkosi/open-connect/edit/master/site/OpenConnect.Docs/Content/@Document.Version/@($"{Document.Slug}.md")">Edit this page on GitHub</a></p>

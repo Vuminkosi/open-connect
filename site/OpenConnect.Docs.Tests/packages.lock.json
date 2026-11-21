@@ -1158,6 +1158,7 @@
           "OpenConnect.Components.Contracts": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Documents": "[1.0.0, )",
+          "OpenConnect.Knowledge": "[1.0.0, )",
           "OpenConnect.LiveUI.Blazor": "[1.0.0, )",
           "OpenConnect.Privacy": "[1.0.0, )"
         }
@@ -1173,6 +1174,12 @@
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.knowledge": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
       "openconnect.liveui": {

@@ -1,0 +1,20 @@
+services:
+  # Enable only after provisioning an approved object, index, expiry worker,
+  # search service and matching embedding space in an isolated development stack.
+  documentation-site:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      OpenConnect__KnowledgeDemo__Enabled: ${OC_DOCS_KNOWLEDGE_DEMO_ENABLED:-false}
+      OpenConnect__KnowledgeDemo__IndexOrigin: ${OC_DOCS_KNOWLEDGE_INDEX_ORIGIN:-http://worker-knowledge-index-api:8080}
+      OpenConnect__KnowledgeDemo__SearchOrigin: ${OC_DOCS_KNOWLEDGE_SEARCH_ORIGIN:-http://worker-knowledge-rerank:8080}
+      OpenConnect__KnowledgeDemo__EmbeddingOrigin: ${OC_DOCS_KNOWLEDGE_EMBEDDING_ORIGIN:-http://worker-knowledge:8080}
+      OpenConnect__KnowledgeDemo__AllowInsecureHttp: ${OC_DOCS_KNOWLEDGE_ALLOW_HTTP:-false}
+      OpenConnect__KnowledgeDemo__UseCloudEmbedding: ${OC_DOCS_KNOWLEDGE_USE_CLOUD_EMBEDDING:-false}
+      OpenConnect__KnowledgeDemo__CloudBearerToken: ${OC_DOCS_KNOWLEDGE_CLOUD_BEARER_TOKEN:-}
+      OpenConnect__KnowledgeDemo__ObjectId: ${OC_DOCS_KNOWLEDGE_OBJECT_ID:-}
+      OpenConnect__KnowledgeDemo__ObjectSha256: ${OC_DOCS_KNOWLEDGE_OBJECT_SHA256:-}
+      OpenConnect__KnowledgeDemo__ObjectSize: ${OC_DOCS_KNOWLEDGE_OBJECT_SIZE:-}
+      OpenConnect__KnowledgeDemo__ObjectVersion: ${OC_DOCS_KNOWLEDGE_OBJECT_VERSION:-}
+      OpenConnect__KnowledgeDemo__EmbeddingSpaceId: ${OC_DOCS_KNOWLEDGE_EMBEDDING_SPACE_ID:-}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}

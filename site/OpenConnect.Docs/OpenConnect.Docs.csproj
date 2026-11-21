@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Documents/OpenConnect.Documents.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Knowledge/OpenConnect.Knowledge.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />

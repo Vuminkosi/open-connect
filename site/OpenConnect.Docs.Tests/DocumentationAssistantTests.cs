@@ -15,6 +15,31 @@ namespace OpenConnect.Docs.Tests;
 public sealed class DocumentationAssistantTests
 {
     [Fact]
+    public async Task KnowledgeExampleExposesOnlyBoundedGuideActionsWhenEnabled()
+    {
+        var content = new DocumentationContentStore();
+        content.Load();
+        var disabled = DocumentationLiveUIManifest.Create(content.Documents);
+        Assert.DoesNotContain(disabled.Routes.SelectMany(route => route.Targets), target => target.Id == "documentation-knowledge-search");
+        var manifest = DocumentationLiveUIManifest.Create(content.Documents, hasKnowledgeExample: true);
+        Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
+        var route = manifest.Routes.Single(item => item.Path == "/docs/v1/documents-and-knowledge");
+        var input = route.Targets.Single(item => item.Id == "documentation-knowledge-query");
+        var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
+            route.Id, input.Id, LiveUIActionType.SetValue, new(Value: "privacy"), TimeSpan.FromSeconds(1));
+        var authorizer = new DocumentationLiveUIActionAuthorizer(content);
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, input, action))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, input,
+            action with { Parameters = new(Value: new string('a', 2001)) }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route with { Path = "/cloud" }, input, action))).Allowed);
+        var button = route.Targets.Single(item => item.Id == "documentation-knowledge-search");
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, route, button,
+            action with { TargetId = button.Id, Type = LiveUIActionType.Click, Parameters = new() }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, route, button,
+            action with { TargetId = button.Id, Type = LiveUIActionType.SetValue }))).Allowed);
+    }
+
+    [Fact]
     public async Task DocumentExampleIsAdvertisedOnlyWhenEnabledAndLimitedToItsGuide()
     {
         var content = new DocumentationContentStore();

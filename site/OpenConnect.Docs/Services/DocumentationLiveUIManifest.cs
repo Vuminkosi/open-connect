@@ -5,7 +5,7 @@ namespace OpenConnect.Docs.Services;
 public static class DocumentationLiveUIManifest
 {
     public static LiveUIManifest Create(IEnumerable<DocumentationDocument>? documents = null, bool hasGeneratedApiDocuments = false,
-        bool hasDocumentExample = false)
+        bool hasDocumentExample = false, bool hasKnowledgeExample = false)
     {
         var apiTargets = new List<LiveUITarget>
         {
@@ -51,6 +51,15 @@ public static class DocumentationLiveUIManifest
                     "Analyze the document selected by the visitor",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
                     Selector: "#documentation-document-analyze"));
+            }
+            if (hasKnowledgeExample && document.Version == "v1" && document.Slug == "documents-and-knowledge")
+            {
+                targets.Add(new LiveUITarget("documentation-knowledge-query", LiveUITargetKind.Input, "Question for the approved document",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Focus, LiveUICapability.SetValue },
+                    Selector: "#documentation-knowledge-query"));
+                targets.Add(new LiveUITarget("documentation-knowledge-search", LiveUITargetKind.Button, "Search the approved document",
+                    new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
+                    Selector: "#documentation-knowledge-search"));
             }
             var sections = DocumentationHeadingIds.Extract(document.Markdown);
             for (var index = 0; index < sections.Count; index++)

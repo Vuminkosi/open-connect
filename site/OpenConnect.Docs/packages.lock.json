@@ -537,6 +537,12 @@
           "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
+      "openconnect.knowledge": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.liveui": {
         "type": "Project"
       },
