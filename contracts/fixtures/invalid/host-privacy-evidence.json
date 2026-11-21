@@ -1,0 +1,1 @@
+{"schemaVersion":"openconnect.privacy-evidence.v1","eventId":"11111111-1111-1111-1111-111111111111","tenantId":"00000000000000000000000001","destination":"Output","allowed":true,"action":"Block","categories":{"EMAIL":2},"content":"not-allowed"}

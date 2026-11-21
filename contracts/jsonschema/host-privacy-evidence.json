@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.privacy-evidence.v1/host-privacy-evidence.json",
+  "title": "Host privacy evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "tenantId", "destination", "allowed", "action", "categories"],
+  "allOf": [{"if": {"properties": {"action": {"const": "Block"}}, "required": ["action"]},
+             "then": {"properties": {"allowed": {"const": false}}}}],
+  "properties": {
+    "schemaVersion": { "const": "openconnect.privacy-evidence.v1" },
+    "eventId": { "type": "string", "format": "uuid", "not": { "const": "00000000-0000-0000-0000-000000000000" } },
+    "tenantId": { "type": "string", "minLength": 26, "maxLength": 26, "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$", "not": { "const": "00000000000000000000000000" } },
+    "destination": { "enum": ["ExternalModel", "Tool", "Worker", "Output", "Nats", "WebSocket", "AuditLog"] },
+    "allowed": { "type": "boolean" },
+    "action": { "enum": ["Allow", "Mask", "Redact", "Block", "Review"] },
+    "categories": {
+      "type": "object",
+      "maxProperties": 6,
+      "propertyNames": { "enum": ["EMAIL", "PHONE", "PAYMENT_CARD", "SECRET", "PERSONAL_DATA", "OTHER"] },
+      "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 20000 }
+    }
+  }
+}

@@ -283,3 +283,5 @@ A disposable PostgreSQL and mutual-TLS gateway/worker test verifies a settled de
 The versioned LiveUI result schema describes the proposal returned by the Cloud gateway. Its action types and value fields match gateway validation; the host must still check the original request allowlist and authorize execution.
 
 Before Cloud LiveUI egress, the host can snapshot capabilities and apply its own external-model egress gate to the sanitized intent and every transmitted metadata field, including their concatenation. The host must independently authorize the current session and route before supplying the egress context; this screen does not itself establish authorization or send a request.
+
+Host privacy evaluation errors fail closed as privacy denials, preventing provider fallback from treating an unavailable policy as an ordinary planner error.

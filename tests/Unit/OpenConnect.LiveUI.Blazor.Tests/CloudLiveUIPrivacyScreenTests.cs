@@ -64,6 +64,8 @@ public sealed class CloudLiveUIPrivacyScreenTests
             await Assert.ThrowsAsync<PrivacyBlockedException>(async () =>
                 await CloudLiveUIPrivacyScreen.PrepareAsync(request, new Gate((_, _) => decision), context));
         }
+        await Assert.ThrowsAsync<PrivacyBlockedException>(async () =>
+            await CloudLiveUIPrivacyScreen.PrepareAsync(request, new Gate((_, _) => throw new InvalidOperationException("internal")), context));
     }
 
     [Fact]
