@@ -1,0 +1,23 @@
+@page "/error"
+@using System.Diagnostics
+
+<PageTitle>Error | OpenConnect</PageTitle>
+<h1>Something went wrong</h1>
+<p role="alert">An unexpected error occurred while processing your request. Please try again or contact support if the problem persists.</p>
+@if (!string.IsNullOrEmpty(_requestId))
+{
+    <p>Request ID: <code>@_requestId</code></p>
+}
+<p><a href="/">Return home</a> · <a href="/docs">Documentation</a></p>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? _requestId;
+
+    protected override void OnInitialized()
+    {
+        _requestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+    }
+}

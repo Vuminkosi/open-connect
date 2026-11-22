@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @layout Layout.CloudLayout
 @rendermode InteractiveServer
+@implements IDisposable
 @using OpenConnect.Docs.Cloud
 @inject IServiceProvider Services
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -62,9 +63,14 @@ else
     private bool _loading = true;
     private bool _canAdminister;
     private string? _status;
+    private int _generation;
 
     protected override async Task OnParametersSetAsync()
     {
+        _generation++;
+        _capabilities = [];
+        _canAdminister = false;
+        _status = null;
         _service = Services.GetService(typeof(CloudCapabilityService)) as CloudCapabilityService;
         _tenantService = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
         if (_service is null || _tenantService is null)
@@ -82,25 +88,36 @@ else
 
     private async Task SetEnabledAsync(CloudCapabilityView capability, bool enabled)
     {
+        var generation = _generation;
+        var tenantId = TenantId;
         var subject = await GetSubjectAsync();
+        if (generation != _generation) return;
         if (subject is null || _service is null) return;
         try
         {
-            var result = await _service.SetTenantSelectionAsync(subject, TenantId, capability.Id, enabled, capability.Revision ?? 0, CancellationToken.None);
+            var result = await _service.SetTenantSelectionAsync(subject, tenantId, capability.Id, enabled, capability.Revision ?? 0, CancellationToken.None);
+            if (generation != _generation) return;
             await ReloadAsync();
-            if (result.Status != "succeeded") _status = result.Status;
+            if (generation == _generation && result.Status != "succeeded") _status = result.Status;
         }
         catch (Exception)
         {
             Logger.LogWarning("Cloud organization service update failed; no database details were returned to the browser.");
-            _status = "The Cloud control plane is temporarily unavailable. The service selection was not confirmed.";
+            if (generation == _generation)
+            {
+                _status = "The Cloud control plane is temporarily unavailable. The service selection was not confirmed.";
+            }
         }
     }
 
     private async Task ReloadAsync()
     {
+        var generation = _generation;
+        var tenantId = TenantId;
         _loading = true;
         _status = null;
+        _capabilities = [];
+        _canAdminister = false;
         try
         {
             var service = _service;
@@ -111,31 +128,48 @@ else
                 return;
             }
             var subject = await GetSubjectAsync();
+            if (generation != _generation) return;
             if (subject is null)
             {
                 _status = "The authenticated identity is missing a subject.";
                 return;
             }
             var tenants = await tenantService.GetTenantsAsync(subject, CancellationToken.None);
-            var tenant = tenants.SingleOrDefault(item => item.Id == TenantId);
+            if (generation != _generation) return;
+            var tenant = tenants.SingleOrDefault(item => item.Id == tenantId);
             if (tenant is null)
             {
                 _status = "The organization was not found or you do not have access.";
                 return;
             }
+            var capabilities = await service.GetTenantCapabilitiesAsync(subject, tenantId, CancellationToken.None);
+            if (generation != _generation) return;
+            if (capabilities is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
             _canAdminister = tenant.Role is "Owner" or "Administrator";
-            _capabilities = await service.GetTenantCapabilitiesAsync(subject, TenantId, CancellationToken.None) ?? [];
+            _capabilities = capabilities;
         }
         catch (Exception)
         {
             Logger.LogWarning("Cloud service catalog lookup failed; no database details were returned to the browser.");
-            _status = "The Cloud control plane is temporarily unavailable. Service access could not be verified.";
+            if (generation == _generation)
+            {
+                _status = "The Cloud control plane is temporarily unavailable. Service access could not be verified.";
+            }
         }
         finally
         {
-            _loading = false;
+            if (generation == _generation)
+            {
+                _loading = false;
+            }
         }
     }
+
+    public void Dispose() => _generation++;
 
     private async Task<CloudSubject?> GetSubjectAsync()
     {

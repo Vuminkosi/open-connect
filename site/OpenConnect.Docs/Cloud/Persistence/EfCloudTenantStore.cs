@@ -147,10 +147,12 @@ public sealed class EfCloudTenantStore(
             .SingleOrDefaultAsync(cancellationToken);
         if (role is null)
         {
-            return (null, true);
+            await RecordDeniedApplicationCreateAsync(subject, tenantId, authenticatedRole: null, outcome: "not_found", cancellationToken);
+            return (null, false);
         }
         if (!ApplicationAdministrators.Contains(role, StringComparer.Ordinal))
         {
+            await RecordDeniedApplicationCreateAsync(subject, tenantId, authenticatedRole: role, outcome: "forbidden", cancellationToken);
             return (null, true);
         }
 
@@ -164,6 +166,26 @@ public sealed class EfCloudTenantStore(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return (new CloudApplicationSummary(application.Id, tenantId, application.Name, application.Environment, now), false);
+    }
+
+    private async Task RecordDeniedApplicationCreateAsync(
+        CloudSubject subject, Guid tenantId, string? authenticatedRole, string outcome, CancellationToken cancellationToken)
+    {
+        // Unaffiliated callers cannot create tenant-scoped audit entries.
+        await using var auditDb = await contextFactory.CreateDbContextAsync(cancellationToken);
+        auditDb.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = authenticatedRole is null ? null : tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = authenticatedRole ?? "AuthenticatedUser",
+            Action = "application.create",
+            ResourceId = tenantId.ToString("D"),
+            Outcome = outcome,
+            OccurredAt = timeProvider.GetUtcNow(),
+        });
+        await auditDb.SaveChangesAsync(cancellationToken);
     }
 
     private static Task<bool> IsMemberAsync(
