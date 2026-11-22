@@ -225,6 +225,42 @@ public sealed class CloudPrivacyEvidenceSinkTests
         Assert.Throws<ArgumentException>(() => new CloudPrivacyEvidenceSink(http, new Uri("https://cloud.example/path"), "credential"));
     }
 
+    [Fact]
+    public async Task Serializes_additive_receipt_metadata_and_integrity_digest_without_content()
+    {
+        var context = new EgressContext(new(Ulid.NewUlid()), new(Ulid.NewUlid()), new(Ulid.NewUlid()), EgressDestination.ExternalModel);
+        var occurredAt = new DateTimeOffset(2026, 11, 22, 13, 0, 0, TimeSpan.Zero);
+        var evidence = HostPrivacyEvidence.Create(
+            Guid.NewGuid(),
+            context,
+            new EgressDecision(false, null, [new(0, 4, "SECRET")], SecurityPolicyAction.Block, "literal_sensitive_value_detected"),
+            traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+            requestId: "req-99",
+            occurredAt: occurredAt,
+            policyId: "default/strict-local",
+            policyRevision: "v2");
+
+        string? capturedBody = null;
+        using var http = new HttpClient(new Handler(async request =>
+        {
+            capturedBody = await request.Content!.ReadAsStringAsync();
+            return Reply($"{{\"eventId\":\"{evidence.EventId:D}\"}}");
+        }));
+        using var sink = new CloudPrivacyEvidenceSink(http, new Uri("https://cloud.example/"), "credential");
+        await sink.RecordAsync(evidence);
+
+        Assert.NotNull(capturedBody);
+        using var json = JsonDocument.Parse(capturedBody!);
+        var root = json.RootElement;
+        Assert.Equal("application-host", root.GetProperty("enforcementAuthority").GetString());
+        Assert.Equal(evidence.IntegrityDigest, root.GetProperty("integrityDigest").GetString());
+        Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", root.GetProperty("traceId").GetString());
+        Assert.Equal("req-99", root.GetProperty("requestId").GetString());
+        Assert.Equal("default/strict-local", root.GetProperty("policyId").GetString());
+        Assert.Equal("v2", root.GetProperty("policyRevision").GetString());
+        Assert.Equal(occurredAt, DateTimeOffset.Parse(root.GetProperty("occurredAt").GetString()!).ToUniversalTime());
+    }
+
     private static HttpResponseMessage Reply(string body) => new(HttpStatusCode.OK)
     { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
