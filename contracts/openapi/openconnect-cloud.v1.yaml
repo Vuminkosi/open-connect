@@ -2,15 +2,125 @@ openapi: 3.1.0
 info:
   title: OpenConnect Cloud API
   version: 1.0.0
-  description: Classification admission and response contract. Execution requires explicit deployment configuration.
+  description: >
+    OpenConnect Cloud Gateway HTTP contract covering health probes and all wired
+    capability endpoints. Execution is fail-closed and requires explicit
+    deployment configuration, authorization, privacy inspection, and quota
+    admission.
 servers:
-  - url: /cloud/v1
+  - url: /
 paths:
-  /classification:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Gateway liveness probe
+      description: Unauthenticated liveness check confirming the Cloud gateway process is running.
+      responses:
+        '200':
+          description: Gateway process is live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LivenessStatus' }
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Gateway readiness probe
+      description: >
+        Verifies control-plane readiness and probes all configured capability
+        workers. Fails closed with 503 when any configured dependency is not
+        ready.
+      responses:
+        '200':
+          description: Gateway and all configured capabilities are ready.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessStatus' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /cloud/v1/health/ready:
+    get:
+      operationId: getCloudReadiness
+      summary: Versioned Cloud gateway readiness probe
+      description: >
+        Versioned readiness contract aligned with /health/ready, reporting ready
+        Cloud capabilities or failing closed with 503 Problem Details.
+      responses:
+        '200':
+          description: Cloud gateway and all configured capabilities are ready.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessStatus' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /cloud/v1/inference/chat:
+    post:
+      operationId: chatInference
+      summary: Request Cloud chat inference
+      description: >
+        Validates the chat inference envelope after bearer authorization and
+        worker readiness, runs privacy inspection and local token quotation,
+        reserves quota, dispatches to the configured inference worker, and
+        screens output before returning the response.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InferenceChatRequest' }
+      responses:
+        '200':
+          description: Chat inference completed, output passed egress screening, and usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InferenceChatResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
+  /cloud/v1/liveui/plan:
+    post:
+      operationId: planLiveUI
+      summary: Request LiveUI action plan
+      description: >
+        Generates a constrained LiveUI action plan after authorization, worker
+        readiness, privacy inspection, and quota reservation.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../jsonschema/cloud-liveui-request-v1.json' }
+      responses:
+        '200':
+          description: LiveUI plan generated and usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: '../jsonschema/cloud-liveui-result-v1.json' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
+  /cloud/v1/classification:
     post:
       operationId: classify
       summary: Request classification
-      description: The gateway validates this envelope after authorization and worker readiness. The v2 envelope requires expiresAt in UTC with millisecond precision, in the future and at most five minutes from admission. The v1 envelope remains accepted for validation but cannot authorize execution. Execution is disabled by default and requires an explicitly configured worker and control plane.
+      description: >
+        The gateway validates this envelope after authorization and worker
+        readiness. The v2 envelope requires expiresAt in UTC with millisecond
+        precision, in the future and at most five minutes from admission. The
+        v1 envelope remains accepted for validation but cannot authorize
+        execution. Execution is disabled by default and requires an explicitly
+        configured worker and control plane.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -18,26 +128,311 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: ../jsonschema/cloud-classification-request.json
-                - $ref: ../jsonschema/cloud-classification-request-v2.json
+                - $ref: '../jsonschema/cloud-classification-request.json'
+                - $ref: '../jsonschema/cloud-classification-request-v2.json'
       responses:
         '200':
           description: Classification completed and usage was recorded.
           content:
             application/json:
-              schema: { $ref: ../jsonschema/cloud-classification-response-v1.json }
-        '400': { description: Malformed request }
-        '401': { description: Authentication required }
-        '403': { description: Access, entitlement or privacy policy denied }
-        '409': { description: Duplicate request or idempotency conflict }
-        '413': { description: Request exceeds the body limit }
-        '415': { description: Unsupported media type or content encoding }
-        '422': { description: Request does not satisfy the classification contract }
-        '429': { description: Quota exceeded }
-        '503': { description: Classification execution is unavailable }
-        '504': { description: Request deadline elapsed during admission }
+              schema: { $ref: '../jsonschema/cloud-classification-response-v1.json' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
+  /cloud/v1/voice/synthesis:
+    post:
+      operationId: synthesizeVoice
+      summary: Request speech synthesis
+      description: >
+        Synthesizes speech audio after authorization, worker and output-screen
+        readiness, privacy inspection, and quota reservation.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../jsonschema/cloud-voice-synthesis-request-v1.json' }
+      responses:
+        '200':
+          description: Speech synthesis completed, audio passed output screening, and usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: '../jsonschema/cloud-voice-synthesis-result-v1.json' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
+  /cloud/v1/analytics:
+    post:
+      operationId: analyzeAnalytics
+      summary: Request time-series analytics
+      description: >
+        Runs robust anomaly detection and optional forecasting/trend analysis
+        after authorization, deployment matching, worker readiness, and quota
+        admission.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../jsonschema/cloud-analytics-request-v1.json' }
+      responses:
+        '200':
+          description: Analytics completed and compute usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: '../jsonschema/cloud-analytics-response-v1.json' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
+  /cloud/v1/knowledge/embeddings:
+    post:
+      operationId: embedKnowledge
+      summary: Request knowledge embeddings
+      description: >
+        Generates normalized dense vectors for knowledge passages after
+        authorization, deployment matching, worker readiness, privacy
+        inspection, and quota admission.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../jsonschema/cloud-knowledge-embed-request-v1.json' }
+      responses:
+        '200':
+          description: Knowledge embeddings generated and usage was recorded.
+          content:
+            application/json:
+              schema: { $ref: '../jsonschema/cloud-knowledge-embed-response-v1.json' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/QuotaExceeded' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+  schemas:
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      description: RFC 9457 / OpenConnect Cloud Section 8 Problem Details error envelope.
+      required: [type, title, status, code, traceId]
+      properties:
+        type:
+          type: string
+          description: URI reference identifying the problem type (defaults to about:blank).
+        title:
+          type: string
+          description: Short, human-readable summary of the problem type.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP status code generated by the gateway.
+        code:
+          type: string
+          enum:
+            - unauthorized
+            - forbidden
+            - capability_not_entitled
+            - capability_disabled
+            - dependency_not_enabled
+            - invalid_request
+            - privacy_blocked
+            - upstream_timeout
+            - quota_exceeded
+            - conflict
+            - idempotency_conflict
+            - capability_unavailable
+          description: Stable machine-readable OpenConnect Cloud error code.
+        traceId:
+          type: string
+          pattern: '^(?!0{32}$)[0-9a-f]{32}$'
+          description: W3C 32-hex-character trace identifier correlating logs and telemetry.
+        retryable:
+          type: boolean
+          description: Indicates whether the caller may safely retry the same request.
+        detail:
+          type: string
+          description: Optional safe diagnostic detail without sensitive or internal data.
+    LivenessStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          const: live
+    ReadinessStatus:
+      type: object
+      additionalProperties: false
+      required: [status, capabilities]
+      properties:
+        status:
+          const: ready
+        capabilities:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - classification.classify
+              - inference.chat
+              - inference.liveui
+              - analytics.analyze
+              - voice.synthesize
+              - knowledge.embed
+    InferenceChatRequest:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, requestId, capability, expiresAt, modelId, input]
+      properties:
+        schemaVersion:
+          const: openconnect.cloud.inference/v1
+        requestId:
+          type: string
+          pattern: '^(?!00000000-0000-0000-0000-000000000000)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        capability:
+          const: inference.chat
+        expiresAt:
+          type: string
+          format: date-time
+          pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$'
+        modelId:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$'
+        input:
+          type: object
+          additionalProperties: false
+          required: [messages, maxTokens, stream]
+          properties:
+            messages:
+              type: array
+              minItems: 1
+              maxItems: 64
+              items:
+                type: object
+                additionalProperties: false
+                required: [role, content]
+                properties:
+                  role:
+                    type: string
+                    enum: [system, user, assistant, tool]
+                  content:
+                    type: string
+                    maxLength: 32768
+            maxTokens:
+              type: integer
+              minimum: 1
+              maximum: 4096
+            stream:
+              type: boolean
+    InferenceChatResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, requestId, modelId, traceId, output, usage]
+      properties:
+        schemaVersion:
+          const: openconnect.cloud.inference.result/v1
+        requestId:
+          type: string
+          pattern: '^(?!00000000-0000-0000-0000-000000000000)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        modelId:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$'
+        traceId:
+          type: string
+          pattern: '^(?!0{32}$)[0-9a-f]{32}$'
+        output:
+          type: string
+          maxLength: 131072
+        usage:
+          type: object
+          additionalProperties: false
+          required: [inputTokens, outputTokens]
+          properties:
+            inputTokens:
+              type: integer
+              minimum: 0
+            outputTokens:
+              type: integer
+              minimum: 0
+  responses:
+    BadRequest:
+      description: Malformed request
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Forbidden:
+      description: Access, entitlement, capability state, or privacy policy denied
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflict:
+      description: Duplicate request or idempotency conflict
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    PayloadTooLarge:
+      description: Request exceeds the body size limit
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    UnsupportedMediaType:
+      description: Unsupported media type or content encoding
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    UnprocessableEntity:
+      description: Request does not satisfy the capability contract
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    QuotaExceeded:
+      description: Quota exceeded
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ServiceUnavailable:
+      description: Capability execution or Cloud gateway is unavailable
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    GatewayTimeout:
+      description: Request deadline elapsed during admission or execution
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
