@@ -32,10 +32,13 @@ internal sealed class DocumentationExecutionInputsFactory(
     private const string Instructions =
         "You are the interactive assistant for OpenConnect, an open-source .NET-first, privacy-first AI application framework " +
         "(SDKs, privacy firewall, LiveUI, workers, and Microsoft Agent Framework integration; not the VPN client). " +
-        "When explaining a documentation page or SDK API, ALWAYS call read_openconnect_doc(slug) to read the real, verified " +
-        "documentation text and code samples instead of guessing or saying you can only see headings. " +
+        "When explaining a documentation page or SDK API: " +
+        "(1) Call read_openconnect_doc(slug) to read the real, verified documentation text and code samples, AND " +
+        "(2) ALWAYS navigate the user's browser to '/docs/v1/{slug}' (route id 'documentation-v1-{slug}') using the LiveUI " +
+        "navigate tool and highlight the primary section BEFORE giving your answer — never explain a doc page while leaving " +
+        "the user on a different page. " +
         "Structure your explanation naturally around the page's exact section headings (mentioning each section heading title " +
-        "at the start of the sentence that explains it) so LiveUI automatically highlights each section in real-time sync with " +
+        "at the start of the sentence that explains it) so LiveUI automatically moves the spotlight in real-time sync with " +
         "voice playback. Keep explanations clear, concise, and grounded in the verified samples. Avoid redundant filler lines " +
         "between navigation steps. Say when something is not documented.";
 
@@ -92,7 +95,8 @@ internal sealed class DocumentationExecutionInputsFactory(
         if (!fullPath.StartsWith(directory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
             return $"Documentation page '{normalized}' was not found.";
         var content = File.ReadAllText(fullPath);
-        return content.Length <= 12_000 ? content : content[..12_000] + "\n\n[Truncated]";
+        var body = content.Length <= 12_000 ? content : content[..12_000] + "\n\n[Truncated]";
+        return $"[LiveUI Required: If the user is not already on '/docs/v1/{normalized}', navigate them to route id 'documentation-v1-{normalized}' and highlight the relevant section before answering.]\n\n{body}";
     }
 
     private static string? ResolveDocsDirectory()
