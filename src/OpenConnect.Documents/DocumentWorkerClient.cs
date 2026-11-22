@@ -132,8 +132,12 @@ public sealed class DocumentWorkerClient : IDisposable
             var taskId = Guid.NewGuid().ToString("N");
             body = JsonSerializer.SerializeToUtf8Bytes(new
             {
-                schemaVersion = "openconnect.v1", taskId, kind, tenantId = context.Tenant.Value.ToString(),
-                issuedAt = now.AddSeconds(-5), expiresAt = now.AddMinutes(2),
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind,
+                tenantId = context.Tenant.Value.ToString(),
+                issuedAt = now.AddSeconds(-5),
+                expiresAt = now.AddMinutes(2),
                 payload = new { contentBase64 = Convert.ToBase64String(content) }
             });
             using var request = new HttpRequestMessage(HttpMethod.Post, ExecuteUri);
@@ -175,11 +179,14 @@ public sealed class DocumentWorkerClient : IDisposable
         finally
         {
             CryptographicOperations.ZeroMemory(content);
-            if (body is not null) CryptographicOperations.ZeroMemory(body);
-            if (chunk is not null) CryptographicOperations.ZeroMemory(chunk);
+            if (body is not null)
+                CryptographicOperations.ZeroMemory(body);
+            if (chunk is not null)
+                CryptographicOperations.ZeroMemory(chunk);
             if (buffer is not null)
             {
-                if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan());
+                if (buffer.TryGetBuffer(out var bytes))
+                    CryptographicOperations.ZeroMemory(bytes.AsSpan());
                 buffer.Dispose();
             }
         }

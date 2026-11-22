@@ -10,7 +10,8 @@ internal static class DocumentationLiveUIEndpoints
         var group = endpoints.MapGroup("/openconnect/v1/liveui/inference").RequireAuthorization();
         group.MapGet("/worker/availability", async (IDocumentationWorkerPlanner worker, CancellationToken ct) =>
         {
-            try { return Results.Ok(await worker.GetAvailabilityAsync(ct)); }
+            try
+            { return Results.Ok(await worker.GetAvailabilityAsync(ct)); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception) { return Results.Problem(statusCode: 503, title: "LiveUI worker unavailable."); }
         });

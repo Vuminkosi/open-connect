@@ -12,12 +12,14 @@ public sealed class SameHostCloudLiveUISessionContextProvider(
     public ValueTask<EgressContext?> GetContextAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (options.Mode != TodoGatewayMode.SameHostGateway) return ValueTask.FromResult<EgressContext?>(null);
+        if (options.Mode != TodoGatewayMode.SameHostGateway)
+            return ValueTask.FromResult<EgressContext?>(null);
         try
         {
             var session = sessions.Get(Ulid.Parse(sessionId));
             if (session is null || session.TenantId.Value != Ulid.Parse(options.TenantId) ||
-                session.PrincipalId.Value != Ulid.Parse(options.PrincipalId)) return ValueTask.FromResult<EgressContext?>(null);
+                session.PrincipalId.Value != Ulid.Parse(options.PrincipalId))
+                return ValueTask.FromResult<EgressContext?>(null);
             return ValueTask.FromResult<EgressContext?>(new(session.TenantId, session.PrincipalId, session.Id, EgressDestination.ExternalModel));
         }
         catch (Exception exception) when (exception is FormatException or ArgumentNullException)

@@ -22,7 +22,8 @@ public static class CloudHostPrivacyReportParser
         var fields = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         foreach (var property in body.EnumerateObject())
             if (property.Name is not ("schemaVersion" or "eventId" or "tenantId" or "destination" or "allowed" or "action" or "reasonCode" or "categories") ||
-                !fields.TryAdd(property.Name, property.Value)) throw new ArgumentException("Invalid host privacy evidence.");
+                !fields.TryAdd(property.Name, property.Value))
+                throw new ArgumentException("Invalid host privacy evidence.");
         try
         {
             if (fields.Count is < 7 or > 8 || fields["schemaVersion"].GetString() != "openconnect.privacy-evidence.v1" ||
@@ -51,13 +52,15 @@ public static class CloudHostPrivacyReportParser
 
     internal static SortedDictionary<string, int> Categories(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.Object) throw new ArgumentException("Invalid host privacy evidence.");
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("Invalid host privacy evidence.");
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var category in value.EnumerateObject())
             if (category.Name is not ("EMAIL" or "PHONE" or "PAYMENT_CARD" or "SECRET" or "PERSONAL_DATA" or "OTHER") ||
                 !category.Value.TryGetInt32(out var count) || count is < 1 or > 20000 || !counts.TryAdd(category.Name, count))
                 throw new ArgumentException("Invalid host privacy evidence.");
-        if (counts.Values.Sum(value => (long)value) > 20000) throw new ArgumentException("Invalid host privacy evidence.");
+        if (counts.Values.Sum(value => (long)value) > 20000)
+            throw new ArgumentException("Invalid host privacy evidence.");
         return counts;
     }
 

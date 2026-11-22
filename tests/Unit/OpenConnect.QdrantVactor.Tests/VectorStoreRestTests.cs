@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
-using OpenConnect.QdrantVactor;
 using OpenConnect.Abstractions;
+using OpenConnect.QdrantVactor;
 using Xunit;
 
 namespace OpenConnect.QdrantVactor.Tests;
@@ -37,10 +37,13 @@ public sealed class VectorStoreRestTests
                 return new HttpResponseMessage(HttpStatusCode.OK);
             using var upsert = JsonDocument.Parse(handler.Requests[0].Body!);
             var point = upsert.RootElement.GetProperty("points")[0];
-            var body = JsonSerializer.Serialize(new { result = new[] { new {
+            var body = JsonSerializer.Serialize(new
+            {
+                result = new[] { new {
                 id = point.GetProperty("id").GetGuid(), vector = new float[] { 1, 0 }, score = 0.9,
                 payload = point.GetProperty("payload").Clone()
-            } } });
+            } }
+            });
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
         });
         var provider = new SemanticMemorySearchProvider(new FixedEmbeddings(), Create(handler), new AllowScope());

@@ -13,9 +13,20 @@ public sealed class CloudKnowledgeEmbeddingPrivacyLimitsTests
     {
         var identity = new CloudCredentialIdentity(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Development", new HashSet<string>());
         var vectors = Enumerable.Range(0, 32).Select(_ => new { vector = Enumerable.Range(0, 768).Select(i => i == 0 ? 1.0 : 0.0).ToArray(), norm = 1.0, truncated = false }).ToArray();
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId = Guid.NewGuid(),
-            kind = "knowledge.embed", result = new { model_id = "model", fingerprint = new string('a', 64), dimension = 768,
-                space_id = new string('b', 64), items = vectors } }));
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId = Guid.NewGuid(),
+            kind = "knowledge.embed",
+            result = new
+            {
+                model_id = "model",
+                fingerprint = new string('a', 64),
+                dimension = 768,
+                space_id = new string('b', 64),
+                items = vectors
+            }
+        }));
         var detector = new AllowDetector();
         var assessment = await new CloudJsonPrivacyService(detector)
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), document.RootElement, CancellationToken.None, embeddingResponse: true);

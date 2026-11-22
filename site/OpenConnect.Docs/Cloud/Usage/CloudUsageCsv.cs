@@ -24,7 +24,8 @@ public static class CloudUsageCsv
         value ??= "";
         // Protect spreadsheet consumers from formula interpretation, including after leading whitespace.
         var trimmed = value.TrimStart();
-        if ((trimmed.Length > 0 && "=+-@".Contains(trimmed[0])) || (value.Length > 0 && char.IsControl(value[0]))) value = "'" + value;
+        if ((trimmed.Length > 0 && "=+-@".Contains(trimmed[0])) || (value.Length > 0 && char.IsControl(value[0])))
+            value = "'" + value;
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }

@@ -18,7 +18,8 @@ public sealed class CloudInferenceOutputPrivacyService(ISecurityDetector? detect
             return new(false, "invalid_request");
         try
         {
-            if (!_firewall.Enabled) return new(false, "detector_unavailable");
+            if (!_firewall.Enabled)
+                return new(false, "detector_unavailable");
             var context = new EgressContext(new TenantId(ToUlid(identity.TenantId)), new PrincipalId(ToUlid(identity.ApplicationId)),
                 new SessionId(ToUlid(requestId)), EgressDestination.Output);
             var decision = await _firewall.EvaluateAsync(output, context, cancellationToken);
@@ -35,10 +36,12 @@ public sealed class CloudInferenceOutputPrivacyService(ISecurityDetector? detect
     private static Ulid ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var b in value.ToByteArray(bigEndian: true)) number = (number << 8) | b;
+        foreach (var b in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | b;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return Ulid.Parse(new string(encoded));
     }
 }

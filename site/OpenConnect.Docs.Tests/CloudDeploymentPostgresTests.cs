@@ -1,6 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using OpenConnect.Docs.Cloud;
-using Xunit;
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
@@ -8,13 +10,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
-using System.Security.Claims;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.AspNetCore.Antiforgery;
+using OpenConnect.Docs.Cloud;
+using Xunit;
 
 namespace OpenConnect.Docs.Tests;
 
@@ -27,7 +27,8 @@ public sealed class CloudDeploymentPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var capability = "test." + Guid.NewGuid().ToString("N");
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -35,9 +36,18 @@ public sealed class CloudDeploymentPostgresTests
             await db.SaveChangesAsync();
         }
         var registry = new CloudDeploymentRegistry(new EfCloudDeploymentStore(factory, TimeProvider.System));
-        CloudWorkerDeployment Deployment(string endpoint) => new() { Id = Guid.NewGuid(), CapabilityId = capability,
-            EndpointReference = endpoint, Transport = "https-mtls", Region = "region-a", ContractVersion = "v1",
-            ImageDigest = "sha256:" + new string('a', 64), ConcurrencyLimit = 10, Enabled = false };
+        CloudWorkerDeployment Deployment(string endpoint) => new()
+        {
+            Id = Guid.NewGuid(),
+            CapabilityId = capability,
+            EndpointReference = endpoint,
+            Transport = "https-mtls",
+            Region = "region-a",
+            ContractVersion = "v1",
+            ImageDigest = "sha256:" + new string('a', 64),
+            ConcurrencyLimit = 10,
+            Enabled = false
+        };
         var actor = new CloudSubject("https://operator-issuer.example", "operator");
         var traceId = Guid.NewGuid().ToString("N");
         var first = Deployment("worker-a-" + Guid.NewGuid().ToString("N"));
@@ -141,8 +151,17 @@ public sealed class CloudDeploymentPostgresTests
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync(writePath, null)).StatusCode);
         using var tokenJson = JsonDocument.Parse(await client.GetStringAsync("/test-antiforgery"));
         var token = tokenJson.RootElement.GetProperty("token").GetString()!;
-        var payload = new { capabilityId = capability, endpointReference = "http-test-" + Guid.NewGuid().ToString("N"),
-            transport = "https-mtls", region = "region-a", contractVersion = "v1", imageDigest = "sha256:" + new string('b', 64), concurrencyLimit = 2, enabled = false };
+        var payload = new
+        {
+            capabilityId = capability,
+            endpointReference = "http-test-" + Guid.NewGuid().ToString("N"),
+            transport = "https-mtls",
+            region = "region-a",
+            contractVersion = "v1",
+            imageDigest = "sha256:" + new string('b', 64),
+            concurrencyLimit = 2,
+            enabled = false
+        };
         var trace = Guid.NewGuid().ToString("N");
         HttpRequestMessage Write(string revision)
         {
@@ -158,8 +177,10 @@ public sealed class CloudDeploymentPostgresTests
             Assert.Equal(HttpStatusCode.NoContent, created.StatusCode);
             Assert.Equal("\"1\"", created.Headers.ETag?.ToString());
         }
-        using (var request = Write("0")) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
-        using (var request = Write("1")) Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("0"))
+            Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("1"))
+            Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(request)).StatusCode);
         using (var request = Write("2"))
         {
             request.Content = new StringContent("{\"enabled\":false,\"Enabled\":true}", System.Text.Encoding.UTF8, "application/json");

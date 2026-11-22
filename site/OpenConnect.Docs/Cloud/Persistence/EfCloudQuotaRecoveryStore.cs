@@ -6,7 +6,8 @@ public sealed class EfCloudQuotaRecoveryStore(IDbContextFactory<CloudControlPlan
 {
     public async Task<int> ReleaseUnclaimedAsync(DateTimeOffset cutoff, int limit, CancellationToken cancellationToken)
     {
-        if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (limit is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(limit));
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if ((await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
             throw new InvalidOperationException("Quota recovery requires all control-plane migrations.");
@@ -27,7 +28,8 @@ public sealed class EfCloudQuotaRecoveryStore(IDbContextFactory<CloudControlPlan
             var updated = await db.QuotaBuckets.Where(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId &&
                     x.ApplicationId == reservation.ApplicationId && x.Reserved >= reservation.Amount)
                 .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved - reservation.Amount), cancellationToken);
-            if (finalized != 1 || updated != 1) throw new InvalidOperationException("Quota recovery could not preserve the reservation balance.");
+            if (finalized != 1 || updated != 1)
+                throw new InvalidOperationException("Quota recovery could not preserve the reservation balance.");
         }
         await transaction.CommitAsync(cancellationToken);
         return reservations.Length;

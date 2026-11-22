@@ -31,11 +31,13 @@ internal sealed class DocumentationVoiceTickets(TimeProvider? clock = null)
     public bool TryConsume(string ticket, string sessionId, out string? visitorToken)
     {
         visitorToken = null;
-        if (ticket.Length != 43 || !IsCanonicalSession(sessionId)) return false;
+        if (ticket.Length != 43 || !IsCanonicalSession(sessionId))
+            return false;
         lock (_sync)
         {
             if (!_entries.Remove(ticket, out var entry) || entry.Expires <= _clock.GetUtcNow() ||
-                !string.Equals(entry.SessionId, sessionId, StringComparison.Ordinal)) return false;
+                !string.Equals(entry.SessionId, sessionId, StringComparison.Ordinal))
+                return false;
             visitorToken = entry.VisitorToken;
             return true;
         }
@@ -43,8 +45,10 @@ internal sealed class DocumentationVoiceTickets(TimeProvider? clock = null)
 
     private static bool IsCanonicalSession(string value)
     {
-        if (value.Length != 26) return false;
-        try { var id = Ulid.Parse(value); return id != default && id.ToString() == value; }
+        if (value.Length != 26)
+            return false;
+        try
+        { var id = Ulid.Parse(value); return id != default && id.ToString() == value; }
         catch (FormatException) { return false; }
     }
 

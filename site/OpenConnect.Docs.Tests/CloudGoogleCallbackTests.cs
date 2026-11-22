@@ -36,7 +36,9 @@ public sealed class CloudGoogleCallbackTests
         var tokenEndpoint = new TokenEndpoint(key) { Scenario = scenario };
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Identity:Google:Enabled"] = "true", ["Identity:Google:ClientId"] = "test-client", ["Identity:Google:ClientSecret"] = "test-secret"
+            ["Identity:Google:Enabled"] = "true",
+            ["Identity:Google:ClientId"] = "test-client",
+            ["Identity:Google:ClientSecret"] = "test-secret"
         }).Build();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -44,15 +46,20 @@ public sealed class CloudGoogleCallbackTests
         builder.Services.AddCloudIdentityProviders(config.GetSection("Identity"));
         builder.Services.PostConfigure<OpenIdConnectOptions>(CloudIdentity.GoogleScheme, options =>
         {
-            var metadata = new OpenIdConnectConfiguration { Issuer = CloudIdentity.GoogleIssuer,
-                AuthorizationEndpoint = "https://accounts.google.test/authorize", TokenEndpoint = "https://accounts.google.test/token" };
+            var metadata = new OpenIdConnectConfiguration
+            {
+                Issuer = CloudIdentity.GoogleIssuer,
+                AuthorizationEndpoint = "https://accounts.google.test/authorize",
+                TokenEndpoint = "https://accounts.google.test/token"
+            };
             metadata.SigningKeys.Add(key);
             options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(metadata);
             options.Backchannel = new HttpClient(tokenEndpoint);
         });
         builder.Services.AddAuthorization();
         await using var app = builder.Build();
-        app.UseAuthentication(); app.UseAuthorization();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapCloudIdentityEndpoints(false, true);
         app.MapGet("/test-identity", (HttpContext context) =>
         {
@@ -116,8 +123,11 @@ public sealed class CloudGoogleCallbackTests
             var jwt = new JwtSecurityToken(Scenario == "wrong-issuer" ? "https://attacker.example" : CloudIdentity.GoogleIssuer, Scenario == "wrong-audience" ? "other-client" : "test-client",
                 [new Claim("sub", "google-test-subject"), new Claim("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64), new Claim("nonce", Scenario == "wrong-nonce" ? "incorrect" : Nonce)],
                 DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(5), new SigningCredentials(key, SecurityAlgorithms.RsaSha256));
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
-                { access_token = "test-access-token", token_type = "Bearer", id_token = new JwtSecurityTokenHandler().WriteToken(jwt) }), Encoding.UTF8, "application/json") };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                { access_token = "test-access-token", token_type = "Bearer", id_token = new JwtSecurityTokenHandler().WriteToken(jwt) }), Encoding.UTF8, "application/json")
+            };
         }
     }
 }

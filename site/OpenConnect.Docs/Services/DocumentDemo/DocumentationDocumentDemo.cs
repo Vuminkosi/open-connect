@@ -28,7 +28,8 @@ internal static class DocumentationDocumentRegistration
     internal static IServiceCollection AddDocumentationDocumentDemo(this IServiceCollection services,
         IConfiguration configuration, IHostEnvironment environment)
     {
-        if (!configuration.GetValue<bool>("OpenConnect:DocumentDemo:Enabled")) return services;
+        if (!configuration.GetValue<bool>("OpenConnect:DocumentDemo:Enabled"))
+            return services;
         if (!environment.IsDevelopment() || !services.Any(service => service.ServiceType == typeof(DocumentationGatewayVisitorTokens)))
             throw new InvalidOperationException("The document example requires development and documentation visitor identity.");
         var prefix = "OpenConnect:DocumentDemo:";
@@ -43,12 +44,16 @@ internal static class DocumentationDocumentRegistration
             !string.IsNullOrEmpty(origin.UserInfo) || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment) ||
             string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) || string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("The document example worker settings are invalid.");
-        if (string.IsNullOrWhiteSpace(inferenceToken)) inferenceToken = token;
-        if (inferenceToken.Any(char.IsWhiteSpace)) throw new InvalidOperationException("The document example worker settings are invalid.");
+        if (string.IsNullOrWhiteSpace(inferenceToken))
+            inferenceToken = token;
+        if (inferenceToken.Any(char.IsWhiteSpace))
+            throw new InvalidOperationException("The document example worker settings are invalid.");
         byte[] keyBytes;
-        try { keyBytes = Convert.FromHexString(key); }
+        try
+        { keyBytes = Convert.FromHexString(key); }
         catch (FormatException) { throw new InvalidOperationException("The document example worker settings are invalid."); }
-        try { if (keyBytes.Length < 32) throw new InvalidOperationException("The document example worker settings are invalid."); }
+        try
+        { if (keyBytes.Length < 32) throw new InvalidOperationException("The document example worker settings are invalid."); }
         finally { CryptographicOperations.ZeroMemory(keyBytes); }
         services.AddOpenConnectRulesDetector();
         services.EnsureHostPrivacyServices();
@@ -75,7 +80,8 @@ internal sealed class DocumentationDocumentDemo(DocumentationGatewayVisitorIdent
     public async Task<DocumentExtractionResult> ProcessAsync(Stream input, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(input);
-        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal)) throw new UnauthorizedAccessException();
+        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal))
+            throw new UnauthorizedAccessException();
         var context = new EgressContext(new TenantId(Ulid.Parse(tenant)), new PrincipalId(Ulid.Parse(principal)),
             new SessionId(Ulid.NewUlid()), EgressDestination.Worker);
         bool Authorized(EgressContext scope) => tokens.TryValidate(visitor.Token, out var currentTenant, out var currentPrincipal) &&
@@ -93,10 +99,12 @@ internal sealed class DocumentationDocumentDemo(DocumentationGatewayVisitorIdent
             int count;
             while ((count = await input.ReadAsync(chunk, uploadDeadline.Token).ConfigureAwait(false)) > 0)
             {
-                if (buffer.Length + count > 10 * 1024 * 1024) throw new ArgumentException("Invalid document size.", nameof(input));
+                if (buffer.Length + count > 10 * 1024 * 1024)
+                    throw new ArgumentException("Invalid document size.", nameof(input));
                 buffer.Write(chunk, 0, count);
             }
-            if (buffer.Length == 0) throw new ArgumentException("Invalid document size.", nameof(input));
+            if (buffer.Length == 0)
+                throw new ArgumentException("Invalid document size.", nameof(input));
             content = buffer.ToArray();
             key = Convert.FromHexString(settings.SigningKey);
             using var documents = new DocumentWorkerClient(settings.Socket, settings.WorkerToken, key, firewall, privacy,
@@ -110,9 +118,12 @@ internal sealed class DocumentationDocumentDemo(DocumentationGatewayVisitorIdent
         finally
         {
             CryptographicOperations.ZeroMemory(chunk);
-            if (content is not null) CryptographicOperations.ZeroMemory(content);
-            if (buffer.TryGetBuffer(out var memory)) CryptographicOperations.ZeroMemory(memory.AsSpan());
-            if (key is not null) CryptographicOperations.ZeroMemory(key);
+            if (content is not null)
+                CryptographicOperations.ZeroMemory(content);
+            if (buffer.TryGetBuffer(out var memory))
+                CryptographicOperations.ZeroMemory(memory.AsSpan());
+            if (key is not null)
+                CryptographicOperations.ZeroMemory(key);
             capacity.Slots.Release();
         }
     }

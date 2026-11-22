@@ -46,7 +46,8 @@ public sealed class HostPrivacyEvidence
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var entity in decision.DetectedEntities)
         {
-            if (entity is null) throw new ArgumentException("Invalid privacy evidence.");
+            if (entity is null)
+                throw new ArgumentException("Invalid privacy evidence.");
             var category = entity.EntityType is "EMAIL" or "PHONE" or "PAYMENT_CARD" or "SECRET" or "PERSONAL_DATA"
                 ? entity.EntityType : "OTHER";
             counts.TryGetValue(category, out var count);

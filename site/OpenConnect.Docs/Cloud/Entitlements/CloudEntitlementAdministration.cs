@@ -37,7 +37,8 @@ public sealed class CloudOperatorEntitlementAdministration(CloudOperatorAccess a
 {
     public async Task<CloudEntitlementResult> GetAsync(ClaimsPrincipal principal, Guid tenantId, string capabilityId, CancellationToken cancellationToken)
     {
-        if (!access.IsAllowed(principal)) return new("forbidden");
+        if (!access.IsAllowed(principal))
+            return new("forbidden");
         var value = await entitlements.GetAsync(tenantId, capabilityId, cancellationToken);
         return value is null ? new("not_found") : new("succeeded", value);
     }
@@ -45,7 +46,8 @@ public sealed class CloudOperatorEntitlementAdministration(CloudOperatorAccess a
     public async Task<CloudEntitlementResult> PutAsync(ClaimsPrincipal principal, Guid tenantId, string capabilityId, CloudEntitlementChange change, int revision, CancellationToken cancellationToken)
     {
         var actor = CloudSubjectResolver.FromPrincipal(principal, configuration["OpenConnect:Cloud:Identity:Authority"]);
-        if (actor is null) return new("unauthorized");
+        if (actor is null)
+            return new("unauthorized");
         var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
         if (!access.IsAllowed(principal))
         {

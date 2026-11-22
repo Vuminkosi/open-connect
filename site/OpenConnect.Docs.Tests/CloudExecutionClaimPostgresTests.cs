@@ -12,7 +12,8 @@ public sealed class CloudExecutionClaimPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Execution test", default);
@@ -112,7 +113,8 @@ public sealed class CloudExecutionClaimPostgresTests
             for (var attempt = 0; attempt < 50 && !waiting; attempt++)
             {
                 waiting = await observer.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pid = {pid} AND wait_event_type = 'Lock') AS \"Value\"").SingleAsync();
-                if (!waiting) await Task.Delay(20);
+                if (!waiting)
+                    await Task.Delay(20);
             }
             Assert.True(waiting);
             await transaction.CommitAsync();
@@ -151,7 +153,8 @@ public sealed class CloudExecutionClaimPostgresTests
             for (var attempt = 0; attempt < 50 && !claimWaiting; attempt++)
             {
                 claimWaiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.quota_reservations%FOR UPDATE%') AS \"Value\"").SingleAsync();
-                if (!claimWaiting) await Task.Delay(20);
+                if (!claimWaiting)
+                    await Task.Delay(20);
             }
             Assert.True(claimWaiting);
             var pendingRevocation = revoker.Credentials.Where(x => x.Id == secondCredential).ExecuteUpdateAsync(x => x.SetProperty(y => y.RevokedAt, DateTimeOffset.UtcNow));

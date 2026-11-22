@@ -1,5 +1,5 @@
-using System.Net;
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -46,8 +46,14 @@ public sealed class AuthenticatedTaskHttpTests
             root = root.Parent;
         Assert.NotNull(root);
         var script = Path.Combine(root.FullName, "packages", "client-ts", "tests", "task-host-contract.mjs");
-        var start = new ProcessStartInfo("node") { RedirectStandardOutput = true, RedirectStandardError = true,
-            RedirectStandardInput = true, UseShellExecute = false, CreateNoWindow = true };
+        var start = new ProcessStartInfo("node")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
         start.ArgumentList.Add(script);
         start.ArgumentList.Add(host.Client.BaseAddress!.ToString());
         start.ArgumentList.Add($"{FixtureScheme} {TenantA}:{PrincipalA}");
@@ -68,7 +74,8 @@ public sealed class AuthenticatedTaskHttpTests
         }
         finally
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
         }
     }
 

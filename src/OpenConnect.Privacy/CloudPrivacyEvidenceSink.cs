@@ -37,16 +37,25 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
     public async ValueTask RecordAsync(HostPrivacyEvidence evidence, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(evidence);
-        try { await RecordCoreAsync(evidence, cancellationToken).ConfigureAwait(false); }
+        try
+        { await RecordCoreAsync(evidence, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw new InvalidOperationException("Cloud privacy evidence was not acknowledged."); }
     }
 
     private async ValueTask RecordCoreAsync(HostPrivacyEvidence evidence, CancellationToken cancellationToken)
     {
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.privacy-evidence.v1",
-            eventId = evidence.EventId, tenantId = evidence.TenantId, destination = evidence.Destination.ToString(),
-            allowed = evidence.Allowed, action = evidence.Action.ToString(), reasonCode = evidence.ReasonCode, categories = evidence.Categories });
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.privacy-evidence.v1",
+            eventId = evidence.EventId,
+            tenantId = evidence.TenantId,
+            destination = evidence.Destination.ToString(),
+            allowed = evidence.Allowed,
+            action = evidence.Action.ToString(),
+            reasonCode = evidence.ReasonCode,
+            categories = evidence.Categories
+        });
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         HttpResponseMessage? response = null;
@@ -60,7 +69,8 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
             {
                 response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
                 var status = (int)response.StatusCode;
-                if (attempt == 2 || status is not (429 or 502 or 503 or 504)) break;
+                if (attempt == 2 || status is not (429 or 502 or 503 or 504))
+                    break;
                 response.Dispose();
                 response = null;
             }
@@ -77,13 +87,15 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
         while ((count = await stream.ReadAsync(bytes.AsMemory((int)buffer.Length, bytes.Length - (int)buffer.Length), deadline.Token).ConfigureAwait(false)) > 0)
         {
             buffer.Write(bytes, (int)buffer.Length, count);
-            if (buffer.Length > 1024) throw new InvalidOperationException("Cloud privacy evidence was not acknowledged.");
+            if (buffer.Length > 1024)
+                throw new InvalidOperationException("Cloud privacy evidence was not acknowledged.");
         }
         try
         {
             using var acknowledgment = JsonDocument.Parse(buffer.ToArray());
             var root = acknowledgment.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) throw new InvalidOperationException();
+            if (root.ValueKind != JsonValueKind.Object)
+                throw new InvalidOperationException();
             var properties = root.EnumerateObject().ToArray();
             if (properties.Length != 1 || properties[0].Name != "eventId" ||
                 !properties[0].Value.TryGetGuid(out var acknowledged) || acknowledged != evidence.EventId)
@@ -106,7 +118,8 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
     {
         ValidateConfiguration(authority, bearerToken);
         ArgumentNullException.ThrowIfNull(certificate);
-        if (!certificate.HasPrivateKey) throw new ArgumentException("A client certificate with a private key is required.", nameof(certificate));
+        if (!certificate.HasPrivateKey)
+            throw new ArgumentException("A client certificate with a private key is required.", nameof(certificate));
         var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false };
         handler.ClientCertificates.Add(certificate);
         if (pin is not null)
@@ -127,13 +140,16 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
     {
         if (certificate is null || pin.Length != 32 ||
             (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) != SslPolicyErrors.None ||
-            now < certificate.NotBefore.ToUniversalTime() || now > certificate.NotAfter.ToUniversalTime()) return false;
+            now < certificate.NotBefore.ToUniversalTime() || now > certificate.NotAfter.ToUniversalTime())
+            return false;
         if ((errors & SslPolicyErrors.RemoteCertificateChainErrors) != 0 &&
             (chain is null || chain.ChainStatus.Length == 0 || chain.ChainStatus.Any(status =>
-                (status.Status & ~(X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain)) != 0))) return false;
+                (status.Status & ~(X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain)) != 0)))
+            return false;
         var usages = certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToArray();
         if (usages.Length > 1 || usages.Length == 1 && !usages[0].EnhancedKeyUsages.Cast<Oid>().Any(
-                oid => oid.Value == "1.3.6.1.5.5.7.3.1")) return false;
+                oid => oid.Value == "1.3.6.1.5.5.7.3.1"))
+            return false;
         return CryptographicOperations.FixedTimeEquals(certificate.GetCertHash(HashAlgorithmName.SHA256), pin);
     }
 

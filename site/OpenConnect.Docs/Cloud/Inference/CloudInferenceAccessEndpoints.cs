@@ -10,19 +10,26 @@ public static class CloudInferenceAccessEndpoints
             Guid reservationId, Guid claimId, HttpContext context, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return Results.Unauthorized();
-            if (!databaseConfigured) return Results.StatusCode(503);
+            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
+                return Results.Unauthorized();
+            if (!databaseConfigured)
+                return Results.StatusCode(503);
             var headers = context.Request.Headers.Authorization;
             if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
                 !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return Results.Unauthorized();
+                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace))
+                return Results.Unauthorized();
             var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>()
                 .AuthorizeAsync(header.Parameter, "inference.chat", cancellationToken);
-            if (!authorization.Authorized || authorization.Identity is null) return Results.StatusCode(authorization.Code switch
-            {
-                "unauthorized" => 401, "capability_unavailable" => 503, _ => 403,
-            });
-            if (reservationId == Guid.Empty || claimId == Guid.Empty) return Results.BadRequest();
+            if (!authorization.Authorized || authorization.Identity is null)
+                return Results.StatusCode(authorization.Code switch
+                {
+                    "unauthorized" => 401,
+                    "capability_unavailable" => 503,
+                    _ => 403,
+                });
+            if (reservationId == Guid.Empty || claimId == Guid.Empty)
+                return Results.BadRequest();
             try
             {
                 var allowed = await context.RequestServices.GetRequiredService<ICloudInferenceAccessStore>()

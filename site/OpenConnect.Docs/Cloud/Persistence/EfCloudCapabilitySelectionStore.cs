@@ -19,13 +19,17 @@ public sealed class EfCloudCapabilitySelectionStore(IDbContextFactory<CloudContr
             var role = await db.Memberships.AsNoTracking()
                 .Where(x => x.TenantId == tenantId && x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId)
                 .Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
-            if (role is null) return new("not_found");
-            if (!authorize(role)) return new("forbidden");
+            if (role is null)
+                return new("not_found");
+            if (!authorize(role))
+                return new("forbidden");
 
             var snapshot = await EfCloudCapabilityReader.LoadAsync(db, actor, tenantId, applicationId, cancellationToken);
-            if (snapshot is null) return new("not_found");
+            if (snapshot is null)
+                return new("not_found");
             var decision = evaluate(snapshot);
-            if (decision.Status != "succeeded") return decision;
+            if (decision.Status != "succeeded")
+                return decision;
 
             if (applicationId is null)
             {
@@ -34,7 +38,8 @@ public sealed class EfCloudCapabilitySelectionStore(IDbContextFactory<CloudContr
                 if (selection is null)
                     db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection
                     { TenantId = tenantId, CapabilityId = capabilityId, Enabled = enabled, Revision = decision.Revision!.Value });
-                else { selection.Enabled = enabled; selection.Revision = decision.Revision!.Value; }
+                else
+                { selection.Enabled = enabled; selection.Revision = decision.Revision!.Value; }
             }
             else
             {
@@ -43,13 +48,20 @@ public sealed class EfCloudCapabilitySelectionStore(IDbContextFactory<CloudContr
                 if (selection is null)
                     db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection
                     { TenantId = tenantId, ApplicationId = applicationId.Value, CapabilityId = capabilityId, Enabled = enabled, Revision = decision.Revision!.Value });
-                else { selection.Enabled = enabled; selection.Revision = decision.Revision!.Value; }
+                else
+                { selection.Enabled = enabled; selection.Revision = decision.Revision!.Value; }
             }
             db.AuditEvents.Add(new CloudAuditEvent
             {
-                Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-                ActorRole = role, Action = applicationId is null ? "tenant.capability.selection_changed" : "application.capability.selection_changed",
-                ResourceId = applicationId?.ToString("D") ?? tenantId.ToString("D"), Outcome = "succeeded", OccurredAt = timeProvider.GetUtcNow(),
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                SubjectIssuer = actor.Issuer,
+                SubjectId = actor.SubjectId,
+                ActorRole = role,
+                Action = applicationId is null ? "tenant.capability.selection_changed" : "application.capability.selection_changed",
+                ResourceId = applicationId?.ToString("D") ?? tenantId.ToString("D"),
+                Outcome = "succeeded",
+                OccurredAt = timeProvider.GetUtcNow(),
             });
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

@@ -18,14 +18,17 @@ public sealed class EfCloudInferenceModelPolicyStore(IDbContextFactory<CloudCont
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var membership = db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId && x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId);
-        if (!await membership.AnyAsync(cancellationToken)) return new("not_found");
+        if (!await membership.AnyAsync(cancellationToken))
+            return new("not_found");
         var rows = await db.Database.SqlQuery<PolicyRow>($"""
             SELECT p."AllowedModels"::text AS "Models", p."Revision" FROM cloud.inference_model_policies p
             WHERE p."TenantId" = {tenantId} AND EXISTS (SELECT 1 FROM cloud.memberships m
                 WHERE m."TenantId" = {tenantId} AND m."SubjectIssuer" = {actor.Issuer} AND m."SubjectId" = {actor.SubjectId})
             """).ToListAsync(cancellationToken);
-        if (!await membership.AnyAsync(cancellationToken)) return new("not_found");
-        if (rows.Count == 0) return new("succeeded", new([], 0));
+        if (!await membership.AnyAsync(cancellationToken))
+            return new("not_found");
+        if (rows.Count == 0)
+            return new("succeeded", new([], 0));
         var models = Parse(rows[0].Models);
         return models is null ? new("unavailable") : new("succeeded", new(models, rows[0].Revision));
     }
@@ -46,18 +49,31 @@ public sealed class EfCloudInferenceModelPolicyStore(IDbContextFactory<CloudCont
         {
             var membership = await db.Memberships.FromSqlInterpolated($"SELECT * FROM cloud.memberships WHERE \"TenantId\" = {tenantId} AND \"SubjectIssuer\" = {actor.Issuer} AND \"SubjectId\" = {actor.SubjectId} FOR SHARE")
                 .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-            if (membership is null) { await RecordRejectedAsync(actor, tenantId, "not_found", cancellationToken); return new("not_found"); }
-            if (membership.Role is not ("Owner" or "Administrator")) { await RecordRejectedAsync(actor, tenantId, "forbidden", cancellationToken); return new("forbidden"); }
+            if (membership is null)
+            { await RecordRejectedAsync(actor, tenantId, "not_found", cancellationToken); return new("not_found"); }
+            if (membership.Role is not ("Owner" or "Administrator"))
+            { await RecordRejectedAsync(actor, tenantId, "forbidden", cancellationToken); return new("forbidden"); }
             var rows = await db.Database.SqlQuery<PolicyRow>($"SELECT \"AllowedModels\"::text AS \"Models\", \"Revision\" FROM cloud.inference_model_policies WHERE \"TenantId\" = {tenantId} FOR UPDATE").ToListAsync(cancellationToken);
-            if ((rows.Count == 0 ? 0 : rows[0].Revision) != revision) { await RecordRejectedAsync(actor, tenantId, "conflict", cancellationToken); return new("conflict"); }
+            if ((rows.Count == 0 ? 0 : rows[0].Revision) != revision)
+            { await RecordRejectedAsync(actor, tenantId, "conflict", cancellationToken); return new("conflict"); }
             var json = JsonSerializer.Serialize(models);
             if (rows.Count == 0)
                 await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.inference_model_policies (\"TenantId\", \"AllowedModels\", \"Revision\") VALUES ({tenantId}, {json}::jsonb, 1)", cancellationToken);
             else
                 await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE cloud.inference_model_policies SET \"AllowedModels\" = {json}::jsonb WHERE \"TenantId\" = {tenantId}", cancellationToken);
-            db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-                ActorRole = membership.Role, Action = "tenant.inference_models.changed", ResourceId = tenantId.ToString("D"), Outcome = "succeeded",
-                TraceId = Activity.Current?.TraceId.ToString(), OccurredAt = timeProvider.GetUtcNow() });
+            db.AuditEvents.Add(new CloudAuditEvent
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                SubjectIssuer = actor.Issuer,
+                SubjectId = actor.SubjectId,
+                ActorRole = membership.Role,
+                Action = "tenant.inference_models.changed",
+                ResourceId = tenantId.ToString("D"),
+                Outcome = "succeeded",
+                TraceId = Activity.Current?.TraceId.ToString(),
+                OccurredAt = timeProvider.GetUtcNow()
+            });
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new("succeeded", new(models, revision + 1));
@@ -68,9 +84,19 @@ public sealed class EfCloudInferenceModelPolicyStore(IDbContextFactory<CloudCont
     public async Task RecordRejectedAsync(CloudSubject actor, Guid tenantId, string outcome, CancellationToken cancellationToken)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = null, SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-            ActorRole = "AuthenticatedUser", Action = "tenant.inference_models.changed", ResourceId = tenantId.ToString("D"), Outcome = outcome,
-            TraceId = Activity.Current?.TraceId.ToString(), OccurredAt = timeProvider.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = null,
+            SubjectIssuer = actor.Issuer,
+            SubjectId = actor.SubjectId,
+            ActorRole = "AuthenticatedUser",
+            Action = "tenant.inference_models.changed",
+            ResourceId = tenantId.ToString("D"),
+            Outcome = outcome,
+            TraceId = Activity.Current?.TraceId.ToString(),
+            OccurredAt = timeProvider.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -88,7 +114,8 @@ public sealed class EfCloudInferenceModelPolicyStore(IDbContextFactory<CloudCont
     private static bool IsConflict(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
-            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation }) return true;
+            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation })
+                return true;
         return false;
     }
 }

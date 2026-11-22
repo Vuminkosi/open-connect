@@ -58,10 +58,18 @@ public sealed class DocumentWorkerClientTests
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             var taskId = json.RootElement.GetProperty("taskId").GetString()!;
             const string text = "person@example.com";
-            var body = JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.ocr",
-                result = new { pages = new[] { new { text, width = 10, height = 10, model_id = "model",
+            var body = JsonSerializer.Serialize(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "documents.ocr",
+                result = new
+                {
+                    pages = new[] { new { text, width = 10, height = 10, model_id = "model",
                     model_fingerprint = new string('a', 64), language = "eng",
-                    spans = new[] { new { text, start = 0, end = text.Length, box = new[] { 0.0, 0.0, 1.0, 1.0 }, confidence = 0.9 } } } } } });
+                    spans = new[] { new { text, start = 0, end = text.Length, box = new[] { 0.0, 0.0, 1.0, 1.0 }, confidence = 0.9 } } } }
+                }
+            });
             body = body.Replace("@", "\\u0040", StringComparison.Ordinal);
             Assert.Contains("\\u0040", body);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
@@ -81,17 +89,41 @@ public sealed class DocumentWorkerClientTests
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             var taskId = json.RootElement.GetProperty("taskId").GetString()!;
-            var page = new { text = "Hello", width = 10, height = 10, model_id = "model", model_fingerprint = new string('a', 64), language = "eng",
-                spans = new[] { new { text = "Hello", start = 0, end = 5, box = new[] { 0d, 0d, 1d, 1d }, confidence = 0.9 } } };
-            var line = new { page_index = invalidReference ? 0 : 1, start = 0, end = 5, span_indexes = new[] { 0 },
-                box = new[] { 0d, 0d, 1d, 1d }, minimum_ocr_confidence = 0.9 };
-            var payload = JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.analyze", result = new {
-                pages = new object[] { new { page_index = 0, status = "failed", page = (object?)null, reason = "page_unavailable" },
+            var page = new
+            {
+                text = "Hello",
+                width = 10,
+                height = 10,
+                model_id = "model",
+                model_fingerprint = new string('a', 64),
+                language = "eng",
+                spans = new[] { new { text = "Hello", start = 0, end = 5, box = new[] { 0d, 0d, 1d, 1d }, confidence = 0.9 } }
+            };
+            var line = new
+            {
+                page_index = invalidReference ? 0 : 1,
+                start = 0,
+                end = 5,
+                span_indexes = new[] { 0 },
+                box = new[] { 0d, 0d, 1d, 1d },
+                minimum_ocr_confidence = 0.9
+            };
+            var payload = JsonSerializer.Serialize(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "documents.analyze",
+                result = new
+                {
+                    pages = new object[] { new { page_index = 0, status = "failed", page = (object?)null, reason = "page_unavailable" },
                     new { page_index = 1, status = "completed", page, reason = (string?)null } },
-                layout = new { status = "completed", items = new[] { line }, warnings = Array.Empty<string>() },
-                tables = new { status = "completed", items = Array.Empty<object>(), warnings = Array.Empty<string>() },
-                fields = new { status = "completed", items = Array.Empty<object>(), warnings = Array.Empty<string>() },
-                status = "partial", warnings = new[] { "heuristic_candidates_require_review", "page_results_incomplete" } } });
+                    layout = new { status = "completed", items = new[] { line }, warnings = Array.Empty<string>() },
+                    tables = new { status = "completed", items = Array.Empty<object>(), warnings = Array.Empty<string>() },
+                    fields = new { status = "completed", items = Array.Empty<object>(), warnings = Array.Empty<string>() },
+                    status = "partial",
+                    warnings = new[] { "heuristic_candidates_require_review", "page_results_incomplete" }
+                }
+            });
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
         });
         using var http = new HttpClient(handler);
@@ -121,7 +153,7 @@ public sealed class DocumentWorkerClientTests
             page["spans"]![3]!["end"] = 16 + email.Length;
             root["result"]!["tables"]![0]!["cells"]![3]!["end"] = 16 + email.Length;
             return new HttpResponseMessage(HttpStatusCode.OK)
-                { Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json") };
+            { Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json") };
         });
         using var http = new HttpClient(handler);
         var sink = new EvidenceSink();
@@ -292,7 +324,8 @@ public sealed class DocumentWorkerClientTests
             using var result = await client.ExecuteAsync(Context(), "documents.ocr", Encoding.UTF8.GetBytes("sensitive"));
             Assert.Equal("documents.ocr", result.RootElement.GetProperty("kind").GetString());
         }
-        else await Assert.ThrowsAsync<HttpRequestException>(() => client.ExecuteAsync(Context(), "documents.ocr", Encoding.UTF8.GetBytes("sensitive")));
+        else
+            await Assert.ThrowsAsync<HttpRequestException>(() => client.ExecuteAsync(Context(), "documents.ocr", Encoding.UTF8.GetBytes("sensitive")));
         Assert.False(capture.LastWrite.IsEmpty);
         Assert.All(capture.LastWrite.ToArray(), value => Assert.Equal(0, value));
     }
@@ -320,9 +353,12 @@ public sealed class DocumentWorkerClientTests
             using var original = Reply(json.RootElement.GetProperty("taskId").GetString()!, "documents.layout");
             var root = System.Text.Json.Nodes.JsonNode.Parse(await original.Content.ReadAsStringAsync())!;
             var line = root["result"]!["lines"]![0]!;
-            if (mutation == "box") line["box"]![2] = .5;
-            if (mutation == "span") line["span_indexes"]![0] = 1;
-            if (mutation == "confidence") line["minimum_ocr_confidence"] = .2;
+            if (mutation == "box")
+                line["box"]![2] = .5;
+            if (mutation == "span")
+                line["span_indexes"]![0] = 1;
+            if (mutation == "confidence")
+                line["minimum_ocr_confidence"] = .2;
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json") };
         });
         using var http = new HttpClient(handler);
@@ -400,9 +436,13 @@ public sealed class DocumentWorkerClientTests
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             var taskId = json.RootElement.GetProperty("taskId").GetString()!;
-            if (!duplicate) return Reply("other", "documents.ocr");
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(
-                $"{{\"schemaVersion\":\"openconnect.v1\",\"taskId\":\"{taskId}\",\"kind\":\"documents.ocr\",\"kind\":\"documents.ocr\",\"result\":{{}}}}") };
+            if (!duplicate)
+                return Reply("other", "documents.ocr");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                $"{{\"schemaVersion\":\"openconnect.v1\",\"taskId\":\"{taskId}\",\"kind\":\"documents.ocr\",\"kind\":\"documents.ocr\",\"result\":{{}}}}")
+            };
         });
         using var http = new HttpClient(handler);
         using var client = Client(http, (_, _, _, _) => ValueTask.FromResult(true));
@@ -438,7 +478,8 @@ public sealed class DocumentWorkerClientTests
         finally
         {
             listener.Dispose();
-            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(path))
+                File.Delete(path);
         }
     }
 
@@ -477,10 +518,18 @@ public sealed class DocumentWorkerClientTests
     {
         Content = new StringContent(JsonSerializer.Serialize(new
         {
-            schemaVersion = "openconnect.v1", taskId, kind, result = kind == "documents.fields"
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind,
+            result = kind == "documents.fields"
                 ? (object)new { pages = Pages(), fields = Array.Empty<object>(), warnings = Array.Empty<string>() }
-                : kind == "documents.layout" ? new { pages = Pages(), lines = new[] { new { page_index = 0, start = 0, end = 3,
-                    span_indexes = new[] { 0 }, box = new[] { 0.0, 0.0, 1.0, 1.0 }, minimum_ocr_confidence = .9 } }, warnings = Array.Empty<string>() }
+                : kind == "documents.layout" ? new
+                {
+                    pages = Pages(),
+                    lines = new[] { new { page_index = 0, start = 0, end = 3,
+                    span_indexes = new[] { 0 }, box = new[] { 0.0, 0.0, 1.0, 1.0 }, minimum_ocr_confidence = .9 } },
+                    warnings = Array.Empty<string>()
+                }
                 : kind == "documents.tables" ? new { pages = Pages(), tables = Array.Empty<object>(), warnings = Array.Empty<string>() }
                 : new { pages = Pages() }
         }), Encoding.UTF8, "application/json")

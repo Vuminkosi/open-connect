@@ -1,5 +1,5 @@
-using OpenConnect.Abstractions;
 using System.Text;
+using OpenConnect.Abstractions;
 
 namespace OpenConnect.Privacy.Policy;
 
@@ -38,7 +38,8 @@ public sealed class PolicyEngine(ISecurityDetector? detector = null)
                 return Block("detector_failure");
             var offsets = new List<int>();
             var utf16Offset = 0;
-            foreach (var rune in content.EnumerateRunes()) { offsets.Add(utf16Offset); utf16Offset += rune.Utf16SequenceLength; }
+            foreach (var rune in content.EnumerateRunes())
+            { offsets.Add(utf16Offset); utf16Offset += rune.Utf16SequenceLength; }
             offsets.Add(utf16Offset);
             var length = offsets.Count - 1;
             if (string.Equals(content, result.SanitizedContent, StringComparison.Ordinal) || result.DetectedEntities.Any(entity =>

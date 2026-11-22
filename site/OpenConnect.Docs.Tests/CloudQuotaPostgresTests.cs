@@ -34,16 +34,33 @@ public sealed class CloudQuotaPostgresTests
         var bucketId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability,
-                Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucketId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = capability,
+                Unit = "request",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 10
+            });
             await db.SaveChangesAsync();
         }
         var otherTenant = await tenants.CreateTenantAsync(owner, "Other quota tenant", None);
         var otherApp = (await tenants.CreateApplicationAsync(owner, otherTenant.Id, "Other app", "Development", None)).Application!;
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaReservations.Add(new CloudQuotaReservation { Id = Guid.NewGuid(), BucketId = bucketId, TenantId = otherTenant.Id,
-                ApplicationId = otherApp.Id, RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = expiry });
+            db.QuotaReservations.Add(new CloudQuotaReservation
+            {
+                Id = Guid.NewGuid(),
+                BucketId = bucketId,
+                TenantId = otherTenant.Id,
+                ApplicationId = otherApp.Id,
+                RequestId = Guid.NewGuid(),
+                Amount = 1,
+                ExpiresAt = expiry
+            });
             await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }
         var service = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
@@ -126,8 +143,18 @@ public sealed class CloudQuotaPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability,
-                Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10, Reserved = 1 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucketId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = capability,
+                Unit = "request",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 10,
+                Reserved = 1
+            });
             await db.SaveChangesAsync();
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.quota_reservations (\"Id\", \"BucketId\", \"TenantId\", \"ApplicationId\", \"RequestId\", \"Amount\", \"ExpiresAt\") VALUES ({reservationId}, {bucketId}, {tenant.Id}, {app.Id}, {requestId}, {1L}, {expiry})");
             await db.Database.MigrateAsync();

@@ -72,8 +72,10 @@ public sealed class KnowledgeIndexClientTests
         using var http = new HttpClient(handler);
         using var client = Client(http, (scope, request, _) =>
         {
-            Assert.Equal(context, scope); Assert.Same(submission, request);
-            Assert.Equal("alice", request.Principals[0]); authorized = true;
+            Assert.Equal(context, scope);
+            Assert.Same(submission, request);
+            Assert.Equal("alice", request.Principals[0]);
+            authorized = true;
             return ValueTask.FromResult(true);
         });
         using var result = await client.SubmitAsync(context, submission);
@@ -150,11 +152,16 @@ public sealed class KnowledgeIndexClientTests
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             Assert.Equal(context.Principal.Value.ToString(), json.RootElement.GetProperty("payload").GetProperty("principalId").GetString());
             var task = json.RootElement.GetProperty("taskId").GetString()!;
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                schemaVersion = "openconnect.v1", taskId = task, kind = "knowledge.index.status",
-                result = new { state = "completed", attempts = 1, result_generation = 1, retry_at = (string?)null }
-            }), Encoding.UTF8, "application/json") };
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "openconnect.v1",
+                    taskId = task,
+                    kind = "knowledge.index.status",
+                    result = new { state = "completed", attempts = 1, result_generation = 1, retry_at = (string?)null }
+                }), Encoding.UTF8, "application/json")
+            };
         });
         using var http = new HttpClient(handler);
         using var client = Client(http, (_, _, _) => ValueTask.FromResult(true));
@@ -196,8 +203,12 @@ public sealed class KnowledgeIndexClientTests
         using var result = await client.DeleteAsync(context, "app", "collection", "doc", 1,
             (scope, app, collection, doc, generation, _) =>
             {
-                Assert.Equal(context, scope); Assert.Equal("app", app); Assert.Equal("collection", collection);
-                Assert.Equal("doc", doc); Assert.Equal(1, generation); checkedDeletion = true;
+                Assert.Equal(context, scope);
+                Assert.Equal("app", app);
+                Assert.Equal("collection", collection);
+                Assert.Equal("doc", doc);
+                Assert.Equal(1, generation);
+                checkedDeletion = true;
                 return ValueTask.FromResult(true);
             });
         Assert.Equal("pending", result.RootElement.GetProperty("result").GetProperty("reconciliation_state").GetString());
@@ -291,14 +302,24 @@ public sealed class KnowledgeIndexClientTests
 
     private static HttpResponseMessage Receipt(string taskId, Guid jobId) => new(HttpStatusCode.Accepted)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "knowledge.index", result = new { job_id = jobId, created = true } }), Encoding.UTF8, "application/json")
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.index",
+            result = new { job_id = jobId, created = true }
+        }), Encoding.UTF8, "application/json")
     };
 
     private static HttpResponseMessage DeleteReceipt(string taskId, long generation) => new(HttpStatusCode.OK)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "knowledge.index.delete", result = new { generation, reconciliation_state = "pending" } }),
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.index.delete",
+            result = new { generation, reconciliation_state = "pending" }
+        }),
             Encoding.UTF8, "application/json")
     };
 

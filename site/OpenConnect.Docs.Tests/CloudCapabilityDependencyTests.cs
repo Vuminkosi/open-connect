@@ -33,7 +33,14 @@ public class CloudCapabilityDependencyTests
 
     private static CloudCapabilityDefinition Capability(string id, string dependencies) => new()
     {
-        Id = id, Name = id, Description = id, ContractVersion = "1", BillingUnit = "request",
-        PlatformAvailability = "available", Dependencies = dependencies, Modalities = "[]", AllowedRegions = "[]",
+        Id = id,
+        Name = id,
+        Description = id,
+        ContractVersion = "1",
+        BillingUnit = "request",
+        PlatformAvailability = "available",
+        Dependencies = dependencies,
+        Modalities = "[]",
+        AllowedRegions = "[]",
     };
 }

@@ -12,23 +12,32 @@ public static class CloudLiveUIOutputPrivacyEndpoints
         app.MapPost("/cloud/internal/v1/liveui/output-privacy", async (HttpContext context, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return Results.Unauthorized();
-            if (!databaseConfigured) return Results.StatusCode(503);
+            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
+                return Results.Unauthorized();
+            if (!databaseConfigured)
+                return Results.StatusCode(503);
             var headers = context.Request.Headers.Authorization;
             if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
                 !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return Results.Unauthorized();
+                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace))
+                return Results.Unauthorized();
             var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>()
                 .AuthorizeAsync(header.Parameter, "inference.liveui", cancellationToken);
-            if (!authorization.Authorized || authorization.Identity is null) return Results.StatusCode(authorization.Code switch
-            {
-                "unauthorized" => 401, "capability_unavailable" => 503, _ => 403,
-            });
+            if (!authorization.Authorized || authorization.Identity is null)
+                return Results.StatusCode(authorization.Code switch
+                {
+                    "unauthorized" => 401,
+                    "capability_unavailable" => 503,
+                    _ => 403,
+                });
             if (!ReadId(context, "X-Cloud-Request-Id", out var requestId) || !ReadId(context, "X-Cloud-Reservation-Id", out var reservationId) ||
-                !ReadId(context, "X-Cloud-Claim-Id", out var claimId)) return Results.BadRequest();
-            if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.StatusCode(415);
+                !ReadId(context, "X-Cloud-Claim-Id", out var claimId))
+                return Results.BadRequest();
+            if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding"))
+                return Results.StatusCode(415);
             const int maxBody = 262144;
-            if (context.Request.ContentLength > maxBody) return Results.StatusCode(413);
+            if (context.Request.ContentLength > maxBody)
+                return Results.StatusCode(413);
             var buffer = new byte[maxBody + 1];
             try
             {
@@ -36,27 +45,33 @@ public static class CloudLiveUIOutputPrivacyEndpoints
                 while (length < buffer.Length)
                 {
                     var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                    if (count == 0) break;
+                    if (count == 0)
+                        break;
                     length += count;
                 }
-                if (length > maxBody) return Results.StatusCode(413);
+                if (length > maxBody)
+                    return Results.StatusCode(413);
                 using var document = JsonDocument.Parse(buffer.AsMemory(0, length), new JsonDocumentOptions { MaxDepth = 3 });
-                if (document.RootElement.ValueKind != JsonValueKind.Object) return Results.BadRequest();
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    return Results.BadRequest();
                 var properties = document.RootElement.EnumerateObject().ToArray();
                 if (properties.Length != 1 || properties[0].Name != "fields" || properties[0].Value.ValueKind != JsonValueKind.Array)
                     return Results.BadRequest();
                 var elements = properties[0].Value.EnumerateArray().ToArray();
-                if (elements.Length is < 3 or > 97 || elements.Any(x => x.ValueKind != JsonValueKind.String)) return Results.BadRequest();
+                if (elements.Length is < 3 or > 97 || elements.Any(x => x.ValueKind != JsonValueKind.String))
+                    return Results.BadRequest();
                 var fields = elements.Select(x => x.GetString()!).ToArray();
                 var result = await context.RequestServices.GetRequiredService<CloudLiveUIOutputPrivacyService>()
                     .EvaluateAsync(authorization.Identity, requestId, fields, cancellationToken);
-                if (result.Code == "invalid_request") return Results.BadRequest();
+                if (result.Code == "invalid_request")
+                    return Results.BadRequest();
                 var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
                 try
                 {
                     var recorded = await context.RequestServices.GetRequiredService<ICloudLiveUIOutputEvidenceStore>()
                         .AppendForCompletedAsync(authorization.Identity, requestId, reservationId, claimId, result.Code, traceId, cancellationToken);
-                    if (!recorded) return Results.StatusCode(503);
+                    if (!recorded)
+                        return Results.StatusCode(503);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch { return Results.StatusCode(503); }

@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -15,7 +15,8 @@ public class CloudInvitationPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var target = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
@@ -25,8 +26,14 @@ public class CloudInvitationPostgresTests
         var tenant = await tenantStore.CreateTenantAsync(owner, "Invitation test", CancellationToken.None);
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = administrator.Issuer,
-                SubjectId = administrator.SubjectId, Role = "Administrator", CreatedAt = clock.Now });
+            db.Memberships.Add(new CloudMembership
+            {
+                TenantId = tenant.Id,
+                SubjectIssuer = administrator.Issuer,
+                SubjectId = administrator.SubjectId,
+                Role = "Administrator",
+                CreatedAt = clock.Now
+            });
             await db.SaveChangesAsync();
         }
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Authority"] = owner.Issuer, ["OpenConnect:Cloud:Identity:Enabled"] = "true" }).Build();

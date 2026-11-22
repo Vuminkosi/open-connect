@@ -13,14 +13,17 @@ public sealed class CloudTranslationPrivacyPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Translation privacy", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Translation app", "Development", default)).Application!;
         var identity = new CloudCredentialIdentity(Guid.NewGuid(), tenant.Id, app.Id, "Development", new HashSet<string> { "translation.translate" });
         var store = new EfCloudTranslationPrivacyEvidenceStore(factory, TimeProvider.System);
-        var requestId = Guid.NewGuid(); var fingerprint = new byte[32]; var trace = new string('a', 32);
+        var requestId = Guid.NewGuid();
+        var fingerprint = new byte[32];
+        var trace = new string('a', 32);
         await store.AppendAsync(identity, requestId, "key", fingerprint, 7, "allowed", trace, default);
         await using (var db = await factory.CreateDbContextAsync())
         {

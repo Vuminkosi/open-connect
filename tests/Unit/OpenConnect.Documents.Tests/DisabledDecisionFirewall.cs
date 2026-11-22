@@ -1,4 +1,4 @@
-﻿using OpenConnect.Abstractions;
+using OpenConnect.Abstractions;
 using OpenConnect.Privacy;
 
 namespace OpenConnect.Documents.Tests;

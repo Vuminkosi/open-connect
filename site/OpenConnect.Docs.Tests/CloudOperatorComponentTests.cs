@@ -19,8 +19,10 @@ public sealed class CloudOperatorComponentTests : BunitContext
         const string issuer = "https://issuer.example";
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = issuer,
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer, ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
         }).Build();
         Services.AddSingleton<IConfiguration>(config);
         Services.AddSingleton<CloudOperatorAccess>();
@@ -46,8 +48,10 @@ public sealed class CloudOperatorComponentTests : BunitContext
         }
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = issuer,
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer, ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
         }).Build();
         Services.AddSingleton<IConfiguration>(config);
         Services.AddSingleton(factory);

@@ -27,7 +27,8 @@ public sealed partial class CloudTranslationDeploymentProfiles(ICloudTranslation
             profile is null || profile.DeploymentId == Guid.Empty || profile.DeploymentRevision <= 0 || expectedRevision < 0 || expectedRevision == long.MaxValue ||
             profile.TokenizerHash is null || !HashPattern().IsMatch(profile.TokenizerHash) || profile.LanguagePairs is null || profile.LanguagePairs.Count is < 1 or > 256 ||
             profile.LanguagePairs.Any(x => x is null || !ValidLanguage(x.SourceLang) || !ValidLanguage(x.TargetLang) || x.SourceLang == x.TargetLang) ||
-            profile.LanguagePairs.Distinct().Count() != profile.LanguagePairs.Count) return Task.FromResult("invalid_request");
+            profile.LanguagePairs.Distinct().Count() != profile.LanguagePairs.Count)
+            return Task.FromResult("invalid_request");
         return store.PutAsync(actor, traceId, profile with { LanguagePairs = profile.LanguagePairs.ToArray() }, expectedRevision, cancellationToken);
     }
 

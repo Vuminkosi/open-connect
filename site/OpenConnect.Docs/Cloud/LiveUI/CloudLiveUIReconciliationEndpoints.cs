@@ -10,9 +10,12 @@ public static class CloudLiveUIReconciliationEndpoints
             ClaimsPrincipal principal, HttpContext context, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (context.RequestServices.GetRequiredService<CloudOperatorAccess>().IsAllowed(principal) is false) return Results.Forbid();
-            if (!databaseConfigured) return Results.StatusCode(503);
-            if (after.HasValue != afterId.HasValue) return Results.BadRequest();
+            if (context.RequestServices.GetRequiredService<CloudOperatorAccess>().IsAllowed(principal) is false)
+                return Results.Forbid();
+            if (!databaseConfigured)
+                return Results.StatusCode(503);
+            if (after.HasValue != afterId.HasValue)
+                return Results.BadRequest();
             try
             {
                 var cursor = after is null ? null : new CloudLiveUIReconciliationCursor(after.Value, afterId!.Value);

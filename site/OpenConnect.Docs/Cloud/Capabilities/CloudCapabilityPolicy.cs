@@ -25,11 +25,13 @@ internal static class CloudCapabilityPolicy
         HashSet<string> path,
         IReadOnlyDictionary<string, CloudApplicationCapabilitySelection>? applicationSelections)
     {
-        if (!path.Add(capability.Id)) return false;
+        if (!path.Add(capability.Id))
+            return false;
         var dependencies = JsonSerializer.Deserialize<string[]>(capability.Dependencies) ?? [];
         var result = dependencies.All(id =>
         {
-            if (!capabilities.TryGetValue(id, out var dependency)) return false;
+            if (!capabilities.TryGetValue(id, out var dependency))
+                return false;
             return dependency is not null && dependency.PlatformAvailability == "available" &&
                 IsEntitled(entitlements.GetValueOrDefault(id), now) &&
                 selections.TryGetValue(id, out var selection) && selection.Enabled &&
@@ -51,11 +53,16 @@ internal static class CloudCapabilityPolicy
         bool dependencyReady,
         bool applicationSelectionRequired)
     {
-        if (capability.PlatformAvailability != "available") return "capability_unavailable";
-        if (!entitled) return "capability_not_entitled";
-        if (!tenantEnabled) return "capability_disabled";
-        if (!dependencyReady) return "dependency_not_enabled";
-        if (applicationSelectionRequired && !applicationEnabled) return "capability_disabled";
+        if (capability.PlatformAvailability != "available")
+            return "capability_unavailable";
+        if (!entitled)
+            return "capability_not_entitled";
+        if (!tenantEnabled)
+            return "capability_disabled";
+        if (!dependencyReady)
+            return "dependency_not_enabled";
+        if (applicationSelectionRequired && !applicationEnabled)
+            return "capability_disabled";
         return null;
     }
 

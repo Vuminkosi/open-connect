@@ -10,9 +10,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -64,7 +64,8 @@ public sealed class CloudEntitlementAdministrationPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Entitlement admission", default);
@@ -103,8 +104,11 @@ public sealed class CloudEntitlementAdministrationPostgresTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = issuer, ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer, ["OpenConnect:Cloud:Operators:0:Subject"] = "operator" });
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton<CloudOperatorAccess>();
-        builder.Services.AddScoped<ICloudEntitlementAdministrationStore, EfCloudEntitlementAdministrationStore>(); builder.Services.AddScoped<CloudEntitlementAdministration>();
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<CloudOperatorAccess>();
+        builder.Services.AddScoped<ICloudEntitlementAdministrationStore, EfCloudEntitlementAdministrationStore>();
+        builder.Services.AddScoped<CloudEntitlementAdministration>();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
         {
@@ -112,7 +116,9 @@ public sealed class CloudEntitlementAdministrationPostgresTests
             options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });
         builder.Services.AddAuthorization(options => options.AddPolicy("CloudApi", policy => policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme).RequireAuthenticatedUser()));
-        await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization();
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapGet("/test-sign-in/{subject}", async (string subject, HttpContext context) => await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject, ClaimValueTypes.String, issuer)], CookieAuthenticationDefaults.AuthenticationScheme))));
         app.MapGet("/test-antiforgery", (HttpContext context, IAntiforgery antiforgery) => Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
@@ -130,18 +136,25 @@ public sealed class CloudEntitlementAdministrationPostgresTests
         HttpRequestMessage Write(string revision, object body)
         {
             var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
-            request.Headers.Add("If-Match", $"\"{revision}\""); request.Headers.Add("X-CSRF-TOKEN", token); return request;
+            request.Headers.Add("If-Match", $"\"{revision}\"");
+            request.Headers.Add("X-CSRF-TOKEN", token);
+            return request;
         }
         var payload = new { planGranted = true, expiresAt = (DateTimeOffset?)null };
-        using (var request = Write("0", payload)) { var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.Equal("\"1\"", response.Headers.ETag?.ToString()); }
-        using (var request = Write("0", payload)) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
-        using (var request = Write("1", new { expiresAt = (DateTimeOffset?)null })) Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("0", payload))
+        { var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.Equal("\"1\"", response.Headers.ETag?.ToString()); }
+        using (var request = Write("0", payload))
+            Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("1", new { expiresAt = (DateTimeOffset?)null }))
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         using (var request = Write("1", payload))
         {
             request.Content = new StringContent("{\"limit\":1,\"Limit\":2}", System.Text.Encoding.UTF8, "application/json");
             Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         }
-        var read = await client.GetAsync(path); Assert.Equal(HttpStatusCode.OK, read.StatusCode); Assert.Equal("\"1\"", read.Headers.ETag?.ToString());
+        var read = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        Assert.Equal("\"1\"", read.Headers.ETag?.ToString());
         await using var db = await factory.CreateDbContextAsync();
         var audit = await db.AuditEvents.Where(x => x.ResourceId == $"{tenant:D}/{capability}").ToListAsync();
         Assert.Contains(audit, x => x.Outcome == "forbidden" && x.ActorRole == "AuthenticatedUser");

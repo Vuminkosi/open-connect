@@ -17,7 +17,8 @@ public static class CloudDeploymentRequestReader
 
     public static async Task<CloudDeploymentWriteRequest?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 8192) return null;
+        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 8192)
+            return null;
         var buffer = new byte[8193];
         try
         {
@@ -25,15 +26,19 @@ public static class CloudDeploymentRequestReader
             while (length < buffer.Length)
             {
                 var count = await request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 8192) return null;
+            if (length > 8192)
+                return null;
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var property in document.RootElement.EnumerateObject())
-                if (!names.Add(property.Name)) return null;
+                if (!names.Add(property.Name))
+                    return null;
             return document.RootElement.Deserialize<CloudDeploymentWriteRequest>(Options);
         }
         catch (JsonException) { return null; }

@@ -29,10 +29,13 @@ public static class CloudLiveUIDualSettlementEndpoints
     {
         context.Response.Headers.CacheControl = "no-store";
         var deploymentId = context.Request.IsHttps ? trust.ResolveDeployment(context.Connection.ClientCertificate, DateTimeOffset.UtcNow) : null;
-        if (deploymentId is null) return Results.Unauthorized();
-        if (!databaseConfigured) return Results.StatusCode(503);
+        if (deploymentId is null)
+            return Results.Unauthorized();
+        if (!databaseConfigured)
+            return Results.StatusCode(503);
         if (reservationId == Guid.Empty || claimId == Guid.Empty || !context.Request.HasJsonContentType() ||
-            context.Request.Headers.ContainsKey("Content-Encoding") || context.Request.ContentLength > 1024) return Results.BadRequest();
+            context.Request.Headers.ContainsKey("Content-Encoding") || context.Request.ContentLength > 1024)
+            return Results.BadRequest();
         var buffer = new byte[1025];
         try
         {
@@ -40,16 +43,22 @@ public static class CloudLiveUIDualSettlementEndpoints
             while (length < buffer.Length)
             {
                 var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 1024) return Results.BadRequest();
+            if (length > 1024)
+                return Results.BadRequest();
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return Results.BadRequest();
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return Results.BadRequest();
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var property in document.RootElement.EnumerateObject()) if (!names.Add(property.Name)) return Results.BadRequest();
+            foreach (var property in document.RootElement.EnumerateObject())
+                if (!names.Add(property.Name))
+                    return Results.BadRequest();
             var usage = document.RootElement.Deserialize<CloudLiveUITokenUsage>(Options);
-            if (usage is null) return Results.BadRequest();
+            if (usage is null)
+                return Results.BadRequest();
             var settlement = context.RequestServices.GetRequiredService<CloudLiveUIDualSettlement>();
             var status = operation switch
             {
@@ -61,7 +70,8 @@ public static class CloudLiveUIDualSettlementEndpoints
             {
                 "completed" or "already_completed" or "failed" or "already_failed" or "observed" or "already_observed" => 200,
                 "conflict" or "overage_requires_reconciliation" => 409,
-                "invalid_request" => 400, _ => 503,
+                "invalid_request" => 400,
+                _ => 503,
             });
         }
         catch (JsonException) { return Results.BadRequest(); }

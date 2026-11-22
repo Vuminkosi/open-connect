@@ -10,7 +10,8 @@ public sealed class EfCloudLiveUIUnclaimedRecoveryStore(IDbContextFactory<CloudC
 
     public async Task<int> ReleaseAsync(DateTimeOffset cutoff, int limit, CancellationToken cancellationToken)
     {
-        if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (limit is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(limit));
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if ((await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
             throw new InvalidOperationException("LiveUI recovery requires all control-plane migrations.");
@@ -33,7 +34,8 @@ public sealed class EfCloudLiveUIUnclaimedRecoveryStore(IDbContextFactory<CloudC
                 WHERE "PlanReservationId" = {reservation.Id} AND "TenantId" = {reservation.TenantId}
                   AND "ApplicationId" = {reservation.ApplicationId} AND "FinalizedAt" IS NULL FOR UPDATE
                 """).SingleOrDefaultAsync(cancellationToken);
-            if (token is null) throw new InvalidOperationException("LiveUI token reservation is unavailable.");
+            if (token is null)
+                throw new InvalidOperationException("LiveUI token reservation is unavailable.");
             var buckets = await db.QuotaBuckets.FromSqlInterpolated($"""
                 SELECT * FROM cloud.quota_buckets WHERE "TenantId" = {reservation.TenantId} AND "ApplicationId" = {reservation.ApplicationId}
                   AND "Id" IN ({reservation.BucketId}, {token.TokenBucketId}) ORDER BY "Id" FOR UPDATE

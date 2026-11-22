@@ -830,8 +830,12 @@ public sealed class LiveUIProviderClientInteractionTests
         {
             var alert = new LiveUITarget("oc.runtime.alert.test", LiveUITargetKind.Region, "Application alert",
                 new HashSet<LiveUICapability> { LiveUICapability.Inspect }, Role: "alert");
-            var replacement = manifest with { Routes = manifest.Routes.Select(item => item.Id == route.Id
-                ? item with { Targets = item.Targets.Where(target => target.Id != alert.Id).Append(alert).ToArray() } : item).ToArray(), ContentHash = "" };
+            var replacement = manifest with
+            {
+                Routes = manifest.Routes.Select(item => item.Id == route.Id
+                ? item with { Targets = item.Targets.Where(target => target.Id != alert.Id).Append(alert).ToArray() } : item).ToArray(),
+                ContentHash = ""
+            };
             state.SetManifest(replacement with { ContentHash = LiveUIManifestHasher.ComputeContentHash(replacement) });
             return ValueTask.FromResult(true);
         }

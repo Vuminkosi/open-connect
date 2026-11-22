@@ -51,7 +51,8 @@ public sealed class DocumentExtractionWorkflow(DocumentWorkerClient documents, E
         JsonElement schema, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (schema.ValueKind != JsonValueKind.Object) throw new ArgumentException("Invalid extraction schema.", nameof(schema));
+        if (schema.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("Invalid extraction schema.", nameof(schema));
         var stableSchema = schema.Clone();
         var ocr = await _documents.ExecuteAsync(context, "documents.ocr", content, cancellationToken).ConfigureAwait(false);
         JsonDocument? extracted = null;
@@ -73,11 +74,13 @@ public sealed class DocumentExtractionWorkflow(DocumentWorkerClient documents, E
             foreach (var field in extracted.RootElement.GetProperty("result").GetProperty("fields").EnumerateObject())
             {
                 var startElement = field.Value.GetProperty("start");
-                if (startElement.ValueKind == JsonValueKind.Null) { citations.Add(field.Name, null); continue; }
+                if (startElement.ValueKind == JsonValueKind.Null)
+                { citations.Add(field.Name, null); continue; }
                 var start = startElement.GetInt32();
                 var end = field.Value.GetProperty("end").GetInt32();
                 var pageIndex = Array.FindIndex(offsets, page => start >= page.Start && end <= page.End && end > start);
-                if (pageIndex < 0) throw new InvalidOperationException("The extraction citation crosses a page boundary.");
+                if (pageIndex < 0)
+                    throw new InvalidOperationException("The extraction citation crosses a page boundary.");
                 citations.Add(field.Name, new DocumentFieldCitation(pageIndex, start - offsets[pageIndex].Start,
                     end - offsets[pageIndex].Start));
             }

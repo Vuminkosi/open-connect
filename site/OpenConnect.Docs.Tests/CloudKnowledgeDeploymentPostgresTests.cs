@@ -13,7 +13,8 @@ public sealed class CloudKnowledgeDeploymentPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var tenant = await new EfCloudTenantStore(factory, TimeProvider.System)
             .CreateTenantAsync(new CloudSubject("test-issuer", Guid.NewGuid().ToString("N")), "Deployment", default);
         var reference = "embed-" + Guid.NewGuid().ToString("N");
@@ -21,11 +22,24 @@ public sealed class CloudKnowledgeDeploymentPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "knowledge.embed");
-            capability.AllowedRegions = "[\"region-a\"]"; capability.AllowedRegionsVerified = true;
+            capability.AllowedRegions = "[\"region-a\"]";
+            capability.AllowedRegionsVerified = true;
             db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = "knowledge.embed",
-                EndpointReference = reference, Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1",
-                ModelId = "model", ModelRevision = "revision", ModelDigest = digest, ImageDigest = digest, ConcurrencyLimit = 1, Enabled = true });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = Guid.NewGuid(),
+                CapabilityId = "knowledge.embed",
+                EndpointReference = reference,
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "openconnect.v1",
+                ModelId = "model",
+                ModelRevision = "revision",
+                ModelDigest = digest,
+                ImageDigest = digest,
+                ConcurrencyLimit = 1,
+                Enabled = true
+            });
             await db.SaveChangesAsync();
         }
         var request = new CloudClassificationDeploymentMatchRequest(reference, "region-a", "openconnect.v1", "revision", digest);
@@ -38,7 +52,8 @@ public sealed class CloudKnowledgeDeploymentPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             var deployment = await db.WorkerDeployments.SingleAsync(x => x.EndpointReference == reference);
-            deployment.Enabled = false; await db.SaveChangesAsync();
+            deployment.Enabled = false;
+            await db.SaveChangesAsync();
         }
         Assert.False(await knowledge.MatchesAsync(tenant.Id, request, default));
     }

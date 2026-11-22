@@ -10,9 +10,11 @@ internal static class EfCloudInferenceModelAdmission
     // Keep the policy locked until the claim commits; a committed removal wins over later claims.
     internal static async Task<bool> LockAllowedAsync(CloudControlPlaneDbContext db, Guid tenantId, string? modelId, CancellationToken cancellationToken)
     {
-        if (!CloudInferenceModelPolicyService.ValidModelId(modelId)) return false;
+        if (!CloudInferenceModelPolicyService.ValidModelId(modelId))
+            return false;
         var rows = await db.Database.SqlQuery<ModelPolicyRow>($"SELECT \"AllowedModels\"::text AS \"Models\" FROM cloud.inference_model_policies WHERE \"TenantId\" = {tenantId} FOR SHARE").ToListAsync(cancellationToken);
-        if (rows.Count != 1) return false;
+        if (rows.Count != 1)
+            return false;
         try
         {
             var models = JsonSerializer.Deserialize<string[]>(rows[0].Models);

@@ -24,8 +24,11 @@ public sealed class WorkerCapabilityResponseParserTests
     [InlineData("ready", "tool", false)]
     public void RejectsUnreadyWrongKindOrRemoteDescriptor(string state, string kind, bool local)
     {
-        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new { capabilities = new[] { new {
-            schemaVersion = "openconnect.v1", id = "knowledge.index", kind, state, version = "1", localOnly = local } } }));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            capabilities = new[] { new {
+            schemaVersion = "openconnect.v1", id = "knowledge.index", kind, state, version = "1", localOnly = local } }
+        }));
         Assert.Throws<InvalidOperationException>(() => WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { "knowledge.index" }, false));
     }
 
@@ -34,11 +37,22 @@ public sealed class WorkerCapabilityResponseParserTests
     [InlineData("fake-bounded", false)]
     public void InferenceUsesItsOwnShapeAndRejectsFakeEngine(string engine, bool accepted)
     {
-        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new { worker = "inference", version = "1", backend = "local",
-            engine, modelId = (string?)null, modelRevision = (string?)null, modelLoaded = false,
-            capabilities = new[] { "chat", "documents.extract" }, privacyMode = "strict-local" }));
-        if (accepted) Assert.Equal("documents.extract", Assert.Single(WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { "documents.extract" }, true)).Id.Value);
-        else Assert.Throws<InvalidOperationException>(() => WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { "documents.extract" }, true));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            worker = "inference",
+            version = "1",
+            backend = "local",
+            engine,
+            modelId = (string?)null,
+            modelRevision = (string?)null,
+            modelLoaded = false,
+            capabilities = new[] { "chat", "documents.extract" },
+            privacyMode = "strict-local"
+        }));
+        if (accepted)
+            Assert.Equal("documents.extract", Assert.Single(WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { "documents.extract" }, true)).Id.Value);
+        else
+            Assert.Throws<InvalidOperationException>(() => WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { "documents.extract" }, true));
     }
 
     [Theory]
@@ -47,7 +61,8 @@ public sealed class WorkerCapabilityResponseParserTests
     public async Task ReadsSharedPythonWorkerFixtures(string filename, string id, bool inference)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "OpenConnect.slnx"))) root = root.Parent;
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "OpenConnect.slnx")))
+            root = root.Parent;
         Assert.NotNull(root);
         using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(root.FullName, "contracts", "fixtures", "worker-capability", filename)));
         var result = WorkerCapabilityResponseParser.Parse(json.RootElement, new HashSet<string> { id }, inference);

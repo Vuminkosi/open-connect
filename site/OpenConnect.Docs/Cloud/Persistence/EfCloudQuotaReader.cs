@@ -10,7 +10,8 @@ public sealed class EfCloudQuotaReader(IDbContextFactory<CloudControlPlaneDbCont
         var membership = db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
             x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId &&
             (x.Role == "Owner" || x.Role == "Administrator" || x.Role == "BillingReader"));
-        if (!await membership.AnyAsync(cancellationToken)) return null;
+        if (!await membership.AnyAsync(cancellationToken))
+            return null;
 
         // Repeat the authorization predicate in the data query so a revoked membership cannot expose rows.
         var rows = await db.QuotaBuckets.AsNoTracking().Where(x => x.TenantId == tenantId && membership.Any())
@@ -19,7 +20,8 @@ public sealed class EfCloudQuotaReader(IDbContextFactory<CloudControlPlaneDbCont
                 x.PeriodStart, x.PeriodEnd, x.Limit, x.Consumed, x.Reserved))
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
-        if (hasMore) rows.RemoveAt(rows.Count - 1);
+        if (hasMore)
+            rows.RemoveAt(rows.Count - 1);
         return new CloudQuotaPage(rows, offset, hasMore ? offset + limit : null);
     }
 }

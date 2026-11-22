@@ -1,7 +1,7 @@
-using OpenConnect.Abstractions;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Text;
+using OpenConnect.Abstractions;
 
 namespace OpenConnect.Privacy;
 
@@ -42,20 +42,23 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
             decision = _inner.Enabled
                 ? await _inner.EvaluateAsync(string.Empty, context, cancellationToken).ConfigureAwait(false)
                 : new EgressDecision(false, null, [], SecurityPolicyAction.Block, "privacy_enforcement_unavailable");
-            if (decision is null) throw new InvalidOperationException();
+            if (decision is null)
+                throw new InvalidOperationException();
             if (!_inner.Enabled)
                 decision = new EgressDecision(false, null, [], SecurityPolicyAction.Block, "privacy_enforcement_unavailable");
             else if (decision.Reason == "privacy_enforcement_disabled")
                 decision = new EgressDecision(false, null, [], SecurityPolicyAction.Block, "privacy_enforcement_unavailable");
             else if (decision.Allowed && decision.Action == SecurityPolicyAction.Allow && decision.SanitizedContent == string.Empty &&
-                decision.DetectedEntities is { Count: 0 }) return true;
+                decision.DetectedEntities is { Count: 0 })
+                return true;
             else if (decision.Allowed || decision.DetectedEntities is null || decision.DetectedEntities.Count != 0 ||
                 !Enum.IsDefined(decision.Action))
                 decision = new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { decision = new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure"); }
-        try { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, decision), cancellationToken).ConfigureAwait(false); }
+        try
+        { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, decision), cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw new PrivacyBlockedException("Privacy evidence recording failed."); }
         return false;
@@ -73,7 +76,8 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
             decision = _inner.Enabled
                 ? await _inner.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false)
                 : new EgressDecision(false, null, [], SecurityPolicyAction.Block, "privacy_enforcement_unavailable");
-            if (decision is null) throw new InvalidOperationException();
+            if (decision is null)
+                throw new InvalidOperationException();
             if (!_inner.Enabled)
                 decision = new EgressDecision(false, null, [], SecurityPolicyAction.Block, "privacy_enforcement_unavailable");
             else if (decision.Reason == "privacy_enforcement_disabled")
@@ -98,14 +102,18 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
 
     private static bool IsSanitized(string source, EgressDecision decision)
     {
-        if (decision.SanitizedContent is null || decision.DetectedEntities is null) return false;
+        if (decision.SanitizedContent is null || decision.DetectedEntities is null)
+            return false;
         var entities = decision.DetectedEntities;
-        if (entities.Count == 0) return true;
+        if (entities.Count == 0)
+            return true;
         if (entities.Count > 20000 || (long)entities.Count * decision.SanitizedContent.Length > 100_000_000 ||
-            source == decision.SanitizedContent) return false;
+            source == decision.SanitizedContent)
+            return false;
         var offsets = new List<int>();
         var offset = 0;
-        foreach (var rune in source.EnumerateRunes()) { offsets.Add(offset); offset += rune.Utf16SequenceLength; }
+        foreach (var rune in source.EnumerateRunes())
+        { offsets.Add(offset); offset += rune.Utf16SequenceLength; }
         offsets.Add(offset);
         foreach (var entity in entities)
         {
@@ -113,7 +121,8 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
                 return false;
             var start = offsets[entity.Start];
             if (decision.SanitizedContent.AsSpan().Contains(source.AsSpan(start, offsets[entity.Start + entity.Length] - start),
-                    StringComparison.Ordinal)) return false;
+                    StringComparison.Ordinal))
+                return false;
         }
         return true;
     }
@@ -122,7 +131,8 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
         CancellationToken cancellationToken)
     {
         var decision = new EgressDecision(false, null, entities, SecurityPolicyAction.Block, "sensitive_boundary_blocked");
-        try { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, decision), cancellationToken).ConfigureAwait(false); }
+        try
+        { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, decision), cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw new PrivacyBlockedException("Privacy evidence recording failed."); }
     }
@@ -147,8 +157,10 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
             {
                 var fragment = item.Text;
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!_inner.Enabled) { allowed = false; enforcementUnavailable = true; break; }
-                if (++fragmentCount > maximumFragments) { allowed = false; inspectionFailed = true; break; }
+                if (!_inner.Enabled)
+                { allowed = false; enforcementUnavailable = true; break; }
+                if (++fragmentCount > maximumFragments)
+                { allowed = false; inspectionFailed = true; break; }
                 var decision = await _inner.EvaluateAsync(fragment, context, cancellationToken).ConfigureAwait(false);
                 var scalarLength = decision?.DetectedEntities is { Count: > 0 } ? fragment.EnumerateRunes().Count() : 0;
                 if (decision?.Reason == "privacy_enforcement_disabled")
@@ -166,18 +178,22 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
                     if (!variants.TryGetValue(key, out var previous) || detected.Length > previous.Length)
                     {
                         storedEntities += detected.Length - (previous?.Length ?? 0);
-                        if (storedEntities > 80000) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+                        if (storedEntities > 80000)
+                            throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
                         variants[key] = detected;
                     }
                 }
-                if (!decision.Allowed && decision.Reason == "detector_failure") inspectionFailed = true;
+                if (!decision.Allowed && decision.Reason == "detector_failure")
+                    inspectionFailed = true;
                 if (!decision.Allowed && decision.Reason is ("required_detector_unavailable" or "privacy_enforcement_unavailable"))
                     enforcementUnavailable = true;
                 if (!decision.Allowed || decision.Action == SecurityPolicyAction.Block ||
-                    decision.DetectedEntities.Count != 0 || decision.SanitizedContent != fragment) allowed = false;
+                    decision.DetectedEntities.Count != 0 || decision.SanitizedContent != fragment)
+                    allowed = false;
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (!_inner.Enabled) { allowed = false; enforcementUnavailable = true; }
+            if (!_inner.Enabled)
+            { allowed = false; enforcementUnavailable = true; }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { allowed = false; inspectionFailed = true; }
@@ -188,14 +204,17 @@ public sealed class EvidenceRecordingPrivacyFirewall : IPrivacyFirewall
             category.GroupBy(entry => entry.Key.Group)
                 .Select(group => group.SelectMany(entry => entry.Value).Take(20001).ToArray())
                 .MaxBy(group => group.Length) ?? []).Take(20001).ToArray();
-        if (combined.Length > 20000) { allowed = false; inspectionFailed = true; combined = combined[..20000]; }
+        if (combined.Length > 20000)
+        { allowed = false; inspectionFailed = true; combined = combined[..20000]; }
         var summary = new EgressDecision(allowed, allowed ? string.Empty : null, combined,
             allowed ? SecurityPolicyAction.Allow : SecurityPolicyAction.Block,
             enforcementUnavailable ? "privacy_enforcement_unavailable" : inspectionFailed ? "detector_failure" : "structured_content_inspection");
-        try { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, summary), cancellationToken).ConfigureAwait(false); }
+        try
+        { await _sink.RecordAsync(HostPrivacyEvidence.Create(Guid.NewGuid(), context, summary), cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw new PrivacyBlockedException("Privacy evidence recording failed."); }
-        if (!allowed) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+        if (!allowed)
+            throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
     }
 }
 

@@ -20,7 +20,8 @@ public sealed partial class CloudTranslationDeploymentMatch(ICloudTranslationDep
             !CloudDeploymentRegistry.ValidToken(request.ContractVersion, 32) || !CloudInferenceModelPolicyService.ValidModelId(request.ModelId) ||
             string.IsNullOrWhiteSpace(request.ModelRevision) || request.ModelRevision.Length > 256 || !Digest(request.ModelDigest) || !Digest(request.ImageDigest) ||
             request.TokenizerHash is null || !HashPattern().IsMatch(request.TokenizerHash) || !Language(request.SourceLang) || !Language(request.TargetLang) ||
-            request.SourceLang == request.TargetLang) return Task.FromResult(false);
+            request.SourceLang == request.TargetLang)
+            return Task.FromResult(false);
         return reader.MatchesAsync(tenantId, request, cancellationToken);
     }
 

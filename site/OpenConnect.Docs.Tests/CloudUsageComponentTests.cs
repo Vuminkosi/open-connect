@@ -59,7 +59,8 @@ public sealed class CloudUsageComponentTests : BunitContext
         public Task<CloudUsagePage?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset? from, DateTimeOffset? to,
             CloudUsageCursor? before, int limit, CancellationToken cancellationToken)
         {
-            From = from; To = to;
+            From = from;
+            To = to;
             return Task.FromResult<CloudUsagePage?>(tenantId != tenant ? null : new([new CloudUsageEntry(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
                 "classification.classify", "request", 1, "reservation", DateTimeOffset.UnixEpoch)], null));
         }

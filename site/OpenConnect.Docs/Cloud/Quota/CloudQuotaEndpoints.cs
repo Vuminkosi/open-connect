@@ -12,7 +12,8 @@ public static class CloudQuotaEndpoints
         {
             context.Response.Headers.CacheControl = "no-store";
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var pageOffset = offset ?? 0;
             var pageSize = limit ?? 50;
             if (pageOffset < 0 || pageOffset > 1000000 || pageSize is < 1 or > 100)

@@ -38,7 +38,8 @@ public sealed class CloudLiveUIObservedRecovery(IDbContextFactory<CloudControlPl
         {
             var result = await settlement.RecoverAsync(candidate.ReservationId, candidate.ClaimId, candidate.DeploymentId,
                 new(candidate.InputTokens, candidate.OutputTokens), cancellationToken);
-            if (result == "failed") recovered++;
+            if (result == "failed")
+                recovered++;
         }
         return recovered;
     }

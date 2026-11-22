@@ -11,14 +11,17 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
         bool PublicRoute(string? path) => path is "/" or "/docs" or "/api" ||
             (path is not null && content?.Documents.Any(document =>
                 string.Equals(path, $"/docs/{document.Version}/{document.Slug}", StringComparison.Ordinal)) == true);
-        if (!PublicRoute(context.Route.Path)) return Deny();
+        if (!PublicRoute(context.Route.Path))
+            return Deny();
         if (context.Action.Type == LiveUIActionType.Navigate)
         {
             var destination = context.Manifest.Routes.SingleOrDefault(route => route.Id == context.Action.Parameters.DestinationRouteId);
             return PublicRoute(destination?.Path) ? Allow() : Deny();
         }
-        if (context.Action.Type == LiveUIActionType.ClearHighlight) return Allow();
-        if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null) return Allow();
+        if (context.Action.Type == LiveUIActionType.ClearHighlight)
+            return Allow();
+        if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null)
+            return Allow();
         if (context.Route.Path == "/docs" && context.Target is { Id: "documentation-show-guides", Kind: LiveUITargetKind.Button })
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
         if (context.Route.Path == "/docs/v1/privacy" && context.Target is { Id: "documentation-privacy-demo-run", Kind: LiveUITargetKind.Button })

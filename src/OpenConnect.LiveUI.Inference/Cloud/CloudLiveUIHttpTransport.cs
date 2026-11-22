@@ -37,9 +37,11 @@ public sealed class CloudLiveUIHttpTransport : ICloudLiveUITransport, IDisposabl
         try
         {
             using var response = await _client.GetAsync("/health/ready", HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentEncoding.Count != 0) return false;
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentEncoding.Count != 0)
+                return false;
             var bytes = await ReadBoundedAsync(response.Content, 8192, timeout.Token).ConfigureAwait(false);
-            if (bytes is null) return false;
+            if (bytes is null)
+                return false;
             try
             {
                 using var document = JsonDocument.Parse(bytes);
@@ -57,7 +59,8 @@ public sealed class CloudLiveUIHttpTransport : ICloudLiveUITransport, IDisposabl
     /// <inheritdoc />
     public async Task<CloudLiveUITransportResult> SendAsync(ReadOnlyMemory<byte> request, CancellationToken cancellationToken = default)
     {
-        if (request.Length is < 1 or > 131072) return new(503, []);
+        if (request.Length is < 1 or > 131072)
+            return new(503, []);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(120));
         var body = request.ToArray();
@@ -69,8 +72,10 @@ public sealed class CloudLiveUIHttpTransport : ICloudLiveUITransport, IDisposabl
             message.Content = new ByteArrayContent(body);
             message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return new((int)response.StatusCode, []);
-            if (response.Content.Headers.ContentEncoding.Count != 0) return new(503, []);
+            if (!response.IsSuccessStatusCode)
+                return new((int)response.StatusCode, []);
+            if (response.Content.Headers.ContentEncoding.Count != 0)
+                return new(503, []);
             var bytes = await ReadBoundedAsync(response.Content, ResponseLimit, timeout.Token).ConfigureAwait(false);
             return bytes is null ? new(503, []) : new((int)response.StatusCode, bytes);
         }
@@ -81,7 +86,8 @@ public sealed class CloudLiveUIHttpTransport : ICloudLiveUITransport, IDisposabl
 
     private static async Task<byte[]?> ReadBoundedAsync(HttpContent content, int limit, CancellationToken cancellationToken)
     {
-        if (content.Headers.ContentLength > limit) return null;
+        if (content.Headers.ContentLength > limit)
+            return null;
         await using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var result = new MemoryStream(limit);
         var buffer = new byte[8192];
@@ -90,7 +96,8 @@ public sealed class CloudLiveUIHttpTransport : ICloudLiveUITransport, IDisposabl
             int count;
             while ((count = await stream.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false)) != 0)
             {
-                if (result.Length + count > limit) return null;
+                if (result.Length + count > limit)
+                    return null;
                 await result.WriteAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
             }
             return result.ToArray();

@@ -30,12 +30,21 @@ public sealed class EfCloudUsageSummaryReader(IDbContextFactory<CloudControlPlan
             result = rows.Count > 1000 ? new([], true) : new(rows, false);
             role = await actor.Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "BillingReader";
-            if (!authorized) result = null;
+            if (!authorized)
+                result = null;
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = role is null ? null : tenantId,
-            SubjectIssuer = subject.Issuer, SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "usage.summary.read",
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = role is null ? null : tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "usage.summary.read",
             Outcome = !authorized ? "forbidden" : result!.LimitExceeded ? "limit_exceeded" : "succeeded",
-            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"), OccurredAt = timeProvider.GetUtcNow() });
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = timeProvider.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         return result;
     }

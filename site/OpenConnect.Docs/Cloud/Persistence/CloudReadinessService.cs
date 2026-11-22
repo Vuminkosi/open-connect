@@ -19,7 +19,8 @@ public static class CloudDatabaseFailure
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
-            if (current is DbException or TimeoutException) return true;
+            if (current is DbException or TimeoutException)
+                return true;
         }
         return false;
     }

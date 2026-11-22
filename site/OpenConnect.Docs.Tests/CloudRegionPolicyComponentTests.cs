@@ -17,7 +17,8 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
     public async Task TenantOwnerSelectsRegionsAndDoesNotLeakAcrossTenants()
     {
         var factory = Factory();
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", "owner-" + Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenantStore.CreateTenantAsync(owner, "Region UI", default);
@@ -30,8 +31,10 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
         var policies = new CloudRegionPolicyService(new EfCloudRegionPolicyStore(factory, TimeProvider.System));
         Assert.Equal("succeeded", (await policies.PutAsync(owner, tenant.Id, ["old-region"], 0, default)).Status);
         ConfigureCommon(factory, owner.SubjectId);
-        Services.AddSingleton<ICloudTenantStore>(tenantStore); Services.AddSingleton<CloudControlPlaneService>();
-        Services.AddSingleton<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>(); Services.AddSingleton<CloudRegionPolicyService>();
+        Services.AddSingleton<ICloudTenantStore>(tenantStore);
+        Services.AddSingleton<CloudControlPlaneService>();
+        Services.AddSingleton<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>();
+        Services.AddSingleton<CloudRegionPolicyService>();
         var component = Render<TenantRegions>(p => p.Add(x => x.TenantId, tenant.Id));
         component.WaitForAssertion(() => Assert.Contains("old-region", component.Markup));
         Assert.Contains("not currently declared", component.Markup);
@@ -57,7 +60,8 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
     public async Task TenantViewerCannotEditRegions()
     {
         var factory = Factory();
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", "owner-" + Guid.NewGuid().ToString("N"));
         var viewer = new CloudSubject(owner.Issuer, "viewer-" + Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);
@@ -68,8 +72,10 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
             await db.SaveChangesAsync();
         }
         ConfigureCommon(factory, viewer.SubjectId);
-        Services.AddSingleton<ICloudTenantStore>(tenantStore); Services.AddSingleton<CloudControlPlaneService>();
-        Services.AddSingleton<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>(); Services.AddSingleton<CloudRegionPolicyService>();
+        Services.AddSingleton<ICloudTenantStore>(tenantStore);
+        Services.AddSingleton<CloudControlPlaneService>();
+        Services.AddSingleton<ICloudRegionPolicyStore, EfCloudRegionPolicyStore>();
+        Services.AddSingleton<CloudRegionPolicyService>();
         var component = Render<TenantRegions>(p => p.Add(x => x.TenantId, tenant.Id));
         component.WaitForAssertion(() => Assert.Contains("can view this policy", component.Markup));
         Assert.DoesNotContain(component.FindAll("button"), x => x.TextContent == "Save allowed regions");
@@ -80,7 +86,8 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
     public async Task OperatorDeclaresRegionsAndRechecksAccessOnSave()
     {
         var factory = Factory();
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var capability = "operatorui." + Guid.NewGuid().ToString("N");
         await using (var db = await factory.CreateDbContextAsync())
         {
@@ -88,8 +95,10 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
             await db.SaveChangesAsync();
         }
         var config = ConfigureCommon(factory, "operator", operatorAccess: true);
-        Services.AddSingleton<CloudOperatorAccess>(); Services.AddSingleton<ICloudCatalogRegionsStore, EfCloudCatalogRegionsStore>();
-        Services.AddSingleton<CloudCatalogRegionsService>(); Services.AddSingleton<CloudOperatorCatalogRegionsService>();
+        Services.AddSingleton<CloudOperatorAccess>();
+        Services.AddSingleton<ICloudCatalogRegionsStore, EfCloudCatalogRegionsStore>();
+        Services.AddSingleton<CloudCatalogRegionsService>();
+        Services.AddSingleton<CloudOperatorCatalogRegionsService>();
         var component = Render<OperatorRegions>();
         component.WaitForAssertion(() => Assert.Contains(capability, component.Markup));
         component.Find("#catalog-region-service").Change(capability);
@@ -122,11 +131,17 @@ public sealed class CloudRegionPolicyComponentTests : BunitContext
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example", ["OpenConnect:Cloud:Operators:0:Subject"] = operatorAccess ? subjectId : "other"
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Subject"] = operatorAccess ? subjectId : "other"
         }).Build();
-        Services.AddSingleton<IConfiguration>(config); Services.AddSingleton(factory); Services.AddSingleton(TimeProvider.System);
-        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>(); Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>(); Services.AddSingleton<CloudCapabilityService>();
+        Services.AddSingleton<IConfiguration>(config);
+        Services.AddSingleton(factory);
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>();
+        Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>();
+        Services.AddSingleton<CloudCapabilityService>();
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication(subjectId));
         return config;
     }

@@ -40,10 +40,12 @@ public sealed class CloudLiveUIInferenceProviderTests
     [Fact]
     public async Task DeniedHostOrPrivacyNeverDispatches()
     {
-        var denied = new Fixture(); denied.Authorizer.Allowed = false;
+        var denied = new Fixture();
+        denied.Authorizer.Allowed = false;
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => denied.Provider.GeneratePlanAsync(denied.Request));
         Assert.Equal(0, denied.Transport.Calls);
-        var blocked = new Fixture(); blocked.BlockInput = true;
+        var blocked = new Fixture();
+        blocked.BlockInput = true;
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => blocked.Provider.GeneratePlanAsync(blocked.Request));
         Assert.Equal(0, blocked.Transport.Calls);
     }
@@ -53,9 +55,11 @@ public sealed class CloudLiveUIInferenceProviderTests
     {
         foreach (var response in new[] { "unlisted", "wrong-id", "duplicate-property", "wrong-schema" })
         {
-            var fixture = new Fixture(); fixture.Transport.Handler = _ => fixture.Response(response);
+            var fixture = new Fixture();
+            fixture.Transport.Handler = _ => fixture.Response(response);
             var result = await fixture.Provider.GeneratePlanAsync(fixture.Request);
-            Assert.Null(result.Plan); Assert.Equal("invalid_plan", result.Outcome);
+            Assert.Null(result.Plan);
+            Assert.Equal("invalid_plan", result.Outcome);
         }
     }
 
@@ -64,18 +68,23 @@ public sealed class CloudLiveUIInferenceProviderTests
     {
         var fixture = new Fixture { BlockOutput = true };
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => fixture.Provider.GeneratePlanAsync(fixture.Request));
-        var rejected = new Fixture(); rejected.Transport.Handler = _ => new(403, []);
+        var rejected = new Fixture();
+        rejected.Transport.Handler = _ => new(403, []);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => rejected.Provider.GeneratePlanAsync(rejected.Request));
-        var quota = new Fixture(); quota.Transport.Handler = _ => new(429, []);
+        var quota = new Fixture();
+        quota.Transport.Handler = _ => new(429, []);
         Assert.Equal("rate_limited", (await quota.Provider.GeneratePlanAsync(quota.Request)).Outcome);
-        var replay = new Fixture(); replay.Transport.Handler = _ => new(409, []);
+        var replay = new Fixture();
+        replay.Transport.Handler = _ => new(409, []);
         Assert.Equal("conflict", (await replay.Provider.GeneratePlanAsync(replay.Request)).Outcome);
     }
 
     [Fact]
     public async Task CallerCancellationPropagates()
     {
-        var fixture = new Fixture(); using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        var fixture = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Provider.GeneratePlanAsync(fixture.Request, cancellation.Token));
         Assert.Equal(0, fixture.Transport.Calls);
     }
@@ -83,7 +92,8 @@ public sealed class CloudLiveUIInferenceProviderTests
     [Fact]
     public async Task ReplayConflictDoesNotFallBackToAnotherProvider()
     {
-        var fixture = new Fixture(); fixture.Transport.Handler = _ => new(409, []);
+        var fixture = new Fixture();
+        fixture.Transport.Handler = _ => new(409, []);
         var settings = new LiveUIInferenceOptions { Mode = LiveUIInferenceMode.GatewayFirst };
         settings.Gateway.Enabled = true;
         settings.Gateway.FallbackPolicy = LiveUIFallbackPolicy.OnFailure;
@@ -150,9 +160,12 @@ public sealed class CloudLiveUIInferenceProviderTests
 
         public Fixture()
         {
-            Authorizer = new(_context); Transport = new(); Transport.Handler = _ => Response();
+            Authorizer = new(_context);
+            Transport = new();
+            Transport.Handler = _ => Response();
             Request = new("private intent", _context.Session.Value.ToString(), "/items", "v1",
-                [new("item", ["activate"]) { Label = "Open" }]) { ExecutionId = ExecutionId.ToString("N") };
+                [new("item", ["activate"]) { Label = "Open" }])
+            { ExecutionId = ExecutionId.ToString("N") };
             Provider = new(Authorizer, new Gate(this), Transport, Options.Create(new LiveUIInferenceOptions()));
         }
 
@@ -197,7 +210,8 @@ public sealed class CloudLiveUIInferenceProviderTests
             Calls++;
             Assert.True(System.Runtime.InteropServices.MemoryMarshal.TryGetArray(request, out var segment));
             LastRequest = segment.Array;
-            var response = Handler(request); LastResponse = response.Body;
+            var response = Handler(request);
+            LastResponse = response.Body;
             return Task.FromResult(response);
         }
     }

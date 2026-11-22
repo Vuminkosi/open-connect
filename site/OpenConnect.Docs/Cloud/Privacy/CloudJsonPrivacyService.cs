@@ -17,8 +17,10 @@ public sealed class CloudJsonPrivacyService(ISecurityDetector? detector)
         JsonElement request, CancellationToken cancellationToken, bool embeddingResponse = false)
     {
         if (identity.TenantId == Guid.Empty || identity.ApplicationId == Guid.Empty || requestId == Guid.Empty ||
-            request.ValueKind != JsonValueKind.Object) return new(new(false, "invalid_request"), []);
-        if (detector is null) return new(new(false, "detector_unavailable"), []);
+            request.ValueKind != JsonValueKind.Object)
+            return new(new(false, "invalid_request"), []);
+        if (detector is null)
+            return new(new(false, "detector_unavailable"), []);
         var recording = new EvidenceDetector(detector);
         var firewall = new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(recording));
         try
@@ -49,7 +51,8 @@ public sealed class CloudJsonPrivacyService(ISecurityDetector? detector)
             try
             {
                 var result = await inner.DetectAndSanitizeAsync(content, context, cancellationToken);
-                if (result is null || !result.Available || result.DetectedEntities is null) { Unavailable = true; return result!; }
+                if (result is null || !result.Available || result.DetectedEntities is null)
+                { Unavailable = true; return result!; }
                 _entities.AddRange(result.DetectedEntities);
                 return result;
             }
@@ -66,10 +69,12 @@ public sealed class CloudJsonPrivacyService(ISecurityDetector? detector)
     private static Ulid ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var b in value.ToByteArray(bigEndian: true)) number = (number << 8) | b;
+        foreach (var b in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | b;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return Ulid.Parse(new string(encoded));
     }
 }

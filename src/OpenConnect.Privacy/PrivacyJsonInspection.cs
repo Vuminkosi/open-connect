@@ -48,7 +48,8 @@ public static class PrivacyJsonInspection
             {
                 var fragment = item.Text;
                 cancellationToken.ThrowIfCancellationRequested();
-                if (++count > maximumFragments) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+                if (++count > maximumFragments)
+                    throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
                 var decision = await gate.EvaluateAsync(fragment, context, cancellationToken).ConfigureAwait(false);
                 if (decision is null || !decision.Allowed || !Enum.IsDefined(decision.Action) || decision.Action is SecurityPolicyAction.Block or SecurityPolicyAction.Review ||
                     decision.Reason == "privacy_enforcement_disabled" || decision.DetectedEntities is null ||
@@ -83,13 +84,15 @@ public static class PrivacyJsonInspection
                 await recording.DemandUnchangedBatchAsync(fragments, Expand(ContextualFields(value)), Expand(CombinedValues(value, maximumFragments, maximumCombinedLength)), context, cancellationToken, maximumFragments).ConfigureAwait(false);
                 return;
             }
-            if (!firewall.Enabled) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+            if (!firewall.Enabled)
+                throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
             var count = 0;
             foreach (var item in fragments.Concat(Expand(ContextualFields(value))).Concat(Expand(CombinedValues(value, maximumFragments, maximumCombinedLength))))
             {
                 var fragment = item.Text;
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!firewall.Enabled || ++count > maximumFragments) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+                if (!firewall.Enabled || ++count > maximumFragments)
+                    throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
                 var decision = await firewall.EvaluateAsync(fragment, context, cancellationToken).ConfigureAwait(false);
                 if (decision is null || !decision.Allowed || !Enum.IsDefined(decision.Action) || decision.Action is SecurityPolicyAction.Block or SecurityPolicyAction.Review ||
                     decision.Reason == "privacy_enforcement_disabled" || decision.DetectedEntities is null ||
@@ -97,7 +100,8 @@ public static class PrivacyJsonInspection
                     throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (!firewall.Enabled) throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
+            if (!firewall.Enabled)
+                throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw new PrivacyBlockedException("Structured content was blocked by privacy policy."); }
@@ -119,7 +123,8 @@ public static class PrivacyJsonInspection
                 if (current.Length > 1_000_000)
                     throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
                 var decoded = Uri.UnescapeDataString(current);
-                if (decoded == current) break;
+                if (decoded == current)
+                    break;
                 yield return new Fragment(decoded, index);
                 current = decoded;
             }
@@ -133,7 +138,8 @@ public static class PrivacyJsonInspection
     private static IEnumerable<Fragment> Fragments(JsonElement value)
     {
         yield return new Fragment(value.GetRawText(), -1);
-        foreach (var text in Expand(Strings(value))) yield return text;
+        foreach (var text in Expand(Strings(value)))
+            yield return text;
     }
 
     private static IEnumerable<string> CombinedValues(JsonElement value, int maximumFragments = MaximumFragments, int maximumLength = 1_000_000)
@@ -146,19 +152,24 @@ public static class PrivacyJsonInspection
                 throw new PrivacyBlockedException("Structured content was blocked by privacy policy.");
             combined.Append(text);
         }
-        if (count > 1) yield return combined.ToString();
+        if (count > 1)
+            yield return combined.ToString();
     }
 
     private static IEnumerable<string> Values(JsonElement value)
     {
-        if (value.ValueKind == JsonValueKind.String) yield return value.GetString()!;
-        else if (value.ValueKind == JsonValueKind.Number) yield return value.GetRawText();
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString()!;
+        else if (value.ValueKind == JsonValueKind.Number)
+            yield return value.GetRawText();
         else if (value.ValueKind == JsonValueKind.Array)
             foreach (var item in value.EnumerateArray())
-                foreach (var text in Values(item)) yield return text;
+                foreach (var text in Values(item))
+                    yield return text;
         else if (value.ValueKind == JsonValueKind.Object)
             foreach (var property in value.EnumerateObject())
-                foreach (var text in Values(property.Value)) yield return text;
+                foreach (var text in Values(property.Value))
+                    yield return text;
     }
 
     // Field labels and values must be inspected together after JSON escapes are decoded.
@@ -168,34 +179,40 @@ public static class PrivacyJsonInspection
         {
             var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
             if (labels is not null)
-                foreach (var label in labels) yield return $"{label}: {text}";
+                foreach (var label in labels)
+                    yield return $"{label}: {text}";
         }
         else if (value.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in value.EnumerateArray())
-                foreach (var field in ContextualFields(item, labels)) yield return field;
+                foreach (var field in ContextualFields(item, labels))
+                    yield return field;
         }
         else if (value.ValueKind == JsonValueKind.Object)
         {
             foreach (var property in value.EnumerateObject())
             {
                 var nextLabels = labels is null ? [property.Name] : labels.Append(property.Name).ToArray();
-                foreach (var field in ContextualFields(property.Value, nextLabels)) yield return field;
+                foreach (var field in ContextualFields(property.Value, nextLabels))
+                    yield return field;
             }
         }
     }
 
     private static IEnumerable<string> Strings(JsonElement value)
     {
-        if (value.ValueKind == JsonValueKind.String) yield return value.GetString()!;
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString()!;
         else if (value.ValueKind == JsonValueKind.Array)
             foreach (var item in value.EnumerateArray())
-                foreach (var text in Strings(item)) yield return text;
+                foreach (var text in Strings(item))
+                    yield return text;
         else if (value.ValueKind == JsonValueKind.Object)
             foreach (var property in value.EnumerateObject())
             {
                 yield return property.Name;
-                foreach (var text in Strings(property.Value)) yield return text;
+                foreach (var text in Strings(property.Value))
+                    yield return text;
             }
     }
 }

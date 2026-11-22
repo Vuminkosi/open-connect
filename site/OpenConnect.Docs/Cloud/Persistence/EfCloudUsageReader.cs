@@ -25,15 +25,19 @@ public sealed class EfCloudUsageReader(IDbContextFactory<CloudControlPlaneDbCont
         }
         var membership = actor.Where(x => x.Role == "Owner" || x.Role == "Administrator" || x.Role == "BillingReader");
         var query = db.UsageRecords.AsNoTracking().Where(x => x.TenantId == tenantId && membership.Any());
-        if (from is not null) query = query.Where(x => x.RecordedAt >= from.Value);
-        if (to is not null) query = query.Where(x => x.RecordedAt < to.Value);
-        if (before is not null) query = query.Where(x => x.RecordedAt < before.RecordedAt ||
+        if (from is not null)
+            query = query.Where(x => x.RecordedAt >= from.Value);
+        if (to is not null)
+            query = query.Where(x => x.RecordedAt < to.Value);
+        if (before is not null)
+            query = query.Where(x => x.RecordedAt < before.RecordedAt ||
             x.RecordedAt == before.RecordedAt && x.ReservationId.CompareTo(before.ReservationId) < 0);
         var rows = await query.OrderByDescending(x => x.RecordedAt).ThenByDescending(x => x.ReservationId).Take(limit + 1)
             .Select(x => new CloudUsageEntry(x.ReservationId, x.ApplicationId, x.RequestId, x.CapabilityId,
                 x.Unit, x.Quantity, x.Provenance, x.RecordedAt)).ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
-        if (hasMore) rows.RemoveAt(rows.Count - 1);
+        if (hasMore)
+            rows.RemoveAt(rows.Count - 1);
         var last = rows.LastOrDefault();
         await AuditAsync(db, subject, tenantId, role, export ? "usage.records.export" : "usage.records.read", export && hasMore ? "limit_exceeded" : "succeeded", cancellationToken);
         return new(rows, hasMore && last is not null ? new(last.RecordedAt, last.ReservationId) : null);
@@ -41,9 +45,18 @@ public sealed class EfCloudUsageReader(IDbContextFactory<CloudControlPlaneDbCont
 
     private Task AuditAsync(CloudControlPlaneDbContext db, CloudSubject subject, Guid? tenantId, string role, string action, string outcome, CancellationToken cancellationToken)
     {
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role, Action = action, Outcome = outcome,
-            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"), OccurredAt = timeProvider.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role,
+            Action = action,
+            Outcome = outcome,
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = timeProvider.GetUtcNow()
+        });
         return db.SaveChangesAsync(cancellationToken);
     }
 }

@@ -13,7 +13,8 @@ public sealed class CloudCapabilityReadPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://identity.example", Guid.NewGuid().ToString("N"));
         var stranger = new CloudSubject("https://identity.example", Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);

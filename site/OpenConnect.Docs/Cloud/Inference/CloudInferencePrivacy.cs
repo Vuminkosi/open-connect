@@ -22,19 +22,24 @@ public sealed class CloudInferencePrivacyService(ISecurityDetector? detector)
     {
         if (identity.TenantId == Guid.Empty || identity.ApplicationId == Guid.Empty || requestId == Guid.Empty || messages is null || messages.Count is < 1 or > 64 ||
             messages.Any(x => x is null || x.Role is not ("system" or "user" or "assistant" or "tool") || x.Content is null || x.Content.Length > 32768) ||
-            messages.Sum(x => (long)x.Content.Length) is < 1 or > 65536) return new(false, "invalid_request");
+            messages.Sum(x => (long)x.Content.Length) is < 1 or > 65536)
+            return new(false, "invalid_request");
         try
         {
-            if (!_firewall.Enabled) return new(false, "detector_unavailable");
+            if (!_firewall.Enabled)
+                return new(false, "detector_unavailable");
             var context = new EgressContext(new TenantId(ToUlid(identity.TenantId)), new PrincipalId(ToUlid(identity.ApplicationId)),
                 new SessionId(ToUlid(requestId)), EgressDestination.Worker);
             // Check individual messages and the unseparated sequence to catch sensitive values split between messages.
             foreach (var content in messages.Select(x => x.Content).Append(string.Concat(messages.Select(x => x.Content))))
             {
-                if (content.Length == 0) continue;
+                if (content.Length == 0)
+                    continue;
                 var decision = await _firewall.EvaluateAsync(content, context, cancellationToken);
-                if (!decision.Allowed || decision.DetectedEntities is null || decision.SanitizedContent is null) return new(false, "detector_unavailable");
-                if (decision.DetectedEntities.Count != 0 || !string.Equals(content, decision.SanitizedContent, StringComparison.Ordinal)) return new(false, "privacy_blocked");
+                if (!decision.Allowed || decision.DetectedEntities is null || decision.SanitizedContent is null)
+                    return new(false, "detector_unavailable");
+                if (decision.DetectedEntities.Count != 0 || !string.Equals(content, decision.SanitizedContent, StringComparison.Ordinal))
+                    return new(false, "privacy_blocked");
             }
             return new(true, "allowed");
         }
@@ -45,10 +50,12 @@ public sealed class CloudInferencePrivacyService(ISecurityDetector? detector)
     private static Ulid ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var b in value.ToByteArray(bigEndian: true)) number = (number << 8) | b;
+        foreach (var b in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | b;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return Ulid.Parse(new string(encoded));
     }
 }

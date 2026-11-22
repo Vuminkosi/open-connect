@@ -14,27 +14,35 @@ public static class CloudVoiceOutputPrivacyEndpoints
         CancellationToken cancellationToken)
     {
         var (identity, error) = await CloudVoiceQuotaEndpoints.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
+        if (error is not null)
+            return error;
         if (!ReadId(context, "X-Cloud-Request-Id", out var requestId) || !ReadId(context, "X-Cloud-Reservation-Id", out var reservationId) ||
-            !ReadId(context, "X-Cloud-Claim-Id", out var claimId)) return Results.BadRequest();
-        if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.StatusCode(415);
+            !ReadId(context, "X-Cloud-Claim-Id", out var claimId))
+            return Results.BadRequest();
+        if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding"))
+            return Results.StatusCode(415);
         const int maxBody = 65536;
-        if (context.Request.ContentLength > maxBody) return Results.StatusCode(413);
+        if (context.Request.ContentLength > maxBody)
+            return Results.StatusCode(413);
         var buffer = new byte[maxBody + 1];
         try
         {
             if (!await context.RequestServices.GetRequiredService<ICloudVoiceAccessStore>()
-                .IsClaimAllowedAsync(identity!, reservationId, claimId, cancellationToken)) return Results.StatusCode(503);
+                .IsClaimAllowedAsync(identity!, reservationId, claimId, cancellationToken))
+                return Results.StatusCode(503);
             var length = 0;
             while (length < buffer.Length)
             {
                 var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > maxBody) return Results.StatusCode(413);
+            if (length > maxBody)
+                return Results.StatusCode(413);
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length), new JsonDocumentOptions { MaxDepth = 3 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return Results.BadRequest();
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return Results.BadRequest();
             var properties = document.RootElement.EnumerateObject().ToArray();
             if (properties.Length != 2 || properties.Select(x => x.Name).Distinct(StringComparer.Ordinal).Count() != 2 ||
                 properties.Any(x => x.Name is not ("transcript" or "modelFingerprint") || x.Value.ValueKind != JsonValueKind.String))
@@ -45,7 +53,8 @@ public static class CloudVoiceOutputPrivacyEndpoints
                 return Results.BadRequest();
             var result = await context.RequestServices.GetRequiredService<CloudVoiceOutputPrivacyService>()
                 .EvaluateAsync(identity!, requestId, transcript!, cancellationToken);
-            if (result.Code == "invalid_request") return Results.BadRequest();
+            if (result.Code == "invalid_request")
+                return Results.BadRequest();
             var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
             if (!await context.RequestServices.GetRequiredService<ICloudVoiceOutputEvidenceStore>()
                 .AppendForCompletedAsync(identity!, requestId, reservationId, claimId, fingerprint, result.Code, traceId, cancellationToken))

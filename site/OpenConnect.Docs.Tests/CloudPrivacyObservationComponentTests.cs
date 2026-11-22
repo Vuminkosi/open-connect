@@ -54,8 +54,10 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
         public Task<CloudPrivacyObservationPage?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset? from, DateTimeOffset? to,
             CloudPrivacyObservationCursor? before, int limit, CancellationToken cancellationToken)
         {
-            From = from; To = to;
-            if (tenantId != tenant) return Task.FromResult<CloudPrivacyObservationPage?>(null);
+            From = from;
+            To = to;
+            if (tenantId != tenant)
+                return Task.FromResult<CloudPrivacyObservationPage?>(null);
             var observation = new CloudPrivacyObservation(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "privacy_blocked", Guid.NewGuid().ToString("N"), DateTimeOffset.UnixEpoch);
             return Task.FromResult<CloudPrivacyObservationPage?>(new([observation], null));
         }

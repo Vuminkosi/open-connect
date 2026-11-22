@@ -12,7 +12,8 @@ public static class CloudPrivacyObservationEndpoints
         {
             context.Response.Headers.CacheControl = "no-store";
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             if (tenantId == Guid.Empty || (beforeAt is null) != (beforeId is null) || beforeId == Guid.Empty || from >= to || (limit ?? 50) is < 1 or > 100)
                 return Results.BadRequest();
             var cursor = beforeAt is not null && beforeId is not null ? new CloudPrivacyObservationCursor(beforeAt.Value, beforeId.Value) : null;

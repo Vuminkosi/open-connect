@@ -14,9 +14,17 @@ public sealed class EfCloudPrivacyEvidenceStore(IDbContextFactory<CloudControlPl
             throw new ArgumentException("Invalid Cloud privacy observation.");
         var categoryCounts = CloudPrivacyCategories.Encode(categories, outcome);
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
-        db.PrivacyEvidence.Add(new CloudPrivacyEvidence { Id = Guid.NewGuid(), TenantId = identity.TenantId,
-            ApplicationId = identity.ApplicationId, RequestId = requestId, Outcome = outcome, TraceId = traceId,
-            CategoryCounts = categoryCounts, OccurredAt = timeProvider.GetUtcNow() });
+        db.PrivacyEvidence.Add(new CloudPrivacyEvidence
+        {
+            Id = Guid.NewGuid(),
+            TenantId = identity.TenantId,
+            ApplicationId = identity.ApplicationId,
+            RequestId = requestId,
+            Outcome = outcome,
+            TraceId = traceId,
+            CategoryCounts = categoryCounts,
+            OccurredAt = timeProvider.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
     }
 }

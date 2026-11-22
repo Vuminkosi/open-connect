@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -18,15 +18,19 @@ public sealed class EfCloudPrivacyObservationReader(IDbContextFactory<CloudContr
         }
         var membership = actor.Where(x => x.Role == "Owner" || x.Role == "Administrator" || x.Role == "SecurityAnalyst");
         var query = db.PrivacyEvidence.AsNoTracking().Where(x => x.TenantId == tenantId && membership.Any());
-        if (from is not null) query = query.Where(x => x.OccurredAt >= from.Value);
-        if (to is not null) query = query.Where(x => x.OccurredAt < to.Value);
-        if (before is not null) query = query.Where(x => x.OccurredAt < before.OccurredAt ||
+        if (from is not null)
+            query = query.Where(x => x.OccurredAt >= from.Value);
+        if (to is not null)
+            query = query.Where(x => x.OccurredAt < to.Value);
+        if (before is not null)
+            query = query.Where(x => x.OccurredAt < before.OccurredAt ||
             x.OccurredAt == before.OccurredAt && x.Id.CompareTo(before.Id) < 0);
         var rows = await query.OrderByDescending(x => x.OccurredAt).ThenByDescending(x => x.Id).Take(limit + 1)
             .Select(x => new CloudPrivacyObservation(x.Id, x.ApplicationId, x.RequestId, x.Outcome, x.TraceId, x.OccurredAt))
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
-        if (hasMore) rows.RemoveAt(rows.Count - 1);
+        if (hasMore)
+            rows.RemoveAt(rows.Count - 1);
         var last = rows.LastOrDefault();
         await AuditAsync(db, subject, tenantId, role, "succeeded", cancellationToken);
         return new(rows, hasMore && last is not null ? new(last.OccurredAt, last.Id) : null);
@@ -34,9 +38,18 @@ public sealed class EfCloudPrivacyObservationReader(IDbContextFactory<CloudContr
 
     private Task AuditAsync(CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, string role, string outcome, CancellationToken cancellationToken)
     {
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role, Action = "privacy.observations.read", Outcome = outcome,
-            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"), OccurredAt = timeProvider.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role,
+            Action = "privacy.observations.read",
+            Outcome = outcome,
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = timeProvider.GetUtcNow()
+        });
         return db.SaveChangesAsync(cancellationToken);
     }
 }

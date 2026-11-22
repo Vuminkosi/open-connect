@@ -31,28 +31,54 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "LiveUI recovery", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var now = DateTimeOffset.UtcNow; var planId = Guid.NewGuid(); var tokenId = Guid.NewGuid(); var deploymentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var planId = Guid.NewGuid();
+        var tokenId = Guid.NewGuid();
+        var deploymentId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.QuotaBuckets.AddRange(Bucket(planId, tenant.Id, app.Id, "plan", 10, now), Bucket(tokenId, tenant.Id, app.Id, "token", 100, now));
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "inference.liveui",
-                EndpointReference = "fixture-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "test",
-                ContractVersion = "v1", ModelId = "owner/model", ModelRevision = "revision", ModelDigest = "sha256:" + new string('a', 64),
-                ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 3 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deploymentId,
+                CapabilityId = "inference.liveui",
+                EndpointReference = "fixture-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "test",
+                ContractVersion = "v1",
+                ModelId = "owner/model",
+                ModelRevision = "revision",
+                ModelDigest = "sha256:" + new string('a', 64),
+                ImageDigest = "sha256:" + new string('b', 64),
+                Enabled = true,
+                ConcurrencyLimit = 3
+            });
             await db.SaveChangesAsync();
         }
         var quota = new CloudLiveUIDualQuotaService(new EfCloudLiveUIDualQuotaStore(factory, TimeProvider.System), TimeProvider.System);
         async Task<Guid> Reserve() => (await quota.ReserveAsync(new(tenant.Id, app.Id, Guid.NewGuid(), "key", new byte[32], 20, now.AddMinutes(5)), default)).ReservationId!.Value;
-        var expired = await Reserve(); var claimed = await Reserve(); var fresh = await Reserve(); var racing = await Reserve();
+        var expired = await Reserve();
+        var claimed = await Reserve();
+        var fresh = await Reserve();
+        var racing = await Reserve();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = claimed, TenantId = tenant.Id, ApplicationId = app.Id,
-                ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "test", ClaimedAt = now });
+            db.ExecutionClaims.Add(new CloudExecutionClaim
+            {
+                ReservationId = claimed,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                ClaimId = Guid.NewGuid(),
+                DeploymentId = deploymentId,
+                Region = "test",
+                ClaimedAt = now
+            });
             await db.SaveChangesAsync();
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE cloud.quota_reservations SET "ExpiresAt" = {now.AddMinutes(-10)} WHERE "Id" IN ({expired}, {claimed}, {racing})
@@ -71,8 +97,16 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         await using (var claimant = await factory.CreateDbContextAsync())
         await using (var transaction = await claimant.Database.BeginTransactionAsync())
         {
-            claimant.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = racing, TenantId = tenant.Id, ApplicationId = app.Id,
-                ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "test", ClaimedAt = now });
+            claimant.ExecutionClaims.Add(new CloudExecutionClaim
+            {
+                ReservationId = racing,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                ClaimId = Guid.NewGuid(),
+                DeploymentId = deploymentId,
+                Region = "test",
+                ClaimedAt = now
+            });
             await claimant.SaveChangesAsync();
             var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => recovery.ReleaseAsync(now.AddMinutes(-5), 100, default)));
             Assert.Equal(1, results.Sum());
@@ -89,8 +123,16 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         Assert.Equal(0, await verify.Database.SqlQuery<long>($"""
             SELECT "Actual" AS "Value" FROM cloud.liveui_token_reservations WHERE "PlanReservationId" = {expired}
             """).SingleAsync());
-        verify.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = expired, TenantId = tenant.Id, ApplicationId = app.Id,
-            ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "test", ClaimedAt = now });
+        verify.ExecutionClaims.Add(new CloudExecutionClaim
+        {
+            ReservationId = expired,
+            TenantId = tenant.Id,
+            ApplicationId = app.Id,
+            ClaimId = Guid.NewGuid(),
+            DeploymentId = deploymentId,
+            Region = "test",
+            ClaimedAt = now
+        });
         await Assert.ThrowsAsync<DbUpdateException>(() => verify.SaveChangesAsync());
     }
 
@@ -100,14 +142,16 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "LiveUI quota", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow;
         var expiry = now.AddMinutes(5);
-        var planId = Guid.NewGuid(); var tokenId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var tokenId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.QuotaBuckets.AddRange(Bucket(planId, tenant.Id, app.Id, "plan", 10, now), Bucket(tokenId, tenant.Id, app.Id, "token", 100, now));
@@ -128,7 +172,8 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         await using var verify = await factory.CreateDbContextAsync();
         var plan = await verify.QuotaBuckets.SingleAsync(item => item.Id == planId);
         var tokens = await verify.QuotaBuckets.SingleAsync(item => item.Id == tokenId);
-        Assert.Equal(5, plan.Reserved); Assert.Equal(100, tokens.Reserved);
+        Assert.Equal(5, plan.Reserved);
+        Assert.Equal(100, tokens.Reserved);
         Assert.Equal(5, await verify.QuotaReservations.CountAsync(item => item.TenantId == tenant.Id && item.ApplicationId == app.Id));
         Assert.Equal(5, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_token_reservations WHERE \"TenantId\" = {tenant.Id} AND \"ApplicationId\" = {app.Id}").SingleAsync());
         var reservationId = results[first].ReservationId!.Value;
@@ -175,12 +220,15 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "LiveUI duplicate quota", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var now = DateTimeOffset.UtcNow; var planId = Guid.NewGuid(); var tokenId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var planId = Guid.NewGuid();
+        var tokenId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.QuotaBuckets.AddRange(Bucket(planId, tenant.Id, app.Id, "plan", 10, now), Bucket(tokenId, tenant.Id, app.Id, "token", 100, now));
@@ -203,15 +251,19 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "LiveUI legacy quota", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var now = DateTimeOffset.UtcNow; var expiry = now.AddMinutes(5); var bucketId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var expiry = now.AddMinutes(5);
+        var bucketId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(Bucket(bucketId, tenant.Id, app.Id, "plan", 10, now)); await db.SaveChangesAsync();
+            db.QuotaBuckets.Add(Bucket(bucketId, tenant.Id, app.Id, "plan", 10, now));
+            await db.SaveChangesAsync();
         }
         var dual = new CloudLiveUIDualQuotaService(new EfCloudLiveUIDualQuotaStore(factory, TimeProvider.System), TimeProvider.System);
         var request = new CloudLiveUIDualQuotaRequest(tenant.Id, app.Id, Guid.NewGuid(), "key", new byte[32], 20, expiry);
@@ -228,8 +280,17 @@ public sealed class CloudLiveUIDualQuotaPostgresTests
     }
 
     private static CloudQuotaBucket Bucket(Guid id, Guid tenant, Guid application, string unit, long limit, DateTimeOffset now) =>
-        new() { Id = id, TenantId = tenant, ApplicationId = application, CapabilityId = "inference.liveui", Unit = unit,
-            PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = limit };
+        new()
+        {
+            Id = id,
+            TenantId = tenant,
+            ApplicationId = application,
+            CapabilityId = "inference.liveui",
+            Unit = unit,
+            PeriodStart = now.AddMinutes(-1),
+            PeriodEnd = now.AddHours(1),
+            Limit = limit
+        };
 
     private sealed class Factory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>
     {

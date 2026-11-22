@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenConnect.Docs.Components.DocumentDemo;
 using OpenConnect.Docs.Services;
 using OpenConnect.Docs.Services.DocumentDemo;
-using OpenConnect.Docs.Components.DocumentDemo;
 using OpenConnect.Documents;
 using Xunit;
 

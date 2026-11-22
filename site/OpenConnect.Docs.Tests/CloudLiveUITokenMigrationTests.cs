@@ -32,18 +32,29 @@ public sealed class CloudLiveUITokenMigrationTests
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Migration fixture", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var now = DateTimeOffset.UtcNow; var bucketId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var bucketId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id,
-                CapabilityId = "inference.liveui", Unit = "plan", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 5 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucketId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = "inference.liveui",
+                Unit = "plan",
+                PeriodStart = now.AddMinutes(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 5
+            });
             await db.SaveChangesAsync();
         }
         var legacy = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
         CloudQuotaRequest Request(Guid id) => new(tenant.Id, app.Id, "inference.liveui", "plan", id, "key", new byte[32], 1, now.AddMinutes(5));
         var before = await legacy.ReserveAsync(Request(Guid.NewGuid()), default);
         Assert.Equal("reserved", before.Status);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var after = await legacy.ReserveAsync(Request(Guid.NewGuid()), default);
         Assert.Equal("reserved", after.Status);
         await using var verify = await factory.CreateDbContextAsync();

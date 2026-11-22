@@ -14,7 +14,8 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var subject = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(subject, "Host evidence", CancellationToken.None);
@@ -22,9 +23,18 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
         var id = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Credentials.Add(new CloudCredential { Id = id, TenantId = tenant.Id, ApplicationId = app.Id,
-                Environment = "Development", KeyHash = new byte[32], Fingerprint = "fingerprint", Scopes = "[]",
-                IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddHours(1) });
+            db.Credentials.Add(new CloudCredential
+            {
+                Id = id,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                Environment = "Development",
+                KeyHash = new byte[32],
+                Fingerprint = "fingerprint",
+                Scopes = "[]",
+                IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
+            });
             await db.SaveChangesAsync();
         }
         var identity = new CloudCredentialIdentity(id, tenant.Id, app.Id, "Development", new HashSet<string>());
@@ -33,9 +43,17 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
         var eventId = Guid.NewGuid();
         var evidence = OpenConnect.Privacy.HostPrivacyEvidence.Create(eventId, context,
             new(true, "masked", [new(0, 4, "EMAIL")], OpenConnect.Abstractions.SecurityPolicyAction.Mask, "reason"));
-        var json = JsonSerializer.SerializeToElement(new { schemaVersion = "openconnect.privacy-evidence.v1", eventId,
-            tenantId = evidence.TenantId, destination = evidence.Destination.ToString(), allowed = evidence.Allowed,
-            action = evidence.Action.ToString(), reasonCode = evidence.ReasonCode, categories = evidence.Categories });
+        var json = JsonSerializer.SerializeToElement(new
+        {
+            schemaVersion = "openconnect.privacy-evidence.v1",
+            eventId,
+            tenantId = evidence.TenantId,
+            destination = evidence.Destination.ToString(),
+            allowed = evidence.Allowed,
+            action = evidence.Action.ToString(),
+            reasonCode = evidence.ReasonCode,
+            categories = evidence.Categories
+        });
         var report = CloudHostPrivacyReportParser.Parse(json, identity);
         var store = new CloudHostPrivacyEvidenceStore(factory);
         var results = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => store.AppendAsync(identity, report, CancellationToken.None)));
@@ -52,8 +70,14 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
         Assert.Equal(1, page.Statistics.Allowed);
         Assert.Equal(new CloudPrivacyActionTotal("Mask", 1), Assert.Single(page.Statistics.Actions));
         Assert.Equal(new CloudPrivacyCategoryTotal("EMAIL", 1), Assert.Single(page.Statistics.Categories));
-        var blocked = report with { EventId = Guid.NewGuid(), Allowed = false, ReasonCode = "policy_blocked",
-            Action = OpenConnect.Abstractions.SecurityPolicyAction.Block, CategoryCounts = "{\"EMAIL\":2,\"PHONE\":1}" };
+        var blocked = report with
+        {
+            EventId = Guid.NewGuid(),
+            Allowed = false,
+            ReasonCode = "policy_blocked",
+            Action = OpenConnect.Abstractions.SecurityPolicyAction.Block,
+            CategoryCounts = "{\"EMAIL\":2,\"PHONE\":1}"
+        };
         Assert.True(await store.AppendAsync(identity, blocked, CancellationToken.None));
         Assert.True(await store.AppendAsync(identity, blocked, CancellationToken.None));
         Assert.False(await store.AppendAsync(identity, blocked with { ReasonCode = "inspection_failed" }, CancellationToken.None));
@@ -110,10 +134,12 @@ public sealed class CloudHostPrivacyEvidencePostgresTests
     private static string ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var item in value.ToByteArray(bigEndian: true)) number = (number << 8) | item;
+        foreach (var item in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | item;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return new string(encoded);
     }
 

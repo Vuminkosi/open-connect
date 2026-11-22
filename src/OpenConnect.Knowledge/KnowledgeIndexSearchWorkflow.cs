@@ -38,8 +38,10 @@ public sealed class KnowledgeIndexSearchWorkflow(KnowledgeIndexClient index, Kno
             using var status = await _index.StatusAsync(context, submission.JobId, submission.ApplicationId,
                 submission.CollectionId, submission.DocumentId, roles, deadline.Token).ConfigureAwait(false);
             var state = status.RootElement.GetProperty("result").GetProperty("state").GetString();
-            if (state == "completed") break;
-            if (state == "dead") throw new InvalidOperationException("The knowledge indexing job failed.");
+            if (state == "completed")
+                break;
+            if (state == "dead")
+                throw new InvalidOperationException("The knowledge indexing job failed.");
             await Task.Delay(TimeSpan.FromSeconds(1), deadline.Token).ConfigureAwait(false);
         }
         return await _search.SearchHybridAsync(context, submission.ApplicationId, submission.CollectionId,

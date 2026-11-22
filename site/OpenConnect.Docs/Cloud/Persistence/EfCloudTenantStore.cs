@@ -50,7 +50,8 @@ public sealed class EfCloudTenantStore(
         var authorized = await db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantId &&
             x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId &&
             (x.Role == "Owner" || x.Role == "Administrator"), cancellationToken);
-        if (!authorized) return null;
+        if (!authorized)
+            return null;
         return await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
                 db.Memberships.Any(actor => actor.TenantId == tenantId && actor.SubjectIssuer == subject.Issuer &&
                     actor.SubjectId == subject.SubjectId && (actor.Role == "Owner" || actor.Role == "Administrator")))
@@ -66,13 +67,18 @@ public sealed class EfCloudTenantStore(
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var actorRole = await db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId &&
             x.SubjectIssuer == actor.Issuer && x.SubjectId == actor.SubjectId).Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
-        if (actorRole is null) return await FailAsync("not_found", null, null);
-        if (actorRole != TenantOwner) return await FailAsync("forbidden", actorRole, null);
+        if (actorRole is null)
+            return await FailAsync("not_found", null, null);
+        if (actorRole != TenantOwner)
+            return await FailAsync("forbidden", actorRole, null);
         var member = await db.Memberships.SingleOrDefaultAsync(x => x.TenantId == tenantId &&
             x.SubjectIssuer == target.Issuer && x.SubjectId == target.SubjectId, cancellationToken);
-        if (member is null) return await FailAsync("not_found", actorRole, null);
-        if (member.Revision != expectedRevision) return await FailAsync("conflict", actorRole, member.Revision);
-        if (member.Revision == int.MaxValue) return await FailAsync("conflict", actorRole, member.Revision);
+        if (member is null)
+            return await FailAsync("not_found", actorRole, null);
+        if (member.Revision != expectedRevision)
+            return await FailAsync("conflict", actorRole, member.Revision);
+        if (member.Revision == int.MaxValue)
+            return await FailAsync("conflict", actorRole, member.Revision);
         if (member.Role == TenantOwner && role != TenantOwner &&
             await db.Memberships.CountAsync(x => x.TenantId == tenantId && x.Role == TenantOwner, cancellationToken) <= 1)
             return await FailAsync("last_owner", actorRole, null);
@@ -83,11 +89,14 @@ public sealed class EfCloudTenantStore(
         if (role is null)
         {
             var history = await db.MembershipRevisions.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.SubjectHash == targetHash, cancellationToken);
-            if (history is null) db.MembershipRevisions.Add(new CloudMembershipRevision { TenantId = tenantId, SubjectHash = targetHash, LastRevision = revision });
-            else history.LastRevision = Math.Max(history.LastRevision, revision);
+            if (history is null)
+                db.MembershipRevisions.Add(new CloudMembershipRevision { TenantId = tenantId, SubjectHash = targetHash, LastRevision = revision });
+            else
+                history.LastRevision = Math.Max(history.LastRevision, revision);
             db.Memberships.Remove(member);
         }
-        else { member.Role = role; member.Revision = revision; }
+        else
+        { member.Role = role; member.Revision = revision; }
         var action = role is null ? $"membership.removed.{previousRole}" : $"membership.role_changed.{previousRole}.{role}";
         db.AuditEvents.Add(CreateAudit(actor, tenantId, actorRole, action, targetHash, timeProvider.GetUtcNow()));
         try
@@ -107,11 +116,15 @@ public sealed class EfCloudTenantStore(
             await using var auditDb = await contextFactory.CreateDbContextAsync(cancellationToken);
             auditDb.AuditEvents.Add(new CloudAuditEvent
             {
-                Id = Guid.NewGuid(), TenantId = authenticatedRole is null ? null : tenantId,
-                SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-                ActorRole = authenticatedRole ?? "AuthenticatedUser", Action = "membership.change",
+                Id = Guid.NewGuid(),
+                TenantId = authenticatedRole is null ? null : tenantId,
+                SubjectIssuer = actor.Issuer,
+                SubjectId = actor.SubjectId,
+                ActorRole = authenticatedRole ?? "AuthenticatedUser",
+                Action = "membership.change",
                 ResourceId = authenticatedRole is null ? tenantId.ToString("D") : CloudIdentityFingerprint.Compute(target),
-                Outcome = outcome, OccurredAt = timeProvider.GetUtcNow(),
+                Outcome = outcome,
+                OccurredAt = timeProvider.GetUtcNow(),
             });
             await auditDb.SaveChangesAsync(cancellationToken);
             return new(outcome, currentRevision);
@@ -157,7 +170,11 @@ public sealed class EfCloudTenantStore(
         var now = timeProvider.GetUtcNow();
         var application = new CloudApplication
         {
-            Id = Guid.NewGuid(), TenantId = tenantId, Name = name.Trim(), Environment = environment, CreatedAt = now,
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Name = name.Trim(),
+            Environment = environment,
+            CreatedAt = now,
         };
         db.Applications.Add(application);
         db.AuditEvents.Add(CreateAudit(subject, tenantId, role, "application.created", application.Id.ToString("D"), now));
@@ -173,8 +190,15 @@ public sealed class EfCloudTenantStore(
 
     private static CloudAuditEvent CreateAudit(
         CloudSubject subject, Guid tenantId, string role, string action, string resourceId, DateTimeOffset now) => new()
-    {
-        Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer, SubjectId = subject.SubjectId,
-        ActorRole = role, Action = action, ResourceId = resourceId, Outcome = "succeeded", OccurredAt = now,
-    };
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role,
+            Action = action,
+            ResourceId = resourceId,
+            Outcome = "succeeded",
+            OccurredAt = now,
+        };
 }

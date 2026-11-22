@@ -33,15 +33,25 @@ public sealed class KnowledgeIndexClient : IDisposable
         Func<EgressContext, string, string, string, IReadOnlyList<string>, CancellationToken, ValueTask<bool>> authorizeStatus,
         bool allowInsecureHttp = false, bool ownsHttp = false)
     {
-        ArgumentNullException.ThrowIfNull(http); ArgumentNullException.ThrowIfNull(gate); ArgumentNullException.ThrowIfNull(endpoint); ArgumentNullException.ThrowIfNull(key);
-        ArgumentNullException.ThrowIfNull(authorizeSubmit); ArgumentNullException.ThrowIfNull(authorizeStatus);
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(gate);
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(authorizeSubmit);
+        ArgumentNullException.ThrowIfNull(authorizeStatus);
         if (!endpoint.IsAbsoluteUri || !string.IsNullOrEmpty(endpoint.UserInfo) ||
             !(endpoint.Scheme == Uri.UriSchemeHttps || (allowInsecureHttp && endpoint.Scheme == Uri.UriSchemeHttp)))
             throw new ArgumentException("A trusted worker endpoint is required.", nameof(endpoint));
         if (string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) || key.Length < 32)
             throw new ArgumentException("Worker credentials are invalid.");
-        _http = http; _gate = gate; _endpoint = new Uri(endpoint, "/internal/v1/execute"); _token = token;
-        _key = (byte[])key.Clone(); _authorizeSubmit = authorizeSubmit; _authorizeStatus = authorizeStatus; _ownsHttp = ownsHttp;
+        _http = http;
+        _gate = gate;
+        _endpoint = new Uri(endpoint, "/internal/v1/execute");
+        _token = token;
+        _key = (byte[])key.Clone();
+        _authorizeSubmit = authorizeSubmit;
+        _authorizeStatus = authorizeStatus;
+        _ownsHttp = ownsHttp;
     }
 
     /// <summary>Queues one authorized immutable object reference; the caller owns the receipt.</summary>
@@ -52,12 +62,23 @@ public sealed class KnowledgeIndexClient : IDisposable
         ArgumentNullException.ThrowIfNull(submission);
         if (!await _authorizeSubmit(context, submission, cancellationToken).ConfigureAwait(false))
             throw new UnauthorizedAccessException("Knowledge indexing was not authorized.");
-        var payload = new { jobId = submission.JobId, applicationId = submission.ApplicationId,
-            collectionId = submission.CollectionId, documentId = submission.DocumentId, sourceRevision = submission.SourceRevision,
-            embeddingSpaceId = submission.EmbeddingSpaceId, objectId = submission.ObjectId, objectSha256 = submission.ObjectSha256,
-            objectSize = submission.ObjectSize, objectVersion = submission.ObjectVersion,
-            expectedGeneration = submission.ExpectedGeneration, principals = submission.Principals, roles = submission.Roles,
-            documentExpiresAt = submission.DocumentExpiresAt };
+        var payload = new
+        {
+            jobId = submission.JobId,
+            applicationId = submission.ApplicationId,
+            collectionId = submission.CollectionId,
+            documentId = submission.DocumentId,
+            sourceRevision = submission.SourceRevision,
+            embeddingSpaceId = submission.EmbeddingSpaceId,
+            objectId = submission.ObjectId,
+            objectSha256 = submission.ObjectSha256,
+            objectSize = submission.ObjectSize,
+            objectVersion = submission.ObjectVersion,
+            expectedGeneration = submission.ExpectedGeneration,
+            principals = submission.Principals,
+            roles = submission.Roles,
+            documentExpiresAt = submission.DocumentExpiresAt
+        };
         return await SendAsync(context, "knowledge.index", payload, submission.JobId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -67,7 +88,8 @@ public sealed class KnowledgeIndexClient : IDisposable
     {
         ValidateContext(context);
         ArgumentNullException.ThrowIfNull(roleIds);
-        if (roleIds.Count > 64) throw new ArgumentException("The indexing status request is invalid.");
+        if (roleIds.Count > 64)
+            throw new ArgumentException("The indexing status request is invalid.");
         var roles = Array.AsReadOnly(roleIds.ToArray());
         if (jobId == Guid.Empty || !KnowledgeIndexSubmission.Identifier(applicationId) ||
             !KnowledgeIndexSubmission.Identifier(collectionId) || !KnowledgeIndexSubmission.Identifier(documentId) ||
@@ -75,8 +97,15 @@ public sealed class KnowledgeIndexClient : IDisposable
             throw new ArgumentException("The indexing status request is invalid.");
         if (!await _authorizeStatus(context, applicationId, collectionId, documentId, roles, cancellationToken).ConfigureAwait(false))
             throw new UnauthorizedAccessException("Knowledge indexing status was not authorized.");
-        var payload = new { jobId, applicationId, collectionId, documentId,
-            principalId = context.Principal.Value.ToString(), roleIds = roles };
+        var payload = new
+        {
+            jobId,
+            applicationId,
+            collectionId,
+            documentId,
+            principalId = context.Principal.Value.ToString(),
+            roleIds = roles
+        };
         return await SendAsync(context, "knowledge.index.status", payload, jobId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -117,9 +146,18 @@ public sealed class KnowledgeIndexClient : IDisposable
         await PrivacyJsonInspection.DemandGateUnchangedAsync(_gate, JsonSerializer.SerializeToElement(payload), context, cancellationToken).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString("N");
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId, kind,
-            tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5), expiresAt = now.AddMinutes(2), payload });
-        if (body.Length > 128 * 1024) throw new ArgumentException("The indexing request is too large.");
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind,
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload
+        });
+        if (body.Length > 128 * 1024)
+            throw new ArgumentException("The indexing request is too large.");
         using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
         request.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_key, body)).ToLowerInvariant());
@@ -131,14 +169,16 @@ public sealed class KnowledgeIndexClient : IDisposable
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException("The knowledge worker rejected the request.", null, response.StatusCode);
         const int maximum = 16384;
-        if (response.Content.Headers.ContentLength > maximum) throw new InvalidOperationException("Invalid worker response.");
+        if (response.Content.Headers.ContentLength > maximum)
+            throw new InvalidOperationException("Invalid worker response.");
         await using var input = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
         using var buffer = new MemoryStream();
         var chunk = new byte[4096];
         int count;
         while ((count = await input.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
         {
-            if (buffer.Length + count > maximum) throw new InvalidOperationException("Invalid worker response.");
+            if (buffer.Length + count > maximum)
+                throw new InvalidOperationException("Invalid worker response.");
             buffer.Write(chunk, 0, count);
         }
         var document = JsonDocument.Parse(buffer.ToArray());
@@ -156,20 +196,23 @@ public sealed class KnowledgeIndexClient : IDisposable
     {
         Properties(root, "schemaVersion", "taskId", "kind", "result");
         if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" || root.GetProperty("taskId").GetString() != taskId ||
-            root.GetProperty("kind").GetString() != kind) Invalid();
+            root.GetProperty("kind").GetString() != kind)
+            Invalid();
         var result = root.GetProperty("result");
         if (kind == "knowledge.index")
         {
             Properties(result, "job_id", "created");
             if (!result.GetProperty("job_id").TryGetGuid(out var returned) || returned != jobId ||
-                result.GetProperty("created").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) Invalid();
+                result.GetProperty("created").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                Invalid();
         }
         else if (kind == "knowledge.index.delete")
         {
             Properties(result, "generation", "reconciliation_state");
             if (expectedDeleteGeneration is null || !result.GetProperty("generation").TryGetInt64(out var generation) ||
                 generation != expectedDeleteGeneration.Value + 1 || result.GetProperty("reconciliation_state").GetString()
-                    is not ("pending" or "leased" or "delivered" or "dead")) Invalid();
+                    is not ("pending" or "leased" or "delivered" or "dead"))
+                Invalid();
         }
         else
         {
@@ -180,26 +223,32 @@ public sealed class KnowledgeIndexClient : IDisposable
             if (state is not ("pending" or "leased" or "completed" or "dead") ||
                 !result.GetProperty("attempts").TryGetInt32(out var attempts) || attempts is < 0 or > 8 ||
                 (state == "completed" ? !generation.TryGetInt64(out var value) || value <= 0 : generation.ValueKind != JsonValueKind.Null) ||
-                (retry.ValueKind != JsonValueKind.Null && (state != "pending" || !retry.TryGetDateTimeOffset(out _)))) Invalid();
+                (retry.ValueKind != JsonValueKind.Null && (state != "pending" || !retry.TryGetDateTimeOffset(out _))))
+                Invalid();
         }
     }
 
     private static void Properties(JsonElement value, params string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
-            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
-        if (seen.Count != expected.Length) Invalid();
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
+        if (seen.Count != expected.Length)
+            Invalid();
     }
     private static void Invalid() => throw new InvalidOperationException("Invalid worker response.");
 
     /// <summary>Clears the signing key and disposes an owned transport.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         CryptographicOperations.ZeroMemory(_key);
-        if (_ownsHttp) _http.Dispose();
+        if (_ownsHttp)
+            _http.Dispose();
     }
 }

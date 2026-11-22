@@ -257,7 +257,8 @@ internal static class VoiceRealtimeWebSocketHandler
             captureId = capture.GetString()!;
             if (root.TryGetProperty("clientConnectionId", out var connection) && connection.ValueKind != JsonValueKind.Null)
             {
-                if (connection.ValueKind != JsonValueKind.String || !UlidTryParse(connection.GetString(), out _)) return false;
+                if (connection.ValueKind != JsonValueKind.String || !UlidTryParse(connection.GetString(), out _))
+                    return false;
                 connectionId = connection.GetString();
             }
             return true;
@@ -298,7 +299,8 @@ internal static class VoiceRealtimeWebSocketHandler
     private static Task SendJsonAsync(WebSocket socket, object value, CancellationToken token) => socket.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, JsonOptions)), WebSocketMessageType.Text, true, token);
     internal static async Task CloseAsync(WebSocket socket, WebSocketCloseStatus status, string reason, CancellationToken token)
     {
-        try { await socket.CloseAsync(status, reason, token).ConfigureAwait(false); }
+        try
+        { await socket.CloseAsync(status, reason, token).ConfigureAwait(false); }
         catch (WebSocketException) { }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }

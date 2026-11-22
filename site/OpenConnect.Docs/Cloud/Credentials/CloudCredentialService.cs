@@ -23,8 +23,10 @@ public sealed class CloudCredentialService(
     {
         await using var session = await store.OpenAsync(transactional: false, cancellationToken);
         var role = await session.FindRoleAsync(subject, tenantId, cancellationToken);
-        if (role is null) return (null, true);
-        if (await session.FindApplicationAsync(tenantId, applicationId, cancellationToken) is null) return (null, true);
+        if (role is null)
+            return (null, true);
+        if (await session.FindApplicationAsync(tenantId, applicationId, cancellationToken) is null)
+            return (null, true);
         var rows = await session.ListAsync(tenantId, applicationId, cancellationToken);
         var credentials = rows.Select(x => new CloudCredentialSummary(
             x.Id, x.TenantId, x.ApplicationId, x.Environment, x.Fingerprint,
@@ -38,13 +40,18 @@ public sealed class CloudCredentialService(
     {
         await using var session = await store.OpenAsync(transactional: true, cancellationToken);
         var role = await session.FindRoleAsync(subject, tenantId, cancellationToken);
-        if (role is null) return new("not_found");
-        if (!Administrators.Contains(role, StringComparer.Ordinal)) return new("forbidden");
+        if (role is null)
+            return new("not_found");
+        if (!Administrators.Contains(role, StringComparer.Ordinal))
+            return new("forbidden");
         var scopesResult = await ValidateScopesAsync(session, subject, tenantId, applicationId, requestedScopes, cancellationToken);
-        if (scopesResult.Status != "succeeded") return new(scopesResult.Status);
+        if (scopesResult.Status != "succeeded")
+            return new(scopesResult.Status);
         var application = await session.FindApplicationAsync(tenantId, applicationId, cancellationToken);
-        if (application is null) return new("not_found");
-        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
+        if (application is null)
+            return new("not_found");
+        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow())
+            return new("invalid_expiration");
         var (credential, secret) = NewCredential(tenantId, application, scopesResult.Scopes!, expiresAt, timeProvider.GetUtcNow());
         session.Add(credential);
         session.AddAudit(subject, tenantId, role, "credential.created", credential.Id, timeProvider.GetUtcNow());
@@ -58,18 +65,25 @@ public sealed class CloudCredentialService(
     {
         await using var session = await store.OpenAsync(transactional: true, cancellationToken);
         var role = await session.FindRoleAsync(subject, tenantId, cancellationToken);
-        if (role is null) return new("not_found");
-        if (!Administrators.Contains(role, StringComparer.Ordinal)) return new("forbidden");
+        if (role is null)
+            return new("not_found");
+        if (!Administrators.Contains(role, StringComparer.Ordinal))
+            return new("forbidden");
         var oldCredential = await session.FindAsync(credentialId, tenantId, applicationId, cancellationToken);
-        if (oldCredential is null) return new("not_found");
-        if (oldCredential.RevokedAt is not null) return new("credential_revoked");
-        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow()) return new("invalid_expiration");
+        if (oldCredential is null)
+            return new("not_found");
+        if (oldCredential.RevokedAt is not null)
+            return new("credential_revoked");
+        if (expiresAt is null || expiresAt <= timeProvider.GetUtcNow())
+            return new("invalid_expiration");
 
         var scopes = JsonSerializer.Deserialize<string[]>(oldCredential.Scopes) ?? [];
         var scopesResult = await ValidateScopesAsync(session, subject, tenantId, applicationId, scopes, cancellationToken);
-        if (scopesResult.Status != "succeeded") return new(scopesResult.Status);
+        if (scopesResult.Status != "succeeded")
+            return new(scopesResult.Status);
         var application = await session.FindApplicationAsync(tenantId, applicationId, cancellationToken);
-        if (application is null) return new("not_found");
+        if (application is null)
+            return new("not_found");
 
         var now = timeProvider.GetUtcNow();
         var (newCredential, secret) = NewCredential(tenantId, application, scopes, expiresAt, now);
@@ -86,11 +100,15 @@ public sealed class CloudCredentialService(
     {
         await using var session = await store.OpenAsync(transactional: true, cancellationToken);
         var role = await session.FindRoleAsync(subject, tenantId, cancellationToken);
-        if (role is null) return "not_found";
-        if (!Administrators.Contains(role, StringComparer.Ordinal)) return "forbidden";
+        if (role is null)
+            return "not_found";
+        if (!Administrators.Contains(role, StringComparer.Ordinal))
+            return "forbidden";
         var credential = await session.FindAsync(credentialId, tenantId, applicationId, cancellationToken);
-        if (credential is null) return "not_found";
-        if (credential.RevokedAt is not null) return "succeeded";
+        if (credential is null)
+            return "not_found";
+        if (credential.RevokedAt is not null)
+            return "succeeded";
 
         var now = timeProvider.GetUtcNow();
         credential.RevokedAt = now;
@@ -101,7 +119,8 @@ public sealed class CloudCredentialService(
 
     public async Task<CloudCredentialIdentity?> ValidateAsync(string? presentedSecret, CancellationToken cancellationToken)
     {
-        if (!CloudCredentialSecrets.TryReadId(presentedSecret, out var credentialId)) return null;
+        if (!CloudCredentialSecrets.TryReadId(presentedSecret, out var credentialId))
+            return null;
         await using var session = await store.OpenAsync(transactional: false, cancellationToken);
         var credential = await session.FindAsync(credentialId, null, null, cancellationToken);
         if (credential is null || credential.RevokedAt is not null ||
@@ -111,9 +130,11 @@ public sealed class CloudCredentialService(
             return null;
         }
 
-        if (!CloudCredentialSecrets.Matches(presentedSecret!, credential.KeyHash)) return null;
+        if (!CloudCredentialSecrets.Matches(presentedSecret!, credential.KeyHash))
+            return null;
         var now = timeProvider.GetUtcNow();
-        if (!await session.TouchIfActiveAsync(credential.Id, now, cancellationToken)) return null;
+        if (!await session.TouchIfActiveAsync(credential.Id, now, cancellationToken))
+            return null;
         var scopes = JsonSerializer.Deserialize<string[]>(credential.Scopes) ?? [];
         return new CloudCredentialIdentity(credential.Id, credential.TenantId, credential.ApplicationId, credential.Environment,
             new HashSet<string>(scopes, StringComparer.Ordinal));
@@ -129,13 +150,16 @@ public sealed class CloudCredentialService(
         }
 
         var snapshot = await session.GetCapabilitiesAsync(subject, tenantId, applicationId, cancellationToken);
-        if (snapshot is null) return ("not_found", null);
+        if (snapshot is null)
+            return ("not_found", null);
         var capabilityViews = CloudCapabilityProjection.Application(snapshot, timeProvider.GetUtcNow());
         var byId = capabilityViews.ToDictionary(x => x.Id, StringComparer.Ordinal);
         foreach (var scope in requestedScopes)
         {
-            if (!byId.TryGetValue(scope, out var capability)) return ("invalid_scopes", null);
-            if (!string.IsNullOrEmpty(capability.ReasonCode)) return (capability.ReasonCode, null);
+            if (!byId.TryGetValue(scope, out var capability))
+                return ("invalid_scopes", null);
+            if (!string.IsNullOrEmpty(capability.ReasonCode))
+                return (capability.ReasonCode, null);
         }
         return ("succeeded", requestedScopes.Order(StringComparer.Ordinal).ToArray());
     }
@@ -146,9 +170,15 @@ public sealed class CloudCredentialService(
         var material = CloudCredentialSecrets.Create(application.Environment);
         var credential = new CloudCredential
         {
-            Id = material.Id, TenantId = tenantId, ApplicationId = application.Id, Environment = application.Environment,
-            KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = JsonSerializer.Serialize(scopes), IssuedAt = now, ExpiresAt = expiresAt?.ToUniversalTime(),
+            Id = material.Id,
+            TenantId = tenantId,
+            ApplicationId = application.Id,
+            Environment = application.Environment,
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = JsonSerializer.Serialize(scopes),
+            IssuedAt = now,
+            ExpiresAt = expiresAt?.ToUniversalTime(),
         };
         return (credential, material.Secret);
     }

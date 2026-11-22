@@ -41,9 +41,11 @@ public static class CloudPrivacyCategories
 
     public static IReadOnlyList<CloudPrivacyCategoryCount>? Decode(string? json, string outcome)
     {
-        if (json is null) return null;
+        if (json is null)
+            return null;
         using var document = JsonDocument.Parse(json);
-        if (document.RootElement.ValueKind != JsonValueKind.Object) throw new ArgumentException("Invalid Cloud privacy observation.");
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("Invalid Cloud privacy observation.");
         var items = document.RootElement.EnumerateObject()
             .Select(property => new CloudPrivacyCategoryCount(property.Name, property.Value.GetInt32())).ToArray();
         _ = Encode(items, outcome);

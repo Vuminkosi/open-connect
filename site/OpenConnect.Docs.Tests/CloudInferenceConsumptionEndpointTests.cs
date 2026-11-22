@@ -1,5 +1,5 @@
-using System.Net.Http.Json;
 using System.Net;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
@@ -47,7 +47,8 @@ public sealed class CloudInferenceConsumptionEndpointTests
         async Task<HttpResponseMessage> Send(HttpClient client, string? proof)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, path);
-            if (proof is not null) request.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", proof);
+            if (proof is not null)
+                request.Headers.Add("X-OpenConnect-Worker-Payload-Fingerprint", proof);
             return await client.SendAsync(request);
         }
         var fingerprint = Convert.ToBase64String(new byte[32]);
@@ -86,7 +87,9 @@ public sealed class CloudInferenceConsumptionEndpointTests
         public CloudInferenceTokenUsage? Usage { get; private set; }
         public Task<string> SettleAsync(Guid reservationId, Guid claimId, Guid deploymentId, CloudInferenceTokenUsage usage, CancellationToken cancellationToken)
         {
-            Calls++; DeploymentId = deploymentId; Usage = usage;
+            Calls++;
+            DeploymentId = deploymentId;
+            Usage = usage;
             return Task.FromResult("completed");
         }
     }
@@ -96,7 +99,8 @@ public sealed class CloudInferenceConsumptionEndpointTests
         public Guid DeploymentId { get; private set; }
         public Task<CloudInferenceConsumptionResult> ConsumeAsync(Guid reservationId, Guid claimId, Guid deploymentId, byte[] workerPayloadFingerprint, CancellationToken cancellationToken)
         {
-            Calls++; DeploymentId = deploymentId;
+            Calls++;
+            DeploymentId = deploymentId;
             return Task.FromResult(new CloudInferenceConsumptionResult("consumed", 7, "registry/model-a", "revision-1", "sha256:" + new string('a', 64)));
         }
     }
@@ -107,18 +111,25 @@ public sealed class CloudInferenceConsumptionEndpointTests
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new(client ? "1.3.6.1.5.5.7.3.2" : "1.3.6.1.5.5.7.3.1") }, true));
-        if (!client) { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
+        if (!client)
+        { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
         var data = generated.Export(X509ContentType.Pfx);
-        try { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
+        try
+        { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
         finally { CryptographicOperations.ZeroMemory(data); }
     }
     private static HttpClient Client(Uri address, X509Certificate2 server, X509Certificate2? client)
     {
         var expected = server.GetCertHash(HashAlgorithmName.SHA256);
-        var handler = new HttpClientHandler { UseProxy = false, ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
-            certificate is not null && CryptographicOperations.FixedTimeEquals(expected, certificate.GetCertHash(HashAlgorithmName.SHA256)) };
-        if (client is not null) handler.ClientCertificates.Add(client);
+        var handler = new HttpClientHandler
+        {
+            UseProxy = false,
+            ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
+            certificate is not null && CryptographicOperations.FixedTimeEquals(expected, certificate.GetCertHash(HashAlgorithmName.SHA256))
+        };
+        if (client is not null)
+            handler.ClientCertificates.Add(client);
         return new HttpClient(handler) { BaseAddress = address };
     }
 }

@@ -14,7 +14,8 @@ public sealed class CloudQuotaRecoveryWorker(IServiceScopeFactory scopeFactory, 
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch { logger.LogWarning("Cloud quota recovery failed; reservations remain held."); }
-            try { if (!await timer.WaitForNextTickAsync(stoppingToken)) break; }
+            try
+            { if (!await timer.WaitForNextTickAsync(stoppingToken)) break; }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }

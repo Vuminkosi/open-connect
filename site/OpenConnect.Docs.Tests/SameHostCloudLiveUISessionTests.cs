@@ -17,14 +17,20 @@ public sealed class SameHostCloudLiveUISessionTests
         var owned = store.Create(tenant, principal);
         var foreignPrincipal = store.Create(tenant, new PrincipalId(Ulid.NewUlid()));
         var foreignTenant = store.Create(new TenantId(Ulid.NewUlid()), principal);
-        var options = new TodoGatewayOptions { Mode = TodoGatewayMode.SameHostGateway,
-            TenantId = tenant.Value.ToString(), PrincipalId = principal.Value.ToString() };
+        var options = new TodoGatewayOptions
+        {
+            Mode = TodoGatewayMode.SameHostGateway,
+            TenantId = tenant.Value.ToString(),
+            PrincipalId = principal.Value.ToString()
+        };
         var resolver = new SameHostCloudLiveUISessionContextProvider(store, options);
 
         var context = await resolver.GetContextAsync(owned.Id.Value.ToString());
         Assert.NotNull(context);
         Assert.Equal(EgressDestination.ExternalModel, context.Destination);
-        Assert.Equal(tenant, context.Tenant); Assert.Equal(principal, context.Principal); Assert.Equal(owned.Id, context.Session);
+        Assert.Equal(tenant, context.Tenant);
+        Assert.Equal(principal, context.Principal);
+        Assert.Equal(owned.Id, context.Session);
         Assert.Null(await resolver.GetContextAsync(foreignPrincipal.Id.Value.ToString()));
         Assert.Null(await resolver.GetContextAsync(foreignTenant.Id.Value.ToString()));
         Assert.Null(await resolver.GetContextAsync(Ulid.NewUlid().ToString()));

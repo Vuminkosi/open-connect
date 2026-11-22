@@ -1427,7 +1427,8 @@ public sealed class LiveUIAgentToolsTests
         var current = Assert.IsAssignableFrom<AIFunction>(tools.Single(tool => tool.Name == "liveui_get_current_page"));
         var page = Assert.IsType<System.Text.Json.JsonElement>(await current.InvokeAsync(new AIFunctionArguments()));
         Assert.Equal(allowed, page.TryGetProperty("applicationAlertText", out _));
-        if (allowed) Assert.Contains("untrusted", page.GetProperty("alertContentNotice").GetString(), StringComparison.Ordinal);
+        if (allowed)
+            Assert.Contains("untrusted", page.GetProperty("alertContentNotice").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1507,7 +1508,8 @@ public sealed class LiveUIAgentToolsTests
         public Task<ClientInteractionResponse?> RequestAsync(SessionId sessionId, ClientInteractionRequest request,
             string expectedResultKind, TimeSpan timeout, CancellationToken cancellationToken = default)
         {
-            if (request.Operation == "execute") MutationRequests++;
+            if (request.Operation == "execute")
+                MutationRequests++;
             return Task.FromResult<ClientInteractionResponse?>(new(request.CorrelationId, expectedResultKind,
                 request.Operation == "execute" ? "{\"outcome\":\"Uncertain\",\"code\":\"action_timeout\",\"postconditionVerified\":false}"
                 : "{\"targets\":[{\"targetId\":\"oc.runtime.alert.123\",\"kind\":\"Region\",\"label\":\"Application alert\"}]}"));

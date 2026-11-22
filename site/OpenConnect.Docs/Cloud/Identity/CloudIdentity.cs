@@ -38,7 +38,8 @@ public static class CloudIdentity
 
     public static bool IsEnabled(ClaimsPrincipal? principal, IConfigurationSection identity)
     {
-        if (principal?.Identity?.IsAuthenticated != true) return false;
+        if (principal?.Identity?.IsAuthenticated != true)
+            return false;
         var issuer = GetIssuer(principal);
         if (issuer is null)
         {

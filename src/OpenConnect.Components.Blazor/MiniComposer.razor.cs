@@ -302,12 +302,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!VoiceInputBlocked || !_micOn) return;
+        if (!VoiceInputBlocked || !_micOn)
+            return;
         _micOn = false;
         if (_voiceActive)
         {
             _voiceActive = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false); }
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false); }
             catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
         }
         if (Session.MicrophoneState == ComposerMicrophoneState.ListeningLive)
@@ -607,7 +609,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleMicrophoneAsync()
     {
-        if (VoiceInputBlocked) return;
+        if (VoiceInputBlocked)
+            return;
         _micOn = !_micOn;
         if (!_micOn && _voiceActive)
         {
@@ -967,7 +970,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleVoiceAsync()
     {
-        if (VoiceInputBlocked) return;
+        if (VoiceInputBlocked)
+            return;
         if (!_micOn)
         {
             Session.MarkError("Microphone is turned off. Turn it on before starting voice input.");
@@ -1073,7 +1077,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         _sessionCreationFailed = false;
         _sessionCreationTask = null;
-        try { await EnsureSessionAsync(); }
+        try
+        { await EnsureSessionAsync(); }
         catch (Exception ex) { Session.MarkError(FriendlyError(ex)); }
     }
 

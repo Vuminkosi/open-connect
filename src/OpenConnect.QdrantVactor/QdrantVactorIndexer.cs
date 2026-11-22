@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Observability;
 
@@ -101,7 +101,8 @@ public sealed class QdrantVactorIndexer(
 
     private void LogEvent(string outcome, string stage, Guid eventId)
     {
-        try { Logger?.LogWarning("Qdrant indexing {Outcome} at {Stage} for event {EventId}.", outcome, stage, eventId); }
+        try
+        { Logger?.LogWarning("Qdrant indexing {Outcome} at {Stage} for event {EventId}.", outcome, stage, eventId); }
         catch { /* Logging must not prevent acknowledgement or redelivery. */ }
     }
 }

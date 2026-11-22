@@ -72,14 +72,24 @@ public sealed class DocumentWorkerResponseValidatorTests
         var result = JsonNode.Parse(fixture)!["result"]!;
         switch (mutation)
         {
-            case "failed_page_citation": result["tables"]!["items"]![0]!["page_index"] = 0; break;
-            case "page_order": result["pages"]![1]!["page_index"] = 0; break;
-            case "misleading_status": result["status"] = "completed"; break;
-            case "missing_warning": result["warnings"] = new JsonArray("heuristic_candidates_require_review"); break;
+            case "failed_page_citation":
+                result["tables"]!["items"]![0]!["page_index"] = 0;
+                break;
+            case "page_order":
+                result["pages"]![1]!["page_index"] = 0;
+                break;
+            case "misleading_status":
+                result["status"] = "completed";
+                break;
+            case "missing_warning":
+                result["warnings"] = new JsonArray("heuristic_candidates_require_review");
+                break;
         }
         using var document = JsonDocument.Parse(result.ToJsonString());
-        if (mutation == "valid") DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.analyze");
-        else Assert.Throws<InvalidOperationException>(() => DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.analyze"));
+        if (mutation == "valid")
+            DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.analyze");
+        else
+            Assert.Throws<InvalidOperationException>(() => DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.analyze"));
     }
 
     [Theory]
@@ -98,28 +108,42 @@ public sealed class DocumentWorkerResponseValidatorTests
         var cells = result["tables"]![0]!["cells"]!;
         switch (mutation)
         {
-            case "offset": cells[0]!["start"] = 1; break;
-            case "box": cells[0]!["box"]![0] = 0; break;
-            case "cell_order": cells[0]!["column"] = 1; break;
-            case "missing_warning": result["warnings"] = new JsonArray(); break;
-            case "duplicate_span": cells[1]!["span_indexes"]![0] = 0; break;
+            case "offset":
+                cells[0]!["start"] = 1;
+                break;
+            case "box":
+                cells[0]!["box"]![0] = 0;
+                break;
+            case "cell_order":
+                cells[0]!["column"] = 1;
+                break;
+            case "missing_warning":
+                result["warnings"] = new JsonArray();
+                break;
+            case "duplicate_span":
+                cells[1]!["span_indexes"]![0] = 0;
+                break;
             case "misaligned_column":
                 result["pages"]![0]!["spans"]![2]!["box"]![0] = 0.3;
                 result["pages"]![0]!["spans"]![2]!["box"]![2] = 0.4;
-                cells[2]!["box"]![0] = 0.3; cells[2]!["box"]![2] = 0.4;
+                cells[2]!["box"]![0] = 0.3;
+                cells[2]!["box"]![2] = 0.4;
                 break;
             case "distant_row":
                 for (var i = 2; i < 4; i++)
                 {
                     result["pages"]![0]!["spans"]![i]!["box"]![1] = 0.6;
                     result["pages"]![0]!["spans"]![i]!["box"]![3] = 0.7;
-                    cells[i]!["box"]![1] = 0.6; cells[i]!["box"]![3] = 0.7;
+                    cells[i]!["box"]![1] = 0.6;
+                    cells[i]!["box"]![3] = 0.7;
                 }
                 break;
         }
         using var document = JsonDocument.Parse(result.ToJsonString());
-        if (mutation == "valid") DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.tables");
-        else Assert.Throws<InvalidOperationException>(() => DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.tables"));
+        if (mutation == "valid")
+            DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.tables");
+        else
+            Assert.Throws<InvalidOperationException>(() => DocumentWorkerResponseValidator.Validate(document.RootElement, "documents.tables"));
     }
 
     [Theory]
@@ -139,13 +163,27 @@ public sealed class DocumentWorkerResponseValidatorTests
         var field = root["fields"]![0]!;
         switch (mutation)
         {
-            case "wrong_text": field["value"] = "43"; break;
-            case "wrong_offset": field["label_end"] = 3; break;
-            case "wrong_reference": field["value_span_indexes"]![0] = 0; break;
-            case "wrong_confidence": field["minimum_ocr_confidence"] = 0.9; break;
-            case "invalid_box": page["spans"]![0]!["box"]![2] = 0; break;
-            case "extra_property": page["extra"] = true; break;
-            case "unknown_warning": root["warnings"]!.AsArray().Add("other"); break;
+            case "wrong_text":
+                field["value"] = "43";
+                break;
+            case "wrong_offset":
+                field["label_end"] = 3;
+                break;
+            case "wrong_reference":
+                field["value_span_indexes"]![0] = 0;
+                break;
+            case "wrong_confidence":
+                field["minimum_ocr_confidence"] = 0.9;
+                break;
+            case "invalid_box":
+                page["spans"]![0]!["box"]![2] = 0;
+                break;
+            case "extra_property":
+                page["extra"] = true;
+                break;
+            case "unknown_warning":
+                root["warnings"]!.AsArray().Add("other");
+                break;
             case "missing_citation":
                 page["text"] = "名😀: 42 USD";
                 page["spans"]!.AsArray().Add(JsonNode.Parse("""

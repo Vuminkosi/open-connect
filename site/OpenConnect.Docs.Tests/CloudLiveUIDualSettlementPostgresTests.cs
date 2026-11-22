@@ -12,7 +12,8 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
     public async Task ReconciliationReaderPagesOnlyExpiredConsumedUsageWithoutObservations()
     {
         var unknown = new[] { await Fixture.CreateAsync(), await Fixture.CreateAsync(), await Fixture.CreateAsync() };
-        var observed = await Fixture.CreateAsync(); var fresh = await Fixture.CreateAsync();
+        var observed = await Fixture.CreateAsync();
+        var fresh = await Fixture.CreateAsync();
         var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(observed.Factory, TimeProvider.System));
         Assert.Equal("observed", await service.ObserveAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, new(30, 20), default));
         var expiry = DateTimeOffset.UtcNow.AddMinutes(-10);
@@ -27,11 +28,13 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         for (var page = 0; page < 100; page++)
         {
             var rows = await reader.ReadUnknownAsync(cursor, 2, DateTimeOffset.UtcNow.AddMinutes(-5), default);
-            if (rows.Count == 0) break;
+            if (rows.Count == 0)
+                break;
             all.AddRange(rows);
             cursor = new(rows[^1].ExpiresAt, rows[^1].ReservationId);
         }
-        foreach (var item in unknown) Assert.Single(all, x => x.ReservationId == item.ReservationId && x.ReservedTokens == 100);
+        foreach (var item in unknown)
+            Assert.Single(all, x => x.ReservationId == item.ReservationId && x.ReservedTokens == 100);
         Assert.DoesNotContain(all, x => x.ReservationId == observed.ReservationId || x.ReservationId == fresh.ReservationId);
         Assert.Equal(all.Count, all.Select(x => x.ReservationId).Distinct().Count());
         Assert.Equal("failed", await service.FailAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, new(30, 20), default));
@@ -40,7 +43,9 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
     [CloudPostgresFact]
     public async Task ObservedRecoveryBatchReconcilesExpiredUsageAndLeavesUnknownAndFreshWorkHeld()
     {
-        var observed = await Fixture.CreateAsync(); var unknown = await Fixture.CreateAsync(); var fresh = await Fixture.CreateAsync();
+        var observed = await Fixture.CreateAsync();
+        var unknown = await Fixture.CreateAsync();
+        var fresh = await Fixture.CreateAsync();
         var service = new CloudLiveUIDualSettlement(new EfCloudLiveUIDualSettlementStore(observed.Factory, TimeProvider.System));
         var usage = new CloudLiveUITokenUsage(30, 20);
         Assert.Equal("observed", await service.ObserveAsync(observed.ReservationId, observed.ClaimId, observed.DeploymentId, usage, default));
@@ -83,7 +88,8 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         }
         Assert.Equal("conflict", await service.RecoverAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
         var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => service.RecoverAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default)));
-        Assert.Single(results, result => result == "failed"); Assert.Equal(7, results.Count(result => result == "already_failed"));
+        Assert.Single(results, result => result == "failed");
+        Assert.Equal(7, results.Count(result => result == "already_failed"));
         await using var verify = await fixture.Factory.CreateDbContextAsync();
         Assert.Equal(50, (await verify.QuotaBuckets.SingleAsync(x => x.Id == fixture.TokenBucketId)).Consumed);
         Assert.Equal("observed_recovery", await verify.Database.SqlQuery<string>($"""
@@ -101,7 +107,8 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         Assert.Equal("unavailable", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, Guid.NewGuid(), usage, default));
         Assert.Equal("overage_requires_reconciliation", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(90, 11), default));
         var observations = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, usage, default)));
-        Assert.Single(observations, x => x == "observed"); Assert.Equal(7, observations.Count(x => x == "already_observed"));
+        Assert.Single(observations, x => x == "observed");
+        Assert.Equal(7, observations.Count(x => x == "already_observed"));
         Assert.Equal("conflict", await service.ObserveAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
         Assert.Equal("conflict", await service.FailAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(31, 19), default));
         await using (var before = await fixture.Factory.CreateDbContextAsync())
@@ -132,8 +139,10 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         await using var verify = await fixture.Factory.CreateDbContextAsync();
         var plan = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.PlanBucketId);
         var tokens = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId);
-        Assert.Equal(0, plan.Reserved); Assert.Equal(1, plan.Consumed);
-        Assert.Equal(0, tokens.Reserved); Assert.Equal(50, tokens.Consumed);
+        Assert.Equal(0, plan.Reserved);
+        Assert.Equal(1, plan.Consumed);
+        Assert.Equal(0, tokens.Reserved);
+        Assert.Equal(50, tokens.Consumed);
         Assert.False(await verify.ExecutionCompletions.AnyAsync(item => item.ReservationId == fixture.ReservationId));
         Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_execution_failures WHERE \"PlanReservationId\" = {fixture.ReservationId}").SingleAsync());
         await Assert.ThrowsAsync<PostgresException>(() => verify.Database.ExecuteSqlInterpolatedAsync($"""
@@ -186,8 +195,13 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
                 INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
                 VALUES ({racing.ReservationId}, {racing.ClaimId}, {racing.DeploymentId}, {100}, {now})
                 """);
-            worker.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = racing.ReservationId, ClaimId = racing.ClaimId,
-                DeploymentId = racing.DeploymentId, ConsumedAt = now });
+            worker.ExecutionConsumptions.Add(new CloudExecutionConsumption
+            {
+                ReservationId = racing.ReservationId,
+                ClaimId = racing.ClaimId,
+                DeploymentId = racing.DeploymentId,
+                ConsumedAt = now
+            });
             await worker.SaveChangesAsync();
             await worker.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE cloud.quota_reservations SET "ExpiresAt" = {now.AddMinutes(-10)} WHERE "Id" = {racing.ReservationId}
@@ -242,10 +256,13 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         await using var verify = await fixture.Factory.CreateDbContextAsync();
         var plan = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.PlanBucketId);
         var tokens = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId);
-        Assert.Equal(0, plan.Reserved); Assert.Equal(1, plan.Consumed);
-        Assert.Equal(0, tokens.Reserved); Assert.Equal(50, tokens.Consumed);
+        Assert.Equal(0, plan.Reserved);
+        Assert.Equal(1, plan.Consumed);
+        Assert.Equal(0, tokens.Reserved);
+        Assert.Equal(50, tokens.Consumed);
         var reservation = await verify.QuotaReservations.SingleAsync(item => item.Id == fixture.ReservationId);
-        Assert.Equal(1, reservation.Actual); Assert.NotNull(reservation.FinalizedAt);
+        Assert.Equal(1, reservation.Actual);
+        Assert.NotNull(reservation.FinalizedAt);
         Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.liveui_token_observations WHERE \"PlanReservationId\" = {fixture.ReservationId}").SingleAsync());
         await Assert.ThrowsAsync<PostgresException>(() => verify.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE cloud.liveui_token_observations SET "InputTokens" = {31L} WHERE "PlanReservationId" = {fixture.ReservationId}
@@ -260,7 +277,8 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         Assert.Equal("completed", await service.SettleAsync(fixture.ReservationId, fixture.ClaimId, fixture.DeploymentId, new(0, 0), default));
         await using var verify = await fixture.Factory.CreateDbContextAsync();
         var token = await verify.QuotaBuckets.SingleAsync(item => item.Id == fixture.TokenBucketId);
-        Assert.Equal(0, token.Reserved); Assert.Equal(0, token.Consumed);
+        Assert.Equal(0, token.Reserved);
+        Assert.Equal(0, token.Consumed);
     }
 
     [CloudPostgresFact]
@@ -280,8 +298,13 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         var fixture = await Fixture.CreateAsync(consume: false);
         await using (var db = await fixture.Factory.CreateDbContextAsync())
         {
-            db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = fixture.ReservationId, ClaimId = fixture.ClaimId,
-                DeploymentId = fixture.DeploymentId, ConsumedAt = DateTimeOffset.UtcNow });
+            db.ExecutionConsumptions.Add(new CloudExecutionConsumption
+            {
+                ReservationId = fixture.ReservationId,
+                ClaimId = fixture.ClaimId,
+                DeploymentId = fixture.DeploymentId,
+                ConsumedAt = DateTimeOffset.UtcNow
+            });
             await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }
         await using (var db = await fixture.Factory.CreateDbContextAsync())
@@ -308,19 +331,34 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
             var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
                 .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
             IDbContextFactory<CloudControlPlaneDbContext> factory = new DbFactory(options);
-            await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+            await using (var db = await factory.CreateDbContextAsync())
+                await db.Database.MigrateAsync();
             var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
             var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
             var tenant = await tenants.CreateTenantAsync(owner, "LiveUI settlement", default);
             var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-            var now = DateTimeOffset.UtcNow; var planId = Guid.NewGuid(); var tokenId = Guid.NewGuid(); var deploymentId = Guid.NewGuid();
+            var now = DateTimeOffset.UtcNow;
+            var planId = Guid.NewGuid();
+            var tokenId = Guid.NewGuid();
+            var deploymentId = Guid.NewGuid();
             await using (var db = await factory.CreateDbContextAsync())
             {
                 db.QuotaBuckets.AddRange(Bucket(planId, tenant.Id, app.Id, "plan", now), Bucket(tokenId, tenant.Id, app.Id, "token", now));
-                db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "inference.liveui",
-                    EndpointReference = "fixture-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "test",
-                    ContractVersion = "v1", ModelId = "owner/model", ModelRevision = "revision", ModelDigest = "sha256:" + new string('a', 64),
-                    ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
+                db.WorkerDeployments.Add(new CloudWorkerDeployment
+                {
+                    Id = deploymentId,
+                    CapabilityId = "inference.liveui",
+                    EndpointReference = "fixture-" + Guid.NewGuid().ToString("N"),
+                    Transport = "https-mtls",
+                    Region = "test",
+                    ContractVersion = "v1",
+                    ModelId = "owner/model",
+                    ModelRevision = "revision",
+                    ModelDigest = "sha256:" + new string('a', 64),
+                    ImageDigest = "sha256:" + new string('b', 64),
+                    Enabled = true,
+                    ConcurrencyLimit = 1
+                });
                 await db.SaveChangesAsync();
             }
             CloudQuotaResult reserved;
@@ -335,11 +373,21 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
                 reserved = await quota.ReserveAsync(new(tenant.Id, app.Id, "inference.liveui", "plan", Guid.NewGuid(), "key", new byte[32], 1, now.AddMinutes(5)), default);
             }
             Assert.Equal("reserved", reserved.Status);
-            var reservationId = reserved.ReservationId!.Value; var claimId = Guid.NewGuid();
+            var reservationId = reserved.ReservationId!.Value;
+            var claimId = Guid.NewGuid();
             await using (var db = await factory.CreateDbContextAsync())
             {
-                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenant.Id, ApplicationId = app.Id,
-                    ClaimId = claimId, DeploymentId = deploymentId, Region = "test", WorkerPayloadFingerprint = new byte[32], ClaimedAt = now });
+                db.ExecutionClaims.Add(new CloudExecutionClaim
+                {
+                    ReservationId = reservationId,
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    ClaimId = claimId,
+                    DeploymentId = deploymentId,
+                    Region = "test",
+                    WorkerPayloadFingerprint = new byte[32],
+                    ClaimedAt = now
+                });
                 await db.SaveChangesAsync();
                 if (consume)
                 {
@@ -349,8 +397,13 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
                             INSERT INTO cloud.liveui_metered_consumption_authorizations ("PlanReservationId", "ClaimId", "DeploymentId", "ContextTokens", "AuthorizedAt")
                             VALUES ({reservationId}, {claimId}, {deploymentId}, {100}, {now})
                             """);
-                    db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = reservationId, ClaimId = claimId,
-                        DeploymentId = deploymentId, ConsumedAt = now });
+                    db.ExecutionConsumptions.Add(new CloudExecutionConsumption
+                    {
+                        ReservationId = reservationId,
+                        ClaimId = claimId,
+                        DeploymentId = deploymentId,
+                        ConsumedAt = now
+                    });
                     await db.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
@@ -359,8 +412,17 @@ public sealed class CloudLiveUIDualSettlementPostgresTests
         }
 
         private static CloudQuotaBucket Bucket(Guid id, Guid tenant, Guid app, string unit, DateTimeOffset now) =>
-            new() { Id = id, TenantId = tenant, ApplicationId = app, CapabilityId = "inference.liveui", Unit = unit,
-                PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 1000 };
+            new()
+            {
+                Id = id,
+                TenantId = tenant,
+                ApplicationId = app,
+                CapabilityId = "inference.liveui",
+                Unit = unit,
+                PeriodStart = now.AddMinutes(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 1000
+            };
     }
 
     private sealed class DbFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>

@@ -30,7 +30,8 @@ public static class CloudIdentityEndpoints
                 "google" when googleEnabled => CloudIdentity.GoogleScheme,
                 _ => null,
             };
-            if (scheme is null) return Results.NotFound();
+            if (scheme is null)
+                return Results.NotFound();
             return Results.Challenge(new AuthenticationProperties { RedirectUri = CloudReturnUrl(returnUrl) }, [scheme]);
         });
         app.MapPost("/cloud/sign-out", async (HttpContext context, IAntiforgery antiforgery) =>

@@ -25,7 +25,8 @@ public sealed class MafFirewallGuardedChatClientTests
         var guarded = new FirewallGuardedChatClient(inner, new EgressGate(new EvidenceRecordingPrivacyFirewall(firewall, sink)), Provider);
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync(
             [new ChatMessage(ChatRole.User, output ? "safe" : encoded)]));
-        if (!output) Assert.Null(inner.LastText);
+        if (!output)
+            Assert.Null(inner.LastText);
         Assert.Contains(sink.Events, evidence => !evidence.Allowed && evidence.Categories.ContainsKey("EMAIL") &&
             evidence.Destination == (output ? EgressDestination.Output : EgressDestination.ExternalModel));
         Assert.DoesNotContain(encoded, System.Text.Json.JsonSerializer.Serialize(sink.Events), StringComparison.Ordinal);
@@ -80,7 +81,8 @@ public sealed class MafFirewallGuardedChatClientTests
         if (streaming)
             await Assert.ThrowsAsync<PrivacyBlockedException>(async () =>
             {
-                await foreach (var _ in guarded.GetStreamingResponseAsync(messages)) { }
+                await foreach (var _ in guarded.GetStreamingResponseAsync(messages))
+                { }
             });
         else
             await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync(messages));
@@ -254,8 +256,11 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Split_sensitive_value_in_model_tool_arguments_is_blocked_before_return()
     {
-        var inner = new TestChatClient { OutputMessage = new ChatMessage(ChatRole.Assistant,
-            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["parts"] = new[] { "alice@", "example.com" } })]) };
+        var inner = new TestChatClient
+        {
+            OutputMessage = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["parts"] = new[] { "alice@", "example.com" } })])
+        };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request")]));
@@ -276,9 +281,12 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Sensitive_value_split_across_model_tool_calls_is_blocked_before_return()
     {
-        var inner = new TestChatClient { OutputMessage = new ChatMessage(ChatRole.Assistant,
+        var inner = new TestChatClient
+        {
+            OutputMessage = new ChatMessage(ChatRole.Assistant,
             [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["value"] = "alice@" }),
-             new FunctionCallContent("call-2", "lookup", new Dictionary<string, object?> { ["value"] = "example.com" })]) };
+             new FunctionCallContent("call-2", "lookup", new Dictionary<string, object?> { ["value"] = "example.com" })])
+        };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
         await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "request")]));
@@ -399,8 +407,11 @@ public sealed class MafFirewallGuardedChatClientTests
     public async Task Escaped_sensitive_tool_arguments_never_leave_the_response_uninspected()
     {
         using var json = System.Text.Json.JsonDocument.Parse("""{"email":"person\u0040example.test"}""");
-        var inner = new TestChatClient { OutputMessage = new ChatMessage(ChatRole.Assistant,
-            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["payload"] = json.RootElement })]) };
+        var inner = new TestChatClient
+        {
+            OutputMessage = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("call-1", "lookup", new Dictionary<string, object?> { ["payload"] = json.RootElement })])
+        };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
             new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
@@ -573,7 +584,8 @@ public sealed class MafFirewallGuardedChatClientTests
         var inner = new TestChatClient();
         var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
         var contents = new List<AIContent>();
-        if (withText) contents.Add(new TextContent("describe this"));
+        if (withText)
+            contents.Add(new TextContent("describe this"));
         contents.Add(new DataContent(new byte[] { 1, 2, 3 }, "image/png"));
         var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
             guarded.GetResponseAsync([new ChatMessage(ChatRole.User, contents)]));
@@ -609,9 +621,12 @@ public sealed class MafFirewallGuardedChatClientTests
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
         var message = new ChatMessage(ChatRole.Assistant, [new FunctionCallContent(
             field == "call" ? email : "call-1", field == "name" ? email : "lookup", new Dictionary<string, object?>())]);
-        if (field == "message") message.MessageId = email;
-        if (field == "author") message.AuthorName = email;
-        if (field == "result") message = new ChatMessage(ChatRole.Tool, [new FunctionResultContent(email, "ok")]);
+        if (field == "message")
+            message.MessageId = email;
+        if (field == "author")
+            message.AuthorName = email;
+        if (field == "result")
+            message = new ChatMessage(ChatRole.Tool, [new FunctionResultContent(email, "ok")]);
         var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() => guarded.GetResponseAsync([message]));
         Assert.DoesNotContain(email, error.ToString(), StringComparison.Ordinal);
         Assert.Equal(0, inner.Calls);
@@ -620,8 +635,11 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Response_rejects_sensitive_tool_identifiers()
     {
-        var inner = new TestChatClient { OutputMessage = new ChatMessage(ChatRole.Assistant,
-            [new FunctionCallContent("person@example.test", "lookup", new Dictionary<string, object?>())]) };
+        var inner = new TestChatClient
+        {
+            OutputMessage = new ChatMessage(ChatRole.Assistant,
+            [new FunctionCallContent("person@example.test", "lookup", new Dictionary<string, object?>())])
+        };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
             new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
@@ -707,10 +725,14 @@ public sealed class MafFirewallGuardedChatClientTests
     {
         const string email = "person@example.test";
         var output = new ChatResponse([new ChatMessage(ChatRole.Assistant, "visible")]);
-        if (field == "response") output.ResponseId = email;
-        if (field == "conversation") output.ConversationId = email;
-        if (field == "model") output.ModelId = email;
-        if (field == "finish") output.FinishReason = new ChatFinishReason(email);
+        if (field == "response")
+            output.ResponseId = email;
+        if (field == "conversation")
+            output.ConversationId = email;
+        if (field == "model")
+            output.ModelId = email;
+        if (field == "finish")
+            output.FinishReason = new ChatFinishReason(email);
         var inner = new TestChatClient { OutputResponse = output };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()), new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
@@ -732,10 +754,18 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Response_preserves_standard_usage_without_arbitrary_metadata()
     {
-        var usage = new UsageDetails { InputTokenCount = 12, OutputTokenCount = 5, TotalTokenCount = 17,
-            AdditionalCounts = new() { ["person@example.test"] = 1 } };
-        var inner = new TestChatClient { OutputMessage = new ChatMessage(ChatRole.Assistant,
-            [new TextContent("visible"), new UsageContent(usage)]) };
+        var usage = new UsageDetails
+        {
+            InputTokenCount = 12,
+            OutputTokenCount = 5,
+            TotalTokenCount = 17,
+            AdditionalCounts = new() { ["person@example.test"] = 1 }
+        };
+        var inner = new TestChatClient
+        {
+            OutputMessage = new ChatMessage(ChatRole.Assistant,
+            [new TextContent("visible"), new UsageContent(usage)])
+        };
         var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
         var response = await guarded.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")]);
         var safe = Assert.Single(Assert.Single(response.Messages).Contents.OfType<UsageContent>()).Details;
@@ -748,8 +778,15 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Streaming_preserves_standard_usage_without_arbitrary_metadata()
     {
-        var inner = new TestChatClient { StreamUsage = new UsageDetails { InputTokenCount = 12, OutputTokenCount = 5,
-            AdditionalCounts = new() { ["person@example.test"] = 1 } } };
+        var inner = new TestChatClient
+        {
+            StreamUsage = new UsageDetails
+            {
+                InputTokenCount = 12,
+                OutputTokenCount = 5,
+                AdditionalCounts = new() { ["person@example.test"] = 1 }
+            }
+        };
         var guarded = new FirewallGuardedChatClient(inner, new FakeGate(Allow), Provider);
         var updates = new List<ChatResponseUpdate>();
         await foreach (var update in guarded.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hello")]))
@@ -778,9 +815,12 @@ public sealed class MafFirewallGuardedChatClientTests
     [Fact]
     public async Task Response_blocks_sensitive_value_split_across_messages()
     {
-        var inner = new TestChatClient { OutputMessages =
+        var inner = new TestChatClient
+        {
+            OutputMessages =
             [new ChatMessage(ChatRole.Assistant, "Contact alice@"),
-             new ChatMessage(ChatRole.Assistant, "example.test now")] };
+             new ChatMessage(ChatRole.Assistant, "example.test now")]
+        };
         var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
             new PolicyEngine(new RulesSecurityDetector())));
         var guarded = new FirewallGuardedChatClient(inner, gate, Provider);
@@ -852,7 +892,7 @@ public sealed class MafFirewallGuardedChatClientTests
             LastMessages = messages.ToList();
             LastText = LastMessages.Last(message => message.Role == ChatRole.User).Text;
             return Task.FromResult(OutputResponse ?? new ChatResponse(OutputMessages ?? [OutputMessage ?? new ChatMessage(ChatRole.Assistant, Output ?? LastText)])
-                { RawRepresentation = "private-provider-response" });
+            { RawRepresentation = "private-provider-response" });
         }
 
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)

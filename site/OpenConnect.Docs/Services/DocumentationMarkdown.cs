@@ -29,7 +29,8 @@ internal static class DocumentationMarkdown
             var text = PlainText(heading);
             var id = ids.Next(text);
             heading.GetAttributes().Id = id;
-            if (heading.Level is 2 or 3) headings.Add(new DocumentationHeading(heading.Level, text, id));
+            if (heading.Level is 2 or 3)
+                headings.Add(new DocumentationHeading(heading.Level, text, id));
             heading.Level = Math.Min(heading.Level + 1, 6);
         }
         foreach (var link in document.Descendants<LinkInline>())
@@ -52,17 +53,23 @@ internal static class DocumentationMarkdown
         var text = new StringBuilder();
         if (heading.Inline is not null)
             foreach (var inline in heading.Inline.Descendants<Inline>())
-                if (inline is LiteralInline literal) text.Append(literal.Content.ToString());
-                else if (inline is CodeInline code) text.Append(code.Content);
-                else if (inline is LineBreakInline) text.Append(' ');
+                if (inline is LiteralInline literal)
+                    text.Append(literal.Content.ToString());
+                else if (inline is CodeInline code)
+                    text.Append(code.Content);
+                else if (inline is LineBreakInline)
+                    text.Append(' ');
         return text.ToString().Trim();
     }
 
     private static bool AllowedLink(string? value)
     {
-        if (string.IsNullOrEmpty(value) || value.Any(c => char.IsControl(c) || char.IsWhiteSpace(c) || c == '\\')) return false;
-        if (value.StartsWith('#')) return true;
-        if (value.StartsWith('/')) return !value.StartsWith("//", StringComparison.Ordinal);
+        if (string.IsNullOrEmpty(value) || value.Any(c => char.IsControl(c) || char.IsWhiteSpace(c) || c == '\\'))
+            return false;
+        if (value.StartsWith('#'))
+            return true;
+        if (value.StartsWith('/'))
+            return !value.StartsWith("//", StringComparison.Ordinal);
         return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp) && string.IsNullOrEmpty(uri.UserInfo);
     }

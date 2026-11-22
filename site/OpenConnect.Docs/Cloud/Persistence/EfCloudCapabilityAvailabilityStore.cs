@@ -30,11 +30,14 @@ public sealed class EfCloudCapabilityAvailabilityStore(IDbContextFactory<CloudCo
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var capability = await db.Capabilities.FromSqlInterpolated($"SELECT * FROM cloud.capabilities WHERE \"Id\" = {capabilityId} FOR UPDATE")
             .SingleOrDefaultAsync(cancellationToken);
-        if (capability is null) { await RecordAsync(actor, traceId, capabilityId, "not_found", false, cancellationToken); return new("not_found"); }
+        if (capability is null)
+        { await RecordAsync(actor, traceId, capabilityId, "not_found", false, cancellationToken); return new("not_found"); }
         var revisions = await db.Database.SqlQuery<long>($"SELECT \"Revision\" AS \"Value\" FROM cloud.capability_availability_revisions WHERE \"CapabilityId\" = {capabilityId}")
             .ToListAsync(cancellationToken);
-        if (revisions.Count != 1) return new("unavailable");
-        if (revisions[0] != revision) { await RecordAsync(actor, traceId, capabilityId, "conflict", false, cancellationToken); return new("conflict"); }
+        if (revisions.Count != 1)
+            return new("unavailable");
+        if (revisions[0] != revision)
+        { await RecordAsync(actor, traceId, capabilityId, "conflict", false, cancellationToken); return new("conflict"); }
         // Hold matching inventory rows until the declaration commits. Inventory
         // can still change afterward; this declaration is not a live health check.
         if (availability == "available" && (await db.WorkerDeployments.FromSqlInterpolated($"""
@@ -62,8 +65,14 @@ public sealed class EfCloudCapabilityAvailabilityStore(IDbContextFactory<CloudCo
 
     private CloudAuditEvent Audit(CloudSubject actor, string traceId, string capabilityId, string outcome, bool denied) => new()
     {
-        Id = Guid.NewGuid(), SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId, ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator",
-        Action = "catalog.availability.changed", ResourceId = capabilityId.Length <= 80 ? capabilityId : null,
-        Outcome = outcome, TraceId = traceId, OccurredAt = timeProvider.GetUtcNow(),
+        Id = Guid.NewGuid(),
+        SubjectIssuer = actor.Issuer,
+        SubjectId = actor.SubjectId,
+        ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator",
+        Action = "catalog.availability.changed",
+        ResourceId = capabilityId.Length <= 80 ? capabilityId : null,
+        Outcome = outcome,
+        TraceId = traceId,
+        OccurredAt = timeProvider.GetUtcNow(),
     };
 }

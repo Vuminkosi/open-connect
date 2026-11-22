@@ -3,8 +3,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using OpenConnect.Privacy;
 using OpenConnect.Abstractions;
+using OpenConnect.Privacy;
 
 namespace OpenConnect.Documents;
 
@@ -62,7 +62,8 @@ public sealed class ExtractionWorkerClient : IDisposable
             context.Destination != EgressDestination.Worker || document.Length == 0 || document.EnumerateRunes().Count() > 100_000 ||
             schema.ValueKind != JsonValueKind.Object)
             throw new ArgumentException("Invalid extraction request.");
-        try { _ = StrictUtf8.GetByteCount(document); }
+        try
+        { _ = StrictUtf8.GetByteCount(document); }
         catch (EncoderFallbackException) { throw new ArgumentException("Invalid extraction request."); }
         var stableSchema = schema.Clone();
         var schemaText = stableSchema.GetRawText();
@@ -78,15 +79,24 @@ public sealed class ExtractionWorkerClient : IDisposable
         await DemandUnchangedAsync(document, context, operationToken).ConfigureAwait(false);
         await PrivacyJsonInspection.DemandUnchangedAsync(_firewall, stableSchema, context, operationToken).ConfigureAwait(false);
         operationToken.ThrowIfCancellationRequested();
-        if (!_firewall.Enabled) throw new PrivacyBlockedException("Extraction was blocked by privacy policy.");
+        if (!_firewall.Enabled)
+            throw new PrivacyBlockedException("Extraction was blocked by privacy policy.");
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString("N");
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "documents.extract", tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5),
-            expiresAt = now.AddMinutes(2), payload = new { document, extractionSchema = stableSchema } });
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "documents.extract",
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload = new { document, extractionSchema = stableSchema }
+        });
         try
         {
-            if (body.Length > 512 * 1024) throw new ArgumentException("Invalid extraction request.");
+            if (body.Length > 512 * 1024)
+                throw new ArgumentException("Invalid extraction request.");
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
             request.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_key, body)).ToLowerInvariant());
@@ -105,7 +115,8 @@ public sealed class ExtractionWorkerClient : IDisposable
                 int count;
                 while ((count = await stream.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
                 {
-                    if (buffer.Length + count > 128 * 1024) throw new InvalidOperationException("The extraction worker response is too large.");
+                    if (buffer.Length + count > 128 * 1024)
+                        throw new InvalidOperationException("The extraction worker response is too large.");
                     buffer.Write(chunk, 0, count);
                 }
                 buffer.Position = 0;
@@ -114,7 +125,8 @@ public sealed class ExtractionWorkerClient : IDisposable
                 {
                     var root = result.RootElement;
                     var names = new HashSet<string>(StringComparer.Ordinal);
-                    if (root.ValueKind != JsonValueKind.Object) throw new InvalidOperationException("Invalid extraction response.");
+                    if (root.ValueKind != JsonValueKind.Object)
+                        throw new InvalidOperationException("Invalid extraction response.");
                     foreach (var property in root.EnumerateObject())
                         if (property.Name is not ("schemaVersion" or "taskId" or "kind" or "result") || !names.Add(property.Name))
                             throw new InvalidOperationException("Invalid extraction response.");
@@ -131,7 +143,8 @@ public sealed class ExtractionWorkerClient : IDisposable
             finally
             {
                 CryptographicOperations.ZeroMemory(chunk);
-                if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan());
+                if (buffer.TryGetBuffer(out var bytes))
+                    CryptographicOperations.ZeroMemory(bytes.AsSpan());
             }
         }
         finally { CryptographicOperations.ZeroMemory(body); }
@@ -157,7 +170,8 @@ public sealed class ExtractionWorkerClient : IDisposable
         handler.ConnectCallback = async (_, cancellationToken) =>
         {
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            try { await socket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false); return new NetworkStream(socket, true); }
+            try
+            { await socket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false); return new NetworkStream(socket, true); }
             catch { socket.Dispose(); throw; }
         };
         return new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(2) };
@@ -170,15 +184,17 @@ public sealed class ExtractionWorkerClient : IDisposable
             !(endpoint.Scheme == Uri.UriSchemeHttps || allowInsecureHttp && endpoint.Scheme == Uri.UriSchemeHttp))
             throw new ArgumentException("A trusted worker endpoint is required.", nameof(endpoint));
         return new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false })
-            { Timeout = TimeSpan.FromMinutes(2) };
+        { Timeout = TimeSpan.FromMinutes(2) };
     }
 
     /// <summary>Clears the signing key and disposes the owned transport.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         CryptographicOperations.ZeroMemory(_key);
-        if (_ownsClient) _client.Dispose();
+        if (_ownsClient)
+            _client.Dispose();
     }
 }

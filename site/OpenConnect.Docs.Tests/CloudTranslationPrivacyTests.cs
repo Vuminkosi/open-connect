@@ -9,7 +9,8 @@ public sealed class CloudTranslationPrivacyTests
     [Fact]
     public async Task InputScreensWorkerFieldsAndCountsUnicodeScalars()
     {
-        var identity = Identity(); var id = Guid.NewGuid();
+        var identity = Identity();
+        var id = Guid.NewGuid();
         var service = new CloudTranslationPrivacyService(new RulesSecurityDetector());
         var input = new CloudTranslationPrivacyInput("Hello \U0001f30d", "eng_Latn", "fra_Latn");
         var allowed = await service.InspectInputAsync(identity, id, input, default);
@@ -26,7 +27,8 @@ public sealed class CloudTranslationPrivacyTests
     [Fact]
     public async Task OutputScreensTranslatedTextAndFailsClosed()
     {
-        var identity = Identity(); var id = Guid.NewGuid();
+        var identity = Identity();
+        var id = Guid.NewGuid();
         var service = new CloudTranslationPrivacyService(new RulesSecurityDetector());
         Assert.Equal("allowed", (await service.InspectOutputAsync(identity, id, "Bonjour", default)).Code);
         Assert.Equal("privacy_blocked", (await service.InspectOutputAsync(identity, id, "person@example.test", default)).Code);

@@ -24,17 +24,36 @@ public sealed class DocumentExtractionWorkflowTests
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             var taskId = body.RootElement.GetProperty("taskId").GetString();
-            return Json(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.ocr", result = new { pages = new[] {
-                Page("🙂", 1), Page("Total: 42", 9) } } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "documents.ocr",
+                result = new
+                {
+                    pages = new[] {
+                Page("🙂", 1), Page("Total: 42", 9) }
+                }
+            });
         }));
         using var extractHttp = new HttpClient(new Handler(async request =>
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             Assert.Equal("🙂\nTotal: 42", body.RootElement.GetProperty("payload").GetProperty("document").GetString());
             var taskId = body.RootElement.GetProperty("taskId").GetString();
-            return Json(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.extract", result = new {
-                fields = new { total = new { value = 42, start = 9, end = 11 } },
-                warnings = new[] { "source_support_not_semantic_validation" }, schema_valid = true, confidence_method = "not_estimated" } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "documents.extract",
+                result = new
+                {
+                    fields = new { total = new { value = 42, start = 9, end = 11 } },
+                    warnings = new[] { "source_support_not_semantic_validation" },
+                    schema_valid = true,
+                    confidence_method = "not_estimated"
+                }
+            });
         }));
         var firewall = new Firewall();
         using var documents = new DocumentWorkerClient(docHttp, "token", Key, firewall, Options.Create(new PrivacyOptions()),
@@ -58,15 +77,30 @@ public sealed class DocumentExtractionWorkflowTests
         using var docHttp = new HttpClient(new Handler(async request =>
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Json(new { schemaVersion = "openconnect.v1", taskId = body.RootElement.GetProperty("taskId").GetString(),
-                kind = "documents.ocr", result = new { pages = new[] { Page("🙂", 1), Page("Total: 42", 9) } } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = body.RootElement.GetProperty("taskId").GetString(),
+                kind = "documents.ocr",
+                result = new { pages = new[] { Page("🙂", 1), Page("Total: 42", 9) } }
+            });
         }));
         using var extractHttp = new HttpClient(new Handler(async request =>
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Json(new { schemaVersion = "openconnect.v1", taskId = body.RootElement.GetProperty("taskId").GetString(),
-                kind = "documents.extract", result = new { fields = new { value = new { value = "🙂\nTotal", start = 0, end = 7 } },
-                    warnings = new[] { "source_support_not_semantic_validation" }, schema_valid = true, confidence_method = "not_estimated" } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = body.RootElement.GetProperty("taskId").GetString(),
+                kind = "documents.extract",
+                result = new
+                {
+                    fields = new { value = new { value = "🙂\nTotal", start = 0, end = 7 } },
+                    warnings = new[] { "source_support_not_semantic_validation" },
+                    schema_valid = true,
+                    confidence_method = "not_estimated"
+                }
+            });
         }));
         var firewall = new Firewall();
         using var documents = new DocumentWorkerClient(docHttp, "token", Key, firewall, Options.Create(new PrivacyOptions()),
@@ -89,8 +123,13 @@ public sealed class DocumentExtractionWorkflowTests
         {
             docCalls++;
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Json(new { schemaVersion = "openconnect.v1", taskId = body.RootElement.GetProperty("taskId").GetString(),
-                kind = "documents.ocr", result = new { pages = new[] { Page("Total: 42", 9) } } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = body.RootElement.GetProperty("taskId").GetString(),
+                kind = "documents.ocr",
+                result = new { pages = new[] { Page("Total: 42", 9) } }
+            });
         }));
         using var extractHttp = new HttpClient(new Handler(_ => { extractionCalls++; throw new InvalidOperationException("must not send"); }));
         var firewall = new Firewall();
@@ -112,15 +151,30 @@ public sealed class DocumentExtractionWorkflowTests
         {
             schema.Dispose();
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Json(new { schemaVersion = "openconnect.v1", taskId = body.RootElement.GetProperty("taskId").GetString(),
-                kind = "documents.ocr", result = new { pages = new[] { Page("Total: 42", 9) } } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = body.RootElement.GetProperty("taskId").GetString(),
+                kind = "documents.ocr",
+                result = new { pages = new[] { Page("Total: 42", 9) } }
+            });
         }));
         using var extractHttp = new HttpClient(new Handler(async request =>
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Json(new { schemaVersion = "openconnect.v1", taskId = body.RootElement.GetProperty("taskId").GetString(),
-                kind = "documents.extract", result = new { fields = new { total = new { value = 42, start = 7, end = 9 } },
-                    warnings = new[] { "source_support_not_semantic_validation" }, schema_valid = true, confidence_method = "not_estimated" } });
+            return Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = body.RootElement.GetProperty("taskId").GetString(),
+                kind = "documents.extract",
+                result = new
+                {
+                    fields = new { total = new { value = 42, start = 7, end = 9 } },
+                    warnings = new[] { "source_support_not_semantic_validation" },
+                    schema_valid = true,
+                    confidence_method = "not_estimated"
+                }
+            });
         }));
         var firewall = new Firewall();
         using var documents = new DocumentWorkerClient(docHttp, "token", Key, firewall, Options.Create(new PrivacyOptions()),
@@ -130,9 +184,16 @@ public sealed class DocumentExtractionWorkflowTests
         Assert.Equal(0, result.Citations["total"]!.PageIndex);
     }
 
-    private static object Page(string text, int length) => new { text, width = 10, height = 10,
-        model_id = "fixture", model_fingerprint = new string('a', 64), language = "eng",
-        spans = new[] { new { text, start = 0, end = length, box = new[] { 0.0, 0.0, 1.0, 1.0 }, confidence = .9 } } };
+    private static object Page(string text, int length) => new
+    {
+        text,
+        width = 10,
+        height = 10,
+        model_id = "fixture",
+        model_fingerprint = new string('a', 64),
+        language = "eng",
+        spans = new[] { new { text, start = 0, end = length, box = new[] { 0.0, 0.0, 1.0, 1.0 }, confidence = .9 } }
+    };
 
     private static HttpResponseMessage Json(object value) => new(HttpStatusCode.OK)
     { Content = new StringContent(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json") };

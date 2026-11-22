@@ -12,7 +12,8 @@ public sealed class CloudLiveUIPrivacyTests
     public async Task ChecksIntentRouteLabelsAndValuesSplitAcrossFields()
     {
         var service = new CloudLiveUIPrivacyService(new RulesSecurityDetector());
-        var identity = Identity(); var requestId = Guid.NewGuid();
+        var identity = Identity();
+        var requestId = Guid.NewGuid();
         Assert.Equal("allowed", (await service.EvaluateAsync(identity, requestId, ["v1", "show tasks", "route.root", "task.tab", "activate", "Tasks"], default)).Code);
         Assert.Equal("privacy_blocked", (await service.EvaluateAsync(identity, requestId, ["v1", "show tasks", "route.root", "task.tab", "activate", "person@example.test"], default)).Code);
         Assert.Equal("privacy_blocked", (await service.EvaluateAsync(identity, requestId, ["v1", "person@", "example.test"], default)).Code);
@@ -24,7 +25,8 @@ public sealed class CloudLiveUIPrivacyTests
     [Fact]
     public async Task CancellationIsPropagated()
     {
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
         var service = new CloudLiveUIPrivacyService(new RulesSecurityDetector());
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.EvaluateAsync(Identity(), Guid.NewGuid(), ["v1", "safe", "route"], cancelled.Token));
     }
@@ -33,7 +35,8 @@ public sealed class CloudLiveUIPrivacyTests
     public async Task OutputChecksEachFieldAndCombinedContent()
     {
         var service = new CloudLiveUIOutputPrivacyService(new RulesSecurityDetector());
-        var identity = Identity(); var requestId = Guid.NewGuid();
+        var identity = Identity();
+        var requestId = Guid.NewGuid();
         Assert.Equal("allowed", (await service.EvaluateAsync(identity, requestId, ["v1", "activate", "tasks.tab"], default)).Code);
         Assert.Equal("privacy_blocked", (await service.EvaluateAsync(identity, requestId, ["v1", "person@", "example.test"], default)).Code);
         Assert.Equal("detector_unavailable", (await new CloudLiveUIOutputPrivacyService(null).EvaluateAsync(identity, requestId, ["v1", "activate", "tasks.tab"], default)).Code);

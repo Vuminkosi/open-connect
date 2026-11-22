@@ -308,10 +308,16 @@ public sealed class KnowledgeSearchClientTests
     {
         Content = new StringContent(JsonSerializer.Serialize(new
         {
-            schemaVersion = "openconnect.v1", taskId, kind = "knowledge.search", result = new
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.search",
+            result = new
             {
-                model_id = "model", fingerprint = new string('a', 64), score_type = "raw_logit",
-                warnings = Array.Empty<string>(), hits = new[] { new { rerank_score = 1.0, hit = new
+                model_id = "model",
+                fingerprint = new string('a', 64),
+                score_type = "raw_logit",
+                warnings = Array.Empty<string>(),
+                hits = new[] { new { rerank_score = 1.0, hit = new
                 {
                     document_id = "doc", source_revision = "v1", chunk_id = new string('b', 64), page_id = "page",
                     page_index = 0, start = 0, end, text, score = 0.5

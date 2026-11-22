@@ -26,23 +26,28 @@ internal sealed class SpeechPrivacyMiddleware(RequestDelegate next)
         byte[] rewritten;
         try
         {
-            if (context.Request.ContentLength > MaximumBodyBytes) { context.Response.StatusCode = 413; return; }
+            if (context.Request.ContentLength > MaximumBodyBytes)
+            { context.Response.StatusCode = 413; return; }
             using var buffer = new MemoryStream();
             var bytes = new byte[4096];
             int count;
             while ((count = await context.Request.Body.ReadAsync(bytes, context.RequestAborted)) > 0)
             {
-                if (buffer.Length + count > MaximumBodyBytes) { context.Response.StatusCode = 413; return; }
+                if (buffer.Length + count > MaximumBodyBytes)
+                { context.Response.StatusCode = 413; return; }
                 await buffer.WriteAsync(bytes.AsMemory(0, count), context.RequestAborted);
             }
             using var document = JsonDocument.Parse(buffer.ToArray(), new JsonDocumentOptions { MaxDepth = 16 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object) { context.Response.StatusCode = 400; return; }
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            { context.Response.StatusCode = 400; return; }
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             string? textName = null;
             foreach (var property in document.RootElement.EnumerateObject())
             {
-                if (!Fields.Contains(property.Name) || !seen.Add(property.Name)) { context.Response.StatusCode = 400; return; }
-                if (property.Name.Equals("text", StringComparison.OrdinalIgnoreCase)) textName = property.Name;
+                if (!Fields.Contains(property.Name) || !seen.Add(property.Name))
+                { context.Response.StatusCode = 400; return; }
+                if (property.Name.Equals("text", StringComparison.OrdinalIgnoreCase))
+                    textName = property.Name;
             }
             if (textName is null || document.RootElement.GetProperty(textName).ValueKind != JsonValueKind.String ||
                 document.RootElement.GetProperty(textName).GetString() is not { Length: > 0 and <= 2000 } text)
@@ -54,7 +59,8 @@ internal sealed class SpeechPrivacyMiddleware(RequestDelegate next)
             var sanitized = await DemandAllowedAsync(gate, text, scope, context.RequestAborted);
             foreach (var property in document.RootElement.EnumerateObject())
             {
-                if (property.Name == textName || property.Value.ValueKind != JsonValueKind.String) continue;
+                if (property.Name == textName || property.Value.ValueKind != JsonValueKind.String)
+                    continue;
                 var value = property.Value.GetString()!;
                 if (!string.Equals(await DemandAllowedAsync(gate, value, scope, context.RequestAborted), value, StringComparison.Ordinal))
                 { context.Response.StatusCode = 403; return; }
@@ -74,7 +80,8 @@ internal sealed class SpeechPrivacyMiddleware(RequestDelegate next)
         using var forwardedBody = new MemoryStream(rewritten, writable: false);
         context.Request.Body = forwardedBody;
         context.Request.ContentLength = rewritten.Length;
-        try { await next(context); }
+        try
+        { await next(context); }
         finally { context.Request.Body = originalBody; context.Request.ContentLength = originalLength; }
     }
 

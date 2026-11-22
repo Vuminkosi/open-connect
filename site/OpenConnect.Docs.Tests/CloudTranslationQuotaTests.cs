@@ -8,7 +8,8 @@ public sealed class CloudTranslationQuotaTests
     [Fact]
     public async Task RejectsInvalidScopeCharacterCountFingerprintAndDeadlineBeforeStore()
     {
-        var store = new Store(); var service = new CloudTranslationQuota(store, TimeProvider.System);
+        var store = new Store();
+        var service = new CloudTranslationQuota(store, TimeProvider.System);
         var request = new CloudQuotaRequest(Guid.NewGuid(), Guid.NewGuid(), "translation.translate", "character", Guid.NewGuid(),
             "active", new byte[32], 4, DateTimeOffset.UtcNow.AddMinutes(1));
         foreach (var invalid in new[] { request with { CapabilityId = "voice.synthesize" }, request with { Unit = "request" },
@@ -27,7 +28,8 @@ public sealed class CloudTranslationQuotaTests
         public CloudQuotaRequest? Last { get; private set; }
         public Task<CloudQuotaResult> ReserveAsync(CloudQuotaRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
-            Calls++; Last = request;
+            Calls++;
+            Last = request;
             return Task.FromResult(new CloudQuotaResult("reserved", Guid.NewGuid()));
         }
     }

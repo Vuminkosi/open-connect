@@ -13,28 +13,70 @@ public sealed class CloudKnowledgeEmbeddingSettlementPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Embedding settlement", default);
         var application = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow;
-        var bucket = Guid.NewGuid(); var reservation = Guid.NewGuid(); var claim = Guid.NewGuid();
-        var deployment = Guid.NewGuid(); var request = Guid.NewGuid(); var fingerprint = new byte[32];
+        var bucket = Guid.NewGuid();
+        var reservation = Guid.NewGuid();
+        var claim = Guid.NewGuid();
+        var deployment = Guid.NewGuid();
+        var request = Guid.NewGuid();
+        var fingerprint = new byte[32];
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucket, TenantId = tenant.Id, ApplicationId = application.Id,
-                CapabilityId = "knowledge.embed", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10, Reserved = 1 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deployment, CapabilityId = "knowledge.embed",
-                EndpointReference = "embedding-" + deployment.ToString("N"), Transport = "https-mtls", Region = "region-a",
-                ContractVersion = "openconnect.v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucket,
+                TenantId = tenant.Id,
+                ApplicationId = application.Id,
+                CapabilityId = "knowledge.embed",
+                Unit = "request",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 10,
+                Reserved = 1
+            });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deployment,
+                CapabilityId = "knowledge.embed",
+                EndpointReference = "embedding-" + deployment.ToString("N"),
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "openconnect.v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 1
+            });
             await db.SaveChangesAsync();
-            db.QuotaReservations.Add(new CloudQuotaReservation { Id = reservation, BucketId = bucket, TenantId = tenant.Id,
-                ApplicationId = application.Id, RequestId = request, Amount = 1, ExpiresAt = now.AddMinutes(1),
-                FingerprintKeyId = "active", RequestFingerprint = fingerprint });
+            db.QuotaReservations.Add(new CloudQuotaReservation
+            {
+                Id = reservation,
+                BucketId = bucket,
+                TenantId = tenant.Id,
+                ApplicationId = application.Id,
+                RequestId = request,
+                Amount = 1,
+                ExpiresAt = now.AddMinutes(1),
+                FingerprintKeyId = "active",
+                RequestFingerprint = fingerprint
+            });
             await db.SaveChangesAsync();
-            db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = reservation, ClaimId = claim, TenantId = tenant.Id,
-                ApplicationId = application.Id, DeploymentId = deployment, Region = "region-a", WorkerPayloadFingerprint = new byte[32], ClaimedAt = now });
+            db.ExecutionClaims.Add(new CloudExecutionClaim
+            {
+                ReservationId = reservation,
+                ClaimId = claim,
+                TenantId = tenant.Id,
+                ApplicationId = application.Id,
+                DeploymentId = deployment,
+                Region = "region-a",
+                WorkerPayloadFingerprint = new byte[32],
+                ClaimedAt = now
+            });
             await db.SaveChangesAsync();
             db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = reservation, ClaimId = claim, DeploymentId = deployment, ConsumedAt = now });
             await db.SaveChangesAsync();

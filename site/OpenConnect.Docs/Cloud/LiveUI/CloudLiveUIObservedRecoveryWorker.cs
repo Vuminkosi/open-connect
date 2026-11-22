@@ -15,7 +15,8 @@ public sealed class CloudLiveUIObservedRecoveryWorker(IServiceScopeFactory scope
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch { logger.LogWarning("Cloud LiveUI observed usage recovery failed; reservations remain held."); }
-            try { if (!await timer.WaitForNextTickAsync(stoppingToken)) break; }
+            try
+            { if (!await timer.WaitForNextTickAsync(stoppingToken)) break; }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }

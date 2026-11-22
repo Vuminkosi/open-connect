@@ -44,7 +44,8 @@ internal sealed class DocumentationVoiceBridge(DocumentationVoiceTickets tickets
         }.Uri;
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-        try { await upstream.ConnectAsync(target, connectTimeout.Token); }
+        try
+        { await upstream.ConnectAsync(target, connectTimeout.Token); }
         catch (Exception) when (!context.RequestAborted.IsCancellationRequested)
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
@@ -56,7 +57,8 @@ internal sealed class DocumentationVoiceBridge(DocumentationVoiceTickets tickets
         var toBrowser = RelayAsync(upstream, browser, false, lifetime.Token);
         await Task.WhenAny(toGateway, toBrowser);
         lifetime.Cancel();
-        try { await Task.WhenAll(toGateway, toBrowser); }
+        try
+        { await Task.WhenAll(toGateway, toBrowser); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (WebSocketException) { }
     }
@@ -74,7 +76,8 @@ internal sealed class DocumentationVoiceBridge(DocumentationVoiceTickets tickets
                 return;
             }
             if (limitAudio && result.MessageType == WebSocketMessageType.Binary &&
-                (audioBytes += result.Count) > MaxAudio) return;
+                (audioBytes += result.Count) > MaxAudio)
+                return;
             await destination.SendAsync(buffer.AsMemory(0, result.Count), result.MessageType, result.EndOfMessage, ct);
         }
     }

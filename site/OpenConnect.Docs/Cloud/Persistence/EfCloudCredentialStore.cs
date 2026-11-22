@@ -45,19 +45,31 @@ public sealed class EfCloudCredentialStore(IDbContextFactory<CloudControlPlaneDb
 
         public void Add(CloudCredential credential) => db.Credentials.Add(credential);
         public void AddAudit(CloudSubject subject, Guid tenantId, string role, string action, Guid credentialId, DateTimeOffset now) =>
-            db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-                SubjectId = subject.SubjectId, ActorRole = role, Action = action, ResourceId = credentialId.ToString("D"), Outcome = "succeeded", OccurredAt = now });
+            db.AuditEvents.Add(new CloudAuditEvent
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                SubjectIssuer = subject.Issuer,
+                SubjectId = subject.SubjectId,
+                ActorRole = role,
+                Action = action,
+                ResourceId = credentialId.ToString("D"),
+                Outcome = "succeeded",
+                OccurredAt = now
+            });
 
         public async Task CommitAsync(CancellationToken cancellationToken)
         {
-            if (transaction is null) throw new InvalidOperationException("A transaction is required for credential writes.");
+            if (transaction is null)
+                throw new InvalidOperationException("A transaction is required for credential writes.");
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 
         public async ValueTask DisposeAsync()
         {
-            try { if (transaction is not null) await transaction.DisposeAsync(); }
+            try
+            { if (transaction is not null) await transaction.DisposeAsync(); }
             finally { await db.DisposeAsync(); }
         }
     }

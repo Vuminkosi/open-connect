@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Options;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Compiler;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Compiler.Tests;

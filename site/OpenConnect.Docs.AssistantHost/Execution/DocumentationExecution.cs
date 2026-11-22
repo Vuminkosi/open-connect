@@ -40,10 +40,18 @@ internal sealed class DocumentationExecutionInputsFactory(
             "documentation-assistant", "documentation-v1", "maf", "v1", "configured-provider");
         var context = new AgentExecutionContext
         {
-            TenantScope = task.TenantId.Value.ToString(), PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(),
-            IdentityKind = AgentIdentityMode.ActiveUser, SessionId = task.SessionId, TaskId = task.TaskId,
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1, PolicyRevision = 1,
-            AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(3), RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+            TenantScope = task.TenantId.Value.ToString(),
+            PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(),
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = task.SessionId,
+            TaskId = task.TaskId,
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
+            Deadline = DateTimeOffset.UtcNow.AddMinutes(3),
+            RemainingBudgets = ImmutableDictionary<string, long>.Empty,
             CancellationToken = cancellationToken
         };
         var egress = new EgressContext(task.TenantId, task.PrincipalId, task.SessionId, EgressDestination.ExternalModel);

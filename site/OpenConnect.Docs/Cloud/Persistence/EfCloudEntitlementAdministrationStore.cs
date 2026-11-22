@@ -24,16 +24,21 @@ public sealed class EfCloudEntitlementAdministrationStore(IDbContextFactory<Clou
             string? failure = null;
             if (current is null)
             {
-                if (revision != 0) failure = "conflict";
-                else if (!await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken) || !await db.Capabilities.AnyAsync(x => x.Id == capabilityId, cancellationToken)) failure = "invalid_request";
-                else db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenantId, CapabilityId = capabilityId, PlanGranted = change.PlanGranted, ExpiresAt = change.ExpiresAt, Revision = 1 });
+                if (revision != 0)
+                    failure = "conflict";
+                else if (!await db.Tenants.AnyAsync(x => x.Id == tenantId, cancellationToken) || !await db.Capabilities.AnyAsync(x => x.Id == capabilityId, cancellationToken))
+                    failure = "invalid_request";
+                else
+                    db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenantId, CapabilityId = capabilityId, PlanGranted = change.PlanGranted, ExpiresAt = change.ExpiresAt, Revision = 1 });
             }
-            else if (current.Revision < 1 || current.Revision != revision) failure = "conflict";
+            else if (current.Revision < 1 || current.Revision != revision)
+                failure = "conflict";
             else
             {
                 var updated = await db.TenantEntitlements.Where(x => x.TenantId == tenantId && x.CapabilityId == capabilityId && x.Revision == revision)
                     .ExecuteUpdateAsync(x => x.SetProperty(y => y.PlanGranted, change.PlanGranted).SetProperty(y => y.ExpiresAt, change.ExpiresAt), cancellationToken);
-                if (updated != 1) failure = "conflict";
+                if (updated != 1)
+                    failure = "conflict";
             }
             db.AuditEvents.Add(Audit(actor, traceId, tenantId, capabilityId, failure ?? "succeeded", false));
             await db.SaveChangesAsync(cancellationToken);
@@ -58,15 +63,22 @@ public sealed class EfCloudEntitlementAdministrationStore(IDbContextFactory<Clou
     private static bool IsConflict(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
-            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation }) return true;
+            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation })
+                return true;
         return false;
     }
 
     private CloudAuditEvent Audit(CloudSubject actor, string traceId, Guid tenantId, string capabilityId, string outcome, bool denied) => new()
     {
-        Id = Guid.NewGuid(), TenantId = null, SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-        ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator", Action = "entitlement.write",
+        Id = Guid.NewGuid(),
+        TenantId = null,
+        SubjectIssuer = actor.Issuer,
+        SubjectId = actor.SubjectId,
+        ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator",
+        Action = "entitlement.write",
         ResourceId = $"{tenantId:D}/{(CloudDeploymentRegistry.ValidToken(capabilityId, 80) ? capabilityId : "invalid")}",
-        Outcome = outcome, TraceId = traceId, OccurredAt = timeProvider.GetUtcNow()
+        Outcome = outcome,
+        TraceId = traceId,
+        OccurredAt = timeProvider.GetUtcNow()
     };
 }

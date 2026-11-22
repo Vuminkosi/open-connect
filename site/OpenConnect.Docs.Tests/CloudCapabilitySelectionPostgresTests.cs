@@ -13,7 +13,8 @@ public sealed class CloudCapabilitySelectionPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
         var stranger = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
@@ -76,8 +77,15 @@ public sealed class CloudCapabilitySelectionPostgresTests
 
     private static CloudCapabilityDefinition Definition(string id, string dependencies) => new()
     {
-        Id = id, Name = id, Description = "Test", ContractVersion = "1", BillingUnit = "request",
-        PlatformAvailability = "available", Dependencies = dependencies, Modalities = "[]", AllowedRegions = "[]"
+        Id = id,
+        Name = id,
+        Description = "Test",
+        ContractVersion = "1",
+        BillingUnit = "request",
+        PlatformAvailability = "available",
+        Dependencies = dependencies,
+        Modalities = "[]",
+        AllowedRegions = "[]"
     };
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>

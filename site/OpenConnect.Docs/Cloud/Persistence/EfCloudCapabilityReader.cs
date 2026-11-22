@@ -26,9 +26,11 @@ public sealed class EfCloudCapabilityReader(IDbContextFactory<CloudControlPlaneD
         CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, Guid? applicationId, CancellationToken cancellationToken)
     {
         if (!await db.Memberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantId &&
-                x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId, cancellationToken)) return null;
+                x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId, cancellationToken))
+            return null;
         if (applicationId is not null && !await db.Applications.AsNoTracking()
-                .AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId.Value, cancellationToken)) return null;
+                .AnyAsync(x => x.TenantId == tenantId && x.Id == applicationId.Value, cancellationToken))
+            return null;
         return await LoadDataAsync(db, tenantId, applicationId, cancellationToken);
     }
 

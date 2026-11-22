@@ -51,8 +51,10 @@ public sealed class CloudClassificationProbeTests
             var ready = false;
             for (var attempt = 0; attempt < 100 && !ready; attempt++)
             {
-                if (worker.HasExited) throw new InvalidOperationException("Classification worker exited before readiness.");
-                try { ready = (await workerClient.GetAsync("/health/live")).IsSuccessStatusCode; }
+                if (worker.HasExited)
+                    throw new InvalidOperationException("Classification worker exited before readiness.");
+                try
+                { ready = (await workerClient.GetAsync("/health/live")).IsSuccessStatusCode; }
                 catch (HttpRequestException) { await Task.Delay(100); }
             }
             Assert.True(ready);
@@ -74,7 +76,8 @@ public sealed class CloudClassificationProbeTests
             async Task<IResult> Forward(HttpContext context)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, context.Request.Path.Value);
-                if (context.Request.Headers.TryGetValue("Authorization", out var authorization)) request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
+                if (context.Request.Headers.TryGetValue("Authorization", out var authorization))
+                    request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
                 using var response = await workerClient.SendAsync(request);
                 return Results.Content(await response.Content.ReadAsStringAsync(), "application/json", statusCode: (int)response.StatusCode);
             }
@@ -85,7 +88,8 @@ public sealed class CloudClassificationProbeTests
             {
                 Interlocked.Increment(ref forwardedExecutions);
                 using var request = new HttpRequestMessage(HttpMethod.Post, context.Request.Path.Value);
-                if (context.Request.Headers.TryGetValue("Authorization", out var authorization)) request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
+                if (context.Request.Headers.TryGetValue("Authorization", out var authorization))
+                    request.Headers.TryAddWithoutValidation("Authorization", authorization.ToArray());
                 request.Content = new StreamContent(context.Request.Body);
                 request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
                 using var response = await workerClient.SendAsync(request);
@@ -99,7 +103,8 @@ public sealed class CloudClassificationProbeTests
         }
         finally
         {
-            if (!worker.HasExited) worker.Kill(entireProcessTree: true);
+            if (!worker.HasExited)
+                worker.Kill(entireProcessTree: true);
             await worker.WaitForExitAsync();
         }
     }
@@ -117,24 +122,48 @@ public sealed class CloudClassificationProbeTests
         var mode = "real";
         app.MapGet("/health/ready", () => Results.Json(new { status = "ready", ready = true, engine = mode == "fake" ? "fake" : "real", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) }));
         app.MapGet("/internal/v1/capabilities", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret"
-            ? Results.Json(new { workerKind = "classification", engine = "real", modelRevision = mode == "revision" ? "other" : "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64),
-                capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false, labelSets = new[] { "v1" } }] })
+            ? Results.Json(new
+            {
+                workerKind = "classification",
+                engine = "real",
+                modelRevision = mode == "revision" ? "other" : "revision-1",
+                modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64),
+                capabilities = mode == "unadvertised" ? Array.Empty<object>() : [new { kind = "classification", grantsTools = false, labelSets = new[] { "v1" } }]
+            })
             : Results.Unauthorized());
         app.MapGet("/internal/cloud/v1/classification/ready", (HttpContext context) => context.Request.Headers.Authorization == "Bearer worker-secret" && mode != "cloud-down"
             ? Results.Json(new { status = "ready", deploymentId = mode == "wrong-deployment" ? "22222222-2222-2222-2222-222222222222" : "11111111-1111-1111-1111-111111111111" }) : Results.StatusCode(503));
         app.MapPost("/internal/v1/execute", async (HttpContext context) =>
         {
-            if (context.Request.Headers.Authorization != "Bearer worker-secret") return Results.Unauthorized();
+            if (context.Request.Headers.Authorization != "Bearer worker-secret")
+                return Results.Unauthorized();
             using var json = await JsonDocument.ParseAsync(context.Request.Body);
             var taskId = json.RootElement.GetProperty("taskId").GetString();
-            return Results.Json(new { schemaVersion = "openconnect.v1", taskId, status = "completed", error = (string?)null,
-                result = new { labels = new[] { "safe" }, scores = new { safe = 0.9 }, abstained = false,
-                    modelRevision = mode == "revision" ? "other" : "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64), labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
+            return Results.Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                status = "completed",
+                error = (string?)null,
+                result = new
+                {
+                    labels = new[] { "safe" },
+                    scores = new { safe = 0.9 },
+                    abstained = false,
+                    modelRevision = mode == "revision" ? "other" : "revision-1",
+                    modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64),
+                    labelSetVersion = "v1",
+                    engine = mode == "fake" ? "fake" : "real",
+                    engineWarning = (string?)null,
+                    grantsTools = false
+                }
+            });
         });
         var receivedClaimed = false;
         app.MapPost("/internal/cloud/v1/classification/execute", async (HttpContext context) =>
         {
-            if (context.Request.Headers.Authorization != "Bearer worker-secret") return Results.Unauthorized();
+            if (context.Request.Headers.Authorization != "Bearer worker-secret")
+                return Results.Unauthorized();
             using var envelope = await JsonDocument.ParseAsync(context.Request.Body);
             var root = envelope.RootElement;
             Assert.Equal("openconnect.cloud.worker.classification/v1", root.GetProperty("schemaVersion").GetString());
@@ -145,9 +174,25 @@ public sealed class CloudClassificationProbeTests
             var taskId = payload.RootElement.GetProperty("taskId").GetString();
             Assert.Equal("test input", payload.RootElement.GetProperty("input").GetProperty("text").GetString());
             receivedClaimed = true;
-            return Results.Json(new { schemaVersion = "openconnect.v1", taskId, status = "completed", error = (string?)null,
-                result = new { labels = new[] { "safe" }, scores = new { safe = 0.9 }, abstained = false,
-                    modelRevision = "revision-1", modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64), labelSetVersion = "v1", engine = mode == "fake" ? "fake" : "real", engineWarning = (string?)null, grantsTools = false } });
+            return Results.Json(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                status = "completed",
+                error = (string?)null,
+                result = new
+                {
+                    labels = new[] { "safe" },
+                    scores = new { safe = 0.9 },
+                    abstained = false,
+                    modelRevision = "revision-1",
+                    modelDigest = "sha256:" + new string(mode == "digest" ? 'b' : 'a', 64),
+                    labelSetVersion = "v1",
+                    engine = mode == "fake" ? "fake" : "real",
+                    engineWarning = (string?)null,
+                    grantsTools = false
+                }
+            });
         });
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -185,39 +230,58 @@ public sealed class CloudClassificationProbeTests
     {
         const string script = "const m=await import(process.env.OC_TEST_MODULE); const b=await import(new URL('./classification-payload.mjs',process.env.OC_TEST_MODULE)); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:'revision-1',modelDigest:'sha256:'+'a'.repeat(64)}); const prepared=m.prepareClassificationWorkerPayload({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}}); const bound=b.bindClassificationPayload(prepared.payload); try {process.stdout.write(JSON.stringify(await p.executeClaimed(prepared,{reservationId:'22222222-2222-2222-2222-222222222222',claimId:'33333333-3333-3333-3333-333333333333',key:bound.key})));} finally {prepared.payload.fill(0);bound.key.fill(0);bound.fingerprint.fill(0);}";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.ArgumentList.Add("--input-type=module");
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-dispatch.mjs")).AbsoluteUri;
-        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString();
+        start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
         start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
-        using var key = client.GetRSAPrivateKey()!; start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
+        using var key = client.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_TOKEN"] = token;
-        using var process = Process.Start(start)!; using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
-        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
-        using var json = JsonDocument.Parse(output); return json.RootElement.GetProperty("status").GetString()!;
+        using var process = Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token);
+        Assert.True(process.ExitCode == 0, errors);
+        using var json = JsonDocument.Parse(output);
+        return json.RootElement.GetProperty("status").GetString()!;
     }
 
     private static async Task<string> DispatchAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1")
     {
         const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationDispatcher({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION,modelDigest:'sha256:'+'a'.repeat(64)}); process.stdout.write(JSON.stringify(await p.execute({requestId:'11111111-1111-1111-1111-111111111111',input:{text:'test input'}})));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.ArgumentList.Add("--input-type=module");
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-dispatch.mjs")).AbsoluteUri;
-        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString();
+        start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
         start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
-        using var key = client.GetRSAPrivateKey()!; start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
-        start.Environment["OC_TEST_TOKEN"] = token; start.Environment["OC_TEST_REVISION"] = revision;
-        using var process = Process.Start(start)!; using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
-        await process.WaitForExitAsync(timeout.Token); Assert.True(process.ExitCode == 0, errors);
-        using var json = JsonDocument.Parse(output); return json.RootElement.GetProperty("status").GetString()!;
+        using var key = client.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = key.ExportPkcs8PrivateKeyPem();
+        start.Environment["OC_TEST_TOKEN"] = token;
+        start.Environment["OC_TEST_REVISION"] = revision;
+        using var process = Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var errors = await process.StandardError.ReadToEndAsync(timeout.Token);
+        await process.WaitForExitAsync(timeout.Token);
+        Assert.True(process.ExitCode == 0, errors);
+        using var json = JsonDocument.Parse(output);
+        return json.RootElement.GetProperty("status").GetString()!;
     }
 
     private static async Task<bool> ProbeAsync(Uri address, X509Certificate2 server, X509Certificate2 client, string token, string revision = "revision-1", bool requireCloud = false)
     {
         const string script = "const m=await import(process.env.OC_TEST_MODULE); const p=m.createClassificationProbe({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY,workerToken:process.env.OC_TEST_TOKEN,modelRevision:process.env.OC_TEST_REVISION,modelDigest:'sha256:'+'a'.repeat(64)}); process.stdout.write(JSON.stringify(await p.probe(undefined,undefined,process.env.OC_TEST_REQUIRE_CLOUD==='true','11111111-1111-1111-1111-111111111111')));";
         var start = new ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.ArgumentList.Add("--input-type=module");
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "classification-probe.mjs")).AbsoluteUri;
         start.Environment["OC_TEST_ORIGIN"] = address.ToString();
         start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
@@ -244,10 +308,12 @@ public sealed class CloudClassificationProbeTests
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new(client ? "1.3.6.1.5.5.7.3.2" : "1.3.6.1.5.5.7.3.1") }, true));
-        if (!client) { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
+        if (!client)
+        { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
         var data = generated.Export(X509ContentType.Pfx);
-        try { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
+        try
+        { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
         finally { CryptographicOperations.ZeroMemory(data); }
     }
 }

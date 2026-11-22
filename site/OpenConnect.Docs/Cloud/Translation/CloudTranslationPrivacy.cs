@@ -39,7 +39,8 @@ public sealed partial class CloudTranslationPrivacyService(ISecurityDetector? de
     {
         try
         {
-            if (!_firewall.Enabled) return new(false, "detector_unavailable", characters);
+            if (!_firewall.Enabled)
+                return new(false, "detector_unavailable", characters);
             var context = new EgressContext(new TenantId(ToUlid(identity.TenantId)), new PrincipalId(ToUlid(identity.ApplicationId)),
                 new SessionId(ToUlid(requestId)), destination);
             foreach (var content in fields)
@@ -62,11 +63,13 @@ public sealed partial class CloudTranslationPrivacyService(ISecurityDetector? de
     private static bool ValidText(string? value, int maximum, out int count)
     {
         count = 0;
-        if (string.IsNullOrWhiteSpace(value)) return false;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
         var remaining = value.AsSpan();
         while (!remaining.IsEmpty)
         {
-            if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done || ++count > maximum) return false;
+            if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done || ++count > maximum)
+                return false;
             remaining = remaining[consumed..];
         }
         return true;
@@ -80,10 +83,12 @@ public sealed partial class CloudTranslationPrivacyService(ISecurityDetector? de
     private static Ulid ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var b in value.ToByteArray(bigEndian: true)) number = (number << 8) | b;
+        foreach (var b in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | b;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return Ulid.Parse(new string(encoded));
     }
 }

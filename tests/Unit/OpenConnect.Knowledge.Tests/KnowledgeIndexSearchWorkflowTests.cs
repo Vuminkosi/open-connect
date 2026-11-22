@@ -30,10 +30,15 @@ public sealed class KnowledgeIndexSearchWorkflowTests
                 "knowledge.search" => new { model_id = (string?)null, fingerprint = (string?)null, score_type = "raw_logit", warnings = Array.Empty<string>(), hits = Array.Empty<object>() },
                 _ => throw new InvalidOperationException()
             };
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(
-                new { schemaVersion = "openconnect.v1", taskId = root.GetProperty("taskId").GetString(), kind, result })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(
+                new { schemaVersion = "openconnect.v1", taskId = root.GetProperty("taskId").GetString(), kind, result }))
+            };
         }));
-        var gate = new Gate(); var key = Enumerable.Repeat((byte)1, 32).ToArray(); var endpoint = new Uri("https://worker.test");
+        var gate = new Gate();
+        var key = Enumerable.Repeat((byte)1, 32).ToArray();
+        var endpoint = new Uri("https://worker.test");
         using var index = new KnowledgeIndexClient(http, gate, endpoint, "token", key, (_, _, _) => ValueTask.FromResult(true),
             (_, _, _, _, _, _) => ValueTask.FromResult(true));
         using var search = new KnowledgeSearchClient(http, gate, endpoint, "token", key,
@@ -58,7 +63,8 @@ public sealed class KnowledgeIndexSearchWorkflowTests
     public async Task InvalidRolesAreRejectedBeforeEnqueue()
     {
         using var http = new HttpClient(new Handler(_ => throw new InvalidOperationException("worker called")));
-        var key = Enumerable.Repeat((byte)1, 32).ToArray(); var endpoint = new Uri("https://worker.test");
+        var key = Enumerable.Repeat((byte)1, 32).ToArray();
+        var endpoint = new Uri("https://worker.test");
         using var index = new KnowledgeIndexClient(http, new Gate(), endpoint, "token", key,
             (_, _, _) => ValueTask.FromResult(true), (_, _, _, _, _, _) => ValueTask.FromResult(true));
         using var search = new KnowledgeSearchClient(http, new Gate(), endpoint, "token", key,
