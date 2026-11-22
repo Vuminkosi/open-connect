@@ -4,6 +4,8 @@ const pendingRoutes = new Map();
 let nextRouteObservation = 0;
 const idAttribute = "data-openconnect-liveui-id";
 const highlightAttribute = "data-openconnect-liveui-highlight";
+const sectionHighlightAttribute = "data-openconnect-liveui-section-highlight";
+const highlightSectionMembers = new Map();
 const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
 const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
@@ -276,7 +278,7 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
         highlightTarget = match.element;
       }
       addHighlight(highlightTarget);
-      highlightTarget.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      highlightTarget.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
       const highlightDuration = Number(parameters.highlightDurationMilliseconds);
       if (Number.isInteger(highlightDuration) && highlightDuration > 0) {
         const previousTimer = highlightTimers.get(highlightTarget);
@@ -780,6 +782,19 @@ function addHighlight(element) {
   installHighlightStyles();
   element.setAttribute(highlightAttribute, "true");
   highlights.add(element);
+  if (/^H[1-6]$/.test(element.tagName) && element.closest(".markdown-body")) {
+    const level = Number(element.tagName[1]);
+    const members = [];
+    let sibling = element.nextElementSibling;
+    while (sibling) {
+      if (/^H[1-6]$/.test(sibling.tagName) && Number(sibling.tagName[1]) <= level) break;
+      sibling.setAttribute(sectionHighlightAttribute, "true");
+      members.push(sibling);
+      if (members.length >= 6) break;
+      sibling = sibling.nextElementSibling;
+    }
+    if (members.length) highlightSectionMembers.set(element, members);
+  }
 }
 
 function clearHighlights() {
@@ -792,6 +807,11 @@ function clearHighlight(element) {
   if (timer) clearTimeout(timer);
   highlightTimers.delete(element);
   element.removeAttribute(highlightAttribute);
+  const members = highlightSectionMembers.get(element);
+  if (members) {
+    for (const member of members) member.removeAttribute(sectionHighlightAttribute);
+    highlightSectionMembers.delete(element);
+  }
   highlights.delete(element);
 }
 
@@ -800,9 +820,11 @@ function installHighlightStyles() {
   const style = document.createElement("style");
   style.id = "openconnect-liveui-style";
   style.textContent = [
-    ":root { --oc-liveui-focus: #2563eb; }",
-    "[" + highlightAttribute + "=\"true\"] { outline: 3px solid var(--oc-liveui-focus); outline-offset: 3px; box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.18); }",
-    "@media (prefers-reduced-motion: no-preference) { [" + highlightAttribute + "=\"true\"] { transition: outline-color 120ms ease, box-shadow 120ms ease; } }",
+    ":root { --oc-liveui-focus: #2563eb; --oc-liveui-glow: rgba(37, 99, 235, 0.28); --oc-liveui-tint: rgba(37, 99, 235, 0.08); }",
+    "[" + highlightAttribute + "=\"true\"] { outline: 3px solid var(--oc-liveui-focus); outline-offset: 4px; border-radius: 8px; background-color: var(--oc-liveui-tint); box-shadow: 0 0 0 6px var(--oc-liveui-glow), 0 8px 24px rgba(37, 99, 235, 0.16); scroll-margin-top: 96px; }",
+    "[" + sectionHighlightAttribute + "=\"true\"] { border-inline-start: 3px solid var(--oc-liveui-focus); padding-inline-start: 0.75rem; background-color: var(--oc-liveui-tint); border-radius: 0 8px 8px 0; }",
+    "@keyframes oc-liveui-spotlight { 0%, 100% { box-shadow: 0 0 0 5px var(--oc-liveui-glow), 0 8px 24px rgba(37, 99, 235, 0.14); } 50% { box-shadow: 0 0 0 9px rgba(37, 99, 235, 0.36), 0 10px 28px rgba(37, 99, 235, 0.24); } }",
+    "@media (prefers-reduced-motion: no-preference) { [" + highlightAttribute + "=\"true\"] { transition: outline-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease; animation: oc-liveui-spotlight 1.8s ease-in-out infinite; } [" + sectionHighlightAttribute + "=\"true\"] { transition: background-color 140ms ease, border-color 140ms ease; } }",
   ].join("\n");
   document.head.append(style);
 }

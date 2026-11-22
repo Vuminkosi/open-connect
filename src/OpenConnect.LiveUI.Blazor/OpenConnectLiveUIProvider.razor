@@ -19,6 +19,7 @@
 @inject ILogger<OpenConnectLiveUIProvider> Logger
 @inject LiveUIInteractionReplayFence InteractionReplayFence
 @inject LiveUIManifestValidator ManifestValidator
+@inject Microsoft.AspNetCore.Components.NavigationManager NavigationManager
 @implements IDisposable
 
 @ChildContent
@@ -221,15 +222,26 @@
 
     private async Task<bool> ApplySpeechCuesAsync(ComposerSpeechPlaybackEvent playbackEvent)
     {
-        if (_speechCues.Count == 0 || playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return false;
+        if (playbackEvent.EndCharacter <= playbackEvent.StartCharacter) return false;
 
-        var responseLength = GetCurrentAssistantResponseLength();
-        var targets = _speechCues
-            .Where(cue => cue.EndCharacter <= responseLength &&
-                          cue.StartCharacter < playbackEvent.EndCharacter &&
-                          cue.EndCharacter > playbackEvent.StartCharacter)
-            .Select(cue => (cue.TargetId, cue.MatchText))
-            .ToHashSet();
+        var responseText = GetCurrentAssistantResponseText();
+        var responseLength = responseText.Length;
+        HashSet<(string TargetId, string? MatchText)> targets;
+        if (_speechCues.Count > 0)
+        {
+            targets = _speechCues
+                .Where(cue => cue.EndCharacter <= responseLength &&
+                              cue.StartCharacter < playbackEvent.EndCharacter &&
+                              cue.EndCharacter > playbackEvent.StartCharacter)
+                .Select(cue => (cue.TargetId, cue.MatchText))
+                .ToHashSet();
+        }
+        else
+        {
+            targets = InferSpokenTargetsForCurrentRoute(responseText, playbackEvent.StartCharacter, playbackEvent.EndCharacter);
+            if (targets.Count == 0)
+                return false;
+        }
         if (targets.Count == 0)
         {
             if (_activeSpeechCueTargets.Count > 0)
@@ -268,11 +280,46 @@
         return false;
     }
 
-    private int GetCurrentAssistantResponseLength()
+    private HashSet<(string TargetId, string? MatchText)> InferSpokenTargetsForCurrentRoute(
+        string responseText, int startCharacter, int endCharacter)
     {
-        if (_boundSession is null) return 0;
-        if (_boundSession.StreamingText.Length > 0) return _boundSession.StreamingText.Length;
-        return _boundSession.Messages.LastOrDefault(message => message.Role == "assistant")?.Text.Length ?? 0;
+        var matched = new HashSet<(string TargetId, string? MatchText)>();
+        if (_installedManifest is null || string.IsNullOrEmpty(responseText))
+            return matched;
+        var clampedStart = Math.Clamp(startCharacter, 0, responseText.Length);
+        var clampedEnd = Math.Clamp(endCharacter, clampedStart, responseText.Length);
+        if (clampedEnd <= clampedStart)
+            return matched;
+
+        var currentPath = new Uri(NavigationManager.Uri).AbsolutePath.TrimEnd('/');
+        if (currentPath.Length == 0) currentPath = "/";
+        var route = _installedManifest.Routes.FirstOrDefault(candidate =>
+        {
+            var routePath = candidate.Path.TrimEnd('/');
+            if (routePath.Length == 0) routePath = "/";
+            return string.Equals(routePath, currentPath, StringComparison.OrdinalIgnoreCase);
+        });
+        if (route is null)
+            return matched;
+
+        var segment = responseText.Substring(clampedStart, clampedEnd - clampedStart);
+        var best = route.Targets
+            .Where(target => target.Capabilities.Contains(LiveUICapability.Highlight) &&
+                             !string.IsNullOrWhiteSpace(target.Label) &&
+                             target.Label.Length >= 4 &&
+                             segment.Contains(target.Label, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(target => target.Label.Length)
+            .FirstOrDefault();
+        if (best is not null)
+            matched.Add((best.Id, null));
+        return matched;
+    }
+
+    private string GetCurrentAssistantResponseText()
+    {
+        if (_boundSession is null) return string.Empty;
+        if (_boundSession.StreamingText.Length > 0) return _boundSession.StreamingText;
+        return _boundSession.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
     }
 
     private static bool IsValidSpeechRange(ClientInteractionRequest request) =>
