@@ -51,7 +51,13 @@ public sealed class CloudKnowledgeEmbeddingPrivacyLimitsTests
         Assert.True(detector.Calls > 262144);
         var rulesResult = await new CloudJsonPrivacyService(new RulesSecurityDetector())
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), clean.RootElement, CancellationToken.None, embeddingResponse: true);
-        Assert.True(rulesResult.Decision.Allowed);
+        Assert.True(rulesResult.Decision.Allowed, rulesResult.Decision.Code switch
+        {
+            "detector_unavailable" => "Maximum-size synthetic embedding rejected: detector_unavailable.",
+            "privacy_blocked" => "Maximum-size synthetic embedding rejected: privacy_blocked.",
+            "invalid_request" => "Maximum-size synthetic embedding rejected: invalid_request.",
+            _ => "Maximum-size synthetic embedding rejected: unexpected_decision.",
+        });
         using var sensitive = JsonDocument.Parse(JsonSerializer.Serialize(new { result = new { model_id = "person@example.test", items } }));
         var blocked = await new CloudJsonPrivacyService(new RulesSecurityDetector())
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), sensitive.RootElement, CancellationToken.None, embeddingResponse: true);
