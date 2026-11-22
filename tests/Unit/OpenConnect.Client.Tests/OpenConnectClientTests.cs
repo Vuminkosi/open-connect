@@ -289,6 +289,23 @@ public sealed class OpenConnectClientTests
     [InlineData(400, "{\"type\":\"https://user@openconnect.dev/problems/x\"}", null)]
     [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x#f\"}", null)]
     [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/bad.segment\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/%2e\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/%69d\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/%2e%2e/x\"}", null)]
+    [InlineData(400, "{\"type\":42}", null)]
+    [InlineData(400, "{\"type\":null}", null)]
+    [InlineData(400, "{\"type\":[\"https://openconnect.dev/problems/x\"]}", null)]
+    [InlineData(400, "{\"title\":\"no type\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x/..\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x/.\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/../x\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/a\\tb\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/a\\nb\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x\\u00a0\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x\\u2003\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/\\u00e9\"}", null)]
     public async Task Http_failure_derives_error_code_from_problem_type(int status, string body, string? expected)
     {
         var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status)

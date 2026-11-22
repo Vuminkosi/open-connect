@@ -203,6 +203,12 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     private static bool IsIdentifier(string candidate) =>
         candidate is { Length: > 0 and <= 64 } && candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-');
+    private static string RawPath(string type)
+    {
+        var start = type.IndexOf("://", StringComparison.Ordinal) + 3;
+        var slash = type.IndexOf('/', start);
+        return slash < 0 ? string.Empty : type[slash..];
+    }
     // Hosts send RFC 9457 `type` as an absolute https URI such as
     // https://openconnect.dev/problems/idempotency-conflict; the last path segment is the code.
     private static string? CodeFromProblemType(string? type)
@@ -214,7 +220,14 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         if (!Uri.TryCreate(type, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length > 0 || uri.Query.Length > 0 || uri.Fragment.Length > 0)
             return null;
-        var segment = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        // System.Uri normalizes dot segments and percent-escapes, so validate the raw path instead.
+        var rawPath = RawPath(type);
+        if (rawPath.Contains('%'))
+            return null;
+        var segments = rawPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Any(part => part is "." or ".."))
+            return null;
+        var segment = segments.LastOrDefault();
         return segment is not null && IsIdentifier(segment) ? segment : null;
     }
 }

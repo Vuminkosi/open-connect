@@ -36,8 +36,8 @@ absolute HTTPS base address; `CreateTaskAsync` (`IOpenConnectClient.cs:5`) accep
 `code` of 1 to 64 ASCII letters, digits, `_` or `-` wins. Otherwise the code is the last path
 segment of an absolute `https` `type` URI (for example `https://openconnect.dev/problems/idempotency-conflict`
 gives `idempotency-conflict`), under the same character rules. Types that are longer than 256
-characters, relative, non-https, or contain whitespace, control characters, userinfo, a query or a
-fragment give `null`. `Message` is fixed text and never includes the server's `title` or `detail`.
+characters, relative, non-https, or contain whitespace, control characters, userinfo, a query, a
+fragment, a percent-escape or a `.`/`..` path segment give `null`. `Message` is fixed text and never includes the server's `title` or `detail`.
 
 ## License
 

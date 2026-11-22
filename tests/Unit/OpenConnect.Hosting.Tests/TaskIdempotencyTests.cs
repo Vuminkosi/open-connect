@@ -68,15 +68,16 @@ public sealed class TaskIdempotencyTests
     [Fact]
     public async Task Sdk_client_exposes_error_code_for_session_presence_problem()
     {
-        var context = new DefaultHttpContext();
-        context.RequestServices = new ServiceCollection().AddLogging().AddProblemDetails().BuildServiceProvider();
-        var body = new MemoryStream();
-        context.Response.Body = body;
-        // Same call the host makes in HandleCreateTaskAsync for a mini-composer presence failure.
-        await Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Exactly one active session connection is required.", type: "https://openconnect.dev/problems/session-presence").ExecuteAsync(context);
+        await using var host = await CreateAppAsync();
+        var session = host.App.Services.GetRequiredService<InMemorySessionStore>()
+            .Create(new TenantId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), new PrincipalId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAW")));
+        // No connection is registered for the session, so the real MiniComposer endpoint path rejects the claim.
+        var request = new TaskRequest("presence", "hello", session.Id.Value.ToString()) { ClientConnectionId = "missing-connection" };
 
-        var error = await ReadClientErrorAsync(new Response(context.Response.StatusCode, string.Empty, context.Response.ContentType, body.ToArray()));
+        var conflict = await PostTaskAsync(host.App, "presence", request: request, origin: HostTaskOrigin.MiniComposer);
+        var error = await ReadClientErrorAsync(conflict);
 
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
         Assert.Equal("session-presence", error.ErrorCode);
     }
 
@@ -127,7 +128,7 @@ public sealed class TaskIdempotencyTests
         catch (Exception) { /* Preserve the startup exception. */ }
     }
 
-    private static async Task<Response> PostTaskAsync(WebApplication app, string clientTaskId, string? tenant = null)
+    private static async Task<Response> PostTaskAsync(WebApplication app, string clientTaskId, string? tenant = null, TaskRequest? request = null, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         var context = new DefaultHttpContext { RequestServices = app.Services };
         context.Request.Method = "POST";
@@ -141,7 +142,7 @@ public sealed class TaskIdempotencyTests
         ], "test"));
         var responseBody = new MemoryStream();
         context.Response.Body = responseBody;
-        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted);
+        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, request ?? new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted, origin);
         await result.ExecuteAsync(context);
         return new Response(context.Response.StatusCode, context.Response.Headers.Location.ToString(), context.Response.ContentType, responseBody.ToArray());
     }
