@@ -21,6 +21,8 @@
 !src/OpenConnect.Documents/**
 !src/OpenConnect.Analytics/
 !src/OpenConnect.Analytics/**
+!src/OpenConnect.Hosting.AspNetCore/
+!src/OpenConnect.Hosting.AspNetCore/**
 !src/OpenConnect.Knowledge/
 !src/OpenConnect.Knowledge/**
 !src/OpenConnect.LiveUI/
@@ -31,6 +33,8 @@
 !src/OpenConnect.LiveUI.Blazor/**
 !src/OpenConnect.LiveUI.Compiler/
 !src/OpenConnect.LiveUI.Compiler/**
+!src/OpenConnect.LiveUI.Hosting/
+!src/OpenConnect.LiveUI.Hosting/**
 !src/OpenConnect.LiveUI.Inference/
 !src/OpenConnect.LiveUI.Inference/**
 !src/OpenConnect.Privacy/
@@ -38,6 +42,8 @@
 !site/
 !site/OpenConnect.Docs/
 !site/OpenConnect.Docs/**
+!site/OpenConnect.Docs.AssistantHost/
+!site/OpenConnect.Docs.AssistantHost/**
 !cloud/
 !cloud/gateway/
 !cloud/gateway/*.mjs

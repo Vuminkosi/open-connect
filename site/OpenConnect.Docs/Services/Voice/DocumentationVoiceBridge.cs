@@ -25,7 +25,9 @@ internal sealed class DocumentationVoiceBridge(DocumentationVoiceTickets tickets
         var protocols = context.WebSockets.WebSocketRequestedProtocols;
         var origin = context.Request.Headers.Origin.ToString();
         var expectedOrigin = $"{context.Request.Scheme}://{context.Request.Host}";
-        if (!context.Request.IsHttps || !context.WebSockets.IsWebSocketRequest ||
+        var isLoopbackHost = string.Equals(context.Request.Host.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            (System.Net.IPAddress.TryParse(context.Request.Host.Host, out var hostIp) && System.Net.IPAddress.IsLoopback(hostIp));
+        if ((!context.Request.IsHttps && !isLoopbackHost) || !context.WebSockets.IsWebSocketRequest ||
             !string.Equals(origin, expectedOrigin, StringComparison.OrdinalIgnoreCase) ||
             protocols.Count != 2 || protocols[0] != Protocol || !protocols[1].StartsWith(TicketPrefix, StringComparison.Ordinal) ||
             !tickets.TryConsume(protocols[1][TicketPrefix.Length..], sessionId, out var visitorToken))

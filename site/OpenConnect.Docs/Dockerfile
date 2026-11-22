@@ -4,8 +4,11 @@ COPY Directory.Build.props Directory.Packages.props global.json ./
 COPY build/supported-frameworks.props build/supported-frameworks.props
 COPY src/ src/
 COPY site/OpenConnect.Docs/ site/OpenConnect.Docs/
+COPY site/OpenConnect.Docs.AssistantHost/ site/OpenConnect.Docs.AssistantHost/
 RUN dotnet restore site/OpenConnect.Docs/OpenConnect.Docs.csproj --locked-mode \
-    && dotnet publish site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -o /out
+    && dotnet publish site/OpenConnect.Docs/OpenConnect.Docs.csproj -c Release --no-restore -o /out \
+    && dotnet restore site/OpenConnect.Docs.AssistantHost/OpenConnect.Docs.AssistantHost.csproj --locked-mode \
+    && dotnet publish site/OpenConnect.Docs.AssistantHost/OpenConnect.Docs.AssistantHost.csproj -c Release --no-restore -o /out-assistant
 
 FROM python:3.12-slim AS gateway-python-dependencies
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
@@ -39,6 +42,7 @@ COPY --chown=app:app workers/inference/src/openconnect_inference/__init__.py \
     /app/workers/inference/src/openconnect_inference/
 WORKDIR /app
 COPY --from=build --chown=app:app /out/ ./
+COPY --from=build --chown=app:app /out-assistant/ /app/assistant/
 COPY --chown=app:app cloud/gateway/*.mjs /app/gateway/
 COPY --chown=app:app site/OpenConnect.Docs/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
