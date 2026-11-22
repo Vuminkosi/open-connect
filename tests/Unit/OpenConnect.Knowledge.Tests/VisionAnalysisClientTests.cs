@@ -22,7 +22,9 @@ public sealed class VisionAnalysisClientTests
     [Fact]
     public async Task AuthorizesSnapshotAndSignsTenantBoundRequest()
     {
-        var original = new byte[] { 1, 2, 3 }; var context = Context(); ReadOnlyMemory<byte> captured = default;
+        var original = new byte[] { 1, 2, 3 };
+        var context = Context();
+        ReadOnlyMemory<byte> captured = default;
         var handler = new Handler(async request =>
         {
             var body = await request.Content!.ReadAsByteArrayAsync();
@@ -32,7 +34,8 @@ public sealed class VisionAnalysisClientTests
             Assert.Equal(new byte[] { 1, 2, 3 }, Convert.FromBase64String(json.RootElement.GetProperty("payload").GetProperty("contentBase64").GetString()!));
             return Reply(json.RootElement.GetProperty("taskId").GetString()!, "tree", 0.8, 1);
         });
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var client = new VisionAnalysisClient(http, "token", Key, Firewall(options), options, (_, image, _) =>
         { captured = image; original[0] = 9; return ValueTask.FromResult(true); });
         using var result = await client.AnalyzeAsync(context, original, topK: 1);
@@ -44,7 +47,8 @@ public sealed class VisionAnalysisClientTests
     public async Task DeniedOrDisabledPrivacyNeverSendsImage()
     {
         var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var denied = new VisionAnalysisClient(http, "token", Key, Firewall(options), options, (_, _, _) => ValueTask.FromResult(false));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => denied.AnalyzeAsync(Context(), new byte[] { 1 }, 1));
         var disabled = Options.Create(new PrivacyOptions { Mode = FirewallMode.Disabled });
@@ -68,7 +72,8 @@ public sealed class VisionAnalysisClientTests
     {
         using var cancellation = new CancellationTokenSource();
         var handler = new Handler(_ => throw new InvalidOperationException("must not send"));
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var client = new VisionAnalysisClient(http, "token", Key, Firewall(options), options, (_, _, _) =>
         {
             cancellation.Cancel();
@@ -90,10 +95,13 @@ public sealed class VisionAnalysisClientTests
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             return Reply(json.RootElement.GetProperty("taskId").GetString()!, label, score, index);
         });
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var client = new VisionAnalysisClient(http, "token", Key, Firewall(options), options, (_, _, _) => ValueTask.FromResult(true));
-        if (sensitive) await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 1));
-        else await Assert.ThrowsAsync<InvalidOperationException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 1));
+        if (sensitive)
+            await Assert.ThrowsAsync<PrivacyBlockedException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 1));
+        else
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 1));
     }
 
     [Theory]
@@ -114,7 +122,8 @@ public sealed class VisionAnalysisClientTests
             response["taskId"] = command.RootElement.GetProperty("taskId").GetString();
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(response.ToJsonString()) };
         });
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var client = new VisionAnalysisClient(http, "token", Key, Firewall(options), options,
             (_, _, _) => ValueTask.FromResult(true));
         if (valid)
@@ -122,7 +131,8 @@ public sealed class VisionAnalysisClientTests
             using var result = await client.AnalyzeAsync(Context(), new byte[] { 1 }, 2);
             Assert.Equal(2, result.RootElement.GetProperty("result").GetProperty("classifications").GetArrayLength());
         }
-        else await Assert.ThrowsAsync<InvalidOperationException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 2));
+        else
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.AnalyzeAsync(Context(), new byte[] { 1 }, 2));
     }
 
     [Fact]
@@ -137,7 +147,8 @@ public sealed class VisionAnalysisClientTests
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             return Reply(json.RootElement.GetProperty("taskId").GetString()!, "tree", 0.8, 1);
         });
-        using var http = new HttpClient(handler); var options = OptionsValue();
+        using var http = new HttpClient(handler);
+        var options = OptionsValue();
         using var client = new VisionAnalysisClient(http, "token", Key, Firewall(options), options, (_, _, _) => ValueTask.FromResult(true));
         var opened = false;
         Task<Stream> Open(string key, string version, CancellationToken _)
@@ -159,9 +170,22 @@ public sealed class VisionAnalysisClientTests
 
     private static HttpResponseMessage Reply(string taskId, string label, double score, int index) => new(HttpStatusCode.OK)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId, kind = "vision.analyze", result = new {
-            model_id = "fixture", model_fingerprint = new string('a', 64), taxonomy_version = "fixture-taxonomy", preprocessing_version = "imagenet-center224-v1",
-            width = 100, height = 100, classifications = new[] { new { label, class_index = index, score } } } }), Encoding.UTF8, "application/json")
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "vision.analyze",
+            result = new
+            {
+                model_id = "fixture",
+                model_fingerprint = new string('a', 64),
+                taxonomy_version = "fixture-taxonomy",
+                preprocessing_version = "imagenet-center224-v1",
+                width = 100,
+                height = 100,
+                classifications = new[] { new { label, class_index = index, score } }
+            }
+        }), Encoding.UTF8, "application/json")
     };
 
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler

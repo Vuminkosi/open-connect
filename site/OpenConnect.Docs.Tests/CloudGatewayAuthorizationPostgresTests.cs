@@ -4,13 +4,13 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Docs.Cloud;
 using OpenConnect.Privacy.Rules;
 using Xunit;
@@ -23,10 +23,12 @@ public sealed class CloudGatewayAuthorizationPostgresTests
     private static string HostTenant(Guid value)
     {
         UInt128 number = 0;
-        foreach (var item in value.ToByteArray(bigEndian: true)) number = (number << 8) | item;
+        foreach (var item in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | item;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return new string(encoded);
     }
 
@@ -40,7 +42,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         string? originalAvailability = null;
         string? originalClassificationAvailability = null;
         string? originalClassificationRegions = null;
@@ -73,9 +76,21 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = appRecord.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
                 db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = otherApp.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
-                db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = classificationDeploymentId, CapabilityId = "classification.classify", EndpointReference = classificationReference,
-                    Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = "model", ModelRevision = "revision-1",
-                    ModelDigest = "sha256:" + new string('a', 64), ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 2 });
+                db.WorkerDeployments.Add(new CloudWorkerDeployment
+                {
+                    Id = classificationDeploymentId,
+                    CapabilityId = "classification.classify",
+                    EndpointReference = classificationReference,
+                    Transport = "https-mtls",
+                    Region = "region-a",
+                    ContractVersion = "openconnect.v1",
+                    ModelId = "model",
+                    ModelRevision = "revision-1",
+                    ModelDigest = "sha256:" + new string('a', 64),
+                    ImageDigest = "sha256:" + new string('b', 64),
+                    Enabled = true,
+                    ConcurrencyLimit = 2
+                });
                 await db.SaveChangesAsync();
             }
             var catalog = new CloudCatalogRegionsService(new EfCloudCatalogRegionsStore(factory, TimeProvider.System));
@@ -103,7 +118,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Null(workerTrust.ResolveDeployment(serverCertificate, DateTimeOffset.UtcNow));
             var bindingConfiguration = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Certificates:0:DeploymentId"] = classificationDeploymentId.ToString(), ["Certificates:0:ClientCertificateSha256"] = workerPin,
+                ["Certificates:0:DeploymentId"] = classificationDeploymentId.ToString(),
+                ["Certificates:0:ClientCertificateSha256"] = workerPin,
             }).Build();
             var configuredBindings = Microsoft.Extensions.Configuration.ConfigurationBinder.Get<CloudWorkerCertificateBinding[]>(bindingConfiguration.GetSection("Certificates"));
             Assert.Equal(classificationDeploymentId, new CloudWorkerClientTrust(configuredBindings!, trust).ResolveDeployment(workerCertificate, DateTimeOffset.UtcNow));
@@ -162,8 +178,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             await Assert.ThrowsAnyAsync<HttpRequestException>(() => other.PostAsJsonAsync("/cloud/internal/v1/authorize", new { credential = issued.Secret, capability }));
             using var authorized = Client(address, serverCertificate, clientCertificate);
             var hostEvent = Guid.NewGuid();
-            var hostPayload = new { schemaVersion = "openconnect.privacy-evidence.v1", eventId = hostEvent,
-                tenantId = HostTenant(tenant.Id), destination = "Output", allowed = false, action = "Block", categories = new Dictionary<string, int> { ["EMAIL"] = 1 } };
+            var hostPayload = new
+            {
+                schemaVersion = "openconnect.privacy-evidence.v1",
+                eventId = hostEvent,
+                tenantId = HostTenant(tenant.Id),
+                destination = "Output",
+                allowed = false,
+                action = "Block",
+                categories = new Dictionary<string, int> { ["EMAIL"] = 1 }
+            };
             async Task<HttpResponseMessage> ReportAsync(HttpClient client, string secret, object payload)
             {
                 using var message = new HttpRequestMessage(HttpMethod.Post, "/cloud/internal/v1/privacy/evidence");
@@ -184,9 +208,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
             using (var conflict = await ReportAsync(authorized, otherCredential.Secret!, hostPayload))
                 Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
-            using (var mismatch = await ReportAsync(authorized, issued.Secret!, new { schemaVersion = "openconnect.privacy-evidence.v1",
-                eventId = Guid.NewGuid(), tenantId = HostTenant(Guid.NewGuid()), destination = "Output", allowed = false,
-                action = "Block", categories = new Dictionary<string, int> { ["EMAIL"] = 1 } }))
+            using (var mismatch = await ReportAsync(authorized, issued.Secret!, new
+            {
+                schemaVersion = "openconnect.privacy-evidence.v1",
+                eventId = Guid.NewGuid(),
+                tenantId = HostTenant(Guid.NewGuid()),
+                destination = "Output",
+                allowed = false,
+                action = "Block",
+                categories = new Dictionary<string, int> { ["EMAIL"] = 1 }
+            }))
                 Assert.Equal(HttpStatusCode.BadRequest, mismatch.StatusCode);
             using var worker = Client(address, serverCertificate, workerCertificate);
             worker.DefaultRequestHeaders.Add("X-OpenConnect-Worker-Payload-Fingerprint", Convert.ToBase64String(WorkerProof));
@@ -214,8 +245,17 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var now = DateTimeOffset.UtcNow;
             await using (var db = await factory.CreateDbContextAsync())
             {
-                db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(10), Limit = 30 });
+                db.QuotaBuckets.Add(new CloudQuotaBucket
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    ApplicationId = appRecord.Id,
+                    CapabilityId = "classification.classify",
+                    Unit = "request",
+                    PeriodStart = now.AddMinutes(-1),
+                    PeriodEnd = now.AddMinutes(10),
+                    Limit = 30
+                });
                 await db.SaveChangesAsync();
             }
             var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
@@ -227,7 +267,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             async Task<HttpResponseMessage> Reserve(HttpClient client, string? secret, object body)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, reservationPath) { Content = JsonContent.Create(body) };
-                if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                if (secret is not null)
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
                 return await client.SendAsync(request);
             }
             Assert.Equal(HttpStatusCode.Unauthorized, (await Reserve(anonymous, classificationCredential.Secret, reservationBody)).StatusCode);
@@ -242,8 +283,14 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             Assert.Equal("duplicate", (await NodeReserveAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, reservationBody)).Status);
             Assert.Equal("duplicate", (await NodeReserveFromLookupAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, newRequestId)).Status);
             var adapterRequestId = Guid.NewGuid();
-            var adapterBody = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.classification/v2", requestId = adapterRequestId,
-                capability = "classification.classify", expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture), input = new { text = "test fixture" } });
+            var adapterBody = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                schemaVersion = "openconnect.cloud.classification/v2",
+                requestId = adapterRequestId,
+                capability = "classification.classify",
+                expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture),
+                input = new { text = "test fixture" }
+            });
             var adapterResults = await NodeQuotaAdapterAsync(address, serverCertificate, clientCertificate, classificationCredential.Secret!, tenant.Id, appRecord.Id, adapterBody);
             Assert.Equal(new[] { "reserved", "duplicate", "idempotency_conflict" }, adapterResults.Select(x => x.Status));
             Assert.Equal(adapterResults[0].ReservationId, adapterResults[1].ReservationId);
@@ -264,8 +311,14 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                     classificationCredential.Secret!, classificationReference, classificationDeploymentId, realRequestId.Value, factory);
             }
             var sequenceRequestId = Guid.NewGuid();
-            var sequenceBody = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.classification/v2", requestId = sequenceRequestId,
-                capability = "classification.classify", expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture), input = new { text = "sequence fixture" } });
+            var sequenceBody = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                schemaVersion = "openconnect.cloud.classification/v2",
+                requestId = sequenceRequestId,
+                capability = "classification.classify",
+                expiresAt = now.AddMinutes(3).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture),
+                input = new { text = "sequence fixture" }
+            });
             var sequence = await NodeExecutionSequenceAsync(address, serverCertificate, clientCertificate, workerCertificate, classificationCredential.Secret!, tenant.Id, appRecord.Id, classificationReference, sequenceBody);
             Assert.Equal(new[] { "200", "409" }, sequence);
             await using (var db = await factory.CreateDbContextAsync())
@@ -285,7 +338,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             async Task<HttpResponseMessage> Claim(HttpClient client, string? secret, HttpContent? body = null)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, claimPath) { Content = body ?? JsonContent.Create(new { fingerprintKeyId = "retained_key", fingerprint = Convert.ToBase64String(new byte[32]), endpointReference = classificationReference, region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) }) };
-                if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                if (secret is not null)
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
                 return await client.SendAsync(request);
             }
             Assert.Equal(HttpStatusCode.Unauthorized, (await Claim(anonymous, classificationCredential.Secret)).StatusCode);
@@ -324,17 +378,21 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 for (var attempt = 0; attempt < 100 && !waiting; attempt++)
                 {
                     waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.quota_reservations%FOR UPDATE%') AS \"Value\"").SingleAsync();
-                    if (!waiting) await Task.Delay(20);
+                    if (!waiting)
+                        await Task.Delay(20);
                 }
                 Assert.True(waiting);
                 var pendingRegion = regionWriter.RegionPolicies.Where(x => x.TenantId == tenant.Id).ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegions, "[\"region-b\"]"));
                 var pendingDeployment = deploymentWriter.WorkerDeployments.Where(x => x.EndpointReference == classificationReference).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
                 var pendingCatalog = catalogWriter.Capabilities.Where(x => x.Id == "classification.classify").ExecuteUpdateAsync(x => x.SetProperty(y => y.AllowedRegionsVerified, false));
                 await Task.Delay(100);
-                Assert.False(pendingRegion.IsCompleted); Assert.False(pendingDeployment.IsCompleted); Assert.False(pendingCatalog.IsCompleted);
+                Assert.False(pendingRegion.IsCompleted);
+                Assert.False(pendingDeployment.IsCompleted);
+                Assert.False(pendingCatalog.IsCompleted);
                 await transaction.CommitAsync();
                 claim = await pendingClaim;
-                Assert.Equal(1, await pendingRegion); Assert.Equal(1, await pendingDeployment);
+                Assert.Equal(1, await pendingRegion);
+                Assert.Equal(1, await pendingDeployment);
                 Assert.Equal(1, await pendingCatalog);
             }
             await using (var db = await factory.CreateDbContextAsync())
@@ -371,7 +429,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var consumptions = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => worker.PostAsync(consumePath, null)));
             Assert.Single(consumptions, x => x.StatusCode == HttpStatusCode.OK);
             Assert.Equal(19, consumptions.Count(x => x.StatusCode == HttpStatusCode.Conflict));
-            foreach (var responseMessage in consumptions) responseMessage.Dispose();
+            foreach (var responseMessage in consumptions)
+                responseMessage.Dispose();
             await using (var db = await factory.CreateDbContextAsync())
             {
                 Assert.Single(await db.ExecutionConsumptions.Where(x => x.ReservationId == reserved.ReservationId.Value).ToListAsync());
@@ -425,7 +484,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             async Task<HttpResponseMessage> Complete(HttpClient client, string? secret, HttpContent? body = null)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, completionPath) { Content = body };
-                if (secret is not null) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
+                if (secret is not null)
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", secret);
                 return await client.SendAsync(request);
             }
             Assert.Equal(HttpStatusCode.Unauthorized, (await Complete(anonymous, classificationCredential.Secret)).StatusCode);
@@ -467,8 +527,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 await stale.ExecutionClaims.CountAsync(); // Establish the older writer's snapshot.
                 Assert.Equal("claimed", (await claimService.ClaimAsync(classificationCredential.Credential!.Id, tenant.Id, appRecord.Id,
                     freshReservation, "classification.classify", "retained_key", new byte[32], deploymentRequest, CancellationToken.None)).Status);
-                stale.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = staleReservation, TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
+                stale.ExecutionClaims.Add(new CloudExecutionClaim
+                {
+                    ReservationId = staleReservation,
+                    TenantId = tenant.Id,
+                    ApplicationId = appRecord.Id,
+                    ClaimId = Guid.NewGuid(),
+                    DeploymentId = deploymentId,
+                    Region = "region-a",
+                    ClaimedAt = DateTimeOffset.UtcNow
+                });
                 await Assert.ThrowsAnyAsync<Exception>(() => stale.SaveChangesAsync());
             }
             await using (var db = await factory.CreateDbContextAsync())
@@ -477,9 +545,18 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var legacyWrites = await Task.WhenAll(legacyReservations.Select(async id =>
             {
                 await using var db = await factory.CreateDbContextAsync();
-                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = id, TenantId = tenant.Id, ApplicationId = appRecord.Id,
-                    ClaimId = Guid.NewGuid(), DeploymentId = deploymentId, Region = "region-a", ClaimedAt = DateTimeOffset.UtcNow });
-                try { await db.SaveChangesAsync(); return true; }
+                db.ExecutionClaims.Add(new CloudExecutionClaim
+                {
+                    ReservationId = id,
+                    TenantId = tenant.Id,
+                    ApplicationId = appRecord.Id,
+                    ClaimId = Guid.NewGuid(),
+                    DeploymentId = deploymentId,
+                    Region = "region-a",
+                    ClaimedAt = DateTimeOffset.UtcNow
+                });
+                try
+                { await db.SaveChangesAsync(); return true; }
                 catch (DbUpdateException exception) when (exception.InnerException is Npgsql.PostgresException { SqlState: "23514" }) { return false; }
             }));
             Assert.Single(legacyWrites, x => x);
@@ -497,8 +574,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
                 await using var transaction = await db.Database.BeginTransactionAsync();
                 var bucket = await db.QuotaBuckets.SingleAsync(x => x.TenantId == tenant.Id && x.ApplicationId == appRecord.Id && x.CapabilityId == "classification.classify");
                 bucket.Reserved++;
-                db.QuotaReservations.Add(new CloudQuotaReservation { Id = Guid.NewGuid(), BucketId = bucket.Id, TenantId = tenant.Id,
-                    ApplicationId = appRecord.Id, RequestId = legacyRequestId, Amount = 1, ExpiresAt = now.AddMinutes(5) });
+                db.QuotaReservations.Add(new CloudQuotaReservation
+                {
+                    Id = Guid.NewGuid(),
+                    BucketId = bucket.Id,
+                    TenantId = tenant.Id,
+                    ApplicationId = appRecord.Id,
+                    RequestId = legacyRequestId,
+                    Amount = 1,
+                    ExpiresAt = now.AddMinutes(5)
+                });
                 await db.SaveChangesAsync();
                 await transaction.CommitAsync();
             }
@@ -673,7 +758,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var keyPath = Path.Combine(temp, "worker.key");
             var caPath = Path.Combine(temp, "authority.crt");
             await File.WriteAllTextAsync(certPath, workerCertificate.ExportCertificatePem());
-            using (var key = workerCertificate.GetRSAPrivateKey()!) await File.WriteAllTextAsync(keyPath, key.ExportPkcs8PrivateKeyPem());
+            using (var key = workerCertificate.GetRSAPrivateKey()!)
+                await File.WriteAllTextAsync(keyPath, key.ExportPkcs8PrivateKeyPem());
             await File.WriteAllTextAsync(caPath, serverCertificate.ExportCertificatePem());
             var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -681,7 +767,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             listener.Stop();
             var start = new System.Diagnostics.ProcessStartInfo(python)
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var value in new[] { "-m", "uvicorn", "openconnect_classification.app:app", "--host", "127.0.0.1", "--port", port.ToString(), "--log-level", "error", "--no-access-log" }) start.ArgumentList.Add(value);
+            foreach (var value in new[] { "-m", "uvicorn", "openconnect_classification.app:app", "--host", "127.0.0.1", "--port", port.ToString(), "--log-level", "error", "--no-access-log" })
+                start.ArgumentList.Add(value);
             start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
             start.Environment["OPENCONNECT_WORKER_TOKEN"] = "test-worker-token";
             start.Environment["OC_ENVIRONMENT"] = "Development";
@@ -702,8 +789,10 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             var ready = false;
             for (var attempt = 0; attempt < 100 && !ready; attempt++)
             {
-                if (worker.HasExited) throw new InvalidOperationException("Synthetic ONNX worker exited before readiness.");
-                try { ready = (await workerClient.GetAsync("/health/ready")).IsSuccessStatusCode; }
+                if (worker.HasExited)
+                    throw new InvalidOperationException("Synthetic ONNX worker exited before readiness.");
+                try
+                { ready = (await workerClient.GetAsync("/health/ready")).IsSuccessStatusCode; }
                 catch (HttpRequestException) { await Task.Delay(100); }
             }
             Assert.True(ready);
@@ -714,7 +803,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             async Task<IResult> Forward(HttpContext context)
             {
                 using var forwarded = new HttpRequestMessage(new HttpMethod(context.Request.Method), context.Request.Path.Value);
-                if (context.Request.Headers.TryGetValue("Authorization", out var auth)) forwarded.Headers.TryAddWithoutValidation("Authorization", auth.ToArray());
+                if (context.Request.Headers.TryGetValue("Authorization", out var auth))
+                    forwarded.Headers.TryAddWithoutValidation("Authorization", auth.ToArray());
                 if (context.Request.Method == "POST")
                 {
                     forwarded.Content = new StreamContent(context.Request.Body);
@@ -759,7 +849,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         {
             if (worker is not null)
             {
-                if (!worker.HasExited) worker.Kill(entireProcessTree: true);
+                if (!worker.HasExited)
+                    worker.Kill(entireProcessTree: true);
                 await worker.WaitForExitAsync();
                 worker.Dispose();
             }
@@ -772,12 +863,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         const string script = "const m=await import(process.env.OC_TEST_MODULE);const g=await import(process.env.OC_TEST_GATEWAY);const f=await import(new URL('./request-fingerprint.mjs',process.env.OC_TEST_MODULE));const c=m.createCloudAuthorizationClient({origin:process.env.OC_TEST_ORIGIN,ca:process.env.OC_TEST_CA,certificate:process.env.OC_TEST_CERT,privateKey:process.env.OC_TEST_KEY});const x=JSON.parse(process.env.OC_TEST_CAPABILITY);const ring=f.createFingerprintKeyring({activeKeyId:'key',keys:[{id:'key',key:Buffer.alloc(32,7)}]}); " +
             "const dispatcher={executeClaimed:async(_,__,signal)=>{process.stdout.write('dispatch\\n');return await new Promise(resolve=>{const timer=setTimeout(()=>resolve({status:'timeout'}),8000);signal.addEventListener('abort',()=>{clearTimeout(timer);resolve({status:'upstream_unavailable'});},{once:true});});}};const s=g.createLocalServer(c,{deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1',modelDigest:'sha256:'+'a'.repeat(64)},probe:async()=>({ready:true,labelSets:['v1']})},{keyring:ring,dispatcher});await new Promise(r=>s.listen(0,'127.0.0.1',r));try{const r=await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body:JSON.stringify({schemaVersion:'openconnect.cloud.classification/v2',requestId:x.requestId,expiresAt:new Date(Date.now()+60000).toISOString(),capability:'classification.classify',input:{text:'active fixture'}})});process.stdout.write(String(r.status));}finally{await new Promise(r=>s.close(r));ring.dispose();}";
         var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        start.ArgumentList.Add("--input-type=module");
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
         start.Environment["OC_TEST_GATEWAY"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "local-server.mjs")).AbsoluteUri;
-        start.Environment["OC_TEST_ORIGIN"] = address.ToString(); start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
+        start.Environment["OC_TEST_ORIGIN"] = address.ToString();
+        start.Environment["OC_TEST_CA"] = server.ExportCertificatePem();
         start.Environment["OC_TEST_CERT"] = client.ExportCertificatePem();
-        using var privateKey = client.GetRSAPrivateKey()!; start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
+        using var privateKey = client.GetRSAPrivateKey()!;
+        start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_CREDENTIAL"] = credential;
         start.Environment["OC_TEST_CAPABILITY"] = System.Text.Json.JsonSerializer.Serialize(new { reference, requestId });
         using var process = System.Diagnostics.Process.Start(start)!;
@@ -804,7 +899,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             "t=TestClient(app.app); e={'schemaVersion':'openconnect.cloud.worker.classification/v1','reservationId':os.environ['OC_RESERVATION'],'claimId':os.environ['OC_CLAIM'],'key':base64.b64encode(b'k'*32).decode(),'payload':base64.b64encode(os.environ['OC_PAYLOAD'].encode()).decode()}; h={'Authorization':'Bearer test-worker-token'}; assert t.get('/internal/cloud/v1/classification/ready',headers=h).json()['deploymentId']==c.ready_deployment(); path='/internal/cloud/v1/classification/execute'; " +
             "bad=t.post(path,json={**e,'payload':base64.b64encode(os.environ['OC_PAYLOAD'].replace('worker fixture','altered fixture').encode()).decode()},headers=h); ok=t.post(path,json=e,headers=h); again=t.post(path,json=e,headers=h); print(str(bad.status_code)+','+str(ok.status_code)+','+str(again.status_code)+','+ok.json()['result']['engine']); t.close(); d.cleanup()";
         var start = new System.Diagnostics.ProcessStartInfo(python) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add(script);
         start.Environment["PYTHONPATH"] = Path.Combine(workerRoot, "src");
         start.Environment["OC_CA"] = server.ExportCertificatePem();
         start.Environment["OC_CERT"] = client.ExportCertificatePem();
@@ -850,8 +946,14 @@ public sealed class CloudGatewayAuthorizationPostgresTests
             "const dispatcher={executeClaimed:async(prepared,claim)=>new Promise(resolve=>{const digest=crypto.createHmac('sha256',claim.key).update(prepared.payload).digest('base64'); const path='/cloud/internal/v1/classification/quota/reservations/'+claim.reservationId+'/claims/'+claim.claimId+'/consume'; const req=https.request(new URL(path,process.env.OC_TEST_ORIGIN),{method:'POST',ca:process.env.OC_TEST_CA,cert:x.workerCert,key:x.workerKey,headers:{'x-openconnect-worker-payload-fingerprint':digest,'content-length':'0'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode===200?{status:'completed',result:{labels:['safe']}}:{status:'upstream_unavailable'}));}); req.on('error',()=>resolve({status:'upstream_unavailable'}));req.end();})}; " +
             "const s=g.createLocalServer(c,{deployment:{endpointReference:x.reference,region:'region-a',contractVersion:'openconnect.v1',modelRevision:'revision-1',modelDigest:'sha256:'+'a'.repeat(64)},probe:async()=>({ready:true,labelSets:['v1']})},{keyring:ring,dispatcher}); await new Promise(r=>s.listen(0,'127.0.0.1',r)); async function run(){return await fetch('http://127.0.0.1:'+s.address().port+'/cloud/v1/classification',{method:'POST',headers:{authorization:'Bearer '+process.env.OC_TEST_CREDENTIAL,'content-type':'application/json'},body:x.body});} try{const a=await run();const b=await run();const value=await a.json();if(value.schemaVersion!=='openconnect.cloud.classification.result/v1'||value.result.labels[0]!=='safe') throw new Error('invalid response');process.stdout.write(JSON.stringify([String(a.status),String(b.status)]));}finally{await new Promise(r=>s.close(r));ring.dispose();}";
         using var workerKey = worker.GetRSAPrivateKey()!;
-        var input = System.Text.Json.JsonSerializer.Serialize(new { identity = new { tenantId, applicationId }, reference, body,
-            workerCert = worker.ExportCertificatePem(), workerKey = workerKey.ExportPkcs8PrivateKeyPem() });
+        var input = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            identity = new { tenantId, applicationId },
+            reference,
+            body,
+            workerCert = worker.ExportCertificatePem(),
+            workerKey = workerKey.ExportPkcs8PrivateKeyPem()
+        });
         var output = await NodeCallAsync(script, address, server, client, credential, input);
         return System.Text.Json.JsonSerializer.Deserialize<string[]>(output)!;
     }
@@ -943,9 +1045,16 @@ public sealed class CloudGatewayAuthorizationPostgresTests
 
     private static async Task<string> NodeCallAsync(string script, Uri address, X509Certificate2 server, X509Certificate2 client, string credential, string capability, string? deployment = null)
     {
-        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add("--input-type=module"); start.ArgumentList.Add("-e"); start.ArgumentList.Add(script);
+        var start = new System.Diagnostics.ProcessStartInfo("node")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        start.ArgumentList.Add("--input-type=module");
+        start.ArgumentList.Add("-e");
+        start.ArgumentList.Add(script);
         start.Environment["OC_TEST_MODULE"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "control-plane.mjs")).AbsoluteUri;
         start.Environment["OC_TEST_GATEWAY"] = new Uri(Path.Combine(AppContext.BaseDirectory, "gateway", "local-server.mjs")).AbsoluteUri;
         start.Environment["OC_TEST_ORIGIN"] = address.ToString();
@@ -955,7 +1064,8 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         start.Environment["OC_TEST_KEY"] = privateKey.ExportPkcs8PrivateKeyPem();
         start.Environment["OC_TEST_CREDENTIAL"] = credential;
         start.Environment["OC_TEST_CAPABILITY"] = capability;
-        if (deployment is not null) start.Environment["OC_TEST_DEPLOYMENT"] = deployment;
+        if (deployment is not null)
+            start.Environment["OC_TEST_DEPLOYMENT"] = deployment;
         using var process = System.Diagnostics.Process.Start(start)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var output = await process.StandardOutput.ReadToEndAsync(timeout.Token);
@@ -972,19 +1082,26 @@ public sealed class CloudGatewayAuthorizationPostgresTests
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new(client ? "1.3.6.1.5.5.7.3.2" : "1.3.6.1.5.5.7.3.1") }, true));
-        if (!client) { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
+        if (!client)
+        { var names = new SubjectAlternativeNameBuilder(); names.AddIpAddress(IPAddress.Loopback); request.CertificateExtensions.Add(names.Build()); }
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
         var data = generated.Export(X509ContentType.Pfx);
-        try { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
+        try
+        { return X509CertificateLoader.LoadPkcs12(data, null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable); }
         finally { CryptographicOperations.ZeroMemory(data); }
     }
 
     private static HttpClient Client(Uri address, X509Certificate2 server, X509Certificate2? client)
     {
         var expected = server.GetCertHash(HashAlgorithmName.SHA256);
-        var handler = new HttpClientHandler { UseProxy = false, ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
-            certificate is not null && CryptographicOperations.FixedTimeEquals(expected, certificate.GetCertHash(HashAlgorithmName.SHA256)) };
-        if (client is not null) handler.ClientCertificates.Add(client);
+        var handler = new HttpClientHandler
+        {
+            UseProxy = false,
+            ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
+            certificate is not null && CryptographicOperations.FixedTimeEquals(expected, certificate.GetCertHash(HashAlgorithmName.SHA256))
+        };
+        if (client is not null)
+            handler.ClientCertificates.Add(client);
         return new HttpClient(handler) { BaseAddress = address };
     }
 

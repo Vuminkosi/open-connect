@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,8 @@ public sealed class TodoCloudPrivacyConfigurationTests
     [Fact]
     public void Enabled_reporting_requires_secure_complete_configuration_without_echoing_credentials()
     {
-        var values = new Dictionary<string, string?> {
+        var values = new Dictionary<string, string?>
+        {
             ["OpenConnect:CloudPrivacy:Enabled"] = "true",
             ["OpenConnect:CloudPrivacy:Origin"] = "http://cloud.example/",
             ["OpenConnect:CloudPrivacy:Credential"] = "sensitive-credential",
@@ -46,7 +47,8 @@ public sealed class TodoCloudPrivacyConfigurationTests
         try
         {
             File.WriteAllBytes(path, cert.Export(X509ContentType.Pkcs12, "test-password"));
-            var values = new Dictionary<string, string?> {
+            var values = new Dictionary<string, string?>
+            {
                 ["OpenConnect:CloudPrivacy:Enabled"] = "true",
                 ["OpenConnect:CloudPrivacy:Origin"] = "https://cloud.example/",
                 ["OpenConnect:CloudPrivacy:Credential"] = "fixture-token",

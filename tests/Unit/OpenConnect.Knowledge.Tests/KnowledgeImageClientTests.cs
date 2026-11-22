@@ -25,11 +25,24 @@ public sealed class KnowledgeImageClientTests
             visionCalls++;
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             var payload = json.RootElement.GetProperty("payload");
-            if (visionCalls == 1) Assert.Equal("image", payload.GetProperty("modality").GetString());
-            else Assert.Equal("safe", payload.GetProperty("text").GetString());
-            return Reply(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(),
-                kind = "vision.embed", result = new { vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
-                    model_id = "clip", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension = 512 } });
+            if (visionCalls == 1)
+                Assert.Equal("image", payload.GetProperty("modality").GetString());
+            else
+                Assert.Equal("safe", payload.GetProperty("text").GetString());
+            return Reply(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = json.RootElement.GetProperty("taskId").GetString(),
+                kind = "vision.embed",
+                result = new
+                {
+                    vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
+                    model_id = "clip",
+                    fingerprint = new string('a', 64),
+                    space_id = new string('b', 64),
+                    dimension = 512
+                }
+            });
         });
         var indexHandler = new Handler(async request =>
         {
@@ -43,8 +56,11 @@ public sealed class KnowledgeImageClientTests
             Assert.Equal(context.Tenant.Value.ToString(), root.GetProperty("tenantId").GetString());
             Assert.Equal(new string('b', 64), payload.GetProperty("embeddingSpaceId").GetString());
             Assert.Equal(512, payload.GetProperty("vector").GetArrayLength());
-            object result = kind == "knowledge.image.upsert" ? new { stored = true } : new { hits = new[]
-                { new { document_id = "doc", image_id = "img", image_revision = "v1", score = 0.9 } } };
+            object result = kind == "knowledge.image.upsert" ? new { stored = true } : new
+            {
+                hits = new[]
+                { new { document_id = "doc", image_id = "img", image_revision = "v1", score = 0.9 } }
+            };
             if (kind == "knowledge.image.search")
                 Assert.Equal(context.Principal.Value.ToString(), payload.GetProperty("principalId").GetString());
             return Reply(new { schemaVersion = "openconnect.v1", taskId = root.GetProperty("taskId").GetString(), kind, result });
@@ -106,17 +122,33 @@ public sealed class KnowledgeImageClientTests
         var visionHandler = new Handler(async request =>
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Reply(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(),
-                kind = "vision.embed", result = new { vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
-                    model_id = "clip", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension = 512 } });
+            return Reply(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = json.RootElement.GetProperty("taskId").GetString(),
+                kind = "vision.embed",
+                result = new
+                {
+                    vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
+                    model_id = "clip",
+                    fingerprint = new string('a', 64),
+                    space_id = new string('b', 64),
+                    dimension = 512
+                }
+            });
         });
         var indexHandler = new Handler(async request =>
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             Assert.Equal("reader", json.RootElement.GetProperty("payload").GetProperty("roleIds")[0].GetString());
             var hit = new { document_id = "doc", image_id = "img", image_revision = "v1", score = 0.9 };
-            return Reply(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(),
-                kind = "knowledge.image.search", result = new { hits = new[] { hit, hit } } });
+            return Reply(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = json.RootElement.GetProperty("taskId").GetString(),
+                kind = "knowledge.image.search",
+                result = new { hits = new[] { hit, hit } }
+            });
         });
         using var visionHttp = new HttpClient(visionHandler);
         using var indexHttp = new HttpClient(indexHandler);
@@ -144,15 +176,31 @@ public sealed class KnowledgeImageClientTests
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
             Assert.Equal(content, Convert.FromBase64String(json.RootElement.GetProperty("payload").GetProperty("contentBase64").GetString()!));
-            return Reply(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(),
-                kind = "vision.embed", result = new { vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
-                    model_id = "clip", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension = 512 } });
+            return Reply(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = json.RootElement.GetProperty("taskId").GetString(),
+                kind = "vision.embed",
+                result = new
+                {
+                    vector = Enumerable.Range(0, 512).Select(i => i == 0 ? 1.0 : 0.0),
+                    model_id = "clip",
+                    fingerprint = new string('a', 64),
+                    space_id = new string('b', 64),
+                    dimension = 512
+                }
+            });
         });
         var indexHandler = new Handler(async request =>
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return Reply(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(),
-                kind = "knowledge.image.upsert", result = new { stored = true } });
+            return Reply(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId = json.RootElement.GetProperty("taskId").GetString(),
+                kind = "knowledge.image.upsert",
+                result = new { stored = true }
+            });
         });
         using var visionHttp = new HttpClient(visionHandler);
         using var indexHttp = new HttpClient(indexHandler);

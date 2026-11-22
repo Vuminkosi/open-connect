@@ -12,10 +12,13 @@ public sealed class MinioDocumentDeleterTests
     [Fact]
     public async Task DeletesOnlyTheAuthorizedTenantObjectVersion()
     {
-        string? key = null; string? selectedVersion = null;
+        string? key = null;
+        string? selectedVersion = null;
         var deleter = new MinioDocumentDeleter((tenant, objectId, version, _) =>
         {
-            Assert.Equal(Tenant, tenant); Assert.Equal(ObjectId, objectId); Assert.Equal("version-1", version);
+            Assert.Equal(Tenant, tenant);
+            Assert.Equal(ObjectId, objectId);
+            Assert.Equal("version-1", version);
             return ValueTask.FromResult(true);
         }, (objectKey, version, _) => { key = objectKey; selectedVersion = version; return Task.CompletedTask; });
         await deleter.DeleteVersionAsync(Tenant, ObjectId, "version-1");

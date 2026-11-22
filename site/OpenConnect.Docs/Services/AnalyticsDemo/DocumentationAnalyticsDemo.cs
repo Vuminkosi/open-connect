@@ -25,7 +25,8 @@ internal static class DocumentationAnalyticsRegistration
         IConfiguration configuration, IHostEnvironment environment)
     {
         const string prefix = "OpenConnect:AnalyticsDemo:";
-        if (!configuration.GetValue<bool>(prefix + "Enabled")) return services;
+        if (!configuration.GetValue<bool>(prefix + "Enabled"))
+            return services;
         if (!environment.IsDevelopment() || !services.Any(service => service.ServiceType == typeof(DocumentationGatewayVisitorTokens)))
             throw new InvalidOperationException("The analytics example requires development and documentation visitor identity.");
         var allowHttp = configuration.GetValue<bool>(prefix + "AllowInsecureHttp");
@@ -37,9 +38,11 @@ internal static class DocumentationAnalyticsRegistration
             string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) || string.IsNullOrWhiteSpace(signingKey))
             throw new InvalidOperationException("The analytics example worker settings are invalid.");
         byte[] key;
-        try { key = Convert.FromHexString(signingKey); }
+        try
+        { key = Convert.FromHexString(signingKey); }
         catch (FormatException) { throw new InvalidOperationException("The analytics example worker settings are invalid."); }
-        try { if (key.Length < 32) throw new InvalidOperationException("The analytics example worker settings are invalid."); }
+        try
+        { if (key.Length < 32) throw new InvalidOperationException("The analytics example worker settings are invalid."); }
         finally { CryptographicOperations.ZeroMemory(key); }
         services.AddOpenConnectRulesDetector();
         services.EnsureHostPrivacyServices();
@@ -62,8 +65,10 @@ internal sealed class DocumentationAnalyticsDemo(DocumentationGatewayVisitorIden
 {
     public async Task<JsonDocument> AnalyzeAsync(CancellationToken cancellationToken)
     {
-        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal)) throw new UnauthorizedAccessException();
-        if (!await capacity.Slots.WaitAsync(0, cancellationToken).ConfigureAwait(false)) throw new InvalidOperationException("Analytics example is busy.");
+        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal))
+            throw new UnauthorizedAccessException();
+        if (!await capacity.Slots.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("Analytics example is busy.");
         byte[]? key = null;
         try
         {

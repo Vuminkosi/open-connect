@@ -12,9 +12,13 @@ public sealed class KnowledgeImageObjectReference
             objectSize is < 1 or > 10 * 1024 * 1024 || string.IsNullOrEmpty(objectVersion) || objectVersion == "null" || objectVersion.Length > 1024 ||
             objectVersion.Any(c => c < 32 || c == 127))
             throw new ArgumentException("The image object reference is invalid.");
-        try { _ = new UTF8Encoding(false, true).GetByteCount(objectVersion); }
+        try
+        { _ = new UTF8Encoding(false, true).GetByteCount(objectVersion); }
         catch (EncoderFallbackException) { throw new ArgumentException("The image object reference is invalid."); }
-        ObjectId = objectId; ObjectSha256 = objectSha256; ObjectSize = objectSize; ObjectVersion = objectVersion;
+        ObjectId = objectId;
+        ObjectSha256 = objectSha256;
+        ObjectSize = objectSize;
+        ObjectVersion = objectVersion;
     }
 
     public string ObjectId { get; }

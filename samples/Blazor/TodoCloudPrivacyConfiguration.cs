@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using OpenConnect.Privacy;
@@ -11,7 +11,8 @@ internal static class TodoCloudPrivacyConfiguration
 {
     internal static void Configure(IServiceCollection services, IConfiguration configuration)
     {
-        if (!configuration.GetValue<bool>("OpenConnect:CloudPrivacy:Enabled")) return;
+        if (!configuration.GetValue<bool>("OpenConnect:CloudPrivacy:Enabled"))
+            return;
         var origin = configuration["OpenConnect:CloudPrivacy:Origin"];
         var token = configuration["OpenConnect:CloudPrivacy:Credential"];
         var certificatePath = configuration["OpenConnect:CloudPrivacy:CertificatePath"];
@@ -24,7 +25,8 @@ internal static class TodoCloudPrivacyConfiguration
             string.IsNullOrWhiteSpace(certificatePath) ||
             !string.IsNullOrEmpty(serverPin) && (serverPin.Length != 64 || !serverPin.All(Uri.IsHexDigit)))
             throw new InvalidOperationException("Cloud privacy reporting configuration is invalid.");
-        using (LoadCertificate(certificatePath, password)) { }
+        using (LoadCertificate(certificatePath, password))
+        { }
         services.AddSingleton(_ => LoadCertificate(certificatePath, password));
         services.AddOpenConnectRulesDetector();
         services.EnsureHostPrivacyServices();

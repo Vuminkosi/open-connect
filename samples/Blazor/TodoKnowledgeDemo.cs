@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using OpenConnect.Knowledge;
@@ -31,7 +31,8 @@ internal sealed class TodoKnowledgeDemo(TodoDocumentDemoAccess access, IConfigur
             (cloudEmbedding && string.IsNullOrWhiteSpace(cloudToken)))
             throw new InvalidOperationException("Knowledge example is not configured.");
         byte[] key;
-        try { key = Convert.FromHexString(keyText); }
+        try
+        { key = Convert.FromHexString(keyText); }
         catch (FormatException) { throw new InvalidOperationException("Knowledge example is not configured."); }
         var allowHttp = configuration.GetValue<bool>(prefix + "AllowInsecureHttp");
         try
@@ -55,7 +56,8 @@ internal sealed class TodoKnowledgeDemo(TodoDocumentDemoAccess access, IConfigur
                 {
                     var embeddingScope = cloudEmbedding ? scope with { Destination = EgressDestination.ExternalModel } : scope;
                     var result = await embed.EmbedAsync(embeddingScope, "query", [text], ct).ConfigureAwait(false);
-                    if (result.SpaceId != submission.EmbeddingSpaceId) throw new InvalidOperationException("Knowledge model space changed.");
+                    if (result.SpaceId != submission.EmbeddingSpaceId)
+                        throw new InvalidOperationException("Knowledge model space changed.");
                     return result;
                 }, cancellationToken: cancellationToken).ConfigureAwait(false);
         }

@@ -32,7 +32,8 @@ public sealed class MinioVersionedObjectReader
         if (objectKey is null || !ObjectKey.IsMatch(objectKey) || string.IsNullOrEmpty(version) ||
             version == "null" || version.Length > 1024 || version.Any(c => c < 32 || c == 127))
             throw new ArgumentException("Invalid versioned object reference.");
-        try { _ = new UTF8Encoding(false, true).GetByteCount(version); }
+        try
+        { _ = new UTF8Encoding(false, true).GetByteCount(version); }
         catch (EncoderFallbackException) { throw new ArgumentException("Invalid versioned object reference."); }
         var buffer = new ClearingMemoryStream();
         var copied = false;
@@ -47,7 +48,8 @@ public sealed class MinioVersionedObjectReader
                         int count;
                         while ((count = await source.ReadAsync(chunk, token).ConfigureAwait(false)) > 0)
                         {
-                            if (buffer.Length + count > MaximumBytes) throw new InvalidOperationException("MinIO object is too large.");
+                            if (buffer.Length + count > MaximumBytes)
+                                throw new InvalidOperationException("MinIO object is too large.");
                             await buffer.WriteAsync(chunk.AsMemory(0, count), token).ConfigureAwait(false);
                         }
                         copied = true;
@@ -72,7 +74,8 @@ public sealed class MinioVersionedObjectReader
     {
         protected override void Dispose(bool disposing)
         {
-            if (disposing && TryGetBuffer(out var buffer)) CryptographicOperations.ZeroMemory(buffer.AsSpan());
+            if (disposing && TryGetBuffer(out var buffer))
+                CryptographicOperations.ZeroMemory(buffer.AsSpan());
             base.Dispose(disposing);
         }
 

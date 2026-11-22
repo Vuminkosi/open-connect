@@ -24,7 +24,8 @@ public sealed class ClamAvScanner
     /// <summary>Returns only for a clean verdict; malware and scanner errors fail closed.</summary>
     public async Task ScanAsync(ReadOnlyMemory<byte> content, CancellationToken cancellationToken = default)
     {
-        if (content.IsEmpty || content.Length > MaximumBytes) throw new ArgumentException("Invalid document.", nameof(content));
+        if (content.IsEmpty || content.Length > MaximumBytes)
+            throw new ArgumentException("Invalid document.", nameof(content));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_timeout);
         try
@@ -58,9 +59,11 @@ public sealed class ClamAvScanner
             while (used < reply.Length)
             {
                 var count = await stream.ReadAsync(reply.AsMemory(used, 1), cancellationToken).ConfigureAwait(false);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 used += count;
-                if (reply[used - 1] == 0) break;
+                if (reply[used - 1] == 0)
+                    break;
             }
             cancellationToken.ThrowIfCancellationRequested();
             if (!reply.AsSpan(0, used).SequenceEqual("stream: OK\0"u8))

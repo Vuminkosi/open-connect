@@ -33,21 +33,30 @@ public sealed class KnowledgeRerankClient : IDisposable
         Func<EgressContext, IReadOnlyList<KnowledgeRerankCandidate>, CancellationToken, ValueTask<bool>> authorize,
         bool allowInsecureHttp = false)
         : this(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false }),
-            gate, endpoint, token, key, authorize, allowInsecureHttp, true) { }
+            gate, endpoint, token, key, authorize, allowInsecureHttp, true)
+    { }
 
     internal KnowledgeRerankClient(HttpClient http, IEgressGate gate, Uri endpoint, string token, byte[] key,
         Func<EgressContext, IReadOnlyList<KnowledgeRerankCandidate>, CancellationToken, ValueTask<bool>> authorize,
         bool allowInsecureHttp = false, bool ownsHttp = false)
     {
-        ArgumentNullException.ThrowIfNull(http); ArgumentNullException.ThrowIfNull(gate); ArgumentNullException.ThrowIfNull(endpoint);
-        ArgumentNullException.ThrowIfNull(key); ArgumentNullException.ThrowIfNull(authorize);
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(gate);
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(authorize);
         if (!endpoint.IsAbsoluteUri || !string.IsNullOrEmpty(endpoint.UserInfo) ||
             !(endpoint.Scheme == Uri.UriSchemeHttps || allowInsecureHttp && endpoint.Scheme == Uri.UriSchemeHttp))
             throw new ArgumentException("A trusted worker endpoint is required.", nameof(endpoint));
         if (string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) || key.Length < 32)
             throw new ArgumentException("Worker credentials are invalid.");
-        _http = http; _gate = gate; _endpoint = new Uri(endpoint, "/internal/v1/execute"); _token = token;
-        _key = (byte[])key.Clone(); _authorize = authorize; _ownsHttp = ownsHttp;
+        _http = http;
+        _gate = gate;
+        _endpoint = new Uri(endpoint, "/internal/v1/execute");
+        _token = token;
+        _key = (byte[])key.Clone();
+        _authorize = authorize;
+        _ownsHttp = ownsHttp;
     }
 
     /// <summary>Returns a caller-owned result with raw model scores; scores are not calibrated probabilities.</summary>
@@ -55,7 +64,8 @@ public sealed class KnowledgeRerankClient : IDisposable
         IReadOnlyList<KnowledgeRerankCandidate> candidates, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(context); ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(candidates);
         if (context.Tenant.Value == default || context.Principal.Value == default || context.Session.Value == default ||
             context.Destination != EgressDestination.Worker || string.IsNullOrWhiteSpace(query) || query.Length > 8192 || candidates.Count is < 1 or > 32)
             throw new ArgumentException("Invalid reranking request.");
@@ -65,7 +75,8 @@ public sealed class KnowledgeRerankClient : IDisposable
             throw new ArgumentException("Invalid reranking request.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(100));
-        if (!await _authorize(context, snapshot, deadline.Token).ConfigureAwait(false)) throw new UnauthorizedAccessException("Reranking was not authorized.");
+        if (!await _authorize(context, snapshot, deadline.Token).ConfigureAwait(false))
+            throw new UnauthorizedAccessException("Reranking was not authorized.");
         await PrivacyJsonInspection.DemandGateUnchangedAsync(_gate, JsonSerializer.SerializeToElement(snapshot.Select(item => item.Id)), context, deadline.Token).ConfigureAwait(false);
         async Task<string> Sanitize(string text)
         {
@@ -85,32 +96,49 @@ public sealed class KnowledgeRerankClient : IDisposable
             containsEncoded |= text.Contains('%');
             safeFragments.Add(text);
             totalCharacters += text.Length;
-            if (totalCharacters > 65536) throw new ArgumentException("Invalid reranking request.");
+            if (totalCharacters > 65536)
+                throw new ArgumentException("Invalid reranking request.");
             safeCandidates.Add(new { id = item.Id, text });
         }
         if (containsEncoded)
             await PrivacyJsonInspection.DemandGateUnchangedAsync(_gate, JsonSerializer.SerializeToElement(safeFragments), context, deadline.Token).ConfigureAwait(false);
-        var taskId = Guid.NewGuid().ToString("N"); var now = DateTimeOffset.UtcNow;
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId, kind = "knowledge.rerank",
-            tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5), expiresAt = now.AddMinutes(2),
-            payload = new { query = safeQuery, candidates = safeCandidates } });
-        byte[]? chunk = null; MemoryStream? buffer = null;
+        var taskId = Guid.NewGuid().ToString("N");
+        var now = DateTimeOffset.UtcNow;
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.rerank",
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload = new { query = safeQuery, candidates = safeCandidates }
+        });
+        byte[]? chunk = null;
+        MemoryStream? buffer = null;
         try
         {
-            if (body.Length > 128 * 1024) throw new ArgumentException("Invalid reranking request.");
+            if (body.Length > 128 * 1024)
+                throw new ArgumentException("Invalid reranking request.");
             deadline.Token.ThrowIfCancellationRequested();
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
             request.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_key, body)).ToLowerInvariant());
-            request.Content = new ByteArrayContent(body); request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            request.Content = new ByteArrayContent(body);
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) throw new HttpRequestException("The reranking worker rejected the request.", null, response.StatusCode);
-            if (response.Content.Headers.ContentLength > 64 * 1024) throw new InvalidOperationException("Invalid worker response.");
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException("The reranking worker rejected the request.", null, response.StatusCode);
+            if (response.Content.Headers.ContentLength > 64 * 1024)
+                throw new InvalidOperationException("Invalid worker response.");
             await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
-            buffer = new MemoryStream(); chunk = new byte[8192]; int count;
+            buffer = new MemoryStream();
+            chunk = new byte[8192];
+            int count;
             while ((count = await stream.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
             { if (buffer.Length + count > 64 * 1024) throw new InvalidOperationException("Invalid worker response."); buffer.Write(chunk, 0, count); }
-            buffer.Position = 0; var result = JsonDocument.Parse(buffer);
+            buffer.Position = 0;
+            var result = JsonDocument.Parse(buffer);
             try
             {
                 Validate(result.RootElement, taskId, snapshot.Select((item, index) => (item.Id, index)).ToDictionary(item => item.Id, item => item.index, StringComparer.Ordinal));
@@ -122,8 +150,10 @@ public sealed class KnowledgeRerankClient : IDisposable
         finally
         {
             CryptographicOperations.ZeroMemory(body);
-            if (chunk is not null) CryptographicOperations.ZeroMemory(chunk);
-            if (buffer is not null) { if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan()); buffer.Dispose(); }
+            if (chunk is not null)
+                CryptographicOperations.ZeroMemory(chunk);
+            if (buffer is not null)
+            { if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan()); buffer.Dispose(); }
         }
     }
 
@@ -132,29 +162,41 @@ public sealed class KnowledgeRerankClient : IDisposable
         try
         {
             Properties(root, "schemaVersion", "taskId", "kind", "result");
-            if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" || root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.rerank") throw new InvalidOperationException();
-            var result = root.GetProperty("result"); Properties(result, "candidates", "model_id", "fingerprint", "score_type");
-            if (!KnowledgeIndexSubmission.Identifier(result.GetProperty("model_id").GetString()) || !KnowledgeIndexSubmission.Digest(result.GetProperty("fingerprint").GetString()) || result.GetProperty("score_type").GetString() != "raw_logit") throw new InvalidOperationException();
+            if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" || root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.rerank")
+                throw new InvalidOperationException();
+            var result = root.GetProperty("result");
+            Properties(result, "candidates", "model_id", "fingerprint", "score_type");
+            if (!KnowledgeIndexSubmission.Identifier(result.GetProperty("model_id").GetString()) || !KnowledgeIndexSubmission.Digest(result.GetProperty("fingerprint").GetString()) || result.GetProperty("score_type").GetString() != "raw_logit")
+                throw new InvalidOperationException();
             var candidates = result.GetProperty("candidates");
-            if (candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() != ids.Count) throw new InvalidOperationException();
-            var previous = double.PositiveInfinity; var previousIndex = -1;
+            if (candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() != ids.Count)
+                throw new InvalidOperationException();
+            var previous = double.PositiveInfinity;
+            var previousIndex = -1;
             foreach (var candidate in candidates.EnumerateArray())
             {
                 Properties(candidate, "id", "score");
                 var id = candidate.GetProperty("id").GetString();
-                if (id is null || !ids.Remove(id, out var index) || !candidate.GetProperty("score").TryGetDouble(out var score) || !double.IsFinite(score) || score > previous || (score == previous && index <= previousIndex)) throw new InvalidOperationException();
-                previous = score; previousIndex = index;
+                if (id is null || !ids.Remove(id, out var index) || !candidate.GetProperty("score").TryGetDouble(out var score) || !double.IsFinite(score) || score > previous || (score == previous && index <= previousIndex))
+                    throw new InvalidOperationException();
+                previous = score;
+                previousIndex = index;
             }
-            if (ids.Count != 0) throw new InvalidOperationException();
+            if (ids.Count != 0)
+                throw new InvalidOperationException();
         }
         catch { throw new InvalidOperationException("Invalid worker response."); }
     }
     private static void Properties(JsonElement value, params string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) throw new InvalidOperationException();
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new InvalidOperationException();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var property in value.EnumerateObject()) if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) throw new InvalidOperationException();
-        if (seen.Count != expected.Length) throw new InvalidOperationException();
+        foreach (var property in value.EnumerateObject())
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                throw new InvalidOperationException();
+        if (seen.Count != expected.Length)
+            throw new InvalidOperationException();
     }
     /// <summary>Clears signing material and disposes the owned transport.</summary>
     public void Dispose() { if (_disposed) return; _disposed = true; CryptographicOperations.ZeroMemory(_key); if (_ownsHttp) _http.Dispose(); }

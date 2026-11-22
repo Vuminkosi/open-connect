@@ -1,4 +1,4 @@
-﻿using OpenConnect.Hosting.AspNetCore;
+using OpenConnect.Hosting.AspNetCore;
 
 namespace OpenConnect.Samples.Blazor;
 
@@ -13,7 +13,8 @@ internal static class TodoCapabilityMonitorConfiguration
         const string prefix = "OpenConnect:CapabilityMonitor:";
         var token = configuration["OPENCONNECT_WORKER_TOKEN"];
         var inferenceToken = configuration["OPENCONNECT_INFERENCE_TOKEN"];
-        if (string.IsNullOrWhiteSpace(inferenceToken)) inferenceToken = token;
+        if (string.IsNullOrWhiteSpace(inferenceToken))
+            inferenceToken = token;
         var allowHttp = configuration.GetValue<bool>(prefix + "AllowInsecureHttp");
         var sources = new List<WorkerCapabilitySource>();
         Add("DocumentEndpoint", ["documents.analyze"]);
@@ -24,15 +25,18 @@ internal static class TodoCapabilityMonitorConfiguration
         Add("VisionEmbedEndpoint", ["vision.embed"]);
         Add("AnalyticsEndpoint", ["analytics.analyze"]);
         Add("InferenceEndpoint", ["documents.extract"], inference: true);
-        if (sources.Count == 0) throw new InvalidOperationException("No capability sources are configured.");
+        if (sources.Count == 0)
+            throw new InvalidOperationException("No capability sources are configured.");
         return sources.AsReadOnly();
 
         void Add(string name, string[] ids, bool inference = false)
         {
             var endpoint = configuration[prefix + name];
-            if (string.IsNullOrWhiteSpace(endpoint)) return;
+            if (string.IsNullOrWhiteSpace(endpoint))
+                return;
             var credential = inference ? inferenceToken : token;
-            if (string.IsNullOrWhiteSpace(credential)) throw new InvalidOperationException("A worker credential is required.");
+            if (string.IsNullOrWhiteSpace(credential))
+                throw new InvalidOperationException("A worker credential is required.");
             sources.Add(new WorkerCapabilitySource(endpoint, credential, ids, inference, allowHttp));
         }
     }

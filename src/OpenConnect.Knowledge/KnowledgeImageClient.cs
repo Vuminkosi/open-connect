@@ -35,16 +35,27 @@ public sealed class KnowledgeImageClient : IDisposable
         Func<EgressContext, string, string, IReadOnlyList<string>, CancellationToken, ValueTask<bool>> authorizeSearch,
         bool allowInsecureHttp = false, bool ownsHttp = false)
     {
-        ArgumentNullException.ThrowIfNull(http); ArgumentNullException.ThrowIfNull(gate); ArgumentNullException.ThrowIfNull(endpoint); ArgumentNullException.ThrowIfNull(key);
-        ArgumentNullException.ThrowIfNull(vision); ArgumentNullException.ThrowIfNull(authorizeWrite);
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(gate);
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(vision);
+        ArgumentNullException.ThrowIfNull(authorizeWrite);
         ArgumentNullException.ThrowIfNull(authorizeSearch);
         if (!endpoint.IsAbsoluteUri || !string.IsNullOrEmpty(endpoint.UserInfo) ||
             !(endpoint.Scheme == Uri.UriSchemeHttps || (allowInsecureHttp && endpoint.Scheme == Uri.UriSchemeHttp)))
             throw new ArgumentException("A trusted worker endpoint is required.", nameof(endpoint));
         if (string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) || key.Length < 32)
             throw new ArgumentException("Worker credentials are invalid.");
-        _http = http; _gate = gate; _endpoint = new Uri(endpoint, "/internal/v1/execute"); _token = token; _key = (byte[])key.Clone();
-        _vision = vision; _authorizeWrite = authorizeWrite; _authorizeSearch = authorizeSearch; _ownsHttp = ownsHttp;
+        _http = http;
+        _gate = gate;
+        _endpoint = new Uri(endpoint, "/internal/v1/execute");
+        _token = token;
+        _key = (byte[])key.Clone();
+        _vision = vision;
+        _authorizeWrite = authorizeWrite;
+        _authorizeSearch = authorizeSearch;
+        _ownsHttp = ownsHttp;
     }
 
     /// <summary>Authorizes, scans and embeds image bytes, then stores the resulting vector under the parent ACL.</summary>
@@ -53,7 +64,8 @@ public sealed class KnowledgeImageClient : IDisposable
     {
         ValidateContext(context);
         ArgumentNullException.ThrowIfNull(submission);
-        if (image.Length is < 1 or > 10 * 1024 * 1024) throw new ArgumentException("Invalid image size.", nameof(image));
+        if (image.Length is < 1 or > 10 * 1024 * 1024)
+            throw new ArgumentException("Invalid image size.", nameof(image));
         var copy = image.ToArray();
         try
         {
@@ -61,12 +73,21 @@ public sealed class KnowledgeImageClient : IDisposable
                 throw new UnauthorizedAccessException("Image indexing was not authorized.");
             await DemandMetadataAsync(context, submission, cancellationToken).ConfigureAwait(false);
             var embedding = await _vision.EmbedImageAsync(context, copy, cancellationToken).ConfigureAwait(false);
-            var payload = new { applicationId = submission.ApplicationId, collectionId = submission.CollectionId,
-                documentId = submission.DocumentId, sourceRevision = submission.SourceRevision,
-                expectedGeneration = submission.ExpectedGeneration, imageId = submission.ImageId,
-                imageRevision = submission.ImageRevision, expectedImageRevision = submission.ExpectedImageRevision,
-                vector = embedding.Items[0].Vector, embeddingSpaceId = embedding.SpaceId, modelId = embedding.ModelId,
-                fingerprint = embedding.Fingerprint };
+            var payload = new
+            {
+                applicationId = submission.ApplicationId,
+                collectionId = submission.CollectionId,
+                documentId = submission.DocumentId,
+                sourceRevision = submission.SourceRevision,
+                expectedGeneration = submission.ExpectedGeneration,
+                imageId = submission.ImageId,
+                imageRevision = submission.ImageRevision,
+                expectedImageRevision = submission.ExpectedImageRevision,
+                vector = embedding.Items[0].Vector,
+                embeddingSpaceId = embedding.SpaceId,
+                modelId = embedding.ModelId,
+                fingerprint = embedding.Fingerprint
+            };
             using var response = await SendAsync(context, "knowledge.image.upsert", payload, 0, cancellationToken).ConfigureAwait(false);
         }
         finally { CryptographicOperations.ZeroMemory(copy); }
@@ -99,7 +120,8 @@ public sealed class KnowledgeImageClient : IDisposable
         try
         {
             await using var stream = await openVersion(objectKey, reference.ObjectVersion, deadline.Token).ConfigureAwait(false);
-            if (stream is null || !stream.CanRead) throw new InvalidOperationException("Image object is unavailable.");
+            if (stream is null || !stream.CanRead)
+                throw new InvalidOperationException("Image object is unavailable.");
             var offset = 0;
             int count;
             while (offset < bytes.Length && (count = await stream.ReadAsync(bytes.AsMemory(offset), deadline.Token).ConfigureAwait(false)) > 0)
@@ -118,7 +140,8 @@ public sealed class KnowledgeImageClient : IDisposable
     {
         ValidateContext(context);
         ArgumentNullException.ThrowIfNull(roleIds);
-        if (roleIds.Count > 64) throw new ArgumentException("The image search request is invalid.");
+        if (roleIds.Count > 64)
+            throw new ArgumentException("The image search request is invalid.");
         var roles = Array.AsReadOnly(roleIds.ToArray());
         if (!KnowledgeIndexSubmission.Identifier(applicationId) || !KnowledgeIndexSubmission.Identifier(collectionId) ||
             roles.Count > 64 || roles.Any(value => !KnowledgeIndexSubmission.Identifier(value)) ||
@@ -128,9 +151,18 @@ public sealed class KnowledgeImageClient : IDisposable
             throw new UnauthorizedAccessException("Image search was not authorized.");
         await DemandMetadataAsync(context, new { applicationId, collectionId, roles }, cancellationToken).ConfigureAwait(false);
         var embedding = await _vision.EmbedTextAsync(context, query, cancellationToken).ConfigureAwait(false);
-        var payload = new { applicationId, collectionId, principalId = context.Principal.Value.ToString(), roleIds = roles,
-            limit, vector = embedding.Items[0].Vector, embeddingSpaceId = embedding.SpaceId,
-            modelId = embedding.ModelId, fingerprint = embedding.Fingerprint };
+        var payload = new
+        {
+            applicationId,
+            collectionId,
+            principalId = context.Principal.Value.ToString(),
+            roleIds = roles,
+            limit,
+            vector = embedding.Items[0].Vector,
+            embeddingSpaceId = embedding.SpaceId,
+            modelId = embedding.ModelId,
+            fingerprint = embedding.Fingerprint
+        };
         return await SendAsync(context, "knowledge.image.search", payload, limit, cancellationToken).ConfigureAwait(false);
     }
 
@@ -148,9 +180,18 @@ public sealed class KnowledgeImageClient : IDisposable
     {
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString("N");
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId, kind,
-            tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5), expiresAt = now.AddMinutes(2), payload });
-        if (body.Length > 128 * 1024) throw new ArgumentException("The image index request is too large.");
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind,
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload
+        });
+        if (body.Length > 128 * 1024)
+            throw new ArgumentException("The image index request is too large.");
         using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
         request.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_key, body)).ToLowerInvariant());
@@ -159,16 +200,19 @@ public sealed class KnowledgeImageClient : IDisposable
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(100));
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode) throw new HttpRequestException("The image index rejected the request.", null, response.StatusCode);
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException("The image index rejected the request.", null, response.StatusCode);
         const int maximum = 128 * 1024;
-        if (response.Content.Headers.ContentLength > maximum) throw new InvalidOperationException("Invalid worker response.");
+        if (response.Content.Headers.ContentLength > maximum)
+            throw new InvalidOperationException("Invalid worker response.");
         await using var input = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
         using var buffer = new MemoryStream();
         var chunk = new byte[4096];
         int count;
         while ((count = await input.ReadAsync(chunk, timeout.Token).ConfigureAwait(false)) > 0)
         {
-            if (buffer.Length + count > maximum) throw new InvalidOperationException("Invalid worker response.");
+            if (buffer.Length + count > maximum)
+                throw new InvalidOperationException("Invalid worker response.");
             buffer.Write(chunk, 0, count);
         }
         var document = JsonDocument.Parse(buffer.ToArray());
@@ -189,17 +233,20 @@ public sealed class KnowledgeImageClient : IDisposable
     {
         Properties(root, "schemaVersion", "taskId", "kind", "result");
         if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" || root.GetProperty("taskId").GetString() != taskId ||
-            root.GetProperty("kind").GetString() != kind) Invalid();
+            root.GetProperty("kind").GetString() != kind)
+            Invalid();
         var result = root.GetProperty("result");
         if (kind == "knowledge.image.upsert")
         {
             Properties(result, "stored");
-            if (result.GetProperty("stored").ValueKind != JsonValueKind.True) Invalid();
+            if (result.GetProperty("stored").ValueKind != JsonValueKind.True)
+                Invalid();
             return;
         }
         Properties(result, "hits");
         var hits = result.GetProperty("hits");
-        if (hits.ValueKind != JsonValueKind.Array || hits.GetArrayLength() > limit) Invalid();
+        if (hits.ValueKind != JsonValueKind.Array || hits.GetArrayLength() > limit)
+            Invalid();
         var seen = new HashSet<(string, string)>();
         foreach (var hit in hits.EnumerateArray())
         {
@@ -210,26 +257,32 @@ public sealed class KnowledgeImageClient : IDisposable
             if (!KnowledgeIndexSubmission.Identifier(document) || !KnowledgeIndexSubmission.Identifier(image) ||
                 !KnowledgeIndexSubmission.Identifier(hit.GetProperty("image_revision").GetString()) ||
                 score.ValueKind != JsonValueKind.Number || !score.TryGetDouble(out var value) ||
-                !double.IsFinite(value) || Math.Abs(value) > 1.001 || !seen.Add((document!, image!))) Invalid();
+                !double.IsFinite(value) || Math.Abs(value) > 1.001 || !seen.Add((document!, image!)))
+                Invalid();
         }
     }
 
     private static void Properties(JsonElement value, params string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
-            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
-        if (seen.Count != expected.Length) Invalid();
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
+        if (seen.Count != expected.Length)
+            Invalid();
     }
     private static void Invalid() => throw new InvalidOperationException("Invalid worker response.");
 
     /// <summary>Clears signing material and disposes the owned transport; the caller owns the vision client.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         CryptographicOperations.ZeroMemory(_key);
-        if (_ownsHttp) _http.Dispose();
+        if (_ownsHttp)
+            _http.Dispose();
     }
 }
