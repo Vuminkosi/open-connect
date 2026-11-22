@@ -14,7 +14,10 @@ public static class CloudIdentityEndpoints
         {
             context.Response.Headers.CacheControl = "no-store";
             if (!oidcEnabled && !googleEnabled)
-                return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "Cloud identity is not configured.");
+                return Results.Content(
+                    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"/app.css\"><title>Sign-in unavailable | OpenConnect</title></head><body><main class=\"cloud-content\"><h1>Sign-in is unavailable</h1><p role=\"status\">Cloud sign-in has not been set up for this site. You can still browse the public documentation.</p><p><a href=\"/\">Back to documentation</a></p></main></body></html>",
+                    "text/html; charset=utf-8",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
 
             var encoded = WebUtility.UrlEncode(CloudReturnUrl(returnUrl));
             var errorMessage = error == "authentication_failed" ? "<p role=\"alert\">Sign-in could not be completed. Please try again.</p>" : "";
