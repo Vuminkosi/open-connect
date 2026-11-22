@@ -5,6 +5,13 @@ window.ocComposerVoice = (() => {
   const toWs = (url) => url.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const workletUrl = () => new URL('_content/OpenConnect.Components.Blazor/js/voice-capture-worklet.js', document.baseURI).href;
 
+  const setVoiceLevel = (level) => {
+    const clamped = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
+    const value = clamped.toFixed(3);
+    const icons = document.querySelectorAll('.oc-bubble__live-speak');
+    for (const el of icons) el.style.setProperty('--oc-voice-level', value);
+  };
+
   const pcm16 = (samples) => {
     const bytes = new ArrayBuffer(samples.length * 2);
     const view = new DataView(bytes);
@@ -34,6 +41,7 @@ window.ocComposerVoice = (() => {
   const stop = async (notify = true, reason = 'stopped', abort = false) => {
     const current = state;
     state = null;
+    setVoiceLevel(0);
     if (!current) return;
     if (current.diagnostics) {
       current.diagnostics.stopReason = reason;
@@ -116,7 +124,7 @@ window.ocComposerVoice = (() => {
     } : null;
     window.__ocVoiceDiagnostics = diagnostics;
     if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
-    const current = { dotnet, captureId, speechEpoch, stream, context, source, processor, socket, diagnostics, maxTimer: null, silenceTimer: null, pendingPcm: [], pendingFrameCount: 0, endRequested: false, speechSeen: false, finalTranscript: '', processorReady: false, transportOpened: false };
+    const current = { dotnet, captureId, speechEpoch, stream, context, source, processor, socket, diagnostics, maxTimer: null, silenceTimer: null, pendingPcm: [], pendingFrameCount: 0, endRequested: false, speechSeen: false, finalTranscript: '', processorReady: false, transportOpened: false, smoothedLevel: 0 };
     state = current;
 
     const maxDurationMs = Number(window.__OC_VOICE_MAX_DURATION_MS || 0);
@@ -189,6 +197,11 @@ window.ocComposerVoice = (() => {
         peak = Math.max(peak, Math.abs(sourceSamples[i]));
       }
       const rms = Math.sqrt(energy / sourceSamples.length);
+      const normalized = Math.max(0, Math.min(1, (rms - speechThreshold * 0.4) / 0.14));
+      const targetLevel = Math.pow(normalized, 0.7);
+      const alpha = targetLevel > current.smoothedLevel ? 0.55 : 0.2;
+      current.smoothedLevel = current.smoothedLevel + (targetLevel - current.smoothedLevel) * alpha;
+      setVoiceLevel(current.smoothedLevel < 0.01 ? 0 : current.smoothedLevel);
       if (current.diagnostics) {
         current.diagnostics.processorMessages++;
         current.diagnostics.sourceFrames += sourceSamples.length;

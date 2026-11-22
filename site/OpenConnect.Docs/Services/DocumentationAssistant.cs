@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using MudBlazor.Services;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
+using OpenConnect.Components.Blazor.Voice;
 using OpenConnect.Components.Contracts;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
@@ -62,10 +63,11 @@ public static class DocumentationAssistant
             if (visitorIdentityEnabled)
             {
                 services.AddSingleton(new DocumentationGatewayVisitorTokens(visitorTenant!, visitorKey!));
-                services.AddSingleton<DocumentationVoiceTickets>();
-                services.AddSingleton(provider => new DocumentationVoiceBridge(
-                    provider.GetRequiredService<DocumentationVoiceTickets>(), gateway!));
-                services.AddSingleton<IStartupFilter, DocumentationVoiceStartupFilter>();
+                services.AddOpenConnectVoiceBridge(options =>
+                {
+                    options.GatewayBaseAddress = gateway!;
+                    options.AllowLoopbackHttp = true;
+                });
                 services.AddScoped<DocumentationGatewayVisitorIdentity>();
                 if (localVoiceReadiness)
                     services.AddScoped(provider => new DocumentationVoiceAvailability(CreateVisitorClient(provider)));

@@ -41,7 +41,45 @@ builder.Services.AddOpenConnectClientVad(options =>
 
 For a local transcription worker, provision a compatible model and an integrity manifest before enabling the real backend. `workers/transcription/README.md` describes the importer, required model files and environment variables. The worker does not download models automatically; synthetic engines in tests do not establish transcription accuracy. `workers/kokoro/README.md` documents synthesis model and voice provisioning. Confirm license, integrity, readiness and hardware compatibility for the actual model in use.
 
-The documentation site's local assistant selects the transcription worker's local-only realtime route with `Workers:Transcription:RealtimeLocalOnly`. The route accepts authenticated mono 24 kHz PCM16 and returns a final transcript after the capture ends; it requires a verified local model and does not fall back to a remote speech provider. The browser connects through a same-origin, session-bound voice bridge. If the model or connection is unavailable, the composer reports the failure and text input remains available. Successful voice-driven LiveUI actions also require the composer's active session connection.
+The documentation site's local assistant selects the transcription worker's local-only realtime route with `Workers:Transcription:RealtimeLocalOnly`, or uses the SDK's built-in Speech-to-Text provider when `AddOpenConnectSpeechToText` is configured. The realtime route accepts authenticated mono 24 kHz PCM16 and returns partial and final transcripts. If the provider or connection is unavailable, the composer reports the failure and text input remains available. Successful voice-driven LiveUI actions also require the composer's active session connection.
+
+## Built-in SDK Speech-to-Text and Blazor voice bridge
+
+### Host Speech-to-Text (`OpenConnect.Core.Speech` & `OpenConnect.Hosting.AspNetCore`)
+
+Register the SDK's realtime WebSocket and upload Speech-to-Text clients on your ASP.NET Core OpenConnect host with `AddOpenConnectSpeechToText`:
+
+```csharp
+using OpenConnect.Hosting.AspNetCore;
+
+builder.Services.AddOpenConnectSpeechToText(builder.Configuration);
+```
+
+When `IRealtimeSpeechToTextClient` is configured (and `Workers:Transcription:RealtimeLocalOnly` is not forced to `true`), `MapOpenConnect()` automatically streams browser `openconnect.voice.v1` PCM16 audio directly through the SDK client without requiring a separate transcription worker. Otherwise it falls back to `Workers:Transcription:Endpoint`.
+
+### Blazor Server voice bridge (`OpenConnect.Components.Blazor.Voice`)
+
+When a Blazor Server application hosts `MiniComposer` separately from its OpenConnect gateway, register the SDK voice bridge so the browser connects to a same-origin WebSocket using a short-lived, single-use `oc-ticket.<ticket>` subprotocol instead of receiving server-side Bearer tokens:
+
+```csharp
+using OpenConnect.Components.Blazor.Voice;
+
+builder.Services.AddOpenConnectVoiceBridge(options =>
+{
+    options.GatewayBaseAddress = new Uri("https://gateway.example.internal/");
+    options.AllowLoopbackHttp = builder.Environment.IsDevelopment();
+});
+```
+
+Then pass a ticket callback to `MiniComposer`:
+
+```razor
+@inject OpenConnectVoiceTicketStore VoiceTickets
+
+<MiniComposer VoiceConnectionTicket="@(sessionId => VoiceTickets.Issue(sessionId, serverBearerToken))" />
+```
+
+`OpenConnectVoiceBridge` enforces same-origin requests, HTTPS (with optional loopback HTTP for local development), single-use 30-second session-bound tickets, and bounded frame/audio limits (`96 KB` per frame, `32 MB` per stream).
 
 ## Translation
 

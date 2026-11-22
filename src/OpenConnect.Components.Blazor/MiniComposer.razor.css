@@ -140,9 +140,26 @@
     gap: 0.125rem;
 }
 
+.oc-bubble__field-actions ::deep .oc-bubble__live-speak {
+    --oc-voice-level: 0;
+    transition: box-shadow 75ms ease-out, transform 75ms ease-out;
+}
+
+.oc-bubble__field-actions ::deep .oc-bubble__live-speak--active,
 .oc-bubble__live-speak--active {
-    box-shadow: 0 0 10px rgba(13, 148, 120, 0.6);
-    transition: box-shadow 90ms ease-out;
+    box-shadow:
+        0 0 calc(6px + var(--oc-voice-level, 0) * 18px) calc(var(--oc-voice-level, 0) * 5px) rgba(13, 148, 120, calc(0.35 + var(--oc-voice-level, 0) * 0.6)),
+        0 0 calc(2px + var(--oc-voice-level, 0) * 8px) rgba(20, 184, 166, calc(0.25 + var(--oc-voice-level, 0) * 0.65));
+    transform: scale(calc(1 + var(--oc-voice-level, 0) * 0.14));
+    transition: box-shadow 75ms ease-out, transform 75ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .oc-bubble__field-actions ::deep .oc-bubble__live-speak--active,
+    .oc-bubble__live-speak--active {
+        transform: none;
+        transition: none;
+    }
 }
 
 /* Captions and conversation timeline stay compact while long text scrolls inside its region. */

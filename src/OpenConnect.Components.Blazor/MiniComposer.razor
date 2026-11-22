@@ -162,9 +162,9 @@
                             else
                             {
                                 <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
-                                               Color="@(_speechOn ? Color.Primary : Color.Default)"
+                                               Color="@(_micOn || _speechOn ? Color.Primary : Color.Default)"
                                                Size="Size.Small"
-                                               Class="@(_speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
+                                               Class="@(_micOn || _speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
                                                OnClick="ToggleVoiceAsync"
                                                aria-label="Voice input"
                                                title="Voice input" />

@@ -1,6 +1,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using MudBlazor
 @using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Blazor.Voice
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
@@ -38,7 +39,7 @@
 @code {
     private string? IssueVoiceTicket(string sessionId)
     {
-        var tickets = Services.GetService<DocumentationVoiceTickets>();
+        var tickets = Services.GetService<OpenConnectVoiceTicketStore>();
         var visitor = Services.GetService<DocumentationGatewayVisitorIdentity>();
         return tickets is not null && visitor is not null ? tickets.Issue(sessionId, visitor.Token) : null;
     }
