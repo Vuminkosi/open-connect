@@ -94,9 +94,22 @@ internal sealed class DocumentationExecutionInputsFactory(
         var fullPath = Path.GetFullPath(Path.Combine(directory, $"{normalized}.md"));
         if (!fullPath.StartsWith(directory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
             return $"Documentation page '{normalized}' was not found.";
-        var content = File.ReadAllText(fullPath);
-        var body = content.Length <= 12_000 ? content : content[..12_000] + "\n\n[Truncated]";
+        var content = SanitizeForExternalModel(File.ReadAllText(fullPath));
+        var body = content.Length <= 6_000 ? content : content[..6_000] + "\n\n[Truncated]";
         return $"[LiveUI Required: If the user is not already on '/docs/v1/{normalized}', navigate them to route id 'documentation-v1-{normalized}' and highlight the relevant section before answering.]\n\n{body}";
+    }
+
+    private static string SanitizeForExternalModel(string markdown)
+    {
+        // Neutralize documentation placeholder emails, bearer tokens, and connection-string passwords
+        // so the host Privacy Firewall does not treat public doc examples as live sensitive egress.
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(
+            markdown, @"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "<example-email>");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized, @"(?i)(Password|Pwd|ApiKey|Secret|Token)\s*[:=]\s*[^\s;""'`,}]+", "$1=<placeholder>");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized, @"(?i)Bearer\s+[A-Za-z0-9._\-~+/]+=*", "Bearer <placeholder>");
+        return sanitized;
     }
 
     private static string? ResolveDocsDirectory()
