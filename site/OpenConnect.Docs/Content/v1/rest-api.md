@@ -7,7 +7,7 @@ order: 55
 
 # Gateway HTTP API
 
-The application gateway maps routes under `/openconnect/v1`. Its versioned contract is maintained in `contracts/openapi/openconnect.v1.yaml` in the source repository; generated contract artifacts are available when the portal API generation step has run. Authenticate using the host's configured scheme. Tenant and principal scope come from trusted identity, not request JSON.
+The application gateway maps routes under `/openconnect/v1`. The versioned OpenAPI contract for the core SDK's HTTP operations is maintained in `contracts/openapi/openconnect.v1.yaml` in the source repository; generated contract artifacts are available when the portal API generation step has run. The table also shows selected host operations outside the SDK contract. Authenticate using the host's configured scheme. Tenant and principal scope come from trusted identity, not request JSON.
 
 | Method and path | Purpose |
 | --- | --- |
@@ -17,6 +17,8 @@ The application gateway maps routes under `/openconnect/v1`. Its versioned contr
 | `GET /sessions/{id}` | Read a session |
 | `GET /sessions/{id}/events?afterSequence=0` | Replay events after an exclusive sequence cursor |
 | `POST /tasks` | Submit a task with an `Idempotency-Key` header |
+| `POST /minicomposer/tasks` | Submit a task for the session’s active browser connection |
+| `POST /sessions/{id}/liveui/responses` | Accept a pending LiveUI result from the bound connection |
 | `GET /tasks/{id}` | Read task state |
 | `POST /tasks/{id}/cancel` | Request cancellation |
 | `GET /capabilities` | List advertised capabilities |
@@ -24,7 +26,7 @@ The application gateway maps routes under `/openconnect/v1`. Its versioned contr
 | `GET /components` | List component descriptors |
 | `POST /speech/synthesize` | Synthesize speech when the host has configured it |
 
-Paths in the table are relative to `/openconnect/v1`. Health is public; the other listed endpoints require authorization. The host also maps MiniComposer and LiveUI interaction endpoints. Optional voice, Navigator and MCP routes depend on host configuration; do not infer availability from the route name.
+Paths in the table are relative to `/openconnect/v1`. Health is public; the other listed endpoints require authorization. Optional voice, Navigator and MCP surfaces have separate contracts and configuration. Realtime WebSocket messages are not part of the HTTP OpenAPI contract.
 
 For task submission send JSON containing a required `clientTaskId`, optional `message`, and optional existing `sessionId`. Include the `Idempotency-Key` header. Save the returned task `id`; query its state or consume session events to observe progress. Retrying the same logical request requires the same key. Treat cancellation as a request, not proof that side effects were undone.
 
@@ -76,7 +78,7 @@ curl --fail-with-body "https://gateway.example/openconnect/v1/sessions/$SESSION_
   -H "Authorization: Bearer $OPENCONNECT_TOKEN"
 ```
 
-Use the last successfully processed sequence as the next exclusive cursor. Supply an existing session ID from the gateway.
+Use the last successfully processed sequence as the next exclusive cursor. An existing runtime ULID returns legacy event records; a mapped public UUID returns canonical event envelopes. Use either `afterSequence` or the legacy alias `after`, not both.
 
 Errors have stable codes including `unauthorized`, `task_not_found`, `session_not_found`, `invalid_request`, `conflict`, `rate_limited`, `tool_not_allowed`, `approval_required`, `capability_unavailable` and `privacy_blocked`. Handle authorization and privacy denials as decisions, not transient failures. Reconcile uncertain operations before retrying. See [.NET](/docs/v1/dotnet-client) and [TypeScript](/docs/v1/typescript-client) examples.
 

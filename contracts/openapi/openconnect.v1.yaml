@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: OpenConnect API
   version: 1.0.0
-  description: OpenConnect HTTP contract. Task requests and records use the host task wire format.
+  description: HTTP operations consumed by the OpenConnect .NET and TypeScript application-gateway clients.
 servers:
   - url: /openconnect/v1
 paths:
@@ -30,11 +30,16 @@ paths:
       responses:
         '202':
           description: Task accepted
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TaskRecord' }
-        '400': { description: Invalid request }
-        '401': { description: Authentication required }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: Idempotency conflict
           content:
@@ -46,6 +51,8 @@ paths:
                     properties:
                       type: { const: 'https://openconnect.dev/problems/idempotency-conflict' }
                       status: { const: 409 }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /tasks/{id}:
     get:
       operationId: getTask
@@ -61,13 +68,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TaskRecord' }
-        '400': { description: Invalid task ID }
-        '401': { description: Authentication required }
-        '404':
-          description: Task not found
-          content:
-            application/problem+json:
-              schema: { $ref: '#/components/schemas/Problem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /tasks/{id}/cancel:
     post:
       operationId: cancelTask
@@ -79,13 +83,16 @@ paths:
           schema: { $ref: '#/components/schemas/Ulid' }
       responses:
         '200':
-          description: Cancellation result
+          description: Cancellation state if known; null if no result remains available
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TaskRecord' }
-        '400': { description: Invalid task ID }
-        '401': { description: Authentication required }
-        '404': { description: Task not found }
+              schema:
+                oneOf: [{ $ref: '#/components/schemas/TaskRecord' }, { type: 'null' }]
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /capabilities/ready:
     get:
       operationId: listReadyHostCapabilities
@@ -98,44 +105,285 @@ paths:
             application/json:
               schema:
                 type: array
-                items:
-                  type: object
-                  additionalProperties: false
-                  required: [id, kind, state]
-                  properties:
-                    id:
-                      type: object
-                      additionalProperties: false
-                      required: [value]
-                      properties:
-                        value: { type: string, minLength: 1 }
-                    kind: { type: string, enum: [security, model, tool, transport] }
-                    state: { const: ready }
-        '401': { description: Authentication required }
+                items: { $ref: '#/components/schemas/ReadyHostCapability' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /sessions/{sessionId}/events:
     get:
       operationId: replayEvents
-      summary: Replay session events after a cursor
+      summary: Replay a finite HTTP snapshot after an exclusive cursor
+      description: >
+        A mapped public UUID returns canonical event envelopes; an existing runtime ULID returns the legacy event record array.
+        Use afterSequence or its legacy alias after, not both. WebSocket upgrade is a separate transport contract.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: path
           name: sessionId
           required: true
-          schema: { type: string, format: uuid }
+          schema:
+            oneOf: [{ $ref: '#/components/schemas/Ulid' }, { $ref: '#/components/schemas/Uuid' }]
         - in: query
           name: afterSequence
-          schema: { type: integer, minimum: 0, default: 0 }
+          schema: { type: integer, format: int64, minimum: 0, default: 0 }
+        - in: query
+          name: after
+          description: Legacy alias of afterSequence.
+          schema: { type: integer, format: int64, minimum: 0 }
       responses:
         '200':
-          description: Events after the supplied sequence
+          description: Events after the cursor; the identifier kind selects the response schema.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: array
+                    items: { $ref: '../jsonschema/event.json' }
+                  - type: array
+                    items: { $ref: '#/components/schemas/LegacyEventRecord' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: A stored event does not have canonical metadata for UUID replay.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /minicomposer/tasks:
+    post:
+      operationId: acceptMiniComposerTask
+      summary: Accept a task for the authenticated session's active browser connection
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 256 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientTaskId, sessionId, clientConnectionId]
+              properties:
+                clientTaskId: { type: string, minLength: 1, maxLength: 128 }
+                sessionId: { $ref: '#/components/schemas/Ulid' }
+                clientConnectionId: { type: string, minLength: 1, description: Opaque ID of the sole active connection. }
+                message: { type: [string, 'null'], maxLength: 32000 }
+      responses:
+        '202':
+          description: Task accepted
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskRecord' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or unsuitable active session connection
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Problem' }
+                  - type: object
+                    properties:
+                      type:
+                        enum: ['https://openconnect.dev/problems/idempotency-conflict', 'https://openconnect.dev/problems/session-presence']
+                      status: { const: 409 }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sessions:
+    post:
+      operationId: createSession
+      summary: Create a session for the authenticated tenant and principal
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: [string, 'null'], description: Optional client label; not echoed in the session record. }
+      responses:
+        '201':
+          description: Session created
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionRecord' }
+        '400': { description: Malformed JSON request }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Session identity mapping conflict
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Problem' }
+                  - type: object
+                    properties:
+                      type: { const: 'https://openconnect.dev/problems/session-mapping-conflict' }
+                      status: { const: 409 }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      summary: Read an owned session
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200':
+          description: Session record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionRecord' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sessions/{id}/liveui/responses:
+    post:
+      operationId: postClientInteractionResponse
+      summary: Submit a pending result from the authenticated session's bound connection
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correlationId, resultKind, payloadJson, connectionId]
+              properties:
+                correlationId: { $ref: '#/components/schemas/Uuid' }
+                resultKind: { type: string, enum: [page, plan, action] }
+                payloadJson: { type: string, minLength: 1, maxLength: 65536, description: Serialized JSON object, not an embedded object. }
+                connectionId: { type: string, minLength: 1, description: Opaque ID of the bound connection. }
+      responses:
+        '200':
+          description: Response accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correlationId, accepted]
+                properties:
+                  correlationId: { $ref: '#/components/schemas/Uuid' }
+                  accepted: { const: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /capabilities:
+    get:
+      operationId: listHostModelCapabilities
+      summary: List ready host model registry descriptors
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Model descriptors; not worker capability envelopes
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '../jsonschema/event.json' }
-        '401': { description: Authentication required }
-        '404': { description: Session not found }
+                items:
+                  allOf:
+                    - { $ref: '#/components/schemas/ReadyHostCapability' }
+                    - type: object
+                      properties:
+                        kind: { const: model }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /speech/synthesize:
+    post:
+      operationId: synthesizeSpeech
+      summary: Synthesize speech when the gateway has configured this capability
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+                voiceId: { const: af_heart, default: af_heart }
+                locale: { type: string, default: en-US }
+                format: { type: string, enum: [pcm, wav], default: pcm }
+                speechEpoch: { type: integer, format: int64, default: 0 }
+                idempotencyKey: { type: [string, 'null'] }
+      responses:
+        '200':
+          description: Synthesized audio result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [voiceId, format, sampleRateHz, channels, audioBase64]
+                properties:
+                  voiceId: { const: af_heart }
+                  format: { type: string, enum: [pcm, wav] }
+                  sampleRateHz: { type: integer, minimum: 1 }
+                  channels: { type: integer, minimum: 1 }
+                  audioBase64: { type: string, contentEncoding: base64 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '502':
+          description: Upstream synthesis failed or returned invalid data
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+        '504':
+          description: Upstream synthesis timed out
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
 components:
+  responses:
+    BadRequest:
+      description: Invalid request; JSON body binding errors may not include a problem body.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthenticated:
+      description: Authentication required; the configured host scheme defines the challenge.
+    Forbidden:
+      description: Required identity claims are missing or a policy denied the request. Handlers can return a problem response; configured authentication or authorization middleware can return a bodyless 403.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found or not visible to the authenticated identity.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: The interaction was already completed, cancelled, conflicting, or not pending on this connection.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    UnsupportedMediaType:
+      description: JSON body binding does not support the supplied media type.
+    Unavailable:
+      description: A required gateway service or protection is not available.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
     Problem:
       type: object
@@ -144,10 +392,22 @@ components:
         type: { type: string }
         title: { type: string }
         status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
     Ulid:
       type: string
       pattern: '^(?!0{26}$)[0-7][0-9A-HJKMNP-TV-Z]{25}$'
       description: Nonzero canonical uppercase ULID.
+    Uuid:
+      type: string
+      format: uuid
+      pattern: '^(?!0{8}-0{4}-0{4}-0{4}-0{12}$)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+      description: Nonzero UUID in hyphenated form.
     TaskRecord:
       type: object
       additionalProperties: false
@@ -159,6 +419,43 @@ components:
         state:
           type: string
           enum: [accepted, preparing, running, awaiting-user, awaiting-approval, paused, completed, failed, cancel-requested, cancelled, outcome-unknown]
+    SessionRecord:
+      type: object
+      required: [id, tenantId, principalId, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Ulid' }
+        tenantId: { $ref: '#/components/schemas/Ulid' }
+        principalId: { $ref: '#/components/schemas/Ulid' }
+        createdAt: { type: string, format: date-time }
+    ReadyHostCapability:
+      type: object
+      additionalProperties: false
+      required: [id, kind, state]
+      properties:
+        id:
+          type: object
+          additionalProperties: false
+          required: [value]
+          properties:
+            value: { type: string, minLength: 1 }
+        kind: { type: string, enum: [security, model, tool, transport] }
+        state: { const: ready }
+    LegacyEventRecord:
+      type: object
+      required: [sessionId, sequence, type, data]
+      properties:
+        sessionId:
+          description: Runtime session identifier as serialized by the host's JSON options.
+          oneOf:
+            - { $ref: '#/components/schemas/Ulid' }
+            - type: object
+              required: [value]
+              properties:
+                value: { type: object }
+        sequence: { type: integer, format: int64, minimum: 1 }
+        type: { type: string }
+        data: { type: string }
+        taskId: { type: string }
   securitySchemes:
     bearerAuth:
       type: http
