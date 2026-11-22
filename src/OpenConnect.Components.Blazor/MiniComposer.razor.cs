@@ -169,19 +169,90 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private string? LivePartialTranscript => Session?.LivePartialTranscript;
 
-    private string MotionClass => StatusText == "Thinking…" ? "oc-status__motion--thinking" :
+    private CancellationTokenSource? _planningAckCts;
+    private int _planningAckStage;
+
+    private string MotionClass => IsLoading ? "oc-status__motion--thinking" :
         StatusText?.Contains("connect", StringComparison.OrdinalIgnoreCase) == true ? "oc-status__motion--connecting" :
         "oc-status__motion--pulse";
 
-    private string StatusText => Session switch
+    private string StatusText
     {
-        null => "Not connected",
-        { Connection: ComposerConnectionState.Streaming } => "Replying…",
-        { Connection: ComposerConnectionState.Connecting } => "Connecting…",
-        { Connection: ComposerConnectionState.Reconnecting } => "Reconnecting…",
-        { Connection: ComposerConnectionState.Error } => "Connection issue",
-        _ => Session.SessionId is null ? "No session" : "Ready",
-    };
+        get
+        {
+            if (Session is null) return "Not connected";
+            if (Session.PendingClientInteraction is { } interaction)
+            {
+                return interaction.Operation switch
+                {
+                    "get_context" or "inspect" => "Inspecting the current page and available controls…",
+                    "navigate" => "Opening the target page for you…",
+                    "highlight" => "Highlighting the relevant section on screen…",
+                    "clear_highlight" => "Clearing page highlights…",
+                    "click" or "set_value" or "select" or "select_tab" or "open" or "close" => "Running the requested page action…",
+                    _ => "Coordinating live page actions…"
+                };
+            }
+            if (Session.Connection == ComposerConnectionState.Streaming || _sending)
+            {
+                if (!string.IsNullOrWhiteSpace(Session.StreamingText))
+                    return "Replying…";
+                return _planningAckStage switch
+                {
+                    0 => "Planning the steps for your request…",
+                    1 => "Still working — checking the page structure and relevant sections…",
+                    2 => "Still planning — verifying details and preparing your guided walkthrough…",
+                    _ => "Almost ready — finishing up the walkthrough and highlights…"
+                };
+            }
+            return Session.Connection switch
+            {
+                ComposerConnectionState.Connecting => "Connecting…",
+                ComposerConnectionState.Reconnecting => "Reconnecting…",
+                ComposerConnectionState.Error => "Connection issue",
+                _ => Session.SessionId is null ? "No session" : "Ready",
+            };
+        }
+    }
+
+    private void SyncPlanningAckTimer()
+    {
+        var waitingForPlan = !_disposed && Session is not null &&
+            (Session.Connection == ComposerConnectionState.Streaming || _sending) &&
+            string.IsNullOrWhiteSpace(Session.StreamingText);
+        if (!waitingForPlan)
+        {
+            if (_planningAckCts is not null)
+            {
+                try { _planningAckCts.Cancel(); } catch (ObjectDisposedException) { }
+                _planningAckCts.Dispose();
+                _planningAckCts = null;
+            }
+            _planningAckStage = 0;
+            return;
+        }
+        if (_planningAckCts is not null) return;
+        var cts = new CancellationTokenSource();
+        _planningAckCts = cts;
+        _planningAckStage = 0;
+        _ = RunPlanningAckLoopAsync(cts);
+    }
+
+    private async Task RunPlanningAckLoopAsync(CancellationTokenSource cts)
+    {
+        try
+        {
+            while (!cts.IsCancellationRequested && _planningAckStage < 3)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(3500), cts.Token).ConfigureAwait(false);
+                if (cts.IsCancellationRequested || _disposed) break;
+                _planningAckStage++;
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
 
     private string CloseLabel => CloseBehavior switch
     {
@@ -336,6 +407,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
             TryNotifySpeechResponseCompleted(response);
         }
+        SyncPlanningAckTimer();
 
         _ = InvokeAsync(StateHasChanged);
     }
@@ -1235,11 +1307,13 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             _sendCts?.Cancel();
             _speechCts?.Cancel();
+            _planningAckCts?.Cancel();
         }
         catch (ObjectDisposedException) { }
 
         _sendCts?.Dispose();
         _speechCts?.Dispose();
+        _planningAckCts?.Dispose();
         await DetachJsAsync(dragOnly: false).ConfigureAwait(false);
         _dotNetRef?.Dispose();
         GC.SuppressFinalize(this);
