@@ -287,22 +287,26 @@ public sealed class DocumentationAssistantTests
     }
 
     [Fact]
-    public async Task LiveUIAllowsReviewedPublicNavigationButDeniesCloudAndMutations()
+    public async Task LiveUIAllowsReviewedPublicAndCloudOverviewNavigationButDeniesAdminRoutesAndMutations()
     {
         var manifest = DocumentationLiveUIManifest.Create();
         Assert.Empty(new LiveUIManifestValidator().Validate(manifest));
         var home = manifest.Routes.Single(x => x.Path == "/");
         var docs = manifest.Routes.Single(x => x.Path == "/docs");
+        var cloudOverview = manifest.Routes.Single(x => x.Path == "/cloud");
         var authorizer = new DocumentationLiveUIActionAuthorizer();
         var action = new LiveUIAction("action", LiveUISchema.CurrentVersion, "session", manifest.ContentHash,
             home.Id, null, LiveUIActionType.Navigate, new(DestinationRouteId: docs.Id), TimeSpan.FromSeconds(1));
         Assert.True((await authorizer.AuthorizeAsync(new(manifest, home, null, action))).Allowed);
-        var cloud = new LiveUIRoute("cloud", "/cloud", "Cloud", []);
-        var cloudManifest = manifest with { Routes = manifest.Routes.Append(cloud).ToArray() };
+        Assert.True((await authorizer.AuthorizeAsync(new(manifest, home, null,
+            action with { Parameters = new(DestinationRouteId: cloudOverview.Id) }))).Allowed);
+        var cloudAdmin = new LiveUIRoute("cloud-admin", "/cloud/tenants/123/credentials", "Cloud Admin", []);
+        var cloudManifest = manifest with { Routes = manifest.Routes.Append(cloudAdmin).ToArray() };
         Assert.False((await authorizer.AuthorizeAsync(new(cloudManifest, home, null,
-            action with { Parameters = new(DestinationRouteId: cloud.Id) }))).Allowed);
+            action with { Parameters = new(DestinationRouteId: cloudAdmin.Id) }))).Allowed);
         Assert.False((await authorizer.AuthorizeAsync(new(manifest, home, null, action with { Type = LiveUIActionType.Click }))).Allowed);
-        Assert.False((await authorizer.AuthorizeAsync(new(cloudManifest, cloud, null, action with { Type = LiveUIActionType.Inspect }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(manifest, cloudOverview, null, action with { Type = LiveUIActionType.Click }))).Allowed);
+        Assert.False((await authorizer.AuthorizeAsync(new(cloudManifest, cloudAdmin, null, action with { Type = LiveUIActionType.Inspect }))).Allowed);
     }
 
     [Fact]

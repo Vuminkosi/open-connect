@@ -1,14 +1,21 @@
 using System.Security.Claims;
 using Bunit;
+using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+using MudBlazor;
+using OpenConnect.Components.Blazor;
 using OpenConnect.Docs.Cloud;
+using OpenConnect.Docs.Components;
 using OpenConnect.Docs.Components.Layout;
 using OpenConnect.Docs.Components.Pages;
 using OpenConnect.Docs.Components.Pages.Cloud;
+using OpenConnect.Docs.Services;
+using OpenConnect.LiveUI.Blazor;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -37,17 +44,54 @@ public sealed class CloudPortalUiFixesTests : BunitContext
     }
 
     [Fact]
-    public void CloudLayout_DoesNotRenderSiteAssistant()
+    public void CloudLayout_DoesNotRenderSiteAssistant_WhenUnconfigured()
     {
-        ComponentFactories.AddStub<OpenConnect.Docs.Components.ThemeToggle>();
+        Services.AddSingleton(new DocumentationAssistantAvailability(false));
+        ComponentFactories.AddStub<ThemeToggle>();
+        ComponentFactories.AddStub<SiteAssistant>();
+
         var cut = Render<CloudLayout>(parameters => parameters
             .Add(x => x.Body, (RenderFragment)(builder => builder.AddContent(0, "Cloud body"))));
 
         Assert.Contains("Cloud body", cut.Markup);
         Assert.Contains("/cloud/sign-out", cut.Markup);
+        Assert.Empty(cut.FindComponents<Stub<SiteAssistant>>());
         Assert.DoesNotContain("SiteAssistant", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("assistant-trigger", cut.Markup, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Ask OpenConnect", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Assistant unavailable", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CloudLayout_RendersSiteAssistantWithLiveUIAndVoice_WhenConfigured()
+    {
+        var manifest = DocumentationLiveUIManifest.Create();
+        Services.AddSingleton<IJSRuntime>(new NoBrowserJsRuntime());
+        Services.AddSingleton(new DocumentationAssistantAvailability(true));
+        Services.AddSingleton(manifest);
+        ComponentFactories.AddStub<ThemeToggle>();
+        ComponentFactories.AddStub<MudThemeProvider>();
+        ComponentFactories.AddStub<MudPopoverProvider>();
+        ComponentFactories.AddStub<MudDialogProvider>();
+        ComponentFactories.AddStub<MudSnackbarProvider>();
+        ComponentFactories.AddStub<OpenConnectProvider>(p => builder => builder.AddContent(0, p.Get(x => x.ChildContent)));
+        ComponentFactories.AddStub<OpenConnectLiveUIProvider>(p => builder => builder.AddContent(0, p.Get(x => x.ChildContent)));
+        ComponentFactories.AddStub<MiniComposer>();
+        ComponentFactories.AddStub<OpenConnectNavigatorProvider>();
+
+        var cut = Render<CloudLayout>(parameters => parameters
+            .Add(x => x.Body, (RenderFragment)(builder => builder.AddContent(0, "Cloud body"))));
+
+        Assert.Contains("Cloud body", cut.Markup);
+        Assert.Contains("/cloud/sign-out", cut.Markup);
+        Assert.DoesNotContain("Assistant unavailable", cut.Markup, StringComparison.OrdinalIgnoreCase);
+
+        var assistant = Assert.Single(cut.FindComponents<SiteAssistant>());
+        var liveUI = Assert.Single(assistant.FindComponents<Stub<OpenConnectLiveUIProvider>>());
+        Assert.Same(manifest, liveUI.Instance.Parameters.Get(x => x.Manifest));
+
+        var composer = Assert.Single(assistant.FindComponents<Stub<MiniComposer>>());
+        Assert.Equal("OpenConnect Assistant", composer.Instance.Parameters.Get(x => x.AssistantName));
+        Assert.NotNull(composer.Instance.Parameters.Get(x => x.VoiceConnectionTicket));
     }
 
     [Fact]
@@ -232,6 +276,15 @@ public sealed class CloudPortalUiFixesTests : BunitContext
         Assert.DoesNotContain("<YOUR_API_KEY>", cut.Markup);
         Assert.DoesNotContain("oc_dev_", cut.Markup);
         Assert.DoesNotContain("oc_live_", cut.Markup);
+    }
+
+    private sealed class NoBrowserJsRuntime : IJSRuntime
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            ValueTask.FromException<TValue>(new JSException("Browser JS unavailable in unit test."));
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
+            ValueTask.FromException<TValue>(new JSException("Browser JS unavailable in unit test."));
     }
 
     private sealed class StubAuthProvider(string subjectId, string issuer) : AuthenticationStateProvider
