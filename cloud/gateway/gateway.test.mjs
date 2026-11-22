@@ -305,3 +305,96 @@ test('local server ignores duplicate authorization headers', async () => {
         assert.equal(calls, 0);
     } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('problem responses include accurate retryable flags and standard error codes', async () => {
+    const cases = [
+        ['unauthorized', 401, 'unauthorized', false],
+        ['forbidden', 403, 'forbidden', false],
+        ['capability_not_entitled', 403, 'capability_not_entitled', false],
+        ['capability_disabled', 403, 'capability_disabled', false],
+        ['dependency_not_enabled', 403, 'dependency_not_enabled', false],
+        ['privacy_blocked', 403, 'privacy_blocked', false],
+        ['invalid_request', 400, 'invalid_request', false],
+        ['invalid_semantic_request', 422, 'invalid_request', false],
+        ['payload_too_large', 413, 'invalid_request', false],
+        ['unsupported_media_type', 415, 'invalid_request', false],
+        ['conflict', 409, 'conflict', false],
+        ['duplicate', 409, 'conflict', false],
+        ['idempotency_conflict', 409, 'idempotency_conflict', false],
+        ['quota_exceeded', 429, 'quota_exceeded', true],
+        ['rate_limited', 429, 'rate_limited', true],
+        ['capability_unavailable', 503, 'capability_unavailable', true],
+        ['detector_unavailable', 503, 'detector_unavailable', true],
+        ['upstream_unavailable', 503, 'upstream_unavailable', true],
+        ['upstream_timeout', 504, 'upstream_timeout', true],
+    ];
+    for (const [code, expectedStatus, expectedPublicCode, expectedRetryable] of cases) {
+        const response = await handle(
+            new Request('http://localhost/cloud/v1/inference/chat', { method: 'POST', headers: { authorization: 'Bearer key' } }),
+            { authorization: { authorize: async () => ({ authorized: false, code }) } },
+        );
+        assert.equal(response.status, expectedStatus, code);
+        assert.equal(response.headers.get('content-type'), 'application/problem+json', code);
+        assert.equal(response.headers.get('cache-control'), 'no-store', code);
+        const body = await response.json();
+        assert.equal(body.type, 'about:blank', code);
+        assert.equal(body.status, expectedStatus, code);
+        assert.equal(body.code, expectedPublicCode, code);
+        assert.equal(body.retryable, expectedRetryable, code);
+        assert.match(body.traceId, /^[0-9a-f]{32}$/, code);
+        assert.equal(body.traceId, response.headers.get('x-trace-id'), code);
+    }
+});
+
+test('GET /cloud/v1/health/ready uses the same fail-closed readiness handler without leaking backend URLs', async () => {
+    const unconfigured = await handle(new Request('http://localhost/cloud/v1/health/ready'));
+    assert.equal(unconfigured.status, 503);
+    assert.equal(unconfigured.headers.get('cache-control'), 'no-store');
+    const unconfiguredBody = await unconfigured.json();
+    assert.equal(unconfiguredBody.code, 'capability_unavailable');
+    assert.equal(unconfiguredBody.retryable, true);
+
+    const authorization = { isReady: async () => true };
+    const inferenceExecution = { probe: { probe: async () => true }, tokenizer: { ready: async () => true } };
+    const ready = await handle(new Request('http://localhost/cloud/v1/health/ready'), { authorization, inferenceExecution });
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), { status: 'ready', capabilities: ['inference.chat'] });
+
+    const failing = await handle(new Request('http://localhost/cloud/v1/health/ready'), {
+        authorization,
+        inferenceExecution: {
+            probe: { probe: async () => { throw new Error('https://internal-worker.private:9443 failed'); } },
+            tokenizer: { ready: async () => true },
+        },
+    });
+    assert.equal(failing.status, 503);
+    const failingText = await failing.text();
+    assert.doesNotMatch(failingText, /internal-worker\.private/);
+    const failingBody = JSON.parse(failingText);
+    assert.equal(failingBody.code, 'capability_unavailable');
+    assert.equal(failingBody.retryable, true);
+});
+
+test('local server configures bounded headersTimeout and extended requestTimeout and includes retryable on malformed requests', async () => {
+    const server = createLocalServer();
+    assert.equal(server.headersTimeout, 10_000);
+    assert.equal(server.requestTimeout, 310_000);
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const res = await new Promise((resolve, reject) => {
+            const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path: 'http://[::1', method: 'GET' }, response => {
+                const chunks = [];
+                response.on('data', chunk => chunks.push(chunk));
+                response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks).toString('utf8') }));
+            });
+            req.on('error', reject);
+            req.end();
+        });
+        assert.equal(res.status, 400);
+        assert.equal(res.headers['content-type'], 'application/problem+json');
+        const problem = JSON.parse(res.body);
+        assert.equal(problem.code, 'invalid_request');
+        assert.equal(problem.retryable, false);
+        assert.match(problem.traceId, /^[0-9a-f]{32}$/);
+    } finally { await new Promise(resolve => server.close(resolve)); }
+});

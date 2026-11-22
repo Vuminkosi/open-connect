@@ -28,28 +28,32 @@ const routes = new Map([
 ]);
 
 const problems = {
-    unauthorized: [401, 'Authentication required'],
-    forbidden: [403, 'Access denied'],
-    capability_not_entitled: [403, 'Capability not entitled'],
-    capability_disabled: [403, 'Capability disabled'],
-    dependency_not_enabled: [403, 'Capability dependency unavailable'],
-    invalid_request: [400, 'Invalid request'],
-    invalid_semantic_request: [422, 'Invalid capability request'],
-    payload_too_large: [413, 'Request body is too large'],
-    unsupported_media_type: [415, 'Unsupported media type'],
-    privacy_blocked: [403, 'Privacy policy blocked the request'],
-    upstream_timeout: [504, 'Request deadline exceeded'],
-    quota_exceeded: [429, 'Quota exceeded'],
-    duplicate: [409, 'Request already submitted'],
-    idempotency_conflict: [409, 'Request identifier conflicts'],
-    capability_unavailable: [503, 'Cloud gateway is not ready'],
+    unauthorized: [401, 'Authentication required', false],
+    forbidden: [403, 'Access denied', false],
+    capability_not_entitled: [403, 'Capability not entitled', false],
+    capability_disabled: [403, 'Capability disabled', false],
+    dependency_not_enabled: [403, 'Capability dependency unavailable', false],
+    invalid_request: [400, 'Invalid request', false],
+    invalid_semantic_request: [422, 'Invalid capability request', false],
+    payload_too_large: [413, 'Request body is too large', false],
+    unsupported_media_type: [415, 'Unsupported media type', false],
+    privacy_blocked: [403, 'Privacy policy blocked the request', false],
+    upstream_timeout: [504, 'Request deadline exceeded', true],
+    quota_exceeded: [429, 'Quota exceeded', true],
+    rate_limited: [429, 'Rate limit exceeded', true],
+    conflict: [409, 'Request conflict', false],
+    duplicate: [409, 'Request already submitted', false],
+    idempotency_conflict: [409, 'Request identifier conflicts', false],
+    capability_unavailable: [503, 'Cloud gateway is not ready', true],
+    detector_unavailable: [503, 'Privacy detector is unavailable', true],
+    upstream_unavailable: [503, 'Upstream dependency is unavailable', true],
 };
 
 function problem(code, traceId) {
     const safeCode = Object.hasOwn(problems, code) ? code : 'capability_unavailable';
-    const [status, title] = problems[safeCode];
+    const [status, title, retryable] = problems[safeCode];
     const publicCode = ['invalid_semantic_request', 'payload_too_large', 'unsupported_media_type'].includes(safeCode) ? 'invalid_request' : safeCode === 'duplicate' ? 'conflict' : safeCode;
-    return Response.json({ type: 'about:blank', title, status, code: publicCode, traceId },
+    return Response.json({ type: 'about:blank', title, status, code: publicCode, retryable, traceId },
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
@@ -62,7 +66,7 @@ export async function handle(request, { authorization, classificationProbe, clas
             readiness: '/health/ready', liveness: '/health/live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
-    if (request.method === 'GET' && url.pathname === '/health/ready') {
+    if (request.method === 'GET' && (url.pathname === '/health/ready' || url.pathname === '/cloud/v1/health/ready')) {
         if ((!classificationExecution && !inferenceExecution && !liveUIExecution && !analyticsExecution && !voiceExecution && !knowledgeEmbeddingExecution) || !authorization || typeof authorization.isReady !== 'function' ||
             (classificationExecution && !classificationProbe))
             return reject('capability_unavailable');
