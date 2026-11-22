@@ -6,6 +6,17 @@ const idAttribute = "data-openconnect-liveui-id";
 const highlightAttribute = "data-openconnect-liveui-highlight";
 const sectionHighlightAttribute = "data-openconnect-liveui-section-highlight";
 const highlightSectionMembers = new Map();
+let spotlightOverlay = null;
+let spotlightCutout = null;
+let spotlightRing = null;
+let spotlightCallout = null;
+let spotlightArrow = null;
+let spotlightTitleEl = null;
+let spotlightBodyEl = null;
+let spotlightCaption = { title: "", body: "" };
+let spotlightPrimary = null;
+let spotlightRaf = 0;
+let spotlightListenersBound = false;
 const sensitiveFieldPattern = /password|passwd|secret|token|api[\s_-]?key|\bssn\b|social[\s._-]?security|credit.?card|credit|card|cvv|cvc|credential|private[\s._-]?key|\bpin\b|\bpin[\s_-]?(?:code|number)\b/i;
 const sensitiveAutocompletePattern = /^(cc-|current-password$|new-password$|one-time-code$)/i;
 
@@ -277,8 +288,9 @@ export function execute(context, timeoutMs, enableRuntimeFallback) {
         if (match.status !== "resolved") return measured(result("MissingTarget", "text_match_missing"));
         highlightTarget = match.element;
       }
-      addHighlight(highlightTarget);
+      addHighlight(highlightTarget, target?.label || "");
       highlightTarget.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      scheduleSpotlightUpdate();
       const highlightDuration = Number(parameters.highlightDurationMilliseconds);
       if (Number.isInteger(highlightDuration) && highlightDuration > 0) {
         const previousTimer = highlightTimers.get(highlightTarget);
@@ -778,10 +790,23 @@ function waitUntil(predicate, timeoutMs, successCode, timeoutCode) {
   });
 }
 
-function addHighlight(element) {
+export function setSpotlightCaption(title, body) {
+  spotlightCaption = {
+    title: typeof title === "string" ? title.trim().slice(0, 140) : "",
+    body: typeof body === "string" ? body.trim().slice(0, 420) : "",
+  };
+  if (spotlightPrimary && spotlightPrimary.isConnected) {
+    renderSpotlightCalloutContent();
+    scheduleSpotlightUpdate();
+  }
+}
+
+function addHighlight(element, label = "") {
   installHighlightStyles();
   element.setAttribute(highlightAttribute, "true");
   highlights.add(element);
+  spotlightPrimary = element;
+  if (label && !spotlightCaption.title) spotlightCaption.title = String(label).trim().slice(0, 140);
   if (/^H[1-6]$/.test(element.tagName) && element.closest(".markdown-body")) {
     const level = Number(element.tagName[1]);
     const members = [];
@@ -795,11 +820,17 @@ function addHighlight(element) {
     }
     if (members.length) highlightSectionMembers.set(element, members);
   }
+  ensureSpotlightUi();
+  renderSpotlightCalloutContent();
+  scheduleSpotlightUpdate();
 }
 
 function clearHighlights() {
   for (const element of highlights) clearHighlight(element);
   highlights.clear();
+  spotlightPrimary = null;
+  spotlightCaption = { title: "", body: "" };
+  destroySpotlightUi();
 }
 
 function clearHighlight(element) {
@@ -813,6 +844,227 @@ function clearHighlight(element) {
     highlightSectionMembers.delete(element);
   }
   highlights.delete(element);
+  if (spotlightPrimary === element) {
+    spotlightPrimary = highlights.size ? [...highlights][highlights.size - 1] : null;
+    if (!spotlightPrimary) {
+      spotlightCaption = { title: "", body: "" };
+      destroySpotlightUi();
+    } else {
+      scheduleSpotlightUpdate();
+    }
+  }
+}
+
+function ensureSpotlightUi() {
+  if (!spotlightOverlay) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("class", "oc-liveui-spotlight-overlay");
+    svg.setAttribute("aria-hidden", "true");
+    const defs = document.createElementNS(ns, "defs");
+    const mask = document.createElementNS(ns, "mask");
+    mask.setAttribute("id", "oc-liveui-spotlight-mask");
+    const bg = document.createElementNS(ns, "rect");
+    bg.setAttribute("x", "0");
+    bg.setAttribute("y", "0");
+    bg.setAttribute("width", "100%");
+    bg.setAttribute("height", "100%");
+    bg.setAttribute("fill", "white");
+    const cutout = document.createElementNS(ns, "rect");
+    cutout.setAttribute("rx", "10");
+    cutout.setAttribute("ry", "10");
+    cutout.setAttribute("fill", "black");
+    mask.append(bg, cutout);
+    defs.append(mask);
+    const backdrop = document.createElementNS(ns, "rect");
+    backdrop.setAttribute("x", "0");
+    backdrop.setAttribute("y", "0");
+    backdrop.setAttribute("width", "100%");
+    backdrop.setAttribute("height", "100%");
+    backdrop.setAttribute("fill", "rgba(15, 23, 42, 0.45)");
+    backdrop.setAttribute("mask", "url(#oc-liveui-spotlight-mask)");
+    const ring = document.createElementNS(ns, "rect");
+    ring.setAttribute("class", "oc-liveui-spotlight-ring");
+    ring.setAttribute("rx", "10");
+    ring.setAttribute("ry", "10");
+    ring.setAttribute("fill", "none");
+    svg.append(defs, backdrop, ring);
+    document.body.append(svg);
+    spotlightOverlay = svg;
+    spotlightCutout = cutout;
+    spotlightRing = ring;
+  }
+  if (!spotlightCallout) {
+    const card = document.createElement("aside");
+    card.className = "oc-liveui-callout";
+    card.setAttribute("role", "status");
+    card.setAttribute("aria-live", "polite");
+    const header = document.createElement("div");
+    header.className = "oc-liveui-callout__header";
+    const title = document.createElement("strong");
+    title.className = "oc-liveui-callout__title";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "oc-liveui-callout__close";
+    closeBtn.setAttribute("aria-label", "Dismiss highlight");
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", () => clearHighlights());
+    header.append(title, closeBtn);
+    const body = document.createElement("p");
+    body.className = "oc-liveui-callout__body";
+    const arrow = document.createElement("div");
+    arrow.className = "oc-liveui-callout__arrow";
+    card.append(arrow, header, body);
+    document.body.append(card);
+    spotlightCallout = card;
+    spotlightArrow = arrow;
+    spotlightTitleEl = title;
+    spotlightBodyEl = body;
+  }
+  if (!spotlightListenersBound) {
+    spotlightListenersBound = true;
+    window.addEventListener("scroll", scheduleSpotlightUpdate, true);
+    window.addEventListener("resize", scheduleSpotlightUpdate);
+    window.addEventListener("keydown", onSpotlightKeyDown);
+  }
+}
+
+function destroySpotlightUi() {
+  if (spotlightRaf) { cancelAnimationFrame(spotlightRaf); spotlightRaf = 0; }
+  if (spotlightListenersBound) {
+    spotlightListenersBound = false;
+    window.removeEventListener("scroll", scheduleSpotlightUpdate, true);
+    window.removeEventListener("resize", scheduleSpotlightUpdate);
+    window.removeEventListener("keydown", onSpotlightKeyDown);
+  }
+  if (spotlightOverlay) { spotlightOverlay.remove(); spotlightOverlay = null; spotlightCutout = null; spotlightRing = null; }
+  if (spotlightCallout) { spotlightCallout.remove(); spotlightCallout = null; spotlightArrow = null; spotlightTitleEl = null; spotlightBodyEl = null; }
+}
+
+function onSpotlightKeyDown(event) {
+  if (event.key === "Escape" && highlights.size > 0) clearHighlights();
+}
+
+function renderSpotlightCalloutContent() {
+  if (!spotlightCallout || !spotlightTitleEl || !spotlightBodyEl) return;
+  const fallbackTitle = spotlightPrimary ? String(spotlightPrimary.innerText || "").replace(/\s+/g, " ").trim().slice(0, 120) : "";
+  const titleText = spotlightCaption.title || fallbackTitle;
+  const bodyText = spotlightCaption.body;
+  spotlightTitleEl.textContent = titleText;
+  spotlightBodyEl.textContent = bodyText;
+  spotlightBodyEl.style.display = bodyText ? "block" : "none";
+  spotlightCallout.style.display = (titleText || bodyText) ? "block" : "none";
+}
+
+function scheduleSpotlightUpdate() {
+  if (spotlightRaf || !spotlightPrimary) return;
+  spotlightRaf = requestAnimationFrame(() => {
+    spotlightRaf = 0;
+    updateSpotlightGeometry();
+  });
+}
+
+function computeSpotlightRect(element) {
+  const padding = 8;
+  const base = element.getBoundingClientRect();
+  let left = base.left, top = base.top, right = base.right, bottom = base.bottom;
+  const members = highlightSectionMembers.get(element);
+  if (members) {
+    for (const member of members) {
+      if (!member.isConnected) continue;
+      const r = member.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      left = Math.min(left, r.left);
+      top = Math.min(top, r.top);
+      right = Math.max(right, r.right);
+      bottom = Math.max(bottom, r.bottom);
+    }
+  }
+  const maxHeight = Math.max(120, window.innerHeight - 140);
+  if (bottom - top > maxHeight) bottom = top + maxHeight;
+  return {
+    left: Math.max(4, left - padding),
+    top: Math.max(4, top - padding),
+    right: Math.min(window.innerWidth - 4, right + padding),
+    bottom: Math.min(window.innerHeight - 4, bottom + padding),
+  };
+}
+
+function updateSpotlightGeometry() {
+  if (!spotlightPrimary || !spotlightPrimary.isConnected || !spotlightCutout || !spotlightRing) return;
+  const rect = computeSpotlightRect(spotlightPrimary);
+  const width = Math.max(0, rect.right - rect.left);
+  const height = Math.max(0, rect.bottom - rect.top);
+  for (const node of [spotlightCutout, spotlightRing]) {
+    node.setAttribute("x", String(rect.left));
+    node.setAttribute("y", String(rect.top));
+    node.setAttribute("width", String(width));
+    node.setAttribute("height", String(height));
+  }
+  if (!spotlightCallout || spotlightCallout.style.display === "none") return;
+
+  // Bonboarding-spec collision-aware auto placement (offset=12, viewportPadding=16, arrowSize=10)
+  const offset = 12;
+  const viewportPadding = 16;
+  const arrowSize = 10;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cardRect = spotlightCallout.getBoundingClientRect();
+  const cw = cardRect.width || 320;
+  const ch = cardRect.height || 96;
+
+  const spaceBottom = vh - rect.bottom - viewportPadding;
+  const spaceTop = rect.top - viewportPadding;
+  const spaceRight = vw - rect.right - viewportPadding;
+  const spaceLeft = rect.left - viewportPadding;
+
+  let side = "bottom";
+  if (spaceBottom >= ch + offset) side = "bottom";
+  else if (spaceTop >= ch + offset) side = "top";
+  else if (spaceRight >= cw + offset) side = "right";
+  else if (spaceLeft >= cw + offset) side = "left";
+  else {
+    const spaces = [["bottom", spaceBottom], ["top", spaceTop], ["right", spaceRight], ["left", spaceLeft]];
+    spaces.sort((a, b) => b[1] - a[1]);
+    side = spaces[0][0];
+  }
+
+  let left = 0, top = 0;
+  if (side === "bottom") {
+    top = Math.min(vh - viewportPadding - ch, rect.bottom + offset);
+    left = Math.max(viewportPadding, Math.min(vw - viewportPadding - cw, rect.left + (width - cw) / 2));
+  } else if (side === "top") {
+    top = Math.max(viewportPadding, rect.top - offset - ch);
+    left = Math.max(viewportPadding, Math.min(vw - viewportPadding - cw, rect.left + (width - cw) / 2));
+  } else if (side === "right") {
+    left = Math.min(vw - viewportPadding - cw, rect.right + offset);
+    top = Math.max(viewportPadding, Math.min(vh - viewportPadding - ch, rect.top + (height - ch) / 2));
+  } else {
+    left = Math.max(viewportPadding, rect.left - offset - cw);
+    top = Math.max(viewportPadding, Math.min(vh - viewportPadding - ch, rect.top + (height - ch) / 2));
+  }
+
+  spotlightCallout.style.left = `${Math.round(left)}px`;
+  spotlightCallout.style.top = `${Math.round(top)}px`;
+  spotlightCallout.dataset.placement = side;
+
+  if (spotlightArrow) {
+    if (side === "bottom" || side === "top") {
+      const targetCenterX = rect.left + width / 2;
+      const overlap = targetCenterX >= left + 12 && targetCenterX <= left + cw - 12;
+      spotlightArrow.style.display = overlap ? "block" : "none";
+      const arrowX = Math.max(14, Math.min(cw - 14 - arrowSize, targetCenterX - left - arrowSize / 2));
+      spotlightArrow.style.left = `${Math.round(arrowX)}px`;
+      spotlightArrow.style.top = side === "bottom" ? `-${arrowSize / 2}px` : `${Math.round(ch - arrowSize / 2)}px`;
+    } else {
+      const targetCenterY = rect.top + height / 2;
+      const overlap = targetCenterY >= top + 12 && targetCenterY <= top + ch - 12;
+      spotlightArrow.style.display = overlap ? "block" : "none";
+      const arrowY = Math.max(14, Math.min(ch - 14 - arrowSize, targetCenterY - top - arrowSize / 2));
+      spotlightArrow.style.top = `${Math.round(arrowY)}px`;
+      spotlightArrow.style.left = side === "right" ? `-${arrowSize / 2}px` : `${Math.round(cw - arrowSize / 2)}px`;
+    }
+  }
 }
 
 function installHighlightStyles() {
@@ -821,10 +1073,18 @@ function installHighlightStyles() {
   style.id = "openconnect-liveui-style";
   style.textContent = [
     ":root { --oc-liveui-focus: #2563eb; --oc-liveui-glow: rgba(37, 99, 235, 0.28); --oc-liveui-tint: rgba(37, 99, 235, 0.08); }",
-    "[" + highlightAttribute + "=\"true\"] { outline: 3px solid var(--oc-liveui-focus); outline-offset: 4px; border-radius: 8px; background-color: var(--oc-liveui-tint); box-shadow: 0 0 0 6px var(--oc-liveui-glow), 0 8px 24px rgba(37, 99, 235, 0.16); scroll-margin-top: 96px; }",
+    "[" + highlightAttribute + "=\"true\"] { position: relative; border-radius: 8px; background-color: var(--oc-liveui-tint); scroll-margin-top: 112px; }",
     "[" + sectionHighlightAttribute + "=\"true\"] { border-inline-start: 3px solid var(--oc-liveui-focus); padding-inline-start: 0.75rem; background-color: var(--oc-liveui-tint); border-radius: 0 8px 8px 0; }",
-    "@keyframes oc-liveui-spotlight { 0%, 100% { box-shadow: 0 0 0 5px var(--oc-liveui-glow), 0 8px 24px rgba(37, 99, 235, 0.14); } 50% { box-shadow: 0 0 0 9px rgba(37, 99, 235, 0.36), 0 10px 28px rgba(37, 99, 235, 0.24); } }",
-    "@media (prefers-reduced-motion: no-preference) { [" + highlightAttribute + "=\"true\"] { transition: outline-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease; animation: oc-liveui-spotlight 1.8s ease-in-out infinite; } [" + sectionHighlightAttribute + "=\"true\"] { transition: background-color 140ms ease, border-color 140ms ease; } }",
+    ".oc-liveui-spotlight-overlay { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1200; }",
+    ".oc-liveui-spotlight-ring { stroke: var(--oc-liveui-focus); stroke-width: 2.5; filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.45)); }",
+    ".oc-liveui-callout { position: fixed; z-index: 1201; max-width: min(360px, calc(100vw - 32px)); padding: 0.75rem 0.9rem; border-radius: 10px; background: #0f172a; color: #f8fafc; border: 1px solid rgba(59, 130, 246, 0.45); box-shadow: 0 14px 36px rgba(15, 23, 42, 0.35); font-size: 0.875rem; line-height: 1.45; }",
+    ".oc-liveui-callout__header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }",
+    ".oc-liveui-callout__title { font-size: 0.85rem; font-weight: 600; color: #93c5fd; }",
+    ".oc-liveui-callout__close { background: transparent; border: none; color: #cbd5e1; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 0.2rem; }",
+    ".oc-liveui-callout__close:hover { color: #ffffff; }",
+    ".oc-liveui-callout__body { margin: 0.35rem 0 0; color: #e2e8f0; }",
+    ".oc-liveui-callout__arrow { position: absolute; width: 10px; height: 10px; background: #0f172a; border-top: 1px solid rgba(59, 130, 246, 0.45); border-left: 1px solid rgba(59, 130, 246, 0.45); transform: rotate(45deg); }",
+    "@media (prefers-reduced-motion: no-preference) { .oc-liveui-callout { transition: left 140ms ease, top 140ms ease, opacity 120ms ease; } .oc-liveui-spotlight-ring { transition: x 140ms ease, y 140ms ease, width 140ms ease, height 140ms ease; } }",
   ].join("\n");
   document.head.append(style);
 }

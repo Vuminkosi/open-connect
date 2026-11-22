@@ -253,6 +253,7 @@
         }
         if (_activeSpeechCueTargets.SetEquals(targets))
         {
+            await UpdateSpotlightCaptionForSpeechAsync(targets, responseText, playbackEvent.StartCharacter, playbackEvent.EndCharacter);
             LiveUISpeechMetrics.SpeechHighlightOffset.Record(0);
             return false;
         }
@@ -271,7 +272,11 @@
                 _activeSpeechCueTargets.Add((targetId, matchText));
         }
 
-        if (_activeSpeechCueTargets.SetEquals(targets)) return true;
+        if (_activeSpeechCueTargets.SetEquals(targets))
+        {
+            await UpdateSpotlightCaptionForSpeechAsync(targets, responseText, playbackEvent.StartCharacter, playbackEvent.EndCharacter);
+            return true;
+        }
 
         // A timeline segment is valid only when every requested target is highlighted.
         // Remove any successful subset so narration cannot continue with a misleading partial cue.
@@ -313,6 +318,26 @@
         if (best is not null)
             matched.Add((best.Id, null));
         return matched;
+    }
+
+    private async Task UpdateSpotlightCaptionForSpeechAsync(
+        HashSet<(string TargetId, string? MatchText)> targets,
+        string responseText,
+        int startCharacter,
+        int endCharacter)
+    {
+        if (Services.GetService(typeof(ILiveUIRuntime)) is not LiveUIBrowserRuntime runtime)
+            return;
+        var clampedStart = Math.Clamp(startCharacter, 0, responseText.Length);
+        var clampedEnd = Math.Clamp(endCharacter, clampedStart, responseText.Length);
+        var spoken = clampedEnd > clampedStart
+            ? responseText.Substring(clampedStart, clampedEnd - clampedStart).Trim()
+            : string.Empty;
+        var firstTargetId = targets.FirstOrDefault().TargetId;
+        var label = _installedManifest?.Routes
+            .SelectMany(r => r.Targets)
+            .FirstOrDefault(t => string.Equals(t.Id, firstTargetId, StringComparison.Ordinal))?.Label;
+        await runtime.SetSpotlightCaptionAsync(label, spoken);
     }
 
     private string GetCurrentAssistantResponseText()
