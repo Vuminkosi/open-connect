@@ -18,23 +18,26 @@ public sealed class DocumentationVoiceBridgeTests
 {
     private const string Session = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
     private const string Other = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+    private static readonly TimeSpan ExchangeTimeout = TimeSpan.FromSeconds(15);
 
     [Fact]
     public async Task RelaysOnlyOnceWithSessionBoundVisitorCredential()
     {
         await using var fixture = await Fixture.StartAsync();
+        using var exchange = new CancellationTokenSource(ExchangeTimeout);
         var ticket = fixture.Tickets.Issue(Session, "visitor-credential");
         using (var socket = fixture.Socket(ticket))
         {
-            await socket.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None);
-            await socket.SendAsync(Encoding.UTF8.GetBytes("hello"), WebSocketMessageType.Text, true, CancellationToken.None);
+            await socket.ConnectAsync(fixture.VoiceUri(Session), exchange.Token);
+            await socket.SendAsync(Encoding.UTF8.GetBytes("hello"), WebSocketMessageType.Text, true, exchange.Token);
             var buffer = new byte[32];
-            var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            var result = await socket.ReceiveAsync(buffer, exchange.Token);
             Assert.Equal("hello", Encoding.UTF8.GetString(buffer, 0, result.Count));
+            await fixture.CompleteEchoAsync(exchange.Token);
         }
-        Assert.Equal("Bearer visitor-credential", await fixture.Authorization.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal("Bearer visitor-credential", await fixture.Authorization.Task.WaitAsync(TimeSpan.FromSeconds(5), exchange.Token));
         using var replay = fixture.Socket(ticket);
-        await Assert.ThrowsAsync<WebSocketException>(() => replay.ConnectAsync(fixture.VoiceUri(Session), CancellationToken.None));
+        await Assert.ThrowsAsync<WebSocketException>(() => replay.ConnectAsync(fixture.VoiceUri(Session), exchange.Token));
     }
 
     [Fact]
@@ -52,7 +55,8 @@ public sealed class DocumentationVoiceBridgeTests
     }
 
     private sealed class Fixture(WebApplication gateway, WebApplication site, X509Certificate2 certificate,
-        string siteAddress, DocumentationVoiceTickets tickets, TaskCompletionSource<string> authorization) : IAsyncDisposable
+        string siteAddress, DocumentationVoiceTickets tickets, TaskCompletionSource<string> authorization,
+        TaskCompletionSource echoObserved, TaskCompletionSource gatewayCloseSent) : IAsyncDisposable
     {
         public DocumentationVoiceTickets Tickets { get; } = tickets;
         public TaskCompletionSource<string> Authorization { get; } = authorization;
@@ -68,6 +72,12 @@ public sealed class DocumentationVoiceBridgeTests
             return socket;
         }
 
+        public async Task CompleteEchoAsync(CancellationToken cancellationToken)
+        {
+            echoObserved.TrySetResult();
+            await gatewayCloseSent.Task.WaitAsync(cancellationToken);
+        }
+
         public static async Task<Fixture> StartAsync()
         {
             using var rsa = RSA.Create(2048);
@@ -79,13 +89,23 @@ public sealed class DocumentationVoiceBridgeTests
             var gateway = gatewayBuilder.Build();
             gateway.UseWebSockets();
             var authorization = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var echoObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var gatewayCloseSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             gateway.Run(async context =>
             {
                 authorization.TrySetResult(context.Request.Headers.Authorization.ToString());
                 using var socket = await context.WebSockets.AcceptWebSocketAsync("openconnect.voice.v1");
+                using var exchange = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+                exchange.CancelAfter(ExchangeTimeout);
                 var buffer = new byte[32];
-                var result = await socket.ReceiveAsync(buffer, context.RequestAborted);
-                await socket.SendAsync(buffer.AsMemory(0, result.Count), result.MessageType, result.EndOfMessage, context.RequestAborted);
+                var result = await socket.ReceiveAsync(buffer, exchange.Token);
+                await socket.SendAsync(buffer.AsMemory(0, result.Count), result.MessageType, result.EndOfMessage, exchange.Token);
+
+                // Keep the fixture open until the browser has asserted the echo; then
+                // initiate normal close before the browser disposes its endpoint.
+                await echoObserved.Task.WaitAsync(exchange.Token);
+                await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, exchange.Token);
+                gatewayCloseSent.TrySetResult();
             });
             var siteBuilder = WebApplication.CreateSlimBuilder();
             siteBuilder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
@@ -99,7 +119,7 @@ public sealed class DocumentationVoiceBridgeTests
             site.Run(_ => Task.CompletedTask);
             await site.StartAsync();
             var siteAddress = site.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            return new Fixture(gateway, site, certificate, siteAddress, tickets, authorization);
+            return new Fixture(gateway, site, certificate, siteAddress, tickets, authorization, echoObserved, gatewayCloseSent);
         }
 
         public async ValueTask DisposeAsync()
