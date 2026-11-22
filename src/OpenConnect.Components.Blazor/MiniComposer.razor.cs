@@ -968,10 +968,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private async Task ToggleVoiceAsync()
     {
         if (VoiceInputBlocked) return;
-        if (!_micOn)
+        if (!_voiceActive && !_micOn)
         {
-            Session.MarkError("Microphone is turned off. Turn it on before starting voice input.");
-            return;
+            _micOn = true;
         }
 
         if (_voiceActive)
