@@ -1,15 +1,19 @@
 window.ocComposerVoice = (() => {
   let state = null;
   const targetSampleRate = 24000;
-  const speechThreshold = Number(window.__OC_VOICE_SPEECH_THRESHOLD || 0.012);
+  const maxPendingFrames = 128;
+  const speechThreshold = Number(window.__OC_VOICE_SPEECH_THRESHOLD || 0.008);
+  const silenceStopMs = Number(window.__OC_VOICE_SILENCE_MS || 1500);
   const toWs = (url) => url.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const workletUrl = () => new URL('_content/OpenConnect.Components.Blazor/js/voice-capture-worklet.js', document.baseURI).href;
 
   const setVoiceLevel = (level) => {
     const clamped = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
-    const value = clamped.toFixed(3);
-    const icons = document.querySelectorAll('.oc-bubble__live-speak');
-    for (const el of icons) el.style.setProperty('--oc-voice-level', value);
+    const radius = clamped > 0.01 ? `${(6 + clamped * 18).toFixed(1)}px` : '0px';
+    const opacity = clamped > 0.01 ? `${Math.round(35 + clamped * 60)}%` : '0%';
+    const root = document.documentElement;
+    root.style.setProperty('--oc-voice-glow-radius', radius);
+    root.style.setProperty('--oc-voice-glow-opacity', opacity);
   };
 
   const pcm16 = (samples) => {
@@ -215,7 +219,7 @@ window.ocComposerVoice = (() => {
         clearTimeout(current.silenceTimer);
         current.silenceTimer = null;
       } else if (current.speechSeen && !current.silenceTimer) {
-        current.silenceTimer = setTimeout(() => stop(false, 'silence'), 650);
+        current.silenceTimer = setTimeout(() => stop(false, 'silence'), silenceStopMs);
       }
       const samples = resample(sourceSamples, context.sampleRate, targetSampleRate);
       if (!samples.length || socket.bufferedAmount >= 512 * 1024) return;
