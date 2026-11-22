@@ -4,6 +4,9 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudUnconsumedClaimRecoveryStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudUnconsumedClaimRecoveryStore
 {
+    public static bool SupportsRecovery(string capabilityId, string unit, long amount) =>
+        EfCloudQuotaRecoveryStore.SupportsRecovery(capabilityId, unit, amount);
+
     public async Task<int> ReleaseAsync(DateTimeOffset cutoff, int limit, CancellationToken cancellationToken)
     {
         if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
@@ -15,10 +18,13 @@ public sealed class EfCloudUnconsumedClaimRecoveryStore(IDbContextFactory<CloudC
             SELECT r.* FROM cloud.quota_reservations r
             JOIN cloud.execution_claims c ON c."ReservationId" = r."Id"
             WHERE r."FinalizedAt" IS NULL AND r."ExpiresAt" <= {cutoff}
-              AND r."ExpiresAt" <= clock_timestamp() - interval '5 minutes' AND r."Amount" = 1
+              AND r."ExpiresAt" <= clock_timestamp() - interval '5 minutes' AND r."Amount" > 0
               AND c."DeploymentId" IS NOT NULL AND c."Region" IS NOT NULL AND octet_length(c."WorkerPayloadFingerprint") = 32
               AND EXISTS (SELECT 1 FROM cloud.quota_buckets b WHERE b."Id" = r."BucketId" AND b."TenantId" = r."TenantId"
-                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request')
+                  AND b."ApplicationId" = r."ApplicationId"
+                  AND ((b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request' AND r."Amount" = 1)
+                    OR (b."CapabilityId" = 'inference.chat' AND b."Unit" = 'token')
+                    OR (b."CapabilityId" IN ('voice.synthesize', 'translation.translate') AND b."Unit" = 'character')))
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_consumptions x WHERE x."ReservationId" = r."Id")
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_completions x WHERE x."ReservationId" = r."Id")
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_abandonments x WHERE x."ReservationId" = r."Id")

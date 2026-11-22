@@ -13,6 +13,7 @@ public static class CloudQuotaUnits
             "inference.chat" => unit == "token",
             "inference.liveui" => unit == "plan",
             "voice.synthesize" => unit == "character",
+            "translation.translate" => unit == "character",
             _ => CloudDeploymentRegistry.ValidToken(billingDescription, 80) && billingDescription == unit,
         };
 }

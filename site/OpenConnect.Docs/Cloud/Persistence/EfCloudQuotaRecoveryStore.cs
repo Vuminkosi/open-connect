@@ -4,6 +4,15 @@ namespace OpenConnect.Docs.Cloud;
 
 public sealed class EfCloudQuotaRecoveryStore(IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider timeProvider) : ICloudQuotaRecoveryStore
 {
+    public static bool SupportsRecovery(string capabilityId, string unit, long amount) =>
+        amount > 0 && capabilityId switch
+        {
+            "classification.classify" or "analytics.analyze" or "knowledge.embed" => unit == "request" && amount == 1,
+            "inference.chat" => unit == "token",
+            "voice.synthesize" or "translation.translate" => unit == "character",
+            _ => false,
+        };
+
     public async Task<int> ReleaseUnclaimedAsync(DateTimeOffset cutoff, int limit, CancellationToken cancellationToken)
     {
         if (limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
@@ -13,9 +22,12 @@ public sealed class EfCloudQuotaRecoveryStore(IDbContextFactory<CloudControlPlan
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var reservations = await db.QuotaReservations.FromSqlInterpolated($"""
             SELECT r.* FROM cloud.quota_reservations r
-            WHERE r."FinalizedAt" IS NULL AND r."ExpiresAt" <= {cutoff} AND r."Amount" = 1
+            WHERE r."FinalizedAt" IS NULL AND r."ExpiresAt" <= {cutoff} AND r."Amount" > 0
               AND EXISTS (SELECT 1 FROM cloud.quota_buckets b WHERE b."Id" = r."BucketId" AND b."TenantId" = r."TenantId"
-                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request')
+                  AND b."ApplicationId" = r."ApplicationId"
+                  AND ((b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request' AND r."Amount" = 1)
+                    OR (b."CapabilityId" = 'inference.chat' AND b."Unit" = 'token')
+                    OR (b."CapabilityId" IN ('voice.synthesize', 'translation.translate') AND b."Unit" = 'character')))
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_claims c WHERE c."ReservationId" = r."Id")
             ORDER BY r."BucketId", r."Id" LIMIT {limit} FOR UPDATE OF r SKIP LOCKED
             """).AsNoTracking().ToArrayAsync(cancellationToken);
