@@ -50,6 +50,25 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ReadinessStatus' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /cloud/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      summary: List Cloud gateway capabilities
+      description: >
+        Returns the sanitized status of logical Cloud capabilities for an
+        authenticated caller without exposing private backend URLs, internal
+        hostnames, deployment identifiers, or secrets. Fails closed with 401
+        when authentication is missing or invalid.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Sanitized logical capability statuses for this Cloud gateway.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapabilitiesStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /cloud/v1/inference/chat:
     post:
       operationId: chatInference
@@ -310,6 +329,46 @@ components:
               - analytics.analyze
               - voice.synthesize
               - knowledge.embed
+    CapabilitiesStatus:
+      type: object
+      additionalProperties: false
+      required: [traceId, capabilities]
+      properties:
+        traceId:
+          type: string
+          pattern: '^(?!0{32}$)[0-9a-f]{32}$'
+          description: W3C 32-hex-character trace identifier correlating logs and telemetry.
+        capabilities:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/CapabilityStatus'
+    CapabilityStatus:
+      type: object
+      additionalProperties: false
+      required: [id, status, streamingSupported]
+      properties:
+        id:
+          type: string
+          enum:
+            - inference.chat
+            - inference.liveui
+            - classification.classify
+            - voice.synthesize
+            - analytics.analyze
+            - knowledge.embed
+            - translation.translate
+            - security.inspect
+            - speech.transcribe
+            - voice.realtime
+            - navigator.execute
+            - agents.execute
+            - outbox.publish
+        status:
+          type: string
+          enum: [available, unavailable]
+        streamingSupported:
+          type: boolean
     InferenceChatRequest:
       type: object
       additionalProperties: false
