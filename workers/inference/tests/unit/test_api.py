@@ -286,3 +286,19 @@ def test_adapter_mode_without_endpoint_not_ready() -> None:
     response = client.post("/internal/v1/execute", json=_execute(), headers=_auth())
     assert response.status_code == 503
     assert response.json()["detail"] == "endpoint_unavailable"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    del monkeypatch
+    response = client.get("/internal/v1/capabilities", headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

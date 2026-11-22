@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 import openconnect_kokoro.app as app_module
@@ -89,3 +90,19 @@ def test_task_lifecycle(monkeypatch) -> None:
         headers=AUTH,
     )
     assert done.json()["state"] == "completed"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    _use_auth(monkeypatch)
+    response = client.get("/internal/v1/capabilities", headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

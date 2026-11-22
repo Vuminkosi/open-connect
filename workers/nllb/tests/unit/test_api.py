@@ -1,3 +1,4 @@
+import pytest
 import openconnect_nllb.app as app_module
 from openconnect_nllb.app import app
 from openconnect_nllb.config import Settings
@@ -246,3 +247,19 @@ def test_supported_pair_table() -> None:
     assert is_supported_pair("eng_Latn", "fra_Latn")
     assert not is_supported_pair("eng_Latn", "xx_Yyyy")
     assert not is_supported_pair("eng_Latn", "eng_Latn")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    _auth(monkeypatch)
+    response = client.get("/internal/v1/capabilities", headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

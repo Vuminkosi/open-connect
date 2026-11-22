@@ -97,3 +97,15 @@ def test_cloud_mode_blocks_legacy_before_validation(monkeypatch):
     response = client.post("/v1/liveui/inference/plan", json={"intent": "sensitive-fixture"})
     assert response.status_code == 503
     assert "sensitive-fixture" not in response.text
+
+
+def test_cloud_route_rejects_non_ascii_bearer(monkeypatch):
+    monkeypatch.setenv("OPENCONNECT_CLOUD_LIVEUI_ENABLED", "true")
+    app = FastAPI()
+    app.state.settings = SETTINGS
+    app.state.settings.bearer_token = "fixture-token"
+    app.include_router(cloud_api.router)
+    client = TestClient(app)
+    for raw in ("Bearer t\u00f6k\u00e9n".encode("latin-1"), "Bearer t\u00f6k\u00e9n".encode(), b"Bearer "):
+        response = client.get("/internal/cloud/v1/liveui/ready", headers={"Authorization": raw})
+        assert response.status_code == 401

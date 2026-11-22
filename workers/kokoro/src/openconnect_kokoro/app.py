@@ -55,7 +55,9 @@ def ready() -> dict[str, object]:
 def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
     token = settings.worker_token
     supplied = authorization.removeprefix("Bearer ") if authorization else ""
-    if token is None or not authorization or not authorization.startswith("Bearer ") or not hmac.compare_digest(supplied, token):
+    if token is None or not authorization or not authorization.startswith("Bearer ") or not hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"), token.encode("utf-8", "surrogatepass")
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
 
 

@@ -81,6 +81,23 @@ def test_local_route_requires_bearer(local_worker, authorization):
     assert error.value.code == 1008
 
 
+@pytest.mark.parametrize("path", ["/internal/v1/realtime", "/internal/v1/realtime/local"])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_closes_websocket(local_worker, path, raw):
+    with pytest.raises(WebSocketDisconnect) as error:
+        with local_worker.websocket_connect(path, headers={"Authorization": raw}):
+            pass
+    assert error.value.code == 1008
+
+
 def test_unavailable_model_cannot_fall_back_to_cloud(local_worker, monkeypatch):
     monkeypatch.setattr(realtime_local.local_whisper, "load_model", lambda *_: None)
     with local_worker.websocket_connect(

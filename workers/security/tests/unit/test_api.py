@@ -102,3 +102,25 @@ def test_duplicate_rules_are_attributed_to_the_rules_detector(monkeypatch):
     assert payload["detectorVersion"] == app_module.RULES_DETECTOR_VERSION
     schema = json.loads((ROOT / "contracts/jsonschema/security-scan-response.json").read_text())
     Draft202012Validator(schema).validate(payload)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_scan_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    monkeypatch.setattr(app_module, "settings", Settings(scan_token="local-test-token"))
+    request = {
+        "schemaVersion": "openconnect.v1",
+        "requestId": "123e4567-e89b-42d3-a456-426614174000",
+        "text": "hello",
+        "detectors": ["rules"],
+    }
+    response = client.post("/scan", json=request, headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

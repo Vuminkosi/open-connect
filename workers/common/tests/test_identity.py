@@ -33,3 +33,12 @@ def test_identity_from_environment(monkeypatch) -> None:
     assert identity.is_configured is True
     assert identity.verify("Bearer tok") is True
     assert identity.verify("Bearer nope") is False
+
+
+def test_verify_never_raises_on_non_ascii_empty_or_oversized() -> None:
+    assert verify_bearer("Bearer t\u00f6k\u00e9n", "s3cret") is False
+    assert verify_bearer("Bearer \u00e9", "\u00e9") is True
+    assert verify_bearer("Bearer s3cret", "t\u00f6k\u00e9n") is False
+    assert verify_bearer("Bearer ", "s3cret") is False
+    assert verify_bearer("Bearer " + "x" * 70_000, "s3cret") is False
+    assert verify_bearer("Bearer \ud800", "s3cret") is False

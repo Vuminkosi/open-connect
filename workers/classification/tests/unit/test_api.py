@@ -1,3 +1,4 @@
+import pytest
 import openconnect_classification.app as app_module
 import json
 from openconnect_classification.app import app
@@ -254,3 +255,19 @@ def test_label_sets_versioned() -> None:
         pass
     else:  # pragma: no cover
         raise AssertionError("expected KeyError")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    _auth(monkeypatch)
+    response = client.get("/internal/v1/capabilities", headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

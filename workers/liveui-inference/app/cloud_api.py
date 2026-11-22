@@ -54,7 +54,10 @@ def authorized(request: Request) -> bool:
     if not token or len(values) != 1 or not values[0].startswith("Bearer "):
         return False
     try:
-        return secrets.compare_digest(values[0][7:], token)
+        return secrets.compare_digest(
+            values[0][7:].encode("utf-8", "surrogatepass"),
+            token.encode("utf-8", "surrogatepass"),
+        )
     except TypeError:
         return False
 

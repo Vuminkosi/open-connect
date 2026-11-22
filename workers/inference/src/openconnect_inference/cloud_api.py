@@ -63,7 +63,10 @@ def _authorized(request: Request) -> bool:
     if not token or len(values) != 1 or not values[0].startswith("Bearer "):
         return False
     try:
-        return hmac.compare_digest(values[0].removeprefix("Bearer "), token)
+        return hmac.compare_digest(
+            values[0].removeprefix("Bearer ").encode("utf-8", "surrogatepass"),
+            token.encode("utf-8", "surrogatepass"),
+        )
     except TypeError:
         return False
 
