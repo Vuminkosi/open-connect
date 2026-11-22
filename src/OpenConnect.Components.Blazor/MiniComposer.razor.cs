@@ -791,6 +791,86 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return SendAsync();
     }
 
+    private IReadOnlyList<string> EffectiveSuggestions
+    {
+        get
+        {
+            if (Suggestions is { Count: > 0 }) return Suggestions;
+            var latestAssistant = Session?.Messages.LastOrDefault(m => m.Role == "assistant")?.Text;
+            return ExtractNextStepSuggestions(latestAssistant);
+        }
+    }
+
+    internal static IReadOnlyList<string> ExtractNextStepSuggestions(string? assistantText)
+    {
+        if (string.IsNullOrWhiteSpace(assistantText)) return [];
+        var trimmed = assistantText.Trim();
+        var results = new List<string>(4);
+
+        // 1. Check for a trailing numbered list after a follow-up question (e.g. "Want me to:\n1. ...\n2. ...")
+        var lines = trimmed.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var questionIndex = -1;
+        for (var i = lines.Length - 1; i >= Math.Max(0, lines.Length - 8); i--)
+        {
+            var l = lines[i].Trim();
+            if (l.EndsWith(':') && (l.Contains("want me to", StringComparison.OrdinalIgnoreCase) ||
+                l.Contains("would you like", StringComparison.OrdinalIgnoreCase) ||
+                l.Contains("next", StringComparison.OrdinalIgnoreCase)))
+            {
+                questionIndex = i;
+                break;
+            }
+        }
+        if (questionIndex >= 0)
+        {
+            for (var i = questionIndex + 1; i < lines.Length && results.Count < 4; i++)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(lines[i].Trim(), @"^(?:\d+[.)]|[-*])\s+(.+)$");
+                if (!m.Success) continue;
+                var candidate = CleanChipText(m.Groups[1].Value);
+                if (candidate.Length is >= 3 and <= 80 && !results.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+                    results.Add(candidate);
+            }
+            if (results.Count >= 2) return results;
+            results.Clear();
+        }
+
+        // 2. Check the final paragraph/sentence for "Want me to <verb> A [next], or B?"
+        var lastParagraph = lines.LastOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim() ?? string.Empty;
+        var offerMatch = System.Text.RegularExpressions.Regex.Match(
+            lastParagraph,
+            @"(?i)(?:want me to|would you like(?: me)? to|should (?:i|we)|ready to)\s+(open|show|walk(?: you)? through|explore|jump to|cover|set up|configure|try)\s+(.+?)\?\s*$");
+        if (offerMatch.Success)
+        {
+            var verb = char.ToUpperInvariant(offerMatch.Groups[1].Value[0]) + offerMatch.Groups[1].Value[1..].ToLowerInvariant();
+            if (verb.StartsWith("Walk", StringComparison.OrdinalIgnoreCase)) verb = "Walk through";
+            var rawChoices = offerMatch.Groups[2].Value;
+            var parts = System.Text.RegularExpressions.Regex.Split(rawChoices, @"(?i)(?:,\s*or\s+|\s+next,\s*or\s+|\s+or\s+|,\s+)");
+            foreach (var part in parts)
+            {
+                var cleaned = CleanChipText(part);
+                cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?i)\s+(?:next|first)$", "").Trim();
+                if (cleaned.Length is < 2 or > 65) continue;
+                var label = cleaned.StartsWith(verb, StringComparison.OrdinalIgnoreCase) ? cleaned : $"{verb} {cleaned}";
+                if (label.Length <= 80 && !results.Contains(label, StringComparer.OrdinalIgnoreCase))
+                    results.Add(label);
+                if (results.Count >= 4) break;
+            }
+            if (results.Count >= 2) return results;
+        }
+
+        return [];
+    }
+
+    private static string CleanChipText(string value)
+    {
+        var cleaned = value.Replace("**", "", StringComparison.Ordinal)
+            .Replace("`", "", StringComparison.Ordinal)
+            .Trim();
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
+        return cleaned.TrimEnd('?', '.', ',', ';');
+    }
+
     private Task HandleInput(ChangeEventArgs args)
     {
         _ = args;

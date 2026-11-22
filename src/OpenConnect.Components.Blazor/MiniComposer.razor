@@ -232,10 +232,10 @@
                 <div class="oc-bubble-error" role="status">@_speechError</div>
             }
 
-            @if (Suggestions?.Count > 0 && !IsLoading)
+            @if (EffectiveSuggestions.Count > 0 && !IsLoading)
             {
-                <div class="oc-bubble-chips" aria-label="Suggestions">
-                    @foreach (var suggestion in Suggestions)
+                <div class="oc-bubble-chips" aria-label="Suggested next steps">
+                    @foreach (var suggestion in EffectiveSuggestions)
                     {
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => UseSuggestion(suggestion))">@suggestion</MudChip>
                     }
