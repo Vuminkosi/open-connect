@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -19,26 +19,22 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
             return new("unavailable");
         var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM cloud.applications WHERE \"Id\" = {applicationId} AND \"TenantId\" = {tenantId} FOR SHARE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        if (application is null || application.Environment != credential.Environment)
-            return new("unavailable");
+        if (application is null || application.Environment != credential.Environment) return new("unavailable");
         var capabilities = await EfCloudClaimCapabilitySnapshot.LockAsync(db, tenantId, applicationId, cancellationToken);
         CloudWorkerDeployment? selectedDeployment = null;
-        if (capabilityId is "classification.classify" or "knowledge.embed")
+        if (capabilityId is "classification.classify" or "analytics.analyze" or "knowledge.embed")
         {
             if (!CloudClassificationDeploymentService.IsValid(deployment) ||
-                (capabilityId == "knowledge.embed" && workerPayloadFingerprint is not { Length: 32 }))
-                return new("unavailable");
+                (capabilityId is "analytics.analyze" or "knowledge.embed" && workerPayloadFingerprint is not { Length: 32 })) return new("unavailable");
             selectedDeployment = await EfCloudClaimDeployment.LockEligibleAsync(db, tenantId, capabilities, deployment!, cancellationToken, capabilityId);
-            if (selectedDeployment is null)
-                return new("unavailable");
+            if (selectedDeployment is null) return new("unavailable");
         }
         if (capabilityId == "inference.chat")
         {
             if (workerPayloadFingerprint is not { Length: 32 } || !await EfCloudInferenceModelAdmission.LockAllowedAsync(db, tenantId, inferenceModelId, cancellationToken) || inferenceDeployment?.IsValid() != true)
                 return new("unavailable");
             selectedDeployment = await EfCloudInferenceDeploymentAdmission.LockEligibleAsync(db, tenantId, capabilities, inferenceModelId!, inferenceDeployment, cancellationToken);
-            if (selectedDeployment is null)
-                return new("unavailable");
+            if (selectedDeployment is null) return new("unavailable");
         }
         // Lock the reservation against both finalization and competing claims until the claim commits.
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
@@ -47,35 +43,24 @@ public sealed class EfCloudExecutionClaimStore(IDbContextFactory<CloudControlPla
         if (credential.ExpiresAt <= now || CloudCapabilityProjection.Application(capabilities, now).FirstOrDefault(x => x.Id == capabilityId)?.ReasonCode is not null ||
             !capabilities.Capabilities.Any(x => x.Id == capabilityId) || reservation is null || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
             reservation.RequestFingerprint is not { Length: 32 } || !CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) ||
-            !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.CapabilityId == capabilityId && (capabilityId != "inference.chat" || x.Unit == "token") && (capabilityId != "knowledge.embed" || x.Unit == "request"), cancellationToken))
+            !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.CapabilityId == capabilityId && (capabilityId != "inference.chat" || x.Unit == "token") && (capabilityId != "analytics.analyze" && capabilityId != "knowledge.embed" || x.Unit == "request"), cancellationToken))
             return new("unavailable");
         if (!string.Equals(reservation.FingerprintKeyId, fingerprintKeyId, StringComparison.Ordinal) ||
-            !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint))
-            return new("idempotency_conflict");
-        if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken))
-            return new("already_claimed");
+            !CryptographicOperations.FixedTimeEquals(reservation.RequestFingerprint, fingerprint)) return new("idempotency_conflict");
+        if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("already_claimed");
         if (capabilityId == "inference.chat" && !await EfCloudInferencePrivacyAdmission.IsAllowedAsync(db,
-                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken))
-            return new("unavailable");
+                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken)) return new("unavailable");
+        if (capabilityId == "analytics.analyze" && !await EfCloudAnalyticsPrivacyAdmission.IsAllowedAsync(db,
+                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken)) return new("unavailable");
         if (capabilityId == "knowledge.embed" && !await EfCloudKnowledgeEmbeddingPrivacyAdmission.IsAllowedAsync(db,
-                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken))
-            return new("unavailable");
+                tenantId, applicationId, reservation.RequestId, fingerprintKeyId, fingerprint, cancellationToken)) return new("unavailable");
         if (selectedDeployment is not null && await (from existing in db.ExecutionClaims
-                                                     join held in db.QuotaReservations on existing.ReservationId equals held.Id
-                                                     where existing.DeploymentId == selectedDeployment.Id && held.FinalizedAt == null
-                                                     select existing.ReservationId).CountAsync(cancellationToken) >= selectedDeployment.ConcurrencyLimit)
+                join held in db.QuotaReservations on existing.ReservationId equals held.Id
+                where existing.DeploymentId == selectedDeployment.Id && held.FinalizedAt == null
+                select existing.ReservationId).CountAsync(cancellationToken) >= selectedDeployment.ConcurrencyLimit)
             return new("unavailable");
-        var claim = new CloudExecutionClaim
-        {
-            ReservationId = reservationId,
-            TenantId = tenantId,
-            ApplicationId = applicationId,
-            ClaimId = Guid.NewGuid(),
-            DeploymentId = selectedDeployment?.Id,
-            Region = selectedDeployment?.Region,
-            WorkerPayloadFingerprint = workerPayloadFingerprint,
-            ClaimedAt = now
-        };
+        var claim = new CloudExecutionClaim { ReservationId = reservationId, TenantId = tenantId, ApplicationId = applicationId, ClaimId = Guid.NewGuid(),
+            DeploymentId = selectedDeployment?.Id, Region = selectedDeployment?.Region, WorkerPayloadFingerprint = workerPayloadFingerprint, ClaimedAt = now };
         db.ExecutionClaims.Add(claim);
         await db.SaveChangesAsync(cancellationToken);
         await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO cloud.execution_claim_credentials (\"ReservationId\", \"CredentialId\") VALUES ({reservationId}, {credentialId})", cancellationToken);

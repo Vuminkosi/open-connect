@@ -1,0 +1,91 @@
+@page "/knowledge-example"
+@rendermode InteractiveServer
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IServiceProvider Services
+
+<PageTitle>Knowledge example | OpenConnect</PageTitle>
+<h1>Knowledge example</h1>
+@if (Services.GetService(typeof(TodoKnowledgeDemo)) is not TodoKnowledgeDemo)
+{
+    <p>This example is not enabled.</p>
+}
+else
+{
+    <p>Search the approved example document. Results are source passages for review.</p>
+    <label for="knowledge-query">Question</label>
+    <input id="knowledge-query" @bind="_query" @bind:event="oninput" maxlength="8192" disabled="@_busy" />
+    <button type="button" @onclick="SearchAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_query))">Search document</button>
+    @if (_status is not null) { <p role="status">@_status</p> }
+    @if (_result is not null)
+    {
+        <section aria-labelledby="knowledge-results"><h2 id="knowledge-results">Relevant passages</h2>
+        @if (_result.RootElement.GetProperty("result").GetProperty("warnings").GetArrayLength() != 0)
+        {
+            <p role="alert">Some passages were excluded because access or the source changed during the search. Results may be incomplete; search again.</p>
+        }
+        @if (_result.RootElement.GetProperty("result").GetProperty("hits").GetArrayLength() == 0)
+        {
+            <p>No matching passages were found.</p>
+        }
+        @foreach (var item in _result.RootElement.GetProperty("result").GetProperty("hits").EnumerateArray())
+        {
+            var hit = item.GetProperty("hit");
+            <article>
+                <p>@hit.GetProperty("text").GetString()</p>
+                <p>Source: @hit.GetProperty("document_id").GetString(), revision @hit.GetProperty("source_revision").GetString(), page @(hit.GetProperty("page_index").GetInt32() + 1), characters @hit.GetProperty("start").GetInt32()–@hit.GetProperty("end").GetInt32().</p>
+            </article>
+        }
+        </section>
+    }
+}
+<p><a href="/">Back to tasks</a></p>
+
+@code {
+    private string _query = string.Empty;
+    private string? _status;
+    private System.Text.Json.JsonDocument? _result;
+    private readonly CancellationTokenSource _stopping = new();
+    private CancellationTokenSource? _operation;
+    private AuthenticationStateProvider? _authentication;
+    private int _generation;
+    private bool _busy;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        _authentication = Services.GetService(typeof(AuthenticationStateProvider)) as AuthenticationStateProvider;
+        if (_authentication is not null) _authentication.AuthenticationStateChanged += AuthenticationChanged;
+    }
+    private void AuthenticationChanged(Task<AuthenticationState> state) => _ = InvokeAsync(() =>
+    {
+        if (_disposed) return;
+        ++_generation; _operation?.Cancel(); _result?.Dispose(); _result = null; _query = string.Empty;
+        _status = "Your identity changed. Check access before searching again.";
+        StateHasChanged();
+    });
+    private async Task SearchAsync()
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_query) || Services.GetService(typeof(TodoKnowledgeDemo)) is not TodoKnowledgeDemo demo || _authentication is null) return;
+        _busy = true; _status = "Indexing and searching the document…";
+        var generation = ++_generation; var query = _query;
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token); _operation = operation;
+        _result?.Dispose(); _result = null;
+        try
+        {
+            var identity = await _authentication.GetAuthenticationStateAsync();
+            var result = await demo.SearchAsync(identity.User, query, operation.Token);
+            if (operation.IsCancellationRequested || generation != _generation) { result.Dispose(); return; }
+            _result = result; _status = "Search complete. Review the cited passages.";
+        }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested) { }
+        catch (Exception) { if (generation == _generation) _status = "Search could not be completed. Check access, configuration and worker availability."; }
+        finally { _operation = null; _busy = false; }
+    }
+    public void Dispose()
+    {
+        _disposed = true; ++_generation;
+        if (_authentication is not null) _authentication.AuthenticationStateChanged -= AuthenticationChanged;
+        _stopping.Cancel(); _stopping.Dispose(); _result?.Dispose();
+    }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-status-request.json",
+  "title": "Knowledge index status request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index.status"},
+    "tenantId": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$", "minLength": 26, "maxLength": 26},
+    "issuedAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": false,
+      "required": ["jobId", "applicationId", "collectionId", "documentId", "principalId"],
+      "properties": {
+        "jobId": {"type": "string", "format": "uuid"},
+        "applicationId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "collectionId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "documentId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "principalId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "roleIds": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
+      }
+    }
+  }
+}

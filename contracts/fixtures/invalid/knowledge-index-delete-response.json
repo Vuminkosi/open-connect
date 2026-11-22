@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "fixture",
+  "kind": "knowledge.index.delete",
+  "result": {
+    "generation": 2,
+    "reconciliation_state": "deleted"
+  }
+}

@@ -1,0 +1,89 @@
+name: Worker expansion offline checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-expansion-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    name: Offline worker checks (${{ matrix.worker }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: [document-intelligence, knowledge, vision, analytics-inference]
+    defaults:
+      run:
+        working-directory: workers/${{ matrix.worker }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        run: python -m pip install uv==0.13.6
+      - name: Install locked dependencies
+        run: uv sync --locked --no-cache
+      - name: Check shared worker package matches source
+        run: uv run --locked python ../common/verify_install.py
+      - name: Lint
+        run: uv run --locked ruff check .
+      - name: Check Dockerfile model download policy
+        run: |
+          uv run --locked python -c 'from pathlib import Path; from openconnect_worker_common.models import verify_dockerfile_no_model_downloads as check; violations = check(Path("Dockerfile").read_text(encoding="utf-8")); print("\n".join(violations) if violations else "No known build-time model download patterns"); raise SystemExit(bool(violations))'
+      - name: Check inference Dockerfile model download policy
+        if: matrix.worker == 'analytics-inference'
+        run: |
+          uv run --locked python -c 'from pathlib import Path; from openconnect_worker_common.models import verify_dockerfile_no_model_downloads as check; violations = check(Path("../inference/Dockerfile").read_text(encoding="utf-8")); print("\n".join(violations) if violations else "No known build-time model download patterns"); raise SystemExit(bool(violations))'
+      - name: Offline tests
+        run: uv run --locked pytest -q
+      - name: Check Python and .NET analytics fixtures
+        if: matrix.worker == 'analytics-inference'
+        run: uv run --locked python tests/fixtures/generate_dotnet_contract.py --check
+      - name: Check contract validation gate
+        if: matrix.worker == 'analytics-inference'
+        run: uv run --locked pytest -q ../../scripts/tests/test_validate_contracts.py
+      - name: Validate contract schemas and fixtures
+        if: matrix.worker == 'analytics-inference'
+        run: uv run --locked python ../../scripts/validate-contracts.py
+      - name: State integration boundary
+        run: echo 'Real models, live services, and cross-language integration are not verified by this offline job.' >> "$GITHUB_STEP_SUMMARY"
+
+  inference-extraction:
+    name: Offline structured extraction checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: workers/inference
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        run: python -m pip install uv==0.13.6
+      - name: Install locked dependencies
+        run: uv sync --locked --no-cache
+      - name: Check shared worker package matches source
+        run: uv run --locked python ../common/verify_install.py
+      - name: Lint extraction code and tests
+        run: uv run --locked ruff check src/openconnect_inference/extraction*.py tests/unit/test_extraction*.py
+      - name: Test extraction offline
+        run: >-
+          uv run --locked pytest -q
+          tests/unit/test_extraction.py tests/unit/test_extraction_api.py
+          tests/unit/test_extraction_llama.py tests/unit/test_extraction_profiles.py
+          tests/unit/test_extraction_runtime.py tests/unit/test_extraction_real_acceptance.py
+      - name: State integration boundary
+        run: echo 'Real models and live worker integration are not verified by this offline job.' >> "$GITHUB_STEP_SUMMARY"

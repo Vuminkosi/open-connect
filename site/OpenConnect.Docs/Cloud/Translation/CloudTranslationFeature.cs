@@ -14,6 +14,8 @@ public static class CloudTranslationFeature
         services.AddScoped<CloudTranslationDeploymentProfiles>();
         services.AddScoped<ICloudTranslationDeploymentReader, EfCloudTranslationDeploymentReader>();
         services.AddScoped<CloudTranslationDeploymentMatch>();
+        services.AddScoped<ICloudTranslationClaimStore, EfCloudTranslationClaimStore>();
+        services.AddScoped<CloudTranslationClaim>();
         return services;
     }
 }

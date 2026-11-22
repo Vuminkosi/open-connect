@@ -6,8 +6,9 @@ WORKDIR /app/workers/document-intelligence
 FROM base AS dependencies
 COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
 COPY workers/common/src/ /app/workers/common/src/
+COPY workers/common/verify_install.py /app/workers/common/verify_install.py
 COPY workers/document-intelligence/pyproject.toml workers/document-intelligence/uv.lock ./
-RUN uv sync --locked --no-cache --no-dev --no-install-project
+RUN uv sync --locked --no-cache --no-dev --no-install-project && .venv/bin/python ../common/verify_install.py
 
 FROM base AS runtime
 # Extract only the executable: the Debian tesseract package's language-model

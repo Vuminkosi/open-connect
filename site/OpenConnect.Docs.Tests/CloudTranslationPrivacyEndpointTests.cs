@@ -20,20 +20,10 @@ public sealed class CloudTranslationPrivacyEndpointTests
         using var certificate = certRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10));
         var trust = new CloudGatewayClientTrust([Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256))]);
         var material = CloudCredentialSecrets.Create("Development");
-        var tenant = Guid.NewGuid();
-        var application = Guid.NewGuid();
-        var credential = new CloudCredential
-        {
-            Id = material.Id,
-            TenantId = tenant,
-            ApplicationId = application,
-            Environment = "Development",
-            KeyHash = material.Hash,
-            Fingerprint = material.Fingerprint,
-            Scopes = "[\"translation.translate\"]",
-            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
-            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
-        };
+        var tenant = Guid.NewGuid(); var application = Guid.NewGuid();
+        var credential = new CloudCredential { Id = material.Id, TenantId = tenant, ApplicationId = application,
+            Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
+            Scopes = "[\"translation.translate\"]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
         var snapshot = new CloudCapabilitySnapshot(
             [new CloudCapabilityDefinition { Id = "translation.translate", Name = "Translation", Description = "fixture", ContractVersion = "v1",
                 BillingUnit = "character", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }],
@@ -43,41 +33,38 @@ public sealed class CloudTranslationPrivacyEndpointTests
         var evidence = new EvidenceStore();
         var quota = new TranslationQuotaStore();
         var deploymentReader = new TranslationDeploymentReader();
+        var claimStore = new TranslationClaimStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot)).AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton(new CloudTranslationPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudTranslationQuotaStore>(quota).AddSingleton<CloudTranslationQuota>()
             .AddSingleton<ICloudTranslationDeploymentReader>(deploymentReader).AddSingleton<CloudTranslationDeploymentMatch>()
+            .AddSingleton<ICloudTranslationClaimStore>(claimStore).AddSingleton<CloudTranslationClaim>()
             .AddSingleton<ICloudTranslationPrivacyEvidenceStore>(evidence).BuildServiceProvider();
         var id = Guid.NewGuid();
         DefaultHttpContext Context(string body)
         {
             var context = new DefaultHttpContext { RequestServices = services };
-            context.Request.Scheme = "https";
-            context.Connection.ClientCertificate = certificate;
+            context.Request.Scheme = "https"; context.Connection.ClientCertificate = certificate;
             context.Request.Headers.Authorization = "Bearer " + material.Secret;
             context.Request.Headers["X-Cloud-Request-Id"] = id.ToString("D");
             context.Request.Headers["X-Cloud-Fingerprint-Key-Id"] = "active";
             context.Request.Headers["X-Cloud-Request-Fingerprint"] = Convert.ToBase64String(new byte[32]);
-            context.Request.ContentType = "application/json";
-            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+            context.Request.ContentType = "application/json"; context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
             return context;
         }
         const string safe = "{\"text\":\"hello\",\"sourceLang\":\"eng_Latn\",\"targetLang\":\"fra_Latn\"}";
-        var noCert = Context(safe);
-        noCert.Connection.ClientCertificate = null;
+        var noCert = Context(safe); noCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(noCert, trust, true, default)));
         Assert.Equal(503, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(Context(safe), trust, false, default)));
-        var noToken = Context(safe);
-        noToken.Request.Headers.Authorization = "Bearer invalid";
+        var noToken = Context(safe); noToken.Request.Headers.Authorization = "Bearer invalid";
         Assert.Equal(401, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(noToken, trust, true, default)));
         credential.Scopes = "[\"voice.synthesize\"]";
         Assert.Equal(403, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(Context(safe), trust, true, default)));
         credential.Scopes = "[\"translation.translate\"]";
         Assert.Equal(400, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(Context(safe.Replace("{", "{\"text\":\"duplicate\",", StringComparison.Ordinal)), trust, true, default)));
-        var encoded = Context(safe);
-        encoded.Request.Headers.ContentEncoding = "gzip";
+        var encoded = Context(safe); encoded.Request.Headers.ContentEncoding = "gzip";
         Assert.Equal(415, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(encoded, trust, true, default)));
         Assert.Equal(0, evidence.Calls);
         var accepted = Context(safe);
@@ -88,16 +75,9 @@ public sealed class CloudTranslationPrivacyEndpointTests
         Assert.Equal("privacy_blocked", evidence.Last.Item5);
         evidence.Fail = true;
         Assert.Equal(503, Status(await CloudTranslationPrivacyEndpoints.EvaluateAsync(Context(safe), trust, true, default)));
-        string Reserve(long characters) => System.Text.Json.JsonSerializer.Serialize(new
-        {
-            requestId = id,
-            fingerprintKeyId = "active",
-            fingerprint = Convert.ToBase64String(new byte[32]),
-            characters,
-            expiresAt = DateTimeOffset.UtcNow.AddMinutes(1)
-        });
-        var quotaNoCert = Context(Reserve(5));
-        quotaNoCert.Connection.ClientCertificate = null;
+        string Reserve(long characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
+        var quotaNoCert = Context(Reserve(5)); quotaNoCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(quotaNoCert, trust, true, default)));
         Assert.Equal(400, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5001)), trust, true, default)));
         Assert.Equal(400, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5).Replace("{", "{\"characters\":5,", StringComparison.Ordinal)), trust, true, default)));
@@ -109,22 +89,10 @@ public sealed class CloudTranslationPrivacyEndpointTests
         Assert.Equal(503, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5)), trust, true, default)));
         quota.Status = "quota_exceeded";
         Assert.Equal(429, Status(await CloudTranslationQuotaEndpoints.ReserveAsync(Context(Reserve(5)), trust, true, default)));
-        var matchBody = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            deploymentId = id,
-            endpointReference = "nllb",
-            region = "local",
-            contractVersion = "v1",
-            modelId = "nllb",
-            modelRevision = "r1",
-            modelDigest = "sha256:" + new string('a', 64),
-            imageDigest = "sha256:" + new string('b', 64),
-            tokenizerHash = new string('c', 64),
-            sourceLang = "eng_Latn",
-            targetLang = "fra_Latn"
-        });
-        var matchNoCert = Context(matchBody);
-        matchNoCert.Connection.ClientCertificate = null;
+        var matchBody = System.Text.Json.JsonSerializer.Serialize(new { deploymentId = id, endpointReference = "nllb", region = "local",
+            contractVersion = "v1", modelId = "nllb", modelRevision = "r1", modelDigest = "sha256:" + new string('a', 64),
+            imageDigest = "sha256:" + new string('b', 64), tokenizerHash = new string('c', 64), sourceLang = "eng_Latn", targetLang = "fra_Latn" });
+        var matchNoCert = Context(matchBody); matchNoCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudTranslationDeploymentEndpoints.MatchAsync(matchNoCert, trust, true, default)));
         Assert.Equal(400, Status(await CloudTranslationDeploymentEndpoints.MatchAsync(Context(matchBody.Replace("{", "{\"deploymentId\":\"" + id + "\",", StringComparison.Ordinal)), trust, true, default)));
         var matched = await CloudTranslationDeploymentEndpoints.MatchAsync(Context(matchBody), trust, true, default);
@@ -132,6 +100,13 @@ public sealed class CloudTranslationPrivacyEndpointTests
         Assert.NotNull((matched as IValueHttpResult)?.Value);
         Assert.Equal(tenant, deploymentReader.TenantId);
         Assert.Equal("fra_Latn", deploymentReader.Last!.TargetLang);
+        var proof = System.Text.Json.JsonSerializer.Serialize(new { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), deployment = System.Text.Json.JsonSerializer.Deserialize<object>(matchBody) });
+        var noClaimCert = Context(proof); noClaimCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, noClaimCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, Context(proof.Replace("\"deployment\":{", "\"deployment\":{\"deploymentId\":\"" + id + "\",", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal(200, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, Context(proof), trust, true, default)));
+        Assert.Equal((tenant, application, id, "fra_Latn"), claimStore.Last);
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
@@ -144,6 +119,17 @@ public sealed class CloudTranslationPrivacyEndpointTests
         { TenantId = tenantId; Last = request; return Task.FromResult(true); }
     }
 
+    private sealed class TranslationClaimStore : ICloudTranslationClaimStore
+    {
+        public (Guid, Guid, Guid, string) Last { get; private set; }
+        public Task<CloudExecutionClaimResult> ClaimAsync(CloudCredentialIdentity identity, Guid reservationId, string fingerprintKeyId,
+            byte[] fingerprint, byte[] workerFingerprint, CloudTranslationDeploymentMatchRequest deployment, CancellationToken cancellationToken)
+        {
+            Last = (identity.TenantId, identity.ApplicationId, reservationId, deployment.TargetLang);
+            return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid()));
+        }
+    }
+
     private sealed class TranslationQuotaStore : ICloudTranslationQuotaStore
     {
         public int Calls { get; private set; }
@@ -151,8 +137,7 @@ public sealed class CloudTranslationPrivacyEndpointTests
         public CloudQuotaRequest? Last { get; private set; }
         public Task<CloudQuotaResult> ReserveAsync(CloudQuotaRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
-            Calls++;
-            Last = request;
+            Calls++; Last = request;
             return Task.FromResult(new CloudQuotaResult(Status, Status == "reserved" ? Guid.NewGuid() : null));
         }
     }
@@ -165,10 +150,8 @@ public sealed class CloudTranslationPrivacyEndpointTests
         public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint,
             int characters, string outcome, string traceId, CancellationToken cancellationToken)
         {
-            if (Fail)
-                throw new InvalidOperationException();
-            Calls++;
-            Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
+            if (Fail) throw new InvalidOperationException();
+            Calls++; Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
             return Task.CompletedTask;
         }
     }

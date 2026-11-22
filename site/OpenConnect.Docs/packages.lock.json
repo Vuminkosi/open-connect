@@ -506,6 +506,12 @@
           "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
+      "openconnect.analytics": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.client": {
         "type": "Project",
         "dependencies": {

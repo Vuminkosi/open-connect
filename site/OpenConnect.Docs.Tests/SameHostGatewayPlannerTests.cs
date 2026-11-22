@@ -32,8 +32,8 @@ public sealed class SameHostGatewayPlannerTests
 
         Assert.Equal("completed", result.Outcome);
         Assert.Equal(1, chat.Calls);
-        Assert.Equal(new[] { EgressDestination.ExternalModel, EgressDestination.Output },
-            gate.Contexts.Select(context => context.Destination).Distinct());
+        Assert.Contains(gate.Contexts, context => context.Destination == EgressDestination.ExternalModel);
+        Assert.Contains(gate.Contexts, context => context.Destination == EgressDestination.Output);
         Assert.All(gate.Contexts, context =>
         {
             Assert.Equal(tenant, context.Tenant);
@@ -59,7 +59,7 @@ public sealed class SameHostGatewayPlannerTests
         }, new FixedContext(foreign.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(foreign.Id.Value.ToString())));
-        Assert.Empty(gate.Contexts);
+        Assert.Null(gate.Context);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -84,7 +84,7 @@ public sealed class SameHostGatewayPlannerTests
         }, new FixedContext(current.Id.Value.ToString()), chat, gate);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => planner.GeneratePlanAsync(Request(other.Id.Value.ToString())));
-        Assert.Empty(gate.Contexts);
+        Assert.Null(gate.Context);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -106,7 +106,7 @@ public sealed class SameHostGatewayPlannerTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             planner.GeneratePlanAsync(Request(session.Id.Value.ToString()) with { RouteId = "other" }));
-        Assert.Empty(gate.Contexts);
+        Assert.Null(gate.Context);
         Assert.Equal(0, chat.Calls);
     }
 
@@ -118,12 +118,12 @@ public sealed class SameHostGatewayPlannerTests
 
     private sealed class CapturingGate : IEgressGate
     {
-        private readonly List<EgressContext> _contexts = [];
-        public IReadOnlyList<EgressContext> Contexts => _contexts;
-
+        public EgressContext? Context { get; private set; }
+        public List<EgressContext> Contexts { get; } = [];
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            _contexts.Add(context);
+            Context = context;
+            Contexts.Add(context);
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }

@@ -6,8 +6,9 @@ WORKDIR /app/workers/analytics-inference
 FROM base AS dependencies
 COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
 COPY workers/common/src/ /app/workers/common/src/
+COPY workers/common/verify_install.py /app/workers/common/verify_install.py
 COPY workers/analytics-inference/pyproject.toml workers/analytics-inference/uv.lock ./
-RUN uv sync --locked --no-cache --no-dev --no-install-project
+RUN uv sync --locked --no-cache --no-dev --no-install-project && .venv/bin/python ../common/verify_install.py
 
 FROM base AS runtime
 ENV PATH="/app/workers/analytics-inference/.venv/bin:$PATH" \

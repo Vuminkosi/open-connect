@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-request.json",
+  "title": "Knowledge index submission",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index"}, "tenantId": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$", "minLength": 26, "maxLength": 26},
+    "issuedAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": false,
+      "required": ["jobId", "applicationId", "collectionId", "documentId", "sourceRevision", "embeddingSpaceId", "objectId", "objectSha256", "objectSize", "objectVersion", "expectedGeneration"],
+      "properties": {
+        "jobId": {"type": "string", "format": "uuid"},
+        "applicationId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "collectionId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "documentId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "sourceRevision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "embeddingSpaceId": {"type": "string", "pattern": "^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64},
+        "objectId": {"type": "string", "pattern": "^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64},
+        "objectSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64},
+        "objectSize": {"type": "integer", "minimum": 1, "maximum": 10485760},
+        "objectVersion": {"type": "string", "minLength": 1, "maxLength": 1024, "not": {"anyOf": [{"const": "null"}, {"pattern": "[\\u0000-\\u001f\\u007f]"}]}},
+        "expectedGeneration": {"type": "integer", "minimum": 0, "exclusiveMaximum": 9223372036854775807},
+        "principals": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+        "roles": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+        "documentExpiresAt": {"anyOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]}
+      },
+      "anyOf": [{"required": ["principals"], "properties": {"principals": {"minItems": 1}}},
+                {"required": ["roles"], "properties": {"roles": {"minItems": 1}}}]
+    }
+  }
+}

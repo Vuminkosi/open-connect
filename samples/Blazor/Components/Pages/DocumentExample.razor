@@ -1,0 +1,125 @@
+@page "/document-example"
+@rendermode InteractiveServer
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IServiceProvider Services
+
+<PageTitle>Document example | OpenConnect</PageTitle>
+<h1>Document example</h1>
+
+@if (Services.GetService(typeof(TodoDocumentDemo)) is not TodoDocumentDemo)
+{
+    <p>This example is not enabled.</p>
+}
+else
+{
+    <p>Choose a PDF, TIFF, PNG or JPEG document to inspect. The example searches for a reference and shows the OCR source for review.</p>
+    <p>Use non-sensitive sample documents. Extracted values are candidates and require review.</p>
+    <label for="document-file">Document, up to 10 MiB</label>
+    <InputFile id="document-file" OnChange="SelectFile" accept=".pdf,.tif,.tiff,.png,.jpg,.jpeg" disabled="@_busy" />
+    @if (_file is not null) { <p>Selected: @_file.Name</p> }
+    <p><button type="button" @onclick="ProcessAsync" disabled="@(_busy || _file is null)">Analyze document</button></p>
+    @if (_status is not null) { <p role="status">@_status</p> }
+    @if (_result is not null)
+    {
+        <section aria-labelledby="document-result-title">
+            <h2 id="document-result-title">Review candidate</h2>
+            @if (_result.Citations.TryGetValue("reference", out var citation) && citation is not null)
+            {
+                <p>Reference: @_result.Extraction.RootElement.GetProperty("result").GetProperty("fields").GetProperty("reference").GetProperty("value").GetString()</p>
+                <p>Source: page @(citation.PageIndex + 1), characters @citation.Start–@citation.End.</p>
+            }
+            else { <p>No supported reference was found.</p> }
+            <h3>Recognized pages</h3>
+            @foreach (var page in _result.Ocr.RootElement.GetProperty("result").GetProperty("pages").EnumerateArray())
+            {
+                <pre style="white-space: pre-wrap; overflow-wrap: anywhere;">@(page.GetProperty("text").GetString())</pre>
+            }
+        </section>
+    }
+}
+
+<p><a href="/">Back to tasks</a></p>
+
+@code {
+    private IBrowserFile? _file;
+    private OpenConnect.Documents.DocumentExtractionResult? _result;
+    private readonly CancellationTokenSource _stopping = new();
+    private CancellationTokenSource? _processing;
+    private bool _busy;
+    private bool _disposed;
+    private int _generation;
+    private AuthenticationStateProvider? _authentication;
+    private string? _status;
+
+    protected override void OnInitialized()
+    {
+        _authentication = Services.GetService(typeof(AuthenticationStateProvider)) as AuthenticationStateProvider;
+        if (_authentication is not null) _authentication.AuthenticationStateChanged += AuthenticationChanged;
+    }
+
+    private void AuthenticationChanged(Task<AuthenticationState> state)
+    {
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            ++_generation;
+            _processing?.Cancel();
+            _result?.Dispose(); _result = null; _file = null;
+            _status = "Your identity changed. Choose a document again after checking access.";
+            StateHasChanged();
+        });
+    }
+
+    private void SelectFile(InputFileChangeEventArgs args)
+    {
+        _result?.Dispose(); _result = null; _status = null;
+        _file = args.File;
+    }
+
+    private async Task ProcessAsync()
+    {
+        if (_busy || _file is null || Services.GetService(typeof(TodoDocumentDemo)) is not TodoDocumentDemo demo ||
+            Services.GetService(typeof(AuthenticationStateProvider)) is not AuthenticationStateProvider authentication) return;
+        _busy = true; _status = "Processing document…";
+        var generation = ++_generation;
+        using var processing = CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token);
+        _processing = processing;
+        var file = _file;
+        _result?.Dispose(); _result = null;
+        try
+        {
+            var state = await authentication.GetAuthenticationStateAsync();
+            processing.Token.ThrowIfCancellationRequested();
+            await using var input = file.OpenReadStream(10 * 1024 * 1024, processing.Token);
+            using var buffer = new MemoryStream();
+            try
+            {
+                await input.CopyToAsync(buffer, processing.Token);
+                var bytes = buffer.ToArray();
+                try
+                {
+                    var result = await demo.ProcessAsync(state.User, bytes, processing.Token);
+                    if (processing.IsCancellationRequested || generation != _generation) { result.Dispose(); return; }
+                    _result = result;
+                    _status = "Processing complete. Review the candidate and its source.";
+                }
+                finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes); }
+            }
+            finally { if (buffer.TryGetBuffer(out var memory)) System.Security.Cryptography.CryptographicOperations.ZeroMemory(memory.AsSpan()); }
+        }
+        catch (OperationCanceledException) when (processing.IsCancellationRequested) { }
+        catch (Exception) { if (generation == _generation) _status = "The document could not be processed. Check access, file limits and worker availability."; }
+        finally { _processing = null; _busy = false; }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        ++_generation;
+        if (_authentication is not null) _authentication.AuthenticationStateChanged -= AuthenticationChanged;
+        _stopping.Cancel();
+        _stopping.Dispose();
+        _result?.Dispose();
+    }
+}

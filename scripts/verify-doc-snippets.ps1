@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$PackageVersion = '1.2.1')
+param([string]$PackageVersion = '1.2.*')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $docs = Get-ChildItem (Join-Path $root 'site/OpenConnect.Docs/Content') -Recurse -File -Filter '*.md'
