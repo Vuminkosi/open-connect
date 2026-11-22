@@ -243,7 +243,11 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStaticFiles();
+var staticFileContentTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+staticFileContentTypes.Mappings[".onnx"] = "application/octet-stream";
+staticFileContentTypes.Mappings[".wasm"] = "application/wasm";
+staticFileContentTypes.Mappings[".mjs"] = "text/javascript";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticFileContentTypes });
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
