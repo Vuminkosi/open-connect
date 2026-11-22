@@ -219,6 +219,18 @@ OpenConnect.Hosting.AspNetCore.TaskRequest.Message.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.TaskRequest(string! ClientTaskId, string? Message = null, string? SessionId = null) -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector
+OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.CreateSession() -> OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession!
+OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.Dispose() -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.SileroOnnxVoiceActivityDetector() -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.SileroOnnxVoiceActivityDetector(string? modelPath) -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.AdvanceToAsync(long position, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.AppendPcm16Async(System.ReadOnlyMemory<byte> pcm, int sampleRate, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceActivityResult!>!>
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.Dispose() -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.ResetAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.SetSourceSampleOffset(long sourceSampleOffset) -> void
+OpenConnect.Hosting.AspNetCore.Voice.SileroVoiceActivityAudioStream.SileroVoiceActivityAudioStream(OpenConnect.Abstractions.Speech.IVoiceActivityDetector! detector) -> void
 OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor
 OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.RefreshAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.WorkerCapabilityMonitor(OpenConnect.Abstractions.ICapabilityRegistry! registry, System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource!>! sources, System.TimeSpan? interval = null) -> void
@@ -267,6 +279,7 @@ static OpenConnect.Hosting.AspNetCore.SessionRecord.operator !=(OpenConnect.Host
 static OpenConnect.Hosting.AspNetCore.SessionRecord.operator ==(OpenConnect.Hosting.AspNetCore.SessionRecord? left, OpenConnect.Hosting.AspNetCore.SessionRecord? right) -> bool
 static OpenConnect.Hosting.AspNetCore.SessionRequest.operator !=(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.SessionRequest.operator ==(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
+static OpenConnect.Hosting.AspNetCore.SpeechToTextHostingServiceCollectionExtensions.AddOpenConnectSileroVad(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string? modelPath = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.SpeechToTextHostingServiceCollectionExtensions.AddOpenConnectSpeechToText(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator !=(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator ==(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool

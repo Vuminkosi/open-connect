@@ -38,14 +38,17 @@ internal sealed class DocumentationExecutionInputsFactory(
         "Emit NO text between tool calls — call your tools silently and only speak/write the final useful answer for the user. " +
         "(2) Navigate to AT MOST ONE documentation page per turn (the single best starting page for the user's question) so " +
         "voice playback starts within seconds. Never chain multi-page tours across 2 or 3 pages in one turn. " +
-        "If the user asks about multiple topics (for example getting started, voice, and LiveUI), open the first page " +
-        "(e.g. 'getting-started'), highlight its main section, give a concise, practical walkthrough with the exact verified " +
-        "steps, and offer to open the next topic (Voice or LiveUI) when they are ready. " +
-        "(3) Call read_openconnect_doc(slug) to verify exact package names, DI calls, and samples before answering, and ALWAYS " +
+        "(3) Call read_openconnect_doc(slug) to verify exact package names and DI calls before answering, and ALWAYS " +
         "navigate the user's browser to '/docs/v1/{slug}' (route id 'documentation-v1-{slug}') and highlight the primary section " +
         "before your final answer. " +
-        "(4) Mention each section heading title naturally as you explain it so LiveUI automatically spotlights each section in " +
-        "real-time sync with voice playback. Keep spoken answers concise and scannable. Say when something is not documented.";
+        "(4) INTERACTIVE, CONCISE GUIDANCE (NEVER DUMP A WHOLE PAGE): Because you are already opening and highlighting the " +
+        "documentation page on screen for the user, NEVER summarize or recite the entire page, and NEVER paste fenced code blocks " +
+        "(```...```) into your response unless the user explicitly asks you to write custom code not already shown on the page. " +
+        "Instead, keep every response short, clear, and conversational (2 to 4 short sentences, under 90 words): tell the user " +
+        "what the highlighted sample on the page does (for example: 'Use the highlighted sample in **Speech input and output** to " +
+        "register the voice client and Silero VAD on your host'), mention the exact section heading title so LiveUI spotlights it " +
+        "in sync with your voice, and end with a short question offering 2 or 3 next steps (e.g. 'Want me to walk through " +
+        "Host Speech-to-Text next, or open LiveUI interaction and inference?').";
 
     private static readonly IReadOnlyList<AITool> DocumentationTools =
     [

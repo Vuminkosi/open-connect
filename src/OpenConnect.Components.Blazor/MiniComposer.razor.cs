@@ -347,8 +347,24 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private static string StripMarkdown(string value)
     {
-        var html = Markdown.ToHtml(value, SpeechMarkdownPipeline);
-        var text = Regex.Replace(html, @"<!--.*?-->|<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var withoutFencedCode = Regex.Replace(
+            value,
+            @"```[a-zA-Z0-9_+#.-]*\s*[\s\S]*?```",
+            " See the highlighted code sample. ",
+            RegexOptions.CultureInvariant);
+
+        if (withoutFencedCode.Contains("```", StringComparison.Ordinal))
+        {
+            var openFence = withoutFencedCode.IndexOf("```", StringComparison.Ordinal);
+            withoutFencedCode = withoutFencedCode[..openFence] + " See the highlighted code sample. ";
+        }
+
+        var html = Markdown.ToHtml(withoutFencedCode, SpeechMarkdownPipeline);
+        var withoutPre = Regex.Replace(html, @"<pre\b[^>]*>[\s\S]*?</pre>", " See the highlighted code sample. ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        var text = Regex.Replace(withoutPre, @"<!--.*?-->|<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
         return Regex.Replace(WebUtility.HtmlDecode(text), @"\s+", " ", RegexOptions.CultureInvariant).Trim();
     }
 
@@ -446,10 +462,19 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private static bool IsInsideMarkdownSpan(string text, int position)
     {
         var inCode = false;
+        var inFencedCode = false;
         var inStrong = false;
 
         for (var i = 0; i < position; i++)
         {
+            if (i + 2 < text.Length && text[i] == '`' && text[i + 1] == '`' && text[i + 2] == '`')
+            {
+                inFencedCode = !inFencedCode;
+                i += 2;
+                continue;
+            }
+            if (inFencedCode)
+                continue;
             if (text[i] == '`')
             {
                 inCode = !inCode;
@@ -466,7 +491,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             }
         }
 
-        return inCode || inStrong;
+        return inFencedCode || inCode || inStrong;
     }
 
     private async Task DrainSpeechQueueAsync()

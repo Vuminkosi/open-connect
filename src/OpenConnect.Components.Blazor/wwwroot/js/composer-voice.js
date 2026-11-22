@@ -1,19 +1,93 @@
 window.ocComposerVoice = (() => {
   let state = null;
+  let sileroRuntimeLoading = null;
+  let sileroModelBytesPromise = null;
   const targetSampleRate = 24000;
+  const sileroSampleRate = 16000;
+  const sileroFrameSamples = 512;
   const maxPendingFrames = 128;
+  const maxPreRollFrames = 16;
   const speechThreshold = Number(window.__OC_VOICE_SPEECH_THRESHOLD || 0.008);
   const silenceStopMs = Number(window.__OC_VOICE_SILENCE_MS || 1500);
+  const sileroPositiveThreshold = Number(window.__OC_VOICE_SILERO_POSITIVE_THRESHOLD || 0.5);
+  const sileroContinueThreshold = Number(window.__OC_VOICE_SILERO_CONTINUE_THRESHOLD || 0.25);
   const toWs = (url) => url.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const workletUrl = () => new URL('_content/OpenConnect.Components.Blazor/js/voice-capture-worklet.js', document.baseURI).href;
+  const vadBaseUrl = () => new URL('_content/OpenConnect.Components.Blazor/vendor/vad/', document.baseURI).href;
 
   const setVoiceLevel = (level) => {
     const clamped = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
     const radius = clamped > 0.01 ? `${(6 + clamped * 18).toFixed(1)}px` : '0px';
     const opacity = clamped > 0.01 ? `${Math.round(35 + clamped * 60)}%` : '0%';
-    const root = document.documentElement;
-    root.style.setProperty('--oc-voice-glow-radius', radius);
-    root.style.setProperty('--oc-voice-glow-opacity', opacity);
+    const root = document?.documentElement;
+    if (!root?.style) return;
+    if (clamped > 0.01) {
+      root.style.setProperty('--oc-voice-glow-radius', radius);
+      root.style.setProperty('--oc-voice-glow-opacity', opacity);
+    } else {
+      root.style.setProperty('--oc-voice-glow-radius', '0px');
+      root.style.setProperty('--oc-voice-glow-opacity', '0%');
+    }
+  };
+
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    if (!document?.createElement || !document?.head?.appendChild) {
+      reject(new Error('document_script_unavailable'));
+      return;
+    }
+    const existing = Array.from(document.querySelectorAll?.('script') ?? []).find(s => s.src === src);
+    if (existing) {
+      resolve();
+      return;
+    }
+    const element = document.createElement('script');
+    element.src = src;
+    element.onload = () => resolve();
+    element.onerror = () => reject(new Error(`failed_to_load_${src}`));
+    document.head.appendChild(element);
+  });
+
+  const createSileroDetector = async () => {
+    if (window.__OC_VOICE_DISABLE_SILERO__ || typeof fetch !== 'function' || !document?.head?.appendChild) {
+      return null;
+    }
+    const base = vadBaseUrl();
+    sileroRuntimeLoading ??= (async () => {
+      if (!globalThis.ort) await loadScript(`${base}ort.wasm.min.js`);
+      if (!globalThis.ellaiVad?.Silero) await loadScript(`${base}vad.bundle.min.js`);
+    })().catch(error => {
+      sileroRuntimeLoading = null;
+      throw error;
+    });
+    await sileroRuntimeLoading;
+    if (!globalThis.ort || !globalThis.ellaiVad?.Silero) return null;
+
+    globalThis.ort.env.wasm.wasmPaths = base;
+    globalThis.ort.env.wasm.numThreads = 1;
+    globalThis.ort.env.logLevel = 'error';
+
+    sileroModelBytesPromise ??= (async () => {
+      const response = await fetch(`${base}silero_vad_v5.onnx`);
+      if (!response.ok) throw new Error('silero_vad_model_unavailable');
+      return response.arrayBuffer();
+    })().catch(error => {
+      sileroModelBytesPromise = null;
+      throw error;
+    });
+
+    const detector = await globalThis.ellaiVad.Silero.new(globalThis.ort, async () => {
+      const bytes = await sileroModelBytesPromise;
+      return bytes.slice(0);
+    });
+    return {
+      async analyze16k(frame512) {
+        const result = await detector.process(frame512);
+        return typeof result?.isSpeech === 'number' ? result.isSpeech : 0;
+      },
+      async destroy() {
+        try { await detector.release(); } catch (_) { }
+      }
+    };
   };
 
   const pcm16 = (samples) => {
@@ -62,12 +136,15 @@ window.ocComposerVoice = (() => {
     try {
       if (abort) {
         current.pendingPcm.length = 0;
+        current.preRollPcm.length = 0;
         current.socket.close();
       } else if (current.socket.readyState === WebSocket.OPEN) {
         for (const bytes of current.pendingPcm.splice(0)) current.socket.send(bytes);
         current.socket.send(JSON.stringify({ type: 'endStream' }));
       }
     } catch (_) { }
+    try { await current.sileroQueue; } catch (_) { }
+    try { await current.silero?.destroy?.(); } catch (_) { }
     try { await current.context.close(); } catch (_) { }
     try { current.stream.getTracks().forEach(track => track.stop()); } catch (_) { }
     if (notify) try { await current.dotnet.invokeMethodAsync('OnVoiceStopped'); } catch (_) { }
@@ -90,7 +167,7 @@ window.ocComposerVoice = (() => {
 
     let stream, context, source, processor;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       context = new AudioContext();
       await context.resume();
       if (context.state !== 'running') throw new Error('voice_audio_context_not_running');
@@ -121,18 +198,88 @@ window.ocComposerVoice = (() => {
       sentBytes: 0,
       rmsMax: 0,
       peakMax: 0,
+      sileroReady: false,
+      sileroFrames: 0,
+      sileroProbabilityMax: 0,
       speechSeen: false,
       stopReason: null,
       startedAt: Date.now(),
       stoppedAt: null,
     } : null;
     window.__ocVoiceDiagnostics = diagnostics;
-    if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
-    const current = { dotnet, captureId, speechEpoch, stream, context, source, processor, socket, diagnostics, maxTimer: null, silenceTimer: null, pendingPcm: [], pendingFrameCount: 0, endRequested: false, speechSeen: false, finalTranscript: '', processorReady: false, transportOpened: false, smoothedLevel: 0 };
+    if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample, createSileroDetector };
+    const current = {
+      dotnet,
+      captureId,
+      speechEpoch,
+      stream,
+      context,
+      source,
+      processor,
+      socket,
+      diagnostics,
+      maxTimer: null,
+      silenceTimer: null,
+      pendingPcm: [],
+      pendingFrameCount: 0,
+      preRollPcm: [],
+      silero: null,
+      sileroBuffer16k: [],
+      sileroQueue: Promise.resolve(),
+      sileroSpeaking: false,
+      endRequested: false,
+      speechSeen: false,
+      finalTranscript: '',
+      processorReady: false,
+      transportOpened: false,
+      smoothedLevel: 0,
+    };
     state = current;
+
+    createSileroDetector().then(detector => {
+      if (state !== current || current.endRequested) {
+        detector?.destroy?.();
+        return;
+      }
+      if (detector) {
+        current.silero = detector;
+        if (current.diagnostics) current.diagnostics.sileroReady = true;
+      }
+    }).catch(() => { });
 
     const maxDurationMs = Number(window.__OC_VOICE_MAX_DURATION_MS || 0);
     if (maxDurationMs > 0) current.maxTimer = setTimeout(() => stop(false, 'max-duration'), maxDurationMs);
+
+    const enqueueOutboundPcm = (bytes) => {
+      if (socket.readyState === WebSocket.OPEN && current.transportOpened) {
+        if (socket.bufferedAmount < 512 * 1024) socket.send(bytes);
+      } else if (current.pendingFrameCount < maxPendingFrames) {
+        current.pendingPcm.push(bytes);
+        current.pendingFrameCount++;
+      }
+      if (current.diagnostics) {
+        current.diagnostics.sentFrames++;
+        current.diagnostics.sentBytes += bytes.byteLength;
+      }
+    };
+
+    const markSpeechActivity = (isSpeech) => {
+      if (state !== current || current.endRequested) return;
+      if (isSpeech) {
+        const firstSpeech = !current.speechSeen;
+        current.speechSeen = true;
+        current.sileroSpeaking = true;
+        if (current.diagnostics) current.diagnostics.speechSeen = true;
+        clearTimeout(current.silenceTimer);
+        current.silenceTimer = null;
+        if (firstSpeech && current.preRollPcm.length > 0) {
+          for (const preRollBytes of current.preRollPcm.splice(0)) enqueueOutboundPcm(preRollBytes);
+        }
+      } else if (current.speechSeen && !current.silenceTimer) {
+        current.sileroSpeaking = false;
+        current.silenceTimer = setTimeout(() => stop(false, 'silence'), silenceStopMs);
+      }
+    };
 
     const openTransport = () => {
       if (state !== current || current.transportOpened || socket.readyState !== WebSocket.OPEN) return;
@@ -201,37 +348,49 @@ window.ocComposerVoice = (() => {
         peak = Math.max(peak, Math.abs(sourceSamples[i]));
       }
       const rms = Math.sqrt(energy / sourceSamples.length);
-      const normalized = Math.max(0, Math.min(1, (rms - speechThreshold * 0.4) / 0.14));
-      const targetLevel = Math.pow(normalized, 0.7);
-      const alpha = targetLevel > current.smoothedLevel ? 0.55 : 0.2;
-      current.smoothedLevel = current.smoothedLevel + (targetLevel - current.smoothedLevel) * alpha;
-      setVoiceLevel(current.smoothedLevel < 0.01 ? 0 : current.smoothedLevel);
+      const normalized = Math.max(0, Math.min(1, (rms - 0.008) / 0.16));
+      current.smoothedLevel = current.smoothedLevel * 0.58 + normalized * 0.42;
+      setVoiceLevel(current.smoothedLevel < 0.025 ? 0 : current.smoothedLevel);
       if (current.diagnostics) {
         current.diagnostics.processorMessages++;
         current.diagnostics.sourceFrames += sourceSamples.length;
         current.diagnostics.rmsMax = Math.max(current.diagnostics.rmsMax, rms);
         current.diagnostics.peakMax = Math.max(current.diagnostics.peakMax, peak);
       }
-      const isSpeech = rms >= speechThreshold;
-      if (isSpeech) {
-        current.speechSeen = true;
-        if (current.diagnostics) current.diagnostics.speechSeen = true;
-        clearTimeout(current.silenceTimer);
-        current.silenceTimer = null;
-      } else if (current.speechSeen && !current.silenceTimer) {
-        current.silenceTimer = setTimeout(() => stop(false, 'silence'), silenceStopMs);
-      }
-      const samples = resample(sourceSamples, context.sampleRate, targetSampleRate);
-      if (!samples.length || socket.bufferedAmount >= 512 * 1024) return;
-      const bytes = pcm16(samples);
-      if (socket.readyState === WebSocket.OPEN) socket.send(bytes);
-      else if (current.pendingFrameCount < maxPendingFrames) {
-        current.pendingPcm.push(bytes);
-        current.pendingFrameCount++;
-      }
-      if (current.diagnostics) {
-        current.diagnostics.sentFrames++;
-        current.diagnostics.sentBytes += bytes.byteLength;
+
+      const samples24k = resample(sourceSamples, context.sampleRate, targetSampleRate);
+      if (!samples24k.length) return;
+      const bytes24k = pcm16(samples24k);
+
+      if (current.silero) {
+        if (!current.speechSeen) {
+          current.preRollPcm.push(bytes24k);
+          while (current.preRollPcm.length > maxPreRollFrames) current.preRollPcm.shift();
+        } else {
+          enqueueOutboundPcm(bytes24k);
+        }
+
+        const samples16k = resample(sourceSamples, context.sampleRate, sileroSampleRate);
+        for (let i = 0; i < samples16k.length; i++) current.sileroBuffer16k.push(samples16k[i]);
+        while (current.sileroBuffer16k.length >= sileroFrameSamples) {
+          const frame512 = Float32Array.from(current.sileroBuffer16k.splice(0, sileroFrameSamples));
+          current.sileroQueue = current.sileroQueue.then(async () => {
+            if (state !== current || current.endRequested || !current.silero) return;
+            const probability = await current.silero.analyze16k(frame512);
+            if (current.diagnostics) {
+              current.diagnostics.sileroFrames++;
+              current.diagnostics.sileroProbabilityMax = Math.max(current.diagnostics.sileroProbabilityMax, probability);
+            }
+            const threshold = current.sileroSpeaking ? sileroContinueThreshold : sileroPositiveThreshold;
+            const isSpeech = probability >= threshold || (window.__OC_VOICE_SPEECH_THRESHOLD && rms >= speechThreshold);
+            markSpeechActivity(isSpeech);
+          }).catch(() => {
+            markSpeechActivity(rms >= speechThreshold);
+          });
+        }
+      } else {
+        markSpeechActivity(rms >= speechThreshold);
+        enqueueOutboundPcm(bytes24k);
       }
     };
 
@@ -251,6 +410,6 @@ window.ocComposerVoice = (() => {
     openTransport();
   };
 
-  if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample };
+  if (window.__OC_VOICE_DIAGNOSTICS__) window.__ocVoiceTestHooks = { pcm16, resample, createSileroDetector };
   return { start, stop, abort: () => stop(false, 'availability_lost', true) };
 })();

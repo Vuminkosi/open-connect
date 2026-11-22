@@ -9,6 +9,7 @@ using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Abstractions.Speech;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Hosting.AspNetCore.Voice;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
@@ -230,6 +231,48 @@ public sealed class VoiceRealtimeTranscriptTests
             .BuildServiceProvider();
 
         Assert.True(services.GetRequiredService<IRealtimeSpeechToTextClient>().IsConfigured);
+        Assert.IsType<SileroOnnxVoiceActivityDetector>(services.GetRequiredService<IVoiceActivityDetector>());
+    }
+
+    [Fact]
+    public async Task SileroOnnxVoiceActivityDetectorEvaluatesSilenceAndResetsOnSequenceGap()
+    {
+        using var detector = new SileroOnnxVoiceActivityDetector();
+        using var session = detector.CreateSession();
+        var silence = new float[512];
+
+        var first = await session.AnalyzeAsync(new VoiceActivityFrame(0, 16_000, silence));
+        Assert.Equal(0, first.Sequence);
+        Assert.InRange(first.SpeechProbability, 0f, 1f);
+        Assert.False(first.IsSpeech);
+        Assert.False(first.StateWasReset);
+
+        var afterGap = await session.AnalyzeAsync(new VoiceActivityFrame(5, 16_000, silence));
+        Assert.Equal(5, afterGap.Sequence);
+        Assert.True(afterGap.StateWasReset);
+        Assert.False(afterGap.IsSpeech);
+    }
+
+    [Fact]
+    public async Task SileroVoiceActivityAudioStreamResamples24kPcm16AndEvaluatesFrames()
+    {
+        using var detector = new SileroOnnxVoiceActivityDetector();
+        using var stream = new SileroVoiceActivityAudioStream(detector);
+
+        // 1,600 samples at 24 kHz = 3,200 bytes -> ~1,066 samples at 16 kHz -> 2 Silero 512-sample frames.
+        var silent24kPcm16 = new byte[3200];
+        var results = await stream.AppendPcm16Async(silent24kPcm16, 24_000);
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal(0, results[0].Sequence);
+        Assert.Equal(1, results[1].Sequence);
+        Assert.All(results, r =>
+        {
+            Assert.False(r.IsSpeech);
+            Assert.InRange(r.SpeechProbability, 0f, 1f);
+            Assert.True(r.AudioStartSample >= 0);
+            Assert.True(r.AudioEndSample > r.AudioStartSample);
+        });
     }
 
     private static async Task<RecordingDispatcher> RelayAsync(params string[] events)

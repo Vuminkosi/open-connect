@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Speech;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Hosting.AspNetCore.Voice;
 
 namespace OpenConnect.Hosting.AspNetCore;
 
@@ -121,11 +122,13 @@ internal static class VoiceRealtimeWebSocketHandler
 
         var logger = context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("OpenConnect.VoiceRealtime")
             ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        var vadDetector = context.RequestServices.GetService<IVoiceActivityDetector>();
+        using var vadStream = vadDetector is not null ? new SileroVoiceActivityAudioStream(vadDetector) : null;
         using var relayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
         using var sendGate = new SemaphoreSlim(1, 1);
         var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: 256 * 1024, resumeWriterThreshold: 128 * 1024));
 
-        var pumpTask = PumpBrowserToPipeAsync(browser, pipe.Writer, relayCancellation.Token);
+        var pumpTask = PumpBrowserToPipeAsync(browser, pipe.Writer, vadStream, logger, relayCancellation.Token);
         var transcribeTask = TranscribeViaSdkAsync(
             pipe.Reader.AsStream(),
             realtimeSpeechToText,
@@ -158,10 +161,17 @@ internal static class VoiceRealtimeWebSocketHandler
         }
     }
 
-    private static async Task PumpBrowserToPipeAsync(WebSocket browser, PipeWriter writer, CancellationToken token)
+    private static async Task PumpBrowserToPipeAsync(
+        WebSocket browser,
+        PipeWriter writer,
+        SileroVoiceActivityAudioStream? vadStream,
+        ILogger logger,
+        CancellationToken token)
     {
         var buffer = new byte[MaxFrameBytes];
         long total = 0;
+        var vadActive = vadStream is not null;
+        var speechDetected = false;
         try
         {
             while (browser.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -173,6 +183,33 @@ internal static class VoiceRealtimeWebSocketHandler
                 {
                     if (result.Count == 0 || result.Count > MaxFrameBytes || (result.Count & 1) != 0 || (total += result.Count) > MaxPcmBytes)
                         throw new InvalidDataException("PCM16 frame is invalid or exceeds the capture limit.");
+
+                    if (vadActive && vadStream is not null)
+                    {
+                        try
+                        {
+                            var activities = await vadStream.AppendPcm16Async(buffer.AsMemory(0, result.Count), 24_000, token).ConfigureAwait(false);
+                            foreach (var activity in activities)
+                            {
+                                if (activity.IsSpeech && !speechDetected)
+                                {
+                                    speechDetected = true;
+                                    logger.LogInformation("Gateway Silero VAD detected speech activity at frame {FrameSequence} (probability {Probability:F2}).",
+                                        activity.Sequence, activity.SpeechProbability);
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException) when (token.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            vadActive = false;
+                            logger.LogWarning("Gateway Silero VAD processing failed ({ExceptionType}); continuing realtime audio stream.", ex.GetType().Name);
+                        }
+                    }
+
                     var flush = await writer.WriteAsync(buffer.AsMemory(0, result.Count), token).ConfigureAwait(false);
                     if (flush.IsCompleted || flush.IsCanceled)
                         break;

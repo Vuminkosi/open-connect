@@ -43,11 +43,11 @@ For a local transcription worker, provision a compatible model and an integrity 
 
 The documentation site's local assistant selects the transcription worker's local-only realtime route with `Workers:Transcription:RealtimeLocalOnly`, or uses the SDK's built-in Speech-to-Text provider when `AddOpenConnectSpeechToText` is configured. The realtime route accepts authenticated mono 24 kHz PCM16 and returns partial and final transcripts. If the provider or connection is unavailable, the composer reports the failure and text input remains available. Successful voice-driven LiveUI actions also require the composer's active session connection.
 
-## Built-in SDK Speech-to-Text and Blazor voice bridge
+## Built-in SDK Speech-to-Text, Silero VAD, and Blazor voice bridge
 
-### Host Speech-to-Text (`OpenConnect.Core.Speech` & `OpenConnect.Hosting.AspNetCore`)
+### Host Speech-to-Text and Silero ONNX VAD (`OpenConnect.Core.Speech` & `OpenConnect.Hosting.AspNetCore`)
 
-Register the SDK's realtime WebSocket and upload Speech-to-Text clients on your ASP.NET Core OpenConnect host with `AddOpenConnectSpeechToText`:
+Register the SDK's realtime WebSocket and upload Speech-to-Text clients together with the shared Silero ONNX `IVoiceActivityDetector` on your ASP.NET Core OpenConnect host with `AddOpenConnectSpeechToText`:
 
 ```csharp
 using OpenConnect.Hosting.AspNetCore;
@@ -55,7 +55,9 @@ using OpenConnect.Hosting.AspNetCore;
 builder.Services.AddOpenConnectSpeechToText(builder.Configuration);
 ```
 
-When `IRealtimeSpeechToTextClient` is configured (and `Workers:Transcription:RealtimeLocalOnly` is not forced to `true`), `MapOpenConnect()` automatically streams browser `openconnect.voice.v1` PCM16 audio directly through the SDK client without requiring a separate transcription worker. Otherwise it falls back to `Workers:Transcription:Endpoint`.
+`AddOpenConnectSpeechToText` also registers `SileroOnnxVoiceActivityDetector` (`silero_vad_16k_op15.onnx`, 16 kHz 512-sample frames with isolated per-stream recurrent state) via `IVoiceActivityDetector` — or register it standalone with `AddOpenConnectSileroVad()`. When `IRealtimeSpeechToTextClient` is configured (and `Workers:Transcription:RealtimeLocalOnly` is not forced to `true`), `MapOpenConnect()` evaluates incoming `openconnect.voice.v1` PCM16 audio through `SileroVoiceActivityAudioStream` and streams it directly through the SDK client without requiring a separate transcription worker. Otherwise it falls back to `Workers:Transcription:Endpoint`.
+
+On the browser side, `MiniComposer` (`OpenConnect.Components.Blazor`) bundles Silero VAD v5 (`silero_vad_v5.onnx` + ONNX Runtime Web WASM) to detect speech start, buffer pre-roll audio, and auto-stop after trailing silence while driving the loudness-reactive microphone glow, with automatic RMS fallback if WASM is unavailable.
 
 ### Blazor Server voice bridge (`OpenConnect.Components.Blazor.Voice`)
 

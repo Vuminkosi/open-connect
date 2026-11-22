@@ -50,3 +50,37 @@ public interface ISpeechToTextUploadClient
         string contentType,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>One ordered mono floating-point audio frame for server-side voice activity detection.</summary>
+public sealed record VoiceActivityFrame(
+    long Sequence,
+    int SampleRate,
+    ReadOnlyMemory<float> Samples);
+
+/// <summary>Acoustic speech activity estimate for a single audio frame.</summary>
+public sealed record VoiceActivityResult(
+    long Sequence,
+    float SpeechProbability,
+    bool IsSpeech,
+    bool StateWasReset,
+    long AudioStartSample = -1,
+    long AudioEndSample = -1);
+
+/// <summary>Creates isolated recurrent inference state for each voice stream.</summary>
+public interface IVoiceActivityDetector
+{
+    /// <summary>Creates a new stateful voice activity detection session.</summary>
+    IVoiceActivityDetectionSession CreateSession();
+}
+
+/// <summary>Stateful per-stream voice activity detection session.</summary>
+public interface IVoiceActivityDetectionSession : IDisposable
+{
+    /// <summary>Evaluates a 16 kHz mono 512-sample audio frame for speech activity.</summary>
+    ValueTask<VoiceActivityResult> AnalyzeAsync(
+        VoiceActivityFrame frame,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Resets the recurrent state and context buffer for this session.</summary>
+    void Reset();
+}
