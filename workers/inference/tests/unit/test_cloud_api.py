@@ -105,3 +105,15 @@ def test_worker_token_file_authentication_fails_closed(monkeypatch, tmp_path):
         assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 401
     token_file.unlink()
     assert client.get("/internal/cloud/v1/inference/ready", headers={"Authorization": "Bearer file-token"}).status_code == 401
+
+
+def test_cloud_route_rejects_non_ascii_bearer_and_accepts_non_ascii_token(monkeypatch):
+    monkeypatch.setenv("OPENCONNECT_CLOUD_INFERENCE_ENABLED", "true")
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "test-worker-token")
+    app = FastAPI()
+    app.include_router(cloud_api.router)
+    app.state.cloud_inference_runtime = Runtime()
+    client = TestClient(app)
+    url = "/internal/cloud/v1/inference/ready"
+    for raw in ("Bearer t\u00f6k\u00e9n".encode("latin-1"), "Bearer t\u00f6k\u00e9n".encode(), b"Bearer "):
+        assert client.get(url, headers={"Authorization": raw}).status_code == 401

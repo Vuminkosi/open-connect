@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 
@@ -202,3 +203,19 @@ def test_task_claim_heartbeat_complete_fail(monkeypatch) -> None:
         ).status_code
         == 409
     )
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+def test_non_ascii_empty_or_oversized_bearer_is_unauthorized(monkeypatch, raw) -> None:
+    _use_auth(monkeypatch)
+    response = client.get("/internal/v1/capabilities", headers={"Authorization": raw})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "unauthorized"}

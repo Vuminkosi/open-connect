@@ -85,7 +85,10 @@ async def generate_plan(payload: PlanRequest, request: Request, authorization: s
         not settings.bearer_token
         or authorization is None
         or not authorization.startswith("Bearer ")
-        or not secrets.compare_digest(authorization[7:], settings.bearer_token)
+        or not secrets.compare_digest(
+            authorization[7:].encode("utf-8", "surrogatepass"),
+            settings.bearer_token.encode("utf-8", "surrogatepass"),
+        )
     ):
         raise HTTPException(status_code=401, detail="unauthorized")
     if not request.app.state.ready or request.app.state.engine is None:

@@ -81,7 +81,9 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
     if (
         not authorization
         or not authorization.startswith("Bearer ")
-        or not hmac.compare_digest(supplied, token)
+        or not hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"), token.encode("utf-8", "surrogatepass")
+    )
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
 
@@ -101,7 +103,10 @@ def _get_task(task_id: str) -> dict[str, Any]:
 def _require_live_lease(entry: dict[str, Any], lease_id: str) -> None:
     if entry["state"] in ("completed", "failed"):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="conflict")
-    if not hmac.compare_digest(str(entry["lease_id"]), lease_id):
+    if not hmac.compare_digest(
+        str(entry["lease_id"]).encode("utf-8", "surrogatepass"),
+        lease_id.encode("utf-8", "surrogatepass"),
+    ):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="conflict")
     if entry["lease_expires_at_ms"] <= _now_ms():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="lease_expired")
@@ -116,7 +121,9 @@ def live() -> dict[str, str]:
 async def realtime_transcription(websocket: WebSocket) -> None:
     token = _settings().worker_token
     supplied = (websocket.headers.get("authorization") or "").removeprefix("Bearer ")
-    if token is None or not hmac.compare_digest(supplied, token):
+    if token is None or not hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"), token.encode("utf-8", "surrogatepass")
+    ):
         await websocket.close(code=1008, reason="unauthorized")
         return
     await realtime.proxy(websocket, _settings())
@@ -127,7 +134,7 @@ async def local_realtime_transcription(websocket: WebSocket) -> None:
     token = _settings().worker_token
     authorization = websocket.headers.get("authorization") or ""
     if token is None or not authorization.startswith("Bearer ") or not hmac.compare_digest(
-        authorization[7:], token
+        authorization[7:].encode("utf-8", "surrogatepass"), token.encode("utf-8", "surrogatepass")
     ):
         await websocket.close(code=1008, reason="unauthorized")
         return

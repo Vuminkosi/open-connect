@@ -722,6 +722,40 @@ async def test_readiness_and_model_disabled_behavior(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Bearer t\u00f6k\u00e9n".encode("latin-1"),
+        "Bearer t\u00f6k\u00e9n".encode("utf-8"),
+        b"Bearer ",
+        b"Bearer " + b"x" * 70_000,
+    ],
+)
+async def test_plan_rejects_non_ascii_empty_or_oversized_bearer(monkeypatch, raw):
+    monkeypatch.setenv("MODEL_ENABLED", "false")
+    monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "worker-test-token")
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://worker") as client:
+            response = await client.post(
+                "/v1/liveui/inference/plan",
+                json={
+                    "requestId": "request-1",
+                    "schemaVersion": "openconnect.liveui/v1",
+                    "intent": "Show completed",
+                    "context": {
+                        "route": "todo.home",
+                        "availableActions": [{"target": "todo.completed", "action": "activate"}],
+                    },
+                    "generation": {"maxActions": 2, "maxOutputTokens": 64},
+                },
+                headers={"Authorization": raw},
+            )
+            assert response.status_code == 401
+            assert response.json() == {"detail": "unauthorized"}
+
+
+@pytest.mark.asyncio
 async def test_full_inference_queue_returns_http_429(monkeypatch):
     monkeypatch.setenv("MODEL_ENABLED", "false")
     monkeypatch.setenv("OPENCONNECT_WORKER_TOKEN", "worker-test-token")

@@ -91,7 +91,9 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
     if (
         not authorization
         or not authorization.startswith("Bearer ")
-        or not hmac.compare_digest(supplied, token)
+        or not hmac.compare_digest(
+            supplied.encode("utf-8", "surrogatepass"), token.encode("utf-8", "surrogatepass")
+        )
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
 

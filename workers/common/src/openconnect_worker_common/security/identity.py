@@ -20,7 +20,10 @@ def verify_bearer(authorization: str | None, expected_token: str | None) -> bool
     supplied = extract_bearer(authorization)
     if supplied is None:
         return False
-    return hmac.compare_digest(supplied, expected_token)
+    return hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"),
+        expected_token.encode("utf-8", "surrogatepass"),
+    )
 
 
 @dataclass(frozen=True)
