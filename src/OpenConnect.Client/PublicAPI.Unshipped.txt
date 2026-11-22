@@ -46,6 +46,383 @@ OpenConnect.Client.ClientVadSession.ProcessPcmFrame(System.ReadOnlySpan<float> p
 OpenConnect.Client.ClientVadSession.RecurrentStateLength.get -> int
 OpenConnect.Client.ClientVadSession.ResetState() -> void
 OpenConnect.Client.ClientVadSession.TotalSourceSamples.get -> long
+OpenConnect.Client.Cloud.CloudAuthenticationMode
+OpenConnect.Client.Cloud.CloudAuthenticationMode.ApiKey = 0 -> OpenConnect.Client.Cloud.CloudAuthenticationMode
+OpenConnect.Client.Cloud.CloudAuthenticationMode.WorkloadCredential = 1 -> OpenConnect.Client.Cloud.CloudAuthenticationMode
+OpenConnect.Client.Cloud.CloudCapabilitiesResult
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.<Clone>$() -> OpenConnect.Client.Cloud.CloudCapabilitiesResult!
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.Capabilities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudCapabilityDescriptor!>!
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.Capabilities.init -> void
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.CloudCapabilitiesResult(System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudCapabilityDescriptor!>! Capabilities, string? TraceId = null) -> void
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudCapabilityDescriptor!>! Capabilities, out string? TraceId) -> void
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.Equals(OpenConnect.Client.Cloud.CloudCapabilitiesResult? other) -> bool
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.TraceId.get -> string?
+OpenConnect.Client.Cloud.CloudCapabilitiesResult.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.<Clone>$() -> OpenConnect.Client.Cloud.CloudCapabilityDescriptor!
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Capability.get -> string!
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Capability.init -> void
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.CloudCapabilityDescriptor(string! Capability, string! Status, bool StreamingSupported) -> void
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Deconstruct(out string! Capability, out string! Status, out bool StreamingSupported) -> void
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Equals(OpenConnect.Client.Cloud.CloudCapabilityDescriptor? other) -> bool
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Status.get -> string!
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Status.init -> void
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.StreamingSupported.get -> bool
+OpenConnect.Client.Cloud.CloudCapabilityDescriptor.StreamingSupported.init -> void
+OpenConnect.Client.Cloud.CloudChatInput
+OpenConnect.Client.Cloud.CloudChatInput.<Clone>$() -> OpenConnect.Client.Cloud.CloudChatInput!
+OpenConnect.Client.Cloud.CloudChatInput.CloudChatInput(System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudChatMessage!>! Messages, int MaxTokens = 1024, bool Stream = false) -> void
+OpenConnect.Client.Cloud.CloudChatInput.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudChatMessage!>! Messages, out int MaxTokens, out bool Stream) -> void
+OpenConnect.Client.Cloud.CloudChatInput.Equals(OpenConnect.Client.Cloud.CloudChatInput? other) -> bool
+OpenConnect.Client.Cloud.CloudChatInput.MaxTokens.get -> int
+OpenConnect.Client.Cloud.CloudChatInput.MaxTokens.init -> void
+OpenConnect.Client.Cloud.CloudChatInput.Messages.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudChatMessage!>!
+OpenConnect.Client.Cloud.CloudChatInput.Messages.init -> void
+OpenConnect.Client.Cloud.CloudChatInput.Stream.get -> bool
+OpenConnect.Client.Cloud.CloudChatInput.Stream.init -> void
+OpenConnect.Client.Cloud.CloudChatMessage
+OpenConnect.Client.Cloud.CloudChatMessage.<Clone>$() -> OpenConnect.Client.Cloud.CloudChatMessage!
+OpenConnect.Client.Cloud.CloudChatMessage.CloudChatMessage(string! Role, string! Content) -> void
+OpenConnect.Client.Cloud.CloudChatMessage.Content.get -> string!
+OpenConnect.Client.Cloud.CloudChatMessage.Content.init -> void
+OpenConnect.Client.Cloud.CloudChatMessage.Deconstruct(out string! Role, out string! Content) -> void
+OpenConnect.Client.Cloud.CloudChatMessage.Equals(OpenConnect.Client.Cloud.CloudChatMessage? other) -> bool
+OpenConnect.Client.Cloud.CloudChatMessage.Role.get -> string!
+OpenConnect.Client.Cloud.CloudChatMessage.Role.init -> void
+OpenConnect.Client.Cloud.CloudChatRequest
+OpenConnect.Client.Cloud.CloudChatRequest.<Clone>$() -> OpenConnect.Client.Cloud.CloudChatRequest!
+OpenConnect.Client.Cloud.CloudChatRequest.CloudChatRequest(string! ModelId, OpenConnect.Client.Cloud.CloudChatInput! Input, string? RequestId = null, System.DateTimeOffset? ExpiresAtUtc = null) -> void
+OpenConnect.Client.Cloud.CloudChatRequest.Deconstruct(out string! ModelId, out OpenConnect.Client.Cloud.CloudChatInput! Input, out string? RequestId, out System.DateTimeOffset? ExpiresAtUtc) -> void
+OpenConnect.Client.Cloud.CloudChatRequest.Equals(OpenConnect.Client.Cloud.CloudChatRequest? other) -> bool
+OpenConnect.Client.Cloud.CloudChatRequest.ExpiresAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Client.Cloud.CloudChatRequest.ExpiresAtUtc.init -> void
+OpenConnect.Client.Cloud.CloudChatRequest.Input.get -> OpenConnect.Client.Cloud.CloudChatInput!
+OpenConnect.Client.Cloud.CloudChatRequest.Input.init -> void
+OpenConnect.Client.Cloud.CloudChatRequest.ModelId.get -> string!
+OpenConnect.Client.Cloud.CloudChatRequest.ModelId.init -> void
+OpenConnect.Client.Cloud.CloudChatRequest.RequestId.get -> string?
+OpenConnect.Client.Cloud.CloudChatRequest.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse
+OpenConnect.Client.Cloud.CloudChatResponse.<Clone>$() -> OpenConnect.Client.Cloud.CloudChatResponse!
+OpenConnect.Client.Cloud.CloudChatResponse.CloudChatResponse(string! SchemaVersion, string! RequestId, string! ModelId, string! TraceId, string! Output, OpenConnect.Client.Cloud.CloudTokenUsage! Usage) -> void
+OpenConnect.Client.Cloud.CloudChatResponse.Deconstruct(out string! SchemaVersion, out string! RequestId, out string! ModelId, out string! TraceId, out string! Output, out OpenConnect.Client.Cloud.CloudTokenUsage! Usage) -> void
+OpenConnect.Client.Cloud.CloudChatResponse.Equals(OpenConnect.Client.Cloud.CloudChatResponse? other) -> bool
+OpenConnect.Client.Cloud.CloudChatResponse.ModelId.get -> string!
+OpenConnect.Client.Cloud.CloudChatResponse.ModelId.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse.Output.get -> string!
+OpenConnect.Client.Cloud.CloudChatResponse.Output.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse.RequestId.get -> string!
+OpenConnect.Client.Cloud.CloudChatResponse.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudChatResponse.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse.TraceId.get -> string!
+OpenConnect.Client.Cloud.CloudChatResponse.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudChatResponse.Usage.get -> OpenConnect.Client.Cloud.CloudTokenUsage!
+OpenConnect.Client.Cloud.CloudChatResponse.Usage.init -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.<Clone>$() -> OpenConnect.Client.Cloud.CloudClassificationConfiguration!
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.CloudClassificationConfiguration(string? LabelSetVersion = null, string? LocaleHint = null, double? Threshold = null, int? MaxLabels = null) -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.Deconstruct(out string? LabelSetVersion, out string? LocaleHint, out double? Threshold, out int? MaxLabels) -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.Equals(OpenConnect.Client.Cloud.CloudClassificationConfiguration? other) -> bool
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.LabelSetVersion.get -> string?
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.LabelSetVersion.init -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.LocaleHint.get -> string?
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.LocaleHint.init -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.MaxLabels.get -> int?
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.MaxLabels.init -> void
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.Threshold.get -> double?
+OpenConnect.Client.Cloud.CloudClassificationConfiguration.Threshold.init -> void
+OpenConnect.Client.Cloud.CloudClassificationInput
+OpenConnect.Client.Cloud.CloudClassificationInput.<Clone>$() -> OpenConnect.Client.Cloud.CloudClassificationInput!
+OpenConnect.Client.Cloud.CloudClassificationInput.CloudClassificationInput(string? Text = null, string? InputRef = null) -> void
+OpenConnect.Client.Cloud.CloudClassificationInput.Deconstruct(out string? Text, out string? InputRef) -> void
+OpenConnect.Client.Cloud.CloudClassificationInput.Equals(OpenConnect.Client.Cloud.CloudClassificationInput? other) -> bool
+OpenConnect.Client.Cloud.CloudClassificationInput.InputRef.get -> string?
+OpenConnect.Client.Cloud.CloudClassificationInput.InputRef.init -> void
+OpenConnect.Client.Cloud.CloudClassificationInput.Text.get -> string?
+OpenConnect.Client.Cloud.CloudClassificationInput.Text.init -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest
+OpenConnect.Client.Cloud.CloudClassificationRequest.<Clone>$() -> OpenConnect.Client.Cloud.CloudClassificationRequest!
+OpenConnect.Client.Cloud.CloudClassificationRequest.CloudClassificationRequest(OpenConnect.Client.Cloud.CloudClassificationInput! Input, OpenConnect.Client.Cloud.CloudClassificationConfiguration? Configuration = null, string? RequestId = null, System.DateTimeOffset? ExpiresAtUtc = null) -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest.Configuration.get -> OpenConnect.Client.Cloud.CloudClassificationConfiguration?
+OpenConnect.Client.Cloud.CloudClassificationRequest.Configuration.init -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest.Deconstruct(out OpenConnect.Client.Cloud.CloudClassificationInput! Input, out OpenConnect.Client.Cloud.CloudClassificationConfiguration? Configuration, out string? RequestId, out System.DateTimeOffset? ExpiresAtUtc) -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest.Equals(OpenConnect.Client.Cloud.CloudClassificationRequest? other) -> bool
+OpenConnect.Client.Cloud.CloudClassificationRequest.ExpiresAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Client.Cloud.CloudClassificationRequest.ExpiresAtUtc.init -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest.Input.get -> OpenConnect.Client.Cloud.CloudClassificationInput!
+OpenConnect.Client.Cloud.CloudClassificationRequest.Input.init -> void
+OpenConnect.Client.Cloud.CloudClassificationRequest.RequestId.get -> string?
+OpenConnect.Client.Cloud.CloudClassificationRequest.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse
+OpenConnect.Client.Cloud.CloudClassificationResponse.<Clone>$() -> OpenConnect.Client.Cloud.CloudClassificationResponse!
+OpenConnect.Client.Cloud.CloudClassificationResponse.CloudClassificationResponse(string! SchemaVersion, string! RequestId, string! TraceId, OpenConnect.Client.Cloud.CloudClassificationResult! Result) -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse.Deconstruct(out string! SchemaVersion, out string! RequestId, out string! TraceId, out OpenConnect.Client.Cloud.CloudClassificationResult! Result) -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse.Equals(OpenConnect.Client.Cloud.CloudClassificationResponse? other) -> bool
+OpenConnect.Client.Cloud.CloudClassificationResponse.RequestId.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResponse.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse.Result.get -> OpenConnect.Client.Cloud.CloudClassificationResult!
+OpenConnect.Client.Cloud.CloudClassificationResponse.Result.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResponse.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResponse.TraceId.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResponse.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult
+OpenConnect.Client.Cloud.CloudClassificationResult.<Clone>$() -> OpenConnect.Client.Cloud.CloudClassificationResult!
+OpenConnect.Client.Cloud.CloudClassificationResult.Abstained.get -> bool
+OpenConnect.Client.Cloud.CloudClassificationResult.Abstained.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.CloudClassificationResult(System.Collections.Generic.IReadOnlyList<string!>! Labels, System.Collections.Generic.IReadOnlyDictionary<string!, double>! Scores, bool Abstained, string! ModelRevision, string! LabelSetVersion) -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Labels, out System.Collections.Generic.IReadOnlyDictionary<string!, double>! Scores, out bool Abstained, out string! ModelRevision, out string! LabelSetVersion) -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.Equals(OpenConnect.Client.Cloud.CloudClassificationResult? other) -> bool
+OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.Labels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.Cloud.CloudClassificationResult.Labels.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.ModelRevision.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResult.ModelRevision.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.Scores.get -> System.Collections.Generic.IReadOnlyDictionary<string!, double>!
+OpenConnect.Client.Cloud.CloudClassificationResult.Scores.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIAvailableAction!
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Action.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Action.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.CloudLiveUIAvailableAction(string! Target, string! Action, string? Label = null) -> void
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Deconstruct(out string! Target, out string! Action, out string? Label) -> void
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Equals(OpenConnect.Client.Cloud.CloudLiveUIAvailableAction? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Label.get -> string?
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Label.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Target.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Target.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIContext
+OpenConnect.Client.Cloud.CloudLiveUIContext.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIContext!
+OpenConnect.Client.Cloud.CloudLiveUIContext.AvailableActions.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIAvailableAction!>!
+OpenConnect.Client.Cloud.CloudLiveUIContext.AvailableActions.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIContext.CloudLiveUIContext(string! Route, System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIAvailableAction!>! AvailableActions) -> void
+OpenConnect.Client.Cloud.CloudLiveUIContext.Deconstruct(out string! Route, out System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIAvailableAction!>! AvailableActions) -> void
+OpenConnect.Client.Cloud.CloudLiveUIContext.Equals(OpenConnect.Client.Cloud.CloudLiveUIContext? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIContext.Route.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIContext.Route.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions!
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.CloudLiveUIGenerationOptions(int MaxActions = 8, int MaxOutputTokens = 256) -> void
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.Deconstruct(out int MaxActions, out int MaxOutputTokens) -> void
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.Equals(OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.MaxActions.get -> int
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.MaxActions.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.MaxOutputTokens.get -> int
+OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.MaxOutputTokens.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlan
+OpenConnect.Client.Cloud.CloudLiveUIPlan.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlan!
+OpenConnect.Client.Cloud.CloudLiveUIPlan.Actions.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!>!
+OpenConnect.Client.Cloud.CloudLiveUIPlan.Actions.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlan.CloudLiveUIPlan(string! SchemaVersion, System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!>! Actions) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlan.Deconstruct(out string! SchemaVersion, out System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!>! Actions) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlan.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlan? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlan.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlan.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlanInput!
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.CloudLiveUIPlanInput(string! SchemaVersion, string! Intent, OpenConnect.Client.Cloud.CloudLiveUIContext! Context, OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions! Generation) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Context.get -> OpenConnect.Client.Cloud.CloudLiveUIContext!
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Context.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Deconstruct(out string! SchemaVersion, out string! Intent, out OpenConnect.Client.Cloud.CloudLiveUIContext! Context, out OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions! Generation) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlanInput? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Generation.get -> OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions!
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Generation.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Intent.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Intent.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanInput.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlanRequest!
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.CloudLiveUIPlanRequest(OpenConnect.Client.Cloud.CloudLiveUIPlanInput! Input, string? RequestId = null, System.DateTimeOffset? ExpiresAtUtc = null) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Deconstruct(out OpenConnect.Client.Cloud.CloudLiveUIPlanInput! Input, out string? RequestId, out System.DateTimeOffset? ExpiresAtUtc) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.ExpiresAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.ExpiresAtUtc.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Input.get -> OpenConnect.Client.Cloud.CloudLiveUIPlanInput!
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Input.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.RequestId.get -> string?
+OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlanResponse!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.CloudLiveUIPlanResponse(string! SchemaVersion, string! RequestId, string! TraceId, string! Provider, OpenConnect.Client.Cloud.CloudLiveUIPlan! Plan) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Deconstruct(out string! SchemaVersion, out string! RequestId, out string! TraceId, out string! Provider, out OpenConnect.Client.Cloud.CloudLiveUIPlan! Plan) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Plan.get -> OpenConnect.Client.Cloud.CloudLiveUIPlan!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Plan.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Provider.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Provider.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.RequestId.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.TraceId.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.CloudLiveUIPlannedAction(string! Type, string! Target, string? Value = null) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Deconstruct(out string! Type, out string! Target, out string? Value) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.get -> string?
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails
+OpenConnect.Client.Cloud.CloudProblemDetails.<Clone>$() -> OpenConnect.Client.Cloud.CloudProblemDetails!
+OpenConnect.Client.Cloud.CloudProblemDetails.CloudProblemDetails(string? Type, string? Title, int? Status, string? Code, string? TraceId, bool Retryable = false, string? Detail = null) -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Code.get -> string?
+OpenConnect.Client.Cloud.CloudProblemDetails.Code.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Deconstruct(out string? Type, out string? Title, out int? Status, out string? Code, out string? TraceId, out bool Retryable, out string? Detail) -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Detail.get -> string?
+OpenConnect.Client.Cloud.CloudProblemDetails.Detail.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Equals(OpenConnect.Client.Cloud.CloudProblemDetails? other) -> bool
+OpenConnect.Client.Cloud.CloudProblemDetails.Retryable.get -> bool
+OpenConnect.Client.Cloud.CloudProblemDetails.Retryable.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Status.get -> int?
+OpenConnect.Client.Cloud.CloudProblemDetails.Status.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Title.get -> string?
+OpenConnect.Client.Cloud.CloudProblemDetails.Title.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.TraceId.get -> string?
+OpenConnect.Client.Cloud.CloudProblemDetails.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudProblemDetails.Type.get -> string?
+OpenConnect.Client.Cloud.CloudProblemDetails.Type.init -> void
+OpenConnect.Client.Cloud.CloudReadinessResult
+OpenConnect.Client.Cloud.CloudReadinessResult.<Clone>$() -> OpenConnect.Client.Cloud.CloudReadinessResult!
+OpenConnect.Client.Cloud.CloudReadinessResult.Capabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.Cloud.CloudReadinessResult.Capabilities.init -> void
+OpenConnect.Client.Cloud.CloudReadinessResult.CloudReadinessResult(string! Status, System.Collections.Generic.IReadOnlyList<string!>! Capabilities) -> void
+OpenConnect.Client.Cloud.CloudReadinessResult.Deconstruct(out string! Status, out System.Collections.Generic.IReadOnlyList<string!>! Capabilities) -> void
+OpenConnect.Client.Cloud.CloudReadinessResult.Equals(OpenConnect.Client.Cloud.CloudReadinessResult? other) -> bool
+OpenConnect.Client.Cloud.CloudReadinessResult.Status.get -> string!
+OpenConnect.Client.Cloud.CloudReadinessResult.Status.init -> void
+OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.Automatic = 3 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.BrowserThenCloud = 5 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.CloudFirst = 4 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.CloudOnly = 0 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.Hybrid = 2 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.LocalFirst = 6 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudRoutingMode.LocalOnly = 1 -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.<Clone>$() -> OpenConnect.Client.Cloud.CloudSpeechSynthesisInput!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.CloudSpeechSynthesisInput(string! Text, string! VoiceId = "af_heart", string! Locale = "en-US", string! Format = "wav") -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Deconstruct(out string! Text, out string! VoiceId, out string! Locale, out string! Format) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Equals(OpenConnect.Client.Cloud.CloudSpeechSynthesisInput? other) -> bool
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Format.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Format.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Locale.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Locale.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Text.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Text.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.VoiceId.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.VoiceId.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.<Clone>$() -> OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.CloudSpeechSynthesisRequest(OpenConnect.Client.Cloud.CloudSpeechSynthesisInput! Input, string? RequestId = null, System.DateTimeOffset? ExpiresAtUtc = null) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.Deconstruct(out OpenConnect.Client.Cloud.CloudSpeechSynthesisInput! Input, out string? RequestId, out System.DateTimeOffset? ExpiresAtUtc) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.Equals(OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest? other) -> bool
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.ExpiresAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.ExpiresAtUtc.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.Input.get -> OpenConnect.Client.Cloud.CloudSpeechSynthesisInput!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.Input.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.RequestId.get -> string?
+OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.<Clone>$() -> OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.CloudSpeechSynthesisResponse(string! SchemaVersion, string! RequestId, string! TraceId, OpenConnect.Client.Cloud.CloudSpeechSynthesisResult! Result) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.Deconstruct(out string! SchemaVersion, out string! RequestId, out string! TraceId, out OpenConnect.Client.Cloud.CloudSpeechSynthesisResult! Result) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.Equals(OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse? other) -> bool
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.RequestId.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.RequestId.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.Result.get -> OpenConnect.Client.Cloud.CloudSpeechSynthesisResult!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.Result.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.SchemaVersion.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.TraceId.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.TraceId.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.<Clone>$() -> OpenConnect.Client.Cloud.CloudSpeechSynthesisResult!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.AudioBase64.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.AudioBase64.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Channels.get -> int
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Channels.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.CloudSpeechSynthesisResult(string! Format, int SampleRateHz, int Channels, string! VoiceId, string! Locale, string! AudioBase64) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Deconstruct(out string! Format, out int SampleRateHz, out int Channels, out string! VoiceId, out string! Locale, out string! AudioBase64) -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Equals(OpenConnect.Client.Cloud.CloudSpeechSynthesisResult? other) -> bool
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Format.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Format.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.GetAudioBytes() -> byte[]!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Locale.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Locale.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.SampleRateHz.get -> int
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.SampleRateHz.init -> void
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.VoiceId.get -> string!
+OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.VoiceId.init -> void
+OpenConnect.Client.Cloud.CloudTokenUsage
+OpenConnect.Client.Cloud.CloudTokenUsage.<Clone>$() -> OpenConnect.Client.Cloud.CloudTokenUsage!
+OpenConnect.Client.Cloud.CloudTokenUsage.CloudTokenUsage(int InputTokens, int OutputTokens) -> void
+OpenConnect.Client.Cloud.CloudTokenUsage.Deconstruct(out int InputTokens, out int OutputTokens) -> void
+OpenConnect.Client.Cloud.CloudTokenUsage.Equals(OpenConnect.Client.Cloud.CloudTokenUsage? other) -> bool
+OpenConnect.Client.Cloud.CloudTokenUsage.InputTokens.get -> int
+OpenConnect.Client.Cloud.CloudTokenUsage.InputTokens.init -> void
+OpenConnect.Client.Cloud.CloudTokenUsage.OutputTokens.get -> int
+OpenConnect.Client.Cloud.CloudTokenUsage.OutputTokens.init -> void
+OpenConnect.Client.Cloud.IOpenConnectCloudClient
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.ChatAsync(OpenConnect.Client.Cloud.CloudChatRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudChatResponse!>!
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.ClassifyAsync(OpenConnect.Client.Cloud.CloudClassificationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudClassificationResponse!>!
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudCapabilitiesResult!>!
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.GetHealthReadyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudReadinessResult!>!
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.PlanLiveUIAsync(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudLiveUIPlanResponse!>!
+OpenConnect.Client.Cloud.IOpenConnectCloudClient.SynthesizeSpeechAsync(OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient
+OpenConnect.Client.Cloud.OpenConnectCloudClient.ChatAsync(OpenConnect.Client.Cloud.CloudChatRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudChatResponse!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient.ClassifyAsync(OpenConnect.Client.Cloud.CloudClassificationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudClassificationResponse!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudCapabilitiesResult!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient.GetHealthReadyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudReadinessResult!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient.OpenConnectCloudClient(System.Net.Http.HttpClient! httpClient, Microsoft.Extensions.Options.IOptions<OpenConnect.Client.Cloud.OpenConnectCloudOptions!>! options) -> void
+OpenConnect.Client.Cloud.OpenConnectCloudClient.PlanLiveUIAsync(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudLiveUIPlanResponse!>!
+OpenConnect.Client.Cloud.OpenConnectCloudClient.SynthesizeSpeechAsync(OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse!>!
+OpenConnect.Client.Cloud.OpenConnectCloudException
+OpenConnect.Client.Cloud.OpenConnectCloudException.Code.get -> string!
+OpenConnect.Client.Cloud.OpenConnectCloudException.Detail.get -> string?
+OpenConnect.Client.Cloud.OpenConnectCloudException.OpenConnectCloudException(System.Net.HttpStatusCode statusCode, string! code, string! title, string? traceId = null, bool retryable = false, string? detail = null, OpenConnect.Client.Cloud.CloudProblemDetails? problem = null, System.Exception? innerException = null) -> void
+OpenConnect.Client.Cloud.OpenConnectCloudException.Problem.get -> OpenConnect.Client.Cloud.CloudProblemDetails?
+OpenConnect.Client.Cloud.OpenConnectCloudException.Retryable.get -> bool
+OpenConnect.Client.Cloud.OpenConnectCloudException.StatusCodeValue.get -> int
+OpenConnect.Client.Cloud.OpenConnectCloudException.Title.get -> string!
+OpenConnect.Client.Cloud.OpenConnectCloudException.TraceId.get -> string?
+OpenConnect.Client.Cloud.OpenConnectCloudOptions
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.AllowInsecureLoopbackHttp.get -> bool
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.AllowInsecureLoopbackHttp.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.ApiKey.get -> string?
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.ApiKey.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Authentication.get -> OpenConnect.Client.Cloud.CloudAuthenticationMode
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Authentication.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Endpoint.get -> System.Uri?
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Endpoint.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.OpenConnectCloudOptions() -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.RequestTimeout.get -> System.TimeSpan
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.RequestTimeout.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.RequirePrivacyEgressApproval.get -> bool
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.RequirePrivacyEgressApproval.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Routing.get -> OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions!
+OpenConnect.Client.Cloud.OpenConnectCloudOptions.Validate() -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Default.get -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Default.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Inference.get -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Inference.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.LiveUI.get -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.LiveUI.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.OpenConnectCloudRoutingOptions() -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Security.get -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Security.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Voice.get -> OpenConnect.Client.Cloud.CloudRoutingMode
+OpenConnect.Client.Cloud.OpenConnectCloudRoutingOptions.Voice.set -> void
+OpenConnect.Client.Cloud.OpenConnectCloudServiceCollectionExtensions
 OpenConnect.Client.CreateTaskRequest
 OpenConnect.Client.CreateTaskRequest.<Clone>$() -> OpenConnect.Client.CreateTaskRequest!
 OpenConnect.Client.CreateTaskRequest.ClientConnectionId.get -> string?
@@ -334,6 +711,84 @@ OpenConnect.Client.VoiceClientService.TriggerBargeIn() -> long
 OpenConnect.Client.VoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.UpdateLiveHypothesis(string! partialTranscript, long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.VoiceClientService(OpenConnect.Client.VoiceClientOptions! options) -> void
+override OpenConnect.Client.Cloud.CloudCapabilitiesResult.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudCapabilitiesResult.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudCapabilitiesResult.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudCapabilityDescriptor.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudCapabilityDescriptor.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudCapabilityDescriptor.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudChatInput.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudChatInput.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudChatInput.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudChatMessage.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudChatMessage.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudChatMessage.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudChatRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudChatRequest.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudChatRequest.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudChatResponse.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudChatResponse.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudChatResponse.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudClassificationConfiguration.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudClassificationConfiguration.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudClassificationConfiguration.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudClassificationInput.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudClassificationInput.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudClassificationInput.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudClassificationRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudClassificationRequest.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudClassificationRequest.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudClassificationResponse.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudClassificationResponse.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudClassificationResponse.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudClassificationResult.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudClassificationResult.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudClassificationResult.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIContext.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIContext.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIContext.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlan.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlan.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlan.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudProblemDetails.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudProblemDetails.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudProblemDetails.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudReadinessResult.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudReadinessResult.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudReadinessResult.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudTokenUsage.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudTokenUsage.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudTokenUsage.ToString() -> string!
 override OpenConnect.Client.CreateTaskRequest.Equals(object? obj) -> bool
 override OpenConnect.Client.CreateTaskRequest.GetHashCode() -> int
 override OpenConnect.Client.CreateTaskRequest.ToString() -> string!
@@ -352,6 +807,59 @@ override OpenConnect.Client.SpeechSynthesisResult.ToString() -> string!
 override OpenConnect.Client.VadFrameObservation.Equals(object? obj) -> bool
 override OpenConnect.Client.VadFrameObservation.GetHashCode() -> int
 override OpenConnect.Client.VadFrameObservation.ToString() -> string!
+static OpenConnect.Client.Cloud.CloudCapabilitiesResult.operator !=(OpenConnect.Client.Cloud.CloudCapabilitiesResult? left, OpenConnect.Client.Cloud.CloudCapabilitiesResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudCapabilitiesResult.operator ==(OpenConnect.Client.Cloud.CloudCapabilitiesResult? left, OpenConnect.Client.Cloud.CloudCapabilitiesResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudCapabilityDescriptor.operator !=(OpenConnect.Client.Cloud.CloudCapabilityDescriptor? left, OpenConnect.Client.Cloud.CloudCapabilityDescriptor? right) -> bool
+static OpenConnect.Client.Cloud.CloudCapabilityDescriptor.operator ==(OpenConnect.Client.Cloud.CloudCapabilityDescriptor? left, OpenConnect.Client.Cloud.CloudCapabilityDescriptor? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatInput.operator !=(OpenConnect.Client.Cloud.CloudChatInput? left, OpenConnect.Client.Cloud.CloudChatInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatInput.operator ==(OpenConnect.Client.Cloud.CloudChatInput? left, OpenConnect.Client.Cloud.CloudChatInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatMessage.operator !=(OpenConnect.Client.Cloud.CloudChatMessage? left, OpenConnect.Client.Cloud.CloudChatMessage? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatMessage.operator ==(OpenConnect.Client.Cloud.CloudChatMessage? left, OpenConnect.Client.Cloud.CloudChatMessage? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatRequest.operator !=(OpenConnect.Client.Cloud.CloudChatRequest? left, OpenConnect.Client.Cloud.CloudChatRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatRequest.operator ==(OpenConnect.Client.Cloud.CloudChatRequest? left, OpenConnect.Client.Cloud.CloudChatRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatResponse.operator !=(OpenConnect.Client.Cloud.CloudChatResponse? left, OpenConnect.Client.Cloud.CloudChatResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudChatResponse.operator ==(OpenConnect.Client.Cloud.CloudChatResponse? left, OpenConnect.Client.Cloud.CloudChatResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationConfiguration.operator !=(OpenConnect.Client.Cloud.CloudClassificationConfiguration? left, OpenConnect.Client.Cloud.CloudClassificationConfiguration? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationConfiguration.operator ==(OpenConnect.Client.Cloud.CloudClassificationConfiguration? left, OpenConnect.Client.Cloud.CloudClassificationConfiguration? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationInput.operator !=(OpenConnect.Client.Cloud.CloudClassificationInput? left, OpenConnect.Client.Cloud.CloudClassificationInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationInput.operator ==(OpenConnect.Client.Cloud.CloudClassificationInput? left, OpenConnect.Client.Cloud.CloudClassificationInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationRequest.operator !=(OpenConnect.Client.Cloud.CloudClassificationRequest? left, OpenConnect.Client.Cloud.CloudClassificationRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationRequest.operator ==(OpenConnect.Client.Cloud.CloudClassificationRequest? left, OpenConnect.Client.Cloud.CloudClassificationRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationResponse.operator !=(OpenConnect.Client.Cloud.CloudClassificationResponse? left, OpenConnect.Client.Cloud.CloudClassificationResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationResponse.operator ==(OpenConnect.Client.Cloud.CloudClassificationResponse? left, OpenConnect.Client.Cloud.CloudClassificationResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationResult.operator !=(OpenConnect.Client.Cloud.CloudClassificationResult? left, OpenConnect.Client.Cloud.CloudClassificationResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudClassificationResult.operator ==(OpenConnect.Client.Cloud.CloudClassificationResult? left, OpenConnect.Client.Cloud.CloudClassificationResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.operator !=(OpenConnect.Client.Cloud.CloudLiveUIAvailableAction? left, OpenConnect.Client.Cloud.CloudLiveUIAvailableAction? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIAvailableAction.operator ==(OpenConnect.Client.Cloud.CloudLiveUIAvailableAction? left, OpenConnect.Client.Cloud.CloudLiveUIAvailableAction? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIContext.operator !=(OpenConnect.Client.Cloud.CloudLiveUIContext? left, OpenConnect.Client.Cloud.CloudLiveUIContext? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIContext.operator ==(OpenConnect.Client.Cloud.CloudLiveUIContext? left, OpenConnect.Client.Cloud.CloudLiveUIContext? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.operator !=(OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions? left, OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions.operator ==(OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions? left, OpenConnect.Client.Cloud.CloudLiveUIGenerationOptions? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlan.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlan? left, OpenConnect.Client.Cloud.CloudLiveUIPlan? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlan.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlan? left, OpenConnect.Client.Cloud.CloudLiveUIPlan? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanInput.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanInput? left, OpenConnect.Client.Cloud.CloudLiveUIPlanInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanInput.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanInput? left, OpenConnect.Client.Cloud.CloudLiveUIPlanInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? left, OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? left, OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? left, OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? left, OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
+static OpenConnect.Client.Cloud.CloudProblemDetails.operator !=(OpenConnect.Client.Cloud.CloudProblemDetails? left, OpenConnect.Client.Cloud.CloudProblemDetails? right) -> bool
+static OpenConnect.Client.Cloud.CloudProblemDetails.operator ==(OpenConnect.Client.Cloud.CloudProblemDetails? left, OpenConnect.Client.Cloud.CloudProblemDetails? right) -> bool
+static OpenConnect.Client.Cloud.CloudReadinessResult.operator !=(OpenConnect.Client.Cloud.CloudReadinessResult? left, OpenConnect.Client.Cloud.CloudReadinessResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudReadinessResult.operator ==(OpenConnect.Client.Cloud.CloudReadinessResult? left, OpenConnect.Client.Cloud.CloudReadinessResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.operator !=(OpenConnect.Client.Cloud.CloudSpeechSynthesisInput? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisInput.operator ==(OpenConnect.Client.Cloud.CloudSpeechSynthesisInput? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.operator !=(OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest.operator ==(OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisRequest? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.operator !=(OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse.operator ==(OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisResponse? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.operator !=(OpenConnect.Client.Cloud.CloudSpeechSynthesisResult? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudSpeechSynthesisResult.operator ==(OpenConnect.Client.Cloud.CloudSpeechSynthesisResult? left, OpenConnect.Client.Cloud.CloudSpeechSynthesisResult? right) -> bool
+static OpenConnect.Client.Cloud.CloudTokenUsage.operator !=(OpenConnect.Client.Cloud.CloudTokenUsage? left, OpenConnect.Client.Cloud.CloudTokenUsage? right) -> bool
+static OpenConnect.Client.Cloud.CloudTokenUsage.operator ==(OpenConnect.Client.Cloud.CloudTokenUsage? left, OpenConnect.Client.Cloud.CloudTokenUsage? right) -> bool
+static OpenConnect.Client.Cloud.OpenConnectCloudServiceCollectionExtensions.AddOpenConnectCloud(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.Cloud.OpenConnectCloudOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.CreateTaskRequest.operator !=(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
 static OpenConnect.Client.CreateTaskRequest.operator ==(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.OpenConnectClientOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
