@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed `OpenConnectClientException.ErrorCode` being null for host Problem Details (#110). When the body has no valid `code`, the SDK client now derives the code from the last path segment of an absolute `https` problem `type` URI (for example `https://openconnect.dev/problems/idempotency-conflict` gives `idempotency-conflict`). A body `code` still takes precedence. `type` values that are over 256 characters, relative, non-https, or that contain whitespace, control characters, userinfo, query or fragment yield null, as do segments that are not 1 to 64 ASCII letters, digits, `_` or `-`. `Message` remains fixed text and never includes the problem `title` or `detail`.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

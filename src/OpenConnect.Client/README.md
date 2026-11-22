@@ -30,6 +30,15 @@ absolute HTTPS base address; `CreateTaskAsync` (`IOpenConnectClient.cs:5`) accep
 `CreateTaskRequest` (`IOpenConnectClient.cs:39`). Server side: `MapOpenConnect` in
 `OpenConnect.Hosting.AspNetCore`.
 
+## Error codes
+
+`OpenConnectClientException.ErrorCode` comes from the response's Problem Details body. A body
+`code` of 1 to 64 ASCII letters, digits, `_` or `-` wins. Otherwise the code is the last path
+segment of an absolute `https` `type` URI (for example `https://openconnect.dev/problems/idempotency-conflict`
+gives `idempotency-conflict`), under the same character rules. Types that are longer than 256
+characters, relative, non-https, or contain whitespace, control characters, userinfo, a query or a
+fragment give `null`. `Message` is fixed text and never includes the server's `title` or `detail`.
+
 ## License
 
 Same terms as the OpenConnect repository.

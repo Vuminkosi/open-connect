@@ -52,6 +52,48 @@ public sealed class TaskIdempotencyTests
         Assert.DoesNotContain("00000000000000000000000000", Encoding.UTF8.GetString(response.Body));
     }
 
+    [Fact]
+    public async Task Sdk_client_exposes_error_code_for_real_idempotency_conflict()
+    {
+        await using var host = await CreateAppAsync();
+        await PostTaskAsync(host.App, "first");
+        var conflict = await PostTaskAsync(host.App, "different");
+
+        var error = await ReadClientErrorAsync(conflict);
+
+        Assert.Equal("idempotency-conflict", error.ErrorCode);
+        Assert.DoesNotContain("idempotency key", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Sdk_client_exposes_error_code_for_session_presence_problem()
+    {
+        var context = new DefaultHttpContext();
+        context.RequestServices = new ServiceCollection().AddLogging().AddProblemDetails().BuildServiceProvider();
+        var body = new MemoryStream();
+        context.Response.Body = body;
+        // Same call the host makes in HandleCreateTaskAsync for a mini-composer presence failure.
+        await Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Exactly one active session connection is required.", type: "https://openconnect.dev/problems/session-presence").ExecuteAsync(context);
+
+        var error = await ReadClientErrorAsync(new Response(context.Response.StatusCode, string.Empty, context.Response.ContentType, body.ToArray()));
+
+        Assert.Equal("session-presence", error.ErrorCode);
+    }
+
+    private static async Task<OpenConnect.Client.OpenConnectClientException> ReadClientErrorAsync(Response response)
+    {
+        using var handler = new FixedResponseHandler(response);
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+        return await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            new OpenConnect.Client.OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid())));
+    }
+
+    private sealed class FixedResponseHandler(Response response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage((System.Net.HttpStatusCode)response.StatusCode) { Content = new ByteArrayContent(response.Body) });
+    }
+
     private static async Task<TestHost> CreateAppAsync()
     {
         var builder = WebApplication.CreateBuilder();

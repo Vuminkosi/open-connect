@@ -274,6 +274,82 @@ public sealed class OpenConnectClientTests
         Assert.Null(error.ErrorCode);
         Assert.Equal("The OpenConnect service could not complete the request.", error.Message);
     }
+    [Theory]
+    [InlineData(409, "{\"type\":\"https://openconnect.dev/problems/idempotency-conflict\",\"title\":\"T\"}", "idempotency-conflict")]
+    [InlineData(409, "{\"type\":\"https://openconnect.dev/problems/session-presence\"}", "session-presence")]
+    [InlineData(409, "{\"type\":\"https://openconnect.dev/problems/session-presence/\"}", "session-presence")]
+    [InlineData(400, "{\"type\":\"invalid_request\"}", "invalid_request")]
+    [InlineData(400, "{\"code\":\"body_code\",\"type\":\"https://openconnect.dev/problems/other\"}", "body_code")]
+    [InlineData(400, "{\"code\":\"bad code!\",\"type\":\"https://openconnect.dev/problems/other\"}", "other")]
+    [InlineData(400, "{\"type\":\"http://openconnect.dev/problems/insecure\"}", null)]
+    [InlineData(400, "{\"type\":\"/problems/relative\"}", null)]
+    [InlineData(400, "{\"type\":\"not a uri\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/a\\u0000b\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x?y=1\"}", null)]
+    [InlineData(400, "{\"type\":\"https://user@openconnect.dev/problems/x\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/x#f\"}", null)]
+    [InlineData(400, "{\"type\":\"https://openconnect.dev/problems/bad.segment\"}", null)]
+    public async Task Http_failure_derives_error_code_from_problem_type(int status, string body, string? expected)
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status)
+        {
+            Content = new StringContent(body)
+        }));
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+
+        var error = await Assert.ThrowsAsync<OpenConnectClientException>(() =>
+            new OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid())));
+
+        Assert.Equal(expected, error.ErrorCode);
+        Assert.Equal("The OpenConnect service could not complete the request.", error.Message);
+    }
+    [Fact]
+    public async Task Http_failure_with_oversized_problem_type_has_no_error_code()
+    {
+        var body = "{\"type\":\"https://openconnect.dev/problems/" + new string('a', 300) + "\"}";
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Conflict)
+        {
+            Content = new StringContent(body)
+        }));
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+
+        var error = await Assert.ThrowsAsync<OpenConnectClientException>(() =>
+            new OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid())));
+
+        Assert.Null(error.ErrorCode);
+    }
+    [Fact]
+    public async Task Http_failure_message_excludes_problem_title_and_detail()
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Conflict)
+        {
+            Content = new StringContent("{\"type\":\"https://openconnect.dev/problems/idempotency-conflict\",\"title\":\"secret title\",\"detail\":\"secret detail\"}")
+        }));
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+
+        var error = await Assert.ThrowsAsync<OpenConnectClientException>(() =>
+            new OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid())));
+
+        Assert.Equal("idempotency-conflict", error.ErrorCode);
+        Assert.DoesNotContain("secret", error.Message);
+    }
+    [Fact]
+    public async Task Unprocessable_event_replay_keeps_legacy_code_mapping()
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)422)
+        {
+            Content = new StringContent("{\"type\":\"https://openconnect.dev/problems/legacy-event-without-canonical-identity\"}")
+        }));
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+
+        var error = await Assert.ThrowsAsync<OpenConnectClientException>(async () =>
+        {
+            await foreach (var _ in new OpenConnectClient(http).ReplayEventsAsync(Guid.NewGuid()))
+            { }
+        });
+
+        Assert.Equal("legacy_event_without_identity", error.ErrorCode);
+    }
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> callback) : HttpMessageHandler
     {
         public string? Path { get; private set; }

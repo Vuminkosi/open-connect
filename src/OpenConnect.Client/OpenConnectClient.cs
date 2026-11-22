@@ -189,16 +189,32 @@ public sealed partial class OpenConnectClient : IOpenConnectClient
         try
         {
             using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false), cancellationToken: token).ConfigureAwait(false);
-            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                (doc.RootElement.TryGetProperty("code", out var value) || doc.RootElement.TryGetProperty("type", out value)) &&
-                value.ValueKind == JsonValueKind.String)
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                var candidate = value.GetString();
-                if (candidate is { Length: > 0 and <= 64 } && candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-'))
-                    code = candidate;
+                code = ReadString(doc.RootElement, "code") is { } bodyCode && IsIdentifier(bodyCode)
+                    ? bodyCode
+                    : CodeFromProblemType(ReadString(doc.RootElement, "type"));
             }
         }
         catch (JsonException) { }
         throw new OpenConnectClientException((int)response.StatusCode, code, message);
+    }
+    private static string? ReadString(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static bool IsIdentifier(string candidate) =>
+        candidate is { Length: > 0 and <= 64 } && candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-');
+    // Hosts send RFC 9457 `type` as an absolute https URI such as
+    // https://openconnect.dev/problems/idempotency-conflict; the last path segment is the code.
+    private static string? CodeFromProblemType(string? type)
+    {
+        if (type is not null && IsIdentifier(type))
+            return type;
+        if (type is not { Length: > 0 and <= 256 } || type.Any(character => char.IsControl(character) || char.IsWhiteSpace(character)))
+            return null;
+        if (!Uri.TryCreate(type, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length > 0 || uri.Query.Length > 0 || uri.Fragment.Length > 0)
+            return null;
+        var segment = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        return segment is not null && IsIdentifier(segment) ? segment : null;
     }
 }
