@@ -22,6 +22,7 @@ from openconnect_inference import cloud as cloud_module
 from openconnect_inference import engine_mode
 from openconnect_inference.engine import FakeInferenceEngine, advertised_capabilities
 from openconnect_inference.cloud_api import cloud_mode_blocks_legacy, router as cloud_inference_router
+from openconnect_inference.extraction_api import ready as extraction_ready, router as extraction_router
 from openconnect_inference.schemas import (
     CapabilityResponse,
     ExecuteRequest,
@@ -40,10 +41,14 @@ from openconnect_inference.schemas import (
 logger = logging.getLogger("openconnect_inference")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Load optional verified extraction assets without provisioning on request paths."""
     from fastapi.concurrency import run_in_threadpool
     from openconnect_inference.cloud_runtime import load_cloud_runtime
+    from openconnect_inference.extraction_runtime import load_runtime
 
     app.state.cloud_inference_runtime = await run_in_threadpool(load_cloud_runtime)
+    if app.state.extraction_runtime is None:
+        app.state.extraction_runtime = await run_in_threadpool(load_runtime)
     try:
         yield
     finally:
@@ -51,9 +56,12 @@ async def lifespan(app: FastAPI):
         app.state.cloud_inference_runtime = None
         if runtime is not None:
             await run_in_threadpool(runtime.close)
+        app.state.extraction_runtime = None
 
 
 app = FastAPI(title="OpenConnect Inference Worker", docs_url=None, redoc_url=None, lifespan=lifespan)
+app.state.extraction_runtime = None
+app.include_router(extraction_router)
 app.include_router(cloud_inference_router)
 settings = Settings.from_environment()
 engine = FakeInferenceEngine()
@@ -89,12 +97,15 @@ def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
 
 
 def _capabilities(cfg: Settings) -> list[str]:
-    return advertised_capabilities(
+    capabilities = advertised_capabilities(
         model_id=cfg.model_id,
         enable_tools=cfg.enable_tools,
         enable_structured_output=cfg.enable_structured_output,
         enable_embeddings=cfg.enable_embeddings,
     )
+    if cfg.worker_token and extraction_ready(app):
+        capabilities.append("documents.extract")
+    return capabilities
 
 
 def _get_task(task_id: str) -> dict[str, Any]:

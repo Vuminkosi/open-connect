@@ -29,6 +29,28 @@ OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.get -> string!
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.ModelId.init -> void
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.get -> string!
 OpenConnect.Knowledge.KnowledgeEmbeddingResult.SpaceId.init -> void
+OpenConnect.Knowledge.KnowledgeImageClient
+OpenConnect.Knowledge.KnowledgeImageClient.Dispose() -> void
+OpenConnect.Knowledge.KnowledgeImageClient.KnowledgeImageClient(OpenConnect.Privacy.IEgressGate! gate, System.Uri! endpoint, string! token, byte[]! key, OpenConnect.Knowledge.VisionEmbeddingClient! vision, System.Func<OpenConnect.Privacy.EgressContext!, OpenConnect.Knowledge.KnowledgeImageSubmission!, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeWrite, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, System.Collections.Generic.IReadOnlyList<string!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeSearch, bool allowInsecureHttp = false) -> void
+OpenConnect.Knowledge.KnowledgeImageClient.SearchAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.KnowledgeImageClient.UpsertAsync(OpenConnect.Privacy.EgressContext! context, OpenConnect.Knowledge.KnowledgeImageSubmission! submission, System.ReadOnlyMemory<byte> image, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Knowledge.KnowledgeImageClient.UpsertObjectAsync(OpenConnect.Privacy.EgressContext! context, OpenConnect.Knowledge.KnowledgeImageSubmission! submission, OpenConnect.Knowledge.KnowledgeImageObjectReference! reference, System.Func<OpenConnect.Privacy.EgressContext!, OpenConnect.Knowledge.KnowledgeImageSubmission!, OpenConnect.Knowledge.KnowledgeImageObjectReference!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeObject, System.Func<string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.IO.Stream!>!>! openVersion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Knowledge.KnowledgeImageObjectReference
+OpenConnect.Knowledge.KnowledgeImageObjectReference.KnowledgeImageObjectReference(string! objectId, string! objectSha256, int objectSize, string! objectVersion) -> void
+OpenConnect.Knowledge.KnowledgeImageObjectReference.ObjectId.get -> string!
+OpenConnect.Knowledge.KnowledgeImageObjectReference.ObjectSha256.get -> string!
+OpenConnect.Knowledge.KnowledgeImageObjectReference.ObjectSize.get -> int
+OpenConnect.Knowledge.KnowledgeImageObjectReference.ObjectVersion.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission
+OpenConnect.Knowledge.KnowledgeImageSubmission.ApplicationId.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission.CollectionId.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission.DocumentId.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission.ExpectedGeneration.get -> long
+OpenConnect.Knowledge.KnowledgeImageSubmission.ExpectedImageRevision.get -> string?
+OpenConnect.Knowledge.KnowledgeImageSubmission.ImageId.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission.ImageRevision.get -> string!
+OpenConnect.Knowledge.KnowledgeImageSubmission.KnowledgeImageSubmission(string! applicationId, string! collectionId, string! documentId, string! sourceRevision, long expectedGeneration, string! imageId, string! imageRevision, string? expectedImageRevision = null) -> void
+OpenConnect.Knowledge.KnowledgeImageSubmission.SourceRevision.get -> string!
 OpenConnect.Knowledge.KnowledgeIndexClient
 OpenConnect.Knowledge.KnowledgeIndexClient.DeleteAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, string! documentId, long expectedGeneration, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, string!, long, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeDelete, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
 OpenConnect.Knowledge.KnowledgeIndexClient.Dispose() -> void
@@ -54,11 +76,29 @@ OpenConnect.Knowledge.KnowledgeIndexSubmission.ObjectVersion.get -> string!
 OpenConnect.Knowledge.KnowledgeIndexSubmission.Principals.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Knowledge.KnowledgeIndexSubmission.Roles.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Knowledge.KnowledgeIndexSubmission.SourceRevision.get -> string!
+OpenConnect.Knowledge.KnowledgeRerankCandidate
+OpenConnect.Knowledge.KnowledgeRerankCandidate.Id.get -> string!
+OpenConnect.Knowledge.KnowledgeRerankCandidate.KnowledgeRerankCandidate(string! id, string! text) -> void
+OpenConnect.Knowledge.KnowledgeRerankCandidate.Text.get -> string!
+OpenConnect.Knowledge.KnowledgeRerankClient
+OpenConnect.Knowledge.KnowledgeRerankClient.Dispose() -> void
+OpenConnect.Knowledge.KnowledgeRerankClient.KnowledgeRerankClient(OpenConnect.Privacy.IEgressGate! gate, System.Uri! endpoint, string! token, byte[]! key, System.Func<OpenConnect.Privacy.EgressContext!, System.Collections.Generic.IReadOnlyList<OpenConnect.Knowledge.KnowledgeRerankCandidate!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, bool allowInsecureHttp = false) -> void
+OpenConnect.Knowledge.KnowledgeRerankClient.RerankAsync(OpenConnect.Privacy.EgressContext! context, string! query, System.Collections.Generic.IReadOnlyList<OpenConnect.Knowledge.KnowledgeRerankCandidate!>! candidates, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
 OpenConnect.Knowledge.KnowledgeSearchClient
 OpenConnect.Knowledge.KnowledgeSearchClient.Dispose() -> void
 OpenConnect.Knowledge.KnowledgeSearchClient.KnowledgeSearchClient(OpenConnect.Privacy.IEgressGate! gate, System.Uri! endpoint, string! token, byte[]! key, System.Func<OpenConnect.Privacy.EgressContext!, string!, string!, System.Collections.Generic.IReadOnlyList<string!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, bool allowInsecureHttp = false) -> void
 OpenConnect.Knowledge.KnowledgeSearchClient.SearchAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
 OpenConnect.Knowledge.KnowledgeSearchClient.SearchHybridAsync(OpenConnect.Privacy.EgressContext! context, string! applicationId, string! collectionId, System.Collections.Generic.IReadOnlyList<string!>! roleIds, string! query, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!>! embedQuery, int limit = 10, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.VisionAnalysisClient
+OpenConnect.Knowledge.VisionAnalysisClient.AnalyzeAsync(OpenConnect.Privacy.EgressContext! context, System.ReadOnlyMemory<byte> image, int topK = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.VisionAnalysisClient.AnalyzeObjectAsync(OpenConnect.Privacy.EgressContext! context, OpenConnect.Knowledge.KnowledgeImageObjectReference! reference, System.Func<OpenConnect.Privacy.EgressContext!, OpenConnect.Knowledge.KnowledgeImageObjectReference!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeObject, System.Func<string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.IO.Stream!>!>! openVersion, int topK = 5, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Text.Json.JsonDocument!>!
+OpenConnect.Knowledge.VisionAnalysisClient.Dispose() -> void
+OpenConnect.Knowledge.VisionAnalysisClient.VisionAnalysisClient(string! socketPath, string! token, byte[]! key, OpenConnect.Privacy.IPrivacyFirewall! firewall, Microsoft.Extensions.Options.IOptions<OpenConnect.Privacy.PrivacyOptions!>! options, System.Func<OpenConnect.Privacy.EgressContext!, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize) -> void
+OpenConnect.Knowledge.VisionEmbeddingClient
+OpenConnect.Knowledge.VisionEmbeddingClient.Dispose() -> void
+OpenConnect.Knowledge.VisionEmbeddingClient.EmbedImageAsync(OpenConnect.Privacy.EgressContext! context, System.ReadOnlyMemory<byte> image, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!
+OpenConnect.Knowledge.VisionEmbeddingClient.EmbedTextAsync(OpenConnect.Privacy.EgressContext! context, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Knowledge.KnowledgeEmbeddingResult!>!
+OpenConnect.Knowledge.VisionEmbeddingClient.VisionEmbeddingClient(string! socketPath, string! token, byte[]! key, OpenConnect.Privacy.IEgressGate! textGate, OpenConnect.Privacy.IPrivacyFirewall! firewall, Microsoft.Extensions.Options.IOptions<OpenConnect.Privacy.PrivacyOptions!>! options, System.Func<OpenConnect.Privacy.EgressContext!, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeImage, System.Func<OpenConnect.Privacy.EgressContext!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeText) -> void
 override OpenConnect.Knowledge.KnowledgeEmbedding.Equals(object? obj) -> bool
 override OpenConnect.Knowledge.KnowledgeEmbedding.GetHashCode() -> int
 override OpenConnect.Knowledge.KnowledgeEmbedding.ToString() -> string!

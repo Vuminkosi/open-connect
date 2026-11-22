@@ -19,6 +19,8 @@
 !src/OpenConnect.Core/**
 !src/OpenConnect.Documents/
 !src/OpenConnect.Documents/**
+!src/OpenConnect.Analytics/
+!src/OpenConnect.Analytics/**
 !src/OpenConnect.Knowledge/
 !src/OpenConnect.Knowledge/**
 !src/OpenConnect.LiveUI/

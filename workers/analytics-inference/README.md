@@ -22,6 +22,27 @@ caller user's authorization. Requests must expire within five minutes. The
 endpoint is stateless: it does not provide durable idempotency or replay
 protection, and it must not be used as a durable job consumer.
 
+For a Cloud worker deployment, set `OPENCONNECT_CLOUD_CONSUMPTION_ENABLED=true`
+and configure `OPENCONNECT_CLOUD_AUTHORITY_ORIGIN`,
+`OPENCONNECT_CLOUD_AUTHORITY_CA_FILE`, `OPENCONNECT_CLOUD_WORKER_CERT_FILE`, and
+`OPENCONNECT_CLOUD_WORKER_KEY_FILE`. The file paths must be absolute and the
+authority must use HTTPS. The private Cloud endpoint consumes a payload-bound,
+single-use claim before calculation; the ordinary signed endpoint is disabled
+in this mode. Readiness checks the local TLS configuration, not control-plane
+reachability. Deployments must restrict access to the worker endpoint and use a
+mutual-TLS proxy with deployment-specific credentials.
+
+The Cloud gateway has a versioned analytics request contract and a payload
+adapter that derives the worker tenant ID from the authenticated Cloud tenant.
+The public Cloud execution route is opt-in and requires the authority,
+deployment, worker TLS, privacy, claim and request-quota settings. Cloud
+responses include the worker-measured elapsed calculation time, rounded up to
+milliseconds; this excludes admission and transport and is not CPU time.
+Completion records that measurement alongside request-count settlement.
+Pricing and compute-duration quotas require separate policy configuration.
+The route requires integration verification in the target deployment before
+it is considered operational.
+
 The `openconnect.v1` request includes `taskId`, `kind` (`analytics.analyze`),
 `tenantId`, timezone-aware `issuedAt` and `expiresAt`, and a `payload` with
 `feature`, `unit`, `lineage`, `values`, and optional `threshold`. A request

@@ -375,3 +375,45 @@ When composer session creation fails, an explicit Retry starts a new session att
 Cloud knowledge settlement requires a consumed claim and matching allowed request and response privacy evidence. It records input character usage and finalizes quota atomically and idempotently.
 
 Expired unclaimed knowledge and analytics requests and expired unconsumed claims release reserved quota once. Database abandonment fencing rejects late worker consumption after recovery.
+
+The knowledge worker accepts Cloud embedding execution only when its model and trusted claim authority are ready. It validates and consumes the exact claim-bound payload once before starting inference, and rejects ambiguous or expired requests.
+
+The documentation assistant diagnostic handler records gateway failure categories and HTTP status codes without logging request content, credentials, visitor identifiers or exception messages.
+
+Cloud analytics defines separate versioned contracts for public requests, public responses and worker responses. Tenant identity comes from the authenticated context rather than the public request.
+
+The Cloud analytics boundary rejects ambiguous or unbounded input, binds worker payloads to authenticated tenant context, and validates returned statistics against the admitted input before a result can be released.
+
+Cloud analytics transport uses deployment-authenticated TLS and bounded responses. Reservations are bound to the admitted request; worker claims and repeated access checks are required before a result is released.
+
+Analytics execution remains opt-in and returns results only after request and response privacy checks, worker claim consumption, access rechecks and confirmed usage settlement. Response bytes are snapshotted across asynchronous checks and cleared after use.
+
+The analytics worker validates canonical tenant scope and the exact payload before consuming a one-use Cloud claim. Invalid, expired, replayed or ambiguous claims never start inference.
+
+When Cloud claim consumption is enabled, the analytics worker disables its unclaimed execution endpoint. Its Cloud endpoint reports measured compute time and retains its execution slot until the calculation thread actually finishes.
+
+Analytics privacy evaluation uses the shared JSON privacy boundary for request and response content and denies processing when the detector is unavailable.
+
+Analytics usage settlement atomically records append-only compute evidence and finalizes its request reservation. Database guards require a matching consumed completion and current allowed request and response privacy evidence for the same tenant and application.
+
+Analytics control-plane operations require a trusted gateway certificate and an authorized application credential; reservations, privacy decisions, deployment selection and completion are bound to that authenticated scope.
+
+Analytics claim admission and worker consumption recheck the tenant, selected deployment and latest request privacy evidence. Each claim is consumed at most once using a deployment-bound worker payload proof.
+
+The Cloud host registers analytics services when its control-plane database is configured and maps gateway and worker endpoints only when their respective certificate trust is configured.
+
+The optional analytics Cloud Compose profile keeps the worker private behind a mutual-TLS proxy. Certificate and token material is supplied through deployment-owned mounts rather than source files.
+
+Application hosts can use the analytics client to authorize and privacy-check worker input, sign requests and validate worker output before exposing results. The client requires an explicit protected-network opt-in for HTTP.
+
+The documentation analytics example uses a fixed synthetic dataset, anonymous visitor scope, bounded concurrency and the application SDK. It is opt-in in development and keeps worker credentials in protected configuration.
+
+Analytics privacy and compute reports require the appropriate tenant membership role. Reading reports creates an audit event but does not reserve or consume tenant API quota.
+
+The Cloud usage page presents settled analytics calculation time separately from request counts and identifies it as elapsed time rather than a price or invoice.
+
+The Cloud security page presents analytics privacy decisions separately from classification and host reports and clears displayed evidence when the authenticated identity changes.
+
+Document analysis, inference extraction and knowledge indexing run as separately configured workers with application-owned authorization and privacy enforcement. Knowledge indexing uses fenced jobs, an outbox and expiring tenant-scoped records; the optional Cloud and sample integrations require explicit deployment configuration.
+
+Translation execution claims bind a request to its authorized deployment and worker payload. Cloud privacy reporting distinguishes recorded observations from host evidence, and dashboard reads do not themselves consume API quota.

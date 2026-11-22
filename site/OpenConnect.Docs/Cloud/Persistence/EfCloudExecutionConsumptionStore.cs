@@ -55,6 +55,10 @@ public sealed class EfCloudExecutionConsumptionStore(IDbContextFactory<CloudCont
             reservation is null || reservation.TenantId != claim.TenantId || reservation.ApplicationId != claim.ApplicationId || reservation.FinalizedAt is not null || reservation.ExpiresAt <= now ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId && x.ApplicationId == reservation.ApplicationId && x.CapabilityId == capabilityId && x.Unit == "request", cancellationToken))
             return "unavailable";
+        if (capabilityId == "analytics.analyze" && (reservation.RequestFingerprint is not { Length: 32 } ||
+            !CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) ||
+            !await EfCloudAnalyticsPrivacyAdmission.IsAllowedAsync(db, claim.TenantId, claim.ApplicationId,
+                reservation.RequestId, reservation.FingerprintKeyId!, reservation.RequestFingerprint, cancellationToken))) return "unavailable";
         if (capabilityId == "knowledge.embed" && (reservation.RequestFingerprint is not { Length: 32 } ||
             !CloudRequestFingerprint.IsValidKeyId(reservation.FingerprintKeyId) ||
             !await EfCloudKnowledgeEmbeddingPrivacyAdmission.IsAllowedAsync(db, claim.TenantId, claim.ApplicationId,

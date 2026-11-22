@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.cloud.analytics/v1/cloud-analytics-request-v1.json",
+  "title": "Cloud analytics request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "capability",
+    "expiresAt",
+    "input"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.cloud.analytics/v1"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^(?!00000000-0000-0000-0000-000000000000)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "capability": {
+      "const": "analytics.analyze"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature",
+        "unit",
+        "lineage",
+        "values"
+      ],
+      "properties": {
+        "feature": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "lineage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "values": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -1e+150,
+            "maximum": 1e+150
+          }
+        },
+        "threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "forecast": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "timestamps",
+            "intervalSeconds",
+            "seasonalPeriod",
+            "horizon"
+          ],
+          "properties": {
+            "timestamps": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              }
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31536000
+            },
+            "seasonalPeriod": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "horizon": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "trend": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

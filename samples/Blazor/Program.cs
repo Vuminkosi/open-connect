@@ -16,6 +16,7 @@ using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
+using OpenConnect.Privacy;
 using OpenConnect.Samples.Blazor;
 using OpenConnect.Samples.Blazor.Components;
 using OpenConnect.Samples.Blazor.Models;
@@ -59,6 +60,17 @@ if (sameHostGatewayPlanner && (gatewayOptions.Mode != TodoGatewayMode.SameHostGa
     throw new InvalidOperationException("The same-host gateway planner requires SameHostGateway in Development.");
 builder.Services.AddSingleton(gatewayOptions);
 builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(gatewayOptions));
+if (builder.Configuration.GetValue<bool>("OpenConnect:DocumentDemo:Enabled"))
+{
+    var documentAccess = new TodoDocumentDemoAccess(builder.Environment, gatewayOptions, enabled: true);
+    builder.Services.AddSingleton(documentAccess);
+    builder.Services.AddOpenConnectRulesDetector();
+    builder.Services.EnsureHostPrivacyServices();
+    builder.Services.AddScoped<TodoDocumentDemo>();
+    if (builder.Configuration.GetValue<bool>("OpenConnect:KnowledgeDemo:Enabled"))
+        builder.Services.AddScoped<TodoKnowledgeDemo>();
+    builder.Services.AddCascadingAuthenticationState();
+}
 var localGatewayBearer = gatewayOptions.Mode == TodoGatewayMode.ExternalGateway
     ? builder.Configuration["OpenConnect:Gateway:LocalServiceBearer"]
     : null;
@@ -213,6 +225,12 @@ builder.Services.AddOpenConnect(options =>
     options.Privacy.Enabled = true;
     options.Agents.RegisterLeadAgent = true;
 });
+TodoCloudPrivacyConfiguration.Configure(builder.Services, builder.Configuration);
+if (builder.Configuration.GetValue<bool>("OpenConnect:CapabilityMonitor:Enabled"))
+{
+    var sources = TodoCapabilityMonitorConfiguration.Create(builder.Configuration, builder.Environment, gatewayOptions);
+    builder.Services.AddOpenConnectWorkerCapabilityMonitor(sources);
+}
 
 var sqliteFile = SampleEnvironment.ResolveSqliteFile("OPENCONNECT_BLAZOR_SQLITE_PATH", "blazor-sample.db");
 builder.Services.AddDbContext<BlazorDbContext>(options =>

@@ -1,0 +1,18 @@
+#nullable enable
+OpenConnect.Storage.Minio.ClamAvScanner
+OpenConnect.Storage.Minio.ClamAvScanner.ClamAvScanner(string! socketPath, System.TimeSpan timeout) -> void
+OpenConnect.Storage.Minio.ClamAvScanner.ScanAsync(System.ReadOnlyMemory<byte> content, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Storage.Minio.MinioDocumentDeleter
+OpenConnect.Storage.Minio.MinioDocumentDeleter.DeleteVersionAsync(string! tenantId, string! objectId, string! versionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Storage.Minio.MinioDocumentDeleter.MinioDocumentDeleter(Minio.IMinioClient! client, string! bucket, System.Func<string!, string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeDeletion) -> void
+OpenConnect.Storage.Minio.MinioDocumentReference
+OpenConnect.Storage.Minio.MinioDocumentReference.ObjectId.get -> string!
+OpenConnect.Storage.Minio.MinioDocumentReference.Sha256.get -> string!
+OpenConnect.Storage.Minio.MinioDocumentReference.SizeBytes.get -> int
+OpenConnect.Storage.Minio.MinioDocumentReference.VersionId.get -> string!
+OpenConnect.Storage.Minio.MinioDocumentWriter
+OpenConnect.Storage.Minio.MinioDocumentWriter.MinioDocumentWriter(Minio.IMinioClient! client, string! bucket, OpenConnect.Storage.Minio.ClamAvScanner! scanner, System.Func<string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeRetention) -> void
+OpenConnect.Storage.Minio.MinioDocumentWriter.StoreAsync(string! tenantId, System.ReadOnlyMemory<byte> content, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Storage.Minio.MinioDocumentReference!>!
+OpenConnect.Storage.Minio.MinioVersionedObjectReader
+OpenConnect.Storage.Minio.MinioVersionedObjectReader.MinioVersionedObjectReader(Minio.IMinioClient! client, string! bucket) -> void
+OpenConnect.Storage.Minio.MinioVersionedObjectReader.OpenVersionAsync(string! objectKey, string! version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.IO.Stream!>!

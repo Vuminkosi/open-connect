@@ -33,12 +33,14 @@ public sealed class CloudTranslationPrivacyEndpointTests
         var evidence = new EvidenceStore();
         var quota = new TranslationQuotaStore();
         var deploymentReader = new TranslationDeploymentReader();
+        var claimStore = new TranslationClaimStore();
         using var services = new ServiceCollection().AddSingleton(TimeProvider.System)
             .AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudMachineCapabilityReader>(new CapabilityReader(snapshot)).AddSingleton<CloudMachineAuthorizationService>()
             .AddSingleton(new CloudTranslationPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudTranslationQuotaStore>(quota).AddSingleton<CloudTranslationQuota>()
             .AddSingleton<ICloudTranslationDeploymentReader>(deploymentReader).AddSingleton<CloudTranslationDeploymentMatch>()
+            .AddSingleton<ICloudTranslationClaimStore>(claimStore).AddSingleton<CloudTranslationClaim>()
             .AddSingleton<ICloudTranslationPrivacyEvidenceStore>(evidence).BuildServiceProvider();
         var id = Guid.NewGuid();
         DefaultHttpContext Context(string body)
@@ -98,6 +100,13 @@ public sealed class CloudTranslationPrivacyEndpointTests
         Assert.NotNull((matched as IValueHttpResult)?.Value);
         Assert.Equal(tenant, deploymentReader.TenantId);
         Assert.Equal("fra_Latn", deploymentReader.Last!.TargetLang);
+        var proof = System.Text.Json.JsonSerializer.Serialize(new { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), deployment = System.Text.Json.JsonSerializer.Deserialize<object>(matchBody) });
+        var noClaimCert = Context(proof); noClaimCert.Connection.ClientCertificate = null;
+        Assert.Equal(401, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, noClaimCert, trust, true, default)));
+        Assert.Equal(400, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, Context(proof.Replace("\"deployment\":{", "\"deployment\":{\"deploymentId\":\"" + id + "\",", StringComparison.Ordinal)), trust, true, default)));
+        Assert.Equal(200, Status(await CloudTranslationClaimEndpoints.ClaimAsync(id, Context(proof), trust, true, default)));
+        Assert.Equal((tenant, application, id, "fra_Latn"), claimStore.Last);
     }
 
     private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
@@ -108,6 +117,17 @@ public sealed class CloudTranslationPrivacyEndpointTests
         public CloudTranslationDeploymentMatchRequest? Last { get; private set; }
         public Task<bool> MatchesAsync(Guid tenantId, CloudTranslationDeploymentMatchRequest request, CancellationToken cancellationToken)
         { TenantId = tenantId; Last = request; return Task.FromResult(true); }
+    }
+
+    private sealed class TranslationClaimStore : ICloudTranslationClaimStore
+    {
+        public (Guid, Guid, Guid, string) Last { get; private set; }
+        public Task<CloudExecutionClaimResult> ClaimAsync(CloudCredentialIdentity identity, Guid reservationId, string fingerprintKeyId,
+            byte[] fingerprint, byte[] workerFingerprint, CloudTranslationDeploymentMatchRequest deployment, CancellationToken cancellationToken)
+        {
+            Last = (identity.TenantId, identity.ApplicationId, reservationId, deployment.TargetLang);
+            return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid()));
+        }
     }
 
     private sealed class TranslationQuotaStore : ICloudTranslationQuotaStore

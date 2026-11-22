@@ -581,11 +581,23 @@
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
+      "openconnect.documents": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.hosting.aspnetcore": {
         "type": "Project",
         "dependencies": {
           "OpenConnect.Agents": "[1.0.0, )",
           "OpenConnect.Core": "[1.0.0, )"
+        }
+      },
+      "openconnect.knowledge": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Privacy": "[1.0.0, )"
         }
       },
       "openconnect.liveui": {

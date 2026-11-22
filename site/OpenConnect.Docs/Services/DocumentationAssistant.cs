@@ -11,6 +11,7 @@ using OpenConnect.Docs.Services.Voice;
 using OpenConnect.Docs.Components.AssistantShowcase;
 using OpenConnect.Docs.Services.DocumentDemo;
 using OpenConnect.Docs.Services.KnowledgeDemo;
+using OpenConnect.Docs.Services.AnalyticsDemo;
 
 namespace OpenConnect.Docs.Services;
 
@@ -52,6 +53,9 @@ public static class DocumentationAssistant
                 options.ApiBaseAddress = gateway;
                 options.AllowInsecureHttp = environment.IsDevelopment();
             });
+            services.AddTransient<DocumentationGatewayDiagnosticsHandler>();
+            services.AddHttpClient(nameof(IOpenConnectClient))
+                .AddHttpMessageHandler<DocumentationGatewayDiagnosticsHandler>();
             if (!string.IsNullOrEmpty(credential))
                 services.AddHttpClient(nameof(IOpenConnectClient), client =>
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential));
@@ -103,6 +107,7 @@ public static class DocumentationAssistant
         });
         services.AddDocumentationDocumentDemo(configuration, environment);
         services.AddDocumentationKnowledgeDemo(configuration, environment);
+        services.AddDocumentationAnalyticsDemo(configuration, environment);
         return services;
     }
 

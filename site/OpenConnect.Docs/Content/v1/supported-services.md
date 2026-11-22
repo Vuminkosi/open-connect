@@ -35,6 +35,8 @@ The .NET host remains the security boundary. Authorize each operation for the ac
 
 Start with core and the gateway only when the application needs HTTP access. Add a client in each consuming application. Add persistence and transport for the durability and delivery properties your deployment requires; neither follows automatically from adding the gateway. Deploy only the workers required by the chosen feature, verify their readiness, and test a real request through the host boundary. A source build or a catalog entry alone is not end-to-end evidence.
 
+The interactive analytics example is opt-in for development and uses only the synthetic measurements displayed on this page. It requires a configured documentation visitor identity and a private analytics worker. Set `OpenConnect:AnalyticsDemo:Enabled`, `OpenConnect:AnalyticsDemo:Origin`, `OPENCONNECT_WORKER_TOKEN`, and `OPENCONNECT_WORKER_SIGNING_KEY` through protected configuration. `OpenConnect:AnalyticsDemo:AllowInsecureHttp` is intended only for a protected development network. The example uses `OpenConnect.Analytics` to authorize the visitor, apply the privacy firewall, and validate the response.
+
 ## Related links
 
 - [Examples and sample projects](/docs/v1/examples)

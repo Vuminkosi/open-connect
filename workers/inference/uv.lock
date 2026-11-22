@@ -467,12 +467,16 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "openconnect-worker-common" },
     { name = "pydantic" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
 cloud-inference = [
+    { name = "llama-cpp-python" },
+]
+extraction = [
     { name = "llama-cpp-python" },
 ]
 
@@ -488,14 +492,34 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = "==0.115.12" },
     { name = "llama-cpp-python", marker = "extra == 'cloud-inference'", specifier = "==0.3.36" },
+    { name = "llama-cpp-python", marker = "extra == 'extraction'", specifier = "==0.3.36" },
+    { name = "openconnect-worker-common", directory = "../common" },
     { name = "pydantic", specifier = "==2.11.3" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.54.0" },
 ]
-provides-extras = ["cloud-inference"]
+provides-extras = ["cloud-inference", "extraction"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = "==0.28.1" },
+    { name = "jsonschema", specifier = "==4.23.0" },
+    { name = "pytest", specifier = "==8.3.5" },
+    { name = "ruff", specifier = "==0.11.8" },
+]
+
+[[package]]
+name = "openconnect-worker-common"
+version = "0.1.0"
+source = { directory = "../common" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = "==2.11.3" }]
+
+[package.metadata.requires-dev]
+dev = [
     { name = "jsonschema", specifier = "==4.23.0" },
     { name = "pytest", specifier = "==8.3.5" },
     { name = "ruff", specifier = "==0.11.8" },

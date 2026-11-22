@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "openconnect.cloud.analytics.result/v1",
+  "requestId": "11111111-1111-1111-1111-111111111111",
+  "traceId": "1234567890abcdef1234567890abcdef",
+  "result": {
+    "feature": "weight",
+    "unit": "kg",
+    "lineage": "fixture",
+    "sample_size": 3,
+    "observed_count": 3,
+    "missing_count": 0,
+    "coverage": 1.0,
+    "minimum": 1.0,
+    "maximum": 3.0,
+    "median": 2.0,
+    "median_absolute_deviation": 1.0,
+    "threshold": 3.5,
+    "anomalies": [],
+    "warnings": [
+      "insufficient_baseline"
+    ],
+    "algorithm_version": "robust-mad-v1"
+  },
+  "usage": {
+    "computeMilliseconds": 0
+  }
+}
