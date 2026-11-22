@@ -125,45 +125,34 @@
                                   Class="oc-bubble-textfield"
                                   @onkeydown="HandleKeyDown" />
                     <span class="oc-bubble__field-actions">
-                        @if (IsLoading)
+                        <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
+                                       Color="@(_micOn ? Color.Primary : Color.Default)"
+                                       Size="Size.Small"
+                                       OnClick="ToggleMicrophoneAsync"
+                                       Disabled="@VoiceInputBlocked"
+                                       aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
+                                       title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
+
+                        @if (!string.IsNullOrWhiteSpace(_draft))
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.StopCircle"
-                                           Color="Color.Error"
+                            <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                           Color="Color.Primary"
                                            Size="Size.Small"
-                                           OnClick="StopSending"
-                                           aria-label="Stop reply"
-                                           title="Stop reply" />
+                                           OnClick="SendAsync"
+                                           Disabled="@(!CanSend)"
+                                           aria-label="@($"Send to {AssistantName}")"
+                                           title="Send" />
                         }
                         else
                         {
-                            <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
-                                           Color="@(_micOn ? Color.Primary : Color.Default)"
+                            <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
+                                           Color="@(_micOn || _speechOn ? Color.Primary : Color.Default)"
                                            Size="Size.Small"
-                                           OnClick="ToggleMicrophoneAsync"
+                                           Class="@(_micOn || _speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
+                                           OnClick="ToggleVoiceAsync"
                                            Disabled="@VoiceInputBlocked"
-                                           aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
-                                           title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
-
-                            @if (!string.IsNullOrWhiteSpace(_draft))
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Send"
-                                               Color="Color.Primary"
-                                               Size="Size.Small"
-                                               OnClick="SendAsync"
-                                               Disabled="@(!CanSend)"
-                                               aria-label="@($"Send to {AssistantName}")"
-                                               title="Send" />
-                            }
-                            else
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
-                                               Color="@(_micOn || _speechOn ? Color.Primary : Color.Default)"
-                                               Size="Size.Small"
-                                               Class="@(_micOn || _speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
-                                               OnClick="ToggleVoiceAsync"
-                                               aria-label="Voice input"
-                                               title="Voice input" />
-                            }
+                                           aria-label="Voice input"
+                                           title="Voice input" />
                         }
                     </span>
                 </div>
