@@ -8,6 +8,8 @@ const required = [
   'OC_LOCAL_OIDC_USERNAME', 'OC_LOCAL_OIDC_PASSWORD',
 ];
 
+test.use({ ignoreHTTPSErrors: true });
+
 function loopbackOrigin(value, protocol) {
   const url = new URL(value);
   if (url.protocol !== protocol || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
@@ -44,6 +46,10 @@ test('local portal issues and revokes a credential for a real voice request', as
   try {
     await page.goto(credentialsUrl);
     await page.getByRole('link', { name: 'Sign in with your identity provider' }).click();
+    const identity = new URL(page.url());
+    if (identity.protocol !== 'https:' || !['localhost', '127.0.0.1', '[::1]'].includes(identity.hostname)) {
+      throw new Error('The local acceptance account may only be sent to a loopback HTTPS identity provider.');
+    }
     await page.locator('#username').fill(environment.OC_LOCAL_OIDC_USERNAME);
     await page.locator('#password').fill(environment.OC_LOCAL_OIDC_PASSWORD);
     await page.locator('#kc-login').click();
@@ -73,6 +79,8 @@ test('local portal issues and revokes a credential for a real voice request', as
     expect(result.result.sampleRateHz).toBe(24000);
     const audio = Buffer.from(result.result.audioBase64, 'base64');
     expect(audio.length).toBeGreaterThan(0);
+    expect(audio.length % 2).toBe(0);
+    expect(audio.some(byte => byte !== 0)).toBe(true);
     audio.fill(0);
 
     await revoke();

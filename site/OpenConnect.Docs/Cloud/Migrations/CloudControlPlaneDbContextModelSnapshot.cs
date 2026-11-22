@@ -458,6 +458,9 @@ namespace OpenConnect.Docs.Cloud.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CategoryCounts")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 

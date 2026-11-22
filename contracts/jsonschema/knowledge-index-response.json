@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-response.json",
+  "title": "Knowledge index submission receipt",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index"},
+    "result": {"type": "object", "additionalProperties": false, "required": ["job_id", "created"],
+      "properties": {"job_id": {"type": "string", "format": "uuid"}, "created": {"type": "boolean"}}}
+  }
+}

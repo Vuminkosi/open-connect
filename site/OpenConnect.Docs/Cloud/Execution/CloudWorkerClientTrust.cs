@@ -37,4 +37,6 @@ public sealed class CloudWorkerClientTrust
             if (CryptographicOperations.FixedTimeEquals(pin, hash)) return deploymentId;
         return null;
     }
+
+    internal bool Overlaps(CloudGatewayClientTrust trust) => _bindings.Any(binding => trust.ContainsPin(binding.Pin));
 }

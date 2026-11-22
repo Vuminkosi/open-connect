@@ -32,11 +32,14 @@ public sealed class SameHostGatewayPlannerTests
 
         Assert.Equal("completed", result.Outcome);
         Assert.Equal(1, chat.Calls);
-        var context = Assert.IsType<EgressContext>(gate.Context);
-        Assert.Equal(tenant, context.Tenant);
-        Assert.Equal(principal, context.Principal);
-        Assert.Equal(session.Id, context.Session);
-        Assert.Equal(EgressDestination.ExternalModel, context.Destination);
+        Assert.Contains(gate.Contexts, context => context.Destination == EgressDestination.ExternalModel);
+        Assert.Contains(gate.Contexts, context => context.Destination == EgressDestination.Output);
+        Assert.All(gate.Contexts, context =>
+        {
+            Assert.Equal(tenant, context.Tenant);
+            Assert.Equal(principal, context.Principal);
+            Assert.Equal(session.Id, context.Session);
+        });
     }
 
     [Fact]
@@ -116,9 +119,11 @@ public sealed class SameHostGatewayPlannerTests
     private sealed class CapturingGate : IEgressGate
     {
         public EgressContext? Context { get; private set; }
+        public List<EgressContext> Contexts { get; } = [];
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
             Context = context;
+            Contexts.Add(context);
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }

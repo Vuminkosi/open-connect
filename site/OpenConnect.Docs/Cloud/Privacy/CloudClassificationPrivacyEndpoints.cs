@@ -47,12 +47,13 @@ public static class CloudClassificationPrivacyEndpoints
                 var text = new UTF8Encoding(false, true).GetString(buffer, 0, length);
                 if (string.IsNullOrEmpty(text) || text.EnumerateRunes().Count() > 20000) return Results.BadRequest();
                 var privacy = context.RequestServices.GetRequiredService<CloudClassificationPrivacyService>();
-                var result = await privacy.EvaluateAsync(decision.Identity, requestId, text, cancellationToken);
+                var assessment = await privacy.EvaluateWithEvidenceAsync(decision.Identity, requestId, text, cancellationToken);
+                var result = assessment.Decision;
                 var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
                 try
                 {
                     var evidence = context.RequestServices.GetRequiredService<ICloudPrivacyEvidenceStore>();
-                    await evidence.AppendAsync(decision.Identity, requestId, result.Code, traceId, cancellationToken);
+                    await evidence.AppendAsync(decision.Identity, requestId, result.Code, traceId, assessment.Categories, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch { return Results.StatusCode(503); }

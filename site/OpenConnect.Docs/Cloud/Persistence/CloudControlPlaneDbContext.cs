@@ -142,6 +142,7 @@ public sealed class CloudControlPlaneDbContext(DbContextOptions<CloudControlPlan
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
             entity.Property(x => x.TraceId).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CategoryCounts).HasColumnType("jsonb");
             entity.HasIndex(x => new { x.TenantId, x.ApplicationId, x.OccurredAt });
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt, x.Id });
             entity.HasOne<CloudApplication>().WithMany().HasPrincipalKey(x => new { x.TenantId, x.Id })

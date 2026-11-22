@@ -1,0 +1,110 @@
+@page "/cloud/tenants/{TenantId:guid}/security/host-reports"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@implements IDisposable
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantHostPrivacyReports> Logger
+
+<PageTitle>Host privacy reports | OpenConnect Cloud</PageTitle>
+<h1>Host privacy reports</h1>
+<p>These reports describe host firewall decisions. Additional checks may apply, and category counts may be incomplete. Cloud classification date filters do not apply.</p>
+@if (_loading) { <p role="status">Loading host reports?</p> }
+else if (_status is not null) { <p role="status">@_status</p> }
+else if (_page is not null)
+{
+    @if (_page.Statistics is { } totals)
+    {
+        <h2>Recorded decisions</h2>
+        <dl><dt>Allowed</dt><dd>@totals.Allowed</dd><dt>Blocked</dt><dd>@totals.Blocked</dd></dl>
+    }
+    @if (_page.Observations.Count == 0) { <p>No host privacy reports were found.</p> }
+    @foreach (var report in _page.Observations)
+    {
+        <article class="security-observation">
+            <h2>@(report.Allowed ? "Host firewall allowed" : "Host firewall blocked")</h2>
+            <dl>
+                <dt>Received at (UTC)</dt><dd>@report.ReceivedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                <dt>Application ID</dt><dd><code>@report.ApplicationId</code></dd>
+                <dt>Destination</dt><dd>@report.Destination</dd>
+                <dt>Policy action</dt><dd>@report.Action</dd>
+                <dt>Reason</dt><dd>@CloudHostPrivacyReasonLabels.Describe(report.ReasonCode)</dd>
+                <dt>Detected categories</dt><dd>@if (report.Categories.Count == 0) { <span>None recorded.</span> } else { <ul>@foreach (var category in report.Categories) { <li>@category.Category: @category.Count</li> }</ul> }</dd>
+            </dl>
+            <a href="@($"/cloud/tenants/{TenantId}/security/host-cases/{report.EventId}")">Review host case evidence</a>
+        </article>
+    }
+    <nav aria-label="Host privacy report pages">
+        <button type="button" class="button" disabled="@(_loading || _index == 0)" @onclick="PreviousAsync">Previous</button>
+        <button type="button" class="button" disabled="@(_loading || _page.Next is null)" @onclick="NextAsync">Next</button>
+    </nav>
+}
+<p><a href="@($"/cloud/tenants/{TenantId}/security")">Back to security observations</a></p>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    private readonly List<CloudPrivacyObservationCursor?> _history = [null];
+    private CloudHostPrivacyObservationPage? _page;
+    private int _index, _generation;
+    private bool _loading = true, _disposed;
+    private string? _status;
+
+    protected override void OnInitialized() => AuthenticationStateProvider.AuthenticationStateChanged += IdentityChanged;
+    protected override Task OnParametersSetAsync()
+    {
+        _history.Clear(); _history.Add(null); _index = 0;
+        return LoadAsync(null, 0);
+    }
+    private void IdentityChanged(Task<AuthenticationState> stateTask) => _ = InvokeAsync(() =>
+    {
+        if (_disposed) return;
+        ++_generation; _page = null; _loading = false;
+        _status = "Your identity changed. Reopen this page to check access.";
+        StateHasChanged();
+    });
+    private Task PreviousAsync() => _index > 0 ? LoadAsync(_history[_index - 1], _index - 1) : Task.CompletedTask;
+    private Task NextAsync()
+    {
+        if (_page?.Next is not { } next) return Task.CompletedTask;
+        if (_history.Count > _index + 1) _history.RemoveRange(_index + 1, _history.Count - _index - 1);
+        _history.Add(next);
+        return LoadAsync(next, _index + 1);
+    }
+    private async Task LoadAsync(CloudPrivacyObservationCursor? cursor, int index)
+    {
+        var generation = ++_generation; var tenantId = TenantId;
+        _loading = true; _status = null; _page = null;
+        try
+        {
+            var reader = Services.GetService(typeof(ICloudHostPrivacyObservationReader)) as ICloudHostPrivacyObservationReader;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var subject = CloudIdentity.IsEnabled(authentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
+            var page = reader is not null && subject is not null
+                ? await reader.GetTenantAsync(subject, tenantId, cursor, 20, CancellationToken.None) : null;
+            var current = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation || _disposed) return;
+            var currentSubject = CloudIdentity.IsEnabled(current.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(current.User, identity["Authority"]) : null;
+            if (subject is null || currentSubject != subject) page = null;
+            _page = page; _index = index;
+            if (page is null) _status = "Reports were not found or your role does not allow security access.";
+        }
+        catch (Exception)
+        {
+            if (generation != _generation || _disposed) return;
+            Logger.LogWarning("Host privacy report lookup failed.");
+            _status = "Host privacy reports are temporarily unavailable.";
+        }
+        finally { if (generation == _generation && !_disposed) _loading = false; }
+    }
+    public void Dispose()
+    {
+        _disposed = true; ++_generation;
+        AuthenticationStateProvider.AuthenticationStateChanged -= IdentityChanged;
+    }
+}

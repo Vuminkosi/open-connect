@@ -20,7 +20,7 @@ public sealed class FirewallGuardedDiWiringTests
         EgressDestination.ExternalModel);
 
     [Fact]
-    public async Task Resolved_client_is_decorated_and_evaluates_gate_once_per_turn()
+    public async Task Resolved_client_is_decorated_and_evaluates_request_and_response()
     {
         var inner = new CountingChatClient();
         var gate = new CountingGate(static content => Allow(content));
@@ -33,7 +33,7 @@ public sealed class FirewallGuardedDiWiringTests
         var response = await resolved.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")]);
 
         Assert.Equal("hello", response.Text);
-        Assert.Equal(1, gate.Evaluations);
+        Assert.Equal(2, gate.Evaluations);
         Assert.Equal(1, inner.Calls);
     }
 
@@ -57,7 +57,7 @@ public sealed class FirewallGuardedDiWiringTests
 
         await first.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")]);
 
-        Assert.Equal(1, gate.Evaluations);
+        Assert.Equal(2, gate.Evaluations);
         Assert.Equal(1, inner.Calls);
     }
 

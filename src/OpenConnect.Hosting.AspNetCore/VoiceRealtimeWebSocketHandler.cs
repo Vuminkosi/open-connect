@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -17,7 +16,6 @@ internal static class VoiceRealtimeWebSocketHandler
 {
     private const int MaxFrameBytes = 96 * 1024;
     private const long MaxPcmBytes = 32 * 1024 * 1024;
-    private static readonly ConcurrentDictionary<string, byte> CommittedTurns = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static async Task HandleAsync(HttpContext context, string sessionId, CancellationToken cancellationToken)
@@ -42,17 +40,17 @@ internal static class VoiceRealtimeWebSocketHandler
         var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
         var workerToken = configuration["OPENCONNECT_WORKER_TOKEN"];
         var workerEndpoint = configuration["Workers:Transcription:Endpoint"];
-        if (string.IsNullOrWhiteSpace(workerToken) || !Uri.TryCreate(workerEndpoint, UriKind.Absolute, out var endpoint))
+        if (string.IsNullOrWhiteSpace(workerToken) || !TryCreateWorkerUri(workerEndpoint,
+                configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly"), out var realtimeUri))
         {
             await CloseAsync(browser, WebSocketCloseStatus.PolicyViolation, "voice_unavailable", cancellationToken).ConfigureAwait(false);
             return;
         }
 
         upstream.Options.SetRequestHeader("Authorization", $"Bearer {workerToken}");
-        var realtimeUri = new UriBuilder(endpoint) { Scheme = endpoint.Scheme == "https" ? "wss" : "ws", Path = "/internal/v1/realtime", Query = string.Empty }.Uri;
         try
         {
-            await upstream.ConnectAsync(realtimeUri, cancellationToken).ConfigureAwait(false);
+            await upstream.ConnectAsync(realtimeUri!, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -61,7 +59,7 @@ internal static class VoiceRealtimeWebSocketHandler
         }
 
         var handshake = await ReceiveTextAsync(browser, cancellationToken).ConfigureAwait(false);
-        if (handshake is null || !TryValidateHandshake(handshake, sessionId, out var captureId, out var speechEpoch))
+        if (handshake is null || !TryValidateHandshake(handshake, sessionId, out var captureId, out var speechEpoch, out var connectionId))
         {
             await CloseAsync(browser, WebSocketCloseStatus.InvalidPayloadData, "invalid_handshake", cancellationToken).ConfigureAwait(false);
             return;
@@ -83,7 +81,7 @@ internal static class VoiceRealtimeWebSocketHandler
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("OpenConnect.VoiceRealtime");
         var relayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
         var browserToWorker = RelayBrowserToWorkerAsync(browser, upstream, captureId, speechEpoch, relayCancellation.Token);
-        var workerToBrowser = RelayWorkerToBrowserAsync(upstream, browser, context, sessionId, captureId, speechEpoch, tenant, principal, relayCancellation.Token, logger);
+        var workerToBrowser = RelayWorkerToBrowserAsync(upstream, browser, context, sessionId, captureId, speechEpoch, tenant, principal, relayCancellation.Token, logger, connectionId);
         await Task.WhenAny(browserToWorker, workerToBrowser).ConfigureAwait(false);
         relayCancellation.Cancel();
         try
@@ -91,6 +89,22 @@ internal static class VoiceRealtimeWebSocketHandler
         catch (OperationCanceledException) when (relayCancellation.IsCancellationRequested) { }
         catch (Exception exception) { logger.LogWarning("Realtime voice relay stopped with {ExceptionType}.", exception.GetType().Name); }
         relayCancellation.Dispose();
+    }
+
+    internal static bool TryCreateWorkerUri(string? value, bool localOnly, out Uri? result)
+    {
+        result = null;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint) ||
+            (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Query) ||
+            !string.IsNullOrEmpty(endpoint.Fragment))
+            return false;
+        result = new UriBuilder(endpoint)
+        {
+            Scheme = endpoint.Scheme == "https" ? "wss" : "ws",
+            Path = localOnly ? "/internal/v1/realtime/local" : "/internal/v1/realtime"
+        }.Uri;
+        return true;
     }
 
     private static async Task RelayBrowserToWorkerAsync(WebSocket browser, WebSocket worker, string captureId, long speechEpoch, CancellationToken token)
@@ -117,12 +131,13 @@ internal static class VoiceRealtimeWebSocketHandler
         }
     }
 
-    private static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token, ILogger logger)
+    internal static async Task RelayWorkerToBrowserAsync(WebSocket worker, WebSocket browser, HttpContext context, string sessionId, string captureId, long speechEpoch, Ulid tenant, Ulid principal, CancellationToken token, ILogger logger, string? connectionId = null)
     {
         var buffer = new byte[MaxFrameBytes];
         string? bestFinalTranscript = null;
         string? accumulatedFinalTranscript = null;
-        string? longestProviderTranscript = null;
+        var admitted = false;
+        var providerFailed = false;
         try
         {
             while (worker.State == WebSocketState.Open && browser.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -139,19 +154,12 @@ internal static class VoiceRealtimeWebSocketHandler
                 using var document = JsonDocument.Parse(provider);
                 var root = document.RootElement;
                 var type = root.TryGetProperty("type", out var typeValue) ? typeValue.GetString() : null;
-                logger.LogInformation("Realtime transcription event type {EventType}.", type ?? "unknown");
-                if (string.Equals(type, "error", StringComparison.OrdinalIgnoreCase))
-                {
-                    var errorCode = root.TryGetProperty("code", out var codeValue) ? codeValue.GetString() : null;
-                    var errorDetail = root.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : root.TryGetProperty("error", out var errorValue) && errorValue.ValueKind == JsonValueKind.String ? errorValue.GetString() : null;
-                    logger.LogWarning("Realtime transcription provider error code {ErrorCode} detail {ErrorDetail}.", errorCode ?? "unspecified", string.IsNullOrWhiteSpace(errorDetail) ? "unspecified" : errorDetail[..Math.Min(errorDetail.Length, 120)]);
-                }
+                LogProviderEvent(logger, type);
                 var text = root.TryGetProperty("text", out var textValue) ? textValue.GetString() : root.TryGetProperty("transcript", out var transcript) ? transcript.GetString() : null;
                 var isFinal = root.TryGetProperty("final", out var finalValue) && finalValue.ValueKind == JsonValueKind.True;
-                if (!string.IsNullOrWhiteSpace(text) && text.Trim().Length > (longestProviderTranscript?.Length ?? 0))
-                    longestProviderTranscript = text.Trim();
                 var speechComplete = string.Equals(type, "speechComplete", StringComparison.OrdinalIgnoreCase);
                 var providerError = string.Equals(type, "error", StringComparison.OrdinalIgnoreCase);
+                providerFailed |= providerError;
                 if (speechComplete && !string.IsNullOrWhiteSpace(text))
                     isFinal = true;
                 if (string.IsNullOrWhiteSpace(text) && !speechComplete && !providerError)
@@ -160,15 +168,21 @@ internal static class VoiceRealtimeWebSocketHandler
                 var outgoingText = providerError ? "Voice transcription provider unavailable." : text?.Trim() ?? string.Empty;
                 if (isFinal && !string.IsNullOrWhiteSpace(text))
                 {
-                    var finalSegment = longestProviderTranscript is not null && longestProviderTranscript.Length > text.Trim().Length
-                        ? longestProviderTranscript
-                        : text.Trim();
-                    accumulatedFinalTranscript = MergeTranscriptSegment(accumulatedFinalTranscript, finalSegment);
+                    accumulatedFinalTranscript = MergeTranscriptSegment(accumulatedFinalTranscript, text.Trim());
                     outgoingText = accumulatedFinalTranscript;
                     if (outgoingText.Length > (bestFinalTranscript?.Length ?? 0))
                         bestFinalTranscript = outgoingText;
-                    if (LooksLikeCompleteTodoTranscript(outgoingText))
-                        await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, outgoingText, tenant, principal, CancellationToken.None).ConfigureAwait(false);
+                }
+
+                if (!providerFailed && !admitted && speechComplete && !string.IsNullOrWhiteSpace(bestFinalTranscript))
+                    admitted = await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch,
+                        bestFinalTranscript, tenant, principal, token, connectionId).ConfigureAwait(false);
+
+                if (speechComplete && !string.IsNullOrWhiteSpace(bestFinalTranscript) && !admitted)
+                {
+                    providerFailed = true;
+                    await SendJsonAsync(browser, new { type = "error", captureId, speechEpoch, text = "Voice task could not be submitted.", authoritative = false }, token).ConfigureAwait(false);
+                    break;
                 }
 
                 var outgoingType = providerError ? "error" : isFinal ? "transcript-final" : speechComplete ? "speech-complete" : "transcript-partial";
@@ -181,23 +195,35 @@ internal static class VoiceRealtimeWebSocketHandler
             // the socket immediately after its final event.
         }
 
-        if (!string.IsNullOrWhiteSpace(bestFinalTranscript))
-            await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, CancellationToken.None).ConfigureAwait(false);
+        if (!providerFailed && !token.IsCancellationRequested && !admitted && !string.IsNullOrWhiteSpace(bestFinalTranscript))
+            await AdmitFinalTranscriptAsync(context, sessionId, captureId, speechEpoch, bestFinalTranscript, tenant, principal, token, connectionId).ConfigureAwait(false);
     }
 
-    private static async Task AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, CancellationToken token)
+    internal static void LogProviderEvent(ILogger logger, string? type)
     {
-        var key = $"{tenant}:{principal}:{sessionId}:{captureId}:{speechEpoch}";
-        if (!CommittedTurns.TryAdd(key, 0))
-            return;
+        if (string.Equals(type, "error", StringComparison.OrdinalIgnoreCase))
+            logger.LogWarning("Realtime transcription provider reported an error.");
+        else
+            logger.LogInformation("Realtime transcription event type {EventType}.",
+                string.Equals(type, "speechComplete", StringComparison.OrdinalIgnoreCase) ? "speechComplete" : "other");
+    }
+
+    private static async Task<bool> AdmitFinalTranscriptAsync(HttpContext context, string sessionId, string captureId, long speechEpoch, string transcript, Ulid tenant, Ulid principal, CancellationToken token, string? connectionId)
+    {
         var dispatcher = context.RequestServices.GetService<IHostTaskExecutionDispatcher>();
         if (dispatcher is null || context.RequestServices.GetService<IHostTaskExecutionAuthorizer>() is null || context.RequestServices.GetService<IHostTaskExecutor>() is null)
-            return;
+            return false;
+        var origin = connectionId is null ? HostTaskOrigin.NonInteractive : HostTaskOrigin.MiniComposer;
+        using var presence = connectionId is null ? null :
+            context.RequestServices.GetService<InMemorySessionStore>()?.TryClaimSoleConnection(new SessionId(Ulid.Parse(sessionId)));
+        if (connectionId is not null && (presence is null || !string.Equals(presence.ConnectionId, connectionId, StringComparison.Ordinal)))
+            return false;
         var idempotency = $"voice:{captureId}:{speechEpoch}";
-        var taskMessage = NormalizeTodoTranscript(transcript);
-        var request = new TaskRequest(Guid.NewGuid().ToString("N"), taskMessage, sessionId);
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{request.ClientTaskId}\n{taskMessage}\n{sessionId}")));
-        await dispatcher.AcceptAsync(request, idempotency, fingerprint, new TenantId(tenant), new PrincipalId(principal), token).ConfigureAwait(false);
+        var request = new TaskRequest(idempotency, transcript, sessionId) { BoundConnectionId = presence?.ConnectionId };
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{(int)origin}\n{request.ClientTaskId}\n{transcript}\n{sessionId}")));
+        var result = await dispatcher.AcceptAsync(request, idempotency, fingerprint,
+            new TenantId(tenant), new PrincipalId(principal), token, origin).ConfigureAwait(false);
+        return result.Status == ExecutionAdmissionStatus.Accepted;
     }
 
     private static string MergeTranscriptSegment(string? accumulated, string segment)
@@ -211,39 +237,29 @@ internal static class VoiceRealtimeWebSocketHandler
         return $"{accumulated} {segment}";
     }
 
-    private static bool LooksLikeCompleteTodoTranscript(string transcript)
-    {
-        var value = transcript.ToLowerInvariant();
-        return value.Contains("tomorrow", StringComparison.Ordinal)
-            && value.Contains("weighbridge", StringComparison.Ordinal)
-            && (value.Contains("todo", StringComparison.Ordinal) || value.Contains("create", StringComparison.Ordinal) || value.Contains("check", StringComparison.Ordinal));
-    }
-
-    private static string NormalizeTodoTranscript(string transcript)
-    {
-        return transcript
-            .Replace("toto", "Todo", StringComparison.OrdinalIgnoreCase)
-            .Replace("waybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
-            .Replace("weybridge", "weighbridge", StringComparison.OrdinalIgnoreCase)
-            .Replace("weigh bridge", "weighbridge", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryValidateHandshake(string json, string expectedSession, out string captureId, out long speechEpoch)
+    internal static bool TryValidateHandshake(string json, string expectedSession, out string captureId, out long speechEpoch, out string? connectionId)
     {
         captureId = string.Empty;
         speechEpoch = 0;
+        connectionId = null;
         try
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            if (!root.TryGetProperty("sessionId", out var session) || !string.Equals(session.GetString(), expectedSession, StringComparison.Ordinal) ||
-                !root.TryGetProperty("captureId", out var capture) || !Guid.TryParse(capture.GetString(), out _) ||
-                !root.TryGetProperty("speechEpoch", out var epoch) || !epoch.TryGetInt64(out speechEpoch) || speechEpoch <= 0 ||
-                !root.TryGetProperty("sampleRate", out var rate) || rate.GetInt32() != 24_000 ||
-                !root.TryGetProperty("channels", out var channels) || channels.GetInt32() != 1 ||
-                !root.TryGetProperty("bitsPerSample", out var bits) || bits.GetInt32() != 16)
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("sessionId", out var session) || session.ValueKind != JsonValueKind.String || !string.Equals(session.GetString(), expectedSession, StringComparison.Ordinal) ||
+                !root.TryGetProperty("captureId", out var capture) || capture.ValueKind != JsonValueKind.String || !Guid.TryParse(capture.GetString(), out _) ||
+                !root.TryGetProperty("speechEpoch", out var epoch) || epoch.ValueKind != JsonValueKind.Number || !epoch.TryGetInt64(out speechEpoch) || speechEpoch <= 0 ||
+                !root.TryGetProperty("sampleRate", out var rate) || rate.ValueKind != JsonValueKind.Number || !rate.TryGetInt32(out var sampleRate) || sampleRate != 24_000 ||
+                !root.TryGetProperty("channels", out var channels) || channels.ValueKind != JsonValueKind.Number || !channels.TryGetInt32(out var channelCount) || channelCount != 1 ||
+                !root.TryGetProperty("bitsPerSample", out var bits) || bits.ValueKind != JsonValueKind.Number || !bits.TryGetInt32(out var bitsPerSample) || bitsPerSample != 16)
                 return false;
             captureId = capture.GetString()!;
+            if (root.TryGetProperty("clientConnectionId", out var connection) && connection.ValueKind != JsonValueKind.Null)
+            {
+                if (connection.ValueKind != JsonValueKind.String || !UlidTryParse(connection.GetString(), out _)) return false;
+                connectionId = connection.GetString();
+            }
             return true;
         }
         catch (JsonException) { return false; }
@@ -280,7 +296,12 @@ internal static class VoiceRealtimeWebSocketHandler
     }
 
     private static Task SendJsonAsync(WebSocket socket, object value, CancellationToken token) => socket.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, JsonOptions)), WebSocketMessageType.Text, true, token);
-    private static Task CloseAsync(WebSocket socket, WebSocketCloseStatus status, string reason, CancellationToken token) => socket.CloseAsync(status, reason, token);
+    internal static async Task CloseAsync(WebSocket socket, WebSocketCloseStatus status, string reason, CancellationToken token)
+    {
+        try { await socket.CloseAsync(status, reason, token).ConfigureAwait(false); }
+        catch (WebSocketException) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
     private static bool TryIdentity(HttpContext context, out Ulid tenant, out Ulid principal)
     {
         tenant = default;

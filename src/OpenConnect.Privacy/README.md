@@ -33,6 +33,63 @@ EgressDecision decision = await firewall.EvaluateAsync(
 scoped by `EgressContext` (`:64`). Deny-by-default: disabled detectors fail closed on
 external egress.
 
+## Host evidence reporting
+
+Host reporting is opt-in. Configure a dedicated client certificate and active
+Cloud application credential from a secret store, then register the sink and
+recording firewall before resolving the host gate:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using OpenConnect.Privacy;
+using OpenConnect.Privacy.Policy;
+
+// cloudAuthority, clientCertificate and applicationCredential come from the host's secure configuration.
+services.AddOpenConnectRulesDetector();
+services.EnsureHostPrivacyServices();
+services.AddSingleton<IHostPrivacyEvidenceSink>(_ =>
+    new CloudPrivacyEvidenceSink(cloudAuthority, clientCertificate, applicationCredential));
+services.AddRecordedPrivacyFirewall(provider => new PrivacyFirewall(
+    provider.GetRequiredService<IOptions<PrivacyOptions>>(),
+    provider.GetRequiredService<PolicyEngine>()));
+```
+
+The Cloud service must enable `OpenConnect:Cloud:HostPrivacyTrust:Enabled` and
+configure `OpenConnect:Cloud:HostPrivacyTrust:ClientCertificateSha256` with the
+dedicated certificate's SHA-256 fingerprint. Startup rejects host-reporting
+pins that overlap gateway or worker client pins. Configure HTTPS, a migrated Cloud database and an
+active application credential for the same tenant. Convert the Cloud tenant
+GUID with `CloudTenantIdentity.ToHostTenantId` when constructing host egress
+contexts; independently assigned host tenant IDs are not accepted by this
+receiver.
+
+Structured-content inspection checks raw JSON, decoded fields, labels paired
+with values, and a bounded concatenation of values to catch some identifiers
+split across fields. The combined check can conservatively block unrelated
+adjacent values that resemble sensitive data. It blocks when its 50,000-fragment
+or 1,000,000-character combined-value limit is exceeded. It does not guarantee
+identification of all sensitive information.
+
+Each reported decision contains an event ID, tenant, destination, allowed state,
+policy action, an allowlisted reason category and category counts, but no source
+content, raw detector message or entity offsets. Existing reports without a
+reason remain marked as not recorded. Counts are detector observations rather than a complete inventory, and
+the recorded decision does not prove a subsequent operation occurred. The
+chat boundary guard records a separate blocked decision when it rejects an
+entity split across messages; its earlier inspection decision may also be
+recorded, so totals count decisions rather than unique requests or values. The
+chat guard also checks combined text and structured tool content across messages
+before dispatch and after receiving a response. This check can conservatively
+block unrelated adjacent values that resemble sensitive data. The
+sink waits for Cloud to acknowledge the exact event before returning; reporting
+failures block the guarded operation. The sink retries transient connection errors
+and selected temporary HTTP failures at most twice with the same event ID, within
+one deadline. It has no local durable outbox. Applications should account for Cloud availability and should not treat
+this opt-in integration as a guarantee of complete PII detection. Deploy the
+updated Cloud receiver and its database migration before enabling a sender that
+includes reason codes; an older receiver rejects the additional field.
+
 ## License
 
 Same terms as the OpenConnect repository.

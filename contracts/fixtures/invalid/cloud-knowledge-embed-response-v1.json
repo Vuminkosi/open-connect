@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "openconnect.cloud.knowledge-embed.result/v1",
+  "requestId": "00000000-0000-0000-0000-000000000000",
+  "traceId": "0123456789abcdef0123456789abcdef",
+  "result": {
+    "model_id": "embedding-model", "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "space_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "dimension": 2,
+    "items": [{"vector": [0.6, 0.8], "truncated": false, "norm": 1}]
+  }
+}

@@ -10,6 +10,7 @@ public sealed class EfCloudWorkerReadinessStore(IDbContextFactory<CloudControlPl
         return await db.Database.CanConnectAsync(cancellationToken) &&
             !(await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any() &&
             await db.WorkerDeployments.AsNoTracking().AnyAsync(x => x.Id == deploymentId && x.Enabled &&
-                (x.CapabilityId == "classification.classify" || x.CapabilityId == "inference.chat" || x.CapabilityId == "inference.liveui"), cancellationToken);
+                (x.CapabilityId == "classification.classify" || x.CapabilityId == "inference.chat" || x.CapabilityId == "inference.liveui" ||
+                 x.CapabilityId == "analytics.analyze" || x.CapabilityId == "knowledge.embed"), cancellationToken);
     }
 }

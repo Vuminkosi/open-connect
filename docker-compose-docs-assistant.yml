@@ -1,0 +1,6 @@
+services:
+  documentation-site:
+    environment:
+      OpenConnect__Assistant__Enabled: ${OC_DOCS_ASSISTANT_ENABLED:-false}
+      OpenConnect__Assistant__GatewayUrl: ${OC_DOCS_ASSISTANT_GATEWAY_URL:-}
+      OpenConnect__Assistant__GatewayBearer: ${OC_DOCS_ASSISTANT_GATEWAY_BEARER:-}

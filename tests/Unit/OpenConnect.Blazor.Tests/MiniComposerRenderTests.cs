@@ -39,6 +39,67 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
     }
 
     [Fact]
+    public void HostCanDisableUnavailableVoiceInputWithoutDisablingText()
+    {
+        var cut = RenderMiniComposer(this, NewSession(), startOpen: true, voiceInputAvailable: false);
+        Assert.NotNull(cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("disabled"));
+        Assert.Contains("Voice input is unavailable", cut.Markup);
+        Assert.NotEmpty(cut.FindAll(".oc-bubble__input-row input, .oc-bubble__input-row textarea"));
+    }
+
+    [Fact]
+    public void VoiceInputIsDisabledWhileHostChecksReadiness()
+    {
+        var cut = RenderMiniComposer(this, NewSession(), startOpen: true, voiceInputChecking: true);
+        Assert.NotNull(cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("disabled"));
+        Assert.Contains("Checking voice input availability", cut.Markup);
+    }
+
+    [Fact]
+    public void HostCanEnableAvailableVoiceInput()
+    {
+        var cut = RenderMiniComposer(this, NewSession(), startOpen: true, voiceInputAvailable: true);
+        Assert.Null(cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("disabled"));
+        Assert.DoesNotContain("Voice input is unavailable", cut.Markup);
+    }
+
+    [Fact]
+    public void LosingVoiceAvailabilityInvalidatesTheActiveSpeechEpoch()
+    {
+        var session = NewSession();
+        var cut = RenderMiniComposer(this, session, startOpen: true, voiceInputAvailable: true);
+        cut.Find("button.oc-speech-item[title='Turn on microphone']").Click();
+        var epoch = session.StartLiveListening(permissionGranted: true);
+        cut.FindComponent<MiniComposer>().Render(parameters => parameters.Add(item => item.VoiceInputAvailable, false));
+        Assert.Equal(ComposerMicrophoneState.Failed, session.MicrophoneState);
+        Assert.False(session.UpdateLiveHypothesis("late transcript", epoch));
+        Assert.NotNull(cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task VoiceFailureTurnsMicrophoneOffAndKeepsTextInputAvailable()
+    {
+        var session = NewSession();
+        var cut = RenderMiniComposer(this, session, startOpen: true);
+        var microphone = cut.Find("button.oc-speech-item[title='Turn on microphone']");
+        Assert.Equal("false", microphone.GetAttribute("aria-pressed"));
+        microphone.Click();
+        Assert.Equal("true", cut.Find("button.oc-speech-item[title='Turn off microphone']").GetAttribute("aria-pressed"));
+        var speechEpoch = session.StartLiveListening(permissionGranted: true);
+        var connection = session.Connection;
+
+        var composer = cut.FindComponent<MiniComposer>();
+        await composer.InvokeAsync(() => composer.Instance.OnVoiceError("Voice transcription is unavailable. Text input remains available."));
+
+        Assert.Equal("false", cut.Find("button.oc-speech-item[title='Turn on microphone']").GetAttribute("aria-pressed"));
+        Assert.Contains("Voice transcription is unavailable", cut.Markup);
+        Assert.NotEmpty(cut.FindAll(".oc-bubble__input-row input, .oc-bubble__input-row textarea"));
+        Assert.Equal(connection, session.Connection);
+        Assert.Equal(ComposerMicrophoneState.Failed, session.MicrophoneState);
+        Assert.False(session.UpdateLiveHypothesis("late transcript", speechEpoch));
+    }
+
+    [Fact]
     public void Closed_renders_fab_only_without_bubble()
     {
         var cut = RenderMiniComposer(this, NewSession());
@@ -207,7 +268,9 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
         ComposerSession session,
         bool startOpen = false,
         ComposerPlacement placement = ComposerPlacement.BottomRight,
-        IReadOnlyList<string>? suggestions = null)
+        IReadOnlyList<string>? suggestions = null,
+        bool? voiceInputAvailable = null,
+        bool voiceInputChecking = false)
     {
         context.JSInterop.SetupVoid("mudPopover.dispose").SetVoidResult();
         context.JSInterop.Setup<int>("mudpopoverHelper.countProviders").SetResult(1);
@@ -221,6 +284,8 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
                 builder.AddAttribute(2, nameof(MiniComposer.StartOpen), startOpen);
                 builder.AddAttribute(3, nameof(MiniComposer.Placement), placement);
                 builder.AddAttribute(4, nameof(MiniComposer.Suggestions), suggestions);
+                builder.AddAttribute(5, nameof(MiniComposer.VoiceInputAvailable), voiceInputAvailable);
+                builder.AddAttribute(6, nameof(MiniComposer.VoiceInputChecking), voiceInputChecking);
                 builder.CloseComponent();
             })));
     }

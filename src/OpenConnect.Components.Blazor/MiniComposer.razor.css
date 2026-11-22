@@ -351,6 +351,10 @@
 }
 
 .oc-speech-item {
+    border: 0 !important;
+    padding: 4px !important;
+    background: transparent !important;
+    font-family: inherit !important;
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
@@ -360,6 +364,14 @@
     cursor: pointer !important;
     user-select: none !important;
 }
+
+.oc-speech-item:focus-visible {
+    outline: 2px solid currentColor !important;
+    outline-offset: 2px !important;
+}
+
+.oc-speech-item:disabled { opacity: .6; cursor: not-allowed !important; }
+.oc-voice-unavailable { margin: 4px 12px; font-size: .8rem; }
 
 .oc-speech-item .mud-icon-root {
     color: #00875a !important;

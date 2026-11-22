@@ -1,6 +1,45 @@
 @rendermode InteractiveServer
-<button class="theme-toggle" type="button" @onclick="Toggle" aria-label="Toggle color theme">@(dark ? "Light mode" : "Dark mode")</button>
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<button class="theme-toggle" type="button" @onclick="ToggleAsync"
+        aria-label="@(_dark ? "Switch to light mode" : "Switch to dark mode")">@(_dark ? "Light mode" : "Dark mode")</button>
+
 @code {
-    private bool dark;
-    private void Toggle() => dark = !dark;
+    private bool _dark;
+    private long _subscription;
+    private DotNetObjectReference<ThemeToggle>? _reference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _reference = DotNetObjectReference.Create(this);
+            var subscription = await JS.InvokeAsync<ThemeSubscription>("ocSiteTheme.subscribe", _reference);
+            _subscription = subscription.Id;
+            _dark = subscription.IsDark;
+            StateHasChanged();
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+    }
+
+    private async Task ToggleAsync()
+    {
+        try { _dark = await JS.InvokeAsync<bool>("ocSiteTheme.toggle"); }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+    }
+
+    [JSInvokable]
+    public Task OnThemeChanged(bool dark) => InvokeAsync(() => { _dark = dark; StateHasChanged(); });
+
+    public async ValueTask DisposeAsync()
+    {
+        try { if (_subscription != 0) await JS.InvokeVoidAsync("ocSiteTheme.unsubscribe", _subscription); }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+        _reference?.Dispose();
+    }
+
+    private sealed record ThemeSubscription(long Id, bool IsDark);
 }

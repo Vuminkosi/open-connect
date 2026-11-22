@@ -23,13 +23,15 @@ public sealed class EfCloudPrivacyObservationReader(IDbContextFactory<CloudContr
         if (before is not null) query = query.Where(x => x.OccurredAt < before.OccurredAt ||
             x.OccurredAt == before.OccurredAt && x.Id.CompareTo(before.Id) < 0);
         var rows = await query.OrderByDescending(x => x.OccurredAt).ThenByDescending(x => x.Id).Take(limit + 1)
-            .Select(x => new CloudPrivacyObservation(x.Id, x.ApplicationId, x.RequestId, x.Outcome, x.TraceId, x.OccurredAt))
+            .Select(x => new { x.Id, x.ApplicationId, x.RequestId, x.Outcome, x.TraceId, x.OccurredAt, x.CategoryCounts })
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
         if (hasMore) rows.RemoveAt(rows.Count - 1);
         var last = rows.LastOrDefault();
         await AuditAsync(db, subject, tenantId, role, "succeeded", cancellationToken);
-        return new(rows, hasMore && last is not null ? new(last.OccurredAt, last.Id) : null);
+        var observations = rows.Select(row => new CloudPrivacyObservation(row.Id, row.ApplicationId, row.RequestId,
+            row.Outcome, row.TraceId, row.OccurredAt) { Categories = CloudPrivacyCategories.Decode(row.CategoryCounts, row.Outcome) }).ToList();
+        return new(observations, hasMore && last is not null ? new(last.OccurredAt, last.Id) : null);
     }
 
     private Task AuditAsync(CloudControlPlaneDbContext db, CloudSubject subject, Guid tenantId, string role, string outcome, CancellationToken cancellationToken)

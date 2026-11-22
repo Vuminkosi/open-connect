@@ -18,7 +18,7 @@ public sealed class EfCloudUnconsumedClaimRecoveryStore(IDbContextFactory<CloudC
               AND r."ExpiresAt" <= clock_timestamp() - interval '5 minutes' AND r."Amount" = 1
               AND c."DeploymentId" IS NOT NULL AND c."Region" IS NOT NULL AND octet_length(c."WorkerPayloadFingerprint") = 32
               AND EXISTS (SELECT 1 FROM cloud.quota_buckets b WHERE b."Id" = r."BucketId" AND b."TenantId" = r."TenantId"
-                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" = 'classification.classify' AND b."Unit" = 'request')
+                  AND b."ApplicationId" = r."ApplicationId" AND b."CapabilityId" IN ('classification.classify', 'analytics.analyze', 'knowledge.embed') AND b."Unit" = 'request')
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_consumptions x WHERE x."ReservationId" = r."Id")
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_completions x WHERE x."ReservationId" = r."Id")
               AND NOT EXISTS (SELECT 1 FROM cloud.execution_abandonments x WHERE x."ReservationId" = r."Id")

@@ -6,8 +6,9 @@ WORKDIR /app/workers/knowledge
 FROM base AS dependencies
 COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
 COPY workers/common/src/ /app/workers/common/src/
+COPY workers/common/verify_install.py /app/workers/common/verify_install.py
 COPY workers/knowledge/pyproject.toml workers/knowledge/uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-cache --no-dev --no-install-project && .venv/bin/python ../common/verify_install.py
 
 FROM base AS runtime
 ENV PATH="/app/workers/knowledge/.venv/bin:$PATH" \
@@ -15,6 +16,7 @@ ENV PATH="/app/workers/knowledge/.venv/bin:$PATH" \
     HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 COPY --from=dependencies /app/workers/knowledge/.venv ./.venv
 COPY workers/knowledge/src/ ./src/
+COPY workers/knowledge/migrations/ ./migrations/
 RUN mkdir -p /models && chown 10001:10001 /models
 USER 10001:10001
 EXPOSE 8080

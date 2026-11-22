@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-index-delete-request.json",
+  "title": "Knowledge index deletion request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"const": "knowledge.index.delete"},
+    "tenantId": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$", "minLength": 26, "maxLength": 26},
+    "issuedAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": false,
+      "required": ["applicationId", "collectionId", "documentId", "expectedGeneration"],
+      "properties": {
+        "applicationId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "collectionId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "documentId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "expectedGeneration": {"type": "integer", "minimum": 0, "exclusiveMaximum": 9223372036854775807}
+      }
+    }
+  }
+}

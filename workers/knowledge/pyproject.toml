@@ -5,10 +5,12 @@ description = "CPU-first knowledge worker for OpenConnect"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi==0.115.12",
+  "minio==7.2.15",
   "numpy==2.2.6",
   "onnx==1.18.0",
   "onnxruntime==1.22.1",
   "openconnect-worker-common",
+  "psycopg[binary]==3.2.10",
   "tokenizers==0.21.1",
   "uvicorn[standard]==0.34.3",
 ]

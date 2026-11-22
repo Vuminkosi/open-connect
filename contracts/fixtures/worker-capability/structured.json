@@ -1,0 +1,1 @@
+{"capabilities":[{"schemaVersion":"openconnect.v1","id":"knowledge.embed","kind":"embedding","state":"ready","version":"1.0.0","localOnly":true},{"schemaVersion":"openconnect.v1","id":"knowledge.index","kind":"tool","state":"ready","version":"1.0.0","localOnly":true}]}

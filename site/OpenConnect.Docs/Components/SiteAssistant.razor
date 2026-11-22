@@ -1,0 +1,105 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using MudBlazor
+@using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Contracts
+@using OpenConnect.LiveUI.Blazor
+@using OpenConnect.LiveUI
+@using OpenConnect.Docs.Services.Voice
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject DocumentationAssistantAvailability Availability
+@inject LiveUIManifest Manifest
+@inject IJSRuntime JS
+@inject IServiceProvider Services
+
+<MudThemeProvider Theme="_theme" IsDarkMode="_dark" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (!Availability.Configured)
+{
+    <p class="site-assistant-status" role="status">Assistant unavailable: an application gateway has not been configured.
+        <a href="/docs/v1/troubleshooting">Setup help</a></p>
+}
+<OpenConnectProvider>
+    <OpenConnectLiveUIProvider Manifest="Manifest">
+        <MiniComposer Placement="ComposerPlacement.BottomRight"
+                      AssistantName="OpenConnect Assistant"
+                      Placeholder="Ask about OpenConnect..."
+                      VoiceConnectionTicket="IssueVoiceTicket"
+                      VoiceInputAvailable="_voiceInputAvailable"
+                      VoiceInputChecking="_voiceInputChecking"
+                      CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
+        <OpenConnectNavigatorProvider />
+    </OpenConnectLiveUIProvider>
+</OpenConnectProvider>
+
+@code {
+    private string? IssueVoiceTicket(string sessionId)
+    {
+        var tickets = Services.GetService<DocumentationVoiceTickets>();
+        var visitor = Services.GetService<DocumentationGatewayVisitorIdentity>();
+        return tickets is not null && visitor is not null ? tickets.Issue(sessionId, visitor.Token) : null;
+    }
+
+    private bool _dark;
+    private bool? _voiceInputAvailable;
+    private bool _voiceInputChecking;
+    private readonly CancellationTokenSource _lifetime = new();
+    private long _subscription;
+    private DotNetObjectReference<SiteAssistant>? _reference;
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight { Primary = "#2563EB", Secondary = "#0D9488", Background = "#F1F5F9", Surface = "#FFFFFF", TextPrimary = "#0F172A", TextSecondary = "#475569", LinesDefault = "#E2E8F0" },
+        PaletteDark = new PaletteDark { Primary = "#3B82F6", Secondary = "#14B8A6", Background = "#090D16", Surface = "#111827", TextPrimary = "#F8FAFC", TextSecondary = "#94A3B8", LinesDefault = "#1F2937" },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" }
+    };
+
+    protected override void OnInitialized()
+    {
+        if (Services.GetService<DocumentationVoiceAvailability>() is not null)
+        {
+            _voiceInputAvailable = false;
+            _voiceInputChecking = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _reference = DotNetObjectReference.Create(this);
+            var subscription = await JS.InvokeAsync<ThemeSubscription>("ocSiteTheme.subscribe", _reference);
+            _subscription = subscription.Id;
+            _dark = subscription.IsDark;
+            StateHasChanged();
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+        if (Services.GetService<DocumentationVoiceAvailability>() is { } voice)
+        {
+            try
+            {
+                _voiceInputAvailable = await voice.IsAvailableAsync(_lifetime.Token);
+                _voiceInputChecking = false;
+                if (!_lifetime.IsCancellationRequested) StateHasChanged();
+            }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        }
+    }
+
+    [JSInvokable]
+    public Task OnThemeChanged(bool dark) => InvokeAsync(() => { _dark = dark; StateHasChanged(); });
+
+    public async ValueTask DisposeAsync()
+    {
+        _lifetime.Cancel();
+        try { if (_subscription != 0) await JS.InvokeVoidAsync("ocSiteTheme.unsubscribe", _subscription); }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException) { }
+        _reference?.Dispose();
+        _lifetime.Dispose();
+    }
+
+    private sealed record ThemeSubscription(long Id, bool IsDark);
+}

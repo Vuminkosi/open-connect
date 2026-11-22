@@ -6,6 +6,26 @@ Cloud code is grouped by feature (`Tenants`, `Capabilities`, and `Credentials`),
 
 Status: Decisions for the current portal identity foundation; broader platform design remains governed by [`docs/plans/openconnect-cloud-requirements-spec.md`](../../../docs/plans/openconnect-cloud-requirements-spec.md).
 
+## Usage and site access
+
+Visiting the public site, viewing documentation, signing in, and using the Cloud dashboard or management functions do not themselves create a tenant charge, including when a tenant is logged in. Metering and settlement apply to billable API consumption under the applicable capability and tenant authorization. Authentication and session isolation protect access and data; they do not by themselves imply billable usage. The assistant's complete gateway-to-metering integration remains to be verified.
+
+The capability gateway treats its root and health routes separately from capability admission. The portal's management API is a separate control-plane route group; its access must not create capability reservations or usage records.
+
+Public documentation and API reference pages do not require visitor sign-in. Their assistant may use a configured server-side application credential, while preserving privacy enforcement and isolation between visitor sessions. Credentials are supplied through deployment secrets or an ignored local environment file, never browser assets or source control. Cloud dashboard and management access retain their own authentication requirements. Assistant execution and voice remain dependent on a configured application gateway and require end-to-end verification.
+
+The generic gateway fixture supports optional application instructions and the existing Kokoro HTTP client for development verification. It uses process-local state and a configured external model provider; it is not the Cloud application gateway, a durable deployment, or evidence of Cloud usage settlement.
+
+The documentation application host is a separate development-only SDK consumer with visitor-scoped authentication, local-only HTTPS access, bounded task execution, native session state and turn ownership. It uses the host privacy gate for model traffic and screens speech text and metadata before calling the configured worker. The speech contract has no session ID, so speech screening uses a fresh request-scoped privacy session. Its state and data-protection keys are process-local; it is not a durable or multi-instance gateway and does not implement Cloud quota settlement. Production hosting requires durable session and ownership services, deployment controls and end-to-end verification.
+
+The optional documentation LiveUI worker planner checks ownership of the requested session, screens intent and worker-bound metadata, and validates and screens returned plans before the site authorizes an action. It is disabled unless explicitly configured. The available transcription worker's remote-first route is not enabled for this host because raw audio must not be sent to an external model under the default privacy boundary.
+
+The documentation application can issue a short-lived signed visitor identity per server-side circuit, using a configured application tenant and deployment secret. Gateway session authorization must bind both tenant and visitor principal; enabling visitor identities excludes the shared bearer mode. Identity tokens stay server-side and require HTTPS. Circuit identities expire after twelve hours, so a new circuit is required after expiry.
+
+The documentation LiveUI manifest exposes the public home, documentation and API indexes, plus routes from the loaded documentation catalog. Each route identifies its page heading so navigation can verify the rendered destination and the assistant can inspect, highlight, or scroll to that heading. Navigation is authorized only for those public routes; unknown documentation paths and Cloud management routes remain outside the assistant's navigation authority.
+
+On the documentation index, the assistant can focus, inspect and set the public documentation search input. Search values are bounded to 200 characters; other inputs and Cloud management controls do not gain mutation authority from this permission.
+
 ## OC-CLOUD-ADR-001: Extend the existing Blazor portal
 
 **Decision:** Keep the current ASP.NET Core / .NET 10 Blazor application as the public documentation host and add a separate Cloud layout and protected routes.

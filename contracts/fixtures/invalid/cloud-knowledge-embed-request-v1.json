@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "openconnect.cloud.knowledge-embed/v1",
+  "requestId": "11111111-1111-1111-1111-111111111111",
+  "capability": "knowledge.embed",
+  "expiresAt": "2030-01-01T00:01:00.000Z",
+  "tenantId": "caller-controlled-tenant",
+  "input": {"inputKind": "query", "texts": ["synthetic example"]}
+}

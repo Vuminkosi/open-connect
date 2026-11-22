@@ -8,8 +8,310 @@
 # Environment variables from .env in the root folder are automatically loaded and forwarded.
 
 services:
+  # Document processing stays network-isolated and uses protected Unix sockets.
+  document-volume-init:
+    profiles: ["documents", "vision", "vision-embed", "knowledge-index"]
+    build:
+      context: .
+      dockerfile: workers/document-intelligence/Dockerfile
+    image: openconnect-worker-document:${OC_IMAGE_TAG:-e2e-local}
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - >-
+        chown 10001:10001 /models /worker-socket;
+        chmod 0750 /models; chmod 0770 /worker-socket;
+        chown 100:101 /clam-socket; chmod 0770 /clam-socket
+    network_mode: none
+    volumes:
+      - oc_document_models:/models
+      - oc_document_api_socket:/worker-socket
+      - oc_clamav_socket:/clam-socket
+
+  worker-document-init:
+    profiles: ["documents", "knowledge-index"]
+    image: openconnect-worker-document:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      document-volume-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+    volumes:
+      - oc_document_models:/models
+      - ${OC_DOCUMENT_INIT_CONFIG:-./workers/document-intelligence/config/unconfigured.json}:/config/init.json:ro
+    networks: [oc-network]
+
+  clamav:
+    profiles: ["documents", "vision", "vision-embed", "knowledge-index"]
+    image: clamav/clamav:1.4_base@sha256:21622d96b8a7080af7974d99ca60a9e061eff5ff831ed6986d00953fc19ff67f
+    depends_on:
+      document-volume-init:
+        condition: service_completed_successfully
+    volumes:
+      - oc_clamav_database:/var/lib/clamav
+      - oc_clamav_socket:/run/clamav
+      - ./workers/document-intelligence/config/clamd.conf:/etc/clamav/clamd.conf:ro
+    networks: [oc-network]
+    healthcheck:
+      test: ["CMD", "clamdscan", "--config-file=/etc/clamav/clamd.conf", "--ping", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+  worker-document:
+    profiles: ["documents", "knowledge-index"]
+    image: openconnect-worker-document:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-document-init:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    environment:
+      OC_DOCUMENT_ENABLED: "true"
+      OC_DOCUMENT_ANALYZE_ENABLED: ${OC_DOCUMENT_ANALYZE_ENABLED:-false}
+      OC_DOCUMENT_CONFIG_PATH: /config/serve.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_DEVICE: cpu
+      OC_WORKER_ENGINE: real
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    network_mode: none
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    group_add: ["101"]
+    mem_limit: 2g
+    pids_limit: 128
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - oc_document_models:/models:ro
+      - oc_document_api_socket:/run/openconnect
+      - oc_clamav_socket:/run/clamav:ro
+      - ${OC_DOCUMENT_SERVE_CONFIG:-./workers/document-intelligence/config/unconfigured.json}:/config/serve.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", 'import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(3); s.connect("/run/openconnect/worker.sock"); s.sendall(b"GET /health/ready HTTP/1.0\r\n\r\n"); assert b" 200 " in s.recv(128)']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  vision-volume-init:
+    profiles: ["vision", "vision-embed"]
+    build:
+      context: .
+      dockerfile: workers/vision/Dockerfile
+    image: openconnect-worker-vision:${OC_IMAGE_TAG:-e2e-local}
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["chown 10001:10001 /models /worker-socket; chmod 0750 /models; chmod 0770 /worker-socket"]
+    network_mode: none
+    volumes:
+      - oc_vision_models:/models
+      - oc_vision_api_socket:/worker-socket
+
+  worker-vision-init:
+    profiles: ["vision"]
+    image: openconnect-worker-vision:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      vision-volume-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+    volumes:
+      - oc_vision_models:/models
+      - ${OC_VISION_INIT_CONFIG:-./workers/vision/config/unconfigured.json}:/config/init.json:ro
+    networks: [oc-network]
+
+  worker-vision:
+    profiles: ["vision"]
+    image: openconnect-worker-vision:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-vision-init:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    environment:
+      OC_VISION_ENABLED: "true"
+      OC_VISION_CONFIG_PATH: /config/serve.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_DEVICE: cpu
+      OC_WORKER_ENGINE: real
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    network_mode: none
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    group_add: ["101"]
+    mem_limit: 2g
+    pids_limit: 128
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - oc_vision_models:/models:ro
+      - oc_vision_api_socket:/run/openconnect
+      - oc_clamav_socket:/run/clamav:ro
+      - ${OC_VISION_SERVE_CONFIG:-./workers/vision/config/unconfigured.json}:/config/serve.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", 'import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(3); s.connect("/run/openconnect/vision.sock"); s.sendall(b"GET /health/ready HTTP/1.0\r\n\r\n"); assert b" 200 " in s.recv(128)']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker-vision-embed-init:
+    profiles: ["vision-embed"]
+    image: openconnect-worker-vision:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      vision-volume-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+    volumes:
+      - oc_vision_models:/models
+      - ${OC_VISION_EMBED_INIT_CONFIG:-./workers/vision/config/unconfigured.json}:/config/init.json:ro
+    networks: [oc-network]
+
+  worker-vision-embed:
+    profiles: ["vision-embed"]
+    image: openconnect-worker-vision:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-vision-embed-init:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    command: ["uvicorn", "openconnect_vision.embedding_app:app", "--uds", "/run/openconnect/vision-embed.sock", "--no-access-log", "--limit-concurrency", "16"]
+    environment:
+      OC_VISION_EMBED_ENABLED: "true"
+      OC_VISION_EMBED_CONFIG_PATH: /config/serve.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_DEVICE: cpu
+      OC_WORKER_ENGINE: real
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    network_mode: none
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    group_add: ["101"]
+    mem_limit: 2g
+    pids_limit: 128
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - oc_vision_models:/models:ro
+      - oc_vision_api_socket:/run/openconnect
+      - oc_clamav_socket:/run/clamav:ro
+      - ${OC_VISION_EMBED_SERVE_CONFIG:-./workers/vision/config/unconfigured.json}:/config/serve.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", 'import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(3); s.connect("/run/openconnect/vision-embed.sock"); s.sendall(b"GET /health/ready HTTP/1.0\r\n\r\n"); assert b" 200 " in s.recv(128)']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  minio-volume-init:
+    profiles: ["storage", "storage-init", "storage-tls", "documents", "knowledge-index"]
+    image: python:3.12-slim
+    user: "0:0"
+    network_mode: none
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["chown 65532:65532 /data; chmod 0700 /data"]
+    volumes:
+      - oc_minio_data:/data
+
+  minio:
+    profiles: ["storage", "storage-init", "storage-tls", "documents", "knowledge-index"]
+    image: cgr.dev/chainguard/minio@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec
+    depends_on:
+      minio-volume-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - 'test -n "$$MINIO_ROOT_USER" && test -n "$$MINIO_ROOT_PASSWORD" && exec /usr/bin/minio server /data --console-address :9001'
+    environment:
+      MINIO_ROOT_USER: ${OC_MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${OC_MINIO_ROOT_PASSWORD:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,nosuid,size=32m
+    volumes:
+      - oc_minio_data:/data
+    networks: [oc-network]
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-ec", 'exec 3<>/dev/tcp/127.0.0.1/9000; printf "GET /minio/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3; IFS= read -r status <&3; [[ "$$status" == *" 200 "* ]]']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  minio-tls:
+    profiles: ["storage-tls"]
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    user: "101:101"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./workers/knowledge/config/minio-tls.conf:/etc/nginx/nginx.conf:ro
+      - ${OC_MINIO_TLS_DIRECTORY:-./workers/knowledge/config}:/run/minio-tls:ro
+    networks: [oc-network]
+
+  storage-bucket-init:
+    profiles: ["storage-init"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_knowledge.storage_init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      OC_STORAGE_BOOTSTRAP_ENDPOINT: ${OC_STORAGE_BOOTSTRAP_ENDPOINT:-minio:9000}
+      OC_STORAGE_BOOTSTRAP_TLS: ${OC_STORAGE_BOOTSTRAP_TLS:-true}
+      OC_STORAGE_BOOTSTRAP_CA_FILE: ${OC_STORAGE_BOOTSTRAP_CA_FILE:-}
+      OC_STORAGE_BOOTSTRAP_BUCKET: ${OC_STORAGE_BOOTSTRAP_BUCKET:-}
+      OC_STORAGE_BOOTSTRAP_ACCESS_KEY: ${OC_STORAGE_BOOTSTRAP_ACCESS_KEY:-}
+      OC_STORAGE_BOOTSTRAP_SECRET_KEY: ${OC_STORAGE_BOOTSTRAP_SECRET_KEY:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${OC_MINIO_CA_DIRECTORY:-./workers/knowledge/config}:/run/minio-ca:ro
+    networks: [oc-network]
+
   worker-knowledge-init:
-    profiles: ["knowledge"]
+    profiles: ["knowledge", "knowledge-index", "knowledge-cloud"]
     build:
       context: .
       dockerfile: workers/knowledge/Dockerfile
@@ -18,8 +320,8 @@ services:
     environment:
       OC_MODEL_MANIFEST_PATH: /config/init.json
       OC_MODEL_CACHE_DIR: /models
-      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
-      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
     volumes:
       - oc_knowledge_models:/models
       - ${OC_KNOWLEDGE_INIT_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/init.json:ro
@@ -27,7 +329,7 @@ services:
       - oc-network
 
   worker-knowledge:
-    profiles: ["knowledge"]
+    profiles: ["knowledge", "knowledge-cloud"]
     image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
     depends_on:
       worker-knowledge-init:
@@ -37,7 +339,193 @@ services:
       OC_KNOWLEDGE_CONFIG_PATH: /config/serve.json
       OC_MODEL_CACHE_DIR: /models
       OC_MODEL_OFFLINE: "true"
-      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-first-start-if-missing}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+      OC_KNOWLEDGE_CLOUD_CONSUMPTION_ENABLED: ${OC_KNOWLEDGE_CLOUD_CONSUMPTION_ENABLED:-false}
+      OC_KNOWLEDGE_CLOUD_AUTHORITY_ORIGIN: ${OC_KNOWLEDGE_CLOUD_AUTHORITY_ORIGIN:-}
+      OC_KNOWLEDGE_CLOUD_CA_FILE: /run/knowledge-cloud-worker/ca.crt
+      OC_KNOWLEDGE_CLOUD_CERT_FILE: /run/knowledge-cloud-worker/client.crt
+      OC_KNOWLEDGE_CLOUD_KEY_FILE: /run/knowledge-cloud-worker/client.key
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - oc_knowledge_models:/models:ro
+      - ${OC_KNOWLEDGE_SERVE_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/serve.json:ro
+      - ${OC_KNOWLEDGE_CLOUD_SECRETS_DIR:-./workers/knowledge/config}:/run/knowledge-cloud-worker:ro
+    networks:
+      - oc-network
+
+  knowledge-embedding-tls:
+    profiles: ["knowledge-cloud"]
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    user: "101:101"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    depends_on:
+      worker-knowledge:
+        condition: service_started
+    volumes:
+      - ./cloud/knowledge-embedding-tls/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CLOUD_KNOWLEDGE_TLS_SECRETS_DIR:-./workers/knowledge/config}:/run/knowledge-embedding-tls:ro
+    networks: [oc-network]
+    restart: unless-stopped
+
+  worker-knowledge-migrate:
+    profiles: ["knowledge-migrate"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_knowledge.migrate"]
+    environment:
+      OC_KNOWLEDGE_MIGRATION_DSN: ${OC_KNOWLEDGE_MIGRATION_DSN:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: [oc-network]
+
+  worker-knowledge-index:
+    profiles: ["knowledge-index"]
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_knowledge.index_worker"]
+    depends_on:
+      worker-knowledge-init:
+        condition: service_completed_successfully
+      worker-document:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      OC_INDEX_WORKER_ENABLED: "true"
+      OC_KNOWLEDGE_ENABLED: "true"
+      OC_KNOWLEDGE_CONFIG_PATH: /config/serve.json
+      OC_KNOWLEDGE_SEARCH_DSN: ${OC_KNOWLEDGE_SEARCH_DSN:-}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_DEVICE: cpu
+      OC_WORKER_ENGINE: real
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_INDEX_CLAM_SOCKET: /run/clamav/clamd.sock
+      OC_INDEX_DOCUMENT_SOCKET: /run/openconnect/worker.sock
+      OC_INDEX_MINIO_ENDPOINT: ${OC_INDEX_MINIO_ENDPOINT:-minio:9000}
+      OC_INDEX_MINIO_TLS: ${OC_INDEX_MINIO_TLS:-true}
+      OC_INDEX_MINIO_CA_FILE: ${OC_INDEX_MINIO_CA_FILE:-}
+      OC_INDEX_MINIO_BUCKET: ${OC_INDEX_MINIO_BUCKET:-}
+      OC_INDEX_MINIO_ACCESS_KEY: ${OC_INDEX_MINIO_ACCESS_KEY:-}
+      OC_INDEX_MINIO_SECRET_KEY: ${OC_INDEX_MINIO_SECRET_KEY:-}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    group_add: ["101"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - oc_knowledge_models:/models:ro
+      - oc_document_api_socket:/run/openconnect:ro
+      - oc_clamav_socket:/run/clamav:ro
+      - ${OC_MINIO_CA_DIRECTORY:-./workers/knowledge/config}:/run/minio-ca:ro
+      - ${OC_KNOWLEDGE_SERVE_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/serve.json:ro
+    networks: [oc-network]
+
+  worker-knowledge-expiry:
+    profiles: ["knowledge-index"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_knowledge.expiration_worker"]
+    environment:
+      OC_INDEX_EXPIRY_ENABLED: "true"
+      OC_KNOWLEDGE_SEARCH_DSN: ${OC_KNOWLEDGE_SEARCH_DSN:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    networks: [oc-network]
+
+  worker-knowledge-image:
+    profiles: ["knowledge-image"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    environment:
+      OC_KNOWLEDGE_IMAGE_ENABLED: "true"
+      OC_KNOWLEDGE_SEARCH_DSN: ${OC_KNOWLEDGE_SEARCH_DSN:-}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    networks: [oc-network]
+
+  worker-knowledge-index-api:
+    profiles: ["knowledge-index"]
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-knowledge-index:
+        condition: service_started
+    environment:
+      OC_KNOWLEDGE_ENABLED: "false"
+      OC_INDEX_SUBMISSION_ENABLED: "true"
+      OC_INDEX_DELETE_ENABLED: ${OC_INDEX_DELETE_ENABLED:-false}
+      OC_KNOWLEDGE_SEARCH_DSN: ${OC_KNOWLEDGE_SEARCH_DSN:-}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    networks: [oc-network]
+
+  worker-knowledge-rerank-init:
+    profiles: ["knowledge-rerank"]
+    build:
+      context: .
+      dockerfile: workers/knowledge/Dockerfile
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+    volumes:
+      - oc_knowledge_models:/models
+      - ${OC_RERANK_INIT_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/init.json:ro
+    networks:
+      - oc-network
+
+  worker-knowledge-rerank:
+    profiles: ["knowledge-rerank"]
+    image: openconnect-worker-knowledge:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      worker-knowledge-rerank-init:
+        condition: service_completed_successfully
+    environment:
+      OC_KNOWLEDGE_ENABLED: "false"
+      OC_RERANK_ENABLED: "true"
+      OC_RERANK_CONFIG_PATH: /config/serve.json
+      OC_KNOWLEDGE_SEARCH_ENABLED: ${OC_KNOWLEDGE_SEARCH_ENABLED:-false}
+      OC_KNOWLEDGE_SEARCH_DSN: ${OC_KNOWLEDGE_SEARCH_DSN:-}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
@@ -47,12 +535,12 @@ services:
       - /tmp
     volumes:
       - oc_knowledge_models:/models:ro
-      - ${OC_KNOWLEDGE_SERVE_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/serve.json:ro
+      - ${OC_RERANK_SERVE_CONFIG:-./workers/knowledge/config/unconfigured.json}:/config/serve.json:ro
     networks:
       - oc-network
 
   worker-analytics:
-    profiles: ["analytics"]
+    profiles: ["analytics", "analytics-cloud"]
     build:
       context: .
       dockerfile: workers/analytics-inference/Dockerfile
@@ -60,8 +548,235 @@ services:
     environment:
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
       OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+      OPENCONNECT_CLOUD_CONSUMPTION_ENABLED: ${OC_ANALYTICS_CLOUD_CONSUMPTION_ENABLED:-false}
+      OPENCONNECT_CLOUD_AUTHORITY_ORIGIN: ${OC_ANALYTICS_CLOUD_AUTHORITY_ORIGIN:-}
+      OPENCONNECT_CLOUD_AUTHORITY_CA_FILE: ${OC_ANALYTICS_CLOUD_AUTHORITY_CA_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_CERT_FILE: ${OC_ANALYTICS_CLOUD_WORKER_CERT_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_KEY_FILE: ${OC_ANALYTICS_CLOUD_WORKER_KEY_FILE:-}
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 2.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    volumes:
+      - ${OC_ANALYTICS_WORKER_SECRETS_DIR:-./workers/analytics-inference/secrets}:/run/analytics-cloud-worker:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - oc-network
+
+  analytics-tls:
+    profiles: ["analytics-cloud"]
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    user: "101:101"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=8m"]
+    command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    depends_on:
+      worker-analytics:
+        condition: service_started
+    volumes:
+      - ./cloud/analytics-tls/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CLOUD_ANALYTICS_TLS_SECRETS_DIR:-./cloud/analytics-tls/secrets}:/run/analytics-tls:ro
+    networks: [oc-network]
+    restart: unless-stopped
+
+  classification-model-init:
+    profiles: ["classification", "classification-cloud"]
+    image: python:3.12-slim
+    environment:
+      OC_CLASSIFICATION_BUNDLE_SHA256: ${OC_CLASSIFICATION_BUNDLE_SHA256:-}
+    volumes:
+      - oc_classification_models:/models:ro
+      - ./workers/classification/scripts/verify_bundle.py:/verify_bundle.py:ro
+    command: ["python", "/verify_bundle.py"]
+    network_mode: none
+
+  worker-classification:
+    profiles: ["classification", "classification-cloud"]
+    build:
+      context: workers/classification
+    image: vuminkosimatibe/openconnect-worker-classification:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      classification-model-init:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      LABEL_SET_VERSION: ${LABEL_SET_VERSION:-v1}
+      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+      OC_CLASSIFICATION_BUNDLE_SHA256: ${OC_CLASSIFICATION_BUNDLE_SHA256:-}
+      OPENCONNECT_CLOUD_CONSUMPTION_ENABLED: ${OPENCONNECT_CLOUD_CONSUMPTION_ENABLED:-false}
+      OPENCONNECT_CLOUD_AUTHORITY_ORIGIN: ${OPENCONNECT_CLOUD_AUTHORITY_ORIGIN:-}
+      OPENCONNECT_CLOUD_AUTHORITY_CA_FILE: ${OPENCONNECT_CLOUD_AUTHORITY_CA_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_CERT_FILE: ${OPENCONNECT_CLOUD_WORKER_CERT_FILE:-}
+      OPENCONNECT_CLOUD_WORKER_KEY_FILE: ${OPENCONNECT_CLOUD_WORKER_KEY_FILE:-}
+    volumes:
+      - oc_classification_models:/models:ro
+      - ${CLOUD_CLASSIFICATION_WORKER_SECRETS_DIR:-./workers/classification/secrets}:/run/openconnect-cloud-worker:ro
+    networks: [oc-network]
+
+  classification-tls:
+    profiles: ["classification-cloud"]
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    user: "101:101"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=8m"]
+    command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    depends_on:
+      worker-classification:
+        condition: service_started
+    volumes:
+      - ./cloud/classification-tls/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CLOUD_CLASSIFICATION_TLS_SECRETS_DIR:-./cloud/classification-tls/secrets}:/run/classification-tls:ro
+    networks: [oc-network]
+    restart: unless-stopped
+
+  nllb-model-init:
+    profiles: ["nllb"]
+    build:
+      context: workers/nllb
+      args:
+        OC_NLLB_INSTALL_DECODER: ${OC_NLLB_INSTALL_DECODER:-false}
+    image: vuminkosimatibe/openconnect-worker-nllb:${OC_IMAGE_TAG:-e2e-local}
+    environment:
+      OC_MODEL_CACHE_DIR: /models
+      OC_NLLB_MODEL_ID: ${OC_NLLB_MODEL_ID:-}
+      OC_NLLB_COMMERCIAL_USE: ${OC_NLLB_COMMERCIAL_USE:-true}
+      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+    volumes:
+      - oc_nllb_models:/models:ro
+    command: ["python", "-m", "openconnect_nllb.init_models"]
+    network_mode: none
+
+  worker-nllb:
+    profiles: ["nllb"]
+    build:
+      context: workers/nllb
+      args:
+        OC_NLLB_INSTALL_DECODER: ${OC_NLLB_INSTALL_DECODER:-false}
+    image: vuminkosimatibe/openconnect-worker-nllb:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      nllb-model-init:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OPENCONNECT_FAKE_ENGINE: ${OPENCONNECT_FAKE_ENGINE:-0}
+      OPENCONNECT_ENV: ${OPENCONNECT_ENV:-}
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OC_NLLB_MODEL_ID: ${OC_NLLB_MODEL_ID:-}
+      OC_NLLB_COMMERCIAL_USE: ${OC_NLLB_COMMERCIAL_USE:-true}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      LICENSE_ACCEPTED: ${LICENSE_ACCEPTED:-0}
+    volumes:
+      - oc_nllb_models:/models:ro
+    networks: [oc-network]
+
+  mms-tts-model-init:
+    profiles: ["mms-tts"]
+    build:
+      context: workers/mms-tts
+    image: vuminkosimatibe/openconnect-worker-mms-tts:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_mms_tts.init_models"]
+    environment:
+      MODEL_DIR: /models
+      OC_MODEL_CACHE_DIR: /models
+      MMS_LANGUAGES: ${MMS_LANGUAGES:-eng}
+    volumes:
+      - oc_mms_models:/models
+    network_mode: none
+
+  worker-mms-tts:
+    profiles: ["mms-tts"]
+    image: vuminkosimatibe/openconnect-worker-mms-tts:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      mms-tts-model-init:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      MMS_LANGUAGES: ${MMS_LANGUAGES:-eng}
+      MMS_COMMERCIAL_USE: ${MMS_COMMERCIAL_USE:-0}
+      MMS_CACHE_SIZE: ${MMS_CACHE_SIZE:-2}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+    volumes:
+      - oc_mms_models:/models:ro
+    networks: [oc-network]
+
+  realtime-voice-model-init:
+    profiles: ["realtime-voice"]
+    build:
+      context: workers/realtime-voice
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_realtime_voice.init_models"]
+    environment:
+      MODEL_DIR: /models
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: "true"
+      OC_REALTIME_ORCHESTRATION_ONLY: ${OC_REALTIME_ORCHESTRATION_ONLY:-1}
+    volumes:
+      - oc_realtime_voice_models:/models
+    network_mode: none
+
+  worker-realtime-voice:
+    profiles: ["realtime-voice"]
+    image: vuminkosimatibe/openconnect-worker-realtime-voice:${OC_IMAGE_TAG:-e2e-local}
+    depends_on:
+      realtime-voice-model-init:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DIR: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OC_ENVIRONMENT: ${OC_ENVIRONMENT:-Production}
+      OC_MODEL_DEVICE: ${OC_MODEL_DEVICE:-auto}
+      OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_OFFLINE: "true"
+      OC_TRANSCRIPTION_MODE: ${OC_TRANSCRIPTION_MODE:-ENDPOINTING}
+      OC_REALTIME_ORCHESTRATION_ONLY: ${OC_REALTIME_ORCHESTRATION_ONLY:-1}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+    volumes:
+      - oc_realtime_voice_models:/models:ro
+    networks: [oc-network]
 
   # Dedicated Cloud inference is private, opt-in and requires deployment-owned certificates.
   cloud-inference-worker:
@@ -140,6 +855,11 @@ services:
     container_name: oc-docs-local
     restart: unless-stopped
     environment:
+      ASPNETCORE_URLS: ${CLOUD_DOCS_URLS:-http://+:8080}
+      ASPNETCORE_Kestrel__Certificates__Default__Path: ${CLOUD_DOCS_TLS_CERTIFICATE_PATH:-}
+      ASPNETCORE_Kestrel__Certificates__Default__Password: ${CLOUD_DOCS_TLS_CERTIFICATE_PASSWORD:-}
+      OpenConnect__Cloud__HostPrivacyTrust__Enabled: ${CLOUD_HOST_PRIVACY_TRUST_ENABLED:-false}
+      OpenConnect__Cloud__HostPrivacyTrust__ClientCertificateSha256__0: ${CLOUD_HOST_PRIVACY_CERTIFICATE_SHA256:-}
       OpenConnect__Cloud__Identity__Enabled: ${CLOUD_OIDC_ENABLED:-false}
       OpenConnect__Cloud__Identity__Authority: ${CLOUD_OIDC_AUTHORITY:-}
       OpenConnect__Cloud__Identity__ClientId: ${CLOUD_OIDC_CLIENT_ID:-}
@@ -152,6 +872,7 @@ services:
       - "127.0.0.1:${OPENCONNECT_DOCS_PORT:-5050}:8080"
     volumes:
       - oc_docs_keys:/home/app/.aspnet/DataProtection-Keys
+      - oc_docs_tls:/run/openconnect-docs-tls:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health/ready"]
       interval: 30s
@@ -184,6 +905,30 @@ services:
       CLOUD_CLASSIFICATION_CONTRACT_VERSION: ${CLOUD_CLASSIFICATION_CONTRACT_VERSION:-}
       CLOUD_CLASSIFICATION_EXECUTION_ENABLED: ${CLOUD_CLASSIFICATION_EXECUTION_ENABLED:-false}
       CLOUD_CLASSIFICATION_DEPLOYMENT_ID: ${CLOUD_CLASSIFICATION_DEPLOYMENT_ID:-}
+      CLOUD_ANALYTICS_EXECUTION_ENABLED: ${CLOUD_ANALYTICS_EXECUTION_ENABLED:-false}
+      CLOUD_ANALYTICS_ORIGIN: ${CLOUD_ANALYTICS_ORIGIN:-}
+      CLOUD_ANALYTICS_CA_FILE: ${CLOUD_ANALYTICS_CA_FILE:-}
+      CLOUD_ANALYTICS_CERT_FILE: ${CLOUD_ANALYTICS_CERT_FILE:-}
+      CLOUD_ANALYTICS_KEY_FILE: ${CLOUD_ANALYTICS_KEY_FILE:-}
+      CLOUD_ANALYTICS_TOKEN_FILE: ${CLOUD_ANALYTICS_TOKEN_FILE:-}
+      CLOUD_ANALYTICS_DEPLOYMENT_ID: ${CLOUD_ANALYTICS_DEPLOYMENT_ID:-}
+      CLOUD_ANALYTICS_ENDPOINT_REFERENCE: ${CLOUD_ANALYTICS_ENDPOINT_REFERENCE:-}
+      CLOUD_ANALYTICS_REGION: ${CLOUD_ANALYTICS_REGION:-}
+      CLOUD_ANALYTICS_CONTRACT_VERSION: ${CLOUD_ANALYTICS_CONTRACT_VERSION:-}
+      CLOUD_ANALYTICS_MODEL_REVISION: ${CLOUD_ANALYTICS_MODEL_REVISION:-}
+      CLOUD_ANALYTICS_MODEL_DIGEST: ${CLOUD_ANALYTICS_MODEL_DIGEST:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_EXECUTION_ENABLED: ${CLOUD_KNOWLEDGE_EMBEDDING_EXECUTION_ENABLED:-false}
+      CLOUD_KNOWLEDGE_EMBEDDING_ORIGIN: ${CLOUD_KNOWLEDGE_EMBEDDING_ORIGIN:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_CA_FILE: ${CLOUD_KNOWLEDGE_EMBEDDING_CA_FILE:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_CERT_FILE: ${CLOUD_KNOWLEDGE_EMBEDDING_CERT_FILE:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_KEY_FILE: ${CLOUD_KNOWLEDGE_EMBEDDING_KEY_FILE:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_TOKEN_FILE: ${CLOUD_KNOWLEDGE_EMBEDDING_TOKEN_FILE:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_DEPLOYMENT_ID: ${CLOUD_KNOWLEDGE_EMBEDDING_DEPLOYMENT_ID:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_ENDPOINT_REFERENCE: ${CLOUD_KNOWLEDGE_EMBEDDING_ENDPOINT_REFERENCE:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_REGION: ${CLOUD_KNOWLEDGE_EMBEDDING_REGION:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_CONTRACT_VERSION: ${CLOUD_KNOWLEDGE_EMBEDDING_CONTRACT_VERSION:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_MODEL_REVISION: ${CLOUD_KNOWLEDGE_EMBEDDING_MODEL_REVISION:-}
+      CLOUD_KNOWLEDGE_EMBEDDING_MODEL_DIGEST: ${CLOUD_KNOWLEDGE_EMBEDDING_MODEL_DIGEST:-}
       CLOUD_FINGERPRINT_ACTIVE_KEY_ID: ${CLOUD_FINGERPRINT_ACTIVE_KEY_ID:-}
       CLOUD_FINGERPRINT_KEYS_FILE: ${CLOUD_FINGERPRINT_KEYS_FILE:-}
       CLOUD_VOICE_EXECUTION_ENABLED: ${CLOUD_VOICE_EXECUTION_ENABLED:-false}
@@ -267,13 +1012,47 @@ services:
       OpenConnect__Gateway__SameHostBaseUrl: http://127.0.0.1:5000
       OPENCONNECT_BLAZOR_SQLITE_PATH: /data/blazor-todo.db
       GATEWAY_URL: http://gateway-host:8080/openconnect/v1/
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect_dev_password}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
       Workers__Transcription__Endpoint: http://worker-transcription:8080
       Workers__Kokoro__Endpoint: http://worker-kokoro:8080
       OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:-}
+      OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_INFERENCE_TOKEN:-${OPENCONNECT_WORKER_TOKEN:-}}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+      OpenConnect__DocumentDemo__Enabled: ${OC_TODO_DOCUMENT_DEMO_ENABLED:-false}
+      OpenConnect__CloudPrivacy__Enabled: ${OC_TODO_CLOUD_PRIVACY_ENABLED:-false}
+      OpenConnect__CloudPrivacy__Origin: ${OC_TODO_CLOUD_PRIVACY_ORIGIN:-}
+      OpenConnect__CloudPrivacy__Credential: ${OC_TODO_CLOUD_PRIVACY_CREDENTIAL:-}
+      OpenConnect__CloudPrivacy__ServerCertificateSha256: ${OC_TODO_CLOUD_PRIVACY_SERVER_SHA256:-}
+      OpenConnect__CloudPrivacy__CertificatePath: ${OC_TODO_CLOUD_PRIVACY_CERTIFICATE_PATH:-/data/cloud-privacy-client.pfx}
+      OpenConnect__CloudPrivacy__CertificatePassword: ${OC_TODO_CLOUD_PRIVACY_CERTIFICATE_PASSWORD:-}
+      OpenConnect__DocumentDemo__DocumentSocket: /run/openconnect-document/worker.sock
+      OpenConnect__DocumentDemo__ExtractionOrigin: ${OC_TODO_EXTRACTION_ORIGIN:-http://worker-inference:8080}
+      OpenConnect__DocumentDemo__AllowInsecureHttp: ${OC_TODO_EXTRACTION_ALLOW_HTTP:-false}
+      OpenConnect__KnowledgeDemo__Enabled: ${OC_TODO_KNOWLEDGE_DEMO_ENABLED:-false}
+      OpenConnect__KnowledgeDemo__IndexOrigin: ${OC_TODO_KNOWLEDGE_INDEX_ORIGIN:-http://worker-knowledge-index-api:8080}
+      OpenConnect__KnowledgeDemo__SearchOrigin: ${OC_TODO_KNOWLEDGE_SEARCH_ORIGIN:-http://worker-knowledge-rerank:8080}
+      OpenConnect__KnowledgeDemo__EmbeddingOrigin: ${OC_TODO_KNOWLEDGE_EMBEDDING_ORIGIN:-http://worker-knowledge:8080}
+      OpenConnect__KnowledgeDemo__UseCloudEmbedding: ${OC_TODO_KNOWLEDGE_USE_CLOUD_EMBEDDING:-false}
+      OpenConnect__KnowledgeDemo__CloudBearerToken: ${OC_TODO_KNOWLEDGE_CLOUD_BEARER_TOKEN:-}
+      OpenConnect__KnowledgeDemo__AllowInsecureHttp: ${OC_TODO_KNOWLEDGE_ALLOW_HTTP:-false}
+      OpenConnect__KnowledgeDemo__ObjectId: ${OC_TODO_KNOWLEDGE_OBJECT_ID:-}
+      OpenConnect__KnowledgeDemo__ObjectSha256: ${OC_TODO_KNOWLEDGE_OBJECT_SHA256:-}
+      OpenConnect__KnowledgeDemo__ObjectSize: ${OC_TODO_KNOWLEDGE_OBJECT_SIZE:-}
+      OpenConnect__KnowledgeDemo__ObjectVersion: ${OC_TODO_KNOWLEDGE_OBJECT_VERSION:-}
+      OpenConnect__KnowledgeDemo__EmbeddingSpaceId: ${OC_TODO_KNOWLEDGE_EMBEDDING_SPACE_ID:-}
+      OpenConnect__CapabilityMonitor__Enabled: ${OC_TODO_CAPABILITY_MONITOR_ENABLED:-false}
+      OpenConnect__CapabilityMonitor__AllowInsecureHttp: ${OC_TODO_CAPABILITY_MONITOR_ALLOW_HTTP:-false}
+      OpenConnect__CapabilityMonitor__DocumentEndpoint: ${OC_TODO_CAPABILITY_DOCUMENT_ENDPOINT:-/run/openconnect-document/worker.sock}
+      OpenConnect__CapabilityMonitor__KnowledgeEndpoint: ${OC_TODO_CAPABILITY_KNOWLEDGE_ENDPOINT:-http://worker-knowledge:8080}
+      OpenConnect__CapabilityMonitor__RerankEndpoint: ${OC_TODO_CAPABILITY_RERANK_ENDPOINT:-http://worker-knowledge-rerank:8080}
+      OpenConnect__CapabilityMonitor__IndexEndpoint: ${OC_TODO_CAPABILITY_INDEX_ENDPOINT:-http://worker-knowledge-index-api:8080}
+      OpenConnect__CapabilityMonitor__VisionEndpoint: ${OC_TODO_CAPABILITY_VISION_ENDPOINT:-/run/openconnect-vision/vision.sock}
+      OpenConnect__CapabilityMonitor__VisionEmbedEndpoint: ${OC_TODO_CAPABILITY_VISION_EMBED_ENDPOINT:-/run/openconnect-vision/vision-embed.sock}
+      OpenConnect__CapabilityMonitor__AnalyticsEndpoint: ${OC_TODO_CAPABILITY_ANALYTICS_ENDPOINT:-http://worker-analytics:8080}
+      OpenConnect__CapabilityMonitor__InferenceEndpoint: ${OC_TODO_CAPABILITY_INFERENCE_ENDPOINT:-http://worker-inference:8080}
       Workers__Playwright__Endpoint: http://worker-playwright:8080
       # Pass through Cloud Inference / Model configuration from .env
       OpenConnect__ApiKey: ${OpenConnect__ApiKey:-}
@@ -300,6 +1079,9 @@ services:
       TODO_INTERNAL_TENANT: ${TODO_INTERNAL_TENANT:-01ARZ3NDEKTSV4RRFFQ69G5FAV}
     volumes:
       - oc_todo_app_data:/data
+      - oc_document_api_socket:/run/openconnect-document:ro
+      - oc_vision_api_socket:/run/openconnect-vision:ro
+    group_add: ["10001"]
     networks:
       - oc-network
     depends_on:
@@ -368,7 +1150,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       OC_TEST_MODE: "true"
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect_dev_password}"
       Nats__Url: ${NATS_URL:-nats://nats:4222}
       Workers__Security__Endpoint: http://worker-security:8080
       Workers__Inference__Endpoint: http://worker-inference:8080
@@ -400,6 +1182,10 @@ services:
       TODO_MUTATION_APPROVAL: ${TODO_MUTATION_APPROVAL:-approved}
     networks:
       - oc-network
+    group_add: ["10001"]
+    volumes:
+      - oc_document_api_socket:/run/openconnect-document:ro
+      - oc_vision_api_socket:/run/openconnect-vision:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -420,9 +1206,9 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
-      OC_MODEL_OFFLINE: "false"
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
       OC_SECURITY_RULES_ENABLED: "true"
       OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
     volumes:
@@ -430,27 +1216,53 @@ services:
     networks:
       - oc-network
 
+  worker-inference-model-init:
+    profiles: ["extraction"]
+    build:
+      context: .
+      dockerfile: workers/inference/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-inference:${OC_IMAGE_TAG:-e2e-local}
+    command: ["python", "-m", "openconnect_worker_common.models.initialize"]
+    environment:
+      OC_MODEL_MANIFEST_PATH: /config/init.json
+      OC_MODEL_CACHE_DIR: /models
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
+      OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-true}
+    volumes:
+      - oc_inference_models:/models
+      - ${OC_EXTRACTION_INIT_CONFIG:-./workers/inference/config/unconfigured.json}:/config/init.json:ro
+    networks: [oc-network]
+
   worker-inference:
     build:
-      context: workers/inference
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: workers/inference/Dockerfile
     image: vuminkosimatibe/openconnect-worker-inference:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-inference
     restart: unless-stopped
     environment:
+      OPENCONNECT_INFERENCE_TOKEN: ${OPENCONNECT_INFERENCE_TOKEN:-${OPENCONNECT_WORKER_TOKEN:-}}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:-}
+      OC_EXTRACTION_ENABLED: ${OC_EXTRACTION_ENABLED:-false}
+      OC_EXTRACTION_CONFIG_PATH: /config/extraction.json
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
       # Forward Cloud Inference credentials from .env to the Python inference worker
       OC_INFERENCE_PROVIDER: ${OpenConnect__ReasoningBackend:-meta-model-api}
       OC_INFERENCE_MODEL: ${OpenConnect__ReasoningModel:-${OpenConnect__MetaModel:-muse-spark-1.3-contributor}}
       OC_INFERENCE_API_BASE_URL: ${OpenConnect__ApiUrl:-${OpenConnect__MetaApiUrl:-https://api.meta.ai/v1}}
       INFERENCE_CLOUD_API_KEY: ${OpenConnect__ApiKey:-${OpenConnect__MetaApiKey:-${OpenConnect__ClaudeApiKey:-}}}
-      OC_CONTRIBUTOR_DATA_USE_APPROVED: "1"
+      OC_CONTRIBUTOR_DATA_USE_APPROVED: ${OC_CONTRIBUTOR_DATA_USE_APPROVED:-0}
     volumes:
-      - oc_inference_models:/models
+      - oc_inference_models:/models:ro
+      - ${OC_EXTRACTION_SERVE_CONFIG:-./workers/inference/config/unconfigured.json}:/config/extraction.json:ro
+    depends_on:
+      worker-inference-model-init:
+        condition: service_completed_successfully
+        required: false
     networks:
       - oc-network
 
@@ -499,7 +1311,7 @@ services:
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
       OC_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       OC_MODEL_DEVICE: auto
-      OC_MODEL_PROVISIONING: first-start-if-missing
+      OC_MODEL_PROVISIONING: ${OC_MODEL_PROVISIONING:-verify-existing-only}
       OC_MODEL_CACHE_DIR: /models
       TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-local-fake}
       TRANSCRIPTION_MODEL_REVISION: ${TRANSCRIPTION_MODEL_REVISION:-}
@@ -557,8 +1369,24 @@ services:
       dockerfile: Dockerfile
     image: vuminkosimatibe/openconnect-worker-navigator-playwright:${OC_IMAGE_TAG:-e2e-local}
     container_name: oc-worker-playwright
+    environment:
+      PORT: "8080"
+      NAVIGATOR_WORKER_TOKEN: ${NAVIGATOR_WORKER_TOKEN:-}
+      NAVIGATOR_ALLOWED_ORIGINS: ${NAVIGATOR_ALLOWED_ORIGINS:-https://example.com}
+      PLAYWRIGHT_LAUNCH: "1"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp/nav-tmp:noexec,nosuid,size=512m
     networks:
       - oc-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
   worker-outbox:
     profiles: ["operational"]
@@ -572,7 +1400,7 @@ services:
       WorkerHosts__Outbox__EmbeddedDispatcherEnabled: "false"
       WorkerHosts__Outbox__TenantUlid: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
       WorkerHosts__Outbox__DatabaseProvider: npgsql
-      WorkerHosts__Outbox__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      WorkerHosts__Outbox__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect_dev_password}"
       WorkerHosts__Outbox__NatsUrl: nats://nats:4222
     networks:
       - oc-network
@@ -594,7 +1422,7 @@ services:
       WorkerHosts__Operational__EmbeddedEnabled: "false"
       WorkerHosts__Operational__TenantUlid: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
       WorkerHosts__Operational__DatabaseProvider: npgsql
-      WorkerHosts__Operational__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect}"
+      WorkerHosts__Operational__ConnectionString: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-openconnect};Username=${POSTGRES_USER:-openconnect};Password=${POSTGRES_PASSWORD:-openconnect_dev_password}"
       WorkerHosts__Operational__NatsUrl: nats://nats:4222
     networks:
       - oc-network
@@ -607,11 +1435,12 @@ services:
 # =============================================================================
 networks:
   oc-network:
-    name: open-connect_oc-network
+    name: ${OC_NETWORK_NAME:-open-connect_oc-network}
     driver: bridge
 
 volumes:
   oc_docs_keys:
+  oc_docs_tls:
   oc_todo_app_data:
   oc_postgres_data:
   oc_security_models:
@@ -620,3 +1449,18 @@ volumes:
   oc_kokoro_models:
   oc_liveui_models:
   oc_knowledge_models:
+  oc_document_models:
+  oc_document_api_socket:
+  oc_clamav_database:
+  oc_clamav_socket:
+  oc_minio_data:
+  oc_vision_models:
+  oc_vision_api_socket:
+  oc_classification_models:
+    name: oc_classification_models
+  oc_nllb_models:
+    name: oc_nllb_models
+  oc_mms_models:
+    name: oc_mms_models
+  oc_realtime_voice_models:
+    name: oc_realtime_voice_models

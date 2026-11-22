@@ -66,4 +66,13 @@ public sealed class EfCloudTranslationDeploymentProfileStore(IDbContextFactory<C
         await transaction.CommitAsync(cancellationToken);
         return "succeeded";
     }
+
+    public async Task RecordAsync(CloudSubject actor, string traceId, Guid deploymentId, string outcome, bool denied, CancellationToken cancellationToken)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
+            ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator", Action = "translation.deployment.profile.write",
+            ResourceId = deploymentId.ToString("D"), Outcome = outcome, TraceId = traceId, OccurredAt = clock.GetUtcNow() });
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }

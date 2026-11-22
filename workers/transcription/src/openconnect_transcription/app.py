@@ -17,6 +17,7 @@ from openconnect_transcription.config import Settings
 from openconnect_transcription import cloud as cloud_module
 from openconnect_transcription import engine_mode
 from openconnect_transcription import realtime
+from openconnect_transcription import realtime_local
 from openconnect_transcription.engine import (
     FakeTranscriptionEngine,
     TranscriptResult,
@@ -119,6 +120,26 @@ async def realtime_transcription(websocket: WebSocket) -> None:
         await websocket.close(code=1008, reason="unauthorized")
         return
     await realtime.proxy(websocket, _settings())
+
+
+@app.websocket("/internal/v1/realtime/local")
+async def local_realtime_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    authorization = websocket.headers.get("authorization") or ""
+    if token is None or not authorization.startswith("Bearer ") or not hmac.compare_digest(
+        authorization[7:], token
+    ):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await realtime_local.transcribe(websocket, _settings())
+
+
+@app.get("/internal/v1/realtime/local/model-ready", dependencies=[Depends(authenticate)])
+def local_realtime_model_ready() -> dict[str, bool]:
+    """Report verified local model availability, without reserving a capture slot."""
+    if realtime_local.load_local_model(_settings()) is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="model_unavailable")
+    return {"modelReady": True}
 
 
 class _LocalLegUnavailable(RuntimeError):

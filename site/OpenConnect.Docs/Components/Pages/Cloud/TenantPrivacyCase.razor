@@ -1,0 +1,106 @@
+@page "/cloud/tenants/{TenantId:guid}/security/cases/{CaseId:guid}"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@implements IDisposable
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject ILogger<TenantPrivacyCase> Logger
+
+<PageTitle>Privacy case evidence | OpenConnect Cloud</PageTitle>
+<h1>Privacy case evidence</h1>
+<p>This records a Cloud classification check. It does not establish application-host inspection or worker execution.</p>
+@if (_loading) { <p role="status">Loading case evidence…</p> }
+else if (_case is null) { <p role="status">@_status</p> }
+else
+{
+    <dl>
+        <dt>Case ID</dt><dd><code>@_case.Id</code></dd>
+        <dt>Observed at (UTC)</dt><dd>@_case.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+        <dt>Application ID</dt><dd><code>@_case.ApplicationId</code></dd>
+        <dt>Request ID</dt><dd><code>@_case.RequestId</code></dd>
+        <dt>Trace ID</dt><dd><code>@_case.TraceId</code></dd>
+        <dt>Cloud action</dt><dd>@Action(_case.Outcome)</dd>
+        <dt>Detected categories</dt>
+        <dd>
+            @if (_case.Categories is null) { <span>Not recorded for this case.</span> }
+            else if (_case.Categories.Count == 0) { <span>None recorded.</span> }
+            else { <ul>@foreach (var category in _case.Categories) { <li>@category.Category: @category.Count</li> }</ul> }
+        </dd>
+    </dl>
+}
+<p><a href="@($"/cloud/tenants/{TenantId}/security")">Back to security observations</a></p>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+    [Parameter] public Guid CaseId { get; set; }
+    private CloudPrivacyObservation? _case;
+    private bool _loading = true, _disposed;
+    private string? _status;
+    private int _generation;
+
+    protected override void OnInitialized() => AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            ++_generation;
+            _case = null;
+            _loading = false;
+            _status = "Your identity changed. Reopen this case to check access.";
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        ++_generation;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var generation = ++_generation;
+        var tenantId = TenantId;
+        var caseId = CaseId;
+        _case = null; _status = null; _loading = true;
+        try
+        {
+            var reader = Services.GetService(typeof(ICloudPrivacyCaseReader)) as ICloudPrivacyCaseReader;
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var subject = CloudIdentity.IsEnabled(authentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(authentication.User, identity["Authority"]) : null;
+            var result = reader is not null && subject is not null
+                ? await reader.GetAsync(subject, tenantId, caseId, CancellationToken.None) : null;
+            if (generation != _generation) return;
+            var currentAuthentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (generation != _generation) return;
+            var currentSubject = CloudIdentity.IsEnabled(currentAuthentication.User, identity)
+                ? CloudSubjectResolver.FromPrincipal(currentAuthentication.User, identity["Authority"]) : null;
+            if (subject is null || currentSubject != subject) result = null;
+            _case = result;
+            if (result is null) _status = "The case was not found or your role does not allow security access.";
+        }
+        catch (Exception)
+        {
+            if (generation != _generation) return;
+            Logger.LogWarning("Cloud privacy case lookup failed.");
+            _status = "Case evidence is temporarily unavailable.";
+        }
+        finally { if (generation == _generation) _loading = false; }
+    }
+
+    private static string Action(string outcome) => outcome switch
+    {
+        "allowed" => "The Cloud privacy check allowed the request to proceed; worker execution is not confirmed.",
+        "privacy_blocked" => "The Cloud privacy check blocked the request before worker dispatch.",
+        "detector_unavailable" => "The Cloud detector was unavailable; the request was not allowed to proceed.",
+        _ => "The Cloud action is not known.",
+    };
+}

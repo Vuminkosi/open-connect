@@ -6,11 +6,16 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi==0.115.12",
   "pydantic==2.11.3",
+  "openconnect-worker-common",
   "uvicorn[standard]==0.54.0",
 ]
 
 [project.optional-dependencies]
 cloud-inference = ["llama-cpp-python==0.3.36"]
+extraction = ["llama-cpp-python==0.3.36"]
+
+[tool.uv.sources]
+openconnect-worker-common = { path = "../common" }
 
 [dependency-groups]
 dev = ["httpx==0.28.1", "jsonschema==4.23.0", "pytest==8.3.5", "ruff==0.11.8"]

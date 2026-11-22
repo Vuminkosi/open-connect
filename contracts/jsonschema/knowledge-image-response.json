@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-image-response.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "result"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"enum": ["knowledge.image.upsert", "knowledge.image.search"]},
+    "result": {"oneOf": [
+      {"type": "object", "additionalProperties": false, "required": ["stored"], "properties": {"stored": {"const": true}}},
+      {"type": "object", "additionalProperties": false, "required": ["hits"], "properties": {"hits": {
+        "type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": false,
+          "required": ["document_id", "image_id", "image_revision", "score"], "properties": {
+            "document_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "image_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "image_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+            "score": {"type": "number", "minimum": -1.001, "maximum": 1.001}}}}}}
+    ]}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "knowledge.image.upsert"}}}, "then": {"properties": {"result": {"required": ["stored"]}}}},
+    {"if": {"properties": {"kind": {"const": "knowledge.image.search"}}}, "then": {"properties": {"result": {"required": ["hits"]}}}}
+  ]
+}

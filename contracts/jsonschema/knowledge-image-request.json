@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/knowledge-image-request.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "kind", "tenantId", "issuedAt", "expiresAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "openconnect.v1"}, "taskId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"enum": ["knowledge.image.upsert", "knowledge.image.search"]},
+    "tenantId": {"type": "string", "minLength": 26, "maxLength": 26, "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "issuedAt": {"type": "string", "format": "date-time"}, "expiresAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": false,
+      "required": ["applicationId", "collectionId", "vector", "embeddingSpaceId", "modelId", "fingerprint"],
+      "properties": {
+        "applicationId": {"$ref": "#/$defs/id"}, "collectionId": {"$ref": "#/$defs/id"},
+        "documentId": {"$ref": "#/$defs/id"}, "sourceRevision": {"$ref": "#/$defs/id"},
+        "expectedGeneration": {"type": "integer", "minimum": 1, "maximum": 9223372036854775806},
+        "imageId": {"$ref": "#/$defs/id"}, "imageRevision": {"$ref": "#/$defs/id"},
+        "expectedImageRevision": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "principalId": {"$ref": "#/$defs/id"}, "roleIds": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/id"}},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "vector": {"type": "array", "minItems": 1, "maxItems": 8192, "items": {"type": "number", "minimum": -1, "maximum": 1}},
+        "embeddingSpaceId": {"$ref": "#/$defs/digest"}, "modelId": {"$ref": "#/$defs/id"}, "fingerprint": {"$ref": "#/$defs/digest"}
+      }}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "knowledge.image.upsert"}}}, "then": {"properties": {"payload": {
+      "required": ["documentId", "sourceRevision", "expectedGeneration", "imageId", "imageRevision"],
+      "not": {"anyOf": [{"required": ["principalId"]}, {"required": ["roleIds"]}, {"required": ["limit"]}]}}}}},
+    {"if": {"properties": {"kind": {"const": "knowledge.image.search"}}}, "then": {"properties": {"payload": {
+      "required": ["principalId"], "not": {"anyOf": [{"required": ["documentId"]}, {"required": ["sourceRevision"]},
+      {"required": ["expectedGeneration"]}, {"required": ["imageId"]}, {"required": ["imageRevision"]},
+      {"required": ["expectedImageRevision"]}]}}}}}
+  ],
+  "$defs": {"id": {"type": "string", "minLength": 1, "maxLength": 256},
+             "digest": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}}
+}

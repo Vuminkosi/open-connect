@@ -1,17 +1,68 @@
 @page "/api"
+@rendermode InteractiveServer
 @inject GeneratedApiStore Api
-<PageTitle>Generated API reference · OpenConnect</PageTitle>
+<PageTitle>API reference · OpenConnect</PageTitle>
 <HeadContent><link rel="canonical" href="/api" /><meta name="description" content="Generated OpenConnect .NET API metadata and versioned REST contracts." /></HeadContent>
-<h1>Generated API reference</h1>
-<p class="lede">Generated from compiled OpenConnect source projects with DocFX 2.81.0. The generated revision is recorded in the build manifest.</p>
+<h1>API reference</h1>
+<p class="lede">Choose how you are using OpenConnect, then follow a working example.</p>
+<div class="doc-grid">
+    <a class="doc-card" href="/docs/v1/dotnet-client"><strong>.NET client</strong><span>Create tasks, read sessions and replay events from C#.</span></a>
+    <a class="doc-card" href="/docs/v1/typescript-client"><strong>TypeScript client</strong><span>Use the SDK from a browser or Node application.</span></a>
+    <a class="doc-card" href="/docs/v1/rest-api"><strong>HTTP API</strong><span>Call the gateway directly with HTTP requests.</span></a>
+</div>
+<h2>Common operations</h2>
+<p>These calls require a configured, authenticated application gateway.</p>
+<div class="api-operation-table" tabindex="0" role="region" aria-label="Common API operations">
+    <table>
+        <thead><tr><th scope="col">What you want to do</th><th scope="col">.NET</th><th scope="col">TypeScript</th><th scope="col">HTTP</th></tr></thead>
+        <tbody>
+            <tr><th scope="row">Create a task</th><td><code>CreateTaskAsync</code></td><td><code>createTask</code></td><td><code>POST /tasks</code></td></tr>
+            <tr><th scope="row">Read a task</th><td><code>GetTaskAsync</code></td><td><code>getTask</code></td><td><code>GET /tasks/&#123;id&#125;</code></td></tr>
+            <tr><th scope="row">Cancel a task</th><td><code>CancelTaskAsync</code></td><td><code>cancelTask</code></td><td><code>POST /tasks/&#123;id&#125;/cancel</code></td></tr>
+            <tr><th scope="row">Read session events</th><td><code>SubscribeEventsAsync</code></td><td><code>replayEvents</code></td><td><code>GET /sessions/&#123;id&#125;/events</code></td></tr>
+            <tr><th scope="row">List capabilities</th><td><code>GetCapabilitiesAsync</code></td><td><code>listCapabilities</code></td><td><code>GET /capabilities</code></td></tr>
+        </tbody>
+    </table>
+</div>
+<p>HTTP paths are relative to <code>/openconnect/v1</code>. The .NET event method returns a finite snapshot; TypeScript also provides a WebSocket subscription. <a href="/docs/v1/api-reference">See how these APIs fit together</a>.</p>
+<h2>Generated .NET metadata</h2>
+<p>The following optional files are raw DocFX metadata for looking up .NET types and signatures. Start with the guides above for examples.</p>
 @if (Api.Documents.Count == 0)
 {
-    <p class="status warning">API metadata has not been generated for this build. Static documentation remains available.</p>
+    <p class="status warning">Generated metadata is not included in this build. The client and HTTP guides above remain available.</p>
 }
 else
 {
     <p>@Api.Documents.Count generated API documents are available.</p>
-    <div class="api-list">@foreach (var document in Api.Documents) { <details><summary>@document.Name</summary><pre><code>@document.Content</code></pre></details> }</div>
+    <label for="api-search">Search API documents</label>
+    <input id="api-search" type="search" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+    <p role="status">@Filtered.Count matching API documents.</p>
+    @if (Filtered.Count == 0)
+    {
+        <p>No API documents match your search.</p>
+    }
+    else
+    {
+        <div class="api-list">@foreach (var document in Filtered.Skip(_page * PageSize).Take(PageSize)) { <details><summary>@document.Name</summary><pre><code>@document.Content</code></pre></details> }</div>
+        <nav aria-label="API document pages">
+            <button type="button" @onclick="PreviousPage" disabled="@(_page == 0)">Previous</button>
+            <span>Page @(_page + 1) of @PageCount</span>
+            <button type="button" @onclick="NextPage" disabled="@(_page + 1 >= PageCount)">Next</button>
+        </nav>
+    }
 }
-<h2>REST and worker contracts</h2>
+<h2 id="api-rest-worker-contracts">REST and worker contracts</h2>
 <p><a href="/docs/v1/rest-api">Read the versioned REST and worker contract guide</a>.</p>
+
+@code {
+    private const int PageSize = 20;
+    private string _search = string.Empty;
+    private int _page;
+    private IReadOnlyList<GeneratedApiDocument> Filtered => string.IsNullOrWhiteSpace(_search)
+        ? Api.Documents
+        : Api.Documents.Where(document => document.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+    private int PageCount => Math.Max(1, (Filtered.Count + PageSize - 1) / PageSize);
+    private void ResetPage() => _page = 0;
+    private void PreviousPage() => _page = Math.Max(0, _page - 1);
+    private void NextPage() => _page = Math.Min(PageCount - 1, _page + 1);
+}

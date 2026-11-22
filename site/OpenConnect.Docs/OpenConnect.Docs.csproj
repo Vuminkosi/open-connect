@@ -7,10 +7,15 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/OpenConnect.Core/OpenConnect.Core.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Analytics/OpenConnect.Analytics.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Documents/OpenConnect.Documents.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.Knowledge/OpenConnect.Knowledge.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Privacy/OpenConnect.Privacy.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Client/OpenConnect.Client.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Components.Blazor/OpenConnect.Components.Blazor.csproj" />
     <ProjectReference Include="../../src/OpenConnect.Components.Contracts/OpenConnect.Components.Contracts.csproj" />
+    <ProjectReference Include="../../src/OpenConnect.LiveUI.Blazor/OpenConnect.LiveUI.Blazor.csproj" />
+    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">

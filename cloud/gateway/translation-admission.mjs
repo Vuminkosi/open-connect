@@ -38,7 +38,7 @@ export async function withTranslationAdmission({ credential, identity, body, dep
         if (reservation?.status !== 'reserved' || !guid.test(reservation.reservationId ?? ''))
             return { status: ['duplicate', 'quota_exceeded', 'idempotency_conflict'].includes(reservation?.status) ? reservation.status : 'unavailable' };
         const claim = await controlPlane.claim(credential, reservation.reservationId, { fingerprintKeyId, fingerprint,
-            workerPayloadFingerprint: proof.toString('base64'), modelId, deployment }, signal, traceparent);
+            workerPayloadFingerprint: proof.toString('base64'), modelId, deployment, input: request.input }, signal, traceparent);
         if (stopped() || claim?.status !== 'claimed' || !guid.test(claim.claimId ?? '')) return unavailable();
         const actualProof = createHmac('sha256', key).update(payload).digest();
         try { if (!timingSafeEqual(actualProof, proof)) return unavailable(); } finally { actualProof.fill(0); }

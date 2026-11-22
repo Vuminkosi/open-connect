@@ -3,10 +3,10 @@
 The official OpenConnect developer portal is an ASP.NET Core .NET 10 Blazor Web App.
 
 - Static SSR is the default.
-- Interactive Server is limited to search and theme controls.
+- Interactive Server powers search, theme controls and the OpenConnect composer.
 - Documentation content is versioned Markdown under `Content/<version>/`.
 - `/health/live`, `/health/ready` and `/sitemap.xml` are available without AI infrastructure.
-- The optional OpenConnect assistant is disabled unless explicitly configured.
+- The OpenConnect composer is visible on documentation and Cloud pages. It reports unavailable until an application gateway is explicitly configured; public documentation remains usable without it.
 - The protected Cloud workspace is additive; public docs do not depend on Cloud identity or PostgreSQL.
 
 Build with:
@@ -25,6 +25,12 @@ docker compose -f docker-compose-all.yml up -d --build documentation-site
 Set `OPENCONNECT_DOCS_PORT` to change the loopback port. Public documentation is available without the Cloud database or identity providers. The dedicated `oc_docs_keys` volume preserves server-side authentication protection keys across container replacement; protect and back up that volume when identity is enabled. Cloud sign-in requires a configured provider, a registered callback and an HTTPS deployment or trusted HTTPS termination; it is not enabled by the local HTTP default.
 
 For Compose, `CLOUD_OIDC_ENABLED`, `CLOUD_OIDC_AUTHORITY`, `CLOUD_OIDC_CLIENT_ID` and `CLOUD_OIDC_CLIENT_SECRET` configure an OIDC provider. `CLOUD_GOOGLE_ENABLED`, `CLOUD_GOOGLE_CLIENT_ID` and `CLOUD_GOOGLE_CLIENT_SECRET` configure Google sign-in. `CLOUD_CONTROL_PLANE_CONNECTION` configures the separate Cloud PostgreSQL schema. Supply credentials using deployment secrets or a protected environment, and apply Cloud migrations before enabling the control plane.
+
+To connect the composer, set `OpenConnect__Assistant__Enabled=true` and `OpenConnect__Assistant__GatewayUrl` to the HTTPS origin or `/openconnect/v1/` base URL of an OpenConnect application gateway. HTTP is accepted only in the Development environment. The Cloud capability gateway exposes a different contract and cannot be used as the composer application gateway. A configured application bearer can be used for gateways with a shared service identity, but it does not isolate visitors. Alternatively, configure `OpenConnect__Assistant__VisitorTenant` and `OpenConnect__Assistant__VisitorSigningKey` with a canonical ULID and a base64-encoded 32-byte secret, without a shared bearer. The site issues a separate twelve-hour gateway identity per interactive circuit; the gateway must explicitly support and validate this token format. The generic gateway fixture supports it for development, but is not a production deployment. Keep keys in deployment secrets or an ignored environment file. LiveUI is limited to public documentation navigation, search and visual guidance; Cloud administration actions remain user-operated.
+
+For Compose, `docker-compose-docs-assistant.yml` maps the assistant gateway settings. To use visitor identities, also include `docker-compose-docs-visitor.yml` and set `OC_DOCS_ASSISTANT_TENANT` and `OC_DOCS_ASSISTANT_VISITOR_KEY`; the visitor overlay clears the shared bearer. These overlays configure the client and do not start an application gateway.
+
+For a process-local development application host, use `docker-compose-docs-local-host.yml` with the root Compose file and the local HTTPS overlay. See the [assistant host guide](../OpenConnect.Docs.AssistantHost/README.md) for required settings and the limits of that host. It is not a production Cloud gateway.
 
 For local HTTPS, export a trusted localhost development certificate and its key into a protected directory outside the repository, then initialize the dedicated TLS volume once:
 

@@ -1,5 +1,6 @@
 @page "/"
 @rendermode InteractiveServer
+@inject IServiceProvider Services
 
 <PageTitle>OpenConnect - Todo Application</PageTitle>
 
@@ -9,6 +10,16 @@
         Manage everyday tasks, organize milestones, or let the AI Agent assist you via the OpenConnect Composer.
     </MudText>
 </div>
+
+@if (Services.GetService(typeof(TodoDocumentDemo)) is TodoDocumentDemo)
+{
+    <p><a href="/document-example">Try the document example</a></p>
+}
+
+@if (Services.GetService(typeof(TodoKnowledgeDemo)) is TodoKnowledgeDemo)
+{
+    <p><a href="/knowledge-example">Try the knowledge example</a></p>
+}
 
 <TodoProgressComponent @ref="_progressRef" />
 

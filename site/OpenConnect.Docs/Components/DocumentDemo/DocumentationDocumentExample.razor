@@ -1,0 +1,75 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+@using OpenConnect.Documents
+@using OpenConnect.Docs.Services.DocumentDemo
+@inject IServiceProvider Services
+
+<section class="doc-card" aria-labelledby="document-example-title">
+    <h2 id="document-example-title">Try document processing</h2>
+    @if (Services.GetService<IDocumentationDocumentDemo>() is null)
+    {
+        <p>The document example is not configured. The guide below explains the required worker and authorization setup.</p>
+    }
+    else
+    {
+        <p>Choose a synthetic PDF, TIFF, PNG or JPEG document, up to 10 MiB. The example runs OCR and extracts a reference for review.</p>
+        <label for="documentation-document-file">Document</label>
+        <InputFile id="documentation-document-file" OnChange="SelectFile" accept=".pdf,.tif,.tiff,.png,.jpg,.jpeg" disabled="@_busy" />
+        <button id="documentation-document-analyze" type="button" class="button" @onclick="ProcessAsync" disabled="@(_busy || _file is null)">Analyze document</button>
+        @if (_status is not null) { <p role="status">@_status</p> }
+        @if (_result is not null)
+        {
+            <section aria-labelledby="documentation-document-result">
+                <h3 id="documentation-document-result">Review candidate</h3>
+                @if (_result.Citations.TryGetValue("reference", out var citation) && citation is not null)
+                {
+                    <p>Reference: @_result.Extraction.RootElement.GetProperty("result").GetProperty("fields").GetProperty("reference").GetProperty("value").GetString()</p>
+                    <p>Source: page @(citation.PageIndex + 1), characters @citation.Start–@citation.End.</p>
+                }
+                else { <p>No supported reference was found.</p> }
+                <h4>Recognized pages</h4>
+                @foreach (var page in _result.Ocr.RootElement.GetProperty("result").GetProperty("pages").EnumerateArray())
+                {
+                    <pre style="white-space: pre-wrap; overflow-wrap: anywhere;">@(page.GetProperty("text").GetString())</pre>
+                }
+            </section>
+        }
+        <p>Results are candidates and require review. The page does not retain uploads after processing; configure worker storage and retention separately.</p>
+    }
+</section>
+
+@code {
+    private readonly CancellationTokenSource _stopping = new();
+    private IBrowserFile? _file;
+    private DocumentExtractionResult? _result;
+    private string? _status;
+    private bool _busy;
+    private bool _disposed;
+
+    private void SelectFile(InputFileChangeEventArgs args)
+    {
+        _result?.Dispose(); _result = null; _status = null; _file = args.File;
+    }
+
+    private async Task ProcessAsync()
+    {
+        if (_busy || _file is null || Services.GetService<IDocumentationDocumentDemo>() is not { } demo) return;
+        _busy = true; _status = "Processing document…";
+        _result?.Dispose(); _result = null;
+        try
+        {
+            await using var input = _file.OpenReadStream(10 * 1024 * 1024, _stopping.Token);
+            var result = await demo.ProcessAsync(input, _stopping.Token);
+            if (_disposed) { result.Dispose(); return; }
+            _result = result; _status = "Processing complete. Review the candidate and its source.";
+        }
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested) { }
+        catch (Exception) { if (!_disposed) _status = "The document could not be processed. Check the file and try again later."; }
+        finally { _busy = false; }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true; _stopping.Cancel(); _stopping.Dispose(); _result?.Dispose();
+    }
+}
