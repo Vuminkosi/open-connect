@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using OpenConnect.Docs.Cloud;
 using OpenConnect.Privacy;
 using OpenConnect.Privacy.Rules;
@@ -49,19 +50,68 @@ public sealed class CloudKnowledgeEmbeddingPrivacyLimitsTests
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), clean.RootElement, CancellationToken.None, embeddingResponse: true);
         Assert.True(result.Decision.Allowed);
         Assert.True(detector.Calls > 262144);
-        var rulesResult = await new CloudJsonPrivacyService(new RulesSecurityDetector())
+        var observedRules = new FaultObservingDetector(new RulesSecurityDetector());
+        var rulesResult = await new CloudJsonPrivacyService(observedRules)
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), clean.RootElement, CancellationToken.None, embeddingResponse: true);
-        Assert.True(rulesResult.Decision.Allowed, rulesResult.Decision.Code switch
+        var decisionCategory = rulesResult.Decision.Code switch
         {
-            "detector_unavailable" => "Maximum-size synthetic embedding rejected: detector_unavailable.",
-            "privacy_blocked" => "Maximum-size synthetic embedding rejected: privacy_blocked.",
-            "invalid_request" => "Maximum-size synthetic embedding rejected: invalid_request.",
-            _ => "Maximum-size synthetic embedding rejected: unexpected_decision.",
-        });
+            "detector_unavailable" => "detector_unavailable",
+            "privacy_blocked" => "privacy_blocked",
+            "invalid_request" => "invalid_request",
+            _ => "unexpected_decision",
+        };
+        Assert.True(rulesResult.Decision.Allowed,
+            $"Maximum-size synthetic embedding rejected: {decisionCategory}; detector observation: {observedRules.FirstFault}.");
         using var sensitive = JsonDocument.Parse(JsonSerializer.Serialize(new { result = new { model_id = "person@example.test", items } }));
         var blocked = await new CloudJsonPrivacyService(new RulesSecurityDetector())
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), sensitive.RootElement, CancellationToken.None, embeddingResponse: true);
         Assert.Equal("privacy_blocked", blocked.Decision.Code);
+    }
+
+    private sealed class FaultObservingDetector(RulesSecurityDetector inner) : ISecurityDetector
+    {
+        public string FirstFault { get; private set; } = "none_observed";
+
+        public ValueTask<DetectorResult> DetectAndSanitizeAsync(
+            string content, EgressContext context, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var pending = inner.DetectAndSanitizeAsync(content, context, cancellationToken);
+                return pending.IsCompletedSuccessfully ? pending : ObserveCompletionAsync(pending);
+            }
+            catch (Exception error)
+            {
+                RecordFault(error);
+                throw;
+            }
+        }
+
+        private async ValueTask<DetectorResult> ObserveCompletionAsync(ValueTask<DetectorResult> pending)
+        {
+            try
+            {
+                return await pending.ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                RecordFault(error);
+                throw;
+            }
+        }
+
+        private void RecordFault(Exception error)
+        {
+            if (FirstFault != "none_observed")
+                return;
+
+            FirstFault = error switch
+            {
+                RegexMatchTimeoutException => "regex_timeout",
+                OperationCanceledException => "detector_cancelled",
+                _ => "other_detector_fault",
+            };
+        }
     }
 
     private sealed class AllowDetector : ISecurityDetector
