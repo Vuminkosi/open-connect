@@ -68,7 +68,11 @@ public sealed class DocumentWorkerResponseValidatorTests
     [InlineData("missing_warning")]
     public void ValidatesPartialAnalysisFixture(string mutation)
     {
-        var fixture = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "document-analyze-response.json"));
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "contracts", "fixtures")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        var fixture = File.ReadAllText(Path.Combine(directory.FullName, "contracts", "fixtures", "valid", "document-analyze-response.json"));
         var result = JsonNode.Parse(fixture)!["result"]!;
         switch (mutation)
         {
@@ -103,7 +107,11 @@ public sealed class DocumentWorkerResponseValidatorTests
     [InlineData("distant_row")]
     public void ValidatesTableCandidateCitationsFixture(string mutation)
     {
-        var fixture = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "document-tables-response.json"));
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "contracts", "fixtures")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        var fixture = File.ReadAllText(Path.Combine(directory.FullName, "contracts", "fixtures", "valid", "document-tables-response.json"));
         var result = JsonNode.Parse(fixture)!["result"]!;
         var cells = result["tables"]![0]!["cells"]!;
         switch (mutation)

@@ -140,7 +140,11 @@ public sealed class DocumentWorkerClientTests
     [Fact]
     public async Task SensitiveTableOutputIsBlockedAndReportedWithoutSourceContent()
     {
-        var fixture = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "document-tables-response.json"));
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "contracts", "fixtures")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        var fixture = await File.ReadAllTextAsync(Path.Combine(directory.FullName, "contracts", "fixtures", "valid", "document-tables-response.json"));
         const string email = "alice@example.test";
         var handler = new Handler(async request =>
         {
