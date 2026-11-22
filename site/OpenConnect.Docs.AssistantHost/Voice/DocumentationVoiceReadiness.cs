@@ -1,15 +1,25 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using OpenConnect.Abstractions.Speech;
 
 namespace OpenConnect.Docs.AssistantHost.Voice;
 
-/// <summary>Checks the configured local-only transcription model without exposing worker credentials.</summary>
-internal sealed class DocumentationVoiceReadiness(HttpClient client, IConfiguration configuration)
+/// <summary>Checks the configured speech-to-text route or local-only transcription model without exposing credentials.</summary>
+internal sealed class DocumentationVoiceReadiness(
+    HttpClient client,
+    IConfiguration configuration,
+    IRealtimeSpeechToTextClient? realtimeSpeechToText = null)
 {
     private const int MaxResponseBytes = 1024;
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
+        if (!configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly")
+            && realtimeSpeechToText?.IsConfigured == true)
+        {
+            return true;
+        }
+
         var endpoint = configuration["Workers:Transcription:Endpoint"];
         var token = configuration["OPENCONNECT_WORKER_TOKEN"];
         if (!configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly") ||

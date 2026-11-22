@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenConnect.Abstractions;
+using OpenConnect.Abstractions.Speech;
 using OpenConnect.Hosting.AspNetCore.Execution;
 
 namespace OpenConnect.Hosting.AspNetCore;
@@ -36,12 +38,20 @@ internal static class VoiceRealtimeWebSocketHandler
         }
 
         using var browser = await context.WebSockets.AcceptWebSocketAsync("openconnect.voice.v1").ConfigureAwait(false);
-        using var upstream = new ClientWebSocket();
         var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
+        var localOnly = configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly");
+        var realtimeSpeechToText = context.RequestServices.GetService<IRealtimeSpeechToTextClient>();
+        if (!localOnly && realtimeSpeechToText is { IsConfigured: true })
+        {
+            await HandleSdkSpeechToTextAsync(browser, realtimeSpeechToText, context, sessionId, tenant, principal, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        using var upstream = new ClientWebSocket();
         var workerToken = configuration["OPENCONNECT_WORKER_TOKEN"];
         var workerEndpoint = configuration["Workers:Transcription:Endpoint"];
         if (string.IsNullOrWhiteSpace(workerToken) || !TryCreateWorkerUri(workerEndpoint,
-                configuration.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly"), out var realtimeUri))
+                localOnly, out var realtimeUri))
         {
             await CloseAsync(browser, WebSocketCloseStatus.PolicyViolation, "voice_unavailable", cancellationToken).ConfigureAwait(false);
             return;
@@ -89,6 +99,220 @@ internal static class VoiceRealtimeWebSocketHandler
         catch (OperationCanceledException) when (relayCancellation.IsCancellationRequested) { }
         catch (Exception exception) { logger.LogWarning("Realtime voice relay stopped with {ExceptionType}.", exception.GetType().Name); }
         relayCancellation.Dispose();
+    }
+
+    internal static async Task HandleSdkSpeechToTextAsync(
+        WebSocket browser,
+        IRealtimeSpeechToTextClient realtimeSpeechToText,
+        HttpContext context,
+        string sessionId,
+        Ulid tenant,
+        Ulid principal,
+        CancellationToken cancellationToken)
+    {
+        var handshake = await ReceiveTextAsync(browser, cancellationToken).ConfigureAwait(false);
+        if (handshake is null || !TryValidateHandshake(handshake, sessionId, out var captureId, out var speechEpoch, out var connectionId))
+        {
+            await CloseAsync(browser, WebSocketCloseStatus.InvalidPayloadData, "invalid_handshake", cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await SendJsonAsync(browser, new { type = "session", sessionId, source = "sdk-stt" }, cancellationToken).ConfigureAwait(false);
+
+        var logger = context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("OpenConnect.VoiceRealtime")
+            ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        using var relayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
+        using var sendGate = new SemaphoreSlim(1, 1);
+        var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: 256 * 1024, resumeWriterThreshold: 128 * 1024));
+
+        var pumpTask = PumpBrowserToPipeAsync(browser, pipe.Writer, relayCancellation.Token);
+        var transcribeTask = TranscribeViaSdkAsync(
+            pipe.Reader.AsStream(),
+            realtimeSpeechToText,
+            browser,
+            sendGate,
+            context,
+            sessionId,
+            captureId,
+            speechEpoch,
+            tenant,
+            principal,
+            connectionId,
+            logger,
+            relayCancellation.Token);
+
+        var first = await Task.WhenAny(pumpTask, transcribeTask).ConfigureAwait(false);
+        if (first == transcribeTask || pumpTask.IsFaulted)
+        {
+            await relayCancellation.CancelAsync().ConfigureAwait(false);
+        }
+
+        try
+        {
+            await Task.WhenAll(pumpTask, transcribeTask).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (relayCancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Realtime SDK speech-to-text stopped with {ExceptionType}.", exception.GetType().Name);
+        }
+    }
+
+    private static async Task PumpBrowserToPipeAsync(WebSocket browser, PipeWriter writer, CancellationToken token)
+    {
+        var buffer = new byte[MaxFrameBytes];
+        long total = 0;
+        try
+        {
+            while (browser.State == WebSocketState.Open && !token.IsCancellationRequested)
+            {
+                var result = await browser.ReceiveAsync(buffer, token).ConfigureAwait(false);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    break;
+                if (result.MessageType == WebSocketMessageType.Binary)
+                {
+                    if (result.Count == 0 || result.Count > MaxFrameBytes || (result.Count & 1) != 0 || (total += result.Count) > MaxPcmBytes)
+                        throw new InvalidDataException("PCM16 frame is invalid or exceeds the capture limit.");
+                    var flush = await writer.WriteAsync(buffer.AsMemory(0, result.Count), token).ConfigureAwait(false);
+                    if (flush.IsCompleted || flush.IsCanceled)
+                        break;
+                }
+                else if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    var text = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    if (IsEndStreamControl(text))
+                        break;
+                }
+            }
+        }
+        finally
+        {
+            Array.Clear(buffer);
+            await writer.CompleteAsync().ConfigureAwait(false);
+        }
+    }
+
+    private static async Task TranscribeViaSdkAsync(
+        Stream pcmStream,
+        IRealtimeSpeechToTextClient realtimeSpeechToText,
+        WebSocket browser,
+        SemaphoreSlim sendGate,
+        HttpContext context,
+        string sessionId,
+        string captureId,
+        long speechEpoch,
+        Ulid tenant,
+        Ulid principal,
+        string? connectionId,
+        ILogger logger,
+        CancellationToken token)
+    {
+        string? accumulatedFinalTranscript = null;
+        string? bestFinalTranscript = null;
+        var admitted = false;
+        var providerFailed = false;
+
+        async Task SendBrowserJsonAsync(object payload, CancellationToken ct)
+        {
+            if (browser.State != WebSocketState.Open)
+                return;
+            await sendGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (browser.State == WebSocketState.Open)
+                    await SendJsonAsync(browser, payload, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                sendGate.Release();
+            }
+        }
+
+        await using (pcmStream.ConfigureAwait(false))
+        {
+            try
+            {
+                var result = await realtimeSpeechToText.TranscribePcmAsync(
+                    pcmStream,
+                    token,
+                    onPartialTranscript: async (partial, ct) =>
+                    {
+                        if (providerFailed || string.IsNullOrWhiteSpace(partial.Text))
+                            return;
+                        await SendBrowserJsonAsync(
+                            new { type = "transcript-partial", captureId, speechEpoch, text = partial.Text.Trim(), authoritative = false },
+                            ct).ConfigureAwait(false);
+                    },
+                    onFinalTranscript: async (turn, ct) =>
+                    {
+                        if (providerFailed || string.IsNullOrWhiteSpace(turn.Text))
+                            return;
+                        accumulatedFinalTranscript = MergeTranscriptSegment(accumulatedFinalTranscript, turn.Text.Trim());
+                        if (accumulatedFinalTranscript.Length > (bestFinalTranscript?.Length ?? 0))
+                            bestFinalTranscript = accumulatedFinalTranscript;
+
+                        if (!admitted)
+                        {
+                            admitted = await AdmitFinalTranscriptAsync(
+                                context, sessionId, captureId, speechEpoch,
+                                bestFinalTranscript!, tenant, principal, ct, connectionId).ConfigureAwait(false);
+                            if (!admitted)
+                            {
+                                providerFailed = true;
+                                await SendBrowserJsonAsync(
+                                    new { type = "error", captureId, speechEpoch, text = "Voice task could not be submitted.", authoritative = false },
+                                    ct).ConfigureAwait(false);
+                                return;
+                            }
+                        }
+
+                        await SendBrowserJsonAsync(
+                            new { type = "transcript-final", captureId, speechEpoch, text = accumulatedFinalTranscript, authoritative = true },
+                            ct).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+
+                if (!providerFailed && !token.IsCancellationRequested && !admitted)
+                {
+                    var finalFromResult = string.Join(" ", result.FinalTranscripts.Where(static t => !string.IsNullOrWhiteSpace(t)).Select(static t => t.Trim()));
+                    if (!string.IsNullOrWhiteSpace(finalFromResult))
+                    {
+                        bestFinalTranscript = MergeTranscriptSegment(bestFinalTranscript, finalFromResult);
+                        admitted = await AdmitFinalTranscriptAsync(
+                            context, sessionId, captureId, speechEpoch,
+                            bestFinalTranscript, tenant, principal, token, connectionId).ConfigureAwait(false);
+                        if (!admitted)
+                        {
+                            providerFailed = true;
+                            await SendBrowserJsonAsync(
+                                new { type = "error", captureId, speechEpoch, text = "Voice task could not be submitted.", authoritative = false },
+                                token).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await SendBrowserJsonAsync(
+                                new { type = "transcript-final", captureId, speechEpoch, text = bestFinalTranscript, authoritative = true },
+                                token).ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                providerFailed = true;
+                logger.LogWarning("Realtime SDK speech-to-text failed with {ExceptionType}.", exception.GetType().Name);
+                try
+                {
+                    await SendBrowserJsonAsync(
+                        new { type = "error", captureId, speechEpoch, text = "Voice transcription provider unavailable.", authoritative = false },
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (WebSocketException) { }
+            }
+        }
     }
 
     internal static bool TryCreateWorkerUri(string? value, bool localOnly, out Uri? result)
