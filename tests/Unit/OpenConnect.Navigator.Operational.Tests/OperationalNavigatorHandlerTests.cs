@@ -49,6 +49,106 @@ public sealed class OperationalNavigatorHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_reports_confirmed_progress_when_an_inflight_step_throws()
+    {
+        var executor = new TestExecutor
+        {
+            OnExecute = (call, _) => call == 3
+                ? throw new InvalidOperationException("Synthetic executor failure.")
+                : ValueTask.FromResult(new OperationalStepResult(true, false, null))
+        };
+        var handler = CreateHandler(new TestIdentity("tenant-a"), executor, FourStepPlan());
+
+        var result = await handler.HandleAsync(Job());
+
+        Assert.Equal(3, executor.Calls);
+        Assert.Equal(OperationalRunStatus.Uncertain, result.Status);
+        Assert.Equal(2, result.CompletedSteps);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_uncertain_for_deadline_inside_a_step()
+    {
+        var executor = new TestExecutor
+        {
+            OnExecute = async (call, token) =>
+            {
+                if (call == 3)
+                    await Task.Delay(TimeSpan.FromSeconds(6), token);
+                return new(true, false, null);
+            }
+        };
+        var handler = CreateHandler(new TestIdentity("tenant-a"), executor, FourStepPlan());
+        var job = Job() with { Deadline = DateTimeOffset.UtcNow.AddSeconds(2) };
+
+        var result = await handler.HandleAsync(job).WaitAsync(TimeSpan.FromSeconds(8));
+
+        Assert.Equal(3, executor.Calls);
+        Assert.Equal(OperationalRunStatus.Uncertain, result.Status);
+        Assert.Equal(2, result.CompletedSteps);
+    }
+
+    [Fact]
+    public async Task HandleAsync_preserves_caller_cancellation_and_reports_uncertain_to_another_waiter()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var permitExit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executor = new TestExecutor
+        {
+            OnExecute = async (call, token) =>
+            {
+                if (call == 3)
+                {
+                    started.TrySetResult();
+                    await permitExit.Task.WaitAsync(TimeSpan.FromSeconds(8));
+                    token.ThrowIfCancellationRequested();
+                }
+                return new(true, false, null);
+            }
+        };
+        var handler = CreateHandler(new TestIdentity("tenant-a"), executor, FourStepPlan());
+        var job = Job();
+        var caller = handler.HandleAsync(job, cancellation.Token);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var observer = handler.HandleAsync(job);
+
+        try
+        {
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => caller.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.False(observer.IsCompleted);
+        }
+        finally
+        {
+            permitExit.TrySetResult();
+        }
+
+        var result = await observer.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(3, executor.Calls);
+        Assert.Equal(OperationalRunStatus.Uncertain, result.Status);
+        Assert.Equal(2, result.CompletedSteps);
+    }
+
+    [Theory]
+    [InlineData(true, OperationalRunStatus.Cancelled)]
+    [InlineData(false, OperationalRunStatus.Failed)]
+    public async Task HandleAsync_preserves_confirmed_progress_on_interruption_before_dispatch(
+        bool cancelled, OperationalRunStatus expectedStatus)
+    {
+        var executor = new TestExecutor();
+        var leases = new InterruptBeforeThirdRenewalLeaseStore(cancelled);
+        var handler = new OperationalNavigatorHandler(leases, new IdentityProvider(new TestIdentity("tenant-a")),
+            new PlanProvider(FourStepPlan()), executor);
+
+        var result = await handler.HandleAsync(Job());
+
+        Assert.Equal(expectedStatus, result.Status);
+        Assert.Equal(2, result.CompletedSteps);
+        Assert.Equal(2, executor.Calls);
+    }
+
+    [Fact]
     public async Task HandleAsync_replayReturnsPriorReceiptWithoutReexecution()
     {
         var executor = new TestExecutor();
@@ -108,6 +208,9 @@ public sealed class OperationalNavigatorHandlerTests
         Assert.False(store.IsDurable);
     }
 
+    private static NavigatorTourPlan FourStepPlan() =>
+        new("tour", 1, Enumerable.Range(1, 4).Select(_ => new NavigatorTourStep(NavigatorTourStepType.Explain)).ToArray(), "home");
+
     private static OperationalNavigatorHandler CreateHandler(TestIdentity identity, IOperationalStepExecutor executor, NavigatorTourPlan plan) =>
         new(new InMemoryOperationalLeaseStore(), new IdentityProvider(identity), new PlanProvider(plan), executor);
 
@@ -136,8 +239,12 @@ public sealed class OperationalNavigatorHandlerTests
     {
         public int Calls { get; private set; }
         public OperationalStepResult Result { get; set; } = new(true, false, "ok");
+        public Func<int, CancellationToken, ValueTask<OperationalStepResult>>? OnExecute { get; init; }
         public ValueTask<OperationalStepResult> ExecuteReadOnlyAsync(NavigatorTourStep step, IOperationalWorkloadIdentity identity, IReadOnlySet<string> applicationAllowlist, CancellationToken cancellationToken)
-        { Calls++; return ValueTask.FromResult(Result); }
+        {
+            Calls++;
+            return OnExecute is null ? ValueTask.FromResult(Result) : OnExecute(Calls, cancellationToken);
+        }
     }
 
     private sealed class BlockingExecutor : IOperationalStepExecutor
@@ -152,6 +259,22 @@ public sealed class OperationalNavigatorHandlerTests
             Started.TrySetResult();
             return await Release.Task.WaitAsync(cancellationToken);
         }
+    }
+
+    private sealed class InterruptBeforeThirdRenewalLeaseStore(bool cancelled) : IOperationalLeaseStore
+    {
+        private readonly InMemoryOperationalLeaseStore _inner = new();
+        private int _renewals;
+        public bool IsDurable => false;
+        public ValueTask<OperationalLease?> TryAcquireAsync(string executionId, TimeSpan duration, CancellationToken cancellationToken) => _inner.TryAcquireAsync(executionId, duration, cancellationToken);
+        public ValueTask<OperationalLease?> RenewAsync(OperationalLease lease, TimeSpan duration, CancellationToken cancellationToken)
+        {
+            if (++_renewals == 3)
+                throw cancelled ? new OperationCanceledException() : new InvalidOperationException("Synthetic lease failure.");
+            return _inner.RenewAsync(lease, duration, cancellationToken);
+        }
+        public ValueTask<bool> IsCurrentAsync(OperationalLease lease, CancellationToken cancellationToken) => _inner.IsCurrentAsync(lease, cancellationToken);
+        public ValueTask ReleaseAsync(OperationalLease lease, CancellationToken cancellationToken) => _inner.ReleaseAsync(lease, cancellationToken);
     }
 
     private sealed class StaleAfterFirstCheckLeaseStore : IOperationalLeaseStore

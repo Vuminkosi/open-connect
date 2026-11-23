@@ -19,6 +19,7 @@ public sealed class OperationalNavigatorHandler(
     private readonly ConcurrentDictionary<string, Lazy<Task<OperationalReceipt>>> _results = new(StringComparer.Ordinal);
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(30);
     private const int MaxSteps = 25;
+    private const string UncertainStepSummary = "Step outcome is uncertain; no completed receipt is saved for replay.";
 
     public async Task<OperationalReceipt> HandleAsync(OperationalJob job, CancellationToken cancellationToken = default)
     {
@@ -110,6 +111,7 @@ public sealed class OperationalNavigatorHandler(
         var lease = await leases.TryAcquireAsync(job.ExecutionId, LeaseDuration, cancellationToken).ConfigureAwait(false);
         if (lease is null)
             return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Execution is already leased.", 0);
+        var completed = 0;
         try
         {
             await using var identity = await identities.ResolveAsync(job.ServicePrincipalRef, job.TenantScope, cancellationToken).ConfigureAwait(false);
@@ -125,7 +127,6 @@ public sealed class OperationalNavigatorHandler(
             if (plan.Steps.Count > MaxSteps || plan.Steps.Any(s => s.Type is not (NavigatorTourStepType.Explain or NavigatorTourStepType.Navigate or NavigatorTourStepType.Locate or NavigatorTourStepType.Highlight or NavigatorTourStepType.Focus or NavigatorTourStepType.WaitFor or NavigatorTourStepType.Complete)))
                 return new(job.ExecutionId, OperationalRunStatus.Rejected, 0, "Plan contains a disallowed operational action.", lease.FencingToken);
 
-            var completed = 0;
             foreach (var step in plan.Steps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -140,11 +141,20 @@ public sealed class OperationalNavigatorHandler(
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var remaining = job.Deadline - DateTimeOffset.UtcNow;
                 deadline.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
-                var result = await executor.ExecuteReadOnlyAsync(step, identity, job.ApplicationAllowlist, deadline.Token).ConfigureAwait(false);
+                OperationalStepResult result;
+                try
+                {
+                    result = await executor.ExecuteReadOnlyAsync(step, identity, job.ApplicationAllowlist, deadline.Token).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // No result confirms what happened once the executor has been invoked.
+                    return new(job.ExecutionId, OperationalRunStatus.Uncertain, completed, UncertainStepSummary, lease.FencingToken);
+                }
                 if (!await leases.IsCurrentAsync(lease, CancellationToken.None).ConfigureAwait(false))
                     return new(job.ExecutionId, OperationalRunStatus.LeaseLost, completed, "Execution lease lost.", lease.FencingToken);
                 if (result.Uncertain)
-                    return new(job.ExecutionId, OperationalRunStatus.Uncertain, completed, "Step outcome is uncertain; it will not be replayed.", lease.FencingToken);
+                    return new(job.ExecutionId, OperationalRunStatus.Uncertain, completed, UncertainStepSummary, lease.FencingToken);
                 if (!result.Succeeded)
                     return new(job.ExecutionId, OperationalRunStatus.Failed, completed, "Operational step failed.", lease.FencingToken);
                 completed++;
@@ -153,15 +163,15 @@ public sealed class OperationalNavigatorHandler(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new(job.ExecutionId, OperationalRunStatus.Cancelled, 0, "Operational execution was cancelled or expired.", lease.FencingToken);
+            return new(job.ExecutionId, OperationalRunStatus.Cancelled, completed, "Operational execution was cancelled or expired.", lease.FencingToken);
         }
         catch (OperationCanceledException)
         {
-            return new(job.ExecutionId, OperationalRunStatus.Cancelled, 0, "Operational execution was cancelled.", lease.FencingToken);
+            return new(job.ExecutionId, OperationalRunStatus.Cancelled, completed, "Operational execution was cancelled.", lease.FencingToken);
         }
         catch (Exception)
         {
-            return new(job.ExecutionId, OperationalRunStatus.Failed, 0, "Operational execution failed.", lease.FencingToken);
+            return new(job.ExecutionId, OperationalRunStatus.Failed, completed, "Operational execution failed.", lease.FencingToken);
         }
         finally { await leases.ReleaseAsync(lease, CancellationToken.None).ConfigureAwait(false); }
     }
