@@ -80,6 +80,9 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
         // NAT64 well-known prefix 64:ff9b::/96 embeds the IPv4 destination in the last 4 bytes.
         if (HasPrefix(b, 0x00, 0x64, 0xff, 0x9b) && b.Skip(4).Take(8).All(x => x == 0))
             return IsPublicIPv4(b[12..16]);
+        // SIIT IPv4-translated ::ffff:0:0:0/96 embeds the IPv4 address in the last 4 bytes.
+        if (b.Take(8).All(x => x == 0) && b[8] == 0xff && b[9] == 0xff && b[10] == 0 && b[11] == 0)
+            return IsPublicIPv4(b[12..16]);
         // 6to4 2002::/16 embeds the IPv4 address in bytes 2-5.
         if (b[0] == 0x20 && b[1] == 0x02)
             return IsPublicIPv4(b[2..6]);
@@ -100,6 +103,7 @@ public sealed class EgressGuard(IHostAddressResolver resolver)
         !(b[0] == 172 && b[1] is >= 16 and <= 31) && !(b[0] == 192 && b[1] == 168) &&
         !(b[0] == 100 && b[1] is >= 64 and <= 127) &&
         !(b[0] == 192 && b[1] == 0 && b[2] is 0 or 2) && // 192.0.0.0/24, 192.0.2.0/24
+        !(b[0] == 192 && b[1] == 88 && b[2] == 99) && // 192.88.99.0/24 deprecated 6to4 relay anycast
         !(b[0] == 198 && b[1] is 18 or 19) && // 198.18.0.0/15
         !(b[0] == 198 && b[1] == 51 && b[2] == 100) && // 198.51.100.0/24
         !(b[0] == 203 && b[1] == 0 && b[2] == 113) && // 203.0.113.0/24

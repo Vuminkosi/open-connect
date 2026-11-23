@@ -56,6 +56,11 @@ public sealed class BrowserBoundaryTests
     [InlineData("198.19.255.254")]
     [InlineData("198.51.100.7")]
     [InlineData("203.0.113.9")]
+    [InlineData("192.88.99.1")]
+    [InlineData("::ffff:0:10.0.0.1")]
+    [InlineData("::ffff:0:169.254.169.254")]
+    [InlineData("2002:c058:6301::1")]
+    [InlineData("2001:1f::1")]
     [InlineData("240.0.0.1")]
     [InlineData("255.255.255.255")]
     [InlineData("::")]
@@ -94,6 +99,10 @@ public sealed class BrowserBoundaryTests
     [InlineData("::ffff:93.184.216.34")]
     [InlineData("64:ff9b::5db8:d822")]
     [InlineData("2002:5db8:d822::1")]
+    [InlineData("2002:5db8:d822:1:2:3:4:5")]
+    [InlineData("::ffff:0:93.184.216.34")]
+    [InlineData("2001:200::1")]
+    [InlineData("192.88.98.1")]
     public async Task Allows_public_and_embedded_public_addresses(string ip)
     {
         var guard = new EgressGuard(new Resolver(IPAddress.Parse(ip)));
